@@ -1,0 +1,8 @@
+project (cratchit)
+ 
+file(GLOB cratchit_SRC
+    "*.h"
+    "*.cpp"
+)
+ 
+add_executable(cratchit ${cratchit_SRC})
