@@ -9,3 +9,5 @@ cd %BUILD_DIR%
 REM use Cmake to generate default build environment (on windows it is Visual Studio)
 cmake ..
 cd ..
+ECHO Done.
+PAUSE
