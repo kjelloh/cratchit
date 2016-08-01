@@ -4,13 +4,11 @@
 #include <iterator>
 #include <regex>
 #include <vector>
-
+#include "sie/SIE.h"
+#include "fcb/FrontEnd.h"
 
 using CommandLine = std::string;
 using Parameter = std::string;
-using SIE_Element = std::string;
-using SIE_Entry = std::vector<SIE_Element>;
-using SIE_Verification = std::vector<SIE_Entry>;
 struct CratchCommands {};
 
 template <typename CommandWorld>
@@ -31,14 +29,15 @@ public:
 		// 4. Use as template (lookup of match on Label)?
 	}
 
+	// Returns true if Done
 	bool operator()(const CommandLine& command_line) {
-		bool result = false;
+		bool result = false; // Default Not Done
 		std::regex tokenizer_regexp("\\s+"); // whitespace
 		std::for_each(
 			std::sregex_token_iterator(std::begin(command_line), std::end(command_line), tokenizer_regexp, -1)
 			, std::sregex_token_iterator()
 			, [&result](const Parameter& p) {
-			if (p == "q") { result = true;}
+			if (p == "quit") { result = true;} // Done
 			else if (p == "bokslut Apr-14") { // Bokslut Maj-13...Apr-14
 				// Serie A
 				{
@@ -48,10 +47,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	1	113	20140430	"Återföring hyra april.14"	20160729
+					#VER	1	113	20140430	"ï¿½terfï¿½ring hyra april.14"	20160729
 					{
-					#TRANS	5010	{}	8892,00	""	"Återföring hyra april.14"
-					#TRANS	1710	{}	-8892,00	""	"Återföring hyra april.14"
+					#TRANS	5010	{}	8892,00	""	"ï¿½terfï¿½ring hyra april.14"
+					#TRANS	1710	{}	-8892,00	""	"ï¿½terfï¿½ring hyra april.14"
 					}
 
 					#FNR	"ITFIED"
@@ -59,10 +58,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	1	114	20140430	"Återf. juli-sept. 2013"	20160729
+					#VER	1	114	20140430	"ï¿½terf. juli-sept. 2013"	20160729
 					{
-					#TRANS	5010	{}	25898,00	""	"Återf. juli-sept. 2013"
-					#TRANS	1710	{}	-25898,00	""	"Återf. juli-sept. 2013"
+					#TRANS	5010	{}	25898,00	""	"ï¿½terf. juli-sept. 2013"
+					#TRANS	1710	{}	-25898,00	""	"ï¿½terf. juli-sept. 2013"
 					}
 					*/
 				}
@@ -74,10 +73,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	1	20140430	"Omföring löneskuld 2911 - 2820"	20160729
+					#VER	9	1	20140430	"Omfï¿½ring lï¿½neskuld 2911 - 2820"	20160729
 					{
-					#TRANS	2911	{}	28731,00	""	"Omföring löneskuld 2911 - 2820"
-					#TRANS	2893	{}	-28731,00	""	"Omföring löneskuld 2911 - 2820"
+					#TRANS	2911	{}	28731,00	""	"Omfï¿½ring lï¿½neskuld 2911 - 2820"
+					#TRANS	2893	{}	-28731,00	""	"Omfï¿½ring lï¿½neskuld 2911 - 2820"
 					}
 
 					#FNR	"ITFIED"
@@ -96,12 +95,12 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	3	20140430	"Upplupna intäkter"	20160729
+					#VER	9	3	20140430	"Upplupna intï¿½kter"	20160729
 					{
-					#TRANS	1790	{}	290860,00	""	"Upplupna intäkter"
-					#TRANS	3590	{}	-290860,00	""	"Upplupna intäkter"
-					#TRANS	1790	{}	7900,00	""	"Förutbetald kostnad"
-					#TRANS	5800	{}	-7900,00	""	"Förutbetald kostnad"
+					#TRANS	1790	{}	290860,00	""	"Upplupna intï¿½kter"
+					#TRANS	3590	{}	-290860,00	""	"Upplupna intï¿½kter"
+					#TRANS	1790	{}	7900,00	""	"Fï¿½rutbetald kostnad"
+					#TRANS	5800	{}	-7900,00	""	"Fï¿½rutbetald kostnad"
 					}
 
 					#FNR	"ITFIED"
@@ -109,11 +108,11 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	4	20140430	"Återf fg års interimer"	20160729
+					#VER	9	4	20140430	"ï¿½terf fg ï¿½rs interimer"	20160729
 					{
-					#TRANS	1790	{}	-132760,00	""	"Återf fg års interimer"
-					#TRANS	3590	{}	122200,00	""	"Återf fg års interimer"
-					#TRANS	4010	{}	10560,00	""	"Återf fg års interimer"
+					#TRANS	1790	{}	-132760,00	""	"ï¿½terf fg ï¿½rs interimer"
+					#TRANS	3590	{}	122200,00	""	"ï¿½terf fg ï¿½rs interimer"
+					#TRANS	4010	{}	10560,00	""	"ï¿½terf fg ï¿½rs interimer"
 					}
 
 					#FNR	"ITFIED"
@@ -121,10 +120,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	5	20140430	"Omf fg års resultat"	20160729
+					#VER	9	5	20140430	"Omf fg ï¿½rs resultat"	20160729
 					{
-					#TRANS	2099	{}	219890,72	""	"Omf fg års resultat"
-					#TRANS	2098	{}	-219890,72	""	"Omf fg års resultat"
+					#TRANS	2099	{}	219890,72	""	"Omf fg ï¿½rs resultat"
+					#TRANS	2098	{}	-219890,72	""	"Omf fg ï¿½rs resultat"
 					}
 
 					#FNR	"ITFIED"
@@ -143,10 +142,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	7	20140430	"Löne- och avkastningsskatt"	20160729
+					#VER	9	7	20140430	"Lï¿½ne- och avkastningsskatt"	20160729
 					{
-					#TRANS	2514	{}	-16455,00	""	"Löne- och avkastningsskatt"
-					#TRANS	7533	{}	16455,00	""	"Löne- och avkastningsskatt"
+					#TRANS	2514	{}	-16455,00	""	"Lï¿½ne- och avkastningsskatt"
+					#TRANS	7533	{}	16455,00	""	"Lï¿½ne- och avkastningsskatt"
 					}
 
 					#FNR	"ITFIED"
@@ -154,10 +153,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	8	20140430	"Upplupna semesterlöner"	20160729
+					#VER	9	8	20140430	"Upplupna semesterlï¿½ner"	20160729
 					{
-					#TRANS	2920	{}	-9331,00	""	"Upplupna semesterlöner"
-					#TRANS	7090	{}	9331,00	""	"Upplupna semesterlöner"
+					#TRANS	2920	{}	-9331,00	""	"Upplupna semesterlï¿½ner"
+					#TRANS	7090	{}	9331,00	""	"Upplupna semesterlï¿½ner"
 					}
 
 					#FNR	"ITFIED"
@@ -176,10 +175,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	10	20140430	"Uppl ränta sparkonto"	20160729
+					#VER	9	10	20140430	"Uppl rï¿½nta sparkonto"	20160729
 					{
-					#TRANS	1760	{}	1824,00	""	"Uppl ränta sparkonto"
-					#TRANS	8311	{}	-1824,00	""	"Uppl ränta sparkonto"
+					#TRANS	1760	{}	1824,00	""	"Uppl rï¿½nta sparkonto"
+					#TRANS	8311	{}	-1824,00	""	"Uppl rï¿½nta sparkonto"
 					}
 
 					#FNR	"ITFIED"
@@ -187,10 +186,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	11	20140430	"Omföring konto 8314 till 8423"	20160729
+					#VER	9	11	20140430	"Omfï¿½ring konto 8314 till 8423"	20160729
 					{
-					#TRANS	8314	{}	-10,00	""	"Omföring konto 8314 till 8423"
-					#TRANS	8423	{}	10,00	""	"Omföring konto 8314 till 8423"
+					#TRANS	8314	{}	-10,00	""	"Omfï¿½ring konto 8314 till 8423"
+					#TRANS	8423	{}	10,00	""	"Omfï¿½ring konto 8314 till 8423"
 					}
 
 					#FNR	"ITFIED"
@@ -198,10 +197,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	12	20140430	"Förändring av periodiseringsfo"	20160729
+					#VER	9	12	20140430	"Fï¿½rï¿½ndring av periodiseringsfo"	20160729
 					{
-					#TRANS	2115	{}	-32104,00	""	"Förändring av periodiseringsfond"
-					#TRANS	8811	{}	32104,00	""	"Förändring av periodiseringsfond"
+					#TRANS	2115	{}	-32104,00	""	"Fï¿½rï¿½ndring av periodiseringsfond"
+					#TRANS	8811	{}	32104,00	""	"Fï¿½rï¿½ndring av periodiseringsfond"
 					}
 
 					#FNR	"ITFIED"
@@ -209,10 +208,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	13	20140430	"Årets skattekostnad"	20160729
+					#VER	9	13	20140430	"ï¿½rets skattekostnad"	20160729
 					{
-					#TRANS	2510	{}	-21188,00	""	"Årets skattekostnad"
-					#TRANS	8910	{}	21188,00	""	"Årets skattekostnad"
+					#TRANS	2510	{}	-21188,00	""	"ï¿½rets skattekostnad"
+					#TRANS	8910	{}	21188,00	""	"ï¿½rets skattekostnad"
 					}
 
 					#FNR	"ITFIED"
@@ -220,10 +219,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20130501	20140430
 
-					#VER	9	14	20140430	"Årets resultat"	20160729
+					#VER	9	14	20140430	"ï¿½rets resultat"	20160729
 					{
-					#TRANS	8999	{}	71250,62	""	"Årets resultat"
-					#TRANS	2099	{}	-71250,62	""	"Årets resultat"
+					#TRANS	8999	{}	71250,62	""	"ï¿½rets resultat"
+					#TRANS	2099	{}	-71250,62	""	"ï¿½rets resultat"
 					}
 					*/
 				}
@@ -240,11 +239,11 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	1	125	20150430	"Rättning A113"	20160729
+					#VER	1	125	20150430	"Rï¿½ttning A113"	20160729
 					{
-					#TRANS	2893	{}	-85,00	""	"Rättning A113"
-					#TRANS	6071	{}	76,00	""	"Rättning A113"
-					#TRANS	2640	{}	9,00	""	"Rättning A113"
+					#TRANS	2893	{}	-85,00	""	"Rï¿½ttning A113"
+					#TRANS	6071	{}	76,00	""	"Rï¿½ttning A113"
+					#TRANS	2640	{}	9,00	""	"Rï¿½ttning A113"
 					}
 
 					#FNR	"ITFIED"
@@ -263,10 +262,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	1	127	20150430	"Återföring hyra april.15"	20160729
+					#VER	1	127	20150430	"ï¿½terfï¿½ring hyra april.15"	20160729
 					{
-					#TRANS	1710	{}	-9159,00	""	"Återföring hyra april.15"
-					#TRANS	5010	{}	9159,00	""	"Återföring hyra april.15"
+					#TRANS	1710	{}	-9159,00	""	"ï¿½terfï¿½ring hyra april.15"
+					#TRANS	5010	{}	9159,00	""	"ï¿½terfï¿½ring hyra april.15"
 					}
 
 					#FNR	"ITFIED"
@@ -286,18 +285,18 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	1	129	20150430	"återföringar"	20160729
+					#VER	1	129	20150430	"ï¿½terfï¿½ringar"	20160729
 					{
-					#TRANS	1710	{}	-17783,00	""	"återföringar"
-					#TRANS	5010	{}	8892,00	""	"återföringar hyra maj 14"
-					#TRANS	5010	{}	8891,00	""	"återföringar hyra juni 14"
-					#TRANS	1760	{}	-1824,00	""	"återföringar"
-					#TRANS	8311	{}	1824,00	""	"återföringar"
-					#TRANS	1790	{}	-298760,00	""	"återföringar"
-					#TRANS	3590	{}	103330,00	""	"återföringar"
-					#TRANS	3590	{}	94430,00	""	"återföringar"
-					#TRANS	3590	{}	93100,00	""	"återföringar"
-					#TRANS	5800	{}	7900,00	""	"återföringar"
+					#TRANS	1710	{}	-17783,00	""	"ï¿½terfï¿½ringar"
+					#TRANS	5010	{}	8892,00	""	"ï¿½terfï¿½ringar hyra maj 14"
+					#TRANS	5010	{}	8891,00	""	"ï¿½terfï¿½ringar hyra juni 14"
+					#TRANS	1760	{}	-1824,00	""	"ï¿½terfï¿½ringar"
+					#TRANS	8311	{}	1824,00	""	"ï¿½terfï¿½ringar"
+					#TRANS	1790	{}	-298760,00	""	"ï¿½terfï¿½ringar"
+					#TRANS	3590	{}	103330,00	""	"ï¿½terfï¿½ringar"
+					#TRANS	3590	{}	94430,00	""	"ï¿½terfï¿½ringar"
+					#TRANS	3590	{}	93100,00	""	"ï¿½terfï¿½ringar"
+					#TRANS	5800	{}	7900,00	""	"ï¿½terfï¿½ringar"
 					}
 
 					#FNR	"ITFIED"
@@ -305,10 +304,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	1	130	20150430	"Upplupen intäkt"	20160729
+					#VER	1	130	20150430	"Upplupen intï¿½kt"	20160729
 					{
-					#TRANS	1790	{}	189000,00	""	"Upplupen intäkt"
-					#TRANS	3590	{}	-189000,00	""	"Upplupen intäkt"
+					#TRANS	1790	{}	189000,00	""	"Upplupen intï¿½kt"
+					#TRANS	3590	{}	-189000,00	""	"Upplupen intï¿½kt"
 					}
 
 					#FNR	"ITFIED"
@@ -316,11 +315,11 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	1	131	20150430	"fg års vinst"	20160729
+					#VER	1	131	20150430	"fg ï¿½rs vinst"	20160729
 					{
-					#TRANS	2099	{}	71250,62	""	"fg års vinst"
-					#TRANS	2098	{}	78749,38	""	"fg års vinst"
-					#TRANS	2089	{}	-150000,00	""	"fg års vinst"
+					#TRANS	2099	{}	71250,62	""	"fg ï¿½rs vinst"
+					#TRANS	2098	{}	78749,38	""	"fg ï¿½rs vinst"
+					#TRANS	2089	{}	-150000,00	""	"fg ï¿½rs vinst"
 					}
 
 					#FNR	"ITFIED"
@@ -328,11 +327,11 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	1	132	20150430	"momsomföring april"	20160729
+					#VER	1	132	20150430	"momsomfï¿½ring april"	20160729
 					{
-					#TRANS	2640	{}	-374,40	""	"momsomföring april"
-					#TRANS	2610	{}	43050,00	""	"momsomföring april"
-					#TRANS	2650	{}	-42675,60	""	"momsomföring april"
+					#TRANS	2640	{}	-374,40	""	"momsomfï¿½ring april"
+					#TRANS	2610	{}	43050,00	""	"momsomfï¿½ring april"
+					#TRANS	2650	{}	-42675,60	""	"momsomfï¿½ring april"
 					}
 
 					*/
@@ -359,10 +358,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	9	2	20150430	"Löne- och avkastningsskatt"	20160729
+					#VER	9	2	20150430	"Lï¿½ne- och avkastningsskatt"	20160729
 					{
-					#TRANS	2514	{}	-16597,00	""	"Löne- och avkastningsskatt"
-					#TRANS	7533	{}	16597,00	""	"Löne- och avkastningsskatt"
+					#TRANS	2514	{}	-16597,00	""	"Lï¿½ne- och avkastningsskatt"
+					#TRANS	7533	{}	16597,00	""	"Lï¿½ne- och avkastningsskatt"
 					}
 
 					#FNR	"ITFIED"
@@ -405,10 +404,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	9	8	20150430	"Årets skattekostnad"	20160729
+					#VER	9	8	20150430	"ï¿½rets skattekostnad"	20160729
 					{
-					#TRANS	2510	{}	-84950,00	""	"Årets skattekostnad"
-					#TRANS	8910	{}	84950,00	""	"Årets skattekostnad"
+					#TRANS	2510	{}	-84950,00	""	"ï¿½rets skattekostnad"
+					#TRANS	8910	{}	84950,00	""	"ï¿½rets skattekostnad"
 					}
 
 					#FNR	"ITFIED"
@@ -416,10 +415,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	9	9	20150430	"Årets resultat"	20160729
+					#VER	9	9	20150430	"ï¿½rets resultat"	20160729
 					{
-					#TRANS	8999	{}	298526,70	""	"Årets resultat"
-					#TRANS	2099	{}	-298526,70	""	"Årets resultat"
+					#TRANS	8999	{}	298526,70	""	"ï¿½rets resultat"
+					#TRANS	2099	{}	-298526,70	""	"ï¿½rets resultat"
 					}
 
 					#FNR	"ITFIED"
@@ -438,10 +437,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	9	11	20150430	"Förändring av periodiseringsfo"	20160729
+					#VER	9	11	20150430	"Fï¿½rï¿½ndring av periodiseringsfo"	20160729
 					{
-					#TRANS	2116	{}	-128713,00	""	"Förändring av periodiseringsfond"
-					#TRANS	8811	{}	128713,00	""	"Förändring av periodiseringsfond"
+					#TRANS	2116	{}	-128713,00	""	"Fï¿½rï¿½ndring av periodiseringsfond"
+					#TRANS	8811	{}	128713,00	""	"Fï¿½rï¿½ndring av periodiseringsfond"
 					}
 
 					#FNR	"ITFIED"
@@ -449,10 +448,10 @@ public:
 					#ORGNR	"556782-8172"
 					#RAR	0	20140501	20150430
 
-					#VER	9	12	20150430	"Upplupna semesterlöner"	20160729
+					#VER	9	12	20150430	"Upplupna semesterlï¿½ner"	20160729
 					{
-					#TRANS	2920	{}	8003,00	""	"Upplupna semesterlöner"
-					#TRANS	7090	{}	-8003,00	""	"Upplupna semesterlöner"
+					#TRANS	2920	{}	8003,00	""	"Upplupna semesterlï¿½ner"
+					#TRANS	7090	{}	-8003,00	""	"Upplupna semesterlï¿½ner"
 					}
 
 					#FNR	"ITFIED"
@@ -486,7 +485,7 @@ public:
 				/*
 				==> Telia Faktura 160517
 
-				==> Tidigare Telia-faktura verkar vara bokförd så här (Verifikat D:42 kodad som #VER	4	42)
+				==> Tidigare Telia-faktura verkar vara bokfï¿½rd sï¿½ hï¿½r (Verifikat D:42 kodad som #VER	4	42)
 
 				#FNR	"ITFIED"
 				#FNAMN	"The ITfied AB"
@@ -500,30 +499,32 @@ public:
 				#TRANS	6212	{}	1064,06	""	"FA407/Telia"
 				}
 				*/
-				int state = 0;
-				SIE_Verification verification;
-				bool loop_again = true;
-				while (loop_again) {
-					SIE_Entry entry;
-					switch (state) {					
-					case 0: verification.push_back(SIE_Entry({ "#FNR","ITFIED"}));
-					case 1: verification.push_back(SIE_Entry({ "#FNAMN","The ITfied AB" }));
-					case 2: verification.push_back(SIE_Entry({ "#ORGNR","556782-8172" }));
-					case 3: verification.push_back(SIE_Entry({ "#RAR","0","20150501","20160430" }));
-					case 4: verification.push_back(SIE_Entry({ "" }));
-					case 5: verification.push_back(SIE_Entry({ "#VER","4","42","20151116","FA407/Telia","20160711" }));
-					case 6: verification.push_back(SIE_Entry({ "{" }));
-					case 7: verification.push_back(SIE_Entry({ "#TRANS","2440","{}","-1330,00","","FA407/Telia" }));
-					case 8: verification.push_back(SIE_Entry({ "#TRANS","2640","{}","265,94","","FA407/Telia" }));
-					case 9: verification.push_back(SIE_Entry({ "#TRANS","6212","{}","1064,06","","FA407/Telia" }));
-					case 10: verification.push_back(SIE_Entry({ "}" }));
-					default: loop_again = false; break;
-					}
-					++state;
-				}
-				std::for_each(std::begin(verification), std::end(verification), [](const SIE_Entry& entry) {
+				sie::SIE_Statement verification = sie::experimental::create_statement_for("Telia");
+
+				//int state = 0;
+				//SIE_Statement verification;
+				//bool loop_again = true;
+				//while (loop_again) {
+				//	SIE_Entry entry;
+				//	switch (state) {					
+				//	case 0: verification.push_back(SIE_Entry({ "#FNR","ITFIED"}));
+				//	case 1: verification.push_back(SIE_Entry({ "#FNAMN","The ITfied AB" }));
+				//	case 2: verification.push_back(SIE_Entry({ "#ORGNR","556782-8172" }));
+				//	case 3: verification.push_back(SIE_Entry({ "#RAR","0","20150501","20160430" }));
+				//	case 4: verification.push_back(SIE_Entry({ "" }));
+				//	case 5: verification.push_back(SIE_Entry({ "#VER","4","42","20151116","FA407/Telia","20160711" }));
+				//	case 6: verification.push_back(SIE_Entry({ "{" }));
+				//	case 7: verification.push_back(SIE_Entry({ "#TRANS","2440","{}","-1330,00","","FA407/Telia" }));
+				//	case 8: verification.push_back(SIE_Entry({ "#TRANS","2640","{}","265,94","","FA407/Telia" }));
+				//	case 9: verification.push_back(SIE_Entry({ "#TRANS","6212","{}","1064,06","","FA407/Telia" }));
+				//	case 10: verification.push_back(SIE_Entry({ "}" }));
+				//	default: loop_again = false; break;
+				//	}
+				//	++state;
+				//}
+				std::for_each(std::begin(verification), std::end(verification), [](const sie::SIE_Entry& entry) {
 					std::cout << "\n";
-					std::for_each(std::begin(entry), std::end(entry), [](const SIE_Element& element) {
+					std::for_each(std::begin(entry), std::end(entry), [](const sie::SIE_Element& element) {
 						std::cout << "\t\"" << element << "\"";
 					});
 				});
@@ -540,11 +541,6 @@ public:
 			}
 			else if (p == "Beanstalk") { // Could be sub-payment of "Kontoutdrag" (Shows only as payment)
 			}
-			else if (p == "") {
-			}
-
-
-
 		});
 
 		return result;
@@ -552,17 +548,37 @@ public:
 
 };
 
+class CractchitConsoleFrontEnd : public frontend::FrontEnd<frontend::Console> {
+public:
+    CractchitConsoleFrontEnd(const backend::API_STRING& sExe) : frontend::FrontEnd<frontend::Console>(sExe) {}
+
+    virtual bool execute(const backend::API_STRING& sCommandLine,bool& done) {
+        done = m_execute_cratch_command(sCommandLine);
+		return true; // Success
+    }
+
+    virtual bool help(const backend::API_STRING& sCommandLine) {
+        return frontend::FrontEnd<frontend::Console>::help(sCommandLine);
+    }
+
+private:
+    ExecuteCommand<CratchCommands> m_execute_cratch_command;
+
+};
+
+using ActualFrontEnd = CractchitConsoleFrontEnd;
+
 int main(int argc, char *argv[]){
-	std::cout << "\ncratchit> Welcome!";
-	std::cout << "\ncratchit> ...Enter 'q' to quit.";
-	ExecuteCommand<CratchCommands> execute_cratch_command;
-	bool quit=false;
-	while (!quit) {
-		CommandLine sCommand;
-		std::cout << "\ncratchit>";
-		std::getline(std::cin, sCommand);
-		quit = execute_cratch_command(sCommand);
-	}
-	std::cout << "\ncratchit> Bye!";
-	return 0;
+    int result = 0;
+    try {
+        auto front_end = std::make_shared<ActualFrontEnd>(argv[0]);
+        front_end->run();
+    }
+    catch (std::runtime_error& e) {
+        std::cout << "\nFailed. Exception = " << e.what();
+        result = 1; // Failed
+    }
+    std::cout << "\nDone!";
+    std::cout << "\n";
+    return result;
 }

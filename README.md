@@ -5,11 +5,10 @@ The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scroo
 ## Operation
 
 ```
-C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\source\build_vs\Debug>cratchit.exe
+C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\build_vs\Debug>Cratchit.exe
 
-cratchit> Welcome!
-cratchit> ...Enter 'q' to quit.
-cratchit>Telia
+Cratchit>Enter "quit" to exit
+Cratchit>Telia
 
         "#FNR"  "ITFIED"
         "#FNAMN"        "The ITfied AB"
@@ -22,19 +21,28 @@ cratchit>Telia
         "#TRANS"        "2640"  "{}"    "265,94"        ""      "FA407/Telia"
         "#TRANS"        "6212"  "{}"    "1064,06"       ""      "FA407/Telia"
         "}"
-cratchit>q
+Cratchit>quit
 
-cratchit> Bye!
-C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\source\build_vs\Debug>
+Done!
+
+C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\build_vs\Debug>
 ```
+
+## Version 0.15
+
+* Restructured source to build/src structure
+* Added fcb (Front-end, Core, Back-end idiom)
+* Adapted Console Front-end to be extended with Cratchit Console Fronted (console command execute and help overloads)
+* Does not build on MSYS2 tool-chain
 
 ## Version 0.1
 
-  * + Created initial version (empty code)
-  * + Created Visual Studio and MSYS build environment generators
+* Created initial version (empty code)
+* Created Visual Studio and MSYS build environment generators
 
 ## Project
 ```
+
 C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit>tree /F
 Folder PATH listing
 Volume serial number is D49B-BB89
@@ -43,8 +51,26 @@ C:.
 │   LICENSE
 │   README.md
 │
-└───source
-        CmakeLists.txt      // CMake project
-        cratchit.cpp        // Main file
-        msys2_me.sh         // MINGW shell script: Generate MSYS2 build environment sub-folder
-        vs_me.cmd           // Windows shell: Generate Visual Studio build environment sub-folder
+└───build
+    │   CmakeLists.txt      // CMake project
+    │   msys2_me.sh         // MINGW shell script: Generate MSYS2 build environment sub-folder
+    │   vs_me.cmd           // Windows shell: Generate Visual Studio build environment sub-folder
+    │
+    │
+    └───src
+        │   main.cpp
+        │
+        ├───fcb             // Fronend, Core, Backend idiom
+        │       Active.cpp
+        │       Active.h
+        │       BackEnd.cpp
+        │       BackEnd.h
+        │       Core.cpp
+        │       Core.h
+        │       FrontEnd.cpp
+        │       FrontEnd.h
+        │
+        └───sie            // Open SIE source
+                SIE.cpp
+                SIE.h
+```

@@ -1,3 +1,47 @@
+//
+// Created by kjell-olovhogdahl on 8/1/2016.
+//
+
+#include "SIE.h"
+
+namespace sie {
+
+	namespace experimental {
+
+		SIE_Statements get_template_statements() {
+			SIE_Statements result;
+
+			return result;
+		}
+
+		SIE_Statement create_statement_for(const SIE_Element & statement_label)
+		{
+			SIE_Statement result;
+			int state = 0;
+			bool loop_again = true;
+			while (loop_again) {
+				SIE_Entry entry;
+				switch (state) {
+				case 0: result.push_back(SIE_Entry({ "#FNR","ITFIED" }));
+				case 1: result.push_back(SIE_Entry({ "#FNAMN","The ITfied AB" }));
+				case 2: result.push_back(SIE_Entry({ "#ORGNR","556782-8172" }));
+				case 3: result.push_back(SIE_Entry({ "#RAR","0","20150501","20160430" }));
+				case 4: result.push_back(SIE_Entry({ "" }));
+				case 5: result.push_back(SIE_Entry({ "#VER","4","42","20151116","FA407/Telia","20160711" }));
+				case 6: result.push_back(SIE_Entry({ "{" }));
+				case 7: result.push_back(SIE_Entry({ "#TRANS","2440","{}","-1330,00","","FA407/Telia" }));
+				case 8: result.push_back(SIE_Entry({ "#TRANS","2640","{}","265,94","","FA407/Telia" }));
+				case 9: result.push_back(SIE_Entry({ "#TRANS","6212","{}","1064,06","","FA407/Telia" }));
+				case 10: result.push_back(SIE_Entry({ "}" }));
+				default: loop_again = false; break;
+				}
+				++state;
+			}
+			return result;
+		}
+	}
+}
+
 /*
 ==> Consider to propose an SIE-structure-key-paths for an SIE-file Composite (http://www.sie.se/?page_id=250)?
 

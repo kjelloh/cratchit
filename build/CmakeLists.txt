@@ -5,7 +5,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(SOURCE_FILES
         src/main.cpp
-        src/sie/openSIE.cpp
-        src/sie/openSIE.h)
+        src/sie/SIE.cpp
+        src/sie/SIE.h
+        src/fcb/Active.cpp
+        src/fcb/Active.h
+        src/fcb/BackEnd.cpp
+        src/fcb/BackEnd.h
+        src/fcb/Core.cpp
+        src/fcb/Core.h
+        src/fcb/FrontEnd.cpp
+        src/fcb/FrontEnd.h)
 
 add_executable(Cratchit ${SOURCE_FILES})
