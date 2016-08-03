@@ -3,13 +3,46 @@
 //
 
 #include "SIE.h"
+#include "../tris/BackEnd.h"
+#if defined _MSC_VER
+	// Visual Stuio include of boost qi generates loads of warning (disbale them)
+	#define INCLUDE_BOOST_WARNING_DISABLE
+#else
+	// TODO: Possibly #define INCLUDE_BOOST_WARNING_DISABLE for compiler
+#endif
+
+#ifdef INCLUDE_BOOST_WARNING_DISABLE
+	#include <boost/config/warning_disable.hpp>
+#endif
+#include <boost/spirit/include/qi.hpp>
 
 namespace sie {
 
+	// The SIE-format is piblsihed at http://www.sie.se/
+
 	namespace experimental {
+
+		namespace detail {
+			template <typename T>
+			struct is_not_instantiated : public std::false_type {};
+			
+			// https://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Resource_Acquisition_Is_Initialization
+
+			template <typename T>
+			struct raii {
+				static_assert(is_not_instantiated<T>::value,"No RAII wrapper defined for this type");
+			};
+
+		}
 
 		SIE_Statements get_template_statements() {
 			SIE_Statements result;
+			// C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\src\sie\test\sie1.se
+			//tris::backend::filesystem::path sie_path(R"(C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\src\sie\test\sie1.se)");
+			//                                                                                \GitHub\cratchit\build\build_vs\Debug           
+
+			//filesystem::path sie_path(R"(..\src\sie\test\sie1.se)");
+			//detail::raii<std:ifstream> sie_file(sie_path);
 
 			return result;
 		}
@@ -46,11 +79,11 @@ namespace sie {
 ==> Consider to propose an SIE-structure-key-paths for an SIE-file Composite (http://www.sie.se/?page_id=250)?
 
 // Note: Keys spelled in capital letters corresponds to SIE-encoding of #-element (e.g., sie.ADRESS corresponds to SIE file member #ADRESS)
-// Note: In key-path the key name is the SIE Element name with spaces replaced with ‘_’ (e.g., SIE Element “distribution address” becomes key “distribution_address”
-// Note: Elements that implicitly form a list is assigned a list key [*] (the ‘*’ indicates a possible index 0…n)
-// Note: Member element with sub-elements {dimension_no object_no} has been assigned the key “object” (to correspond to referred OBJECT element)
-// Note: Specified #RES member “year’s” has bee assigned the key “year_no”
-// Note: Specified TRANS member element “object list” has been assigned the list key “objects[]” each conforming to key object (see specification 8.21)
+// Note: In key-path the key name is the SIE Element name with spaces replaced with ï¿½_ï¿½ (e.g., SIE Element ï¿½distribution addressï¿½ becomes key ï¿½distribution_addressï¿½
+// Note: Elements that implicitly form a list is assigned a list key [*] (the ï¿½*ï¿½ indicates a possible index 0ï¿½n)
+// Note: Member element with sub-elements {dimension_no object_no} has been assigned the key ï¿½objectï¿½ (to correspond to referred OBJECT element)
+// Note: Specified #RES member ï¿½yearï¿½sï¿½ has bee assigned the key ï¿½year_noï¿½
+// Note: Specified TRANS member element ï¿½object listï¿½ has been assigned the list key ï¿½objects[]ï¿½ each conforming to key object (see specification 8.21)
 
 sie.ADRESS.contact
 sie.ADRESS.distribution_address
@@ -87,7 +120,7 @@ sie.KONTO[*].account_name
 
 sie.KPTYP
 
-sie.KSUMMA[0…1]
+sie.KSUMMA[0ï¿½1]
 
 sie.KTYP.account_no
 sie.KTYP.account_type
@@ -200,12 +233,12 @@ sie.VER[*].BTRANS[*].sign
 */
 
 /*
--2) Överväg att ta reda på hur jag skall bokföra de verifikationer jag ännu inte skickat till SE-konsult?
+-2) ï¿½vervï¿½g att ta reda pï¿½ hur jag skall bokfï¿½ra de verifikationer jag ï¿½nnu inte skickat till SE-konsult?
 
 ==> Faktura 30871 SE-konsult
 
-==> Tidigare faktura har bokförts så här (Verifikat D:57 kodas som #VER	4	57)
-==> Kollade flera stycken och alla verkar se ut så här?
+==> Tidigare faktura har bokfï¿½rts sï¿½ hï¿½r (Verifikat D:57 kodas som #VER	4	57)
+==> Kollade flera stycken och alla verkar se ut sï¿½ hï¿½r?
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -221,11 +254,11 @@ sie.VER[*].BTRANS[*].sign
 
 ==> Konton
 
-6530	Redovisningstjänster
-2440	Leverantörsskulder
-2640	Ingående moms
+6530	Redovisningstjï¿½nster
+2440	Leverantï¿½rsskulder
+2640	Ingï¿½ende moms
 
-==> Och betalning så här (Verifikat E:54 kodas som #VER	5	54)
+==> Och betalning sï¿½ hï¿½r (Verifikat E:54 kodas som #VER	5	54)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -241,17 +274,17 @@ sie.VER[*].BTRANS[*].sign
 ==> Konton
 
 1920	PlusGiro
-2440	Leverantörsskulder
+2440	Leverantï¿½rsskulder
 
 ==> Skattekonto Maj 2016 (inklusive periodmoms)
 
-==> Q: Hur bokföra EU-moms som ingår just denna gång?
-==> A: Bokför betalning som vanlig SKV inbet med moms (momskonto 2650 mot inbet skattekonto 1630)?
+==> Q: Hur bokfï¿½ra EU-moms som ingï¿½r just denna gï¿½ng?
+==> A: Bokfï¿½r betalning som vanlig SKV inbet med moms (momskonto 2650 mot inbet skattekonto 1630)?
 Ex:
 #TRANS	2650	{}	-9418,00	""	"Moms okt-dec"
 #TRANS	1630	{}	9418,00	""	"Moms okt-dec"
 
-==> A: EU-inköpet och momsen verkar vara bokförd så här (Verifikat A 91 kodat som #VER	1	91)
+==> A: EU-inkï¿½pet och momsen verkar vara bokfï¿½rd sï¿½ hï¿½r (Verifikat A 91 kodat som #VER	1	91)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -269,56 +302,56 @@ Ex:
 ==> Konton
 1920	PlusGiro
 6230	Datakommunikation
-2645	Ber ing moms på förvärv från u
-2615	Ber utg moms varuförvärv EU-la
-==> Notera att EU-momsen bokförts i balans både som ingående (2645) och utgående (2615)?
+2645	Ber ing moms pï¿½ fï¿½rvï¿½rv frï¿½n u
+2615	Ber utg moms varufï¿½rvï¿½rv EU-la
+==> Notera att EU-momsen bokfï¿½rts i balans bï¿½de som ingï¿½ende (2645) och utgï¿½ende (2615)?
 
-==> Denna moms verkar ha “tömts” vid periodslutet jan-mars och sammanställts på 2650 (Verifikat A 108 kodat som #VER	1	108)
+==> Denna moms verkar ha ï¿½tï¿½mtsï¿½ vid periodslutet jan-mars och sammanstï¿½llts pï¿½ 2650 (Verifikat A 108 kodat som #VER	1	108)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
 #ORGNR	"556782-8172"
 #RAR	0	20150501	20160430
 
-#VER	1	108	20160401	"Momstömning jan - mars"	20160711
+#VER	1	108	20160401	"Momstï¿½mning jan - mars"	20160711
 {
-#TRANS	2610	{}	28875,00	""	"Momstömning jan - mars"
-#TRANS	2615	{}	989,00	""	"Momstömning jan - mars"
-#TRANS	2640	{}	-6562,04	""	"Momstömning jan - mars"
-#TRANS	2645	{}	-989,00	""	"Momstömning jan - mars"
-#TRANS	2650	{}	-22313,00	""	"Momstömning jan - mars"
-#TRANS	3740	{}	0,04	""	"Momstömning jan - mars"
+#TRANS	2610	{}	28875,00	""	"Momstï¿½mning jan - mars"
+#TRANS	2615	{}	989,00	""	"Momstï¿½mning jan - mars"
+#TRANS	2640	{}	-6562,04	""	"Momstï¿½mning jan - mars"
+#TRANS	2645	{}	-989,00	""	"Momstï¿½mning jan - mars"
+#TRANS	2650	{}	-22313,00	""	"Momstï¿½mning jan - mars"
+#TRANS	3740	{}	0,04	""	"Momstï¿½mning jan - mars"
 }
 
 ==> Konton:
 
-2640	Ingående moms
-2610	Utgående moms 25%
-2650	Redovisningskonto för moms
+2640	Ingï¿½ende moms
+2610	Utgï¿½ende moms 25%
+2650	Redovisningskonto fï¿½r moms
 
-2615	Ber utg moms varuförvärv EU-la
-2645	Ber ing moms på förvärv från u
-3740	Öres- och kronutjämning
+2615	Ber utg moms varufï¿½rvï¿½rv EU-la
+2645	Ber ing moms pï¿½ fï¿½rvï¿½rv frï¿½n u
+3740	ï¿½res- och kronutjï¿½mning
 
-==> Not: 2650 inkluderar EU-momsen vilket indikerar att vid betalning behöver inte EU-moms-konton påverkas?
+==> Not: 2650 inkluderar EU-momsen vilket indikerar att vid betalning behï¿½ver inte EU-moms-konton pï¿½verkas?
 
-==> Tidigare momstömning med EU-moms har bokförts 140701 apr-jun (Verifikat A:42 kodat som #VER	1	42)
+==> Tidigare momstï¿½mning med EU-moms har bokfï¿½rts 140701 apr-jun (Verifikat A:42 kodat som #VER	1	42)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
 #ORGNR	"556782-8172"
 #RAR	0	20140501	20150430
 
-#VER	1	42	20140701	"Momsomföring april-juni"	20160711
+#VER	1	42	20140701	"Momsomfï¿½ring april-juni"	20160711
 {
-#TRANS	2610	{}	130499,00	""	"Momsomföring april-juni"
-#TRANS	2615	{}	-1135,74	""	"Momsomföring april-juni"
-#TRANS	2640	{}	-11120,00	""	"Momsomföring april-juni"
-#TRANS	2645	{}	1135,74	""	"Momsomföring april-juni"
-#TRANS	2650	{}	-119379,00	""	"Momsomföring april-juni"
+#TRANS	2610	{}	130499,00	""	"Momsomfï¿½ring april-juni"
+#TRANS	2615	{}	-1135,74	""	"Momsomfï¿½ring april-juni"
+#TRANS	2640	{}	-11120,00	""	"Momsomfï¿½ring april-juni"
+#TRANS	2645	{}	1135,74	""	"Momsomfï¿½ring april-juni"
+#TRANS	2650	{}	-119379,00	""	"Momsomfï¿½ring april-juni"
 }
 
-==> Och inbetalning inklusive periodmoms och EU-moms bokfördes (FÖRSENAD) så här
+==> Och inbetalning inklusive periodmoms och EU-moms bokfï¿½rdes (Fï¿½RSENAD) sï¿½ hï¿½r
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -329,44 +362,44 @@ Ex:
 {
 #TRANS	1920	{}	-32000,00	""	"Inbet. SKV"
 #TRANS	1630	{}	32000,00	""	"Inbet. SKV"
-#TRANS	1630	{}	-500,00	""	"Förseningsavgift"
-#TRANS	6992	{}	500,00	""	"Förseningsavgift"
+#TRANS	1630	{}	-500,00	""	"Fï¿½rseningsavgift"
+#TRANS	6992	{}	500,00	""	"Fï¿½rseningsavgift"
 #TRANS	2710	{}	10269,00	""	"Pers.skatt"
 #TRANS	1630	{}	-10269,00	""	"Pers.skatt"
 #TRANS	2730	{}	12253,00	""	"AGA sept"
 #TRANS	1630	{}	-12253,00	""	"AGA sept"
 #TRANS	2510	{}	8786,00	""	"Prel.skatt"
 #TRANS	1630	{}	-8786,00	""	"Prel.skatt"
-#TRANS	1630	{}	4,00	""	"Ränta"
-#TRANS	8314	{}	-4,00	""	"Ränta"
+#TRANS	1630	{}	4,00	""	"Rï¿½nta"
+#TRANS	8314	{}	-4,00	""	"Rï¿½nta"
 }
 
-==> Not: Verkar INTE beröra några EU-konton?
-==> Not: Hittar inga EU-momskonton för tidigare år.
+==> Not: Verkar INTE berï¿½ra nï¿½gra EU-konton?
+==> Not: Hittar inga EU-momskonton fï¿½r tidigare ï¿½r.
 
-==> Tidigare momstömning okt-dec har bokförts så här (Verifikat A 82 kodat som #VER	1	82)
+==> Tidigare momstï¿½mning okt-dec har bokfï¿½rts sï¿½ hï¿½r (Verifikat A 82 kodat som #VER	1	82)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
 #ORGNR	"556782-8172"
 #RAR	0	20150501	20160430
 
-#VER	1	82	20160104	"Årspris kort"	20160711
+#VER	1	82	20160104	"ï¿½rspris kort"	20160711
 {
-#TRANS	1920	{}	-144,00	""	"Årspris kort"
-#TRANS	6570	{}	144,00	""	"Årspris kort"
+#TRANS	1920	{}	-144,00	""	"ï¿½rspris kort"
+#TRANS	6570	{}	144,00	""	"ï¿½rspris kort"
 #TRANS	2640	{}	-12568,00	""	"momssaldo okt-dec15"
 #TRANS	2610	{}	3150,00	""	"momssaldo okt-dec15"
 #TRANS	2650	{}	9418,00	""	"momssaldo okt-dec15"
 }
 
-==> Konton, exklusive "årspris kort" (jämför momstömning med EU-moms A:108 ovan):
+==> Konton, exklusive "ï¿½rspris kort" (jï¿½mfï¿½r momstï¿½mning med EU-moms A:108 ovan):
 
-2640	Ingående moms
-2610	Utgående moms 25%
-2650	Redovisningskonto för moms
+2640	Ingï¿½ende moms
+2610	Utgï¿½ende moms 25%
+2650	Redovisningskonto fï¿½r moms
 
-==> Tidigare redovisad inbet. SKV inklusive periodmoms okt-dec har bokförts så här (Verifikat A 89 kodat som #VER	1	89)
+==> Tidigare redovisad inbet. SKV inklusive periodmoms okt-dec har bokfï¿½rts sï¿½ hï¿½r (Verifikat A 89 kodat som #VER	1	89)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -392,11 +425,11 @@ Ex:
 2730	Lagstadgade sociala avgifter/l
 2710	Personalskatt
 
-2650	Redovisningskonto för moms
+2650	Redovisningskonto fï¿½r moms
 
 ==> Telia Faktura 160517
 
-==> Tidigare Telia-faktura verkar vara bokförd så här (Verifikat D:42 kodad som #VER	4	42)
+==> Tidigare Telia-faktura verkar vara bokfï¿½rd sï¿½ hï¿½r (Verifikat D:42 kodad som #VER	4	42)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -412,11 +445,11 @@ Ex:
 
 ==> Konton
 
-2440	Leverantörsskulder
-2640	Ingående moms
+2440	Leverantï¿½rsskulder
+2640	Ingï¿½ende moms
 6212	Mobiltelefon
 
-==> Och betalning verkar vara bokförd så här (Verifikat E:41 kodat som #VER	5	41)
+==> Och betalning verkar vara bokfï¿½rd sï¿½ hï¿½r (Verifikat E:41 kodat som #VER	5	41)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -432,11 +465,11 @@ Ex:
 ==> Konton
 
 1920	PlusGiro
-2440	Leverantörsskulder
+2440	Leverantï¿½rsskulder
 
 ==> Privat kostnad iTunes 17 Maj
 
-==> Detta verkar vara en tidigare iTunes som bokförts privat (Verifikat A:2 kodat som #VER	1	2)
+==> Detta verkar vara en tidigare iTunes som bokfï¿½rts privat (Verifikat A:2 kodat som #VER	1	2)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -452,12 +485,12 @@ Ex:
 ==> Konton
 
 1920	PlusGiro
-2893	Skulder närstående personer, k
+2893	Skulder nï¿½rstï¿½ende personer, k
 
 ==> Skattekonto Juni 2016 (ej periodmoms)
 
-==> Tidigare redovisad inbet SKV har bokförts så här (Verifikat A 111 kodat som #VER	1	111)
-==> Kollade några andra SKV-verifikat och alla “vanliga” (Löneskatt och avg) verkar se ut så här.
+==> Tidigare redovisad inbet SKV har bokfï¿½rts sï¿½ hï¿½r (Verifikat A 111 kodat som #VER	1	111)
+==> Kollade nï¿½gra andra SKV-verifikat och alla ï¿½vanligaï¿½ (Lï¿½neskatt och avg) verkar se ut sï¿½ hï¿½r.
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -481,23 +514,23 @@ Ex:
 2730	Lagstadgade sociala avgifter/l
 2710	Personalskatt
 
-==> Verkar som vi skall göra momstömning för apr-jun den 1 Juli?
+==> Verkar som vi skall gï¿½ra momstï¿½mning fï¿½r apr-jun den 1 Juli?
 
-==> Tidigare bokföring verkar göra en momstömning för varje avslutat momsperiod (t.ex okt-dec 2015)
+==> Tidigare bokfï¿½ring verkar gï¿½ra en momstï¿½mning fï¿½r varje avslutat momsperiod (t.ex okt-dec 2015)
 
 
 #TRANS	2640	{}	-12568,00	""	"momssaldo okt-dec15"
 #TRANS	2610	{}	3150,00	""	"momssaldo okt-dec15"
 #TRANS	2650	{}	9418,00	""	"momssaldo okt-dec15"
 
-2640	Ingående moms
-2610	Utgående moms 25%
-2650	Redovisningskonto för moms
+2640	Ingï¿½ende moms
+2610	Utgï¿½ende moms 25%
+2650	Redovisningskonto fï¿½r moms
 
 
 ==> Faktura Binero 160529
 
-==> Tidigare Bindero-faktura på 702 SEK är bokförd så här (Verifikat D:16 kodat som #VER	4	16)
+==> Tidigare Bindero-faktura pï¿½ 702 SEK ï¿½r bokfï¿½rd sï¿½ hï¿½r (Verifikat D:16 kodat som #VER	4	16)
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -513,21 +546,21 @@ Ex:
 
 ==> Konton
 
-2440	Leverantörsskulder
-2640	Ingående moms
+2440	Leverantï¿½rsskulder
+2640	Ingï¿½ende moms
 6230	Datakommunikation
 
-==> Not: ALLA Binero-fakturor verkar bokas som datakommunikation (även domäner)?
-==> Not: Jag borde egentligen boka domäner på något annat?
+==> Not: ALLA Binero-fakturor verkar bokas som datakommunikation (ï¿½ven domï¿½ner)?
+==> Not: Jag borde egentligen boka domï¿½ner pï¿½ nï¿½got annat?
 
 ==> Transaktioner PG-konto Maj 2016
 
 ==> Betalt Telia-faktura
 ==> Betalt Beanstalk
-==> Utbet Lön
-==> iTunes (redan bokförd ovan)
+==> Utbet Lï¿½n
+==> iTunes (redan bokfï¿½rd ovan)
 ==> Betalt SE-faktura
-==> SKV inbet (redan bokförd ovan)?
+==> SKV inbet (redan bokfï¿½rd ovan)?
 ==> Pris enligt spec.
 ==> Betalt Beanstalk
 
@@ -539,19 +572,19 @@ Ex:
 
 ==> Se ovan
 
-Verkar vara alla för nu? ...
+Verkar vara alla fï¿½r nu? ...
 
 
--1) Överväg att dokumentera de konton som dokumenterade verifikationer använder?
+-1) ï¿½vervï¿½g att dokumentera de konton som dokumenterade verifikationer anvï¿½nder?
 
-==> Se bifogad excel-file “ITFIED - Kontoplan - 160711 190841” som Edison rapporterar som den aktuella kontoplanen?
+==> Se bifogad excel-file ï¿½ITFIED - Kontoplan - 160711 190841ï¿½ som Edison rapporterar som den aktuella kontoplanen?
 
-2893 "Skulder närstående personer, k"
-4010 “Inköp varor och material” verkar användas till alla möjliga inköp?
+2893 "Skulder nï¿½rstï¿½ende personer, k"
+4010 ï¿½Inkï¿½p varor och materialï¿½ verkar anvï¿½ndas till alla mï¿½jliga inkï¿½p?
 
-1) Överväg att dokumentera vanliga verifikationer i den “löpande bokföringen” (Serie A)
+1) ï¿½vervï¿½g att dokumentera vanliga verifikationer i den ï¿½lï¿½pande bokfï¿½ringenï¿½ (Serie A)
 
-==> Se bifogad excel-fil “ITFIED - Verifikatlista - 160711 185592.xlsx” för huvudbok Serie A “Löpande bokföring”
+==> Se bifogad excel-fil ï¿½ITFIED - Verifikatlista - 160711 185592.xlsxï¿½ fï¿½r huvudbok Serie A ï¿½Lï¿½pande bokfï¿½ringï¿½
 
 
 
@@ -569,7 +602,7 @@ Verkar vara alla för nu? ...
 #TRANS	3590	{}	-57273,00	""	"Kundfaktura 83 3/11"
 }
 
-==> Detta verkar vara en betalning som är privat
+==> Detta verkar vara en betalning som ï¿½r privat
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"
@@ -582,7 +615,7 @@ Verkar vara alla för nu? ...
 #TRANS	2893	{}	49,00	""	"ITunes"
 }
 
-==> Detta verkar vara ett kvitto på Kjell&Compandy betalt med kort
+==> Detta verkar vara ett kvitto pï¿½ Kjell&Compandy betalt med kort
 
 #FNR	"ITFIED"
 #FNAMN	"The ITfied AB"

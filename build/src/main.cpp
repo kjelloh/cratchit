@@ -5,7 +5,7 @@
 #include <regex>
 #include <vector>
 #include "sie/SIE.h"
-#include "fcb/FrontEnd.h"
+#include "tris/FrontEnd.h"
 
 using CommandLine = std::string;
 using Parameter = std::string;
@@ -18,26 +18,19 @@ template <>
 class ExecuteCommand<CratchCommands> {
 public:
 
-	ExecuteCommand() {
-		// Read previous years SIE-files as templates.
-		// Use Boost FileSystem.
-
-		// 1. Iterate SIE-file folder for SIE-files
-		// 2. foreach SIE-file parse it for SIE entries
-		// 3. Map the entries on Label
-		// 3. Sort the entries on event date
-		// 4. Use as template (lookup of match on Label)?
-	}
+	ExecuteCommand() = default;
 
 	// Returns true if Done
-	bool operator()(const CommandLine& command_line) {
-		bool result = false; // Default Not Done
+	bool operator()(const CommandLine& command_line, bool& done) {
+		bool result = true; // Default success
 		std::regex tokenizer_regexp("\\s+"); // whitespace
 		std::for_each(
 			std::sregex_token_iterator(std::begin(command_line), std::end(command_line), tokenizer_regexp, -1)
 			, std::sregex_token_iterator()
 			, [&result](const Parameter& p) {
-			if (p == "quit") { result = true;} // Done
+			if (p == "test") {
+				sie::experimental::get_template_statements();
+			}
 			else if (p == "bokslut Apr-14") { // Bokslut Maj-13...Apr-14
 				// Serie A
 				{
@@ -541,6 +534,9 @@ public:
 			}
 			else if (p == "Beanstalk") { // Could be sub-payment of "Kontoutdrag" (Shows only as payment)
 			}
+			else {
+				result = false; // unknown command
+			}
 		});
 
 		return result;
@@ -548,18 +544,17 @@ public:
 
 };
 
-class CractchitConsoleFrontEnd : public frontend::FrontEnd<frontend::Console> {
+class CractchitConsoleFrontEnd : public tris::FrontEnd<tris::frontend::Console> {
 public:
-    CractchitConsoleFrontEnd(const backend::API_STRING& sExe) : frontend::FrontEnd<frontend::Console>(sExe) {}
+    CractchitConsoleFrontEnd(const tris::backend::API_STRING& sExe) : tris::FrontEnd<tris::frontend::Console>(sExe) {}
 
-    virtual bool execute(const backend::API_STRING& sCommandLine,bool& done) {
-        done = m_execute_cratch_command(sCommandLine);
-		return true; // Success
+    virtual bool execute(const tris::backend::API_STRING& sCommandLine,bool& done) {
+        return m_execute_cratch_command(sCommandLine,done);
     }
 
-    virtual bool help(const backend::API_STRING& sCommandLine) {
-        return frontend::FrontEnd<frontend::Console>::help(sCommandLine);
-    }
+    virtual bool help(const tris::backend::API_STRING& sCommandLine) {
+		return tris::FrontEnd<tris::frontend::Console>::help(sCommandLine);
+	}
 
 private:
     ExecuteCommand<CratchCommands> m_execute_cratch_command;

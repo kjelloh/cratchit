@@ -1,0 +1,14 @@
+#FNR	"ITFIED"
+#FNAMN	"The ITfied AB"
+#ORGNR	"556782-8172"
+#RAR	0	20150501	20160430
+
+#VER	1	108	20160401	"Momstömning jan - mars"	20160711
+{
+#TRANS	2610	{}	28875,00	""	"Momstömning jan - mars"
+#TRANS	2615	{}	989,00	""	"Momstömning jan - mars"
+#TRANS	2640	{}	-6562,04	""	"Momstömning jan - mars"
+#TRANS	2645	{}	-989,00	""	"Momstömning jan - mars"
+#TRANS	2650	{}	-22313,00	""	"Momstömning jan - mars"
+#TRANS	3740	{}	0,04	""	"Momstömning jan - mars"
+}

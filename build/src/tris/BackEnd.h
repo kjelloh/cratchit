@@ -36,23 +36,48 @@
 #include <memory>
 #include <future>
 #include "Active.h"
+// https://sourceforge.net/p/predef/wiki/Compilers/
+#if defined (__clang__)
+	#ifdef _WIN32
+		// clang on windows (asume MinGW for now - add specialisation if required)
+	#endif
+#elif defined(__GNUC__)
+#elif defined _MSC_VER
+	#include <filesystem> // Visual Studio TR filesystem
+#endif
 //-----------------------------------------------------------------------------
 
-namespace backend {
+// Tris is the name of the Frontend, Core, Backend idiom library
+// The "Tris" name refer to "something of three"
+// Tris is also an organic compund: " Tris is widely used as a component of buffer solutions..." https://en.wikipedia.org/wiki/Tris
+namespace tris {
 
-    // Root BackEnd types (Hides actual API types)
-    using API_ERROR_CODE = unsigned long;
-    using API_RESULT_CODE = unsigned long;
-    using API_STRING = std::string; // TODO: Decide when and how to use UNICODE (without including API, e.g., windows.h, headers)
+	// Helper class for delayed static_assert in primary templates whoes instatiations indicates error
+	template <typename T>
+	struct is_not_instantiated : public std::false_type {};
 
-    std::runtime_error runtime_exception_of_api_error_code(const std::string sPrefix, API_ERROR_CODE api_error_code);
+	namespace backend {
 
-	namespace process {
-		using Path = std::string;
-		using Parameter = std::string;
-		using Parameters = std::vector<Parameter>;
+		// Root BackEnd types (Hides actual API types)
+		using API_ERROR_CODE = unsigned long;
+		using API_RESULT_CODE = unsigned long;
+		using API_STRING = std::string; // TODO: Decide when and how to use UNICODE (without including API, e.g., windows.h, headers)
 
-		std::future<int> execute(const Path& cmd, const Parameters& parameters);
+		std::runtime_error runtime_exception_of_api_error_code(const std::string sPrefix, API_ERROR_CODE api_error_code);
+
+#if defined (__clang__)
+#elif defined(__GNUC__)
+#elif defined _MSC_VER
+#else
+#endif
+
+		namespace process {
+			using Path = std::string;
+			using Parameter = std::string;
+			using Parameters = std::vector<Parameter>;
+
+			std::future<int> execute(const Path& cmd, const Parameters& parameters);
+		}
 	}
 
 	class BackEnd : public Active {
@@ -67,6 +92,5 @@ namespace backend {
 	};
 
 }
-
 
 #endif //CLANG_BCC_BACKEND_H

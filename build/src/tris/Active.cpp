@@ -3,3 +3,7 @@
 //
 
 #include "Active.h"
+
+namespace tris {
+
+}

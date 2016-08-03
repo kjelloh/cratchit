@@ -2,8 +2,11 @@
 // Created by kjell-olovhogdahl on 7/27/2016.
 //
 
+#ifndef CLANG_BCC_CORE_H
+#define CLANG_BCC_CORE_H
+
 /**
- *  This is the Core unit in the FrontEnd-Core-BackEnd source code architecture idiom
+ *  This is the Core header in the FrontEnd-Core-BackEnd source code architecture idiom
 
 	FrontEnd.cpp	<—	FronEnd.h	—>	FrontEndImpl.h	->	FrontEndImpl.cpp
 	    ^					            ^
@@ -26,23 +29,24 @@
 
  */
 
-#include "Core.h"
-#include "BackEnd.h"
+#include "Active.h"
+#include <memory>
 
-namespace core {
+namespace tris {
+	namespace core {
+	}
 
-	struct Core::impl {
-		backend::BackEnd m_back_end;
+	class Core : public Active {
+	public:
+		Core();
+		~Core(); // delay to cpp so that m_pimpl is also delayed until struct impl is defined
+		Core(const Core&) = delete;
+		Core& operator=(const Core&) = delete;
+	private:
+		struct impl;
+		std::unique_ptr<impl> m_pimpl;
 	};
-
-
-	Core::Core() : m_pimpl(new impl())
-	{
-	}
-
-	Core::~Core()
-	{
-	}
 
 }
 
+#endif //CLANG_BCC_CORE_H
