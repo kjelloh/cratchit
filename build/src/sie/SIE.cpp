@@ -4,18 +4,42 @@
 
 #include "SIE.h"
 #include "../tris/BackEnd.h"
-#if defined _MSC_VER
-	// Visual Stuio include of boost qi generates loads of warning (disbale them)
-	#define INCLUDE_BOOST_WARNING_DISABLE
-#else
-	// TODO: Possibly #define INCLUDE_BOOST_WARNING_DISABLE for compiler
-#endif
+#include <iterator>
+#include <regex>
 
-#ifdef INCLUDE_BOOST_WARNING_DISABLE
-	#include <boost/config/warning_disable.hpp>
-#endif
-#include <boost/spirit/include/qi.hpp>
+namespace sisyphos {
 
+	namespace detail {
+		template <typename Tag>
+		struct is_forward_iterator_tag : public std::false_type {};
+		template <>
+		struct is_forward_iterator_tag<std::forward_iterator_tag> : public std::true_type {};
+	}
+
+	template <typename I, typename F1, typename F2, typename F3>
+	void for_first_middle_last(I _first, I _end, F1 first, F2 middle, F3 last) {
+		// Always apply last to last element if at least one entry in the proved range.
+		// Apply first and last if two elemnts in provded range.
+		// Otherwise apply first to the first element, middle to intermediate elements and last to last element.
+		static_assert(!detail::is_forward_iterator_tag<I::iterator_category>::value, "for_first_middle_last must be called with Forward Iteratable range");
+		switch (std::distance(_first, _end)) {
+		case 0: break;
+		case 1: {last(*_first); } break;
+		case 2: {first(*_first); last(*(++_first)); } break;
+		default: {
+			auto iter_pair = std::make_pair(_first, ++I(_first));
+			first(*iter_pair.first);
+			++iter_pair.first; ++iter_pair.second;
+			while (iter_pair.second != _end) {
+				middle(*iter_pair.first); // apply middle
+				++iter_pair.first; ++iter_pair.second;
+			}
+			last(*iter_pair.first);
+		} break;
+		}
+	}
+
+}
 namespace sie {
 
 	// The SIE-format is piblsihed at http://www.sie.se/
@@ -33,6 +57,16 @@ namespace sie {
 				static_assert(is_not_instantiated<T>::value,"No RAII wrapper defined for this type");
 			};
 
+			template <>
+			struct raii<tris::ifstream> : public tris::ifstream {
+				raii(const tris::path& p) : tris::ifstream() {
+					this->exceptions(tris::ifstream::failbit | tris::ifstream::badbit);
+					this->open(p);
+					this->exceptions(0); // no excpetions for client access
+				}
+				~raii() { this->close(); }
+			};
+
 		}
 
 		SIE_Statements get_template_statements() {
@@ -41,34 +75,63 @@ namespace sie {
 			//tris::backend::filesystem::path sie_path(R"(C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\src\sie\test\sie1.se)");
 			//                                                                                \GitHub\cratchit\build\build_vs\Debug           
 
-			//filesystem::path sie_path(R"(..\src\sie\test\sie1.se)");
-			//detail::raii<std:ifstream> sie_file(sie_path);
-
+			tris::path sie_path(R"(..\src\sie\test\sie1.se)");
+			detail::raii<tris::ifstream> sie_file(sie_path);
 			return result;
 		}
 
-		SIE_Statement create_statement_for(const SIE_Element & statement_label)
+		SIE_Statements parse_financial_events() {
+			SIE_Statements result;
+			tris::path sie_path(R"(..\src\sie\test\events1.txt)");
+			detail::raii<tris::ifstream> sie_file(sie_path);
+			SIE_Element line;
+			while (sie_file.good() &&  std::getline(sie_file, line)) {
+				std::regex whitespace_regexp("\\s+"); // tokenize on whitespace
+				sie::SIE_Seed sie_seed(std::sregex_token_iterator(std::begin(line), std::end(line), whitespace_regexp, -1), std::sregex_token_iterator());
+				result.push_back(create_statement_for(sie_seed));
+			}			
+			return result;
+		}
+
+		SIE_Statement create_statement_for(const SIE_Seed& sie_seed)
 		{
 			SIE_Statement result;
-			int state = 0;
-			bool loop_again = true;
-			while (loop_again) {
-				SIE_Entry entry;
-				switch (state) {
-				case 0: result.push_back(SIE_Entry({ "#FNR","ITFIED" }));
-				case 1: result.push_back(SIE_Entry({ "#FNAMN","The ITfied AB" }));
-				case 2: result.push_back(SIE_Entry({ "#ORGNR","556782-8172" }));
-				case 3: result.push_back(SIE_Entry({ "#RAR","0","20150501","20160430" }));
-				case 4: result.push_back(SIE_Entry({ "" }));
-				case 5: result.push_back(SIE_Entry({ "#VER","4","42","20151116","FA407/Telia","20160711" }));
-				case 6: result.push_back(SIE_Entry({ "{" }));
-				case 7: result.push_back(SIE_Entry({ "#TRANS","2440","{}","-1330,00","","FA407/Telia" }));
-				case 8: result.push_back(SIE_Entry({ "#TRANS","2640","{}","265,94","","FA407/Telia" }));
-				case 9: result.push_back(SIE_Entry({ "#TRANS","6212","{}","1064,06","","FA407/Telia" }));
-				case 10: result.push_back(SIE_Entry({ "}" }));
-				default: loop_again = false; break;
+			if (sie_seed.size() >= 3) {
+
+				SIE_Element event_date;
+				SIE_Element seed_label;
+				SIE_Element event_amount;
+
+				sisyphos::for_first_middle_last(std::begin(sie_seed),std::end(sie_seed),
+					 [&](const SIE_Element& e)->void {event_date = e; }	// Date is first
+					,[&](const SIE_Element& e)->void {seed_label += e + " "; } // Concatinate middle
+					,[&](const SIE_Element& e)->void {event_amount = e; } // Amount is last
+				);
+
+				SIE_Statement statement;
+				if (seed_label.find("TELIA") != SIE_Element::npos) {
+					statement.push_back(SIE_Entry({ "#VER","4","42","20160517","FA407/Telia","20160711" }));
+					statement.push_back(SIE_Entry({ "{" }));
+					statement.push_back(SIE_Entry({ "#TRANS","2440","{}","-1330,00","","FA407/Telia" }));
+					statement.push_back(SIE_Entry({ "#TRANS","2640","{}","265,94","","FA407/Telia" }));
+					statement.push_back(SIE_Entry({ "#TRANS","6212","{}","1064,06","","FA407/Telia" }));
+					statement.push_back(SIE_Entry({ "}" }));
 				}
-				++state;
+				else {
+					// Unknown event
+				}
+
+				if (statement.size() > 0) {
+					{
+						// Header
+						result.push_back(SIE_Entry({ "#FNR","ITFIED" }));
+						result.push_back(SIE_Entry({ "#FNAMN","The ITfied AB" }));
+						result.push_back(SIE_Entry({ "#ORGNR","556782-8172" }));
+						result.push_back(SIE_Entry({ "#RAR","0","20160501","20170430" }));
+						result.push_back(SIE_Entry({ "" }));
+					}
+					std::copy(std::begin(statement), std::end(statement), std::back_inserter(result));
+				}
 			}
 			return result;
 		}

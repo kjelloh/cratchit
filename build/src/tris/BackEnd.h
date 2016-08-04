@@ -44,6 +44,7 @@
 #elif defined(__GNUC__)
 #elif defined _MSC_VER
 	#include <filesystem> // Visual Studio TR filesystem
+	#include <fstream>
 #endif
 //-----------------------------------------------------------------------------
 
@@ -58,18 +59,20 @@ namespace tris {
 
 	namespace backend {
 
+		namespace filesystem {
+			// Populate identified filesystem with members to expose to tris namespace
+#if defined (_MSC_VER)
+			using namespace std::tr2::sys; // populkate with tr2 filesystem
+			using ifstream = std::ifstream;
+#endif
+		}
+
 		// Root BackEnd types (Hides actual API types)
 		using API_ERROR_CODE = unsigned long;
 		using API_RESULT_CODE = unsigned long;
 		using API_STRING = std::string; // TODO: Decide when and how to use UNICODE (without including API, e.g., windows.h, headers)
 
 		std::runtime_error runtime_exception_of_api_error_code(const std::string sPrefix, API_ERROR_CODE api_error_code);
-
-#if defined (__clang__)
-#elif defined(__GNUC__)
-#elif defined _MSC_VER
-#else
-#endif
 
 		namespace process {
 			using Path = std::string;
@@ -79,6 +82,8 @@ namespace tris {
 			std::future<int> execute(const Path& cmd, const Parameters& parameters);
 		}
 	}
+
+	using namespace backend::filesystem; // Bring in the tris::backend filesystem namespace (in effect making tris::path, tris::ifstrem etc available)
 
 	class BackEnd : public Active {
 	public:

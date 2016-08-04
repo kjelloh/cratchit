@@ -22,17 +22,36 @@ public:
 
 	// Returns true if Done
 	bool operator()(const CommandLine& command_line, bool& done) {
-		bool result = true; // Default success
-		std::regex tokenizer_regexp("\\s+"); // whitespace
-		std::for_each(
-			std::sregex_token_iterator(std::begin(command_line), std::end(command_line), tokenizer_regexp, -1)
-			, std::sregex_token_iterator()
-			, [&result](const Parameter& p) {
+		bool result = false; // Default failed
+		std::regex whitespace_regexp("\\s+"); // tokenize on whitespace
+		sie::SIE_Seed sie_seed(std::sregex_token_iterator(std::begin(command_line), std::end(command_line), whitespace_regexp, -1), std::sregex_token_iterator());
+		//std::copy(
+		//	std::sregex_token_iterator(std::begin(command_line), std::end(command_line), tokenizer_regexp, -1)
+		//	, std::sregex_token_iterator()
+		//	, std::back_inserter(sie_seed));
+		if (sie_seed.size() > 0) {
+			auto p = sie_seed[0];
 			if (p == "test") {
-				sie::experimental::get_template_statements();
+				//sie::experimental::get_template_statements();
+				sie::SIE_Statements statements = sie::experimental::parse_financial_events();
+				// format statements to std::cout
+				std::for_each(std::begin(statements), std::end(statements), [](const sie::SIE_Statement& statement) {
+					std::for_each(std::begin(statement), std::end(statement), [](const sie::SIE_Entry& entry) {
+						std::cout << "\n";
+						std::for_each(std::begin(entry), std::end(entry), [](const sie::SIE_Element& element) {
+							if (std::any_of(std::begin(element), std::end(element), [](char c) {return c == ' '; })) {
+								std::cout << "\t\"" << element << "\""; // frame text
+							}
+							else {
+								std::cout << "\t" << element << ""; // Don't frame value
+							}
+						});
+					});
+				});
+				result = true; // Command Done 
 			}
 			else if (p == "bokslut Apr-14") { // Bokslut Maj-13...Apr-14
-				// Serie A
+											  // Serie A
 				{
 					/*
 					#FNR	"ITFIED"
@@ -221,7 +240,7 @@ public:
 				}
 			}
 			else if (p == "bokslut Apr-15") { // Bokslut Maj-14...Apr-15
-				// Serie A
+											  // Serie A
 				{
 					/*
 					// Bokslut 150430
@@ -473,71 +492,24 @@ public:
 
 				}
 			}
-			else if (p == "Telia") {
-				// Test of SIE output generation
-				/*
-				==> Telia Faktura 160517
-
-				==> Tidigare Telia-faktura verkar vara bokf�rd s� h�r (Verifikat D:42 kodad som #VER	4	42)
-
-				#FNR	"ITFIED"
-				#FNAMN	"The ITfied AB"
-				#ORGNR	"556782-8172"
-				#RAR	0	20150501	20160430
-
-				#VER	4	42	20151116	"FA407/Telia"	20160711
-				{
-				#TRANS	2440	{}	-1330,00	""	"FA407/Telia"
-				#TRANS	2640	{}	265,94	""	"FA407/Telia"
-				#TRANS	6212	{}	1064,06	""	"FA407/Telia"
-				}
-				*/
-				sie::SIE_Statement verification = sie::experimental::create_statement_for("Telia");
-
-				//int state = 0;
-				//SIE_Statement verification;
-				//bool loop_again = true;
-				//while (loop_again) {
-				//	SIE_Entry entry;
-				//	switch (state) {					
-				//	case 0: verification.push_back(SIE_Entry({ "#FNR","ITFIED"}));
-				//	case 1: verification.push_back(SIE_Entry({ "#FNAMN","The ITfied AB" }));
-				//	case 2: verification.push_back(SIE_Entry({ "#ORGNR","556782-8172" }));
-				//	case 3: verification.push_back(SIE_Entry({ "#RAR","0","20150501","20160430" }));
-				//	case 4: verification.push_back(SIE_Entry({ "" }));
-				//	case 5: verification.push_back(SIE_Entry({ "#VER","4","42","20151116","FA407/Telia","20160711" }));
-				//	case 6: verification.push_back(SIE_Entry({ "{" }));
-				//	case 7: verification.push_back(SIE_Entry({ "#TRANS","2440","{}","-1330,00","","FA407/Telia" }));
-				//	case 8: verification.push_back(SIE_Entry({ "#TRANS","2640","{}","265,94","","FA407/Telia" }));
-				//	case 9: verification.push_back(SIE_Entry({ "#TRANS","6212","{}","1064,06","","FA407/Telia" }));
-				//	case 10: verification.push_back(SIE_Entry({ "}" }));
-				//	default: loop_again = false; break;
-				//	}
-				//	++state;
-				//}
-				std::for_each(std::begin(verification), std::end(verification), [](const sie::SIE_Entry& entry) {
+			else {
+				// Process it as a SIE seed (to generate SIE statement)
+				sie::SIE_Statement statement = sie::experimental::create_statement_for(sie_seed);
+				// Print to stdout
+				std::for_each(std::begin(statement), std::end(statement), [](const sie::SIE_Entry& entry) {
 					std::cout << "\n";
 					std::for_each(std::begin(entry), std::end(entry), [](const sie::SIE_Element& element) {
-						std::cout << "\t\"" << element << "\"";
+						if (std::any_of(std::begin(element), std::end(element), [](char c) {return c == ' '; })) {
+							std::cout << "\t\"" << element << "\""; // frame text
+						}
+						else {
+							std::cout << "\t" << element << ""; // Don't frame value
+						}
 					});
 				});
+				result = (statement.size() > 0); // Ok if we generated a statement
 			}
-			else if (p == "Binero") {
-			}
-			else if (p == "SE_Konsult") {
-			}
-			else if (p == "Kontoutdrag") { // Booking of payments (in/out)
-			}
-			else if (p == "TaxDeclaration") { // Clearing/declaration of Tax for period
-			}
-			else if (p == "Privat") {
-			}
-			else if (p == "Beanstalk") { // Could be sub-payment of "Kontoutdrag" (Shows only as payment)
-			}
-			else {
-				result = false; // unknown command
-			}
-		});
+		}
 
 		return result;
 	}
