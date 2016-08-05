@@ -6,6 +6,7 @@
 #include "../tris/BackEnd.h"
 #include <iterator>
 #include <regex>
+#include <cctype> // std::toupper
 
 namespace sisyphos {
 
@@ -40,6 +41,49 @@ namespace sisyphos {
 	}
 
 }
+
+namespace vine {
+
+	template <typename Text>
+	void design_insufficiency_log(const Text& entry) { 
+		// Stub - Not yet implemented 
+	};
+
+}
+
+namespace babel {
+
+
+	namespace detail {
+		using Script = std::string; // babel Script type to handle text
+
+		Script case_fold(const Script& text) {
+			Script result;
+			// asume non-escpaded characters (E.g. not UTF-8 ‘Ä’ as it is escaped as {195/0xC3, 132/0x84} (http://www.utf8-chartable.de))
+			std::transform(std::begin(text), std::end(text), std::back_inserter(result), std::tolower);
+			return result;
+		};
+	}
+
+	// Constructs from text convertable to babel::Script
+	// Matches with any text that accepts babel::Script as parameter to Text::find
+	struct keyword {
+		template<typename Text>
+		keyword(const Text& keyword) : m_keyword(detail::case_fold(keyword)) {}		// babel::Script must be constructable from provided Text
+
+		template <typename Text>
+		bool matches(const Text& text) {
+			// TODO: Adapt to some babel solution for case-folding of Unicode text (http://unicode.org/faq/casemap_charprop.html#3)
+			detail::Script case_folded_text = detail::case_fold(text);
+			auto is_match = (case_folded_text.find(m_keyword) != Text::npos);		// babel::Script m_keyword must be compatible with Text::find parameter
+			return is_match;
+		}
+	private:
+		detail::Script m_keyword;
+	};
+
+}
+
 namespace sie {
 
 	// The SIE-format is piblsihed at http://www.sie.se/
@@ -109,12 +153,32 @@ namespace sie {
 				);
 
 				SIE_Statement statement;
-				if (seed_label.find("TELIA") != SIE_Element::npos) {
+				if (babel::keyword("Beanstalk").matches(seed_label)) {
+					/*
+					#FNR	"ITFIED"
+					#FNAMN	"The ITfied AB"
+					#ORGNR	"556782-8172"
+					#RAR	0	20150501	20160430
+
+					#VER	1	106	20160331	"Beanstalk"	20160805
+					{
+					#TRANS	1920	{}	-125,63	""	"Beanstalk"
+					#TRANS	6230	{}	-125,63	""	"Beanstalk"
+					}
+
+					*/
+					statement.push_back(SIE_Entry({ "#VER","?","??",event_date,seed_label,"_?today?_" }));
+					statement.push_back(SIE_Entry({ "{" }));
+					statement.push_back(SIE_Entry({ "#TRANS","1920","{}",event_amount,"","Beanstalk"}));
+					statement.push_back(SIE_Entry({ "#TRANS","6230","{}",event_amount,"","Beanstalk"}));
+					statement.push_back(SIE_Entry({ "}" }));
+				}
+				else if (babel::keyword("Telia").matches(seed_label)) {
 					statement.push_back(SIE_Entry({ "#VER","4","42","20160517","FA407/Telia","20160711" }));
 					statement.push_back(SIE_Entry({ "{" }));
-					statement.push_back(SIE_Entry({ "#TRANS","2440","{}","-1330,00","","FA407/Telia" }));
-					statement.push_back(SIE_Entry({ "#TRANS","2640","{}","265,94","","FA407/Telia" }));
-					statement.push_back(SIE_Entry({ "#TRANS","6212","{}","1064,06","","FA407/Telia" }));
+					statement.push_back(SIE_Entry({ "#TRANS","2440","{}",event_amount,"","FA407/Telia" }));
+					statement.push_back(SIE_Entry({ "#TRANS","2640","{}","_?No_VAT_event_amount?_","","FA407/Telia" }));
+					statement.push_back(SIE_Entry({ "#TRANS","6212","{}","?_VAT_event_amount?_","","FA407/Telia" }));
 					statement.push_back(SIE_Entry({ "}" }));
 				}
 				else {
@@ -122,6 +186,7 @@ namespace sie {
 				}
 
 				if (statement.size() > 0) {
+					// Create result with Header
 					{
 						// Header
 						result.push_back(SIE_Entry({ "#FNR","ITFIED" }));
@@ -130,6 +195,7 @@ namespace sie {
 						result.push_back(SIE_Entry({ "#RAR","0","20160501","20170430" }));
 						result.push_back(SIE_Entry({ "" }));
 					}
+					// statemenet
 					std::copy(std::begin(statement), std::end(statement), std::back_inserter(result));
 				}
 			}
