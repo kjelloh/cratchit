@@ -7,6 +7,7 @@
 #include <iterator>
 #include <regex>
 #include <cctype> // std::toupper
+#include <sstream>
 
 namespace sisyphos {
 
@@ -88,7 +89,74 @@ namespace sie {
 
 	// The SIE-format is piblsihed at http://www.sie.se/
 
+	using SIE_Amount = int; // Integer amount in cents
+
+	// TODO: Templetaize on SIE_Amount to use std::stof or std::stod
+	SIE_Amount to_SIE_Amount(const SIE_Element& amount_element) { return std::stof(amount_element) * 100; } // Return amount in cents
+
+	using SIE_Account_Id = unsigned int;
+
+	enum e_SIEAccountType {
+		eSIEAccountType_Undefined
+		, eSIEAccountType_Asset
+		, eSIEAccountType_Debt
+		, eSIEAccountType_Cost
+		, eSIEAccountType_Income
+		, eSIEAccountType_Unknown
+	};
+
+	namespace bas {
+		using BAS_Account_Id = unsigned int;
+
+		e_SIEAccountType account_type(const SIE_Account_Id& account_id) {
+			// TODO: Secure all account types (as of now only based ob class and seelcted excpetions)
+			switch (account_id / 1000) {
+			case 0: return eSIEAccountType_Undefined;
+			case 1: return eSIEAccountType_Asset;
+			case 2: return (account_id != 2640) ? eSIEAccountType_Debt : eSIEAccountType_Asset;
+			case 3: return eSIEAccountType_Income;
+			case 4: 
+			case 5:
+			case 6:
+			case 7: return eSIEAccountType_Cost;
+			case 8: return (account_id != 8300)? eSIEAccountType_Cost: eSIEAccountType_Income;
+			case 9: return eSIEAccountType_Undefined;
+			}
+		}
+
+	}
+
 	namespace experimental {
+
+		e_SIEAccountType account_type(const SIE_Account_Id& account_id) {
+			return bas::account_type(account_id);
+		}
+
+		namespace cratchit {
+
+			namespace event {
+
+				struct Cratchit_Event {
+					Cratchit_Event(const SIE_Seed& sie_seed) {
+						sisyphos::for_first_middle_last(std::begin(sie_seed), std::end(sie_seed),
+							[&](const SIE_Element& e)->void {event_date = e; }	// Date is first
+						, [&](const SIE_Element& e)->void {seed_label += e + " "; } // Concatinate middle parts
+						, [&](const SIE_Element& e)->void {event_amount = to_SIE_Amount(e); } // Amount is last
+						);
+					}
+					SIE_Element event_date;
+					SIE_Element seed_label;
+					SIE_Amount event_amount;
+				};
+
+			}
+		}
+
+		SIE_Entry VER_Statement(const SIE_Element& event_date, const SIE_Element& seed_label) {
+			// SIE_Entry({ "#VER","?","??",cratchit_event.event_date,cratchit_event.seed_label,"_?today?_" }));
+			SIE_Entry result({ "#VER","?","??",event_date,seed_label,"_?today?_" });
+			return result;
+		};
 
 		namespace detail {
 			template <typename T>
@@ -137,6 +205,79 @@ namespace sie {
 			return result;
 		}
 
+		SIE_Amount account_decerase_amount(SIE_Account_Id sie_account_id, const SIE_Amount& sie_amount) {
+			switch (bas::account_type(sie_account_id)) {
+			case eSIEAccountType_Asset: return sie_amount * -1; // Decerase asset is negative (Credit)
+			case eSIEAccountType_Debt: return sie_amount; // Decerase debt is positive (Debit)
+			case eSIEAccountType_Cost: return sie_amount*-1; // Decerase cost is negative (Credit)
+			case eSIEAccountType_Income: return sie_amount; // Decerase income is positive (Debit)
+			}
+		}
+
+		SIE_Amount account_increase_amount(SIE_Account_Id sie_account_id, const SIE_Amount& sie_amount) {
+			switch (bas::account_type(sie_account_id)) {
+			case eSIEAccountType_Asset: return sie_amount ; // Increase assets is positive (debit)
+			case eSIEAccountType_Debt: return sie_amount*-1; // Increase debt is negative (credit)
+			case eSIEAccountType_Cost: return sie_amount; // Increase costs is positive (Debit)
+			case eSIEAccountType_Income: return sie_amount*-1; // Increase income is negative (Credit)
+			}
+		}
+
+		struct VAT_Record {
+			SIE_Amount amount_with_VAT;
+			SIE_Amount amount_without_VAT;
+			SIE_Amount VAT_Amount;
+			unsigned int cent_recidue;
+		};
+
+		VAT_Record Amount_With_VAT_View(SIE_Amount amount_with_VAT) {
+			// TODO: Assure this algorithm is according to Swedish rounding rules (for now it is mathematicly correct?)
+			VAT_Record result;
+			result.amount_with_VAT = amount_with_VAT;
+			result.VAT_Amount = std::round(0.20 * amount_with_VAT); // https://www4.skatteverket.se/rattsligvagledning/edition/2014.3/321578.html
+			result.amount_without_VAT = amount_with_VAT - result.VAT_Amount;
+			result.cent_recidue = result.amount_with_VAT - result.amount_without_VAT - result.VAT_Amount;
+			return result;
+		}
+
+		SIE_Element to_SIE_Element(SIE_Amount sie_amount) {
+			std::stringstream ssResult;
+			ssResult.setf(std::ios::fixed);
+			ssResult.precision(2);
+			ssResult << (sie_amount / 100.00);
+			return ssResult.str();
+		}
+
+		SIE_Element to_SIE_Element(unsigned int value) {
+			return std::to_string(value);
+		}
+
+		SIE_Entry TRANS_increase_account_entry(SIE_Account_Id account_id, const SIE_Amount& sie_amount, const SIE_Element& sie_comment) {
+			SIE_Entry result({ "#TRANS",to_SIE_Element(account_id),"{}",to_SIE_Element(account_increase_amount(account_id,sie_amount)),"",sie_comment });
+			return result;
+		}
+
+		SIE_Entry TRANS_decrease_account_entry(SIE_Account_Id account_id, const SIE_Amount& sie_amount, const SIE_Element& sie_comment) {
+			SIE_Entry result({ "#TRANS",to_SIE_Element(account_id),"{}",to_SIE_Element(account_decerase_amount(account_id,sie_amount)),"",sie_comment });
+			return result;
+		}
+
+		SIE_Entry TRANS_increase_cost_entry(SIE_Account_Id account_id, const SIE_Amount& sie_amount, const SIE_Element& sie_comment) {
+			return TRANS_increase_account_entry(account_id,sie_amount,sie_comment);
+		}
+
+		SIE_Entry TRANS_increase_debt_entry(SIE_Account_Id account_id, const SIE_Amount& sie_amount, const SIE_Element& sie_comment) {
+			return TRANS_increase_account_entry(account_id, sie_amount, sie_comment);
+		}
+
+		SIE_Entry TRANS_decrease_asset_entry(SIE_Account_Id account_id, const SIE_Amount& sie_amount,const SIE_Element& sie_comment) {
+			return TRANS_decrease_account_entry(account_id, sie_amount, sie_comment);
+		}
+
+		SIE_Entry TRANS_decrease_debt_entry(SIE_Account_Id account_id, const SIE_Amount& sie_amount, const SIE_Element& sie_comment) {
+			return TRANS_decrease_account_entry(account_id, sie_amount, sie_comment);
+		}
+
 		SIE_Statement create_statement_for(const SIE_Seed& sie_seed)
 		{
 			SIE_Statement result;
@@ -148,45 +289,102 @@ namespace sie {
 
 				sisyphos::for_first_middle_last(std::begin(sie_seed),std::end(sie_seed),
 					 [&](const SIE_Element& e)->void {event_date = e; }	// Date is first
-					,[&](const SIE_Element& e)->void {seed_label += e + " "; } // Concatinate middle
+					,[&](const SIE_Element& e)->void {seed_label += e + " "; } // Concatinate middle parts
 					,[&](const SIE_Element& e)->void {event_amount = e; } // Amount is last
 				);
 
-				SIE_Statement statement;
+				SIE_Statements statements;
+
 				if (babel::keyword("Beanstalk").matches(seed_label)) {
 					/*
-					#FNR	"ITFIED"
-					#FNAMN	"The ITfied AB"
-					#ORGNR	"556782-8172"
-					#RAR	0	20150501	20160430
-
 					#VER	1	106	20160331	"Beanstalk"	20160805
 					{
 					#TRANS	1920	{}	-125,63	""	"Beanstalk"
-					#TRANS	6230	{}	-125,63	""	"Beanstalk"
+					#TRANS	6230	{}	125,63	""	"Beanstalk"
 					}
-
 					*/
-					statement.push_back(SIE_Entry({ "#VER","?","??",event_date,seed_label,"_?today?_" }));
-					statement.push_back(SIE_Entry({ "{" }));
-					statement.push_back(SIE_Entry({ "#TRANS","1920","{}",event_amount,"","Beanstalk"}));
-					statement.push_back(SIE_Entry({ "#TRANS","6230","{}",event_amount,"","Beanstalk"}));
-					statement.push_back(SIE_Entry({ "}" }));
+					{
+						SIE_Statement statement;
+						cratchit::event::Cratchit_Event cratchit_event(sie_seed);
+
+						statement.push_back(VER_Statement(cratchit_event.event_date,cratchit_event.seed_label));// SIE_Entry({ "#VER","?","??",cratchit_event.event_date,cratchit_event.seed_label,"_?today?_" }));
+						statement.push_back(SIE_Entry({ "{" }));
+
+						// Direct Payment (Increase Cost, Decerase Asset)
+						statement.push_back(TRANS_increase_cost_entry(6230, cratchit_event.event_amount, seed_label));// SIE_Entry({ "#TRANS","6230","{}",cratchit_event.event_amount,"","Beanstalk" }));
+						statement.push_back(TRANS_decrease_asset_entry(1920, cratchit_event.event_amount,seed_label));// SIE_Entry({ "#TRANS","1920","{}",cratchit_event.event_amount,"","Beanstalk" }));
+
+						statement.push_back(SIE_Entry({ "}" }));
+
+						statements.push_back(statement);
+					}
 				}
 				else if (babel::keyword("Telia").matches(seed_label)) {
-					statement.push_back(SIE_Entry({ "#VER","4","42","20160517","FA407/Telia","20160711" }));
-					statement.push_back(SIE_Entry({ "{" }));
-					statement.push_back(SIE_Entry({ "#TRANS","2440","{}",event_amount,"","FA407/Telia" }));
-					statement.push_back(SIE_Entry({ "#TRANS","2640","{}","_?No_VAT_event_amount?_","","FA407/Telia" }));
-					statement.push_back(SIE_Entry({ "#TRANS","6212","{}","?_VAT_event_amount?_","","FA407/Telia" }));
-					statement.push_back(SIE_Entry({ "}" }));
+					/*
+					#VER	4	42	20151116	"FA407/Telia"	20160711
+					{
+					#TRANS	2440	{}	-1330,00	""	"FA407/Telia"
+					#TRANS	2640	{}	265,94	""	"FA407/Telia"
+					#TRANS	6212	{}	1064,06	""	"FA407/Telia"
+					}
+					*/
+
+					/*
+					#VER	5	41	20151216	"BE"	20160701
+					{
+					#TRANS	1920	{}	-1330,00	""	"BE"
+					#TRANS	2440	{}	1330,00	""	"BE/FA407/Telia"
+					}
+					*/
+					{
+						//SIE_Statement statement;
+						//
+						//statement.push_back(SIE_Entry({ "#VER","4","42","20160517","FA407/Telia","20160711" }));
+						//statement.push_back(SIE_Entry({ "{" }));
+						//statement.push_back(SIE_Entry({ "#TRANS","2440","{}",event_amount,"","FA407/Telia" }));
+						//statement.push_back(SIE_Entry({ "#TRANS","2640","{}","_?Event_VAT_amount?_","","FA407/Telia" }));
+						//statement.push_back(SIE_Entry({ "#TRANS","6212","{}","_?Event_No_VAT_amount?_","","FA407/Telia" }));
+						//statement.push_back(SIE_Entry({ "}" }));
+
+						//statements.push_back(statement);
+					}
+					{
+						SIE_Statement statement;
+						cratchit::event::Cratchit_Event cratchit_event(sie_seed);
+						VAT_Record vat_record = Amount_With_VAT_View(cratchit_event.event_amount);
+
+						statement.push_back(VER_Statement(cratchit_event.event_date, cratchit_event.seed_label));
+						statement.push_back(SIE_Entry({ "{" }));
+
+						// Generate Invoice Entry (Increase Cost, Increase Debt)
+						statement.push_back(TRANS_increase_debt_entry(2440, vat_record.amount_with_VAT,cratchit_event.seed_label)); // { "#TRANS","2440","{}",event_amount,"","FA407/Telia" }));
+						statement.push_back(TRANS_increase_debt_entry(2640, vat_record.VAT_Amount, cratchit_event.seed_label)); // { "#TRANS","2640","{}","_?Event_VAT_amount?_","","FA407/Telia" }));
+						statement.push_back(TRANS_increase_cost_entry(6212, vat_record.amount_without_VAT,cratchit_event.seed_label)); // SIE_Entry({ "#TRANS","6212","{}","_?Event_No_VAT_amount?_","","FA407/Telia" }));
+
+						statement.push_back(SIE_Entry({ "}" }));
+						statements.push_back(statement);
+					}
+					{
+						SIE_Statement statement;
+						cratchit::event::Cratchit_Event cratchit_event(sie_seed);
+						statement.push_back(VER_Statement(cratchit_event.event_date, cratchit_event.seed_label));
+						statement.push_back(SIE_Entry({ "{" }));
+
+						// Generate Payment Entry (Decerase Debt, Decrease Asset)
+						statement.push_back(TRANS_decrease_debt_entry(2440, cratchit_event.event_amount, cratchit_event.seed_label));// #TRANS	2440	{}	1330, 00	""	"BE/FA407/Telia"
+						statement.push_back(TRANS_decrease_asset_entry(1920, cratchit_event.event_amount, cratchit_event.seed_label)); // #TRANS	1920	{}	-1330, 00	""	"BE"
+
+
+						statement.push_back(SIE_Entry({ "}" }));
+						statements.push_back(statement);
+
+					}
 				}
 				else {
 					// Unknown event
 				}
 
-				if (statement.size() > 0) {
-					// Create result with Header
+				std::for_each(std::begin(statements), std::end(statements), [&result](const SIE_Statement& statement) {
 					{
 						// Header
 						result.push_back(SIE_Entry({ "#FNR","ITFIED" }));
@@ -197,7 +395,21 @@ namespace sie {
 					}
 					// statemenet
 					std::copy(std::begin(statement), std::end(statement), std::back_inserter(result));
-				}
+				});
+
+				//if (statement.size() > 0) {
+				//	// Create result with Header
+				//	{
+				//		// Header
+				//		result.push_back(SIE_Entry({ "#FNR","ITFIED" }));
+				//		result.push_back(SIE_Entry({ "#FNAMN","The ITfied AB" }));
+				//		result.push_back(SIE_Entry({ "#ORGNR","556782-8172" }));
+				//		result.push_back(SIE_Entry({ "#RAR","0","20160501","20170430" }));
+				//		result.push_back(SIE_Entry({ "" }));
+				//	}
+				//	// statemenet
+				//	std::copy(std::begin(statement), std::end(statement), std::back_inserter(result));
+				//}
 			}
 			return result;
 		}

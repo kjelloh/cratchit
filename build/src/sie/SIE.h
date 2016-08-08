@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace sie {
-
+	using SIE_Float = float;
 	using SIE_Element = std::string;
 	using SIE_Entry = std::vector<SIE_Element>;
 	using SIE_Statement = std::vector<SIE_Entry>;
