@@ -85,14 +85,128 @@ namespace babel {
 
 }
 
+namespace ibi {
+	template <typename T>
+	class Path {
+
+	};
+}
+
 namespace sie {
+
+	namespace parse {
+
+		enum e_SIEElement {
+			eSIEElement_Undefined
+			, eSIEElement_Unknown
+		};
+
+		using Key = e_SIEElement;
+
+		using Path = std::vector<Key>;
+
+		using Source = std::stringstream;
+
+		using Cache = std::vector<Source::char_type>;
+
+		using Range = std::pair<Cache::iterator, Cache::iterator>;
+
+		struct ElementMap : public std::pair<Path, Range> {
+			ElementMap(Path p = Path(), Range r = Range()) : std::pair<Path, Range>(p,r) {}
+		};
+
+		struct Target : public SIE_Statements {
+			void onParsedElement(const ElementMap& em) {
+				// Create and store SIE_Element from provided element Path and range
+				// em.first == Path;
+				// em.second.first = begin();
+				// em.second.second = end();
+			}
+		};
+
+
+		// sie::parse::iter is iterative parsing
+		namespace iter {
+
+
+			struct Parser {
+				// We need a parser to keep the cache alive (so that the iterator has something to reference.
+				// Note: The iteartor can't carry a cache itself as the end-iterator should not aggregate any cache.
+
+				class ElementMapIterator : public std::iterator<std::forward_iterator_tag, ElementMap> {
+					ElementMap m_current;
+				public:
+					ElementMapIterator(Cache* p) : m_current(Path(), Range(p->begin(), p->begin())) { ++(*this); }
+
+					ElementMapIterator(const ElementMapIterator&) = default;
+
+					ElementMapIterator& operator++() {
+						// TODO: Parse from m_p until we have the next element in range (or end)
+						return *this; 
+					}
+					bool operator==(const ElementMapIterator& rhs) { return m_current == rhs.m_current; }
+					bool operator!=(const ElementMapIterator& rhs) { return m_current != rhs.m_current; }
+					ElementMap& operator*() { return m_current; }
+
+				};
+
+				ElementMapIterator begin() { return ElementMapIterator(&m_cache); }
+				ElementMapIterator end() { return ElementMapIterator(nullptr); }
+
+				void parse(Source& source, Target& target) {
+					// Compose parsers "on stack" by call to appropriate parse-function for current element.
+					// Thus the parsed structure is modelled by where in the execution whe are.
+					std::copy(std::istream_iterator<char>(source), std::istream_iterator<char>(), std::back_inserter(m_cache)); // clone source to cache to ensure it is available
+					std::for_each(begin(), end(), [&target](const ElementMap& em) {target.onParsedElement(em); });
+				}
+
+				Source m_src;
+				Cache m_cache; // Actual cache during parse (iterator refernces this cache)
+			};
+
+
+			void iter_example() {
+				Source source;
+				Target target;
+				Parser parser;
+				parser.parse(source, target);
+			}
+
+		}
+
+		// sie::parse::gen is generating parsing
+		namespace gen {
+
+			struct Parser {
+
+				void parse(Source& source, Target& target) {
+					// Compose parsers "on stack" by call to appropriate parse-function for current element.
+					// Thus the parsed structure is modelled by where in the execution whe are.
+					std::copy(std::istream_iterator<char>(source), std::istream_iterator<char>(), std::back_inserter(m_cache)); // clone source to cache to ensure it is available
+					ElementMap em;
+					target.onParsedElement(em);
+				}
+
+				Cache m_cache;
+			};
+
+			void gen_example() {
+				Source source("Hello");
+				Target target;
+				Parser parser;
+				parser.parse(source, target);
+			}
+
+		}
+
+	}
 
 	// The SIE-format is piblsihed at http://www.sie.se/
 
 	using SIE_Amount = int; // Integer amount in cents
 
 	// TODO: Templetaize on SIE_Amount to use std::stof or std::stod
-	SIE_Amount to_SIE_Amount(const SIE_Element& amount_element) { return std::stof(amount_element) * 100; } // Return amount in cents
+	SIE_Amount to_SIE_Amount(const SIE_Element& amount_element) { return static_cast<SIE_Amount>(std::round(std::stof(amount_element) * 100)); } // Return amount in cents
 
 	using SIE_Account_Id = unsigned int;
 
@@ -121,6 +235,7 @@ namespace sie {
 			case 7: return eSIEAccountType_Cost;
 			case 8: return (account_id != 8300)? eSIEAccountType_Cost: eSIEAccountType_Income;
 			case 9: return eSIEAccountType_Undefined;
+			default: return eSIEAccountType_Unknown;
 			}
 		}
 
@@ -211,6 +326,7 @@ namespace sie {
 			case eSIEAccountType_Debt: return sie_amount; // Decerase debt is positive (Debit)
 			case eSIEAccountType_Cost: return sie_amount*-1; // Decerase cost is negative (Credit)
 			case eSIEAccountType_Income: return sie_amount; // Decerase income is positive (Debit)
+			default: throw std::runtime_error("account_decerase_amount failed. No Amount available for unknown account type");
 			}
 		}
 
@@ -220,6 +336,7 @@ namespace sie {
 			case eSIEAccountType_Debt: return sie_amount*-1; // Increase debt is negative (credit)
 			case eSIEAccountType_Cost: return sie_amount; // Increase costs is positive (Debit)
 			case eSIEAccountType_Income: return sie_amount*-1; // Increase income is negative (Credit)
+			default: throw std::runtime_error("account_increase_amount failed. No Amount available for unknown account type");
 			}
 		}
 
@@ -234,7 +351,7 @@ namespace sie {
 			// TODO: Assure this algorithm is according to Swedish rounding rules (for now it is mathematicly correct?)
 			VAT_Record result;
 			result.amount_with_VAT = amount_with_VAT;
-			result.VAT_Amount = std::round(0.20 * amount_with_VAT); // https://www4.skatteverket.se/rattsligvagledning/edition/2014.3/321578.html
+			result.VAT_Amount = static_cast<decltype(result.VAT_Amount)>(std::round(0.20 * amount_with_VAT)); // https://www4.skatteverket.se/rattsligvagledning/edition/2014.3/321578.html
 			result.amount_without_VAT = amount_with_VAT - result.VAT_Amount;
 			result.cent_recidue = result.amount_with_VAT - result.amount_without_VAT - result.VAT_Amount;
 			return result;
