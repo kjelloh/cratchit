@@ -6,8 +6,8 @@
  * This is the BackEnd.h header in the FrontEnd-Core-BackEnd source code architecture idiom
  *
 	FrontEnd.cpp	<—	FronEnd.h	—>	FrontEndImpl.h	->	FrontEndImpl.cpp
-	    ^					            ^
-	    |----------------------			    |
+      ^                             ^
+      |----------------------|
 			  	  |			    |
 	Core.cpp	<—	Core.h		->	CoreImpl.h	->	CoreImpl.cpp
 	    ^						    ^
@@ -35,8 +35,10 @@
 #include <iostream>
 #include <algorithm>
 
-#ifdef _WIN32
+#if defined(_WIN32)
 	#include <windows.h>
+#else
+  #include <cstdlib> // std::system(/*CLI command*/)
 #endif
 
 namespace tris {
@@ -45,10 +47,13 @@ namespace tris {
 		namespace platform_detail {
 			// platform tags
 			struct win32 {};
+      struct macOS {};
 		}
 
-#ifdef _WIN32
-		using platform = platform_detail::win32;
+#if defined(_WIN32)
+  using platform = platform_detail::win32;
+#elif defined(__APPLE__)
+  using platform = platform_detail::macOS;
 #endif
 
 		namespace detail {
@@ -58,7 +63,7 @@ namespace tris {
 				static_assert(is_not_instantiated<T>::value, "runtime_exception_of_api_error_code_impl not implemented for this platform");
 			}
 
-#ifdef _WIN32
+#if defined(_WIN32)
 			template <>
 			std::runtime_error runtime_exception_of_api_error_code<platform_detail::win32>(const std::string sPrefix, API_ERROR_CODE api_error_code) {
 				std::stringstream ssMessage;
@@ -84,10 +89,20 @@ namespace tris {
 
 				return std::runtime_error(ssMessage.str());
 			}
+#elif defined (__APPLE__)
+  template <>
+  std::runtime_error runtime_exception_of_api_error_code<platform_detail::macOS>(const std::string sPrefix, API_ERROR_CODE api_error_code) {
+    std::stringstream ssMessage;
+    ssMessage << sPrefix << " Error ";
+    ssMessage << api_error_code << " : \"";
+    ssMessage << " Untranslated API Error Code " << api_error_code << "\"";
+    return std::runtime_error(ssMessage.str());
+  };
 
-		} // namespace detail
-#endif
+#endif // #if defined(_WIN32)
+    } // namespace detail
 
+  
 		std::runtime_error runtime_exception_of_api_error_code(const std::string sPrefix, API_ERROR_CODE api_error_code) {
 			return detail::runtime_exception_of_api_error_code<platform>(sPrefix, api_error_code);
 			// return detail::runtime_exception_of_api_error_code<int>(sPrefix, api_error_code); // Test compile time error of unimplemented platform
@@ -105,7 +120,7 @@ namespace tris {
 				API_RESULT_CODE waitTerminate();
 			};
 
-#ifdef _WIN32
+#if defined(_WIN32)
 			template <>
 			class Process<platform_detail::win32> {
 			public:
@@ -164,12 +179,29 @@ namespace tris {
 				STARTUPINFO m_STARTUPINFO{}; // C++11 zero initialized
 				PROCESS_INFORMATION m_PROCESS_INFORMATION{}; // C++11 zero initialized
 			};
+#elif defined(__APPLE__)
+    template <>
+    class Process<platform_detail::macOS> {
+    public:
+      Process(const Path& cmd, const Parameters& parameters) {
+        std::stringstream ssCmdLine{};
+        ssCmdLine << R"(")" << cmd << R"(")"; // Ensure path is within string delimiters to preserve any spaces for Linux shells (MSYS2, MINGW, CywWin)
+        std::for_each(std::begin(parameters), std::end(parameters), [&ssCmdLine](Parameter p) {ssCmdLine << " " << p; });
+        this->sCommandLine = ssCmdLine.str();
+      }
+
+      API_RESULT_CODE waitTerminate() {
+        return std::system(sCommandLine.c_str());
+      }
+    private:
+      std::string sCommandLine{};
+    };
 #endif
 
 			std::future<int> execute(const Path& cmd, const Parameters& parameters) {
 				// Launch deferred i.e., synchronosuly on client access to returned future.
 				// NOTE: Lamda captures by value to have a copy available on actual call (after return from this call)
-				// This ensures the std::cout made by Process class is not mixed up by concurrent execution with clinet std::cout calls
+				// This ensures the std::cout made by Process class is not mixed up by concurrent execution with client std::cout calls
 				// TODO: Ensure Process execution is "thread safe" before chaning launch policy to async?
 				return std::async(std::launch::deferred, [cmd, parameters]()->int {
 					Process<platform> process(cmd, parameters);

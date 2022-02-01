@@ -8,6 +8,10 @@
 #include <regex>
 #include <cctype> // std::toupper
 #include <sstream>
+#include <fstream>
+#include <filesystem>
+#include <algorithm>
+#include <cmath>
 
 namespace sisyphos {
 
@@ -23,7 +27,7 @@ namespace sisyphos {
 		// Always apply last to last element if at least one entry in the proved range.
 		// Apply first and last if two elemnts in provded range.
 		// Otherwise apply first to the first element, middle to intermediate elements and last to last element.
-		static_assert(!detail::is_forward_iterator_tag<I::iterator_category>::value, "for_first_middle_last must be called with Forward Iteratable range");
+		static_assert(!detail::is_forward_iterator_tag<typename I::iterator_category>::value, "for_first_middle_last must be called with Forward Iteratable range");
 		switch (std::distance(_first, _end)) {
 		case 0: break;
 		case 1: {last(*_first); } break;
@@ -61,7 +65,7 @@ namespace babel {
 		Script case_fold(const Script& text) {
 			Script result;
 			// asume non-escpaded characters (E.g. not UTF-8 ‘Ä’ as it is escaped as {195/0xC3, 132/0x84} (http://www.utf8-chartable.de))
-			std::transform(std::begin(text), std::end(text), std::back_inserter(result), std::tolower);
+      std::transform(std::begin(text), std::end(text), std::back_inserter(result), [](char ch){ return std::tolower(ch);});
 			return result;
 		};
 	}
@@ -285,9 +289,9 @@ namespace sie {
 			};
 
 			template <>
-			struct raii<tris::ifstream> : public tris::ifstream {
-				raii(const tris::path& p) : tris::ifstream() {
-					this->exceptions(tris::ifstream::failbit | tris::ifstream::badbit);
+			struct raii<std::ifstream> : public std::ifstream {
+				raii(const std::filesystem::path& p) : std::ifstream() {
+					this->exceptions(std::ifstream::failbit | std::ifstream::badbit);
 					this->open(p);
 					this->exceptions(0); // no excpetions for client access
 				}
@@ -302,15 +306,15 @@ namespace sie {
 			//tris::backend::filesystem::path sie_path(R"(C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\src\sie\test\sie1.se)");
 			//                                                                                \GitHub\cratchit\build\build_vs\Debug           
 
-			tris::path sie_path(R"(..\src\sie\test\sie1.se)");
-			detail::raii<tris::ifstream> sie_file(sie_path);
+			std::filesystem::path sie_path(R"(..\src\sie\test\sie1.se)");
+			detail::raii<std::ifstream> sie_file(sie_path);
 			return result;
 		}
 
 		SIE_Statements parse_financial_events() {
 			SIE_Statements result;
-			tris::path sie_path(R"(..\src\sie\test\events1.txt)");
-			detail::raii<tris::ifstream> sie_file(sie_path);
+			std::filesystem::path sie_path(R"(..\src\sie\test\events1.txt)");
+			detail::raii<std::ifstream> sie_file(sie_path);
 			SIE_Element line;
 			while (sie_file.good() &&  std::getline(sie_file, line)) {
 				std::regex whitespace_regexp("\\s+"); // tokenize on whitespace

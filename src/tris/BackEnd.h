@@ -36,16 +36,8 @@
 #include <memory>
 #include <future>
 #include "Active.h"
-// https://sourceforge.net/p/predef/wiki/Compilers/
-#if defined (__clang__)
-	#ifdef _WIN32
-		// clang on windows (asume MinGW for now - add specialisation if required)
-	#endif
-#elif defined(__GNUC__)
-#elif defined _MSC_VER
-	#include <filesystem> // Visual Studio TR filesystem
-	#include <fstream>
-#endif
+#include <filesystem> // Visual Studio TR filesystem
+#include <fstream>
 //-----------------------------------------------------------------------------
 
 // Tris is the name of the Frontend, Core, Backend idiom library
@@ -58,14 +50,6 @@ namespace tris {
 	struct is_not_instantiated : public std::false_type {};
 
 	namespace backend {
-
-		namespace filesystem {
-			// Populate identified filesystem with members to expose to tris namespace
-#if defined (_MSC_VER)
-			using namespace std::tr2::sys; // populkate with tr2 filesystem
-			using ifstream = std::ifstream;
-#endif
-		}
 
 		// Root BackEnd types (Hides actual API types)
 		using API_ERROR_CODE = unsigned long;
@@ -82,8 +66,6 @@ namespace tris {
 			std::future<int> execute(const Path& cmd, const Parameters& parameters);
 		}
 	}
-
-	using namespace backend::filesystem; // Bring in the tris::backend filesystem namespace (in effect making tris::path, tris::ifstrem etc available)
 
 	class BackEnd : public Active {
 	public:
