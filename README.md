@@ -2,8 +2,6 @@
 An SIE based book keeping helper console in modern C++. SIE is a File Encoding format for exchange of book keeping data between applications.
 The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scrooge in Charles Dickens novel "A Christmas Carol".
 
-## Operation
-
 ## Version 0.3
 * Refactored into "proper" Cmake folder structure (user creates a build dir under CMakeLists.txt and parallel to src directory)
 ```
