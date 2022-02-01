@@ -4,29 +4,39 @@ The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scroo
 
 ## Operation
 
+## Version 0.3
+* Refactored into "proper" Cmake folder structure (user creates a build dir under CMakeLists.txt and parallel to src directory)
 ```
-C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\build_vs\Debug>Cratchit.exe
+.
+├── CmakeLists.txt
+├── LICENSE
+├── README.md
+├── cratchit.out
+└── src
+    ├── main.cpp
+    ├── sie
+    │   ├── SIE.cpp
+    │   ├── SIE.h
+    │   ├── doc
+    │   │   ├── SIE_filformat_ver_4B_080930.pdf
+    │   │   ├── SIE_filformat_ver_4B_ENGLISH.pdf
+    │   │   └── URL.txt
+    │   └── test
+    │       ├── events1.txt
+    │       └── sie1.se
+    └── tris
+        ├── Active.cpp
+        ├── Active.h
+        ├── BackEnd.cpp
+        ├── BackEnd.h
+        ├── Core.cpp
+        ├── Core.h
+        ├── FrontEnd.cpp
+        └── FrontEnd.h
 
-Cratchit>Enter "quit" to exit
-Cratchit>Telia
-
-        "#FNR"  "ITFIED"
-        "#FNAMN"        "The ITfied AB"
-        "#ORGNR"        "556782-8172"
-        "#RAR"  "0"     "20150501"      "20160430"
-        ""
-        "#VER"  "4"     "42"    "20151116"      "FA407/Telia"   "20160711"
-        "{"
-        "#TRANS"        "2440"  "{}"    "-1330,00"      ""      "FA407/Telia"
-        "#TRANS"        "2640"  "{}"    "265,94"        ""      "FA407/Telia"
-        "#TRANS"        "6212"  "{}"    "1064,06"       ""      "FA407/Telia"
-        "}"
-Cratchit>quit
-
-Done!
-
-C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\build_vs\Debug>
 ```
+* Now builds in VSCode (macOS, g++-11,C++20)
+
 ## Version 0.2
 
 * Made Frontend, Core Backend idiom into Tris library (and namespace)
