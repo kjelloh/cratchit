@@ -1,0 +1,76 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+			"type": "cppbuild",
+			"label": "C/C++: g++-8 build active file",
+			"command": "/usr/bin/g++-8",
+			"args": [
+				"-fdiagnostics-color=always",
+				"-fconcepts",
+				"-g",
+				"${file}",
+				"-o",
+				"${fileDirname}/${fileBasenameNoExtension}.out"
+			],
+			"options": {
+				"cwd": "${fileDirname}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: /usr/bin/g++-8"
+		},
+        {
+            "type": "cppbuild",
+            "label": "macOS C/C++: g++-11 build active file",
+            "command": "/usr/local/bin/g++-11",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-std=c++20",
+                "-g",
+                "${file}",
+                "-o",
+                "${workspaceFolder}/${fileBasenameNoExtension}.out"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "compiler: /usr/local/bin/g++-11"
+        },
+        {
+            "type": "cppbuild",
+            "label": "macOS C/C++: g++-11 build cratchit",
+            "command": "/usr/local/bin/g++-11",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-std=c++20",
+                "*.cpp","tris/*.cpp","sie/*.cpp",
+                "-o",
+                "${workspaceFolder}/cratchit.out"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "compiler: /usr/local/bin/g++-11"
+        }
+   ]
+}

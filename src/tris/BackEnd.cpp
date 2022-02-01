@@ -61,6 +61,7 @@ namespace tris {
 			template <typename T>
 			std::runtime_error runtime_exception_of_api_error_code(const std::string sPrefix, API_ERROR_CODE api_error_code) {
 				static_assert(is_not_instantiated<T>::value, "runtime_exception_of_api_error_code_impl not implemented for this platform");
+				return std::runtime_error("runtime_exception_of_api_error_code_impl not implemented for this platform");
 			}
 
 #if defined(_WIN32)

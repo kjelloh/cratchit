@@ -23,7 +23,7 @@ namespace tris {
 
 		Active() : done(false) {
 			thd = std::unique_ptr<std::thread>(
-				new std::thread([=] { this->Run(); }));
+				new std::thread([this] { this->Run(); }));
 		}
 
 		~Active() {

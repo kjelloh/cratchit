@@ -293,7 +293,7 @@ namespace sie {
 				raii(const std::filesystem::path& p) : std::ifstream() {
 					this->exceptions(std::ifstream::failbit | std::ifstream::badbit);
 					this->open(p);
-					this->exceptions(0); // no excpetions for client access
+					this->exceptions(std::ifstream::goodbit); // no excpetions for client access
 				}
 				~raii() { this->close(); }
 			};
@@ -313,7 +313,7 @@ namespace sie {
 
 		SIE_Statements parse_financial_events() {
 			SIE_Statements result;
-			std::filesystem::path sie_path(R"(..\src\sie\test\events1.txt)");
+			std::filesystem::path sie_path(R"(src\sie\test\events1.txt)");
 			detail::raii<std::ifstream> sie_file(sie_path);
 			SIE_Element line;
 			while (sie_file.good() &&  std::getline(sie_file, line)) {
