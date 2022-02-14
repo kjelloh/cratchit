@@ -302,25 +302,29 @@ namespace sie {
 
 		SIE_Statements get_template_statements() {
 			SIE_Statements result;
-			// C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\src\sie\test\sie1.se
-			//tris::backend::filesystem::path sie_path(R"(C:\Users\kjell-olovhogdahl\Documents\GitHub\cratchit\build\src\sie\test\sie1.se)");
-			//                                                                                \GitHub\cratchit\build\build_vs\Debug           
-
-			std::filesystem::path sie_path(R"(..\src\sie\test\sie1.se)");
+			std::filesystem::path sie_path(R"(src\sie\test\sie1.se)");
 			detail::raii<std::ifstream> sie_file(sie_path);
 			return result;
 		}
 
 		SIE_Statements parse_financial_events() {
 			SIE_Statements result;
-			std::filesystem::path sie_path(R"(src\sie\test\events1.txt)");
-			detail::raii<std::ifstream> sie_file(sie_path);
-			SIE_Element line;
-			while (sie_file.good() &&  std::getline(sie_file, line)) {
-				std::regex whitespace_regexp("\\s+"); // tokenize on whitespace
-				sie::SIE_Seed sie_seed(std::sregex_token_iterator(std::begin(line), std::end(line), whitespace_regexp, -1), std::sregex_token_iterator());
-				result.push_back(create_statement_for(sie_seed));
-			}			
+			auto sie_path = std::filesystem::path("src") / "sie" / "test" / "events1.txt";
+			try {
+				if (std::filesystem::exists(sie_path)==false) throw std::runtime_error("SIE File Does not exist");
+				detail::raii<std::ifstream> sie_file(sie_path);
+				SIE_Element line;
+				while (std::getline(sie_file, line)) {
+					std::regex whitespace_regexp("\\s+"); // tokenize on whitespace
+					sie::SIE_Seed sie_seed(std::sregex_token_iterator(std::begin(line), std::end(line), whitespace_regexp, -1), std::sregex_token_iterator());
+					result.push_back(create_statement_for(sie_seed));
+				}			
+			}
+			catch (std::exception const& e) {
+				SIE_Entry entry{"#ERROR",e.what()};
+				SIE_Statement statement{entry};
+				result.push_back(statement);
+			}
 			return result;
 		}
 
