@@ -10,6 +10,7 @@
 #include <random>
 #include <cstdlib>
 #include <cctype>
+#include <map>
 
 namespace parse {
     using In = std::string_view;
@@ -79,13 +80,46 @@ struct Updater {
 	Model operator()(Nop const& nop) {return model;}
 };
 
-class Environment {
+using EnvironmentValue = std::string;
+using Environment = std::map<std::string,EnvironmentValue>;
+std::string to_string(EnvironmentValue const& ev) {
+	// Expand to variants when EnvironmentValue is no longer a simple string (if ever?)
+	return ev;
+}
+EnvironmentValue to_value(std::string const s) {
+	// Expand to variants when EnvironmentValue is no longer a simple string (if ever?)
+	return s;
+}
+std::string to_string(Environment::value_type const& entry) {
+	std::ostringstream os{};
+	os << std::quoted(entry.first);
+	os << ":";
+	os << std::quoted(to_string(entry.second));
+	return os.str();
+}
+
+namespace tokenize {
+	// returns s split into first,second on provided delimiter delim.
+	// split fail returns first = "" and second = s
+	std::pair<std::string,std::string> split(std::string s,char delim) {
+		auto pos = s.find(delim);
+		if (pos<s.size()) return {s.substr(0,pos),s.substr(pos+1)};
+		else return {"",s}; // split failed (return right = unsplit string)
+	}
+}
+
+class Cratchit {
 public:
-	Environment(std::filesystem::path const& p) : environment_file_path{p} {}
+	Cratchit(std::filesystem::path const& p) 
+		: cratchit_file_path{p}
+		  ,environment{environment_from_file(p)} {}
+	~Cratchit() {
+		environment_to_file(cratchit_file_path);
+	}
 	Model init() {
 		Model result{};
 		result.prompt += "\nInit from ";
-		result.prompt += environment_file_path;
+		result.prompt += cratchit_file_path;
 		return result;
 	}
 	Model update(Msg const& msg,Model const& model) {
@@ -98,13 +132,55 @@ public:
 		return result;
 	}
 private:
-	std::filesystem::path environment_file_path{};
+	std::filesystem::path cratchit_file_path{};
+	Environment environment{};
+	bool is_value_line(std::string const& line) {
+		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
+	}
+	Environment environment_from_file(std::filesystem::path const& p) {
+		Environment result{};
+		try {
+			// TEST
+			if (true) {
+				environment.insert({"Test Entry","Test Value"});
+				environment.insert({"Test2","4711"});
+			}
+			std::ifstream in{p};
+			std::string line{};
+			while (std::getline(in,line)) {
+				if (is_value_line(line)) {
+					// Read <name>:<value> where <name> is "bla bla" and <value> is "bla bla " or "StringWithNoSpaces"
+					std::istringstream in{line};
+					std::string name{},value{};
+					char colon{};
+					in >> std::quoted(name) >> colon >> std::quoted(value);
+					environment.insert({name,to_value(value)});
+				}
+			}
+		}
+		catch (std::runtime_error const& e) {
+			std::cerr << "\nERROR - Write to " << p << " failed. Exception:" << e.what();
+		}
+		return result;
+	}
+	void environment_to_file(std::filesystem::path const& p) {
+		try {
+			std::ofstream out{p};		
+			for (auto iter = environment.begin(); iter != environment.end();++iter) {
+				if (iter == environment.begin()) out << to_string(*iter);
+				else out << "\n" << to_string(*iter);
+			}
+		}
+		catch (std::runtime_error const& e) {
+			std::cerr << "\nERROR - Write to " << p << " failed. Exception:" << e.what();
+		}
+	}
 };
 
 class REPL {
 public:
-    REPL(std::filesystem::path const& environment_file_path,Command const& command) : environment{environment_file_path} {
-        this->model = environment.init();
+    REPL(std::filesystem::path const& environment_file_path,Command const& command) : cratchit{environment_file_path} {
+        this->model = cratchit.init();
         in.push_back(Command{command});
     }
     bool operator++() {
@@ -113,15 +189,16 @@ public:
             msg = in.back();
             in.pop_back();
         }
-        // if (std::holds_alternative<Quit>(msg)) return false;
-        this->model = environment.update(msg,this->model);
-        auto ux = environment.view(this->model);
+        this->model = cratchit.update(msg,this->model);
+        auto ux = cratchit.view(this->model);
         for (auto const&  row : ux) std::cout << row;
 		if (this->model.quit) return false; // Done
-        Command user_input{};
-        std::getline(std::cin,user_input);
-        in.push_back(to_msg(user_input));
-        return true;
+		else {
+			Command user_input{};
+			std::getline(std::cin,user_input);
+			in.push_back(to_msg(user_input));
+			return true;
+		}
     }
 private:
     Msg to_msg(Command const& user_input) {
@@ -129,7 +206,7 @@ private:
         else return Command{user_input};
     }
     Model model{};
-    Environment environment;
+    Cratchit cratchit;
     std::deque<Msg> in{};
 };
 
