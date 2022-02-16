@@ -1,138 +1,132 @@
 #include <iostream>
-#include <string>
-#include <algorithm>
-#include <iterator>
-#include <regex>
-#include <vector>
-#include "sie/SIE.h"
-#include "tris/FrontEnd.h"
+#include <deque>
+#include <variant>
 #include <vector>
 #include <optional>
-#include <variant>
-#include <numeric>
+#include <string_view>
+#include <filesystem>
+#include <fstream>
+#include <algorithm>
+#include <random>
+#include <cstdlib>
+#include <cctype>
 
-enum class EntryID {
-	Unknown
-	,Caption
-	,Amount
-	,Undefined
+namespace parse {
+    using In = std::string_view;
+
+    template <typename P>
+    using ParseResult = std::optional<std::pair<P,In>>;
+
+    template <typename P>
+    class Parse {
+    public:
+        virtual ParseResult<P> operator()(In const& in) const = 0;
+    };
+
+    class ParseWord : public Parse<std::string> {
+    public:
+        using P = std::string;
+        virtual ParseResult<P> operator()(In const& in) const {
+            ParseResult<P> result{};
+            P p{};
+            auto iter=in.begin();
+            for (;iter!=in.end();++iter) if (delimeters.find(*iter)==std::string::npos) break; // skip delimeters
+            for (;iter!=in.end();++iter) {
+                if (delimeters.find(*iter)!=std::string::npos) break;
+                p += *iter;
+            }
+            if (p.size()>0) result = {p,In{iter,in.end()}}; // empty word = unsuccessful
+            return result;
+        }
+    private:
+        std::string const delimeters{" ,.;:="};
+    };
+
+    template <typename T>
+    auto parse(T const& p,In const& in) {
+        return p(in);
+    }
+
+}
+
+struct Model {
+    std::string prompt{};
 };
-using EntryValue = std::variant<std::string,int>;
-using Entry = std::map<EntryID,EntryValue>;
-using Journal = std::vector<Entry>;
+
+using Command = std::string;
+struct Quit {};
+struct Nop {};
+
+using Msg = std::variant<Nop,Quit,Command>;
+
+using Ux = std::vector<std::string>;
 
 class Environment {
 public:
-private:
-	Journal journal{};
-};
-
-using CommandLine = std::string;
-using Parameter = std::string;
-struct CratchCommands {};
-
-std::pair<std::string,std::string> split(std::string const& s,char delim) {
-	auto pos = s.find(delim);
-	auto left = s.substr(0,pos);
-	auto right = s.substr(pos+1);
-	return {left,right};
-}
-
-template <typename CommandWorld>
-class ExecuteCommand {}; // Anonumous template never used
-
-template <>
-class ExecuteCommand<CratchCommands> {
-public:
-
-	ExecuteCommand() = default;
-
-	// Return true if Done
-	bool operator()(const CommandLine& command_line, bool& done) {
-		bool result = false; // Default failed
-		auto [left,right] = split(command_line,' ');
-		if (left.size() > 0) {
-			if (left == "-csv") {
-				std::filesystem::path csv_file{right};
-				std::cout << "\nImport csv-file " << csv_file;
-				std::ifstream in{csv_file};
-				std::string line{};
-				while (std::getline(in,line)) {
-					std::cout << "\nentry:" << line;
-				}
-			}
-			else if (left == "-test") {
-				//sie::experimental::get_template_statements();
-				sie::SIE_Statements statements = sie::experimental::parse_financial_events();
-				// format statements to std::cout
-				std::for_each(std::begin(statements), std::end(statements), [](const sie::SIE_Statement& statement) {
-					std::for_each(std::begin(statement), std::end(statement), [](const sie::SIE_Entry& entry) {
-						std::cout << "\n";
-						std::for_each(std::begin(entry), std::end(entry), [](const sie::SIE_Element& element) {
-							if (std::any_of(std::begin(element), std::end(element), [](char c) {return c == ' '; })) {
-								std::cout << "\t\"" << element << "\""; // frame text
-							}
-							else {
-								std::cout << "\t" << element << ""; // Don't frame value
-							}
-						});
-					});
-				});
-				result = true; // Command Done 
-			}
-			// else {
-			// 	// Process it as a SIE seed (to generate SIE statement)
-			// 	sie::SIE_Statement statement = sie::experimental::create_statement_for(sie_seed);
-			// 	// Print to stdout
-			// 	std::for_each(std::begin(statement), std::end(statement), [](const sie::SIE_Entry& entry) {
-			// 		std::cout << "\n";
-			// 		std::for_each(std::begin(entry), std::end(entry), [](const sie::SIE_Element& element) {
-			// 			if (std::any_of(std::begin(element), std::end(element), [](char c) {return c == ' '; })) {
-			// 				std::cout << "\t\"" << element << "\""; // frame text
-			// 			}
-			// 			else {
-			// 				std::cout << "\t" << element << ""; // Don't frame value
-			// 			}
-			// 		});
-			// 	});
-			// 	result = (statement.size() > 0); // Ok if we generated a statement
-			// }
-		}
+	Environment(std::filesystem::path const& p) : environment_file_path{p} {}
+	Model init() {
+		Model result{};
+		result.prompt += "\nInit from ";
+		result.prompt += environment_file_path;
 		return result;
 	}
-
-};
-
-class CractchitConsoleFrontEnd : public tris::FrontEnd<tris::frontend::Console> {
-public:
-    CractchitConsoleFrontEnd(const tris::backend::API_STRING& sExe) : tris::FrontEnd<tris::frontend::Console>(sExe) {}
-
-    virtual bool execute(const tris::backend::API_STRING& sCommandLine,bool& done) {
-        return m_execute_cratch_command(sCommandLine,done);
-    }
-
-    virtual bool help(const tris::backend::API_STRING& sCommandLine) {
-		return tris::FrontEnd<tris::frontend::Console>::help(sCommandLine);
+	Model update(Msg const& msg,Model const& model) {
+		Model result{model};
+		result.prompt += "\nUpdate not yet implemented";
+		result.prompt += "\n>";
+		return result;
 	}
-
+	Ux view(Model const& model) {
+		Ux result{};
+		result.push_back(model.prompt);
+		return result;
+	}
 private:
-    ExecuteCommand<CratchCommands> m_execute_cratch_command;
-
+	std::filesystem::path environment_file_path{};
 };
 
-using ActualFrontEnd = CractchitConsoleFrontEnd;
+class REPL {
+public:
+    REPL(std::filesystem::path const& environment_file_path,Command const& command) : environment{environment_file_path} {
+        this->model = environment.init();
+        in.push_back(Command{command});
+    }
+    bool operator++() {
+        Msg msg{Nop{}};
+        if (in.size()>0) {
+            msg = in.back();
+            in.pop_back();
+        }
+        if (std::holds_alternative<Quit>(msg)) return false;
+        this->model = environment.update(msg,this->model);
+        auto ux = environment.view(this->model);
+        for (auto const&  row : ux) std::cout << row;
+        Command user_input{};
+        std::getline(std::cin,user_input);
+        in.push_back(to_msg(user_input));
+        return true;
+    }
+private:
+    Msg to_msg(Command const& user_input) {
+        if (user_input == "quit" or user_input=="q") return Quit{};
+        else return Command{user_input};
+    }
+    Model model{};
+    Environment environment;
+    std::deque<Msg> in{};
+};
 
-int main(int argc, char *argv[]){
-    int result = 0;
-    try {
-        auto front_end = std::make_shared<ActualFrontEnd>(argv[0]);
-        front_end->run();
-    }
-    catch (std::runtime_error& e) {
-        std::cout << "\nFailed. Exception = " << e.what();
-        result = 1; // Failed
-    }
-    std::cout << "\nDone!";
-    std::cout << "\n";
-    return result;
+int main(int argc, char *argv[])
+{
+    std::string sPATH{std::getenv("PATH")};
+    std::cout << "\nPATH=" << sPATH;
+    std::string command{};
+    for (int i=1;i<argc;i++) command+= std::string{argv[i]} + " ";
+    auto current_path = std::filesystem::current_path();
+    auto environment_file_path = current_path / "cratchit.env";
+    REPL repl{environment_file_path,command};
+    while (++repl);
+    std::cout << "\nBye for now :)";
+    std::cout << std::endl;
+    return 0;
 }
