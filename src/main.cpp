@@ -107,15 +107,27 @@ namespace parse {
     }
 }
 
-using EnvironmentValue = std::string;
+using EnvironmentValue = std::map<std::string,std::string>;
 using Environment = std::map<std::string,EnvironmentValue>;
 std::string to_string(EnvironmentValue const& ev) {
 	// Expand to variants when EnvironmentValue is no longer a simple string (if ever?)
-	return ev;
+	std::string result = std::accumulate(ev.begin(),ev.end(),std::string{},[](auto acc,auto const& entry){
+		if (acc.size()>0) acc += ";"; // separator
+		acc += entry.first;
+		acc += ":";
+		acc += entry.second;
+		return acc;
+	});
+	return result;
 }
 EnvironmentValue to_value(std::string const s) {
-	// Expand to variants when EnvironmentValue is no longer a simple string (if ever?)
-	return s;
+	EnvironmentValue result{};
+	auto kvps = tokenize::splits(s,';');
+	for (auto const& kvp : kvps) {
+		auto const& [name,value] = tokenize::split(kvp,':');
+		result[name] = value;
+	}
+	return result;
 }
 std::string to_string(Environment::value_type const& entry) {
 	std::ostringstream os{};
@@ -145,16 +157,37 @@ std::vector<std::string> help_for(std::string topic) {
 	return result;
 }
 
+// custom specialization of std::hash can be injected in namespace std
+template<>
+struct std::hash<EnvironmentValue>
+{
+    std::size_t operator()(EnvironmentValue const& ev) const noexcept {
+		std::size_t result{};
+		for (auto const& v : ev) {
+			std::size_t h = std::hash<std::string>{}(v.second); // Todo: Subject to change if variant values are introduced
+			result ^= h << 1; // Note: Shift left before XOR is from example code but I am not sure exactly whay this is "better" than plain XOR?
+		}
+		return result;
+    }
+};
+
 struct Updater {
 	Model& model;
 	Model& operator()(Command const& command) {
 		std::ostringstream os{};
 		if (command.size()>0) {
-			os <<  "\nEntry:" << std::quoted(command);
 			auto [text,amount] = tokenize::split(command,tokenize::SplitOn::TextAndAmount);
-			os << "\ntext:" << text;
-			os <<  "\namount:" << amount;
-			model.environment[text] = amount;
+			// Log
+			{
+				os <<  "\nEntry:" << std::quoted(command);
+				os << "\ntext:" << text;
+				os <<  "\namount:" << amount;
+			}
+			EnvironmentValue ev{};
+			ev["rubrik"] = text;
+			ev["belopp"] = amount;
+			auto entry_key = std::to_string(std::hash<EnvironmentValue>{}(ev));
+			model.environment[entry_key] = ev;
 		}
 		os << "\ncratchit:";
 		model.prompt = os.str();
