@@ -12,6 +12,64 @@
 #include <cctype>
 #include <map>
 
+namespace tokenize {
+	// returns s split into first,second on provided delimiter delim.
+	// split fail returns first = "" and second = s
+	std::pair<std::string,std::string> split(std::string s,char delim) {
+		auto pos = s.find(delim);
+		if (pos<s.size()) return {s.substr(0,pos),s.substr(pos+1)};
+		else return {"",s}; // split failed (return right = unsplit string)
+	}
+
+	std::vector<std::string> splits(std::string s,char delim) {
+		std::vector<std::string> result;
+		auto head_tail = split(s,delim);
+		while (head_tail.first.size()>0) {
+			auto const& [head,tail] = head_tail;
+			std::cout << "\nhead:" << head << " tail:" << tail;
+			result.push_back(head);
+			head_tail = split(tail,delim);
+		}
+		if (head_tail.second.size()>0) result.push_back(head_tail.second);
+		return result;
+	}
+
+	enum class SplitOn {
+		Undefined
+		,TextAndAmount
+		,Unknown
+	};
+
+	std::pair<std::string,std::string> split(std::string s,SplitOn split_on) {
+		std::pair<std::string,std::string> result{};
+		switch (split_on) {
+			case SplitOn::TextAndAmount: {
+				auto tokens = splits(s,' ');
+				float amount{};
+				std::istringstream in{tokens.back()};
+				if (in >> amount) {
+					// OK, last token is a float
+					auto left = std::accumulate(tokens.begin(),tokens.end()-1,std::string{},[](auto acc,auto const& s) {
+						if (acc.size()>0) acc += " ";
+						acc += s;
+						return acc;
+					});
+					auto right = tokens.back();
+					result = {left,right};
+				}
+				else {
+					std::cerr << "\nERROR - Expected amount but read " << tokens.back(); 
+				}
+			} break;
+			default: {
+				std::cerr << "Error - Unknown split_on argument " << static_cast<int>(split_on);
+			}
+		}
+		return result;
+	}
+
+}
+
 namespace parse {
     using In = std::string_view;
 
@@ -47,7 +105,6 @@ namespace parse {
     auto parse(T const& p,In const& in) {
         return p(in);
     }
-
 }
 
 struct Model {
@@ -63,21 +120,44 @@ using Msg = std::variant<Nop,Quit,Command>;
 
 using Ux = std::vector<std::string>;
 
+std::vector<std::string> help_for(std::string topic) {
+	std::vector<std::string> result{};
+	result.push_back("Enter 'Quit' or 'q' to quit");
+	return result;
+}
+
 struct Updater {
 	Model const& model;
 	Model operator()(Command const& command) {
 		Model result{model};
-		result.prompt += "\nUpdate for command not yet implemented";
-		result.prompt += "\n>";
+		std::ostringstream os{};
+		if (command.size()>0) {
+			os <<  "\nEntry:" << std::quoted(command);
+			auto [text,amount] = tokenize::split(command,tokenize::SplitOn::TextAndAmount);
+			os << "\ntext:" << text;
+			os <<  "\namount:" << amount;
+		}
+		os << "\ncratchit:";
+		result.prompt = os.str();
 		return result;
 	}
 	Model operator()(Quit const& quit) {
 		Model result{model};
-		result.prompt += "\nBy for now :)";
+		std::ostringstream os{};
+		os << "\nBy for now :)";
+		result.prompt = os.str();
 		result.quit = true;
 		return result;
 	}
-	Model operator()(Nop const& nop) {return model;}
+	Model operator()(Nop const& nop) {
+		Model result{model};
+		std::ostringstream os{};
+		auto help = help_for("");
+		for (auto const& line : help) os << "\n" << line;
+		os << "\ncratchit:";
+		result.prompt = os.str();
+		return result;
+	}
 };
 
 using EnvironmentValue = std::string;
@@ -98,16 +178,6 @@ std::string to_string(Environment::value_type const& entry) {
 	return os.str();
 }
 
-namespace tokenize {
-	// returns s split into first,second on provided delimiter delim.
-	// split fail returns first = "" and second = s
-	std::pair<std::string,std::string> split(std::string s,char delim) {
-		auto pos = s.find(delim);
-		if (pos<s.size()) return {s.substr(0,pos),s.substr(pos+1)};
-		else return {"",s}; // split failed (return right = unsplit string)
-	}
-}
-
 class Cratchit {
 public:
 	Cratchit(std::filesystem::path const& p) 
@@ -126,7 +196,7 @@ public:
 		Updater updater{model};
 		return std::visit(updater,msg);
 	}
-	Ux view(Model const& model) {
+	Ux view(Model& model) {
 		Ux result{};
 		result.push_back(model.prompt);
 		return result;
@@ -141,7 +211,7 @@ private:
 		Environment result{};
 		try {
 			// TEST
-			if (true) {
+			if (false) {
 				environment.insert({"Test Entry","Test Value"});
 				environment.insert({"Test2","4711"});
 			}
@@ -203,6 +273,7 @@ public:
 private:
     Msg to_msg(Command const& user_input) {
         if (user_input == "quit" or user_input=="q") return Quit{};
+		else if (user_input.size()==0) return Nop{};
         else return Command{user_input};
     }
     Model model{};
