@@ -51,6 +51,7 @@ namespace parse {
 
 struct Model {
     std::string prompt{};
+	bool quit{};
 };
 
 using Command = std::string;
@@ -60,6 +61,23 @@ struct Nop {};
 using Msg = std::variant<Nop,Quit,Command>;
 
 using Ux = std::vector<std::string>;
+
+struct Updater {
+	Model const& model;
+	Model operator()(Command const& command) {
+		Model result{model};
+		result.prompt += "\nUpdate for command not yet implemented";
+		result.prompt += "\n>";
+		return result;
+	}
+	Model operator()(Quit const& quit) {
+		Model result{model};
+		result.prompt += "\nBy for now :)";
+		result.quit = true;
+		return result;
+	}
+	Model operator()(Nop const& nop) {return model;}
+};
 
 class Environment {
 public:
@@ -71,10 +89,8 @@ public:
 		return result;
 	}
 	Model update(Msg const& msg,Model const& model) {
-		Model result{model};
-		result.prompt += "\nUpdate not yet implemented";
-		result.prompt += "\n>";
-		return result;
+		Updater updater{model};
+		return std::visit(updater,msg);
 	}
 	Ux view(Model const& model) {
 		Ux result{};
@@ -97,10 +113,11 @@ public:
             msg = in.back();
             in.pop_back();
         }
-        if (std::holds_alternative<Quit>(msg)) return false;
+        // if (std::holds_alternative<Quit>(msg)) return false;
         this->model = environment.update(msg,this->model);
         auto ux = environment.view(this->model);
         for (auto const&  row : ux) std::cout << row;
+		if (this->model.quit) return false; // Done
         Command user_input{};
         std::getline(std::cin,user_input);
         in.push_back(to_msg(user_input));
@@ -126,7 +143,7 @@ int main(int argc, char *argv[])
     auto environment_file_path = current_path / "cratchit.env";
     REPL repl{environment_file_path,command};
     while (++repl);
-    std::cout << "\nBye for now :)";
+    // std::cout << "\nBye for now :)";
     std::cout << std::endl;
     return 0;
 }
