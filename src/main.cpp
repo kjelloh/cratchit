@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cctype>
 #include <map>
+#include <regex>
 
 namespace tokenize {
 	// returns s split into first,second on provided delimiter delim.
@@ -37,10 +38,11 @@ namespace tokenize {
 	enum class SplitOn {
 		Undefined
 		,TextAndAmount
+		,TextAmountAndDate
 		,Unknown
 	};
 
-	std::pair<std::string,std::string> split(std::string s,SplitOn split_on) {
+	std::pair<std::string,std::string> split(std::string const& s,SplitOn split_on) {
 		std::pair<std::string,std::string> result{};
 		switch (split_on) {
 			case SplitOn::TextAndAmount: {
@@ -68,6 +70,58 @@ namespace tokenize {
 		return result;
 	}
 
+	enum class TokenID {
+		Undefined
+		,Caption
+		,Date
+		,Amount
+		,Unknown
+	};
+
+	TokenID token_id_of(std::string const& s) {
+		const std::regex date_regex("[2-9][2-9]((0[1-9])|(1[0-2]))(0[1-9]|[1-3][0-9])");
+		if (std::regex_match(s,date_regex)) return TokenID::Date;
+		const std::regex amount_regex("\\d+,\\d\\d");
+		if (std::regex_match(s,amount_regex)) return TokenID::Amount;
+		const std::regex caption_regex("(\\w|\\s|[\\.-])+");
+		if (std::regex_match(s,caption_regex)) return TokenID::Caption;
+		return TokenID::Unknown; 
+	}
+
+	std::vector<std::string> splits(std::string const& s,SplitOn split_on) {
+		std::vector<std::string> result{};
+		auto spaced_tokens = splits(s,' ');
+		std::vector<TokenID> ids{};
+		for (auto const& s : spaced_tokens) {
+			ids.push_back(token_id_of(s));
+		}
+		for (int i=0;i<spaced_tokens.size();++i) {
+			std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
+		}
+		switch (split_on) {
+			case SplitOn::TextAmountAndDate: {
+				std::vector<TokenID> expected_id{TokenID::Caption,TokenID::Amount,TokenID::Date};
+				int state{0};
+				std::string s{};
+				for (int i=0;i<ids.size();) {
+					if (ids[i] == expected_id[state]) {
+						if (s.size() > 0) s += " ";
+						s += spaced_tokens[i++];
+					}
+					else {
+						if (s.size()>0) result.push_back(s);
+						++state;	
+						s.clear();					
+					}
+				}
+				if (s.size()>0) result.push_back(s);
+			} break;
+			default: {
+				std::cerr << "\nERROR - Unknown split_on value " << static_cast<int>(split_on);
+			} break;
+		}
+		return result;
+	}
 }
 
 namespace parse {
@@ -175,19 +229,17 @@ struct Updater {
 	Model& model;
 	Model& operator()(Command const& command) {
 		std::ostringstream os{};
-		if (command.size()>0) {
-			auto [text,amount] = tokenize::split(command,tokenize::SplitOn::TextAndAmount);
-			// Log
-			{
-				os <<  "\nEntry:" << std::quoted(command);
-				os << "\ntext:" << text;
-				os <<  "\namount:" << amount;
-			}
+		auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
+		if (tokens.size()==3) {
 			EnvironmentValue ev{};
-			ev["rubrik"] = text;
-			ev["belopp"] = amount;
+			ev["rubrik"] = tokens[0];
+			ev["belopp"] = tokens[1];
+			ev["datum"] = tokens[2];
 			auto entry_key = std::to_string(std::hash<EnvironmentValue>{}(ev));
 			model.environment[entry_key] = ev;
+		}
+		else {
+			os << "\nERROR - Expected Caption + Amount + Date";
 		}
 		os << "\ncratchit:";
 		model.prompt = os.str();
