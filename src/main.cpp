@@ -107,59 +107,6 @@ namespace parse {
     }
 }
 
-struct Model {
-    std::string prompt{};
-	bool quit{};
-};
-
-using Command = std::string;
-struct Quit {};
-struct Nop {};
-
-using Msg = std::variant<Nop,Quit,Command>;
-
-using Ux = std::vector<std::string>;
-
-std::vector<std::string> help_for(std::string topic) {
-	std::vector<std::string> result{};
-	result.push_back("Enter 'Quit' or 'q' to quit");
-	return result;
-}
-
-struct Updater {
-	Model const& model;
-	Model operator()(Command const& command) {
-		Model result{model};
-		std::ostringstream os{};
-		if (command.size()>0) {
-			os <<  "\nEntry:" << std::quoted(command);
-			auto [text,amount] = tokenize::split(command,tokenize::SplitOn::TextAndAmount);
-			os << "\ntext:" << text;
-			os <<  "\namount:" << amount;
-		}
-		os << "\ncratchit:";
-		result.prompt = os.str();
-		return result;
-	}
-	Model operator()(Quit const& quit) {
-		Model result{model};
-		std::ostringstream os{};
-		os << "\nBy for now :)";
-		result.prompt = os.str();
-		result.quit = true;
-		return result;
-	}
-	Model operator()(Nop const& nop) {
-		Model result{model};
-		std::ostringstream os{};
-		auto help = help_for("");
-		for (auto const& line : help) os << "\n" << line;
-		os << "\ncratchit:";
-		result.prompt = os.str();
-		return result;
-	}
-};
-
 using EnvironmentValue = std::string;
 using Environment = std::map<std::string,EnvironmentValue>;
 std::string to_string(EnvironmentValue const& ev) {
@@ -178,23 +125,76 @@ std::string to_string(Environment::value_type const& entry) {
 	return os.str();
 }
 
+struct Model {
+    std::string prompt{};
+	bool quit{};
+	Environment environment{};
+};
+
+using Command = std::string;
+struct Quit {};
+struct Nop {};
+
+using Msg = std::variant<Nop,Quit,Command>;
+
+using Ux = std::vector<std::string>;
+
+std::vector<std::string> help_for(std::string topic) {
+	std::vector<std::string> result{};
+	result.push_back("Enter 'Quit' or 'q' to quit");
+	return result;
+}
+
+struct Updater {
+	Model& model;
+	Model& operator()(Command const& command) {
+		std::ostringstream os{};
+		if (command.size()>0) {
+			os <<  "\nEntry:" << std::quoted(command);
+			auto [text,amount] = tokenize::split(command,tokenize::SplitOn::TextAndAmount);
+			os << "\ntext:" << text;
+			os <<  "\namount:" << amount;
+			model.environment[text] = amount;
+		}
+		os << "\ncratchit:";
+		model.prompt = os.str();
+		return model;
+	}
+	Model& operator()(Quit const& quit) {
+		std::ostringstream os{};
+		os << "\nBy for now :)";
+		model.prompt = os.str();
+		model.quit = true;
+		return model;
+	}
+	Model& operator()(Nop const& nop) {
+		std::ostringstream os{};
+		auto help = help_for("");
+		for (auto const& line : help) os << "\n" << line;
+		os << "\ncratchit:";
+		model.prompt = os.str();
+		return model;
+	}
+};
+
 class Cratchit {
 public:
 	Cratchit(std::filesystem::path const& p) 
-		: cratchit_file_path{p}
-		  ,environment{environment_from_file(p)} {}
-	~Cratchit() {
-		environment_to_file(cratchit_file_path);
-	}
+		: cratchit_file_path{p} {}
 	Model init() {
 		Model result{};
 		result.prompt += "\nInit from ";
 		result.prompt += cratchit_file_path;
+		result.environment = environment_from_file(cratchit_file_path);
 		return result;
 	}
-	Model update(Msg const& msg,Model const& model) {
+	Model& update(Msg const& msg,Model& model) {
 		Updater updater{model};
-		return std::visit(updater,msg);
+		Model& result = std::visit(updater,msg); // Pass Model& around
+		if (result.quit) {
+			environment_to_file(result.environment,cratchit_file_path);
+		}
+		return result;
 	}
 	Ux view(Model& model) {
 		Ux result{};
@@ -203,18 +203,12 @@ public:
 	}
 private:
 	std::filesystem::path cratchit_file_path{};
-	Environment environment{};
 	bool is_value_line(std::string const& line) {
 		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
 	}
 	Environment environment_from_file(std::filesystem::path const& p) {
 		Environment result{};
 		try {
-			// TEST
-			if (false) {
-				environment.insert({"Test Entry","Test Value"});
-				environment.insert({"Test2","4711"});
-			}
 			std::ifstream in{p};
 			std::string line{};
 			while (std::getline(in,line)) {
@@ -224,7 +218,7 @@ private:
 					std::string name{},value{};
 					char colon{};
 					in >> std::quoted(name) >> colon >> std::quoted(value);
-					environment.insert({name,to_value(value)});
+					result.insert({name,to_value(value)});
 				}
 			}
 		}
@@ -233,7 +227,7 @@ private:
 		}
 		return result;
 	}
-	void environment_to_file(std::filesystem::path const& p) {
+	void environment_to_file(Environment const& environment, std::filesystem::path const& p) {
 		try {
 			std::ofstream out{p};		
 			for (auto iter = environment.begin(); iter != environment.end();++iter) {
