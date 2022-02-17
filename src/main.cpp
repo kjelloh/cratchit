@@ -12,6 +12,7 @@
 #include <cctype>
 #include <map>
 #include <regex>
+#include <chrono>
 
 namespace tokenize {
 	// returns s split into first,second on provided delimiter delim.
@@ -25,13 +26,17 @@ namespace tokenize {
 	std::vector<std::string> splits(std::string s,char delim) {
 		std::vector<std::string> result;
 		auto head_tail = split(s,delim);
+		// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
 		while (head_tail.first.size()>0) {
 			auto const& [head,tail] = head_tail;
-			std::cout << "\nhead:" << head << " tail:" << tail;
 			result.push_back(head);
 			head_tail = split(tail,delim);
+			// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
 		}
-		if (head_tail.second.size()>0) result.push_back(head_tail.second);
+		if (head_tail.second.size()>0) {
+			result.push_back(head_tail.second);
+			// std::cout << "\ntail:" << head_tail.second;
+		}
 		return result;
 	}
 
@@ -161,6 +166,106 @@ namespace parse {
     }
 }
 
+/*
+
+	How can we model bookkeeping of a company?
+
+	It seems we need to be able to model the following aspects.
+
+	One or more Journals with details of each financial transaction, what document is proof of the transaction and how the transaction is accounted for.
+	The Ledger in which all Journal transactions are summarised to.
+
+	So, it seems a Journal contains records of how each transaction is accounted for.
+	And the Ledger contains transactions as recorded to accounts?
+
+	Can we thus say that an SIE-file is in fact a representation of a Journal?
+	And when we read in an SIE file we create the Ledger?
+
+	The Swedish terms can thus be as follows.
+
+	"Bokföring" and "Verifikation" is about entering trasnactions into a Journal?
+	"Huvudbok" is the Ledger?
+
+	So then we should implement a model with one or more Journals linked to a single Ledger?
+
+	Journal 1											Ledger
+	Journal 2												Account
+	Journal 3												Account
+	...														Account
+	   Journal Entry {										Account
+		   Transaction Account <-> Account					   Transaction
+		   Transaction Account <-> Account
+		   ...
+	   }
+
+	From Wikipedia
+
+	*  A document is produced each time a transaction occurs
+	*  Bookkeeping first involves recording the details of all of these source documents into multi-column journals.
+	*  Each column in a journal normally corresponds to an account.
+	*  After a certain period ... each column in each journal .. are then transferred to their respective accounts in the ledger...
+
+*/
+
+// The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
+class BASLedger {
+public:
+	enum class AmountType {
+		Undefined
+		,Debit
+		,Credit
+		,Unknown
+	};
+	struct Amount {
+		AmountType type{};
+		unsigned int value;
+	};
+	struct Entry {
+		std::string account_id{};
+		std::string caption{};
+		Amount amount;
+	};
+private:
+};
+
+// The BAS Journal keeps a record of all documented transactions of a specific type.
+/*
+Utskrivet 2022-02-17 17:43
+
+Vernr: A 11
+Bokföringsdatum: 2021-07-14
+Benämning: Kjell&Company
+
+Konto	Benämning									Debet		Kredit		
+1920	PlusGiro												89,90
+1227	Elektroniklabb - Lager V-slot 2040 Profil	71,92	
+2641	Debiterad ingående moms						17,98	
+*/
+class BASJournal {
+public:
+	using Amount = int;
+	struct Entry {
+		std::string caption{};
+		std::chrono::year_month_day date{};
+		Amount amount{};
+		std::vector<BASLedger::Entry> ledger_entries;
+	};
+	void push_back(Entry const& entry) {}
+private:
+	std::vector<Entry> entries{};
+};
+
+using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and named A,B,C,...
+
+class SIEEnvironment {
+public:
+	BASJournals& journals() {return m_journals;}
+	BASLedger& ledger() {return m_ledger;}
+private:
+	BASJournals m_journals{};
+	BASLedger m_ledger{};
+};
+
 using EnvironmentValue = std::map<std::string,std::string>;
 using Environment = std::map<std::string,EnvironmentValue>;
 std::string to_string(EnvironmentValue const& ev) {
@@ -195,6 +300,7 @@ struct Model {
     std::string prompt{};
 	bool quit{};
 	Environment environment{};
+	SIEEnvironment sie{};
 };
 
 using Command = std::string;
@@ -238,8 +344,28 @@ struct Updater {
 					std::filesystem::path sie_file_path{sie_file_name};
 					std::ifstream in{sie_file_path};
 					std::string line{};
+					unsigned int journal_entry_level{0};
 					while (std::getline(in,line)) {
 						std::cout << "\nSIE: " << line;
+						std::vector<std::string> tokens{};
+						std::istringstream in{line};
+						std::string s{};
+						while (in >> std::quoted(s)) tokens.push_back(s);
+						// LOG
+						{
+							std::cout << "\n";
+							for (auto const& s : tokens) std::cout << "[" << s << "]";
+						}
+						if (tokens.size()>0) {
+							if (journal_entry_level == 0) {
+								if (tokens[0]=="#VER") ++journal_entry_level;
+								if (journal_entry_level==1) std::cout << "\n\n**BEGIN**";
+							}
+							else {
+								 if (tokens[0]=="}") --journal_entry_level;
+								if (journal_entry_level==0) std::cout << "\n\n**END**";
+							}
+						}
 					}					
 				}
 			}
