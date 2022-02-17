@@ -229,17 +229,35 @@ struct Updater {
 	Model& model;
 	Model& operator()(Command const& command) {
 		std::ostringstream os{};
-		auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
-		if (tokens.size()==3) {
-			EnvironmentValue ev{};
-			ev["rubrik"] = tokens[0];
-			ev["belopp"] = tokens[1];
-			ev["datum"] = tokens[2];
-			auto entry_key = std::to_string(std::hash<EnvironmentValue>{}(ev));
-			model.environment[entry_key] = ev;
-		}
-		else {
-			os << "\nERROR - Expected Caption + Amount + Date";
+		auto ast = tokenize::splits(command,' ');
+		if (ast.size() > 0) {
+			if (ast[0] == "-sie") {
+				// Import sie and add as base of our environment
+				if (ast.size()>1) {
+					auto sie_file_name = ast[1];
+					std::filesystem::path sie_file_path{sie_file_name};
+					std::ifstream in{sie_file_path};
+					std::string line{};
+					while (std::getline(in,line)) {
+						std::cout << "\nSIE: " << line;
+					}					
+				}
+			}
+			else {
+				// Assume Caption + Amount + Date
+				auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
+				if (tokens.size()==3) {
+					EnvironmentValue ev{};
+					ev["rubrik"] = tokens[0];
+					ev["belopp"] = tokens[1];
+					ev["datum"] = tokens[2];
+					auto entry_key = std::to_string(std::hash<EnvironmentValue>{}(ev));
+					model.environment[entry_key] = ev;
+				}
+				else {
+					os << "\nERROR - Expected Caption + Amount + Date";
+				}
+			}
 		}
 		os << "\ncratchit:";
 		model.prompt = os.str();
