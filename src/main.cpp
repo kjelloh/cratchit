@@ -210,16 +210,7 @@ namespace parse {
 // The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
 class BASLedger {
 public:
-	enum class AmountType {
-		Undefined
-		,Debit
-		,Credit
-		,Unknown
-	};
-	struct Amount {
-		AmountType type{};
-		unsigned int value;
-	};
+	using Amount= int;
 	struct Entry {
 		std::string account_id{};
 		std::string caption{};
@@ -250,9 +241,9 @@ public:
 		Amount amount{};
 		std::vector<BASLedger::Entry> ledger_entries;
 	};
-	void push_back(Entry const& entry) {}
+	std::vector<Entry>& entries() {return m_entries;}
 private:
-	std::vector<Entry> entries{};
+	std::vector<Entry> m_entries{};
 };
 
 using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and named A,B,C,...
@@ -373,6 +364,35 @@ namespace SIE {
 		if (in >> ver_tag >> journal_tag >> entry_index >> YYYYMMdd_parser >> std::quoted(entry.caption) >> reg_date) {
 			if (ver_tag == "#VER") {
 				std::cout << "\nVER FOUND :)";
+				std::string begin_record_mark{};
+				std::getline(in,begin_record_mark); // skip rest of current line
+				std::getline(in,begin_record_mark); // skip "{"
+				std::cout << "\nbegin_record_mark " << begin_record_mark;
+				while (true) {
+					// #TRANS 2610 {} 25900 "" "" 0
+					std::string trans_tag,account, object_list, transdate, transtext, quantity, sign;
+					float amount;
+					if (in >> trans_tag >> account >> object_list >> amount >> transdate >> std::quoted(transtext) >> quantity) {
+						if (trans_tag == "#TRANS") {
+							std::cout << "\nTRANS: " << account << " " << amount << " " << transtext;
+							/*
+								struct Entry {
+									std::string account_id{};
+									std::string caption{};
+									Amount amount;
+								};							
+							*/
+							entry.ledger_entries.push_back(BASLedger::Entry{.account_id = account,.caption=transtext,.amount = static_cast<int>(amount*10)});
+						}
+						else {
+							break;
+						}
+					}
+					else {
+						break;
+					}
+				}
+				optional_entry = entry;
 				pos = in.tellg(); // advance pos
 			}
 		}
@@ -414,11 +434,28 @@ struct Updater {
 						std::cout << "\nparse";
 						if (auto [entry,is] = SIE::parse_ver(in);entry) {
 							std::cout << "\n\tVER!";
+							model.sie.journals()['A'].entries().push_back(std::get<BASJournal::Entry>(*entry));
+							std::cout << "\n#" << model.sie.journals()['A'].entries().size(); 
 						}
 						else if (auto [entry,is] = SIE::parse_any_line(in);entry) {
 							std::cout << "\n\tANY";
 						}
 						else break;
+					}
+					std::cout << "\nDONE!";
+					for (auto const& entry : model.sie.journals()['A'].entries()) {
+						/*
+							struct Entry {
+								std::string caption{};
+								std::chrono::year_month_day date{};
+								Amount amount{};
+								std::vector<BASLedger::Entry> ledger_entries;
+							};						
+						*/
+						std::cout << "\nentry:" << entry.caption;
+						for (auto const& te : entry.ledger_entries) {
+							std::cout << "\n\t" << te.account_id << " " << std::quoted(te.caption) << " " << te.amount;
+						}
 					}
 				}
 			}
