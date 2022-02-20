@@ -331,6 +331,73 @@ struct std::hash<EnvironmentValue>
     }
 };
 
+namespace SIE {
+	using Stream = std::istream;
+	struct AnonymousLine {};
+	using SIEFileEntry = std::variant<BASJournal::Entry,AnonymousLine>;
+	using SIEParseResult = std::pair<std::optional<SIEFileEntry>,Stream&>;
+	struct Chrono_YYYMMdd_parser {
+		std::string const& fmt;	
+		std::chrono::year_month_day& date;
+	};
+	std::istream& operator>>(std::istream& in,Chrono_YYYMMdd_parser& p) {
+		try {
+			// std::chrono::from_stream(in,p.fmt,p.date); // Not in g++11 libc++?
+			std::string sDate{};
+			in >> sDate;
+			if (sDate.size()==8) {
+			p.date = std::chrono::year_month_day(
+				std::chrono::year{std::stoi(sDate.substr(0,4))}
+				,std::chrono::month{static_cast<unsigned>(std::stoul(sDate.substr(4,2)))}
+				,std::chrono::day{static_cast<unsigned>(std::stoul(sDate.substr(6,2)))});
+			}
+			else {
+				in.setstate(std::ios_base::failbit);
+			}
+		}
+		catch (std::exception const& e) {
+			in.setstate(std::ios_base::failbit); // E.g., read date not convertible to valid date
+		}
+		return in;
+	}
+	Chrono_YYYMMdd_parser YYYYMMdd_parse(std::string const& fmt,std::chrono::year_month_day& date) {
+		return Chrono_YYYMMdd_parser{fmt,date};
+	}
+	SIEParseResult parse_ver(Stream& in) {
+		auto pos = in.tellg();
+		std::optional<BASJournal::Entry> optional_entry{};
+		// #VER A 1 20210505 "M�nadsavgift PG" 20210817
+		BASJournal::Entry entry{};
+		std::string ver_tag,journal_tag, entry_index,event_date,caption,reg_date;	
+		auto YYYYMMdd_parser = YYYYMMdd_parse("%Y%m%d",entry.date);
+		if (in >> ver_tag >> journal_tag >> entry_index >> YYYYMMdd_parser >> std::quoted(entry.caption) >> reg_date) {
+			if (ver_tag == "#VER") {
+				std::cout << "\nVER FOUND :)";
+				pos = in.tellg(); // advance pos
+			}
+		}
+		else {
+			in.clear(); // Reset failbit to allow try for other parse
+		}
+		in.seekg(pos);
+		return {optional_entry,in};
+	}
+
+	SIEParseResult parse_any_line(Stream& in) {
+		auto pos = in.tellg();
+		std::string line{};
+		if (std::getline(in,line)) {
+			std::cout << "\n\tany=" << line;
+			return {AnonymousLine{},in};
+		}
+		else {
+			std::cout << "\n\tany null";;
+			in.seekg(pos);
+			return {{},in};
+		}
+	}
+}
+
 struct Updater {
 	Model& model;
 	Model& operator()(Command const& command) {
@@ -343,30 +410,16 @@ struct Updater {
 					auto sie_file_name = ast[1];
 					std::filesystem::path sie_file_path{sie_file_name};
 					std::ifstream in{sie_file_path};
-					std::string line{};
-					unsigned int journal_entry_level{0};
-					while (std::getline(in,line)) {
-						std::cout << "\nSIE: " << line;
-						std::vector<std::string> tokens{};
-						std::istringstream in{line};
-						std::string s{};
-						while (in >> std::quoted(s)) tokens.push_back(s);
-						// LOG
-						{
-							std::cout << "\n";
-							for (auto const& s : tokens) std::cout << "[" << s << "]";
+					while (true) {
+						std::cout << "\nparse";
+						if (auto [entry,is] = SIE::parse_ver(in);entry) {
+							std::cout << "\n\tVER!";
 						}
-						if (tokens.size()>0) {
-							if (journal_entry_level == 0) {
-								if (tokens[0]=="#VER") ++journal_entry_level;
-								if (journal_entry_level==1) std::cout << "\n\n**BEGIN**";
-							}
-							else {
-								 if (tokens[0]=="}") --journal_entry_level;
-								if (journal_entry_level==0) std::cout << "\n\n**END**";
-							}
+						else if (auto [entry,is] = SIE::parse_any_line(in);entry) {
+							std::cout << "\n\tANY";
 						}
-					}					
+						else break;
+					}
 				}
 			}
 			else {
