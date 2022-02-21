@@ -212,7 +212,7 @@ class BASLedger {
 public:
 	using Amount= int;
 	struct Entry {
-		std::string account_id{};
+		std::string account_no{};
 		std::string caption{};
 		Amount amount;
 	};
@@ -324,96 +324,172 @@ struct std::hash<EnvironmentValue>
 
 namespace SIE {
 	using Stream = std::istream;
-	struct AnonymousLine {};
-	using SIEFileEntry = std::variant<BASJournal::Entry,AnonymousLine>;
-	using SIEParseResult = std::pair<std::optional<SIEFileEntry>,Stream&>;
-	struct Chrono_YYYMMdd_parser {
-		std::string const& fmt;	
-		std::chrono::year_month_day& date;
+	struct Tag {
+		std::string const expected;
 	};
-	std::istream& operator>>(std::istream& in,Chrono_YYYMMdd_parser& p) {
-		try {
-			// std::chrono::from_stream(in,p.fmt,p.date); // Not in g++11 libc++?
-			std::string sDate{};
-			in >> sDate;
-			if (sDate.size()==8) {
-			p.date = std::chrono::year_month_day(
-				std::chrono::year{std::stoi(sDate.substr(0,4))}
-				,std::chrono::month{static_cast<unsigned>(std::stoul(sDate.substr(4,2)))}
-				,std::chrono::day{static_cast<unsigned>(std::stoul(sDate.substr(6,2)))});
+	struct Trans {
+		// Spec: #TRANS account no {object list} amount transdate transtext quantity sign
+		// Ex:   #TRANS 1920 {} 802 "" "" 0
+		std::string tag;
+		unsigned int account_no;
+		std::string object_list{};
+		float amount;
+		std::optional<std::chrono::year_month_day> transdate{};
+		std::optional<std::string> transtext{};
+		std::optional<float> quantity{};
+		std::optional<std::string> sign{};
+	};
+	struct Ver {
+		// Spec: #VER series verno verdate vertext regdate sign
+		// Ex:   #VER A 3 20210510 "Beanstalk" 20210817
+		std::string tag;
+		char series;
+		unsigned int verno;
+		std::chrono::year_month_day verdate;
+		std::string vertext;
+		std::optional<std::chrono::year_month_day> regdate{};
+		std::optional<std::string> sign{};
+	};
+	struct AnonymousLine {};
+	using SIEFileEntry = std::variant<Ver,Trans,AnonymousLine>;
+	using SIEParseResult = std::optional<SIEFileEntry>;
+	std::istream& operator>>(std::istream& in,Tag const& tag) {
+		if (in.good()) {
+			std::cout << "\n>>Tag[expected:" << tag.expected;
+			auto pos = in.tellg();
+			std::string token{};
+			if (in >> token) {
+				std::cout << ",read:" << token << "]";
+				if (token != tag.expected) {
+					in.seekg(pos); // Reset position for failed tag
+					in.setstate(std::ios::failbit); // failed to read expected tag
+					std::cout << " rejected";
+				}
 			}
 			else {
-				in.setstate(std::ios_base::failbit);
+				std::cout << "null";
 			}
-		}
-		catch (std::exception const& e) {
-			in.setstate(std::ios_base::failbit); // E.g., read date not convertible to valid date
+		}		
+		return in;
+	}
+
+	struct optional_YYYYMMdd_parser {
+		std::optional<std::chrono::year_month_day>& date;
+	};
+	struct YYYYMMdd_parser {
+		std::chrono::year_month_day& date;
+	};
+	std::istream& operator>>(std::istream& in,optional_YYYYMMdd_parser& p) {
+		if (in.good()) {
+			auto pos = in.tellg();
+			try {
+				// std::chrono::from_stream(in,p.fmt,p.date); // Not in g++11 libc++?
+				std::string sDate{};
+				in >> std::quoted(sDate);
+				if (sDate.size()==0) {
+					pos = in.tellg(); // Accept this parse position (e.g., "" is to be accepted)
+				}
+				else if (sDate.size()==8) {
+					p.date = std::chrono::year_month_day(
+						std::chrono::year{std::stoi(sDate.substr(0,4))}
+						,std::chrono::month{static_cast<unsigned>(std::stoul(sDate.substr(4,2)))}
+						,std::chrono::day{static_cast<unsigned>(std::stoul(sDate.substr(6,2)))});
+					pos = in.tellg(); // Accept this parse position (an actual date was parsed)
+				}
+			}
+			catch (std::exception const& e) { /* swallow all failuires silently for optional parse */}
+			in.seekg(pos); // Reset position in case of failed parse
+			in.clear(); // Reset failbit to allow try for other parse
 		}
 		return in;
 	}
-	Chrono_YYYMMdd_parser YYYYMMdd_parse(std::string const& fmt,std::chrono::year_month_day& date) {
-		return Chrono_YYYMMdd_parser{fmt,date};
+	std::istream& operator>>(std::istream& in,YYYYMMdd_parser& p) {
+		if (in.good()) {
+			std::optional<std::chrono::year_month_day> od{};
+			optional_YYYYMMdd_parser op{od};
+			in >> op;
+			if (op.date) {
+				p.date = *op.date;
+			}
+			else {
+				in.setstate(std::ios::failbit);
+			}
+		}
+		return in;
 	}
+	struct optional_Text_parser {
+		std::optional<std::string>& text;
+	};
+	std::istream& operator>>(std::istream& in,optional_Text_parser& p) {
+		if (in.good()) {
+			auto pos = in.tellg();
+			std::string text{};
+			if (in >> std::quoted(text)) {
+				p.text = text;
+				pos = in.tellg(); // accept this parse pos
+			}
+			in.clear(); // Reset failbit to allow try for other parse
+			in.seekg(pos); // Reset position in case of failed parse
+		}
+		return in;
+	}
+	struct Scraps {};
+	std::istream& operator>>(std::istream& in,Scraps& p) {
+		if (in.good()) {
+			std::string scraps{};
+			std::getline(in,scraps);
+			std::cout << "\nscraps:" << scraps;
+		}
+		return in;		
+	}
+
 	SIEParseResult parse_ver(Stream& in) {
+		SIEParseResult result{};
+		Scraps scraps{};
 		auto pos = in.tellg();
-		std::optional<BASJournal::Entry> optional_entry{};
 		// #VER A 1 20210505 "M�nadsavgift PG" 20210817
-		BASJournal::Entry entry{};
-		std::string ver_tag,journal_tag, entry_index,event_date,caption,reg_date;	
-		auto YYYYMMdd_parser = YYYYMMdd_parse("%Y%m%d",entry.date);
-		if (in >> ver_tag >> journal_tag >> entry_index >> YYYYMMdd_parser >> std::quoted(entry.caption) >> reg_date) {
-			if (ver_tag == "#VER") {
-				std::cout << "\nVER FOUND :)";
-				std::string begin_record_mark{};
-				std::getline(in,begin_record_mark); // skip rest of current line
-				std::getline(in,begin_record_mark); // skip "{"
-				std::cout << "\nbegin_record_mark " << begin_record_mark;
+		SIE::Ver ver{};
+		YYYYMMdd_parser verdate_parser{ver.verdate};
+		if (in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
+			if (true) {
+				std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
 				while (true) {
 					// #TRANS 2610 {} 25900 "" "" 0
-					std::string trans_tag,account, object_list, transdate, transtext, quantity, sign;
-					float amount;
-					if (in >> trans_tag >> account >> object_list >> amount >> transdate >> std::quoted(transtext) >> quantity) {
-						if (trans_tag == "#TRANS") {
-							std::cout << "\nTRANS: " << account << " " << amount << " " << transtext;
-							/*
-								struct Entry {
-									std::string account_id{};
-									std::string caption{};
-									Amount amount;
-								};							
-							*/
-							entry.ledger_entries.push_back(BASLedger::Entry{.account_id = account,.caption=transtext,.amount = static_cast<int>(amount*10)});
-						}
-						else {
-							break;
-						}
+					SIE::Trans trans{};
+					optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
+					optional_Text_parser optional_transtext_parser{trans.transtext};
+					if (in >> Tag{"#TRANS"} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
+						std::cout << "\nTRANS: " << trans.account_no << " " << trans.amount;
 					}
+					else if (in >> Tag{"#RTRANS"} >> scraps) continue;
+					else if (in >> Tag{"#BTRANS"} >> scraps) continue;
 					else {
 						break;
 					}
 				}
-				optional_entry = entry;
-				pos = in.tellg(); // advance pos
+				result = ver;
+				pos = in.tellg(); // accept new stream position
 			}
 		}
-		else {
-			in.clear(); // Reset failbit to allow try for other parse
-		}
-		in.seekg(pos);
-		return {optional_entry,in};
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;
 	}
 
 	SIEParseResult parse_any_line(Stream& in) {
+		if (in.fail()) {
+			std::cout << "\nparse_any_line in==fail";
+		}
 		auto pos = in.tellg();
 		std::string line{};
 		if (std::getline(in,line)) {
 			std::cout << "\n\tany=" << line;
-			return {AnonymousLine{},in};
+			return AnonymousLine{};
 		}
 		else {
-			std::cout << "\n\tany null";;
+			std::cout << "\n\tany null";
 			in.seekg(pos);
-			return {{},in};
+			return {};
 		}
 	}
 }
@@ -430,14 +506,14 @@ struct Updater {
 					auto sie_file_name = ast[1];
 					std::filesystem::path sie_file_path{sie_file_name};
 					std::ifstream in{sie_file_path};
+					// int loop_count{0};
 					while (true) {
 						std::cout << "\nparse";
-						if (auto [entry,is] = SIE::parse_ver(in);entry) {
+						if (auto opt_entry = SIE::parse_ver(in)) {
 							std::cout << "\n\tVER!";
-							model.sie.journals()['A'].entries().push_back(std::get<BASJournal::Entry>(*entry));
-							std::cout << "\n#" << model.sie.journals()['A'].entries().size(); 
+							// if (++loop_count>2) break;
 						}
-						else if (auto [entry,is] = SIE::parse_any_line(in);entry) {
+						else if (auto opt_entry = SIE::parse_any_line(in)) {
 							std::cout << "\n\tANY";
 						}
 						else break;
@@ -454,7 +530,7 @@ struct Updater {
 						*/
 						std::cout << "\nentry:" << entry.caption;
 						for (auto const& te : entry.ledger_entries) {
-							std::cout << "\n\t" << te.account_id << " " << std::quoted(te.caption) << " " << te.amount;
+							std::cout << "\n\t" << te.account_no << " " << std::quoted(te.caption) << " " << te.amount;
 						}
 					}
 				}
