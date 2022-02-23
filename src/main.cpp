@@ -636,6 +636,27 @@ struct Updater {
 					ev["datum"] = tokens[2];
 					auto entry_key = std::to_string(std::hash<EnvironmentValue>{}(ev));
 					model.environment[entry_key] = ev;
+					// TEST
+					if (true) {
+						// Find previous BAS Journal entries that may define how
+						// we should account for this entry
+						BASJournals candidates{};
+						for (auto const& je : model.sie.journals()) {
+							auto const& [series,journal] = je;
+							for (auto const& entry : journal.entries()) {								
+								if (entry.caption.find(ev["rubrik"]) != std::string::npos) {
+									candidates[series].entries().push_back(entry);
+								}
+							}
+						}
+						for (auto const& je : candidates) {
+							auto const& [series,journal] = je;
+							for (auto const& entry : journal.entries()) {								
+								std::cout << "\ncandidate:" << BASJournal::to_string(entry);
+							}
+						}
+
+					}
 				}
 				else {
 					os << "\nERROR - Expected Caption + Amount + Date";
