@@ -207,16 +207,35 @@ namespace parse {
 
 */
 
+// Helper for stream output of otpional string
+std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_s) {
+	if (opt_s) {
+		os << std::quoted(*opt_s);
+	}
+	return os;
+}
+
+using Amount= float;
+
+struct UxLedgerEntry {
+	std::string account_no{};
+	std::string caption{};
+	Amount amount;
+};
+
+using BASAccountNo = unsigned int;
 // The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
 class BASLedger {
 public:
-	using Amount= int;
 	struct Entry {
-		std::string account_no{};
 		std::string caption{};
 		Amount amount;
 	};
+	using Entries = std::map<int,Entry>;
+	Entries& entries() {return m_entries;}
+	Entries const& entries() const {return m_entries;}
 private:
+	Entries m_entries{};
 };
 
 // The BAS Journal keeps a record of all documented transactions of a specific type.
@@ -234,14 +253,33 @@ Konto	Benämning									Debet		Kredit
 */
 class BASJournal {
 public:
-	using Amount = int;
+	struct AccountTransaction {
+		BASAccountNo account_no;
+		std::optional<std::string> transtext{};
+		Amount amount;
+	};
+	static std::string to_string(AccountTransaction const& at) {
+		std::ostringstream os{};
+		os << at.account_no;
+		os << " " << at.transtext;
+		os << " " << at.amount;
+		return os.str();
+	};
 	struct Entry {
 		std::string caption{};
 		std::chrono::year_month_day date{};
-		Amount amount{};
-		std::vector<BASLedger::Entry> ledger_entries;
+		std::vector<AccountTransaction> account_transactions;
+	};
+	static std::string to_string(Entry const& entry) {
+		std::ostringstream os{};
+		os << entry.caption;
+		for (auto const& at : entry.account_transactions) {
+			os << "\n\t" << to_string(at); 
+		}
+		return os.str();
 	};
 	std::vector<Entry>& entries() {return m_entries;}
+	std::vector<Entry> const& entries() const {return m_entries;}
 private:
 	std::vector<Entry> m_entries{};
 };
@@ -252,6 +290,8 @@ class SIEEnvironment {
 public:
 	BASJournals& journals() {return m_journals;}
 	BASLedger& ledger() {return m_ledger;}
+	BASJournals const& journals() const {return m_journals;}
+	BASLedger const& ledger() const {return m_ledger;}
 private:
 	BASJournals m_journals{};
 	BASLedger m_ledger{};
@@ -316,7 +356,7 @@ struct std::hash<EnvironmentValue>
 		std::size_t result{};
 		for (auto const& v : ev) {
 			std::size_t h = std::hash<std::string>{}(v.second); // Todo: Subject to change if variant values are introduced
-			result ^= h << 1; // Note: Shift left before XOR is from example code but I am not sure exactly whay this is "better" than plain XOR?
+			result ^= h << 1; // Note: Shift left before XOR is from cpp reference std::hash example code but I am not sure exactly whay this is "better" than plain XOR?
 		}
 		return result;
     }
@@ -331,7 +371,7 @@ namespace SIE {
 		// Spec: #TRANS account no {object list} amount transdate transtext quantity sign
 		// Ex:   #TRANS 1920 {} 802 "" "" 0
 		std::string tag;
-		unsigned int account_no;
+		BASAccountNo account_no;
 		std::string object_list{};
 		float amount;
 		std::optional<std::chrono::year_month_day> transdate{};
@@ -349,6 +389,7 @@ namespace SIE {
 		std::string vertext;
 		std::optional<std::chrono::year_month_day> regdate{};
 		std::optional<std::string> sign{};
+		std::vector<Trans> transactions{};
 	};
 	struct AnonymousLine {};
 	using SIEFileEntry = std::variant<Ver,Trans,AnonymousLine>;
@@ -443,6 +484,37 @@ namespace SIE {
 		return in;		
 	}
 
+	SIEParseResult parse_TRANS(Stream& in,std::string const& trans_tag) {
+		SIEParseResult result{};
+		Scraps scraps{};
+		auto pos = in.tellg();
+		// #TRANS 2610 {} 25900 "" "" 0
+		SIE::Trans trans{};
+		optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
+		optional_Text_parser optional_transtext_parser{trans.transtext};
+		if (in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
+			std::cout << trans_tag << trans.account_no << " " << trans.amount;
+			result = trans;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
+	SIEParseResult parse_Tag(Stream& in,std::string const& tag) {
+		SIEParseResult result{};
+		Scraps scraps{};
+		auto pos = in.tellg();
+		if (in >> Tag{tag}) {
+			result = AnonymousLine{}; // Success but not data
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
 	SIEParseResult parse_ver(Stream& in) {
 		SIEParseResult result{};
 		Scraps scraps{};
@@ -454,16 +526,23 @@ namespace SIE {
 			if (true) {
 				std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
 				while (true) {
-					// #TRANS 2610 {} 25900 "" "" 0
-					SIE::Trans trans{};
-					optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
-					optional_Text_parser optional_transtext_parser{trans.transtext};
-					if (in >> Tag{"#TRANS"} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
-						std::cout << "\nTRANS: " << trans.account_no << " " << trans.amount;
+					if (auto entry = parse_TRANS(in,"#TRANS")) {
+						std::cout << "\nTRANS :)";	
+						ver.transactions.push_back(std::get<Trans>(*entry));					
 					}
-					else if (in >> Tag{"#RTRANS"} >> scraps) continue;
-					else if (in >> Tag{"#BTRANS"} >> scraps) continue;
+					else if (auto entry = parse_TRANS(in,"#BTRANS")) {
+						// Ignore
+						std::cout << " Ignored";
+					}
+					else if (auto entry = parse_TRANS(in,"#RTRANS")) {
+						// Ignore
+						std::cout << " Ignored";
+					}
+					else if (auto entry = parse_Tag(in,"}")) {
+						break;
+					}
 					else {
+						std::cerr << "\nERROR - Unexpected input while parsing #VER SIE entry";
 						break;
 					}
 				}
@@ -510,8 +589,27 @@ struct Updater {
 					while (true) {
 						std::cout << "\nparse";
 						if (auto opt_entry = SIE::parse_ver(in)) {
+							SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 							std::cout << "\n\tVER!";
-							// if (++loop_count>2) break;
+							/*
+							struct Entry {
+								std::string caption{};
+								std::chrono::year_month_day date{};
+								std::vector<AccountTransaction> account_transactions;
+							};							
+							*/
+							auto& journal_entries = model.sie.journals()[ver.series].entries();
+							journal_entries.push_back(BASJournal::Entry{
+								.caption = ver.vertext
+							});
+							auto& journal_entries_back = journal_entries.back();
+							for (auto const& trans : ver.transactions) {								
+								journal_entries_back.account_transactions.push_back(BASJournal::AccountTransaction{
+									.account_no = trans.account_no
+									,.transtext = trans.transtext
+									,.amount = trans.amount
+								});
+							}
 						}
 						else if (auto opt_entry = SIE::parse_any_line(in)) {
 							std::cout << "\n\tANY";
@@ -519,18 +617,11 @@ struct Updater {
 						else break;
 					}
 					std::cout << "\nDONE!";
-					for (auto const& entry : model.sie.journals()['A'].entries()) {
-						/*
-							struct Entry {
-								std::string caption{};
-								std::chrono::year_month_day date{};
-								Amount amount{};
-								std::vector<BASLedger::Entry> ledger_entries;
-							};						
-						*/
-						std::cout << "\nentry:" << entry.caption;
-						for (auto const& te : entry.ledger_entries) {
-							std::cout << "\n\t" << te.account_no << " " << std::quoted(te.caption) << " " << te.amount;
+					for (auto const& je : model.sie.journals()) {
+						auto& [series,journal] = je;
+						std::cout << "\nJOURNAL " << series;
+						for (auto const& entry : journal.entries()) {
+							std::cout << "\nentry:" << BASJournal::to_string(entry);
 						}
 					}
 				}
