@@ -579,6 +579,7 @@ struct Updater {
 		std::ostringstream os{};
 		auto ast = tokenize::splits(command,' ');
 		if (ast.size() > 0) {
+			// os << model.ux_state(ast) ??
 			if (ast[0] == "-sie") {
 				// Import sie and add as base of our environment
 				if (ast.size()>1) {
