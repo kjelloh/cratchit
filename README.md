@@ -2,6 +2,56 @@
 An SIE based book keeping helper console in modern C++. SIE is a File Encoding format for exchange of book keeping data between applications.
 The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scrooge in Charles Dickens novel "A Christmas Carol".
 
+## Version 0.4
+
+* Now supports Heading + Date + Amount input for input of transactions to Journal
+    * Parsing expects the last word to be a float amount.
+    * Parsing expects the second last to be a date on the form YYYYMMDD
+    * Parsing expects all other words to be part of the heading for the transaction event entered.
+* Now supports command -sie <sie file path>
+    * Parsing expects the -sie command to be followed by a path to an existing sie-file.
+    * If found parsing expects the SIE-file to contain "#VER" entries with "#TRANS" subentries (See project document ./cratchit/src/sie/doc/SIE_filformat_ver_4B_ENGLISH.pdf)
+    * Parsing will read in #VER entries into internal model of Journal entries.
+
+* Removed CMake support (currently builds on macOS with g++11 in C++20 mode and I have so far failed to figure out a viable CMake configuration for cross platform build)
+* Made project single file (main.cpp) again.
+* Currently builds on macOS in VSCode with the following tasks.json configuration
+
+```
+        {
+            "type": "cppbuild",
+            "label": "macOS C/C++: g++-11 build active file",
+            "command": "/usr/local/bin/g++-11",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-std=c++20",
+                "-g",
+                "${file}",
+                "-o",
+                "${workspaceFolder}/cratchit.out"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "compiler: /usr/local/bin/g++-11"
+        }  
+* Current macOS g++11 based build command is:
+
+```
+> g++-11 -fdiagnostics-color=always -std=c++20 -g cratchit/src/main.cpp -o cratchit/cratchit.out
+```
+
+
+
+
+
 ## Version 0.3
 * Refactored into "proper" Cmake folder structure (user creates a build dir under CMakeLists.txt and parallel to src directory)
 ```
