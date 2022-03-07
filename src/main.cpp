@@ -216,6 +216,16 @@ std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_
 }
 
 using Amount= float;
+using optional_amount = std::optional<Amount>;
+optional_amount to_amount(std::string const& sAmount) {
+	optional_amount result{};
+	Amount amount{};
+	std::istringstream is{sAmount};
+	if (is >> amount) {
+		result = amount;
+	}
+	return result;
+}
 
 using BASAccountNo = unsigned int;
 // The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
@@ -251,24 +261,37 @@ struct BASAccountTransaction {
 	std::optional<std::string> transtext{};
 	Amount amount;
 };
-std::string to_string(BASAccountTransaction const& at) {
-	std::ostringstream os{};
+using BASAccountTransactions = std::vector<BASAccountTransaction>;
+
+std::ostream& operator<<(std::ostream& os,BASAccountTransaction const& at) {
 	os << at.account_no;
 	os << " " << at.transtext;
 	os << " " << at.amount;
+	return os;
+};
+
+std::string to_string(BASAccountTransaction const& at) {
+	std::ostringstream os{};
+	os << at;
 	return os.str();
 };
 struct BASJournalEntry {
 	std::string caption{};
 	std::chrono::year_month_day date{};
-	std::vector<BASAccountTransaction> account_transactions;
+	BASAccountTransactions account_transactions;
 };
-std::string to_string(BASJournalEntry const& je) {
-	std::ostringstream os{};
+
+std::ostream& operator<<(std::ostream& os,BASJournalEntry const& je) {
 	os << je.caption;
 	for (auto const& at : je.account_transactions) {
 		os << "\n\t" << to_string(at); 
 	}
+	return os;
+};
+
+std::string to_string(BASJournalEntry const& je) {
+	std::ostringstream os{};
+	os << je;
 	return os.str();
 };
 
@@ -287,35 +310,79 @@ using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Se
 	III) We need to enable the user to Commit Staged Journal Entries to a Series and valid sequence number
 */
 
-struct JournalEntryCandidate {
-
-};
-
 struct HeadingAmountDate {
-	std::string account_no{};
-	std::string caption{};
+	std::string heading{};
 	Amount amount;
+	std::chrono::year_month_day date{};
 };
 using HeadingAmountDateList = std::vector<HeadingAmountDate>;
 
+
+struct AccountTransactionTemplate {
+	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
+		: m_account_no{account_no},m_factor{account_amount / gross_amount}  {}
+	BASAccountNo m_account_no;
+	float m_factor;
+	BASAccountTransaction operator()(Amount amount) const {
+		BASAccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
+		return result;
+	}
+};
+using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
+
 class JournalEntryTemplate {
+public:
+
+	JournalEntryTemplate(BASJournalEntry const bje) {
+		auto gross_amount = std::accumulate(bje.account_transactions.begin(),bje.account_transactions.end(),Amount{},[](Amount acc,BASAccountTransaction const& account_transaction){
+			acc += (account_transaction.amount>0)?account_transaction.amount:0;
+			return acc;
+		});
+		if (gross_amount >= 0.01) {
+			std::transform(bje.account_transactions.begin(),bje.account_transactions.end(),std::back_inserter(templates),[gross_amount](BASAccountTransaction const& account_transaction){
+				AccountTransactionTemplate result(
+					 account_transaction.account_no
+					,gross_amount
+					,account_transaction.amount
+				);
+				return result;
+			});
+		}
+	}
+
+	BASAccountTransactions operator()(Amount amount) const {
+		BASAccountTransactions result{};
+		std::transform(templates.begin(),templates.end(),std::back_inserter(result),[amount](AccountTransactionTemplate const& att){
+			return att(amount);
+		});
+		return result;
+	}
+	friend std::ostream& operator<<(std::ostream&, JournalEntryTemplate const&);
+private:
+	AccountTransactionTemplates templates{};
 };
 
 using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
 using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
 
 OptionalJournalEntryTemplate to_template(BASJournalEntry const& entry) {
-	OptionalJournalEntryTemplate result{};
+	OptionalJournalEntryTemplate result(entry);
 	return result;
 }
 
-std::ostream& operator<<(std::ostream& os,OptionalJournalEntryTemplate const& entry) {
-	if (entry) {
-		os << "\ntemplate...";
-	}
-	else {
-		os << "\ntemplate ??";
-	}
+BASJournalEntry to_journal_entry(HeadingAmountDate const& had,JournalEntryTemplate const& jet) {
+	BASJournalEntry result{};
+	result.caption = had.heading;
+	result.date = had.date;
+	result.account_transactions = jet(had.amount);
+	return result;
+}
+
+std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
+	os << "\ntemplate";
+	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& t){
+		os << "\n\t" << t.m_account_no << " " << t.m_factor;
+	});
 	return os;
 }
 
@@ -365,7 +432,7 @@ struct Model {
 	bool quit{};
 	Environment environment{};
 	SIEEnvironment sie{};
-	HeadingAmountDateList heading_amount_date_list{}; // 1) Raw entries by user for journal transactions
+	HeadingAmountDateList heading_amount_date_list{}; // 1) Raw entries by user for journal transactions (also from -csv import)
 	JournalEntryTemplateList journal_entry_template_list{}; // 2) Journal Entry Template candidates for currently selected Heading Amount Date entry 
 };
 
@@ -396,6 +463,18 @@ struct std::hash<EnvironmentValue>
 		return result;
     }
 };
+
+using optional_year_month_day = std::optional<std::chrono::year_month_day>;
+optional_year_month_day to_date(std::string const& sYYYYMMDD) {
+	optional_year_month_day result{};
+	if (sYYYYMMDD.size()==8) {
+		result = std::chrono::year_month_day(
+			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
+			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
+			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
+	}
+	return result;
+}
 
 namespace SIE {
 	using Stream = std::istream;
@@ -465,11 +544,8 @@ namespace SIE {
 				if (sDate.size()==0) {
 					pos = in.tellg(); // Accept this parse position (e.g., "" is to be accepted)
 				}
-				else if (sDate.size()==8) {
-					p.date = std::chrono::year_month_day(
-						std::chrono::year{std::stoi(sDate.substr(0,4))}
-						,std::chrono::month{static_cast<unsigned>(std::stoul(sDate.substr(4,2)))}
-						,std::chrono::day{static_cast<unsigned>(std::stoul(sDate.substr(6,2)))});
+				else if (auto date = to_date(sDate);date) {
+					p.date = *date;
 					pos = in.tellg(); // Accept this parse position (an actual date was parsed)
 				}
 			}
@@ -666,6 +742,11 @@ struct Updater {
 				// Assume Caption + Amount + Date
 				auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
 				if (tokens.size()==3) {
+					HeadingAmountDate had {
+						.heading = tokens[0]
+						,.amount = *to_amount(tokens[1]) // Assume success
+						,.date = *to_date(tokens[3]) // Assume success
+					};
 					EnvironmentValue ev{};
 					ev["rubrik"] = tokens[0];
 					ev["belopp"] = tokens[1];
@@ -687,7 +768,11 @@ struct Updater {
 						}
 						for (auto const& je : candidates) {
 							std::cout << "\ncandidate:" << to_string(je);
-							std::cout << "\nTemplate" << to_template(je);
+							auto et = to_template(je);
+							if (et) {
+								std::cout << "\nTemplate" << *et;
+								std::cout << "\nSIE " << to_journal_entry(had,*et);
+							}
 						}
 						/*
 							a) Heading + Date + Amount => HDA Entry List
