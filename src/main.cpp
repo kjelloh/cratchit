@@ -217,12 +217,6 @@ std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_
 
 using Amount= float;
 
-struct UxLedgerEntry {
-	std::string account_no{};
-	std::string caption{};
-	Amount amount;
-};
-
 using BASAccountNo = unsigned int;
 // The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
 class BASLedger {
@@ -251,46 +245,85 @@ Konto	Benämning									Debet		Kredit
 1227	Elektroniklabb - Lager V-slot 2040 Profil	71,92	
 2641	Debiterad ingående moms						17,98	
 */
-class BASJournal {
-public:
-	struct AccountTransaction {
-		BASAccountNo account_no;
-		std::optional<std::string> transtext{};
-		Amount amount;
-	};
-	static std::string to_string(AccountTransaction const& at) {
-		std::ostringstream os{};
-		os << at.account_no;
-		os << " " << at.transtext;
-		os << " " << at.amount;
-		return os.str();
-	};
-	struct Entry {
-		std::string caption{};
-		std::chrono::year_month_day date{};
-		std::vector<AccountTransaction> account_transactions;
-	};
-	static std::string to_string(Entry const& entry) {
-		std::ostringstream os{};
-		os << entry.caption;
-		for (auto const& at : entry.account_transactions) {
-			os << "\n\t" << to_string(at); 
-		}
-		return os.str();
-	};
-	std::vector<Entry>& entries() {return m_entries;}
-	std::vector<Entry> const& entries() const {return m_entries;}
-private:
-	std::vector<Entry> m_entries{};
+
+struct BASAccountTransaction {
+	BASAccountNo account_no;
+	std::optional<std::string> transtext{};
+	Amount amount;
+};
+std::string to_string(BASAccountTransaction const& at) {
+	std::ostringstream os{};
+	os << at.account_no;
+	os << " " << at.transtext;
+	os << " " << at.amount;
+	return os.str();
+};
+struct BASJournalEntry {
+	std::string caption{};
+	std::chrono::year_month_day date{};
+	std::vector<BASAccountTransaction> account_transactions;
+};
+std::string to_string(BASJournalEntry const& je) {
+	std::ostringstream os{};
+	os << je.caption;
+	for (auto const& at : je.account_transactions) {
+		os << "\n\t" << to_string(at); 
+	}
+	return os.str();
 };
 
-using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and named A,B,C,...
+using BASJournal = std::map<int,BASJournalEntry>;
+using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
+
+/*
+	a) Heading + Amount + Date => HAD Entry List
+	b) HDA Entry + Historic Journal Entry match => Journal Entry Template List
+	c) User HDA Entry + selected Template => Journal Entry Candidates
+	d) User select Journal Entry Candidate => Staged Journal Entries
+	e) User Commits Staged Journal Entries to Series and Sequence Number
+
+	I) We need to be able to match a Header Date Amount entry to historical Journal Entries
+	II) We need to enbale the user to select the template to Apply and Stage a Journal Entry
+	III) We need to enable the user to Commit Staged Journal Entries to a Series and valid sequence number
+*/
+
+struct JournalEntryCandidate {
+
+};
+
+struct HeadingAmountDate {
+	std::string account_no{};
+	std::string caption{};
+	Amount amount;
+};
+using HeadingAmountDateList = std::vector<HeadingAmountDate>;
+
+class JournalEntryTemplate {
+};
+
+using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
+using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
+
+OptionalJournalEntryTemplate to_template(BASJournalEntry const& entry) {
+	OptionalJournalEntryTemplate result{};
+	return result;
+}
+
+std::ostream& operator<<(std::ostream& os,OptionalJournalEntryTemplate const& entry) {
+	if (entry) {
+		os << "\ntemplate...";
+	}
+	else {
+		os << "\ntemplate ??";
+	}
+	return os;
+}
 
 class SIEEnvironment {
 public:
 	BASJournals& journals() {return m_journals;}
-	BASLedger& ledger() {return m_ledger;}
 	BASJournals const& journals() const {return m_journals;}
+	BASLedger& ledger() {return m_ledger;}
 	BASLedger const& ledger() const {return m_ledger;}
 private:
 	BASJournals m_journals{};
@@ -332,6 +365,8 @@ struct Model {
 	bool quit{};
 	Environment environment{};
 	SIEEnvironment sie{};
+	HeadingAmountDateList heading_amount_date_list{}; // 1) Raw entries by user for journal transactions
+	JournalEntryTemplateList journal_entry_template_list{}; // 2) Journal Entry Template candidates for currently selected Heading Amount Date entry 
 };
 
 using Command = std::string;
@@ -599,13 +634,13 @@ struct Updater {
 								std::vector<AccountTransaction> account_transactions;
 							};							
 							*/
-							auto& journal_entries = model.sie.journals()[ver.series].entries();
-							journal_entries.push_back(BASJournal::Entry{
+							auto& journal_entries = model.sie.journals()[ver.series];
+							journal_entries[ver.verno] = BASJournalEntry{
 								.caption = ver.vertext
-							});
-							auto& journal_entries_back = journal_entries.back();
+							};
+							auto& this_journal_entry = journal_entries[ver.verno];
 							for (auto const& trans : ver.transactions) {								
-								journal_entries_back.account_transactions.push_back(BASJournal::AccountTransaction{
+								this_journal_entry.account_transactions.push_back(BASAccountTransaction{
 									.account_no = trans.account_no
 									,.transtext = trans.transtext
 									,.amount = trans.amount
@@ -621,8 +656,8 @@ struct Updater {
 					for (auto const& je : model.sie.journals()) {
 						auto& [series,journal] = je;
 						std::cout << "\nJOURNAL " << series;
-						for (auto const& entry : journal.entries()) {
-							std::cout << "\nentry:" << BASJournal::to_string(entry);
+						for (auto const& [verno,entry] : journal) {
+							std::cout << "\nentry:" << verno << " " << to_string(entry);
 						}
 					}
 				}
@@ -641,21 +676,30 @@ struct Updater {
 					if (true) {
 						// Find previous BAS Journal entries that may define how
 						// we should account for this entry
-						BASJournals candidates{};
+						std::vector<BASJournalEntry> candidates{};
 						for (auto const& je : model.sie.journals()) {
 							auto const& [series,journal] = je;
-							for (auto const& entry : journal.entries()) {								
+							for (auto const& [verno,entry] : journal) {								
 								if (entry.caption.find(ev["rubrik"]) != std::string::npos) {
-									candidates[series].entries().push_back(entry);
+									candidates.push_back(entry);
 								}
 							}
 						}
 						for (auto const& je : candidates) {
-							auto const& [series,journal] = je;
-							for (auto const& entry : journal.entries()) {								
-								std::cout << "\ncandidate:" << BASJournal::to_string(entry);
-							}
+							std::cout << "\ncandidate:" << to_string(je);
+							std::cout << "\nTemplate" << to_template(je);
 						}
+						/*
+							a) Heading + Date + Amount => HDA Entry List
+							b) HDA Entry + Historic Journal Entry match => Journal Entry Template List
+							c) User HDA Entry + selected Template => Journal Entry Candidates
+							d) User select Journal Entry Candidate => Staged Journal Entries
+							e) User Commits Staged Journal Entries to Series and Sequence Number
+
+							I) We need to be able to match a Header Date Amount entry to historical Journal Entries
+							II) We need to enbale the user to select the template to Apply and Stage a Journal Entry
+							III) We need to enable the user to Commit Staged Journal Entries to a Series and valid sequence number
+						*/
 
 					}
 				}
