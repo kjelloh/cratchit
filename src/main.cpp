@@ -835,7 +835,7 @@ public:
 		}
 		return std::move(updater.model);
 	}
-	Ux view(Model&& model) {
+	Ux view(Model const& model) {
 		Ux ux{};
 		ux.push_back(model->prompt);
 		return ux;
@@ -882,34 +882,34 @@ private:
 
 class REPL {
 public:
-    REPL(std::filesystem::path const& environment_file_path,Command const& command) : cratchit{environment_file_path} {
-        this->model = cratchit.init();
+    REPL(std::filesystem::path const& environment_file_path) : cratchit{environment_file_path} {}
+
+	void run(Command const& command) {
+        auto model = cratchit.init();
         in.push_back(Command{command});
-    }
-    bool operator++() {
-        Msg msg{Nop{}};
-        if (in.size()>0) {
-            msg = in.back();
-            in.pop_back();
-        }
-        this->model = cratchit.update(msg,std::move(this->model));
-        auto ux = cratchit.view(std::move(this->model));
-        for (auto const&  row : ux) std::cout << row;
-		if (this->model->quit) return false; // Done
-		else {
-			Command user_input{};
-			std::getline(std::cin,user_input);
-			in.push_back(to_msg(user_input));
-			return true;
+		while (true) {
+			Msg msg{Nop{}};
+			if (in.size()>0) {
+				msg = in.back();
+				in.pop_back();
+			}
+			model = cratchit.update(msg,std::move(model));
+			auto ux = cratchit.view(model);
+			for (auto const&  row : ux) std::cout << row;
+			if (model->quit) break; // Done
+			else {
+				Command user_input{};
+				std::getline(std::cin,user_input);
+				in.push_back(to_msg(user_input));
+			}
 		}
-    }
+	}
 private:
     Msg to_msg(Command const& user_input) {
         if (user_input == "quit" or user_input=="q") return Quit{};
 		else if (user_input.size()==0) return Nop{};
         else return Command{user_input};
     }
-    Model model{};
     Cratchit cratchit;
     std::deque<Msg> in{};
 };
@@ -922,8 +922,8 @@ int main(int argc, char *argv[])
     for (int i=1;i<argc;i++) command+= std::string{argv[i]} + " ";
     auto current_path = std::filesystem::current_path();
     auto environment_file_path = current_path / "cratchit.env";
-    REPL repl{environment_file_path,command};
-    while (++repl);
+    REPL repl{environment_file_path};
+    repl.run(command);
     // std::cout << "\nBye for now :)";
     std::cout << std::endl;
     return 0;
