@@ -127,7 +127,7 @@ namespace tokenize {
 		}
 		return result;
 	}
-}
+} // namespace tokenize
 
 namespace parse {
     using In = std::string_view;
@@ -164,7 +164,7 @@ namespace parse {
     auto parse(T const& p,In const& in) {
         return p(in);
     }
-}
+} // namespace parse
 
 /*
 
@@ -427,7 +427,7 @@ std::string to_string(Environment::value_type const& entry) {
 	return os.str();
 }
 
-struct Model {
+struct ConcreteModel {
     std::string prompt{};
 	bool quit{};
 	Environment environment{};
@@ -435,6 +435,8 @@ struct Model {
 	HeadingAmountDateList heading_amount_date_list{}; // 1) Raw entries by user for journal transactions (also from -csv import)
 	JournalEntryTemplateList journal_entry_template_list{}; // 2) Journal Entry Template candidates for currently selected Heading Amount Date entry 
 };
+
+using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
 
 using Command = std::string;
 struct Quit {};
@@ -685,12 +687,12 @@ namespace SIE {
 }
 
 struct Updater {
-	Model& model;
-	Model& operator()(Command const& command) {
+	Model model;
+	Msg operator()(Command const& command) {
 		std::ostringstream os{};
 		auto ast = tokenize::splits(command,' ');
 		if (ast.size() > 0) {
-			// os << model.ux_state(ast) ??
+			// os << model->ux_state(ast) ??
 			if (ast[0] == "-sie") {
 				// Import sie and add as base of our environment
 				if (ast.size()>1) {
@@ -710,7 +712,7 @@ struct Updater {
 								std::vector<AccountTransaction> account_transactions;
 							};							
 							*/
-							auto& journal_entries = model.sie.journals()[ver.series];
+							auto& journal_entries = model->sie.journals()[ver.series];
 							journal_entries[ver.verno] = BASJournalEntry{
 								.caption = ver.vertext
 							};
@@ -729,7 +731,7 @@ struct Updater {
 						else break;
 					}
 					std::cout << "\nDONE!";
-					for (auto const& je : model.sie.journals()) {
+					for (auto const& je : model->sie.journals()) {
 						auto& [series,journal] = je;
 						std::cout << "\nJOURNAL " << series;
 						for (auto const& [verno,entry] : journal) {
@@ -752,13 +754,13 @@ struct Updater {
 					ev["belopp"] = tokens[1];
 					ev["datum"] = tokens[2];
 					auto entry_key = std::to_string(std::hash<EnvironmentValue>{}(ev));
-					model.environment[entry_key] = ev;
+					model->environment[entry_key] = ev;
 					// TEST
 					if (true) {
 						// Find previous BAS Journal entries that may define how
 						// we should account for this entry
 						std::vector<BASJournalEntry> candidates{};
-						for (auto const& je : model.sie.journals()) {
+						for (auto const& je : model->sie.journals()) {
 							auto const& [series,journal] = je;
 							for (auto const& [verno,entry] : journal) {								
 								if (entry.caption.find(ev["rubrik"]) != std::string::npos) {
@@ -794,23 +796,23 @@ struct Updater {
 			}
 		}
 		os << "\ncratchit:";
-		model.prompt = os.str();
-		return model;
+		model->prompt = os.str();
+		return Nop{};
 	}
-	Model& operator()(Quit const& quit) {
+	Msg operator()(Quit const& quit) {
 		std::ostringstream os{};
 		os << "\nBy for now :)";
-		model.prompt = os.str();
-		model.quit = true;
-		return model;
+		model->prompt = os.str();
+		model->quit = true;
+		return Nop{};
 	}
-	Model& operator()(Nop const& nop) {
+	Msg operator()(Nop const& nop) {
 		std::ostringstream os{};
 		auto help = help_for("");
 		for (auto const& line : help) os << "\n" << line;
 		os << "\ncratchit:";
-		model.prompt = os.str();
-		return model;
+		model->prompt = os.str();
+		return Nop{};
 	}
 };
 
@@ -819,24 +821,24 @@ public:
 	Cratchit(std::filesystem::path const& p) 
 		: cratchit_file_path{p} {}
 	Model init() {
-		Model result{};
-		result.prompt += "\nInit from ";
-		result.prompt += cratchit_file_path;
-		result.environment = environment_from_file(cratchit_file_path);
-		return result;
+		Model model = std::make_unique<ConcreteModel>();
+		model->prompt += "\nInit from ";
+		model->prompt += cratchit_file_path;
+		model->environment = environment_from_file(cratchit_file_path);
+		return model;
 	}
-	Model& update(Msg const& msg,Model& model) {
-		Updater updater{model};
-		Model& result = std::visit(updater,msg); // Pass Model& around
-		if (result.quit) {
-			environment_to_file(result.environment,cratchit_file_path);
+	Model update(Msg const& msg,Model&& model) {
+		Updater updater{std::move(model)};
+		auto tx_msg = std::visit(updater,msg); // Pass Model& around
+		if (updater.model->quit) {
+			environment_to_file(updater.model->environment,cratchit_file_path);
 		}
-		return result;
+		return std::move(updater.model);
 	}
-	Ux view(Model& model) {
-		Ux result{};
-		result.push_back(model.prompt);
-		return result;
+	Ux view(Model&& model) {
+		Ux ux{};
+		ux.push_back(model->prompt);
+		return ux;
 	}
 private:
 	std::filesystem::path cratchit_file_path{};
@@ -890,10 +892,10 @@ public:
             msg = in.back();
             in.pop_back();
         }
-        this->model = cratchit.update(msg,this->model);
-        auto ux = cratchit.view(this->model);
+        this->model = cratchit.update(msg,std::move(this->model));
+        auto ux = cratchit.view(std::move(this->model));
         for (auto const&  row : ux) std::cout << row;
-		if (this->model.quit) return false; // Done
+		if (this->model->quit) return false; // Done
 		else {
 			Command user_input{};
 			std::getline(std::cin,user_input);
