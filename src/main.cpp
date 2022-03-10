@@ -1,5 +1,5 @@
 #include <iostream>
-#include <deque>
+#include <queue>
 #include <variant>
 #include <vector>
 #include <optional>
@@ -428,6 +428,7 @@ std::string to_string(Environment::value_type const& entry) {
 }
 
 struct ConcreteModel {
+	std::string user_input{};
     std::string prompt{};
 	bool quit{};
 	Environment environment{};
@@ -438,13 +439,21 @@ struct ConcreteModel {
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
 
+struct Key {char value;};
 using Command = std::string;
 struct Quit {};
 struct Nop {};
 
-using Msg = std::variant<Nop,Quit,Command>;
-
+using Msg = std::variant<Nop,Key,Quit,Command>;
+struct Cmd {Msg msg;};
 using Ux = std::vector<std::string>;
+
+Cmd to_cmd(std::string const& user_input) {
+	Cmd result{Nop{}};
+	if (user_input == "quit" or user_input=="q") result.msg = Quit{};
+	else if (user_input.size()>0) result.msg = Command{user_input};
+	return result;
+}
 
 std::vector<std::string> help_for(std::string topic) {
 	std::vector<std::string> result{};
@@ -688,7 +697,22 @@ namespace SIE {
 
 struct Updater {
 	Model model;
-	Msg operator()(Command const& command) {
+	Cmd operator()(Key const& key) {
+		// std::cout << "\noperator(Key)";
+		if (model->user_input.size()==0) model->prompt = "\ncratchit>";
+		Cmd cmd{Nop{}};
+		if (std::isprint(key.value)) {
+			model->user_input += key.value;
+			model->prompt += key.value;
+		}
+		else {
+			cmd = to_cmd(model->user_input);
+			model->user_input.clear();
+		}
+		return cmd;
+	}
+	Cmd operator()(Command const& command) {
+		// std::cout << "\noperator(Command)";
 		std::ostringstream os{};
 		auto ast = tokenize::splits(command,' ');
 		if (ast.size() > 0) {
@@ -797,43 +821,47 @@ struct Updater {
 		}
 		os << "\ncratchit:";
 		model->prompt = os.str();
-		return Nop{};
+		return {Nop{}};
 	}
-	Msg operator()(Quit const& quit) {
+	Cmd operator()(Quit const& quit) {
+		// std::cout << "\noperator(Quit)";
 		std::ostringstream os{};
 		os << "\nBy for now :)";
 		model->prompt = os.str();
 		model->quit = true;
-		return Nop{};
+		return {Nop{}};
 	}
-	Msg operator()(Nop const& nop) {
+	Cmd operator()(Nop const& nop) {
+		// std::cout << "\noperator(Nop)";
 		std::ostringstream os{};
 		auto help = help_for("");
-		for (auto const& line : help) os << "\n" << line;
+		for (auto const& line : help) os << "\n<Options>\n" << line;
 		os << "\ncratchit:";
 		model->prompt = os.str();
-		return Nop{};
-	}
+		return {Nop{}};
+	}	
 };
 
 class Cratchit {
 public:
 	Cratchit(std::filesystem::path const& p) 
 		: cratchit_file_path{p} {}
-	Model init() {
+
+	Model init(Command const& command) {
 		Model model = std::make_unique<ConcreteModel>();
 		model->prompt += "\nInit from ";
 		model->prompt += cratchit_file_path;
 		model->environment = environment_from_file(cratchit_file_path);
+		model->prompt += "\ncratchit>";
 		return model;
 	}
-	Model update(Msg const& msg,Model&& model) {
+	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
 		Updater updater{std::move(model)};
-		auto tx_msg = std::visit(updater,msg); // Pass Model& around
+		auto cmd = std::visit(updater,msg);
 		if (updater.model->quit) {
 			environment_to_file(updater.model->environment,cratchit_file_path);
 		}
-		return std::move(updater.model);
+		return {std::move(updater.model),cmd};
 	}
 	Ux view(Model const& model) {
 		Ux ux{};
@@ -885,33 +913,37 @@ public:
     REPL(std::filesystem::path const& environment_file_path) : cratchit{environment_file_path} {}
 
 	void run(Command const& command) {
-        auto model = cratchit.init();
-        in.push_back(Command{command});
+        auto model = cratchit.init(command);
 		while (true) {
-			Msg msg{Nop{}};
-			if (in.size()>0) {
-				msg = in.back();
-				in.pop_back();
-			}
-			model = cratchit.update(msg,std::move(model));
+			// Create the ux to view
 			auto ux = cratchit.view(model);
+			// Render the ux
 			for (auto const&  row : ux) std::cout << row;
 			if (model->quit) break; // Done
+			// process events (user input)
+			if (in.size()>0) {
+				auto msg = in.front();
+				in.pop();
+				// std::cout << "\nmsg[" << msg.index() << "]";
+				// Turn Event (Msg) into updated model
+				auto [updated_model,cmd] = cratchit.update(msg,std::move(model));
+				model = std::move(updated_model);
+				if (std::holds_alternative<Nop>(cmd.msg) == false) in.push(cmd.msg);
+			}
 			else {
-				Command user_input{};
+				// Get more buffered user input
+				std::string user_input{};
 				std::getline(std::cin,user_input);
-				in.push_back(to_msg(user_input));
+				std::for_each(user_input.begin(),user_input.end(),[this](char ch){
+					this->in.push(Key{ch});
+				});
+				this->in.push(Key{'\n'});
 			}
 		}
 	}
 private:
-    Msg to_msg(Command const& user_input) {
-        if (user_input == "quit" or user_input=="q") return Quit{};
-		else if (user_input.size()==0) return Nop{};
-        else return Command{user_input};
-    }
     Cratchit cratchit;
-    std::deque<Msg> in{};
+    std::queue<Msg> in{};
 };
 
 int main(int argc, char *argv[])
