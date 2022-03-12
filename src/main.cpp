@@ -310,12 +310,12 @@ using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Se
 	III) We need to enable the user to Commit Staged Journal Entries to a Series and valid sequence number
 */
 
-struct HeadingAmountDate {
+struct HeadingAmountDateTransEntry {
 	std::string heading{};
 	Amount amount;
 	std::chrono::year_month_day date{};
 };
-using HeadingAmountDateList = std::vector<HeadingAmountDate>;
+using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
 
 struct AccountTransactionTemplate {
@@ -370,7 +370,7 @@ OptionalJournalEntryTemplate to_template(BASJournalEntry const& entry) {
 	return result;
 }
 
-BASJournalEntry to_journal_entry(HeadingAmountDate const& had,JournalEntryTemplate const& jet) {
+BASJournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
 	BASJournalEntry result{};
 	result.caption = had.heading;
 	result.date = had.date;
@@ -398,31 +398,33 @@ private:
 };
 
 using EnvironmentValue = std::map<std::string,std::string>;
-using Environment = std::map<std::string,EnvironmentValue>;
+using Environment = std::multimap<std::string,EnvironmentValue>;
+// "belopp=1389,50;datum=20221023;rubrik=Klarna"
 std::string to_string(EnvironmentValue const& ev) {
 	// Expand to variants when EnvironmentValue is no longer a simple string (if ever?)
 	std::string result = std::accumulate(ev.begin(),ev.end(),std::string{},[](auto acc,auto const& entry){
 		if (acc.size()>0) acc += ";"; // separator
 		acc += entry.first;
-		acc += ":";
+		acc += "=";
 		acc += entry.second;
 		return acc;
 	});
 	return result;
 }
-EnvironmentValue to_value(std::string const s) {
+// "belopp=1389,50;datum=20221023;rubrik=Klarna"
+EnvironmentValue to_environment_value(std::string const s) {
 	EnvironmentValue result{};
 	auto kvps = tokenize::splits(s,';');
 	for (auto const& kvp : kvps) {
-		auto const& [name,value] = tokenize::split(kvp,':');
+		auto const& [name,value] = tokenize::split(kvp,'=');
 		result[name] = value;
 	}
 	return result;
 }
 std::string to_string(Environment::value_type const& entry) {
 	std::ostringstream os{};
-	os << std::quoted(entry.first);
-	os << ":";
+	os << entry.first;
+	os << " ";
 	os << std::quoted(to_string(entry.second));
 	return os.str();
 }
@@ -433,7 +435,7 @@ struct ConcreteModel {
 	bool quit{};
 	Environment environment{};
 	SIEEnvironment sie{};
-	HeadingAmountDateList heading_amount_date_list{}; // 1) Raw entries by user for journal transactions (also from -csv import)
+	HeadingAmountDateTransEntries heading_amount_date_list{}; // 1) Raw entries by user for journal transactions (also from -csv import)
 	JournalEntryTemplateList journal_entry_template_list{}; // 2) Journal Entry Template candidates for currently selected Heading Amount Date entry 
 };
 
@@ -460,20 +462,6 @@ std::vector<std::string> help_for(std::string topic) {
 	result.push_back("Enter 'Quit' or 'q' to quit");
 	return result;
 }
-
-// custom specialization of std::hash can be injected in namespace std
-template<>
-struct std::hash<EnvironmentValue>
-{
-    std::size_t operator()(EnvironmentValue const& ev) const noexcept {
-		std::size_t result{};
-		for (auto const& v : ev) {
-			std::size_t h = std::hash<std::string>{}(v.second); // Todo: Subject to change if variant values are introduced
-			result ^= h << 1; // Note: Shift left before XOR is from cpp reference std::hash example code but I am not sure exactly whay this is "better" than plain XOR?
-		}
-		return result;
-    }
-};
 
 using optional_year_month_day = std::optional<std::chrono::year_month_day>;
 optional_year_month_day to_date(std::string const& sYYYYMMDD) {
@@ -717,7 +705,12 @@ struct Updater {
 		auto ast = tokenize::splits(command,' ');
 		if (ast.size() > 0) {
 			// os << model->ux_state(ast) ??
-			if (ast[0] == "-sie") {
+			if (ast[0] == "-env") {
+				for (auto const& entry : model->environment) {
+					std::cout << "\n" << entry.first << " " << to_string(entry.second);
+				}
+			}
+			else if (ast[0] == "-sie") {
 				// Import sie and add as base of our environment
 				if (ast.size()>1) {
 					auto sie_file_name = ast[1];
@@ -768,7 +761,7 @@ struct Updater {
 				// Assume Caption + Amount + Date
 				auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
 				if (tokens.size()==3) {
-					HeadingAmountDate had {
+					HeadingAmountDateTransEntry had {
 						.heading = tokens[0]
 						,.amount = *to_amount(tokens[1]) // Assume success
 						,.date = *to_date(tokens[3]) // Assume success
@@ -777,8 +770,8 @@ struct Updater {
 					ev["rubrik"] = tokens[0];
 					ev["belopp"] = tokens[1];
 					ev["datum"] = tokens[2];
-					auto entry_key = std::to_string(std::hash<EnvironmentValue>{}(ev));
-					model->environment[entry_key] = ev;
+
+					model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
 					// TEST
 					if (true) {
 						// Find previous BAS Journal entries that may define how
@@ -873,6 +866,7 @@ private:
 	bool is_value_line(std::string const& line) {
 		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
 	}
+	// HeadingAmountDateTransEntry "belopp=1389,50;datum=20221023;rubrik=Klarna"
 	Environment environment_from_file(std::filesystem::path const& p) {
 		Environment result{};
 		try {
@@ -880,12 +874,10 @@ private:
 			std::string line{};
 			while (std::getline(in,line)) {
 				if (is_value_line(line)) {
-					// Read <name>:<value> where <name> is "bla bla" and <value> is "bla bla " or "StringWithNoSpaces"
 					std::istringstream in{line};
-					std::string name{},value{};
-					char colon{};
-					in >> std::quoted(name) >> colon >> std::quoted(value);
-					result.insert({name,to_value(value)});
+					std::string key{},value{};
+					in >> key >> std::quoted(value);
+					result.insert({key,to_environment_value(value)});
 				}
 			}
 		}
