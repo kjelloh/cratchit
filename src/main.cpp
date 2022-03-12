@@ -47,48 +47,20 @@ namespace tokenize {
 		,Unknown
 	};
 
-	std::pair<std::string,std::string> split(std::string const& s,SplitOn split_on) {
-		std::pair<std::string,std::string> result{};
-		switch (split_on) {
-			case SplitOn::TextAndAmount: {
-				auto tokens = splits(s,' ');
-				float amount{};
-				std::istringstream in{tokens.back()};
-				if (in >> amount) {
-					// OK, last token is a float
-					auto left = std::accumulate(tokens.begin(),tokens.end()-1,std::string{},[](auto acc,auto const& s) {
-						if (acc.size()>0) acc += " ";
-						acc += s;
-						return acc;
-					});
-					auto right = tokens.back();
-					result = {left,right};
-				}
-				else {
-					std::cerr << "\nERROR - Expected amount but read " << tokens.back(); 
-				}
-			} break;
-			default: {
-				std::cerr << "Error - Unknown split_on argument " << static_cast<int>(split_on);
-			}
-		}
-		return result;
-	}
-
 	enum class TokenID {
 		Undefined
 		,Caption
-		,Date
 		,Amount
+		,Date
 		,Unknown
 	};
 
 	TokenID token_id_of(std::string const& s) {
-		const std::regex date_regex("[2-9][2-9]((0[1-9])|(1[0-2]))(0[1-9]|[1-3][0-9])");
+		const std::regex date_regex("[2-9]\\d{3}([0]\\d|[1][0-2])([0-2]\\d|[3][0-1])");
 		if (std::regex_match(s,date_regex)) return TokenID::Date;
-		const std::regex amount_regex("\\d+,\\d\\d");
+		const std::regex amount_regex("\\d+.\\d\\d");
 		if (std::regex_match(s,amount_regex)) return TokenID::Amount;
-		const std::regex caption_regex("(\\w|\\s|[\\.-])+");
+		const std::regex caption_regex("[ -~]+");
 		if (std::regex_match(s,caption_regex)) return TokenID::Caption;
 		return TokenID::Unknown; 
 	}
@@ -218,11 +190,13 @@ std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_
 using Amount= float;
 using optional_amount = std::optional<Amount>;
 optional_amount to_amount(std::string const& sAmount) {
+	std::cout << "\nto_amount " << sAmount;
 	optional_amount result{};
 	Amount amount{};
 	std::istringstream is{sAmount};
 	if (is >> amount) {
 		result = amount;
+		std::cout << "\nAmount = " << amount;
 	}
 	return result;
 }
@@ -281,6 +255,8 @@ struct BASJournalEntry {
 	BASAccountTransactions account_transactions;
 };
 
+using BASJournalEntries = std::vector<BASJournalEntry>;
+
 std::ostream& operator<<(std::ostream& os,BASJournalEntry const& je) {
 	os << je.caption;
 	for (auto const& at : je.account_transactions) {
@@ -315,6 +291,8 @@ struct HeadingAmountDateTransEntry {
 	Amount amount;
 	std::chrono::year_month_day date{};
 };
+using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
+
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
 
@@ -401,6 +379,29 @@ using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 
 using EnvironmentValue = std::map<std::string,std::string>;
 using Environment = std::multimap<std::string,EnvironmentValue>;
+
+OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ) {
+	OptionalJournalEntryTemplate result{};
+	if (had) {
+		BASJournalEntries candidates{};
+		for (auto const& je : sie_environ.journals()) {
+			auto const& [series,journal] = je;
+			for (auto const& [verno,entry] : journal) {								
+				if (entry.caption.find(had->heading) != std::string::npos) {
+					candidates.push_back(entry);
+				}
+			}
+		}
+		// select the entry with the latest date
+		std::nth_element(candidates.begin(),candidates.begin(),candidates.end(),[](auto const& je1, auto const& je2){
+			return (je1.date > je2.date);
+		});
+		result = to_template(candidates.front());
+	}
+	return result;
+}
+
+
 // "belopp=1389,50;datum=20221023;rubrik=Klarna"
 std::string to_string(EnvironmentValue const& ev) {
 	// Expand to variants when EnvironmentValue is no longer a simple string (if ever?)
@@ -431,14 +432,64 @@ std::string to_string(Environment::value_type const& entry) {
 	return os.str();
 }
 
+using optional_year_month_day = std::optional<std::chrono::year_month_day>;
+optional_year_month_day to_date(std::string const& sYYYYMMDD) {
+	optional_year_month_day result{};
+	if (sYYYYMMDD.size()==8) {
+		result = std::chrono::year_month_day(
+			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
+			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
+			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
+	}
+	return result;
+}
+std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
+	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
+	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
+	return os;
+}
+std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
+		std::ostringstream os{};
+		os << yyyymmdd;
+		return os.str();
+}
+
+EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
+	std::cout << "\nhad.amount" << had.amount << " had.date" << had.date;
+	std::ostringstream os{};
+	os << had.amount;
+	EnvironmentValue ev{};
+	ev["rubrik"] = had.heading;
+	ev["belopp"] = os.str();
+	ev["datum"] = to_string(had.date);
+	return ev;
+}
+
+OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
+	OptionalHeadingAmountDateTransEntry result{};
+	HeadingAmountDateTransEntry had{};
+	while (true) {
+		if (auto iter = ev.find("rubrik");iter != ev.end()) had.heading = iter->second;
+		else break;
+		if (auto iter = ev.find("belopp");iter != ev.end()) had.amount = *to_amount(iter->second); // assume success
+		else break;
+		if (auto iter = ev.find("datum");iter != ev.end()) had.date = *to_date(iter->second); // assume success
+		else break;
+		result = had;
+		break;
+	}
+	return result;
+}
+
+
 struct ConcreteModel {
 	std::string user_input{};
     std::string prompt{};
 	bool quit{};
 	Environment environment{};
 	SIEEnvironment sie{};
-	HeadingAmountDateTransEntries heading_amount_date_list{}; // 1) Raw entries by user for journal transactions (also from -csv import)
-	JournalEntryTemplateList journal_entry_template_list{}; // 2) Journal Entry Template candidates for currently selected Heading Amount Date entry 
 };
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
@@ -462,18 +513,6 @@ Cmd to_cmd(std::string const& user_input) {
 std::vector<std::string> help_for(std::string topic) {
 	std::vector<std::string> result{};
 	result.push_back("Enter 'Quit' or 'q' to quit");
-	return result;
-}
-
-using optional_year_month_day = std::optional<std::chrono::year_month_day>;
-optional_year_month_day to_date(std::string const& sYYYYMMDD) {
-	optional_year_month_day result{};
-	if (sYYYYMMDD.size()==8) {
-		result = std::chrono::year_month_day(
-			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
-			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
-			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
-	}
 	return result;
 }
 
@@ -790,19 +829,18 @@ struct Updater {
 					HeadingAmountDateTransEntry had {
 						.heading = tokens[0]
 						,.amount = *to_amount(tokens[1]) // Assume success
-						,.date = *to_date(tokens[3]) // Assume success
+						,.date = *to_date(tokens[2]) // Assume success
 					};
-					EnvironmentValue ev{};
-					ev["rubrik"] = tokens[0];
-					ev["belopp"] = tokens[1];
-					ev["datum"] = tokens[2];
-
+					auto ev = to_environment_value(had);
 					model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
+
 					// TEST
 					if (true) {
 						// Find previous BAS Journal entries that may define how
 						// we should account for this entry
-						std::vector<BASJournalEntry> candidates{};
+
+						// LOG / Test to match HeadingAmountDateTransEntry (HAD) to a previous Journal Entry
+						BASJournalEntries candidates{};
 						for (auto const& je : model->sie.journals()) {
 							auto const& [series,journal] = je;
 							for (auto const& [verno,entry] : journal) {								
@@ -811,27 +849,27 @@ struct Updater {
 								}
 							}
 						}
+						// Log / Test of using candidate Journal Entry as template for this HAD
 						for (auto const& je : candidates) {
 							std::cout << "\ncandidate:" << to_string(je);
 							auto et = to_template(je);
 							if (et) {
 								std::cout << "\nTemplate" << *et;
+								// Transform had to journal entry using this template candidate
 								std::cout << "\nSIE " << to_journal_entry(had,*et);
 							}
 						}
-						/*
-							a) Heading + Date + Amount => HDA Entry List
-							b) HDA Entry + Historic Journal Entry match => Journal Entry Template List
-							c) User HDA Entry + selected Template => Journal Entry Candidates
-							d) User select Journal Entry Candidate => Staged Journal Entries
-							e) User Commits Staged Journal Entries to Series and Sequence Number
-
-							I) We need to be able to match a Header Date Amount entry to historical Journal Entries
-							II) We need to enbale the user to select the template to Apply and Stage a Journal Entry
-							III) We need to enable the user to Commit Staged Journal Entries to a Series and valid sequence number
-						*/
-
 					}
+					if (auto iter = model->environment.find("HeadingAmountDateTransEntry");iter != model->environment.end()) {
+						auto et = template_of(to_had(iter->second),model->sie);
+						if (et) {
+								std::cout << "\nTemplate" << *et;
+								// Transform had to journal entry using this template candidate
+								auto je = to_journal_entry(had,*et);
+								std::cout << "\njournal entry " << je;
+						}
+					}
+
 				}
 				else {
 					os << "\nERROR - Expected Caption + Amount + Date";
