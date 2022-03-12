@@ -397,6 +397,8 @@ private:
 	BASLedger m_ledger{};
 };
 
+using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
+
 using EnvironmentValue = std::map<std::string,std::string>;
 using Environment = std::multimap<std::string,EnvironmentValue>;
 // "belopp=1389,50;datum=20221023;rubrik=Klarna"
@@ -683,6 +685,50 @@ namespace SIE {
 	}
 }
 
+std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
+	for (auto const& je : sie_environment.journals()) {
+		auto& [series,journal] = je;
+		os << "\nJOURNAL " << series;
+		for (auto const& [verno,entry] : journal) {
+			os << "\nentry:" << verno << " " << to_string(entry);
+		}
+	}
+	return os;
+}
+
+OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path) {
+	OptionalSIEEnvironment result{};
+	std::ifstream in{sie_file_path};
+	if (in) {
+		SIEEnvironment sie_environment{};
+		while (true) {
+			std::cout << "\nparse";
+			if (auto opt_entry = SIE::parse_ver(in)) {
+				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
+				std::cout << "\n\tVER!";
+				auto& journal_entries = sie_environment.journals()[ver.series];
+				journal_entries[ver.verno] = BASJournalEntry{
+					.caption = ver.vertext
+				};
+				auto& this_journal_entry = journal_entries[ver.verno];
+				for (auto const& trans : ver.transactions) {								
+					this_journal_entry.account_transactions.push_back(BASAccountTransaction{
+						.account_no = trans.account_no
+						,.transtext = trans.transtext
+						,.amount = trans.amount
+					});
+				}
+			}
+			else if (auto opt_entry = SIE::parse_any_line(in)) {
+				std::cout << "\n\tANY";
+			}
+			else break;
+		}
+		result = std::move(sie_environment);
+	}
+	return result;
+}
+
 struct Updater {
 	Model model;
 	Cmd operator()(Key const& key) {
@@ -712,48 +758,28 @@ struct Updater {
 			}
 			else if (ast[0] == "-sie") {
 				// Import sie and add as base of our environment
-				if (ast.size()>1) {
+				if (ast.size()==1) {
+					// List current sie environment
+					std::cout << model->sie;
+				}
+				else if (ast.size()>1) {
+					// assume -sie <file path>
 					auto sie_file_name = ast[1];
 					std::filesystem::path sie_file_path{sie_file_name};
-					std::ifstream in{sie_file_path};
-					// int loop_count{0};
-					while (true) {
-						std::cout << "\nparse";
-						if (auto opt_entry = SIE::parse_ver(in)) {
-							SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
-							std::cout << "\n\tVER!";
-							/*
-							struct Entry {
-								std::string caption{};
-								std::chrono::year_month_day date{};
-								std::vector<AccountTransaction> account_transactions;
-							};							
-							*/
-							auto& journal_entries = model->sie.journals()[ver.series];
-							journal_entries[ver.verno] = BASJournalEntry{
-								.caption = ver.vertext
-							};
-							auto& this_journal_entry = journal_entries[ver.verno];
-							for (auto const& trans : ver.transactions) {								
-								this_journal_entry.account_transactions.push_back(BASAccountTransaction{
-									.account_no = trans.account_no
-									,.transtext = trans.transtext
-									,.amount = trans.amount
-								});
-							}
+					if (std::filesystem::exists(sie_file_path)) {
+						if (auto sie_env = from_sie_file(sie_file_path)) {
+							model->sie = std::move(*sie_env);
+							if (model->environment.count("sie_file")>0) model->environment.erase("sie_file"); // There can be only one :)
+							model->environment.insert(std::make_pair("sie_file",to_environment_value(std::string("path") + "=" + sie_file_path.string()))); // new one
+							// Log
+							std::cout << model->sie;
 						}
-						else if (auto opt_entry = SIE::parse_any_line(in)) {
-							std::cout << "\n\tANY";
+						else {
+							// failed to parse sie-file into an SIE Environment 
 						}
-						else break;
 					}
-					std::cout << "\nDONE!";
-					for (auto const& je : model->sie.journals()) {
-						auto& [series,journal] = je;
-						std::cout << "\nJOURNAL " << series;
-						for (auto const& [verno,entry] : journal) {
-							std::cout << "\nentry:" << verno << " " << to_string(entry);
-						}
+					else {
+						model->prompt = "ERROR: File does not exist or is not a valid sie-file: " + sie_file_path.string();
 					}
 				}
 			}
@@ -845,6 +871,14 @@ public:
 		model->prompt += "\nInit from ";
 		model->prompt += cratchit_file_path;
 		model->environment = environment_from_file(cratchit_file_path);
+		if (auto val_iter = model->environment.find("sie_file");val_iter != model->environment.end()) {
+			if (auto key_iter = val_iter->second.find("path"); key_iter != val_iter->second.end()) {
+				std::filesystem::path sie_file_path{key_iter->second};
+				if (auto sie_environment = from_sie_file(sie_file_path)) {
+					model->sie = std::move(*sie_environment);
+				}
+			}
+		}
 		model->prompt += "\ncratchit>";
 		return model;
 	}
