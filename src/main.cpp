@@ -271,7 +271,7 @@ std::string to_string(BASJournalEntry const& je) {
 	return os.str();
 };
 
-using BASJournal = std::map<int,BASJournalEntry>;
+using BASJournal = std::map<unsigned int,BASJournalEntry>;
 using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
 
 /*
@@ -311,7 +311,7 @@ using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
 class JournalEntryTemplate {
 public:
 
-	JournalEntryTemplate(BASJournalEntry const bje) {
+	JournalEntryTemplate(char series,BASJournalEntry const& bje) : m_series{series} {
 		auto gross_amount = std::accumulate(bje.account_transactions.begin(),bje.account_transactions.end(),Amount{},[](Amount acc,BASAccountTransaction const& account_transaction){
 			acc += (account_transaction.amount>0)?account_transaction.amount:0;
 			return acc;
@@ -328,6 +328,8 @@ public:
 		}
 	}
 
+	char series() const {return m_series;}
+
 	BASAccountTransactions operator()(Amount amount) const {
 		BASAccountTransactions result{};
 		std::transform(templates.begin(),templates.end(),std::back_inserter(result),[amount](AccountTransactionTemplate const& att){
@@ -337,14 +339,15 @@ public:
 	}
 	friend std::ostream& operator<<(std::ostream&, JournalEntryTemplate const&);
 private:
+	char m_series;
 	AccountTransactionTemplates templates{};
 };
 
 using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
 using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
 
-OptionalJournalEntryTemplate to_template(BASJournalEntry const& entry) {
-	OptionalJournalEntryTemplate result(entry);
+OptionalJournalEntryTemplate to_template(char series,BASJournalEntry const& entry) {
+	OptionalJournalEntryTemplate result({series,entry});
 	return result;
 }
 
@@ -357,7 +360,7 @@ BASJournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalE
 }
 
 std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
-	os << "\ntemplate";
+	os << "\ntemplate: series " << entry.series();
 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& t){
 		os << "\n\t" << t.m_account_no << " " << t.m_factor;
 	});
@@ -370,9 +373,28 @@ public:
 	BASJournals const& journals() const {return m_journals;}
 	BASLedger& ledger() {return m_ledger;}
 	BASLedger const& ledger() const {return m_ledger;}
+	void post(BASJournalEntry const& entry,char series,unsigned int verno) {
+		m_journals[series][verno] = entry;
+		verno_of_last_posted_to[series] = verno;
+	}
+	std::pair<char,unsigned int> stage(BASJournalEntry const& entry,char series) {
+		return this->add(entry,series);
+	}
 private:
 	BASJournals m_journals{};
 	BASLedger m_ledger{};
+	std::map<char,unsigned int> verno_of_last_posted_to{};
+	std::pair<char,unsigned int> add(BASJournalEntry const& entry,char series) {
+		auto verno = largest_verno(series) + 1;
+		m_journals[series][verno] = entry;
+		return {series,verno};
+	}
+	unsigned int largest_verno(char series) {
+		auto& journal = m_journals[series];
+		return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
+			return (acc<entry.first)?entry.first:acc;
+		});
+	}
 };
 
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
@@ -396,7 +418,7 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 		std::nth_element(candidates.begin(),candidates.begin(),candidates.end(),[](auto const& je1, auto const& je2){
 			return (je1.date > je2.date);
 		});
-		result = to_template(candidates.front());
+		result = to_template('A',candidates.front());
 	}
 	return result;
 }
@@ -735,6 +757,20 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 	return os;
 }
 
+BASJournalEntry to_entry(SIE::Ver const& ver) {
+	BASJournalEntry result{
+		.caption = ver.vertext
+	};
+	for (auto const& trans : ver.transactions) {								
+		result.account_transactions.push_back(BASAccountTransaction{
+			.account_no = trans.account_no
+			,.transtext = trans.transtext
+			,.amount = trans.amount
+		});
+	}
+	return result;
+}
+
 OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path) {
 	OptionalSIEEnvironment result{};
 	std::ifstream in{sie_file_path};
@@ -852,7 +888,7 @@ struct Updater {
 						// Log / Test of using candidate Journal Entry as template for this HAD
 						for (auto const& je : candidates) {
 							std::cout << "\ncandidate:" << to_string(je);
-							auto et = to_template(je);
+							auto et = to_template('A',je);
 							if (et) {
 								std::cout << "\nTemplate" << *et;
 								// Transform had to journal entry using this template candidate
@@ -867,6 +903,8 @@ struct Updater {
 								// Transform had to journal entry using this template candidate
 								auto je = to_journal_entry(had,*et);
 								std::cout << "\njournal entry " << je;
+								// Commit the entry to a series and sequence number
+								model->sie.stage(je,'A');
 						}
 					}
 
