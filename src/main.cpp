@@ -201,6 +201,30 @@ optional_amount to_amount(std::string const& sAmount) {
 	return result;
 }
 
+using optional_year_month_day = std::optional<std::chrono::year_month_day>;
+optional_year_month_day to_date(std::string const& sYYYYMMDD) {
+	optional_year_month_day result{};
+	if (sYYYYMMDD.size()==8) {
+		result = std::chrono::year_month_day(
+			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
+			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
+			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
+	}
+	return result;
+}
+std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
+	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
+	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
+	return os;
+}
+std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
+		std::ostringstream os{};
+		os << yyyymmdd;
+		return os.str();
+}
+
 using BASAccountNo = unsigned int;
 // The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
 class BASLedger {
@@ -230,34 +254,52 @@ Konto	Benämning									Debet		Kredit
 2641	Debiterad ingående moms						17,98	
 */
 
-struct BASAccountTransaction {
-	BASAccountNo account_no;
-	std::optional<std::string> transtext{};
-	Amount amount;
-};
-using BASAccountTransactions = std::vector<BASAccountTransaction>;
+namespace BAS {
 
-std::ostream& operator<<(std::ostream& os,BASAccountTransaction const& at) {
+	struct AccountTransaction {
+		BASAccountNo account_no;
+		std::optional<std::string> transtext{};
+		Amount amount;
+	};
+	using AccountTransactions = std::vector<AccountTransaction>;
+
+	namespace anonymous {
+		struct JournalEntry {
+			std::string caption{};
+			std::chrono::year_month_day date{};
+			AccountTransactions account_transactions;
+		};
+
+		using JournalEntries = std::vector<JournalEntry>;
+
+	} // namespace anonymous
+
+	using VerNo = unsigned int;
+
+	struct JournalEntry {
+		char series;
+		BAS::VerNo verno;
+		anonymous::JournalEntry entry;
+	};
+
+	using JournalEntries = std::vector<JournalEntry>;
+
+} // namespace BAS
+
+std::ostream& operator<<(std::ostream& os,BAS::AccountTransaction const& at) {
 	os << at.account_no;
 	os << " " << at.transtext;
 	os << " " << at.amount;
 	return os;
 };
 
-std::string to_string(BASAccountTransaction const& at) {
+std::string to_string(BAS::AccountTransaction const& at) {
 	std::ostringstream os{};
 	os << at;
 	return os.str();
 };
-struct BASJournalEntry {
-	std::string caption{};
-	std::chrono::year_month_day date{};
-	BASAccountTransactions account_transactions;
-};
 
-using BASJournalEntries = std::vector<BASJournalEntry>;
-
-std::ostream& operator<<(std::ostream& os,BASJournalEntry const& je) {
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& je) {
 	os << je.caption;
 	for (auto const& at : je.account_transactions) {
 		os << "\n\t" << to_string(at); 
@@ -265,26 +307,14 @@ std::ostream& operator<<(std::ostream& os,BASJournalEntry const& je) {
 	return os;
 };
 
-std::string to_string(BASJournalEntry const& je) {
+std::string to_string(BAS::anonymous::JournalEntry const& je) {
 	std::ostringstream os{};
 	os << je;
 	return os.str();
 };
 
-using BASJournal = std::map<unsigned int,BASJournalEntry>;
+using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
-
-/*
-	a) Heading + Amount + Date => HAD Entry List
-	b) HDA Entry + Historic Journal Entry match => Journal Entry Template List
-	c) User HDA Entry + selected Template => Journal Entry Candidates
-	d) User select Journal Entry Candidate => Staged Journal Entries
-	e) User Commits Staged Journal Entries to Series and Sequence Number
-
-	I) We need to be able to match a Header Date Amount entry to historical Journal Entries
-	II) We need to enbale the user to select the template to Apply and Stage a Journal Entry
-	III) We need to enable the user to Commit Staged Journal Entries to a Series and valid sequence number
-*/
 
 struct HeadingAmountDateTransEntry {
 	std::string heading{};
@@ -295,14 +325,13 @@ using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTrans
 
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
-
 struct AccountTransactionTemplate {
 	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
 		: m_account_no{account_no},m_factor{account_amount / gross_amount}  {}
 	BASAccountNo m_account_no;
 	float m_factor;
-	BASAccountTransaction operator()(Amount amount) const {
-		BASAccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
+	BAS::AccountTransaction operator()(Amount amount) const {
+		BAS::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
 		return result;
 	}
 };
@@ -311,13 +340,13 @@ using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
 class JournalEntryTemplate {
 public:
 
-	JournalEntryTemplate(char series,BASJournalEntry const& bje) : m_series{series} {
-		auto gross_amount = std::accumulate(bje.account_transactions.begin(),bje.account_transactions.end(),Amount{},[](Amount acc,BASAccountTransaction const& account_transaction){
+	JournalEntryTemplate(char series,BAS::anonymous::JournalEntry const& bje) : m_series{series} {
+		auto gross_amount = std::accumulate(bje.account_transactions.begin(),bje.account_transactions.end(),Amount{},[](Amount acc,BAS::AccountTransaction const& account_transaction){
 			acc += (account_transaction.amount>0)?account_transaction.amount:0;
 			return acc;
 		});
 		if (gross_amount >= 0.01) {
-			std::transform(bje.account_transactions.begin(),bje.account_transactions.end(),std::back_inserter(templates),[gross_amount](BASAccountTransaction const& account_transaction){
+			std::transform(bje.account_transactions.begin(),bje.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::AccountTransaction const& account_transaction){
 				AccountTransactionTemplate result(
 					 account_transaction.account_no
 					,gross_amount
@@ -330,8 +359,8 @@ public:
 
 	char series() const {return m_series;}
 
-	BASAccountTransactions operator()(Amount amount) const {
-		BASAccountTransactions result{};
+	BAS::AccountTransactions operator()(Amount amount) const {
+		BAS::AccountTransactions result{};
 		std::transform(templates.begin(),templates.end(),std::back_inserter(result),[amount](AccountTransactionTemplate const& att){
 			return att(amount);
 		});
@@ -346,13 +375,13 @@ private:
 using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
 using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
 
-OptionalJournalEntryTemplate to_template(char series,BASJournalEntry const& entry) {
+OptionalJournalEntryTemplate to_template(char series,BAS::anonymous::JournalEntry const& entry) {
 	OptionalJournalEntryTemplate result({series,entry});
 	return result;
 }
 
-BASJournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
-	BASJournalEntry result{};
+BAS::anonymous::JournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
+	BAS::anonymous::JournalEntry result{};
 	result.caption = had.heading;
 	result.date = had.date;
 	result.account_transactions = jet(had.amount);
@@ -373,23 +402,41 @@ public:
 	BASJournals const& journals() const {return m_journals;}
 	BASLedger& ledger() {return m_ledger;}
 	BASLedger const& ledger() const {return m_ledger;}
-	void post(BASJournalEntry const& entry,char series,unsigned int verno) {
+	void post(BAS::anonymous::JournalEntry const& entry,char series,BAS::VerNo verno) {
 		m_journals[series][verno] = entry;
 		verno_of_last_posted_to[series] = verno;
 	}
-	std::pair<char,unsigned int> stage(BASJournalEntry const& entry,char series) {
+	std::pair<char,BAS::VerNo> stage(BAS::anonymous::JournalEntry const& entry,char series) {
 		return this->add(entry,series);
+	}
+	BAS::JournalEntries unposted() {
+		std::cout << "\nunposted()";
+		BAS::JournalEntries result{};
+		for (auto const& [series,verno] : this->verno_of_last_posted_to) {
+			std::cout << "\n\tseries:" << series << " verno:" << verno;
+			auto last = m_journals[series].find(verno);
+			for (auto iter = ++last;iter!=m_journals[series].end();++iter) {
+				std::cout << "\n\tunposted:" << iter->first;
+				BAS::JournalEntry bjer{
+					.series = series
+					,.verno = iter->first
+					,.entry = iter->second
+				};
+				result.push_back(bjer);
+			}
+		}
+		return result;
 	}
 private:
 	BASJournals m_journals{};
 	BASLedger m_ledger{};
-	std::map<char,unsigned int> verno_of_last_posted_to{};
-	std::pair<char,unsigned int> add(BASJournalEntry const& entry,char series) {
+	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
+	std::pair<char,BAS::VerNo> add(BAS::anonymous::JournalEntry const& entry,char series) {
 		auto verno = largest_verno(series) + 1;
 		m_journals[series][verno] = entry;
 		return {series,verno};
 	}
-	unsigned int largest_verno(char series) {
+	BAS::VerNo largest_verno(char series) {
 		auto& journal = m_journals[series];
 		return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
 			return (acc<entry.first)?entry.first:acc;
@@ -405,7 +452,7 @@ using Environment = std::multimap<std::string,EnvironmentValue>;
 OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ) {
 	OptionalJournalEntryTemplate result{};
 	if (had) {
-		BASJournalEntries candidates{};
+		BAS::anonymous::JournalEntries candidates{};
 		for (auto const& je : sie_environ.journals()) {
 			auto const& [series,journal] = je;
 			for (auto const& [verno,entry] : journal) {								
@@ -422,7 +469,6 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 	}
 	return result;
 }
-
 
 // "belopp=1389,50;datum=20221023;rubrik=Klarna"
 std::string to_string(EnvironmentValue const& ev) {
@@ -454,30 +500,6 @@ std::string to_string(Environment::value_type const& entry) {
 	return os.str();
 }
 
-using optional_year_month_day = std::optional<std::chrono::year_month_day>;
-optional_year_month_day to_date(std::string const& sYYYYMMDD) {
-	optional_year_month_day result{};
-	if (sYYYYMMDD.size()==8) {
-		result = std::chrono::year_month_day(
-			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
-			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
-			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
-	}
-	return result;
-}
-std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
-	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
-	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
-	return os;
-}
-std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
-		std::ostringstream os{};
-		os << yyyymmdd;
-		return os.str();
-}
-
 EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
 	std::cout << "\nhad.amount" << had.amount << " had.date" << had.date;
 	std::ostringstream os{};
@@ -504,7 +526,6 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	}
 	return result;
 }
-
 
 struct ConcreteModel {
 	std::string user_input{};
@@ -560,7 +581,7 @@ namespace SIE {
 		// Ex:   #VER A 3 20210510 "Beanstalk" 20210817
 		std::string tag;
 		char series;
-		unsigned int verno;
+		BAS::VerNo verno;
 		std::chrono::year_month_day verdate;
 		std::string vertext;
 		std::optional<std::chrono::year_month_day> regdate{};
@@ -744,6 +765,67 @@ namespace SIE {
 			return {};
 		}
 	}
+
+	// ===============================================================
+	// BEGIN operator<< framework for SIE::T stream to text stream in SIE file representation
+	// ===============================================================
+	struct ostream {
+		std::ostream& os;
+	};
+
+	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Trans const& trans) {
+		// #TRANS account no {object list} amount transdate transtext quantity sign
+		//                                           o          o        o      o
+		// #TRANS 1920 {} -890 "" "" 0
+		sieos.os << "\n#TRANS"
+		<< " " << trans.account_no
+		<< " " << "{}"
+		<< " " << trans.amount
+		<< " " << std::quoted("");
+		if (trans.transtext) sieos.os << " " << std::quoted(*trans.transtext);
+		else sieos.os << " " << std::quoted("");
+		return sieos;
+	}
+	
+	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Ver const& ver) {
+		// #VER A 1 20210505 "M�nadsavgift PG" 20210817
+		sieos.os << "\n#VER" 
+		<< " " << ver.series 
+		<< " " << ver.verno
+		<< " " << to_string(ver.verdate) // TODO: make compiler find operator<< above (why can to_string use it but we can't?)
+		<< " " << std::quoted(ver.vertext);
+		sieos.os << "\n{";
+		for (auto const& trans : ver.transactions) {
+			sieos << trans;
+		}
+		sieos.os << "\n}";
+		return sieos;
+	}
+
+	// ===============================================================
+	// END operator<< framework for SIE::T stream to text stream in SIE file representation
+	// ===============================================================
+
+} // namespace SIE
+
+SIE::Trans to_sie_t(BAS::AccountTransaction const& trans) {
+	SIE::Trans result{
+		.account_no = trans.account_no
+		,.amount = trans.amount
+		,.transtext = trans.transtext
+	};
+	return result;
+}
+
+SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
+	SIE::Ver result{
+		.series = jer.series
+		,.verno = jer.verno
+		,.vertext = jer.entry.caption};
+	for (auto const& trans : jer.entry.account_transactions) {
+		result.transactions.push_back(to_sie_t(trans));
+	}
+	return result;
 }
 
 std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
@@ -757,12 +839,12 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 	return os;
 }
 
-BASJournalEntry to_entry(SIE::Ver const& ver) {
-	BASJournalEntry result{
+BAS::anonymous::JournalEntry to_entry(SIE::Ver const& ver) {
+	BAS::anonymous::JournalEntry result{
 		.caption = ver.vertext
 	};
 	for (auto const& trans : ver.transactions) {								
-		result.account_transactions.push_back(BASAccountTransaction{
+		result.account_transactions.push_back(BAS::AccountTransaction{
 			.account_no = trans.account_no
 			,.transtext = trans.transtext
 			,.amount = trans.amount
@@ -781,18 +863,8 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			if (auto opt_entry = SIE::parse_ver(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 				std::cout << "\n\tVER!";
-				auto& journal_entries = sie_environment.journals()[ver.series];
-				journal_entries[ver.verno] = BASJournalEntry{
-					.caption = ver.vertext
-				};
-				auto& this_journal_entry = journal_entries[ver.verno];
-				for (auto const& trans : ver.transactions) {								
-					this_journal_entry.account_transactions.push_back(BASAccountTransaction{
-						.account_no = trans.account_no
-						,.transtext = trans.transtext
-						,.amount = trans.amount
-					});
-				}
+				auto je = to_entry(ver);
+				sie_environment.post(je,ver.series,ver.verno);
 			}
 			else if (auto opt_entry = SIE::parse_any_line(in)) {
 				std::cout << "\n\tANY";
@@ -876,7 +948,7 @@ struct Updater {
 						// we should account for this entry
 
 						// LOG / Test to match HeadingAmountDateTransEntry (HAD) to a previous Journal Entry
-						BASJournalEntries candidates{};
+						BAS::anonymous::JournalEntries candidates{};
 						for (auto const& je : model->sie.journals()) {
 							auto const& [series,journal] = je;
 							for (auto const& [verno,entry] : journal) {								
@@ -905,6 +977,25 @@ struct Updater {
 								std::cout << "\njournal entry " << je;
 								// Commit the entry to a series and sequence number
 								model->sie.stage(je,'A');
+								// TODO:
+								/*
+									1) staged journal entries -> SIE file
+									2) SIE-File -> Book keeping app -> SIE-File
+									3) SIE-File -> cratchit = remove staged journal entries found in new SIE file
+
+									Design:
+
+									Q: How many representations of a Journal entry do we actually need?
+									   1: SIE-File #VER representation
+										 2: cratchit::BAS representation
+										 3: A Journal Entry Reference (with raw Entry + BAS series and sequence number)?
+
+								*/
+							std::ofstream os{std::filesystem::path{"cratchit_posts.se"}};
+							SIE::ostream sieos{os};
+							for (auto const& ref : model->sie.unposted()) {
+								sieos << to_sie_t(ref);
+							}
 						}
 					}
 
