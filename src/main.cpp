@@ -190,13 +190,11 @@ std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_
 using Amount= float;
 using optional_amount = std::optional<Amount>;
 optional_amount to_amount(std::string const& sAmount) {
-	std::cout << "\nto_amount " << sAmount;
 	optional_amount result{};
 	Amount amount{};
 	std::istringstream is{sAmount};
 	if (is >> amount) {
 		result = amount;
-		std::cout << "\nAmount = " << amount;
 	}
 	return result;
 }
@@ -334,6 +332,14 @@ struct HeadingAmountDateTransEntry {
 	Amount amount;
 	std::chrono::year_month_day date{};
 };
+
+std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
+	os << had.heading;
+	os << " " << had.amount;
+	os << " " << to_string(had.date); 
+	return os;
+}
+
 using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
 
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
@@ -544,10 +550,18 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 
 struct ConcreteModel {
 	std::string user_input{};
-    std::string prompt{};
+  std::string prompt{};
 	bool quit{};
 	Environment environment{};
 	SIEEnvironment sie{};
+	HeadingAmountDateTransEntries hads() {
+		HeadingAmountDateTransEntries result{};
+		auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
+		std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+			return *to_had(entry.second); // Assume success
+		});
+		return result;
+	}
 };
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
@@ -919,10 +933,9 @@ struct Updater {
 	}
 	Cmd operator()(Command const& command) {
 		// std::cout << "\noperator(Command)";
-		std::ostringstream os{};
+		std::ostringstream prompt{};
 		auto ast = tokenize::splits(command,' ');
 		if (ast.size() > 0) {
-			// os << model->ux_state(ast) ??
 			if (ast[0] == "-env") {
 				for (auto const& entry : model->environment) {
 					std::cout << "\n" << entry.first << " " << to_string(entry.second);
@@ -955,6 +968,25 @@ struct Updater {
 					}
 				}
 			}
+			else if (ast[0] == "-had") {
+				if (ast.size()==1) {
+					// Expose current hads (Heading Amount Date transaction entries) to the user
+					auto hads = model->hads();
+					unsigned int index{0};
+					std::vector<std::string> sHads{};
+					std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
+						std::stringstream os{};
+						os << index++ << " " << had;
+						return os.str();
+					});
+					prompt << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+						acc += "\n  " + entry;
+						return acc;
+					});
+				}
+			}
+			else if (ast[0] == "-csv") {
+			}
 			else {
 				// Assume Caption + Amount + Date
 				auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
@@ -966,33 +998,6 @@ struct Updater {
 					};
 					auto ev = to_environment_value(had);
 					model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
-
-					// TEST
-					if (true) {
-						// Find previous BAS Journal entries that may define how
-						// we should account for this entry
-
-						// LOG / Test to match HeadingAmountDateTransEntry (HAD) to a previous Journal Entry
-						BAS::JournalEntries candidates{};
-						for (auto const& journals_entry : model->sie.journals()) {
-							auto const& [series,journal] = journals_entry;
-							for (auto const& [verno,entry] : journal) {								
-								if (entry.caption.find(ev["rubrik"]) != std::string::npos) {
-									candidates.push_back({series,verno,entry});
-								}
-							}
-						}
-						// Log / Test of using candidate Journal Entry as template for this HAD
-						for (auto const& je : candidates) {
-							std::cout << "\ncandidate:" << to_string(je);
-							auto et = to_template(je);
-							if (et) {
-								std::cout << "\nTemplate" << *et;
-								// Transform had to journal entry using this template candidate
-								std::cout << "\nSIE " << to_journal_entry(had,*et);
-							}
-						}
-					}
 					if (auto iter = model->environment.find("HeadingAmountDateTransEntry");iter != model->environment.end()) {
 						auto et = template_of(to_had(iter->second),model->sie);
 						if (et) {
@@ -1026,12 +1031,12 @@ struct Updater {
 
 				}
 				else {
-					os << "\nERROR - Expected Caption + Amount + Date";
+					prompt << "\nERROR - Expected Caption + Amount + Date";
 				}
 			}
 		}
-		os << "\ncratchit:";
-		model->prompt = os.str();
+		prompt << "\ncratchit:";
+		model->prompt = prompt.str();
 		return {Nop{}};
 	}
 	Cmd operator()(Quit const& quit) {
