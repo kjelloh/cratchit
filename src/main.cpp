@@ -20,22 +20,40 @@ namespace tokenize {
 	std::pair<std::string,std::string> split(std::string s,char delim) {
 		auto pos = s.find(delim);
 		if (pos<s.size()) return {s.substr(0,pos),s.substr(pos+1)};
-		else return {"",s}; // split failed (return right = unsplit string)
+		else return {"",s}; // split failed (return right = the unsplit string)
 	}
 
-	std::vector<std::string> splits(std::string s,char delim) {
+	enum class eAllowEmptyTokens {
+		unknown
+		,no
+		,yes
+		,undefined
+	};
+
+	std::vector<std::string> splits(std::string s,char delim,eAllowEmptyTokens allow_empty_tokens = eAllowEmptyTokens::no) {
 		std::vector<std::string> result;
-		auto head_tail = split(s,delim);
-		// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
-		while (head_tail.first.size()>0) {
-			auto const& [head,tail] = head_tail;
-			result.push_back(head);
-			head_tail = split(tail,delim);
+		// TODO: Refactor code so default is allowing for split into empty tokens and make skip whitespace a special case
+		if (allow_empty_tokens == eAllowEmptyTokens::no) {
+			auto head_tail = split(s,delim);
 			// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
+			while (head_tail.first.size()>0) {
+				auto const& [head,tail] = head_tail;
+				result.push_back(head);
+				head_tail = split(tail,delim);
+				// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
+			}
+			if (head_tail.second.size()>0) {
+				result.push_back(head_tail.second);
+				// std::cout << "\ntail:" << head_tail.second;
+			}
 		}
-		if (head_tail.second.size()>0) {
-			result.push_back(head_tail.second);
-			// std::cout << "\ntail:" << head_tail.second;
+		else {
+			size_t first{},delim_pos{};
+			do {
+				delim_pos = s.find(delim,first);
+				result.push_back(s.substr(first,delim_pos-first));
+				first = delim_pos+1;
+			} while (delim_pos<s.size());
 		}
 		return result;
 	}
@@ -190,12 +208,21 @@ std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_
 using Amount= float;
 using optional_amount = std::optional<Amount>;
 optional_amount to_amount(std::string const& sAmount) {
+	std::cout << "\nto_amount " << std::quoted(sAmount);
 	optional_amount result{};
 	Amount amount{};
 	std::istringstream is{sAmount};
-	if (is >> amount) {
+	if (auto pos = sAmount.find(','); pos != std::string::npos) {
+		// Handle 123,45 ==> 123.45
+		result = to_amount(std::accumulate(sAmount.begin(),sAmount.end(),std::string{},[](auto acc,char ch){
+			acc += (ch==',')?'.':ch;
+			return acc;
+		}));
+	}
+	else if (is >> amount) {
 		result = amount;
 	}
+	if (result) std::cout << "\nresult " << *result;
 	return result;
 }
 
@@ -207,6 +234,14 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
 			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
 			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
+	}
+	else {
+		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
+		std::string sDate{};
+		std::copy_if(sYYYYMMDD.begin(),sYYYYMMDD.end(),std::back_inserter(sDate),[](char ch){
+			return std::isdigit(ch);
+		});
+		if (sDate.size()==8) result = to_date(sDate);
 	}
 	return result;
 }
@@ -522,7 +557,7 @@ std::string to_string(Environment::value_type const& entry) {
 }
 
 EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
-	std::cout << "\nhad.amount" << had.amount << " had.date" << had.date;
+	std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
 	std::ostringstream os{};
 	os << had.amount;
 	EnvironmentValue ev{};
@@ -547,6 +582,85 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	}
 	return result;
 }
+
+namespace CSV {
+	namespace NORDEA {
+		struct istream {
+			std::istream& is;
+			operator bool() {return static_cast<bool>(is);}
+		};
+
+		enum element: std::size_t {
+			undefined
+			,Bokforingsdag = 0
+			,Belopp = 1
+			,Avsandare = 2
+			,Mottagare = 3
+			,Namn = 4
+			,Rubrik = 5
+			,Meddelande = 6
+			,Egna_anteckningar = 7
+			,Saldo = 8
+			,Valuta = 9
+			,unknown
+		};
+
+		CSV::NORDEA::istream& operator>>(CSV::NORDEA::istream& in,HeadingAmountDateTransEntry& had) {
+			//       0         1      2         3         4    5        6          7              8      9
+			// Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
+			//       0         1      2      3            4                             5                                 6                78 9
+			// 2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
+			std::string sEntry{};
+			if (std::getline(in.is,sEntry)) {
+				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::yes);
+				// LOG
+				if (true) {
+					std::cout << "\ncsv count: " << tokens.size(); // Expected 10
+					for (int i=0;i<tokens.size();++i) {
+						std::cout << "\n\t" << i << " " << tokens[i];
+					}
+				}
+				if (tokens.size()==10) {
+					while (true) {
+						std::string heading{tokens[element::Rubrik]};
+						had.heading = heading;
+						if (auto amount = to_amount(tokens[element::Belopp])) had.amount = *amount;
+						else {in.is.setstate(std::istream::failbit);break;}
+						if (auto date = to_date(tokens[element::Bokforingsdag])) had.date = *date;
+						else {in.is.setstate(std::istream::failbit);break;}
+						break;
+					}
+				}
+			}
+			return in;
+		}
+	} // namespace NORDEA
+
+	using CSVParseResult = std::optional<HeadingAmountDateTransEntry>;
+
+	CSVParseResult parse_TRANS(auto& in) {
+		CSVParseResult result{};
+		auto pos = in.is.tellg();
+		HeadingAmountDateTransEntry had{};
+		if (in >> had) {
+			std::cout << "\nfrom csv: " << had;
+			result = had;
+			pos = in.is.tellg(); // accept new stream position
+		}
+		in.is.seekg(pos); // Reset position in case of failed parse
+		in.is.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
+	HeadingAmountDateTransEntries from_stream(auto& in) {
+		HeadingAmountDateTransEntries result{};
+		parse_TRANS(in); // skip first line with field names
+		while (auto had = parse_TRANS(in)) {
+			result.push_back(*had);
+		}
+		return result;
+	}
+} // namespace CSV
 
 struct ConcreteModel {
 	std::string user_input{};
@@ -915,6 +1029,14 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 	return result;
 }
 
+std::vector<std::string> quoted_tokens(std::string const& cli) {
+	std::vector<std::string> result{};
+	std::istringstream in{cli};
+	std::string token{};
+	while (in >> std::quoted(token)) result.push_back(token);
+	return result;
+}
+
 struct Updater {
 	Model model;
 	Cmd operator()(Key const& key) {
@@ -934,7 +1056,7 @@ struct Updater {
 	Cmd operator()(Command const& command) {
 		// std::cout << "\noperator(Command)";
 		std::ostringstream prompt{};
-		auto ast = tokenize::splits(command,' ');
+		auto ast = quoted_tokens(command);
 		if (ast.size() > 0) {
 			if (ast[0] == "-env") {
 				for (auto const& entry : model->environment) {
@@ -986,6 +1108,33 @@ struct Updater {
 				}
 			}
 			else if (ast[0] == "-csv") {
+				std::cout << "\nCSV :)";
+				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
+				/*
+				Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
+				2021-12-15;-1394,00;51 86 87-9;824-3040;TELIA SVERIGE AB;TELIA SVERIGE AB;21457751218;Samtal Q4;56080,17;SEK
+				2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
+				2021-12-13;-139,88;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;57893,82;SEK
+				2021-12-10;-109,00;51 86 87-9;;KORT             APPLE COM BILL  26;KORT             APPLE COM BILL  26;APPLE COM BILL  2656;;58033,70;SEK
+				2021-12-09;-593,58;51 86 87-9;;KORT             PAYPAL *PADDLE  26;KORT             PAYPAL *PADDLE  26;PAYPAL *PADDLE  2656;;58142,70;SEK
+				2021-12-03;-3,40;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;58736,28;SEK
+				*/
+				if (ast.size()>1) {
+					std::filesystem::path csv_file_path{ast[1]};
+					std::cout << "\ncsv file " << csv_file_path;
+					std::ifstream ifs{csv_file_path};
+					if (std::filesystem::exists(csv_file_path)) {
+						std::cout << "\ncsv file exists ok";
+						CSV::NORDEA::istream in{ifs};
+						auto hads = CSV::from_stream(in);
+						std::transform(hads.begin(),hads.end(),std::inserter(model->environment,model->environment.end()),[](auto const& had){
+							return std::pair{"HeadingAmountDateTransEntry",to_environment_value(had)};
+						});
+					}
+				}
+				else {
+					prompt << "\nERROR - Please provide a path to a file";
+				}
 			}
 			else {
 				// Assume Caption + Amount + Date
