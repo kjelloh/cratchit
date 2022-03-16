@@ -693,12 +693,15 @@ enum class PromptState {
 	Undefined
 	,Root
 	,HADIndex
+	,JEIndex
 	,Unknown
 };
 
 struct ConcreteModel {
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
+	HeadingAmountDateTransEntry selected_had{};
+	BAS::JournalEntries template_candidates{};
   std::string prompt{};
 	bool quit{};
 	Environment environment{};
@@ -734,7 +737,6 @@ Cmd to_cmd(std::string const& user_input) {
 std::vector<std::string> help_for(PromptState const& prompt_state) {
 	std::vector<std::string> result{};
 	result.push_back("<Available Entry Options>");
-	result.push_back("");
 	switch (prompt_state) {
 		case PromptState::Root: {
 			result.push_back("<Heading> <Amount> <Date> : Entry of new Heading Amount Date (HAD) Transaction entry");
@@ -746,8 +748,9 @@ std::vector<std::string> help_for(PromptState const& prompt_state) {
 			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");			
 			result.push_back("'q' or 'Quit'");
 		} break;
-		case PromptState::HADIndex: {
-			result.push_back("Enter the index of the entry to edit");
+		case PromptState::HADIndex:
+		case PromptState::JEIndex: {
+			result.push_back("Please Enter the index of the entry to edit");
 		} break;
 		default: {
 		}
@@ -1100,6 +1103,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::HADIndex: {
 			prompt << ":had";
 		} break;
+		case PromptState::JEIndex: {
+			prompt << ":had:je";
+		} break;
 		default: {
 			prompt << ":??";
 		}
@@ -1143,20 +1149,31 @@ struct Updater {
 							auto had = to_had(iter->second);
 							if (had) {
 								prompt << *had;
-								BAS::JournalEntries candidates{};
+								model->selected_had= *had;
+								model->template_candidates.clear();
 								for (auto const& je : model->sie.journals()) {
 									auto const& [series,journal] = je;
 									for (auto const& [verno,entry] : journal) {								
-										if (had_matches_trans(*had,entry)) candidates.push_back({series,verno,entry});
+										if (had_matches_trans(*had,entry)) model->template_candidates.push_back({series,verno,entry});
 									}
 								}
-								for (int i = 0; i < candidates.size(); ++i) {
-									prompt << "\n    " << candidates[i];
+								for (int i = 0; i < model->template_candidates.size(); ++i) {
+									prompt << "\n    " << i << " " << model->template_candidates[i];
 								}
+								model->prompt_state = PromptState::JEIndex;
 							}
 						}
 						else {
 							prompt << "\nplease enter a valid index";
+						}
+					} break;
+					case PromptState::JEIndex: {
+						auto iter = model->template_candidates.begin();
+						std::advance(iter,ix);
+						auto tp = to_template(*iter);
+						if (tp) {
+							auto je = to_journal_entry(model->selected_had,*tp);
+							prompt << je;
 						}
 					} break;
 				}
