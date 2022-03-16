@@ -381,11 +381,18 @@ using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
 struct AccountTransactionTemplate {
 	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
-		: m_account_no{account_no},m_factor{account_amount / gross_amount}  {}
+		:  m_account_no{account_no}
+		  ,m_factor{account_amount / gross_amount}
+			,m_percent{static_cast<int>(std::round(account_amount*100 / gross_amount))}  {}
 	BASAccountNo m_account_no;
 	float m_factor;
+	int m_percent;
 	BAS::AccountTransaction operator()(Amount amount) const {
-		BAS::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
+		// BAS::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
+		BAS::AccountTransaction result{
+			 .account_no = m_account_no
+			,.transtext=""
+			,.amount=static_cast<Amount>(std::round(amount*m_percent)/100.0)};
 		return result;
 	}
 };
@@ -1068,7 +1075,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 	if (in) {
 		SIEEnvironment sie_environment{};
 		while (true) {
-			std::cout << "\nparse";
+			std::cout << "\nparse";    
 			if (auto opt_entry = SIE::parse_ver(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 				std::cout << "\n\tVER!";
