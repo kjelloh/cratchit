@@ -426,6 +426,9 @@ private:
 	AccountTransactionTemplates templates{};
 };
 
+// ==================================================================================
+// Had -> journal_entry -> Template
+
 using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
 using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
 
@@ -450,6 +453,30 @@ std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	});
 	return os;
 }
+
+bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& je) {
+	auto had_heading_words = tokenize::splits(had.heading,' ');
+	auto je_heading_words = tokenize::splits(je.caption,' ');
+	bool result{false};
+	for (auto const& hadw : had_heading_words) {
+		for (auto const& jew : je_heading_words) {
+			if (hadw == jew) {
+				result = true;
+			}
+		}
+	}
+	return result;
+}
+
+/*
+										if (had_matches_trans(had,je)) candidates.push_back({series,verno,entry});
+										if (entry.caption.find(had->heading) != std::string::npos) {
+											candidates.push_back({series,verno,entry});
+										}
+
+*/
+
+// ==================================================================================
 
 class SIEEnvironment {
 public:
@@ -662,8 +689,16 @@ namespace CSV {
 	}
 } // namespace CSV
 
+enum class PromptState {
+	Undefined
+	,Root
+	,HADIndex
+	,Unknown
+};
+
 struct ConcreteModel {
 	std::string user_input{};
+	PromptState prompt_state{PromptState::Root};
   std::string prompt{};
 	bool quit{};
 	Environment environment{};
@@ -686,7 +721,7 @@ struct Quit {};
 struct Nop {};
 
 using Msg = std::variant<Nop,Key,Quit,Command>;
-struct Cmd {Msg msg;};
+struct Cmd {std::optional<Msg> msg{};};
 using Ux = std::vector<std::string>;
 
 Cmd to_cmd(std::string const& user_input) {
@@ -696,9 +731,27 @@ Cmd to_cmd(std::string const& user_input) {
 	return result;
 }
 
-std::vector<std::string> help_for(std::string topic) {
+std::vector<std::string> help_for(PromptState const& prompt_state) {
 	std::vector<std::string> result{};
-	result.push_back("Enter 'Quit' or 'q' to quit");
+	result.push_back("<Available Entry Options>");
+	result.push_back("");
+	switch (prompt_state) {
+		case PromptState::Root: {
+			result.push_back("<Heading> <Amount> <Date> : Entry of new Heading Amount Date (HAD) Transaction entry");
+			result.push_back("-had : lists current Heading Amount Date (HAD) entries");
+			result.push_back("-sie <sie file path> : imports a new input sie file");
+			result.push_back("-sie : lists transactions in input sie-file");
+			result.push_back("-env : lists cratchit environment");
+			result.push_back("-csv <csv file path> : Imports Comma Seperated Value file of Web bank account transactions");
+			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");			
+			result.push_back("'q' or 'Quit'");
+		} break;
+		case PromptState::HADIndex: {
+			result.push_back("Enter the index of the entry to edit");
+		} break;
+		default: {
+		}
+	}
 	return result;
 }
 
@@ -1037,12 +1090,30 @@ std::vector<std::string> quoted_tokens(std::string const& cli) {
 	return result;
 }
 
+std::string prompt_line(PromptState const& prompt_state) {
+	std::ostringstream prompt{};
+	prompt << "\ncratchit";
+	switch (prompt_state) {
+		case PromptState::Root: {
+			prompt << ":";
+		} break;
+		case PromptState::HADIndex: {
+			prompt << ":had";
+		} break;
+		default: {
+			prompt << ":??";
+		}
+	}
+	prompt << ">";
+	return prompt.str();
+}
+
 struct Updater {
 	Model model;
 	Cmd operator()(Key const& key) {
 		// std::cout << "\noperator(Key)";
-		if (model->user_input.size()==0) model->prompt = "\ncratchit>";
-		Cmd cmd{Nop{}};
+		if (model->user_input.size()==0) model->prompt = prompt_line(model->prompt_state);
+		Cmd cmd{};
 		if (std::isprint(key.value)) {
 			model->user_input += key.value;
 			model->prompt += key.value;
@@ -1058,7 +1129,39 @@ struct Updater {
 		std::ostringstream prompt{};
 		auto ast = quoted_tokens(command);
 		if (ast.size() > 0) {
-			if (ast[0] == "-env") {
+			if (std::all_of(ast[0].begin(),ast[0].end(),[](char ch){return std::isdigit(ch);})) {
+				size_t ix = std::stoi(ast[0]);
+				// Act on prompt state index input				
+				switch (model->prompt_state) {
+					case PromptState::Root: {
+
+					} break;
+					case PromptState::HADIndex: {
+						auto [iter,end] = model->environment.equal_range("HeadingAmountDateTransEntry");
+						std::advance(iter,ix);
+						if (iter != end) {
+							auto had = to_had(iter->second);
+							if (had) {
+								prompt << *had;
+								BAS::JournalEntries candidates{};
+								for (auto const& je : model->sie.journals()) {
+									auto const& [series,journal] = je;
+									for (auto const& [verno,entry] : journal) {								
+										if (had_matches_trans(*had,entry)) candidates.push_back({series,verno,entry});
+									}
+								}
+								for (int i = 0; i < candidates.size(); ++i) {
+									prompt << "\n    " << candidates[i];
+								}
+							}
+						}
+						else {
+							prompt << "\nplease enter a valid index";
+						}
+					} break;
+				}
+			}
+			else if (ast[0] == "-env") {
 				for (auto const& entry : model->environment) {
 					std::cout << "\n" << entry.first << " " << to_string(entry.second);
 				}
@@ -1105,6 +1208,7 @@ struct Updater {
 						acc += "\n  " + entry;
 						return acc;
 					});
+					model->prompt_state = PromptState::HADIndex;
 				}
 			}
 			else if (ast[0] == "-csv") {
@@ -1147,46 +1251,31 @@ struct Updater {
 					};
 					auto ev = to_environment_value(had);
 					model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
-					if (auto iter = model->environment.find("HeadingAmountDateTransEntry");iter != model->environment.end()) {
-						auto et = template_of(to_had(iter->second),model->sie);
-						if (et) {
-								std::cout << "\nTemplate" << *et;
-								// Transform had to journal entry using this template candidate
-								auto je = to_journal_entry(had,*et);
-								std::cout << "\njournal entry " << je;
-								// Stage the journal entry for posting
-								model->sie.stage(je);
-								// TODO:
-								/*
-									1) staged journal entries -> SIE file
-									2) SIE-File -> Book keeping app -> SIE-File
-									3) SIE-File -> cratchit = remove staged journal entries found in new SIE file
-
-									Design:
-
-									Q: How many representations of a Journal entry do we actually need?
-									   1: SIE-File #VER representation
-										 2: cratchit::BAS representation
-										 3: A Journal Entry Reference (with raw Entry + BAS series and sequence number)?
-
-								*/
-							std::ofstream os{std::filesystem::path{"cratchit_posts.se"}};
-							SIE::ostream sieos{os};
-							for (auto const& entry : model->sie.unposted()) {
-								sieos << to_sie_t(entry);
-							}
-						}
-					}
-
+					// if (auto iter = model->environment.find("HeadingAmountDateTransEntry");iter != model->environment.end()) {
+					// 	auto et = template_of(to_had(iter->second),model->sie);
+					// 	if (et) {
+					// 		std::cout << "\nTemplate" << *et;
+					// 		// Transform had to journal entry using this template candidate
+					// 		auto je = to_journal_entry(had,*et);
+					// 		std::cout << "\njournal entry " << je;
+					// 		// Stage the journal entry for posting
+					// 		model->sie.stage(je);
+					// 		std::ofstream os{std::filesystem::path{"cratchit_posts.se"}};
+					// 		SIE::ostream sieos{os};
+					// 		for (auto const& entry : model->sie.unposted()) {
+					// 			sieos << to_sie_t(entry);
+					// 		}
+					// 	}
+					// }
 				}
 				else {
 					prompt << "\nERROR - Expected Caption + Amount + Date";
 				}
 			}
 		}
-		prompt << "\ncratchit:";
+		prompt << prompt_line(model->prompt_state);
 		model->prompt = prompt.str();
-		return {Nop{}};
+		return {};
 	}
 	Cmd operator()(Quit const& quit) {
 		// std::cout << "\noperator(Quit)";
@@ -1194,16 +1283,16 @@ struct Updater {
 		os << "\nBy for now :)";
 		model->prompt = os.str();
 		model->quit = true;
-		return {Nop{}};
+		return {};
 	}
 	Cmd operator()(Nop const& nop) {
 		// std::cout << "\noperator(Nop)";
-		std::ostringstream os{};
-		auto help = help_for("");
-		for (auto const& line : help) os << "\n<Options>\n" << line;
-		os << "\ncratchit:";
-		model->prompt = os.str();
-		return {Nop{}};
+		std::ostringstream prompt{};
+		auto help = help_for(model->prompt_state);
+		for (auto const& line : help) prompt << "\n" << line;
+		prompt << prompt_line(model->prompt_state);
+		model->prompt = prompt.str();
+		return {};
 	}	
 };
 
@@ -1300,7 +1389,7 @@ public:
 				// Turn Event (Msg) into updated model
 				auto [updated_model,cmd] = cratchit.update(msg,std::move(model));
 				model = std::move(updated_model);
-				if (std::holds_alternative<Nop>(cmd.msg) == false) in.push(cmd.msg);
+				if (cmd.msg) in.push(*cmd.msg);
 			}
 			else {
 				// Get more buffered user input
