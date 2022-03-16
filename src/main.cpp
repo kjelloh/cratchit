@@ -341,7 +341,7 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& je
 };
 
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
-	os << je.series << " X ";
+	os << je.series << " _ ";
 	os << je.entry;
 	return os;
 };
@@ -474,15 +474,6 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 	}
 	return result;
 }
-
-/*
-										if (had_matches_trans(had,je)) candidates.push_back({series,verno,entry});
-										if (entry.caption.find(had->heading) != std::string::npos) {
-											candidates.push_back({series,verno,entry});
-										}
-
-*/
-
 // ==================================================================================
 
 class SIEEnvironment {
@@ -701,6 +692,8 @@ enum class PromptState {
 	,Root
 	,HADIndex
 	,JEIndex
+	,AccountIndex
+	,Amount
 	,Unknown
 };
 
@@ -709,6 +702,8 @@ struct ConcreteModel {
 	PromptState prompt_state{PromptState::Root};
 	HeadingAmountDateTransEntry selected_had{};
 	BAS::JournalEntries template_candidates{};
+	BAS::JournalEntry current_candidate{};
+	BAS::AccountTransaction at{};
   std::string prompt{};
 	bool quit{};
 	Environment environment{};
@@ -756,9 +751,13 @@ std::vector<std::string> help_for(PromptState const& prompt_state) {
 			result.push_back("'q' or 'Quit'");
 		} break;
 		case PromptState::HADIndex:
-		case PromptState::JEIndex: {
+		case PromptState::JEIndex:
+		case PromptState::AccountIndex: {
 			result.push_back("Please Enter the index of the entry to edit");
 		} break;
+		case PromptState::Amount: {
+			result.push_back("Please Enter Amount");
+		}
 		default: {
 		}
 	}
@@ -1113,6 +1112,12 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::JEIndex: {
 			prompt << ":had:je";
 		} break;
+		case PromptState::AccountIndex: {
+			prompt << ":had:je:account";
+		} break;
+		case PromptState::Amount: {
+			prompt << ":had:je:account:amount";
+		} break;
 		default: {
 			prompt << ":??";
 		}
@@ -1180,9 +1185,21 @@ struct Updater {
 						auto tp = to_template(*iter);
 						if (tp) {
 							auto je = to_journal_entry(model->selected_had,*tp);
-							prompt << je;
+							unsigned int i{};
+							std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+								prompt << "\n  " << i++ << " " << at;
+							});
+							model->current_candidate = je;
+							model->prompt_state = PromptState::AccountIndex;
 						}
 					} break;
+					case PromptState::AccountIndex: {
+						auto iter = model->current_candidate.entry.account_transactions.begin();
+						std::advance(iter,ix);
+						prompt << "\n" << *iter;
+						model->at = *iter;
+						model->prompt_state = PromptState::Amount;
+					}
 				}
 			}
 			else if (ast[0] == "-env") {
@@ -1265,35 +1282,49 @@ struct Updater {
 				}
 			}
 			else {
-				// Assume Caption + Amount + Date
-				auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
-				if (tokens.size()==3) {
-					HeadingAmountDateTransEntry had {
-						.heading = tokens[0]
-						,.amount = *to_amount(tokens[1]) // Assume success
-						,.date = *to_date(tokens[2]) // Assume success
-					};
-					auto ev = to_environment_value(had);
-					model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
-					// if (auto iter = model->environment.find("HeadingAmountDateTransEntry");iter != model->environment.end()) {
-					// 	auto et = template_of(to_had(iter->second),model->sie);
-					// 	if (et) {
-					// 		std::cout << "\nTemplate" << *et;
-					// 		// Transform had to journal entry using this template candidate
-					// 		auto je = to_journal_entry(had,*et);
-					// 		std::cout << "\njournal entry " << je;
-					// 		// Stage the journal entry for posting
-					// 		model->sie.stage(je);
-					// 		std::ofstream os{std::filesystem::path{"cratchit_posts.se"}};
-					// 		SIE::ostream sieos{os};
-					// 		for (auto const& entry : model->sie.unposted()) {
-					// 			sieos << to_sie_t(entry);
-					// 		}
-					// 	}
-					// }
+				if (model->prompt_state == PromptState::Amount) {
+					try {
+						auto amount = to_amount(command);
+						prompt << "\nAmount " << *amount;
+						model->at.amount = *amount;
+						prompt << "\n" << model->at;			
+					}
+					catch (std::exception const& e) {
+						prompt << "\nERROR - " << e.what();
+						prompt << "\nPlease enter a valid amount";
+					}
 				}
 				else {
-					prompt << "\nERROR - Expected Caption + Amount + Date";
+					// Assume Caption + Amount + Date
+					auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
+					if (tokens.size()==3) {
+						HeadingAmountDateTransEntry had {
+							.heading = tokens[0]
+							,.amount = *to_amount(tokens[1]) // Assume success
+							,.date = *to_date(tokens[2]) // Assume success
+						};
+						auto ev = to_environment_value(had);
+						model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
+						// if (auto iter = model->environment.find("HeadingAmountDateTransEntry");iter != model->environment.end()) {
+						// 	auto et = template_of(to_had(iter->second),model->sie);
+						// 	if (et) {
+						// 		std::cout << "\nTemplate" << *et;
+						// 		// Transform had to journal entry using this template candidate
+						// 		auto je = to_journal_entry(had,*et);
+						// 		std::cout << "\njournal entry " << je;
+						// 		// Stage the journal entry for posting
+						// 		model->sie.stage(je);
+						// 		std::ofstream os{std::filesystem::path{"cratchit_posts.se"}};
+						// 		SIE::ostream sieos{os};
+						// 		for (auto const& entry : model->sie.unposted()) {
+						// 			sieos << to_sie_t(entry);
+						// 		}
+						// 	}
+						// }
+					}
+					else {
+						prompt << "\nERROR - Expected Caption + Amount + Date";
+					}
 				}
 			}
 		}
