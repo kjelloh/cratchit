@@ -479,48 +479,88 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 }
 // ==================================================================================
 
+bool same_whole_units(Amount const& a1,Amount const& a2) {
+	return (std::round(a1) == std::round(a2));
+}
+
 BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransaction const& at) {
 	BAS::JournalEntry result{je};
+	std::sort(result.entry.account_transactions.begin(),result.entry.account_transactions.end(),[](auto const& e1,auto const& e2){
+		return (std::abs(e1.amount) > std::abs(e2.amount)); // greater to lesser
+	});
 	auto iter = std::find_if(result.entry.account_transactions.begin(),result.entry.account_transactions.end(),[&at](auto const& entry){
 		return (entry.account_no == at.account_no);
 	});
 	if (iter == result.entry.account_transactions.end()) {
 		result.entry.account_transactions.push_back(at);
+		return updated_entry(result,at); // recurse with added entry
 	}
-	if (at.amount < 1.0 and result.entry.account_transactions.size()==4) {
-		// Assume a cent rounding amount
-		// Automate the following algorithm.
-		// 1. Assume the (Transaction amount - at.amount) is the "actual" adjusted transaction amount
-		// 2. Then assume the second largets amount is the transaction amount without VAT
-		// 3. And assume the third largest amount is the VAT
-		// 4. Adjust these two account entries accordingly
-		std::sort(result.entry.account_transactions.begin(),result.entry.account_transactions.end(),[](auto const& e1,auto const& e2){
-			return (std::abs(e1.amount) > std::abs(e2.amount)); // greater to lesser
-		});
+	else if (je.entry.account_transactions.size()==4) {
+		std::cout << "\n4 OK";
 		// Assume 0: Transaction Amount, 1: Amount no VAT, 3: VAT, 4: rounding amount
 		auto& trans_amount = result.entry.account_transactions[0].amount;
 		auto& ex_vat_amount = result.entry.account_transactions[1].amount;
 		auto& vat_amount = result.entry.account_transactions[2].amount;
 		auto& round_amount = result.entry.account_transactions[3].amount;
-		round_amount = at.amount;
+
+		auto abs_trans_amount = std::abs(trans_amount);
+		auto abs_ex_vat_amount = std::abs(ex_vat_amount);
+		auto abs_vat_amount = std::abs(vat_amount);
+		auto abs_round_amount = std::abs(round_amount);
+		auto abs_at_amount = std::abs(at.amount);
+
 		auto trans_amount_sign = static_cast<int>(trans_amount / std::abs(trans_amount));
-		std::cout << "\ntrans_amount_sign " << trans_amount_sign;
-		auto vat_sign = static_cast<int>(vat_amount/std::abs(vat_amount)); // +-1
-		std::cout << "\nvat_sign " << vat_sign; 
-		auto adjusted_trans_amount = std::abs(trans_amount+round_amount);
-		std::cout << "\nadjusted_trans_amount " << trans_amount_sign*adjusted_trans_amount;
-		auto vat_rate = static_cast<int>(std::abs(std::round(vat_amount*100/ex_vat_amount))); // Note: always > 0 (signs erased)
-		std::cout << "\nvat_rate " << vat_rate;
+		auto vat_sign = static_cast<int>(vat_amount/abs_vat_amount); // +-1
+		auto at_sign = static_cast<int>(at.amount/abs_at_amount);
+
+		auto vat_rate = static_cast<int>(std::round(abs_vat_amount*100/abs_ex_vat_amount));
 		switch (vat_rate) {
 			case 25:
 			case 12:
 			case 6: {
-				auto reverse_vat_factor = vat_rate*1.0/(100+vat_rate); // E.g. 25/125 = 0.2
-				std::cout << "\nreverse_vat_factor " << reverse_vat_factor;
-				vat_amount = vat_sign * std::round(reverse_vat_factor*100*adjusted_trans_amount)/100.0; // round to cents
-				std::cout << "\nvat_amount " << vat_amount;
-				ex_vat_amount = vat_sign * std::round((1.0 - reverse_vat_factor)*100*adjusted_trans_amount)/100.0; // round to cents
-				std::cout << "\nex_vat_amount " << ex_vat_amount;
+				std::cout << "\nVAT OK";
+				switch (std::distance(result.entry.account_transactions.begin(),iter)) {
+					case 0: {
+						// Assume update transaction amount
+						std::cout << "\nUpdate Transaction Amount";
+					} break;
+					case 1: {
+						// Assume update amount ex VAT
+						std::cout << "\n Update Amount Ex VAT";
+						abs_ex_vat_amount = abs_at_amount;
+						abs_vat_amount = std::round(vat_rate*abs_ex_vat_amount)/100;
+
+						ex_vat_amount = vat_sign*abs_ex_vat_amount;
+						vat_amount = vat_sign*abs_vat_amount;
+						round_amount = std::round(100*(trans_amount + ex_vat_amount + vat_amount))/100;
+					} break;
+					case 2: {
+						// Assume update VAT amount
+						std::cout << "\n Update VAT";
+					} break;
+					case 3: {
+						// Assume update the rounding amount
+						std::cout << "\n Update Rounding";
+						if (at.amount < 1.0) {
+							// Assume a cent rounding amount
+							// Automate the following algorithm.
+							// 1. Assume the (Transaction amount + at.amount) is the "actual" adjusted (rounded) transaction amount
+							// 4. Adjust Amount ex VAT and VAT to fit adjusted transaction amount
+							round_amount = at.amount;
+							std::cout << "\ntrans_amount_sign " << trans_amount_sign;
+							std::cout << "\nvat_sign " << vat_sign; 
+							auto adjusted_trans_amount = std::abs(trans_amount+round_amount);
+							std::cout << "\nadjusted_trans_amount " << trans_amount_sign*adjusted_trans_amount;
+							std::cout << "\nvat_rate " << vat_rate;
+							auto reverse_vat_factor = vat_rate*1.0/(100+vat_rate); // E.g. 25/125 = 0.2
+							std::cout << "\nreverse_vat_factor " << reverse_vat_factor;
+							vat_amount = vat_sign * std::round(reverse_vat_factor*100*adjusted_trans_amount)/100.0; // round to cents
+							std::cout << "\nvat_amount " << vat_amount;
+							ex_vat_amount = vat_sign * std::round((1.0 - reverse_vat_factor)*100*adjusted_trans_amount)/100.0; // round to cents
+							std::cout << "\nex_vat_amount " << ex_vat_amount;
+						}
+					} break;
+				}
 			} break;
 			default: {
 				// Unknown VAT rate
