@@ -384,10 +384,8 @@ using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 struct AccountTransactionTemplate {
 	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
 		:  m_account_no{account_no}
-		  ,m_factor{account_amount / gross_amount}
 			,m_percent{static_cast<int>(std::round(account_amount*100 / gross_amount))}  {}
 	BASAccountNo m_account_no;
-	float m_factor;
 	int m_percent;
 	BAS::AccountTransaction operator()(Amount amount) const {
 		// BAS::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
@@ -416,6 +414,9 @@ public:
 					,account_transaction.amount
 				);
 				return result;
+			});
+			std::sort(this->templates.begin(),this->templates.end(),[](auto const& e1,auto const& e2){
+				return (std::abs(e1.m_percent) > std::abs(e2.m_percent)); // greater to lesser
 			});
 		}
 	}
@@ -458,7 +459,7 @@ BAS::JournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,Journa
 std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	os << "\ntemplate: series " << entry.series();
 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& t){
-		os << "\n\t" << t.m_account_no << " " << t.m_factor;
+		os << "\n\t" << t.m_account_no << " " << t.m_percent;
 	});
 	return os;
 }
@@ -1250,17 +1251,7 @@ struct Updater {
 								prompt << "\n  " << i++ << " " << at;
 							});
 							model->current_candidate = je;
-							auto iter = std::find_if(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](auto const& entry){
-								return (std::abs(entry.amount) < 1.0);
-							});
-							if (iter != je.entry.account_transactions.end()) {
-								prompt << "\n" << *iter;
-								model->at = *iter;
-								model->prompt_state = PromptState::Amount;								
-							}
-							else {
-								model->prompt_state = PromptState::AccountIndex;
-							}
+							model->prompt_state = PromptState::AccountIndex;
 						}
 					} break;
 					case PromptState::AccountIndex: {
