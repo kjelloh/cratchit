@@ -341,8 +341,10 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& je
 };
 
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
-	os << je.series << " _ ";
-	os << je.entry;
+	os << je.series;
+	if (je.verno == 0) os << " _ ";
+	else os << je.verno;
+	os << " " << je.entry;
 	return os;
 };
 
@@ -476,6 +478,62 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 }
 // ==================================================================================
 
+BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransaction const& at) {
+	BAS::JournalEntry result{je};
+	auto iter = std::find_if(result.entry.account_transactions.begin(),result.entry.account_transactions.end(),[&at](auto const& entry){
+		return (entry.account_no == at.account_no);
+	});
+	if (iter == result.entry.account_transactions.end()) {
+		result.entry.account_transactions.push_back(at);
+	}
+	if (at.amount < 1.0 and result.entry.account_transactions.size()==4) {
+		// Assume a cent rounding amount
+		// Automate the following algorithm.
+		// 1. Assume the (Transaction amount - at.amount) is the "actual" adjusted transaction amount
+		// 2. Then assume the second largets amount is the transaction amount without VAT
+		// 3. And assume the third largest amount is the VAT
+		// 4. Adjust these two account entries accordingly
+		std::sort(result.entry.account_transactions.begin(),result.entry.account_transactions.end(),[](auto const& e1,auto const& e2){
+			return (std::abs(e1.amount) > std::abs(e2.amount)); // greater to lesser
+		});
+		// Assume 0: Transaction Amount, 1: Amount no VAT, 3: VAT, 4: rounding amount
+		auto& trans_amount = result.entry.account_transactions[0].amount;
+		auto& ex_vat_amount = result.entry.account_transactions[1].amount;
+		auto& vat_amount = result.entry.account_transactions[2].amount;
+		auto& round_amount = result.entry.account_transactions[3].amount;
+		round_amount = at.amount;
+		auto trans_amount_sign = static_cast<int>(trans_amount / std::abs(trans_amount));
+		std::cout << "\ntrans_amount_sign " << trans_amount_sign;
+		auto vat_sign = static_cast<int>(vat_amount/std::abs(vat_amount)); // +-1
+		std::cout << "\nvat_sign " << vat_sign; 
+		auto adjusted_trans_amount = std::abs(trans_amount+round_amount);
+		std::cout << "\nadjusted_trans_amount " << trans_amount_sign*adjusted_trans_amount;
+		auto vat_rate = static_cast<int>(std::abs(std::round(vat_amount*100/ex_vat_amount))); // Note: always > 0 (signs erased)
+		std::cout << "\nvat_rate " << vat_rate;
+		switch (vat_rate) {
+			case 25:
+			case 12:
+			case 6: {
+				auto reverse_vat_factor = vat_rate*1.0/(100+vat_rate); // E.g. 25/125 = 0.2
+				std::cout << "\nreverse_vat_factor " << reverse_vat_factor;
+				vat_amount = vat_sign * std::round(reverse_vat_factor*100*adjusted_trans_amount)/100.0; // round to cents
+				std::cout << "\nvat_amount " << vat_amount;
+				ex_vat_amount = vat_sign * std::round((1.0 - reverse_vat_factor)*100*adjusted_trans_amount)/100.0; // round to cents
+				std::cout << "\nex_vat_amount " << ex_vat_amount;
+			} break;
+			default: {
+				// Unknown VAT rate
+				// Do no adjustment
+				// Leave to user to deal with this update
+			}
+		}
+	}
+	else {
+		// Todo: Future needs may require adjusting transaction amounts to still sum upp to the transaction amount?
+	}
+	return result;
+}
+
 class SIEEnvironment {
 public:
 	BASJournals& journals() {return m_journals;}
@@ -486,7 +544,7 @@ public:
 		m_journals[je.series][je.verno] = je.entry;
 		verno_of_last_posted_to[je.series] = je.verno;
 	}
-	std::pair<char,BAS::VerNo> stage(BAS::JournalEntry const& entry) {
+	BAS::JournalEntry stage(BAS::JournalEntry const& entry) {
 		return this->add(entry);
 	}
 	BAS::JournalEntries unposted() {
@@ -511,11 +569,13 @@ private:
 	BASJournals m_journals{};
 	BASLedger m_ledger{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
-	std::pair<char,BAS::VerNo> add(BAS::JournalEntry const& je) {
+	BAS::JournalEntry add(BAS::JournalEntry const& je) {
+		BAS::JournalEntry result{je};
 		// Assign "actual" sequence number
 		auto verno = largest_verno(je.series) + 1;
+		result.verno = verno;
 		m_journals[je.series][verno] = je.entry;
-		return {je.series,verno};
+		return result;
 	}
 	BAS::VerNo largest_verno(char series) {
 		auto& journal = m_journals[series];
@@ -1190,7 +1250,17 @@ struct Updater {
 								prompt << "\n  " << i++ << " " << at;
 							});
 							model->current_candidate = je;
-							model->prompt_state = PromptState::AccountIndex;
+							auto iter = std::find_if(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](auto const& entry){
+								return (std::abs(entry.amount) < 1.0);
+							});
+							if (iter != je.entry.account_transactions.end()) {
+								prompt << "\n" << *iter;
+								model->at = *iter;
+								model->prompt_state = PromptState::Amount;								
+							}
+							else {
+								model->prompt_state = PromptState::AccountIndex;
+							}
 						}
 					} break;
 					case PromptState::AccountIndex: {
@@ -1287,7 +1357,10 @@ struct Updater {
 						auto amount = to_amount(command);
 						prompt << "\nAmount " << *amount;
 						model->at.amount = *amount;
-						prompt << "\n" << model->at;			
+						model->current_candidate = updated_entry(model->current_candidate,model->at);
+						auto je = model->sie.stage(model->current_candidate);
+						prompt << "\n" << je;
+						model->prompt_state = PromptState::Root;
 					}
 					catch (std::exception const& e) {
 						prompt << "\nERROR - " << e.what();
