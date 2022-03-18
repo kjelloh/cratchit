@@ -91,7 +91,7 @@ namespace tokenize {
 			ids.push_back(token_id_of(s));
 		}
 		for (int i=0;i<spaced_tokens.size();++i) {
-			std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
+			// std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
 		}
 		switch (split_on) {
 			case SplitOn::TextAmountAndDate: {
@@ -208,7 +208,7 @@ std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_
 using Amount= float;
 using optional_amount = std::optional<Amount>;
 optional_amount to_amount(std::string const& sAmount) {
-	std::cout << "\nto_amount " << std::quoted(sAmount);
+	// std::cout << "\nto_amount " << std::quoted(sAmount);
 	optional_amount result{};
 	Amount amount{};
 	std::istringstream is{sAmount};
@@ -222,7 +222,7 @@ optional_amount to_amount(std::string const& sAmount) {
 	else if (is >> amount) {
 		result = amount;
 	}
-	if (result) std::cout << "\nresult " << *result;
+	// if (result) std::cout << "\nresult " << *result;
 	return result;
 }
 
@@ -242,7 +242,7 @@ std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
 }
 
 optional_year_month_day to_date(std::string const& sYYYYMMDD) {
-	std::cout << "\nto_date(" << sYYYYMMDD << ")";
+	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
 	optional_year_month_day result{};
 	if (sYYYYMMDD.size()==8) {
 		result = std::chrono::year_month_day(
@@ -258,8 +258,8 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 		});
 		if (sDate.size()==8) result = to_date(sDate);
 	}
-	if (result) std::cout << " = " << *result;
-	else std::cout << " = null";
+	// if (result) std::cout << " = " << *result;
+	// else std::cout << " = null";
 	return result;
 }
 
@@ -501,7 +501,7 @@ BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransact
 		return updated_entry(result,at); // recurse with added entry
 	}
 	else if (je.entry.account_transactions.size()==4) {
-		std::cout << "\n4 OK";
+		// std::cout << "\n4 OK";
 		// Assume 0: Transaction Amount, 1: Amount no VAT, 3: VAT, 4: rounding amount
 		auto& trans_amount = result.entry.account_transactions[0].amount;
 		auto& ex_vat_amount = result.entry.account_transactions[1].amount;
@@ -523,7 +523,7 @@ BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransact
 			case 25:
 			case 12:
 			case 6: {
-				std::cout << "\nVAT OK";
+				// std::cout << "\nVAT OK";
 				switch (std::distance(result.entry.account_transactions.begin(),iter)) {
 					case 0: {
 						// Assume update transaction amount
@@ -531,7 +531,7 @@ BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransact
 					} break;
 					case 1: {
 						// Assume update amount ex VAT
-						std::cout << "\n Update Amount Ex VAT";
+						// std::cout << "\n Update Amount Ex VAT";
 						abs_ex_vat_amount = abs_at_amount;
 						abs_vat_amount = std::round(vat_rate*abs_ex_vat_amount)/100;
 
@@ -545,24 +545,24 @@ BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransact
 					} break;
 					case 3: {
 						// Assume update the rounding amount
-						std::cout << "\n Update Rounding";
+						// std::cout << "\n Update Rounding";
 						if (at.amount < 1.0) {
 							// Assume a cent rounding amount
 							// Automate the following algorithm.
 							// 1. Assume the (Transaction amount + at.amount) is the "actual" adjusted (rounded) transaction amount
 							// 4. Adjust Amount ex VAT and VAT to fit adjusted transaction amount
 							round_amount = at.amount;
-							std::cout << "\ntrans_amount_sign " << trans_amount_sign;
-							std::cout << "\nvat_sign " << vat_sign; 
+							// std::cout << "\ntrans_amount_sign " << trans_amount_sign;
+							// std::cout << "\nvat_sign " << vat_sign; 
 							auto adjusted_trans_amount = std::abs(trans_amount+round_amount);
-							std::cout << "\nadjusted_trans_amount " << trans_amount_sign*adjusted_trans_amount;
-							std::cout << "\nvat_rate " << vat_rate;
+							// std::cout << "\nadjusted_trans_amount " << trans_amount_sign*adjusted_trans_amount;
+							// std::cout << "\nvat_rate " << vat_rate;
 							auto reverse_vat_factor = vat_rate*1.0/(100+vat_rate); // E.g. 25/125 = 0.2
-							std::cout << "\nreverse_vat_factor " << reverse_vat_factor;
+							// std::cout << "\nreverse_vat_factor " << reverse_vat_factor;
 							vat_amount = vat_sign * std::round(reverse_vat_factor*100*adjusted_trans_amount)/100.0; // round to cents
-							std::cout << "\nvat_amount " << vat_amount;
+							// std::cout << "\nvat_amount " << vat_amount;
 							ex_vat_amount = vat_sign * std::round((1.0 - reverse_vat_factor)*100*adjusted_trans_amount)/100.0; // round to cents
-							std::cout << "\nex_vat_amount " << ex_vat_amount;
+							// std::cout << "\nex_vat_amount " << ex_vat_amount;
 						}
 					} break;
 				}
@@ -594,13 +594,13 @@ public:
 		return this->add(entry);
 	}
 	BAS::JournalEntries unposted() const {
-		std::cout << "\nunposted()";
+		// std::cout << "\nunposted()";
 		BAS::JournalEntries result{};
 		for (auto const& [series,verno] : this->verno_of_last_posted_to) {
-			std::cout << "\n\tseries:" << series << " verno:" << verno;
+			// std::cout << "\n\tseries:" << series << " verno:" << verno;
 			auto last = m_journals.at(series).find(verno);
 			for (auto iter = ++last;iter!=m_journals.at(series).end();++iter) {
-				std::cout << "\n\tunposted:" << iter->first;
+				// std::cout << "\n\tunposted:" << iter->first;
 				BAS::JournalEntry bjer{
 					.series = series
 					,.verno = iter->first
@@ -657,18 +657,39 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 	return result;
 }
 
+std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev) {
+	bool not_first{false};
+	std::for_each(ev.begin(),ev.end(),[&not_first,&os](auto const& entry){
+		if (not_first) {
+			os << ";"; // separator
+		}
+		os <<  entry.first;
+		os <<  "=";
+		os <<  entry.second;
+		not_first = true;
+	});
+	return os;
+}
+
 // "belopp=1389,50;datum=20221023;rubrik=Klarna"
 std::string to_string(EnvironmentValue const& ev) {
-	// Expand to variants when EnvironmentValue is no longer a simple string (if ever?)
-	std::string result = std::accumulate(ev.begin(),ev.end(),std::string{},[](auto acc,auto const& entry){
-		if (acc.size()>0) acc += ";"; // separator
-		acc += entry.first;
-		acc += "=";
-		acc += entry.second;
-		return acc;
-	});
-	return result;
+	std::ostringstream os{};
+	os << ev;
+	return os.str();
 }
+
+std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
+	os << entry.first << " " << std::quoted(to_string(entry.second));
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,Environment const& env) {
+	for (auto const& entry : env) {
+		os << "\n\t" << entry;
+	}	
+	return os;
+}
+
 // "belopp=1389,50;datum=20221023;rubrik=Klarna"
 EnvironmentValue to_environment_value(std::string const s) {
 	EnvironmentValue result{};
@@ -681,14 +702,12 @@ EnvironmentValue to_environment_value(std::string const s) {
 }
 std::string to_string(Environment::value_type const& entry) {
 	std::ostringstream os{};
-	os << entry.first;
-	os << " ";
-	os << std::quoted(to_string(entry.second));
+	os << entry;
 	return os.str();
 }
 
 EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
-	std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
+	// std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
 	std::ostringstream os{};
 	os << had.amount;
 	EnvironmentValue ev{};
@@ -745,7 +764,7 @@ namespace CSV {
 			if (std::getline(in.is,sEntry)) {
 				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::yes);
 				// LOG
-				if (true) {
+				if (false) {
 					std::cout << "\ncsv count: " << tokens.size(); // Expected 10
 					for (int i=0;i<tokens.size();++i) {
 						std::cout << "\n\t" << i << " " << tokens[i];
@@ -774,7 +793,7 @@ namespace CSV {
 		auto pos = in.is.tellg();
 		HeadingAmountDateTransEntry had{};
 		if (in >> had) {
-			std::cout << "\nfrom csv: " << had;
+			// std::cout << "\nfrom csv: " << had;
 			result = had;
 			pos = in.is.tellg(); // accept new stream position
 		}
@@ -904,19 +923,19 @@ namespace SIE {
 	using SIEParseResult = std::optional<SIEFileEntry>;
 	std::istream& operator>>(std::istream& in,Tag const& tag) {
 		if (in.good()) {
-			std::cout << "\n>>Tag[expected:" << tag.expected;
+			// std::cout << "\n>>Tag[expected:" << tag.expected;
 			auto pos = in.tellg();
 			std::string token{};
 			if (in >> token) {
-				std::cout << ",read:" << token << "]";
+				// std::cout << ",read:" << token << "]";
 				if (token != tag.expected) {
 					in.seekg(pos); // Reset position for failed tag
 					in.setstate(std::ios::failbit); // failed to read expected tag
-					std::cout << " rejected";
+					// std::cout << " rejected";
 				}
 			}
 			else {
-				std::cout << "null";
+				// std::cout << "null";
 			}
 		}		
 		return in;
@@ -984,7 +1003,7 @@ namespace SIE {
 		if (in.good()) {
 			std::string scraps{};
 			std::getline(in,scraps);
-			std::cout << "\nscraps:" << scraps;
+			// std::cout << "\nscraps:" << scraps;
 		}
 		return in;		
 	}
@@ -998,7 +1017,7 @@ namespace SIE {
 		optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
 		optional_Text_parser optional_transtext_parser{trans.transtext};
 		if (in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
-			std::cout << trans_tag << trans.account_no << " " << trans.amount;
+			// std::cout << trans_tag << trans.account_no << " " << trans.amount;
 			result = trans;
 			pos = in.tellg(); // accept new stream position
 		}
@@ -1029,19 +1048,19 @@ namespace SIE {
 		YYYYMMdd_parser verdate_parser{ver.verdate};
 		if (in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
 			if (true) {
-				std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
+				// std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
 				while (true) {
 					if (auto entry = parse_TRANS(in,"#TRANS")) {
-						std::cout << "\nTRANS :)";	
+						// std::cout << "\nTRANS :)";	
 						ver.transactions.push_back(std::get<Trans>(*entry));					
 					}
 					else if (auto entry = parse_TRANS(in,"#BTRANS")) {
 						// Ignore
-						std::cout << " Ignored";
+						// std::cout << " Ignored";
 					}
 					else if (auto entry = parse_TRANS(in,"#RTRANS")) {
 						// Ignore
-						std::cout << " Ignored";
+						// std::cout << " Ignored";
 					}
 					else if (auto entry = parse_Tag(in,"}")) {
 						break;
@@ -1062,16 +1081,16 @@ namespace SIE {
 
 	SIEParseResult parse_any_line(Stream& in) {
 		if (in.fail()) {
-			std::cout << "\nparse_any_line in==fail";
+			// std::cout << "\nparse_any_line in==fail";
 		}
 		auto pos = in.tellg();
 		std::string line{};
 		if (std::getline(in,line)) {
-			std::cout << "\n\tany=" << line;
+			// std::cout << "\n\tany=" << line;
 			return AnonymousLine{};
 		}
 		else {
-			std::cout << "\n\tany null";
+			// std::cout << "\n\tany null";
 			in.seekg(pos);
 			return {};
 		}
@@ -1181,15 +1200,15 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 	if (in) {
 		SIEEnvironment sie_environment{};
 		while (true) {
-			std::cout << "\nparse";    
+			// std::cout << "\nparse";    
 			if (auto opt_entry = SIE::parse_ver(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
-				std::cout << "\n\tVER!";
+				// std::cout << "\n\tVER!";
 				auto je = to_entry(ver);
 				sie_environment.post(je);
 			}
 			else if (auto opt_entry = SIE::parse_any_line(in)) {
-				std::cout << "\n\tANY";
+				// std::cout << "\n\tANY";
 			}
 			else break;
 		}
@@ -1275,7 +1294,7 @@ struct Updater {
 						if (iter != end) {
 							auto had = to_had(iter->second);
 							if (had) {
-								prompt << *had;
+								prompt << "\n" << *had;
 								model->selected_had= *had;
 								model->template_candidates.clear();
 								for (auto const& je : model->sie.journals()) {
@@ -1318,15 +1337,14 @@ struct Updater {
 				}
 			}
 			else if (ast[0] == "-env") {
-				for (auto const& entry : model->environment) {
-					std::cout << "\n" << entry.first << " " << to_string(entry.second);
-				}
+				prompt << model->environment;
 			}
 			else if (ast[0] == "-sie") {
 				// Import sie and add as base of our environment
 				if (ast.size()==1) {
 					// List current sie environment
-					std::cout << model->sie;
+					prompt << model->sie;					
+					// std::cout << model->sie;
 				}
 				else if (ast.size()>1) {
 					// assume -sie <file path>
@@ -1338,7 +1356,7 @@ struct Updater {
 							if (model->environment.count("sie_file")>0) model->environment.erase("sie_file"); // There can be only one :)
 							model->environment.insert(std::make_pair("sie_file",to_environment_value(std::string("path") + "=" + sie_file_path.string()))); // new one
 							// Log
-							std::cout << model->sie;
+							// std::cout << model->sie;
 						}
 						else {
 							// failed to parse sie-file into an SIE Environment 
@@ -1368,7 +1386,7 @@ struct Updater {
 				}
 			}
 			else if (ast[0] == "-csv") {
-				std::cout << "\nCSV :)";
+				// std::cout << "\nCSV :)";
 				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 				/*
 				Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
@@ -1381,10 +1399,10 @@ struct Updater {
 				*/
 				if (ast.size()>1) {
 					std::filesystem::path csv_file_path{ast[1]};
-					std::cout << "\ncsv file " << csv_file_path;
+					// std::cout << "\ncsv file " << csv_file_path;
 					std::ifstream ifs{csv_file_path};
 					if (std::filesystem::exists(csv_file_path)) {
-						std::cout << "\ncsv file exists ok";
+						// std::cout << "\ncsv file exists ok";
 						CSV::NORDEA::istream in{ifs};
 						auto hads = CSV::from_stream(in);
 						std::transform(hads.begin(),hads.end(),std::inserter(model->environment,model->environment.end()),[](auto const& had){
@@ -1421,24 +1439,9 @@ struct Updater {
 							,.amount = *to_amount(tokens[1]) // Assume success
 							,.date = *to_date(tokens[2]) // Assume success
 						};
+						prompt << "\n" << had;
 						auto ev = to_environment_value(had);
 						model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
-						// if (auto iter = model->environment.find("HeadingAmountDateTransEntry");iter != model->environment.end()) {
-						// 	auto et = template_of(to_had(iter->second),model->sie);
-						// 	if (et) {
-						// 		std::cout << "\nTemplate" << *et;
-						// 		// Transform had to journal entry using this template candidate
-						// 		auto je = to_journal_entry(had,*et);
-						// 		std::cout << "\njournal entry " << je;
-						// 		// Stage the journal entry for posting
-						// 		model->sie.stage(je);
-						// 		std::ofstream os{std::filesystem::path{"cratchit_posts.se"}};
-						// 		SIE::ostream sieos{os};
-						// 		for (auto const& entry : model->sie.unposted()) {
-						// 			sieos << to_sie_t(entry);
-						// 		}
-						// 	}
-						// }
 					}
 					else {
 						prompt << "\nERROR - Expected Caption + Amount + Date";
@@ -1595,7 +1598,7 @@ private:
 int main(int argc, char *argv[])
 {
     std::string sPATH{std::getenv("PATH")};
-    std::cout << "\nPATH=" << sPATH;
+    // std::cout << "\nPATH=" << sPATH;
     std::string command{};
     for (int i=1;i<argc;i++) command+= std::string{argv[i]} + " ";
     auto current_path = std::filesystem::current_path();
