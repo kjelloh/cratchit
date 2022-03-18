@@ -588,13 +588,13 @@ public:
 	BAS::JournalEntry stage(BAS::JournalEntry const& entry) {
 		return this->add(entry);
 	}
-	BAS::JournalEntries unposted() {
+	BAS::JournalEntries unposted() const {
 		std::cout << "\nunposted()";
 		BAS::JournalEntries result{};
 		for (auto const& [series,verno] : this->verno_of_last_posted_to) {
 			std::cout << "\n\tseries:" << series << " verno:" << verno;
-			auto last = m_journals[series].find(verno);
-			for (auto iter = ++last;iter!=m_journals[series].end();++iter) {
+			auto last = m_journals.at(series).find(verno);
+			for (auto iter = ++last;iter!=m_journals.at(series).end();++iter) {
 				std::cout << "\n\tunposted:" << iter->first;
 				BAS::JournalEntry bjer{
 					.series = series
@@ -1192,6 +1192,14 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 	return result;
 }
 
+void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
+	std::ofstream os{p};
+	SIE::ostream sieos{os};
+	for (auto const& entry : sie.unposted()) {
+		sieos << to_sie_t(entry);
+	}
+}
+
 std::vector<std::string> quoted_tokens(std::string const& cli) {
 	std::vector<std::string> result{};
 	std::istringstream in{cli};
@@ -1458,7 +1466,7 @@ struct Updater {
 class Cratchit {
 public:
 	Cratchit(std::filesystem::path const& p) 
-		: cratchit_file_path{p} {}
+		: cratchit_file_path{p}, staged_sie_file_path{"cratchit.se"} {}
 
 	Model init(Command const& command) {
 		Model model = std::make_unique<ConcreteModel>();
@@ -1471,16 +1479,27 @@ public:
 				if (auto sie_environment = from_sie_file(sie_file_path)) {
 					model->sie = std::move(*sie_environment);
 				}
+			}			
+		}
+		if (auto sse = from_sie_file(staged_sie_file_path)) {
+			auto staged_sie_environment = *sse;
+			for (auto const& [series,journal] : staged_sie_environment.journals()) {
+				for (auto const& [verno,aje] : journal) {
+					model->sie.stage({series,verno,aje});
+				}
 			}
 		}
-		model->prompt += "\ncratchit>";
+
+		model->prompt_state = PromptState::Root;
+		model->prompt = prompt_line(model->prompt_state);
 		return model;
 	}
 	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
 		Updater updater{std::move(model)};
 		auto cmd = std::visit(updater,msg);
 		if (updater.model->quit) {
-			environment_to_file(updater.model->environment,cratchit_file_path);
+			this->environment_to_file(updater.model->environment,cratchit_file_path);
+			unposted_to_sie_file(updater.model->sie,staged_sie_file_path);
 		}
 		return {std::move(updater.model),cmd};
 	}
@@ -1491,6 +1510,7 @@ public:
 	}
 private:
 	std::filesystem::path cratchit_file_path{};
+	std::filesystem::path staged_sie_file_path{};
 	bool is_value_line(std::string const& line) {
 		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
 	}
