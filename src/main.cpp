@@ -590,7 +590,7 @@ public:
 		m_journals[je.series][je.verno] = je.entry;
 		verno_of_last_posted_to[je.series] = je.verno;
 	}
-	BAS::JournalEntry stage(BAS::JournalEntry const& entry) {
+	std::optional<BAS::JournalEntry> stage(BAS::JournalEntry const& entry) {
 		return this->add(entry);
 	}
 	BAS::JournalEntries unposted() const {
@@ -624,7 +624,7 @@ private:
 		return result;
 	}
 	BAS::VerNo largest_verno(char series) {
-		auto& journal = m_journals[series];
+		auto const& journal = m_journals[series];
 		return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
 			return (acc<entry.first)?entry.first:acc;
 		});
@@ -1220,6 +1220,11 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
 	std::ofstream os{p};
 	SIE::ostream sieos{os};
+	// auto now = std::chrono::utc_clock::now();
+	auto now = std::chrono::system_clock::now();
+	auto now_timet = std::chrono::system_clock::to_time_t(now);
+	auto now_local = localtime(&now_timet);
+	sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	for (auto const& entry : sie.unposted()) {
 		sieos << to_sie_t(entry);
 	}
@@ -1422,7 +1427,12 @@ struct Updater {
 						model->at.amount = *amount;
 						model->current_candidate = updated_entry(model->current_candidate,model->at);
 						auto je = model->sie.stage(model->current_candidate);
-						prompt << "\n" << je;
+						if (je) {
+							prompt << "\n" << *je;
+						}
+						else {
+							prompt << "\n" << "Sorry - This transaction redeemed a duplicate";
+						}
 						model->prompt_state = PromptState::Root;
 					}
 					catch (std::exception const& e) {
@@ -1477,10 +1487,11 @@ public:
 	Cratchit(std::filesystem::path const& p) 
 		: cratchit_file_path{p}, staged_sie_file_path{"cratchit.se"} {}
 
-	Model init(Command const& command) {
+	Model init(Command const& command) {		
 		Model model = std::make_unique<ConcreteModel>();
-		model->prompt += "\nInit from ";
-		model->prompt += cratchit_file_path;
+		std::ostringstream prompt{};
+		prompt << "\nInit from ";
+		prompt << cratchit_file_path;
 		model->environment = environment_from_file(cratchit_file_path);
 		if (auto val_iter = model->environment.find("sie_file");val_iter != model->environment.end()) {
 			if (auto key_iter = val_iter->second.find("path"); key_iter != val_iter->second.end()) {
@@ -1494,13 +1505,17 @@ public:
 			auto staged_sie_environment = *sse;
 			for (auto const& [series,journal] : staged_sie_environment.journals()) {
 				for (auto const& [verno,aje] : journal) {
-					model->sie.stage({series,verno,aje});
+					auto je = model->sie.stage({series,verno,aje});
+					if (!je) {
+						prompt << "\nis now posted " << *je;
+					}
 				}
 			}
 		}
 
 		model->prompt_state = PromptState::Root;
-		model->prompt = prompt_line(model->prompt_state);
+		prompt << prompt_line(model->prompt_state);
+		model->prompt = prompt.str();
 		return model;
 	}
 	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
