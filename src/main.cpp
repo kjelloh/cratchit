@@ -227,7 +227,22 @@ optional_amount to_amount(std::string const& sAmount) {
 }
 
 using optional_year_month_day = std::optional<std::chrono::year_month_day>;
+
+std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
+	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
+	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
+	return os;
+}
+std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
+		std::ostringstream os{};
+		os << yyyymmdd;
+		return os.str();
+}
+
 optional_year_month_day to_date(std::string const& sYYYYMMDD) {
+	std::cout << "\nto_date(" << sYYYYMMDD << ")";
 	optional_year_month_day result{};
 	if (sYYYYMMDD.size()==8) {
 		result = std::chrono::year_month_day(
@@ -243,19 +258,9 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 		});
 		if (sDate.size()==8) result = to_date(sDate);
 	}
+	if (result) std::cout << " = " << *result;
+	else std::cout << " = null";
 	return result;
-}
-std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
-	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
-	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
-	return os;
-}
-std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
-		std::ostringstream os{};
-		os << yyyymmdd;
-		return os.str();
 }
 
 using BASAccountNo = unsigned int;
@@ -333,7 +338,7 @@ std::string to_string(BAS::AccountTransaction const& at) {
 };
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& je) {
-	os << je.caption;
+	os << std::quoted(je.caption) << " " << je.date;
 	for (auto const& at : je.account_transactions) {
 		os << "\n\t" << to_string(at); 
 	}
@@ -532,7 +537,7 @@ BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransact
 
 						ex_vat_amount = vat_sign*abs_ex_vat_amount;
 						vat_amount = vat_sign*abs_vat_amount;
-						round_amount = std::round(100*(trans_amount + ex_vat_amount + vat_amount))/100;
+						round_amount = -1*std::round(100*(trans_amount + ex_vat_amount + vat_amount))/100;
 					} break;
 					case 2: {
 						// Assume update VAT amount
@@ -1159,6 +1164,7 @@ BAS::JournalEntry to_entry(SIE::Ver const& ver) {
 		,.verno = ver.verno
 	};
 	result.entry.caption = ver.vertext;
+	result.entry.date = ver.verdate;
 	for (auto const& trans : ver.transactions) {								
 		result.entry.account_transactions.push_back(BAS::AccountTransaction{
 			.account_no = trans.account_no
