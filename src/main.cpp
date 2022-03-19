@@ -605,6 +605,19 @@ public:
 		if (this->already_in_posted(entry) == false) result = this->add(entry);
 		return result;
 	}
+
+	BAS::JournalEntries stage(SIEEnvironment const& staged_sie_environment) {
+		BAS::JournalEntries result{};
+		for (auto const& [series,journal] : staged_sie_environment.journals()) {
+			for (auto const& [verno,aje] : journal) {
+				auto je = this->stage({series,verno,aje});
+				if (!je) {
+					result.push_back({series,verno,aje}); // no longer staged
+				}
+			}
+		}
+		return result;
+	}
 	BAS::JournalEntries unposted() const {
 		// std::cout << "\nunposted()";
 		BAS::JournalEntries result{};
@@ -866,6 +879,7 @@ struct ConcreteModel {
 		});
 		return result;
 	}
+	std::filesystem::path staged_sie_file_path{};
 };
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
@@ -1387,13 +1401,20 @@ struct Updater {
 							model->environment.insert(std::make_pair("sie_file",to_environment_value(std::string("path") + "=" + sie_file_path.string()))); // new one
 							// Log
 							// std::cout << model->sie;
+							if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+								auto unstaged = model->sie.stage(*sse);
+								for (auto const& je : unstaged) {
+									prompt << "\nnow posted " << je; 
+								}
+							}							
 						}
 						else {
 							// failed to parse sie-file into an SIE Environment 
+							prompt << "\nERROR - Failed to import sie file " << sie_file_path;
 						}
 					}
 					else {
-						model->prompt = "ERROR: File does not exist or is not a valid sie-file: " + sie_file_path.string();
+						prompt << "\nERROR: File does not exist or is not a valid sie-file: " << sie_file_path;
 					}
 				}
 			}
@@ -1510,10 +1531,11 @@ struct Updater {
 class Cratchit {
 public:
 	Cratchit(std::filesystem::path const& p) 
-		: cratchit_file_path{p}, staged_sie_file_path{"cratchit.se"} {}
+		: cratchit_file_path{p} {}
 
 	Model init(Command const& command) {		
 		Model model = std::make_unique<ConcreteModel>();
+		model->staged_sie_file_path = "cratchit.se";
 		std::ostringstream prompt{};
 		prompt << "\nInit from ";
 		prompt << cratchit_file_path;
@@ -1526,16 +1548,8 @@ public:
 				}
 			}			
 		}
-		if (auto sse = from_sie_file(staged_sie_file_path)) {
-			auto staged_sie_environment = *sse;
-			for (auto const& [series,journal] : staged_sie_environment.journals()) {
-				for (auto const& [verno,aje] : journal) {
-					auto je = model->sie.stage({series,verno,aje});
-					if (!je) {
-						prompt << "\nis now posted " << *je;
-					}
-				}
-			}
+		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+			model->sie.stage(*sse);
 		}
 
 		model->prompt_state = PromptState::Root;
@@ -1548,7 +1562,7 @@ public:
 		auto cmd = std::visit(updater,msg);
 		if (updater.model->quit) {
 			this->environment_to_file(updater.model->environment,cratchit_file_path);
-			unposted_to_sie_file(updater.model->sie,staged_sie_file_path);
+			unposted_to_sie_file(updater.model->sie,updater.model->staged_sie_file_path);
 		}
 		return {std::move(updater.model),cmd};
 	}
@@ -1559,7 +1573,6 @@ public:
 	}
 private:
 	std::filesystem::path cratchit_file_path{};
-	std::filesystem::path staged_sie_file_path{};
 	bool is_value_line(std::string const& line) {
 		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
 	}
