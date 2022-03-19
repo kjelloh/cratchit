@@ -1400,12 +1400,29 @@ struct Updater {
 								if (had) {
 									auto je = to_journal_entry(*had,*tp);
 									// auto je = to_journal_entry(model->selected_had,*tp);
-									unsigned int i{};
-									std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
-										prompt << "\n  " << i++ << " " << at;
-									});
-									model->current_candidate = je;
-									model->prompt_state = PromptState::AccountIndex;
+									if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
+										return std::abs(at.amount) < 1.0;
+									})) {
+										// Assume we need to specify rounding
+										unsigned int i{};
+										std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+											prompt << "\n  " << i++ << " " << at;
+										});
+										model->current_candidate = je;
+										model->prompt_state = PromptState::AccountIndex;
+									}
+									else {
+										auto staged_je = model->sie.stage(je);
+										if (staged_je) {
+											prompt << "\n" << *staged_je << " STAGED";
+											model->environment.erase(iter);
+											model->prompt_state = PromptState::HADIndex;
+										}
+										else {
+											prompt << "\nSORRY - Failed to stage entry";
+											model->prompt_state = PromptState::Root;
+										}
+									}
 								}
 							}
 						}
