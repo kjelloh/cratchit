@@ -313,10 +313,11 @@ namespace BAS {
 	} // namespace anonymous
 
 	using VerNo = unsigned int;
+	using OptionalVerNo = std::optional<VerNo>;
 
 	struct JournalEntry {
 		char series;
-		BAS::VerNo verno;
+		OptionalVerNo verno;
 		anonymous::JournalEntry entry;
 	};
 
@@ -345,11 +346,15 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& je
 	return os;
 };
 
+std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
+	if (verno and *verno!=0) os << *verno;
+	else os << " _ ";
+	return os;
+}
+
+
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
-	os << je.series;
-	if (je.verno == 0) os << " _ ";
-	else os << je.verno;
-	os << " " << je.entry;
+	os << je.series << je.verno << " " << je.entry;
 	return os;
 };
 
@@ -587,11 +592,18 @@ public:
 	BASLedger& ledger() {return m_ledger;}
 	BASLedger const& ledger() const {return m_ledger;}
 	void post(BAS::JournalEntry const& je) {
-		m_journals[je.series][je.verno] = je.entry;
-		verno_of_last_posted_to[je.series] = je.verno;
+		if (je.verno) {
+			m_journals[je.series][*je.verno] = je.entry;
+			verno_of_last_posted_to[je.series] = *je.verno;
+		}
+		else {
+			std::cerr << "\nSIEEnvironment::post failed - cant post an entry with null verno";
+		}
 	}
 	std::optional<BAS::JournalEntry> stage(BAS::JournalEntry const& entry) {
-		return this->add(entry);
+		std::optional<BAS::JournalEntry> result{};
+		if (this->already_in_posted(entry) == false) result = this->add(entry);
+		return result;
 	}
 	BAS::JournalEntries unposted() const {
 		// std::cout << "\nunposted()";
@@ -628,6 +640,19 @@ private:
 		return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
 			return (acc<entry.first)?entry.first:acc;
 		});
+	}
+	bool already_in_posted(BAS::JournalEntry const& entry_to_stage) {
+		bool result{false};
+		if (entry_to_stage.verno and *entry_to_stage.verno > 0) {
+			auto journal_iter = m_journals.find(entry_to_stage.series);
+			if (journal_iter != m_journals.end()) {
+				if (entry_to_stage.verno) {
+					auto entry_iter = journal_iter->second.find(*entry_to_stage.verno);
+					result = (entry_iter != journal_iter->second.end());
+				}
+			}
+		}
+		return result;
 	}
 };
 
@@ -1157,7 +1182,7 @@ SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
 
 	SIE::Ver result{
 		.series = jer.series
-		,.verno = jer.verno
+		,.verno = (jer.verno)?*jer.verno:0
 		,.verdate = jer.entry.date
 		,.vertext = jer.entry.caption};
 	for (auto const& trans : jer.entry.account_transactions) {
