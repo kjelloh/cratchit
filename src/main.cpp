@@ -74,9 +74,9 @@ namespace tokenize {
 	};
 
 	TokenID token_id_of(std::string const& s) {
-		const std::regex date_regex("[2-9]\\d{3}([0]\\d|[1][0-2])([0-2]\\d|[3][0-1])");
+		const std::regex date_regex("[2-9]\\d{3}([0]\\d|[1][0-2])([0-2]\\d|[3][0-1])"); // YYYYmmdd
 		if (std::regex_match(s,date_regex)) return TokenID::Date;
-		const std::regex amount_regex("\\d+.\\d\\d");
+		const std::regex amount_regex("^\\d+([.,]\\d\\d?)?$"); // 123 123,1 123.1 123,12 123.12
 		if (std::regex_match(s,amount_regex)) return TokenID::Amount;
 		const std::regex caption_regex("[ -~]+");
 		if (std::regex_match(s,caption_regex)) return TokenID::Caption;
@@ -221,6 +221,14 @@ optional_amount to_amount(std::string const& sAmount) {
 	}
 	else if (is >> amount) {
 		result = amount;
+	}
+	else {
+		// handle integer (no decimal point)
+		try {
+			auto int_amount = std::stoi(sAmount);
+			result = int_amount;
+		}
+		catch (std::exception const& e) { /* failed - do nothing */}
 	}
 	// if (result) std::cout << "\nresult " << *result;
 	return result;
@@ -1325,9 +1333,12 @@ struct Updater {
 		// std::cout << "\noperator(Command)";
 		std::ostringstream prompt{};
 		auto ast = quoted_tokens(command);
-		if (ast.size() > 0) {
-			if (std::all_of(ast[0].begin(),ast[0].end(),[](char ch){return std::isdigit(ch);})) {
-				size_t ix = std::stoi(ast[0]);
+		if (ast.size() > 0) {			
+			int signed_ix{};
+			std::istringstream is{ast[0]};
+			if (is >> signed_ix) {
+				size_t ix = std::abs(signed_ix);
+				bool do_remove = (signed_ix<0);
 				// Act on prompt state index input				
 				switch (model->prompt_state) {
 					case PromptState::Root: {
@@ -1340,19 +1351,26 @@ struct Updater {
 							auto had = to_had(iter->second);
 							if (had) {
 								prompt << "\n" << *had;
-								model->had_index = ix;
-								// model->selected_had= *had;
-								model->template_candidates.clear();
-								for (auto const& je : model->sie.journals()) {
-									auto const& [series,journal] = je;
-									for (auto const& [verno,entry] : journal) {								
-										if (had_matches_trans(*had,entry)) model->template_candidates.push_back({series,verno,entry});
+								if (do_remove) {
+									model->environment.erase(iter);
+									prompt << " REMOVED";
+									model->prompt_state = PromptState::Root;
+								}
+								else {
+									model->had_index = ix;
+									// model->selected_had= *had;
+									model->template_candidates.clear();
+									for (auto const& je : model->sie.journals()) {
+										auto const& [series,journal] = je;
+										for (auto const& [verno,entry] : journal) {								
+											if (had_matches_trans(*had,entry)) model->template_candidates.push_back({series,verno,entry});
+										}
 									}
+									for (int i = 0; i < model->template_candidates.size(); ++i) {
+										prompt << "\n    " << i << " " << model->template_candidates[i];
+									}
+									model->prompt_state = PromptState::JEIndex;
 								}
-								for (int i = 0; i < model->template_candidates.size(); ++i) {
-									prompt << "\n    " << i << " " << model->template_candidates[i];
-								}
-								model->prompt_state = PromptState::JEIndex;
 							}
 						}
 						else {
@@ -1474,6 +1492,9 @@ struct Updater {
 				else {
 					prompt << "\nERROR - Please provide a path to a file";
 				}
+			}
+			else if (ast[0] == "-") {
+				model->prompt_state = PromptState::Root;
 			}
 			else {
 				if (model->prompt_state == PromptState::Amount) {
