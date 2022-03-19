@@ -879,7 +879,8 @@ enum class PromptState {
 	,Unknown
 };
 
-struct ConcreteModel {
+class ConcreteModel {
+public:	
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
@@ -889,7 +890,6 @@ struct ConcreteModel {
 	BAS::AccountTransaction at{};
   std::string prompt{};
 	bool quit{};
-	Environment environment{};
 	SIEEnvironment sie{};
 	HeadingAmountDateTransEntries hads() {
 		HeadingAmountDateTransEntries result{};
@@ -897,12 +897,11 @@ struct ConcreteModel {
 		std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
 			return *to_had(entry.second); // Assume success
 		});
-		std::sort(result.begin(),result.end(),[](auto const& e1,auto const& e2){
-			return (e1.date > e2.date); // sort greater to lesser
-		});
 		return result;
 	}
 	std::filesystem::path staged_sie_file_path{};
+	Environment environment{};
+private:
 };
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
