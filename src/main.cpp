@@ -58,6 +58,14 @@ namespace tokenize {
 		return result;
 	}
 
+	std::vector<std::string> splits(std::string const& s) {
+		std::vector<std::string> result;
+		std::istringstream is{s};
+		std::string token{};
+		while (is >> std::quoted(token)) result.push_back(token);
+		return result; 
+	}
+
 	enum class SplitOn {
 		Undefined
 		,TextAndAmount
@@ -85,7 +93,7 @@ namespace tokenize {
 
 	std::vector<std::string> splits(std::string const& s,SplitOn split_on) {
 		std::vector<std::string> result{};
-		auto spaced_tokens = splits(s,' ');
+		auto spaced_tokens = splits(s);
 		std::vector<TokenID> ids{};
 		for (auto const& s : spaced_tokens) {
 			ids.push_back(token_id_of(s));
@@ -483,11 +491,14 @@ std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 }
 
 bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& je) {
-	auto had_heading_words = tokenize::splits(had.heading,' ');
-	auto je_heading_words = tokenize::splits(je.caption,' ');
+	auto had_heading_words = tokenize::splits(had.heading);
+	auto je_heading_words = tokenize::splits(je.caption);
 	bool result{false};
-	for (auto const& hadw : had_heading_words) {
-		for (auto const& jew : je_heading_words) {
+	for (auto hadw : had_heading_words) {
+		for (auto jew : je_heading_words) {
+			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
+			std::transform(jew.begin(),jew.end(),jew.begin(),::toupper);
+			// std::cout << "\ncompare " << std::quoted(hadw) << " with " << std::quoted(jew);
 			if (hadw == jew) {
 				result = true;
 			}
