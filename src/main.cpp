@@ -897,6 +897,9 @@ struct ConcreteModel {
 		std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
 			return *to_had(entry.second); // Assume success
 		});
+		std::sort(result.begin(),result.end(),[](auto const& e1,auto const& e2){
+			return (e1.date > e2.date); // sort greater to lesser
+		});
 		return result;
 	}
 	std::filesystem::path staged_sie_file_path{};
