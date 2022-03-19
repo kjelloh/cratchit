@@ -863,7 +863,8 @@ enum class PromptState {
 struct ConcreteModel {
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
-	HeadingAmountDateTransEntry selected_had{};
+	size_t had_index{};
+	// HeadingAmountDateTransEntry selected_had{};
 	BAS::JournalEntries template_candidates{};
 	BAS::JournalEntry current_candidate{};
 	BAS::AccountTransaction at{};
@@ -1339,7 +1340,8 @@ struct Updater {
 							auto had = to_had(iter->second);
 							if (had) {
 								prompt << "\n" << *had;
-								model->selected_had= *had;
+								model->had_index = ix;
+								// model->selected_had= *had;
 								model->template_candidates.clear();
 								for (auto const& je : model->sie.journals()) {
 									auto const& [series,journal] = je;
@@ -1362,13 +1364,21 @@ struct Updater {
 						std::advance(iter,ix);
 						auto tp = to_template(*iter);
 						if (tp) {
-							auto je = to_journal_entry(model->selected_had,*tp);
-							unsigned int i{};
-							std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
-								prompt << "\n  " << i++ << " " << at;
-							});
-							model->current_candidate = je;
-							model->prompt_state = PromptState::AccountIndex;
+							auto [iter,end] = model->environment.equal_range("HeadingAmountDateTransEntry");
+							std::advance(iter,model->had_index);
+							if (iter != end) {
+								auto had = to_had(iter->second);
+								if (had) {
+									auto je = to_journal_entry(*had,*tp);
+									// auto je = to_journal_entry(model->selected_had,*tp);
+									unsigned int i{};
+									std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+										prompt << "\n  " << i++ << " " << at;
+									});
+									model->current_candidate = je;
+									model->prompt_state = PromptState::AccountIndex;
+								}
+							}
 						}
 					} break;
 					case PromptState::AccountIndex: {
@@ -1475,6 +1485,12 @@ struct Updater {
 						auto je = model->sie.stage(model->current_candidate);
 						if (je) {
 							prompt << "\n" << *je;
+							// Erase the 'had' we just turned into journal entry and staged
+							auto [iter,end] = model->environment.equal_range("HeadingAmountDateTransEntry");
+							std::advance(iter,model->had_index);
+							if (iter != end) {
+								model->environment.erase(iter);
+							}							
 						}
 						else {
 							prompt << "\n" << "Sorry - This transaction redeemed a duplicate";
