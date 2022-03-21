@@ -884,13 +884,13 @@ public:
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
-	// HeadingAmountDateTransEntry selected_had{};
 	BAS::JournalEntries template_candidates{};
 	BAS::JournalEntry current_candidate{};
 	BAS::AccountTransaction at{};
   std::string prompt{};
 	bool quit{};
 	SIEEnvironment sie{};
+	HeadingAmountDateTransEntries heading_amount_date_entries{};
 	HeadingAmountDateTransEntries hads() {
 		HeadingAmountDateTransEntries result{};
 		auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
@@ -899,6 +899,7 @@ public:
 		});
 		return result;
 	}
+	std::filesystem::path sie_file_path{};
 	std::filesystem::path staged_sie_file_path{};
 	Environment environment{};
 private:
@@ -1479,7 +1480,7 @@ struct Updater {
 			else if (ast[0] == "-had") {
 				if (ast.size()==1) {
 					// Expose current hads (Heading Amount Date transaction entries) to the user
-					auto hads = model->hads();
+					auto& hads = model->heading_amount_date_entries;
 					unsigned int index{0};
 					std::vector<std::string> sHads{};
 					std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
@@ -1601,24 +1602,11 @@ public:
 		: cratchit_file_path{p} {}
 
 	Model init(Command const& command) {		
-		Model model = std::make_unique<ConcreteModel>();
-		model->staged_sie_file_path = "cratchit.se";
 		std::ostringstream prompt{};
 		prompt << "\nInit from ";
 		prompt << cratchit_file_path;
-		model->environment = environment_from_file(cratchit_file_path);
-		if (auto val_iter = model->environment.find("sie_file");val_iter != model->environment.end()) {
-			if (auto key_iter = val_iter->second.find("path"); key_iter != val_iter->second.end()) {
-				std::filesystem::path sie_file_path{key_iter->second};
-				if (auto sie_environment = from_sie_file(sie_file_path)) {
-					model->sie = std::move(*sie_environment);
-				}
-			}			
-		}
-		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
-			model->sie.stage(*sse);
-		}
-
+		auto environment = environment_from_file(cratchit_file_path);
+		auto model = this->model_from_environment(environment);
 		model->prompt_state = PromptState::Root;
 		prompt << prompt_line(model->prompt_state);
 		model->prompt = prompt.str();
@@ -1628,7 +1616,9 @@ public:
 		Updater updater{std::move(model)};
 		auto cmd = std::visit(updater,msg);
 		if (updater.model->quit) {
-			this->environment_to_file(updater.model->environment,cratchit_file_path);
+			auto model_environment = environment_from_model(updater.model);
+			auto cratchit_environment = add_cratchit_environment(model_environment);
+			this->environment_to_file(cratchit_environment,cratchit_file_path);
 			unposted_to_sie_file(updater.model->sie,updater.model->staged_sie_file_path);
 		}
 		return {std::move(updater.model),cmd};
@@ -1640,9 +1630,49 @@ public:
 	}
 private:
 	std::filesystem::path cratchit_file_path{};
+	std::filesystem::path staged_sie_file_path{};
+	HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
+		HeadingAmountDateTransEntries result{};
+		auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
+		std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+			return *to_had(entry.second); // Assume success
+		});
+		return result;
+	}
 	bool is_value_line(std::string const& line) {
 		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
 	}
+	Model model_from_environment(Environment const& environment) {
+		Model model = std::make_unique<ConcreteModel>();
+		if (auto val_iter = environment.find("sie_file");val_iter != environment.end()) {
+			if (auto key_iter = val_iter->second.find("path"); key_iter != val_iter->second.end()) {
+				model->sie_file_path = {key_iter->second};
+			}			
+		}
+		if (auto sie_environment = from_sie_file(model->sie_file_path)) {
+			model->sie = std::move(*sie_environment);
+		}
+		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+			model->sie.stage(*sse);
+		}
+		model->heading_amount_date_entries = this->hads_from_environment(environment);
+		model->environment = environment;
+		return model;
+	}
+	Environment environment_from_model(Model const& model) {
+		Environment result{};
+		for (auto const& entry :  model->heading_amount_date_entries) {
+			result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
+		}
+		result.insert({"sie_file",to_environment_value(std::string("path") + "=" + model->sie_file_path.string())});
+		return result;
+	}
+	Environment add_cratchit_environment(Environment const& environment) {
+		Environment result{environment};
+		// Add cratchit environment values if/when there are any
+		return result;
+	}
+
 	// HeadingAmountDateTransEntry "belopp=1389,50;datum=20221023;rubrik=Klarna"
 	Environment environment_from_file(std::filesystem::path const& p) {
 		Environment result{};
@@ -1659,7 +1689,7 @@ private:
 			}
 		}
 		catch (std::runtime_error const& e) {
-			std::cerr << "\nERROR - Write to " << p << " failed. Exception:" << e.what();
+			std::cerr << "\nERROR - Read from " << p << " failed. Exception:" << e.what();
 		}
 		return result;
 	}
