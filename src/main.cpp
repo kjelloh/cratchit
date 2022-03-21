@@ -891,17 +891,17 @@ public:
 	bool quit{};
 	SIEEnvironment sie{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
-	HeadingAmountDateTransEntries hads() {
-		HeadingAmountDateTransEntries result{};
-		auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
-		std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-			return *to_had(entry.second); // Assume success
-		});
-		return result;
-	}
+	// HeadingAmountDateTransEntries hads() {
+	// 	HeadingAmountDateTransEntries result{};
+	// 	auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
+	// 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+	// 		return *to_had(entry.second); // Assume success
+	// 	});
+	// 	return result;
+	// }
 	std::filesystem::path sie_file_path{};
 	std::filesystem::path staged_sie_file_path{};
-	Environment environment{};
+	// Environment environment{};
 private:
 };
 
@@ -1350,7 +1350,7 @@ struct Updater {
 		if (ast.size() > 0) {			
 			int signed_ix{};
 			std::istringstream is{ast[0]};
-			if (is >> signed_ix) {
+			if (model->prompt_state != PromptState::Amount and is >> signed_ix) {
 				size_t ix = std::abs(signed_ix);
 				bool do_remove = (signed_ix<0);
 				// Act on prompt state index input				
@@ -1395,35 +1395,34 @@ struct Updater {
 						std::advance(iter,ix);
 						auto tp = to_template(*iter);
 						if (tp) {
-							auto [iter,end] = model->environment.equal_range("HeadingAmountDateTransEntry");
+							auto iter = model->heading_amount_date_entries.begin();
+							auto end = model->heading_amount_date_entries.end();
 							std::advance(iter,model->had_index);
 							if (iter != end) {
-								auto had = to_had(iter->second);
-								if (had) {
-									auto je = to_journal_entry(*had,*tp);
-									// auto je = to_journal_entry(model->selected_had,*tp);
-									if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
-										return std::abs(at.amount) < 1.0;
-									})) {
-										// Assume we need to specify rounding
-										unsigned int i{};
-										std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
-											prompt << "\n  " << i++ << " " << at;
-										});
-										model->current_candidate = je;
-										model->prompt_state = PromptState::AccountIndex;
+								auto had = *iter;
+								auto je = to_journal_entry(had,*tp);
+								// auto je = to_journal_entry(model->selected_had,*tp);
+								if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
+									return std::abs(at.amount) < 1.0;
+								})) {
+									// Assume we need to specify rounding
+									unsigned int i{};
+									std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+										prompt << "\n  " << i++ << " " << at;
+									});
+									model->current_candidate = je;
+									model->prompt_state = PromptState::AccountIndex;
+								}
+								else {
+									auto staged_je = model->sie.stage(je);
+									if (staged_je) {
+										prompt << "\n" << *staged_je << " STAGED";
+										model->heading_amount_date_entries.erase(iter);
+										model->prompt_state = PromptState::HADIndex;
 									}
 									else {
-										auto staged_je = model->sie.stage(je);
-										if (staged_je) {
-											prompt << "\n" << *staged_je << " STAGED";
-											model->environment.erase(iter);
-											model->prompt_state = PromptState::HADIndex;
-										}
-										else {
-											prompt << "\nSORRY - Failed to stage entry";
-											model->prompt_state = PromptState::Root;
-										}
+										prompt << "\nSORRY - Failed to stage entry";
+										model->prompt_state = PromptState::Root;
 									}
 								}
 							}
@@ -1438,9 +1437,6 @@ struct Updater {
 					}
 				}
 			}
-			else if (ast[0] == "-env") {
-				prompt << model->environment;
-			}
 			else if (ast[0] == "-sie") {
 				// Import sie and add as base of our environment
 				if (ast.size()==1) {
@@ -1454,9 +1450,8 @@ struct Updater {
 					std::filesystem::path sie_file_path{sie_file_name};
 					if (std::filesystem::exists(sie_file_path)) {
 						if (auto sie_env = from_sie_file(sie_file_path)) {
+							model->sie_file_path = sie_file_path;
 							model->sie = std::move(*sie_env);
-							if (model->environment.count("sie_file")>0) model->environment.erase("sie_file"); // There can be only one :)
-							model->environment.insert(std::make_pair("sie_file",to_environment_value(std::string("path") + "=" + sie_file_path.string()))); // new one
 							// Log
 							// std::cout << model->sie;
 							if (auto sse = from_sie_file(model->staged_sie_file_path)) {
@@ -1514,9 +1509,7 @@ struct Updater {
 						// std::cout << "\ncsv file exists ok";
 						CSV::NORDEA::istream in{ifs};
 						auto hads = CSV::from_stream(in);
-						std::transform(hads.begin(),hads.end(),std::inserter(model->environment,model->environment.end()),[](auto const& had){
-							return std::pair{"HeadingAmountDateTransEntry",to_environment_value(had)};
-						});
+						std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
 					}
 				}
 				else {
@@ -1527,26 +1520,34 @@ struct Updater {
 				model->prompt_state = PromptState::Root;
 			}
 			else {
+				std::cout << "\nHAD";
 				if (model->prompt_state == PromptState::Amount) {
+					std::cout << "\nPromptState::Amount " << std::quoted(command);
 					try {
 						auto amount = to_amount(command);
-						prompt << "\nAmount " << *amount;
-						model->at.amount = *amount;
-						model->current_candidate = updated_entry(model->current_candidate,model->at);
-						auto je = model->sie.stage(model->current_candidate);
-						if (je) {
-							prompt << "\n" << *je;
-							// Erase the 'had' we just turned into journal entry and staged
-							auto [iter,end] = model->environment.equal_range("HeadingAmountDateTransEntry");
-							std::advance(iter,model->had_index);
-							if (iter != end) {
-								model->environment.erase(iter);
-							}							
+						if (amount) {
+							prompt << "\nAmount " << *amount;
+							model->at.amount = *amount;
+							model->current_candidate = updated_entry(model->current_candidate,model->at);
+							auto je = model->sie.stage(model->current_candidate);
+							if (je) {
+								prompt << "\n" << *je;
+								// Erase the 'had' we just turned into journal entry and staged
+								auto iter = model->heading_amount_date_entries.begin();
+								auto end = model->heading_amount_date_entries.end();
+								std::advance(iter,model->had_index);
+								if (iter != end) {
+									model->heading_amount_date_entries.erase(iter);
+								}							
+							}
+							else {
+								prompt << "\n" << "Sorry - This transaction redeemed a duplicate";
+							}
+							model->prompt_state = PromptState::Root;
 						}
 						else {
-							prompt << "\n" << "Sorry - This transaction redeemed a duplicate";
+							prompt << "\nNot an amount - " << std::quoted(command);
 						}
-						model->prompt_state = PromptState::Root;
 					}
 					catch (std::exception const& e) {
 						prompt << "\nERROR - " << e.what();
@@ -1563,8 +1564,7 @@ struct Updater {
 							,.date = *to_date(tokens[2]) // Assume success
 						};
 						prompt << "\n" << had;
-						auto ev = to_environment_value(had);
-						model->environment.insert(std::make_pair("HeadingAmountDateTransEntry",ev));
+						model->heading_amount_date_entries.push_back(had);
 					}
 					else {
 						prompt << "\nERROR - Expected Caption + Amount + Date";
@@ -1655,7 +1655,6 @@ private:
 			model->sie.stage(*sse);
 		}
 		model->heading_amount_date_entries = this->hads_from_environment(environment);
-		model->environment = environment;
 		return model;
 	}
 	Environment environment_from_model(Model const& model) {
