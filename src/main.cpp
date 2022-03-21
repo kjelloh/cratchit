@@ -1359,32 +1359,31 @@ struct Updater {
 
 					} break;
 					case PromptState::HADIndex: {
-						auto [iter,end] = model->environment.equal_range("HeadingAmountDateTransEntry");
+						auto iter = model->heading_amount_date_entries.begin();
+						auto end = model->heading_amount_date_entries.end();
 						std::advance(iter,ix);
 						if (iter != end) {
-							auto had = to_had(iter->second);
-							if (had) {
-								prompt << "\n" << *had;
-								if (do_remove) {
-									model->environment.erase(iter);
-									prompt << " REMOVED";
-									model->prompt_state = PromptState::Root;
-								}
-								else {
-									model->had_index = ix;
-									// model->selected_had= *had;
-									model->template_candidates.clear();
-									for (auto const& je : model->sie.journals()) {
-										auto const& [series,journal] = je;
-										for (auto const& [verno,entry] : journal) {								
-											if (had_matches_trans(*had,entry)) model->template_candidates.push_back({series,verno,entry});
-										}
+							auto had = *iter;
+							prompt << "\n" << had;
+							if (do_remove) {
+								model->heading_amount_date_entries.erase(iter);
+								prompt << " REMOVED";
+								model->prompt_state = PromptState::Root;
+							}
+							else {
+								model->had_index = ix;
+								// model->selected_had= *had;
+								model->template_candidates.clear();
+								for (auto const& je : model->sie.journals()) {
+									auto const& [series,journal] = je;
+									for (auto const& [verno,entry] : journal) {								
+										if (had_matches_trans(had,entry)) model->template_candidates.push_back({series,verno,entry});
 									}
-									for (int i = 0; i < model->template_candidates.size(); ++i) {
-										prompt << "\n    " << i << " " << model->template_candidates[i];
-									}
-									model->prompt_state = PromptState::JEIndex;
 								}
+								for (int i = 0; i < model->template_candidates.size(); ++i) {
+									prompt << "\n    " << i << " " << model->template_candidates[i];
+								}
+								model->prompt_state = PromptState::JEIndex;
 							}
 						}
 						else {
