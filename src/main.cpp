@@ -490,10 +490,10 @@ std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	return os;
 }
 
-bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& je) {
-	auto had_heading_words = tokenize::splits(had.heading);
-	auto je_heading_words = tokenize::splits(je.caption);
+bool share_tokens(std::string const& s1,std::string const& s2) {
 	bool result{false};
+	auto had_heading_words = tokenize::splits(s1);
+	auto je_heading_words = tokenize::splits(s2);
 	for (auto hadw : had_heading_words) {
 		for (auto jew : je_heading_words) {
 			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
@@ -506,6 +506,25 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 	}
 	return result;
 }
+
+bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& je) {
+	return share_tokens(had.heading,je.caption);
+}
+BAS::JournalEntries template_candidates(BASJournals const& journals,auto const& matches) {
+	std::cout << "\ntemplate_candidates";
+	BAS::JournalEntries result{};
+	for (auto const& je : journals) {
+		auto const& [series,journal] = je;
+		for (auto const& [verno,entry] : journal) {								
+			if (matches(entry)) result.push_back({series,verno,entry});
+		}
+	}
+	std::ranges::sort(result,[](auto const& je1,auto const& je2){
+		return (je1.entry.date < je2.entry.date);
+	});
+	return result;
+}
+
 // ==================================================================================
 
 bool same_whole_units(Amount const& a1,Amount const& a2) {
@@ -1327,6 +1346,10 @@ std::string prompt_line(PromptState const& prompt_state) {
 	return prompt.str();
 }
 
+auto falling_date = [](auto const& had1,auto const& had2){
+	return (had1.date > had2.date);
+};
+
 struct Updater {
 	Model model;
 	Cmd operator()(Key const& key) {
@@ -1372,14 +1395,9 @@ struct Updater {
 							}
 							else {
 								model->had_index = ix;
-								// model->selected_had= *had;
-								model->template_candidates.clear();
-								for (auto const& je : model->sie.journals()) {
-									auto const& [series,journal] = je;
-									for (auto const& [verno,entry] : journal) {								
-										if (had_matches_trans(had,entry)) model->template_candidates.push_back({series,verno,entry});
-									}
-								}
+								model->template_candidates = template_candidates(model->sie.journals(),[had](BAS::anonymous::JournalEntry const& je){
+									return had_matches_trans(had,je);
+								});
 								for (int i = 0; i < model->template_candidates.size(); ++i) {
 									prompt << "\n    " << i << " " << model->template_candidates[i];
 								}
@@ -1392,40 +1410,46 @@ struct Updater {
 					} break;
 					case PromptState::JEIndex: {
 						auto iter = model->template_candidates.begin();
+						auto end = model->template_candidates.end();
 						std::advance(iter,ix);
-						auto tp = to_template(*iter);
-						if (tp) {
-							auto iter = model->heading_amount_date_entries.begin();
-							auto end = model->heading_amount_date_entries.end();
-							std::advance(iter,model->had_index);
-							if (iter != end) {
-								auto had = *iter;
-								auto je = to_journal_entry(had,*tp);
-								// auto je = to_journal_entry(model->selected_had,*tp);
-								if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
-									return std::abs(at.amount) < 1.0;
-								})) {
-									// Assume we need to specify rounding
-									unsigned int i{};
-									std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
-										prompt << "\n  " << i++ << " " << at;
-									});
-									model->current_candidate = je;
-									model->prompt_state = PromptState::AccountIndex;
-								}
-								else {
-									auto staged_je = model->sie.stage(je);
-									if (staged_je) {
-										prompt << "\n" << *staged_je << " STAGED";
-										model->heading_amount_date_entries.erase(iter);
-										model->prompt_state = PromptState::HADIndex;
+						if (iter != end) {
+							auto tp = to_template(*iter);
+							if (tp) {
+								auto iter = model->heading_amount_date_entries.begin();
+								auto end = model->heading_amount_date_entries.end();
+								std::advance(iter,model->had_index);
+								if (iter != end) {
+									auto had = *iter;
+									auto je = to_journal_entry(had,*tp);
+									// auto je = to_journal_entry(model->selected_had,*tp);
+									if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
+										return std::abs(at.amount) < 1.0;
+									})) {
+										// Assume we need to specify rounding
+										unsigned int i{};
+										std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+											prompt << "\n  " << i++ << " " << at;
+										});
+										model->current_candidate = je;
+										model->prompt_state = PromptState::AccountIndex;
 									}
 									else {
-										prompt << "\nSORRY - Failed to stage entry";
-										model->prompt_state = PromptState::Root;
+										auto staged_je = model->sie.stage(je);
+										if (staged_je) {
+											prompt << "\n" << *staged_je << " STAGED";
+											model->heading_amount_date_entries.erase(iter);
+											model->prompt_state = PromptState::HADIndex;
+										}
+										else {
+											prompt << "\nSORRY - Failed to stage entry";
+											model->prompt_state = PromptState::Root;
+										}
 									}
 								}
 							}
+						}
+						else {
+							prompt << "\nPlease enter a valid index";
 						}
 					} break;
 					case PromptState::AccountIndex: {
@@ -1474,6 +1498,7 @@ struct Updater {
 			else if (ast[0] == "-had") {
 				if (ast.size()==1) {
 					// Expose current hads (Heading Amount Date transaction entries) to the user
+					std::ranges::sort(model->heading_amount_date_entries,falling_date);
 					auto& hads = model->heading_amount_date_entries;
 					unsigned int index{0};
 					std::vector<std::string> sHads{};
@@ -1520,8 +1545,16 @@ struct Updater {
 				model->prompt_state = PromptState::Root;
 			}
 			else {
-				std::cout << "\nHAD";
-				if (model->prompt_state == PromptState::Amount) {
+				if (model->prompt_state == PromptState::JEIndex) {
+					// Assume the user has entered a new search criteria for template candidates
+					model->template_candidates = template_candidates(model->sie.journals(),[command](BAS::anonymous::JournalEntry const& je){
+						return share_tokens(command,je.caption);
+					});
+					for (int i = 0; i < model->template_candidates.size(); ++i) {
+						prompt << "\n    " << i << " " << model->template_candidates[i];
+					}
+				}
+				else if (model->prompt_state == PromptState::Amount) {
 					std::cout << "\nPromptState::Amount " << std::quoted(command);
 					try {
 						auto amount = to_amount(command);
@@ -1565,6 +1598,7 @@ struct Updater {
 						};
 						prompt << "\n" << had;
 						model->heading_amount_date_entries.push_back(had);
+						// Decided NOT to sort hads here to keep last listed had indexes intact (new -had command = sort and new indexes)
 					}
 					else {
 						prompt << "\nERROR - Expected Caption + Amount + Date";
