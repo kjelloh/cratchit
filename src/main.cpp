@@ -491,7 +491,7 @@ std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	return os;
 }
 
-bool share_tokens(std::string const& s1,std::string const& s2) {
+bool do_share_tokens(std::string const& s1,std::string const& s2) {
 	bool result{false};
 	auto had_heading_words = tokenize::splits(s1);
 	auto je_heading_words = tokenize::splits(s2);
@@ -509,10 +509,10 @@ bool share_tokens(std::string const& s1,std::string const& s2) {
 }
 
 bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& je) {
-	return share_tokens(had.heading,je.caption);
+	return do_share_tokens(had.heading,je.caption);
 }
 BAS::JournalEntries template_candidates(BASJournals const& journals,auto const& matches) {
-	std::cout << "\ntemplate_candidates";
+	// std::cout << "\ntemplate_candidates";
 	BAS::JournalEntries result{};
 	for (auto const& je : journals) {
 		auto const& [series,journal] = je;
@@ -1343,7 +1343,8 @@ auto falling_date = [](auto const& had1,auto const& had2){
 	return (had1.date > had2.date);
 };
 
-struct Updater {
+class Updater {
+public:
 	Model model;
 	Cmd operator()(Key const& key) {
 		// std::cout << "\noperator(Key)";
@@ -1388,7 +1389,10 @@ struct Updater {
 							}
 							else {
 								model->had_index = ix;
-								model->template_candidates = template_candidates(model->sie["current"].journals(),[had](BAS::anonymous::JournalEntry const& je){
+								// model->template_candidates = template_candidates(model->sie["current"].journals(),[had](BAS::anonymous::JournalEntry const& je){
+								// 	return had_matches_trans(had,je);
+								// });
+								model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& je){
 									return had_matches_trans(had,je);
 								});
 								for (int i = 0; i < model->template_candidates.size(); ++i) {
@@ -1562,9 +1566,13 @@ struct Updater {
 			else {
 				if (model->prompt_state == PromptState::JEIndex) {
 					// Assume the user has entered a new search criteria for template candidates
-					model->template_candidates = template_candidates(model->sie["current"].journals(),[command](BAS::anonymous::JournalEntry const& je){
-						return share_tokens(command,je.caption);
+					// model->template_candidates = template_candidates(model->sie["current"].journals(),[command](BAS::anonymous::JournalEntry const& je){
+					// 	return do_share_tokens(command,je.caption);
+					// });
+					model->template_candidates = this->all_years_template_candidates([command](BAS::anonymous::JournalEntry const& je){
+						return do_share_tokens(command,je.caption);
 					});
+					
 					for (int i = 0; i < model->template_candidates.size(); ++i) {
 						prompt << "\n    " << i << " " << model->template_candidates[i];
 					}
@@ -1644,6 +1652,19 @@ struct Updater {
 		model->prompt = prompt.str();
 		return {};
 	}	
+private:
+	BAS::JournalEntries all_years_template_candidates(auto const& matches) {
+		BAS::JournalEntries result{};
+		for (auto const& [year_key,sie] : model->sie) {
+			auto jes = template_candidates(sie.journals(),matches);
+			std::ranges::copy(jes,std::back_inserter(result));
+		}
+		std::ranges::sort(result,[](auto const& je1,auto const& je2){
+			return (je1.entry.date < je2.entry.date);
+		});
+		return result;
+	}
+
 };
 
 class Cratchit {
