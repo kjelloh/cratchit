@@ -84,7 +84,7 @@ namespace tokenize {
 	TokenID token_id_of(std::string const& s) {
 		const std::regex date_regex("[2-9]\\d{3}([0]\\d|[1][0-2])([0-2]\\d|[3][0-1])"); // YYYYmmdd
 		if (std::regex_match(s,date_regex)) return TokenID::Date;
-		const std::regex amount_regex("^\\d+([.,]\\d\\d?)?$"); // 123 123,1 123.1 123,12 123.12
+		const std::regex amount_regex("^-?\\d+([.,]\\d\\d?)?$"); // 123 123,1 123.1 123,12 123.12
 		if (std::regex_match(s,amount_regex)) return TokenID::Amount;
 		const std::regex caption_regex("[ -~]+");
 		if (std::regex_match(s,caption_regex)) return TokenID::Caption;
@@ -92,6 +92,7 @@ namespace tokenize {
 	}
 
 	std::vector<std::string> splits(std::string const& s,SplitOn split_on) {
+		std::cout << "\nsplits(std::string const& s,SplitOn split_on)";
 		std::vector<std::string> result{};
 		auto spaced_tokens = splits(s);
 		std::vector<TokenID> ids{};
@@ -99,7 +100,7 @@ namespace tokenize {
 			ids.push_back(token_id_of(s));
 		}
 		for (int i=0;i<spaced_tokens.size();++i) {
-			// std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
+			std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
 		}
 		switch (split_on) {
 			case SplitOn::TextAmountAndDate: {
@@ -908,17 +909,9 @@ public:
 	BAS::AccountTransaction at{};
   std::string prompt{};
 	bool quit{};
-	SIEEnvironment sie{};
+	std::map<std::string,std::filesystem::path> sie_file_path{};
+	std::map<std::string,SIEEnvironment> sie{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
-	// HeadingAmountDateTransEntries hads() {
-	// 	HeadingAmountDateTransEntries result{};
-	// 	auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
-	// 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-	// 		return *to_had(entry.second); // Assume success
-	// 	});
-	// 	return result;
-	// }
-	std::filesystem::path sie_file_path{};
 	std::filesystem::path staged_sie_file_path{};
 	// Environment environment{};
 private:
@@ -1395,7 +1388,7 @@ struct Updater {
 							}
 							else {
 								model->had_index = ix;
-								model->template_candidates = template_candidates(model->sie.journals(),[had](BAS::anonymous::JournalEntry const& je){
+								model->template_candidates = template_candidates(model->sie["current"].journals(),[had](BAS::anonymous::JournalEntry const& je){
 									return had_matches_trans(had,je);
 								});
 								for (int i = 0; i < model->template_candidates.size(); ++i) {
@@ -1434,7 +1427,7 @@ struct Updater {
 										model->prompt_state = PromptState::AccountIndex;
 									}
 									else {
-										auto staged_je = model->sie.stage(je);
+										auto staged_je = model->sie["current"].stage(je);
 										if (staged_je) {
 											prompt << "\n" << *staged_je << " STAGED";
 											model->heading_amount_date_entries.erase(iter);
@@ -1465,25 +1458,47 @@ struct Updater {
 				// Import sie and add as base of our environment
 				if (ast.size()==1) {
 					// List current sie environment
-					prompt << model->sie;					
-					// std::cout << model->sie;
+					prompt << model->sie["current"];					
+					// std::cout << model->sie["current"];
 				}
-				else if (ast.size()>1) {
-					// assume -sie <file path>
-					auto sie_file_name = ast[1];
+				else if (ast.size()==2) {
+					if (model->sie.contains(ast[1])) prompt << model->sie[ast[1]];
+					else {
+						// assume -sie <file path>
+						auto sie_file_name = ast[1];
+						std::filesystem::path sie_file_path{sie_file_name};
+						if (std::filesystem::exists(sie_file_path)) {
+							if (auto sie_env = from_sie_file(sie_file_path)) {
+								model->sie_file_path["current"] = sie_file_path;
+								model->sie["current"] = std::move(*sie_env);
+								// Log
+								// std::cout << model->sie["current"];
+								if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+									auto unstaged = model->sie["current"].stage(*sse);
+									for (auto const& je : unstaged) {
+										prompt << "\nnow posted " << je; 
+									}
+								}							
+							}
+							else {
+								// failed to parse sie-file into an SIE Environment 
+								prompt << "\nERROR - Failed to import sie file " << sie_file_path;
+							}
+						}
+						else {
+							prompt << "\nERROR: File does not exist or is not a valid sie-file: " << sie_file_path;
+						}
+					}
+				}
+				else if (ast.size()==3) {
+					auto year_key = ast[1];
+					auto sie_file_name = ast[2];
 					std::filesystem::path sie_file_path{sie_file_name};
 					if (std::filesystem::exists(sie_file_path)) {
 						if (auto sie_env = from_sie_file(sie_file_path)) {
-							model->sie_file_path = sie_file_path;
-							model->sie = std::move(*sie_env);
-							// Log
-							// std::cout << model->sie;
-							if (auto sse = from_sie_file(model->staged_sie_file_path)) {
-								auto unstaged = model->sie.stage(*sse);
-								for (auto const& je : unstaged) {
-									prompt << "\nnow posted " << je; 
-								}
-							}							
+							model->sie_file_path[year_key] = sie_file_path;
+							model->sie[year_key] = std::move(*sie_env);
+							prompt << "\nimported year id " << year_key << " from sie-file " << sie_file_path << " OK";
 						}
 						else {
 							// failed to parse sie-file into an SIE Environment 
@@ -1547,7 +1562,7 @@ struct Updater {
 			else {
 				if (model->prompt_state == PromptState::JEIndex) {
 					// Assume the user has entered a new search criteria for template candidates
-					model->template_candidates = template_candidates(model->sie.journals(),[command](BAS::anonymous::JournalEntry const& je){
+					model->template_candidates = template_candidates(model->sie["current"].journals(),[command](BAS::anonymous::JournalEntry const& je){
 						return share_tokens(command,je.caption);
 					});
 					for (int i = 0; i < model->template_candidates.size(); ++i) {
@@ -1562,7 +1577,7 @@ struct Updater {
 							prompt << "\nAmount " << *amount;
 							model->at.amount = *amount;
 							model->current_candidate = updated_entry(model->current_candidate,model->at);
-							auto je = model->sie.stage(model->current_candidate);
+							auto je = model->sie["current"].stage(model->current_candidate);
 							if (je) {
 								prompt << "\n" << *je;
 								// Erase the 'had' we just turned into journal entry and staged
@@ -1588,9 +1603,11 @@ struct Updater {
 					}
 				}
 				else {
+					std::cout << "\nAssume Caption + Amount + Date : " << command;
 					// Assume Caption + Amount + Date
 					auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
 					if (tokens.size()==3) {
+						std::cout << "\nthree tokens OK";
 						HeadingAmountDateTransEntry had {
 							.heading = tokens[0]
 							,.amount = *to_amount(tokens[1]) // Assume success
@@ -1652,7 +1669,7 @@ public:
 			auto model_environment = environment_from_model(updater.model);
 			auto cratchit_environment = add_cratchit_environment(model_environment);
 			this->environment_to_file(cratchit_environment,cratchit_file_path);
-			unposted_to_sie_file(updater.model->sie,updater.model->staged_sie_file_path);
+			unposted_to_sie_file(updater.model->sie["current"],updater.model->staged_sie_file_path);
 		}
 		return {std::move(updater.model),cmd};
 	}
@@ -1678,15 +1695,16 @@ private:
 	Model model_from_environment(Environment const& environment) {
 		Model model = std::make_unique<ConcreteModel>();
 		if (auto val_iter = environment.find("sie_file");val_iter != environment.end()) {
-			if (auto key_iter = val_iter->second.find("path"); key_iter != val_iter->second.end()) {
-				model->sie_file_path = {key_iter->second};
-			}			
-		}
-		if (auto sie_environment = from_sie_file(model->sie_file_path)) {
-			model->sie = std::move(*sie_environment);
+			for (auto const& [year_key,sie_file_name] : val_iter->second) {
+				std::filesystem::path sie_file_path{sie_file_name};
+				if (auto sie_environment = from_sie_file(sie_file_path)) {
+					model->sie[year_key] = std::move(*sie_environment);
+					model->sie_file_path[year_key] = {sie_file_name};		
+				}
+			}
 		}
 		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
-			model->sie.stage(*sse);
+			model->sie["current"].stage(*sse);
 		}
 		model->heading_amount_date_entries = this->hads_from_environment(environment);
 		return model;
@@ -1696,7 +1714,14 @@ private:
 		for (auto const& entry :  model->heading_amount_date_entries) {
 			result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
 		}
-		result.insert({"sie_file",to_environment_value(std::string("path") + "=" + model->sie_file_path.string())});
+		std::string sev = std::accumulate(model->sie_file_path.begin(),model->sie_file_path.end(),std::string{},[](auto acc,auto const& entry){
+			std::ostringstream os{};
+			if (acc.size()>0) os << acc << ";";
+			os << entry.first << "=" << entry.second.string();
+			return os.str();
+		});
+		sev += std::string{";"} + "path" + "=" + model->sie_file_path["current"].string();
+		result.insert({"sie_file",to_environment_value(sev)});
 		return result;
 	}
 	Environment add_cratchit_environment(Environment const& environment) {
