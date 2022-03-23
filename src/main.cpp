@@ -479,7 +479,7 @@ BAS::JournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,Journa
 	result.series = jet.series();
 	result.entry.caption = had.heading;
 	result.entry.date = had.date;
-	result.entry.account_transactions = jet(had.amount);
+	result.entry.account_transactions = jet(std::abs(had.amount)); // Ignore sign to have template apply its sign
 	return result;
 }
 
