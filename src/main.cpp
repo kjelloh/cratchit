@@ -281,6 +281,8 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 }
 
 using BASAccountNo = unsigned int;
+using OptionalBASAccountNo = std::optional<BASAccountNo>;
+
 // The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
 class BASLedger {
 public:
@@ -362,7 +364,29 @@ namespace BAS {
 				return me.is_unposted;
 			}
 		};
+
+		struct contains_account{
+			BASAccountNo account_no;
+			bool operator()(MetaEntry const& me) {
+				return std::any_of(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[this](auto const& at){
+					return (this->account_no == at.account_no);
+				});
+			}
+		};
+
 	}
+
+	OptionalBASAccountNo to_account_no(std::string const& s) {
+		OptionalBASAccountNo result{};
+		if (s.size()==4) {
+			if (std::all_of(s.begin(),s.end(),::isalnum)) {
+				auto account_no = std::stoi(s);
+				if (account_no >= 1000) result = account_no;
+			}
+		}
+		return result;
+	}
+
 } // namespace BAS
 
 std::ostream& operator<<(std::ostream& os,BAS::AccountTransaction const& at) {
@@ -1563,6 +1587,11 @@ public:
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_series{required_series}};
 						prompt << filtered_sie;
 					}
+					else if (auto account_no = BAS::to_account_no(ast[1])) {
+						// Assume "-sie <account no>"
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::contains_account{*account_no}};
+						prompt << filtered_sie;
+					}
 					else {
 						// assume -sie <file path>
 						auto sie_file_name = ast[1];
@@ -1592,22 +1621,35 @@ public:
 				}
 				else if (ast.size()==3) {
 					auto year_key = ast[1];
-					auto sie_file_name = ast[2];
-					std::filesystem::path sie_file_path{sie_file_name};
-					if (std::filesystem::exists(sie_file_path)) {
-						if (auto sie_env = from_sie_file(sie_file_path)) {
-							model->sie_file_path[year_key] = sie_file_path;
-							model->sie[year_key] = std::move(*sie_env);
-							prompt << "\nimported year id " << year_key << " from sie-file " << sie_file_path << " OK";
+					if (auto account_no = BAS::to_account_no(ast[2])) {
+						// assume "-sie <year-id> <account no>"
+						if (model->sie.contains(year_key)) {
+							FilteredSIEEnvironment filtered_sie{model->sie[year_key],BAS::filter::contains_account{*account_no}};
+							prompt << filtered_sie;
 						}
 						else {
-							// failed to parse sie-file into an SIE Environment 
-							prompt << "\nERROR - Failed to import sie file " << sie_file_path;
+							prompt << "\nYear identifier " << year_key << " is not associated with any data";
 						}
-					}
+					}	
 					else {
-						prompt << "\nERROR: File does not exist or is not a valid sie-file: " << sie_file_path;
-					}
+						// Assume "-sie <year id> <sie file name>"
+						auto sie_file_name = ast[2];
+						std::filesystem::path sie_file_path{sie_file_name};
+						if (std::filesystem::exists(sie_file_path)) {
+							if (auto sie_env = from_sie_file(sie_file_path)) {
+								model->sie_file_path[year_key] = sie_file_path;
+								model->sie[year_key] = std::move(*sie_env);
+								prompt << "\nimported year id " << year_key << " from sie-file " << sie_file_path << " OK";
+							}
+							else {
+								// failed to parse sie-file into an SIE Environment 
+								prompt << "\nERROR - Failed to import sie file " << sie_file_path;
+							}
+						}
+						else {
+							prompt << "\nERROR: File does not exist or is not a valid sie-file: " << sie_file_path;
+						}
+					}				
 				}
 			}
 			else if (ast[0] == "-had") {
@@ -1758,7 +1800,6 @@ private:
 		});
 		return result;
 	}
-
 };
 
 class Cratchit {
