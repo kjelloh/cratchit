@@ -331,9 +331,10 @@ namespace BAS {
 
 	using VerNo = unsigned int;
 	using OptionalVerNo = std::optional<VerNo>;
+	using Series = char;
 
 	struct JournalEntry {
-		char series;
+		Series series;
 		OptionalVerNo verno;
 		anonymous::JournalEntry entry;
 	};
@@ -428,7 +429,7 @@ using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
 class JournalEntryTemplate {
 public:
 
-	JournalEntryTemplate(char series,BAS::JournalEntry const& bje) : m_series{series} {
+	JournalEntryTemplate(BAS::Series series,BAS::JournalEntry const& bje) : m_series{series} {
 		auto gross_amount = std::accumulate(bje.entry.account_transactions.begin(),bje.entry.account_transactions.end(),Amount{},[](Amount acc,BAS::AccountTransaction const& account_transaction){
 			acc += (account_transaction.amount>0)?account_transaction.amount:0;
 			return acc;
@@ -448,7 +449,7 @@ public:
 		}
 	}
 
-	char series() const {return m_series;}
+	BAS::Series series() const {return m_series;}
 
 	BAS::AccountTransactions operator()(Amount amount) const {
 		BAS::AccountTransactions result{};
@@ -459,7 +460,7 @@ public:
 	}
 	friend std::ostream& operator<<(std::ostream&, JournalEntryTemplate const&);
 private:
-	char m_series;
+	BAS::Series m_series;
 	AccountTransactionTemplates templates{};
 };
 
@@ -630,6 +631,11 @@ public:
 	BASJournals const& journals() const {return m_journals;}
 	BASLedger& ledger() {return m_ledger;}
 	BASLedger const& ledger() const {return m_ledger;}
+	bool is_unposted(BAS::Series series, BAS::VerNo verno) const {
+		bool result{true};
+		if (verno_of_last_posted_to.contains(series)) result = verno > this->verno_of_last_posted_to.at(series);
+		return result;
+	}
 	void post(BAS::JournalEntry const& je) {
 		if (je.verno) {
 			m_journals[je.series][*je.verno] = je.entry;
@@ -687,7 +693,7 @@ private:
 		m_journals[je.series][verno] = je.entry;
 		return result;
 	}
-	BAS::VerNo largest_verno(char series) {
+	BAS::VerNo largest_verno(BAS::Series series) {
 		auto const& journal = m_journals[series];
 		return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
 			return (acc<entry.first)?entry.first:acc;
@@ -912,7 +918,7 @@ public:
 	std::map<std::string,std::filesystem::path> sie_file_path{};
 	std::map<std::string,SIEEnvironment> sie{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
-	std::filesystem::path staged_sie_file_path{};
+	std::filesystem::path staged_sie_file_path{"cratchit.se"};
 	// Environment environment{};
 private:
 };
@@ -984,7 +990,7 @@ namespace SIE {
 		// Spec: #VER series verno verdate vertext regdate sign
 		// Ex:   #VER A 3 20210510 "Beanstalk" 20210817
 		std::string tag;
-		char series;
+		BAS::Series series;
 		BAS::VerNo verno;
 		std::chrono::year_month_day verdate;
 		std::string vertext;
@@ -1223,7 +1229,7 @@ SIE::Trans to_sie_t(BAS::AccountTransaction const& trans) {
 
 SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
 		/*
-		char series;
+		Series series;
 		BAS::VerNo verno;
 		std::chrono::year_month_day verdate;
 		std::string vertext;
@@ -1243,9 +1249,11 @@ SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
 std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
 	for (auto const& je : sie_environment.journals()) {
 		auto& [series,journal] = je;
-		os << "\nJOURNAL " << series;
 		for (auto const& [verno,entry] : journal) {
-			os << "\nentry:" << verno << " " << to_string(entry);
+			os << "\n";
+			if (sie_environment.is_unposted(series,verno)) os << "*";
+			else os << " ";
+			os << " " << series << verno << " " << to_string(entry);
 		}
 	}
 	return os;
@@ -1292,6 +1300,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 }
 
 void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
+	std::cout << "\nunposted_to_sie_file " << p;
 	std::ofstream os{p};
 	SIE::ostream sieos{os};
 	// auto now = std::chrono::utc_clock::now();
@@ -1300,6 +1309,7 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now_local = localtime(&now_timet);
 	sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	for (auto const& entry : sie.unposted()) {
+		std::cout << entry; 
 		sieos << to_sie_t(entry);
 	}
 }
@@ -1701,7 +1711,6 @@ public:
 	}
 private:
 	std::filesystem::path cratchit_file_path{};
-	std::filesystem::path staged_sie_file_path{};
 	HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
 		HeadingAmountDateTransEntries result{};
 		auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
