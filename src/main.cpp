@@ -326,7 +326,6 @@ namespace BAS {
 		};
 
 		using JournalEntries = std::vector<JournalEntry>;
-
 	} // namespace anonymous
 
 	using VerNo = unsigned int;
@@ -340,6 +339,24 @@ namespace BAS {
 	};
 
 	using JournalEntries = std::vector<JournalEntry>;
+
+	struct MetaEntry {
+		bool is_posted;
+		BAS::Series series;
+		BAS::VerNo verno;
+		BAS::anonymous::JournalEntry const& aje;
+	};
+
+	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
+
+	namespace filter {
+		struct is_series {
+			BAS::Series required_series;
+			bool operator()(MetaEntry const& me) {
+				return (me.series == required_series);
+			}
+		};
+	}
 
 } // namespace BAS
 
@@ -1261,55 +1278,44 @@ SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
 
 */
 
-using MatchesEntry = std::function<bool(bool is_posted,BAS::Series series, BAS::VerNo verno, BAS::anonymous::JournalEntry const& aje)>;
-
 class FilteredSIEEnvironment {
 public:
-	FilteredSIEEnvironment(SIEEnvironment const& sie_environment,MatchesEntry matches_entry) 
+	FilteredSIEEnvironment(SIEEnvironment const& sie_environment,BAS::MatchesMetaEntry matches_meta_entry)
 		:  m_sie_environment{sie_environment}
-			,m_matches_entry{matches_entry} {}
+			,m_matches_meta_entry{matches_meta_entry} {}
 
 	void for_each(auto const& f) const {
 		for (auto const& [series,journal] : m_sie_environment.journals()) {
 			for (auto const& [verno,aje] : journal) {
-				bool is_posted = !this->m_sie_environment.is_unposted(series,verno);
-				if (this->m_matches_entry(is_posted,series,verno,aje)) f(is_posted,series,verno,aje);
+				BAS::MetaEntry me{!this->m_sie_environment.is_unposted(series,verno),series,verno,aje};
+				if (this->m_matches_meta_entry(me)) f(me);
 			}
 		}
 	}
 private:
 	SIEEnvironment const& m_sie_environment;
-	MatchesEntry m_matches_entry;
+	BAS::MatchesMetaEntry m_matches_meta_entry{};
 };
-
-
-using F = std::function<bool(bool is_posted,BAS::Series series, BAS::VerNo verno,BAS::anonymous::JournalEntry const& aje)>;
-
-class Test {
-public:
-	Test(SIEEnvironment const& sie_environment,F f) : m_f{f} {}
-
-private:
-	F m_f;
-	MatchesEntry m_me;
-};
-
-void test() {
-	SIEEnvironment sie_environment{};
-	Test test{sie_environment,[](bool is_posted,BAS::Series series, BAS::VerNo verno,BAS::anonymous::JournalEntry const& aje){return false;}};
-	FilteredSIEEnvironment fe{sie_environment,[](bool is_posted,BAS::Series series, BAS::VerNo verno,BAS::anonymous::JournalEntry const& aje){return false;}};
-}
 
 std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered_sie_environment) {
-	filtered_sie_environment.for_each([&os](bool is_posted,BAS::Series series, BAS::VerNo verno, BAS::anonymous::JournalEntry aje){
-		os << "\n";
-		if (is_posted) os << " ";
-		else os << "*";
-		os << " " << series << verno << aje;
-	});
+	// auto stream_entry = [&os](bool is_posted,BAS::Series series, BAS::VerNo verno, BAS::anonymous::JournalEntry const& aje){
+	// 	os << "\n";
+	// 	if (is_posted) os << " ";
+	// 	else os << "*";
+	// 	os << " " << series << verno << aje;
+	// };
+	struct stream_entry_to {
+		std::ostream& os;
+		void operator()(BAS::MetaEntry const& me) const {
+			os << "\n";
+			if (me.is_posted) os << " ";
+			else os << "*";
+			os << " " << me.series << me.verno << " " << me.aje;
+		}
+	};
+	filtered_sie_environment.for_each(stream_entry_to{os});
 	return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
 	for (auto const& je : sie_environment.journals()) {
@@ -1549,11 +1555,7 @@ public:
 					else if (model->sie["current"].journals().contains(ast[1][0])) {
 						// List a series in "current"
 						auto required_series = ast[1][0];
-						SIEEnvironment sie_environment{};
-						auto is_required_series = [required_series](bool is_posted,BAS::Series series, BAS::VerNo verno,BAS::anonymous::JournalEntry const& aje){
-							return (series == required_series);
-						};
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],is_required_series};
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_series{required_series}};
 						prompt << filtered_sie;
 					}
 					else {
