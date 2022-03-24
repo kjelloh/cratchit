@@ -341,7 +341,7 @@ namespace BAS {
 	using JournalEntries = std::vector<JournalEntry>;
 
 	struct MetaEntry {
-		bool is_posted;
+		bool is_unposted;
 		BAS::Series series;
 		BAS::VerNo verno;
 		BAS::anonymous::JournalEntry const& aje;
@@ -356,8 +356,13 @@ namespace BAS {
 				return (me.series == required_series);
 			}
 		};
-	}
 
+		struct is_unposted {
+			bool operator()(MetaEntry const& me) {
+				return me.is_unposted;
+			}
+		};
+	}
 } // namespace BAS
 
 std::ostream& operator<<(std::ostream& os,BAS::AccountTransaction const& at) {
@@ -1287,7 +1292,7 @@ public:
 	void for_each(auto const& f) const {
 		for (auto const& [series,journal] : m_sie_environment.journals()) {
 			for (auto const& [verno,aje] : journal) {
-				BAS::MetaEntry me{!this->m_sie_environment.is_unposted(series,verno),series,verno,aje};
+				BAS::MetaEntry me{this->m_sie_environment.is_unposted(series,verno),series,verno,aje};
 				if (this->m_matches_meta_entry(me)) f(me);
 			}
 		}
@@ -1308,8 +1313,8 @@ std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered
 		std::ostream& os;
 		void operator()(BAS::MetaEntry const& me) const {
 			os << "\n";
-			if (me.is_posted) os << " ";
-			else os << "*";
+			if (me.is_unposted) os << "*";
+			else os << " ";
 			os << " " << me.series << me.verno << " " << me.aje;
 		}
 	};
@@ -1549,8 +1554,8 @@ public:
 					if (model->sie.contains(ast[1])) prompt << model->sie[ast[1]];
 					else if (ast[1]=="*") {
 						// List unposted sie entries
-						auto entries = model->sie["current"].unposted();
-						prompt << entries;
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_unposted{}};
+						prompt << filtered_sie;
 					}
 					else if (model->sie["current"].journals().contains(ast[1][0])) {
 						// List a series in "current"
