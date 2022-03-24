@@ -92,7 +92,7 @@ namespace tokenize {
 	}
 
 	std::vector<std::string> splits(std::string const& s,SplitOn split_on) {
-		std::cout << "\nsplits(std::string const& s,SplitOn split_on)";
+		// std::cout << "\nsplits(std::string const& s,SplitOn split_on)";
 		std::vector<std::string> result{};
 		auto spaced_tokens = splits(s);
 		std::vector<TokenID> ids{};
@@ -100,7 +100,7 @@ namespace tokenize {
 			ids.push_back(token_id_of(s));
 		}
 		for (int i=0;i<spaced_tokens.size();++i) {
-			std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
+			// std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
 		}
 		switch (split_on) {
 			case SplitOn::TextAmountAndDate: {
@@ -373,6 +373,13 @@ std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
 
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
 	os << je.series << je.verno << " " << je.entry;
+	return os;
+};
+
+std::ostream& operator<<(std::ostream& os,BAS::JournalEntries const& jes) {
+	for (auto const& je : jes) {
+		os << "\n" << je;
+	}
 	return os;
 };
 
@@ -1300,7 +1307,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 }
 
 void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
-	std::cout << "\nunposted_to_sie_file " << p;
+	// std::cout << "\nunposted_to_sie_file " << p;
 	std::ofstream os{p};
 	SIE::ostream sieos{os};
 	// auto now = std::chrono::utc_clock::now();
@@ -1309,7 +1316,7 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now_local = localtime(&now_timet);
 	sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	for (auto const& entry : sie.unposted()) {
-		std::cout << entry; 
+		// std::cout << entry; 
 		sieos << to_sie_t(entry);
 	}
 }
@@ -1362,7 +1369,6 @@ public:
 		Cmd cmd{};
 		if (std::isprint(key.value)) {
 			model->user_input += key.value;
-			model->prompt += key.value;
 		}
 		else {
 			cmd = to_cmd(model->user_input);
@@ -1477,6 +1483,11 @@ public:
 				}
 				else if (ast.size()==2) {
 					if (model->sie.contains(ast[1])) prompt << model->sie[ast[1]];
+					else if (ast[1]=="*") {
+						// List unposted sie entries
+						auto entries = model->sie["current"].unposted();
+						prompt << entries;
+					}
 					else {
 						// assume -sie <file path>
 						auto sie_file_name = ast[1];
@@ -1801,10 +1812,8 @@ public:
 	void run(Command const& command) {
         auto model = cratchit.init(command);
 		while (true) {
-			// Create the ux to view
 			auto ux = cratchit.view(model);
-			// Render the ux
-			for (auto const&  row : ux) std::cout << row;
+			render_ux(ux);
 			if (model->quit) break; // Done
 			// process events (user input)
 			if (in.size()>0) {
@@ -1829,6 +1838,15 @@ public:
 	}
 private:
     Cratchit cratchit;
+		Ux cached_ux{};
+		void render_ux(Ux const& ux) {
+			if (ux != cached_ux) {
+				cached_ux = ux;
+				for (auto const&  row : ux) {
+					if (row.size()>0) std::cout << row;
+				}
+			}
+		}
     std::queue<Msg> in{};
 };
 
