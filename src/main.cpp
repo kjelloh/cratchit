@@ -214,6 +214,13 @@ std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_
 	return os;
 }
 
+std::optional<std::filesystem::path> path_to_existing_file(std::string const& s) {
+	std::optional<std::filesystem::path> result{};
+	std::filesystem::path path{s};
+	if (std::filesystem::exists(path)) result = path;
+	return result;
+}
+
 using Amount= float;
 using optional_amount = std::optional<Amount>;
 optional_amount to_amount(std::string const& sAmount) {
@@ -311,6 +318,23 @@ Konto	Benämning									Debet		Kredit
 2641	Debiterad ingående moms						17,98	
 */
 
+bool do_share_tokens(std::string const& s1,std::string const& s2) {
+	bool result{false};
+	auto had_heading_words = tokenize::splits(s1);
+	auto je_heading_words = tokenize::splits(s2);
+	for (auto hadw : had_heading_words) {
+		for (auto jew : je_heading_words) {
+			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
+			std::transform(jew.begin(),jew.end(),jew.begin(),::toupper);
+			// std::cout << "\ncompare " << std::quoted(hadw) << " with " << std::quoted(jew);
+			if (hadw == jew) {
+				result = true;
+			}
+		}
+	}
+	return result;
+}
+
 namespace BAS {
 
 	struct AccountTransaction {
@@ -351,6 +375,31 @@ namespace BAS {
 
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
+	OptionalBASAccountNo to_account_no(std::string const& s) {
+		OptionalBASAccountNo result{};
+		if (s.size()==4) {
+			if (std::all_of(s.begin(),s.end(),::isalnum)) {
+				auto account_no = std::stoi(s);
+				if (account_no >= 1000) result = account_no;
+			}
+		}
+		return result;
+	}
+
+	struct JournalEntryMeta {
+		Series series;
+		VerNo verno;
+	};
+
+	using OptionalJournalEntryMeta = std::optional<JournalEntryMeta>;
+
+	OptionalJournalEntryMeta to_journal_meta(std::string const& s) {
+		OptionalJournalEntryMeta result{};
+		const std::regex meta_regex("[A-Z]\\d+"); // series followed by verification number
+		if (std::regex_match(s,meta_regex)) result = JournalEntryMeta{s[0],static_cast<VerNo>(std::stoi(s.substr(1)))};
+		return result;
+	}
+
 	namespace filter {
 		struct is_series {
 			BAS::Series required_series;
@@ -365,7 +414,7 @@ namespace BAS {
 			}
 		};
 
-		struct contains_account{
+		struct contains_account {
 			BASAccountNo account_no;
 			bool operator()(MetaEntry const& me) {
 				return std::any_of(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[this](auto const& at){
@@ -374,19 +423,62 @@ namespace BAS {
 			}
 		};
 
-	}
-
-	OptionalBASAccountNo to_account_no(std::string const& s) {
-		OptionalBASAccountNo result{};
-		if (s.size()==4) {
-			if (std::all_of(s.begin(),s.end(),::isalnum)) {
-				auto account_no = std::stoi(s);
-				if (account_no >= 1000) result = account_no;
+		struct matches_meta {
+			JournalEntryMeta entry_meta;
+			bool operator()(MetaEntry const& me) {
+				return (me.series == entry_meta.series and me.verno == entry_meta.verno);
 			}
-		}
-		return result;
-	}
+		};
 
+		struct matches_amount {
+			Amount amount;
+			bool operator()(MetaEntry const& me) {
+				return std::any_of(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[this](auto const& at){
+					return (this->amount == at.amount);
+				});
+			}
+		};
+
+		struct matches_heading {
+			std::string user_search_string;
+			bool operator()(MetaEntry const& me) {
+				bool result{false};
+				result = do_share_tokens(user_search_string,me.aje.caption);
+				if (!result) {
+					result = std::any_of(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[this](auto const& at){
+						if (at.transtext) return do_share_tokens(user_search_string,*at.transtext);
+						return false;
+					});
+				}
+				return result;
+			}
+		};
+
+
+		struct matches_user_search_criteria{
+			std::string user_search_string;
+			bool operator()(MetaEntry const& me) {
+				bool result{false};
+				if (!result and user_search_string.size()==1) {
+					result = is_series{user_search_string[0]}(me);
+				}
+				if (auto account_no = to_account_no(user_search_string);!result and account_no) {
+					result = contains_account{*account_no}(me);
+				}
+				if (auto meta = to_journal_meta(user_search_string);!result and meta) {
+					result = matches_meta{*meta}(me);
+				}
+				if (auto amount = to_amount(user_search_string);!result and amount) {
+					result = matches_amount{*amount}(me);
+				}
+				if (!result) {
+					result = matches_heading{user_search_string}(me);
+				}
+				return result;
+			}
+		};
+
+	}
 } // namespace BAS
 
 std::ostream& operator<<(std::ostream& os,BAS::AccountTransaction const& at) {
@@ -545,26 +637,10 @@ std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	return os;
 }
 
-bool do_share_tokens(std::string const& s1,std::string const& s2) {
-	bool result{false};
-	auto had_heading_words = tokenize::splits(s1);
-	auto je_heading_words = tokenize::splits(s2);
-	for (auto hadw : had_heading_words) {
-		for (auto jew : je_heading_words) {
-			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
-			std::transform(jew.begin(),jew.end(),jew.begin(),::toupper);
-			// std::cout << "\ncompare " << std::quoted(hadw) << " with " << std::quoted(jew);
-			if (hadw == jew) {
-				result = true;
-			}
-		}
-	}
-	return result;
-}
-
 bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& je) {
 	return do_share_tokens(had.heading,je.caption);
 }
+
 BAS::JournalEntries template_candidates(BASJournals const& journals,auto const& matches) {
 	// std::cout << "\ntemplate_candidates";
 	BAS::JournalEntries result{};
@@ -1299,14 +1375,6 @@ SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
 	return result;
 }
 
-/*
-						FilteredSIEEnvironment filtered_sie{[required_series = series](BAS::Series series,BAS::VerNo verno, BAS::anonymous::JournalEntry const& aje){
-							return (series == required_series);
-						}};
-						prompt << filtered_sie;
-
-*/
-
 class FilteredSIEEnvironment {
 public:
 	FilteredSIEEnvironment(SIEEnvironment const& sie_environment,BAS::MatchesMetaEntry matches_meta_entry)
@@ -1327,12 +1395,6 @@ private:
 };
 
 std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered_sie_environment) {
-	// auto stream_entry = [&os](bool is_posted,BAS::Series series, BAS::VerNo verno, BAS::anonymous::JournalEntry const& aje){
-	// 	os << "\n";
-	// 	if (is_posted) os << " ";
-	// 	else os << "*";
-	// 	os << " " << series << verno << aje;
-	// };
 	struct stream_entry_to {
 		std::ostream& os;
 		void operator()(BAS::MetaEntry const& me) const {
@@ -1342,7 +1404,9 @@ std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered
 			os << " " << me.series << me.verno << " " << me.aje;
 		}
 	};
+	os << "\n*Filter BEGIN*";
 	filtered_sie_environment.for_each(stream_entry_to{os});
+	os << "\n*Filter end*";
 	return os;
 }
 
@@ -1581,75 +1645,50 @@ public:
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_unposted{}};
 						prompt << filtered_sie;
 					}
-					else if (model->sie["current"].journals().contains(ast[1][0])) {
-						// List a series in "current"
-						auto required_series = ast[1][0];
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_series{required_series}};
-						prompt << filtered_sie;
-					}
-					else if (auto account_no = BAS::to_account_no(ast[1])) {
-						// Assume "-sie <account no>"
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::contains_account{*account_no}};
-						prompt << filtered_sie;
-					}
-					else {
-						// assume -sie <file path>
-						auto sie_file_name = ast[1];
-						std::filesystem::path sie_file_path{sie_file_name};
-						if (std::filesystem::exists(sie_file_path)) {
-							if (auto sie_env = from_sie_file(sie_file_path)) {
-								model->sie_file_path["current"] = sie_file_path;
-								model->sie["current"] = std::move(*sie_env);
-								// Log
-								// std::cout << model->sie["current"];
-								if (auto sse = from_sie_file(model->staged_sie_file_path)) {
-									auto unstaged = model->sie["current"].stage(*sse);
-									for (auto const& je : unstaged) {
-										prompt << "\nnow posted " << je; 
-									}
-								}							
-							}
-							else {
-								// failed to parse sie-file into an SIE Environment 
-								prompt << "\nERROR - Failed to import sie file " << sie_file_path;
-							}
+					else if (auto sie_file_path = path_to_existing_file(ast[1])) {
+						if (auto sie_env = from_sie_file(*sie_file_path)) {
+							model->sie_file_path["current"] = *sie_file_path;
+							model->sie["current"] = std::move(*sie_env);
+							if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+								auto unstaged = model->sie["current"].stage(*sse);
+								for (auto const& je : unstaged) {
+									prompt << "\nnow posted " << je; 
+								}
+							}							
 						}
 						else {
-							prompt << "\nERROR: File does not exist or is not a valid sie-file: " << sie_file_path;
+							// failed to parse sie-file into an SIE Environment 
+							prompt << "\nERROR - Failed to import sie file " << sie_file_path;
 						}
+					}
+					else {
+						// assume user search criteria on transaction heading and comments
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
+						prompt << filtered_sie;
 					}
 				}
 				else if (ast.size()==3) {
 					auto year_key = ast[1];
-					if (auto account_no = BAS::to_account_no(ast[2])) {
-						// assume "-sie <year-id> <account no>"
+					if (auto sie_file_path = path_to_existing_file(ast[2])) {
+						if (auto sie_env = from_sie_file(*sie_file_path)) {
+							model->sie_file_path[year_key] = *sie_file_path;
+							model->sie[year_key] = std::move(*sie_env);
+						}
+						else {
+							// failed to parse sie-file into an SIE Environment 
+							prompt << "\nERROR - Failed to import sie file " << sie_file_path;
+						}
+					}
+					else {
+						// assume user search criteria on transaction heading and comments
 						if (model->sie.contains(year_key)) {
-							FilteredSIEEnvironment filtered_sie{model->sie[year_key],BAS::filter::contains_account{*account_no}};
+							FilteredSIEEnvironment filtered_sie{model->sie[year_key],BAS::filter::matches_user_search_criteria{ast[2]}};
 							prompt << filtered_sie;
 						}
 						else {
 							prompt << "\nYear identifier " << year_key << " is not associated with any data";
 						}
-					}	
-					else {
-						// Assume "-sie <year id> <sie file name>"
-						auto sie_file_name = ast[2];
-						std::filesystem::path sie_file_path{sie_file_name};
-						if (std::filesystem::exists(sie_file_path)) {
-							if (auto sie_env = from_sie_file(sie_file_path)) {
-								model->sie_file_path[year_key] = sie_file_path;
-								model->sie[year_key] = std::move(*sie_env);
-								prompt << "\nimported year id " << year_key << " from sie-file " << sie_file_path << " OK";
-							}
-							else {
-								// failed to parse sie-file into an SIE Environment 
-								prompt << "\nERROR - Failed to import sie file " << sie_file_path;
-							}
-						}
-						else {
-							prompt << "\nERROR: File does not exist or is not a valid sie-file: " << sie_file_path;
-						}
-					}				
+					}
 				}
 			}
 			else if (ast[0] == "-had") {
