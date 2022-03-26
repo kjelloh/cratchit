@@ -30,6 +30,7 @@
             "label": "macOS C/C++: g++-11 build active file",
             "command": "/usr/local/bin/g++-11",
             "args": [
+                "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
                 "-fdiagnostics-color=always",
                 "-std=c++20",
                 "-g",
@@ -48,6 +49,28 @@
                 "isDefault": true
             },
             "detail": "compiler: /usr/local/bin/g++-11"
-        }  
+        },
+        {
+            "type": "shell",
+            "label": "clang-13 build active file",
+            "command": "/usr/local/Cellar/llvm/13.0.1_1/bin/clang-13",
+            "args": [
+              "-std=c++20",
+              "-stdlib=libc++",
+              "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+              "-g",
+              "${file}",
+              "-o",
+              "${workspaceFolder}/cratchit.out"
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": ["$gcc"],
+            "group": {
+              "kind": "build",
+              "isDefault": true
+            }
+          }        
     ]
 }
