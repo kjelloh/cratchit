@@ -42,15 +42,13 @@ The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scroo
             },
             "detail": "compiler: /usr/local/bin/g++-11"
         }  
+```
+   
 * Current macOS g++11 based build command is:
-
+   
 ```
 > g++-11 -fdiagnostics-color=always -std=c++20 -g cratchit/src/main.cpp -o cratchit/cratchit.out
 ```
-
-
-
-
 
 ## Version 0.3
 * Refactored into "proper" Cmake folder structure (user creates a build dir under CMakeLists.txt and parallel to src directory)
