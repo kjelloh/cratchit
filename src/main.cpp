@@ -291,34 +291,6 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 using BASAccountNo = unsigned int;
 using OptionalBASAccountNo = std::optional<BASAccountNo>;
 
-// The BAS Ledger keeps a record of BAS account changes as recorded in Journal(s) 
-class BASLedger {
-public:
-	struct Entry {
-		std::string caption{};
-		Amount amount;
-	};
-	using Entries = std::map<int,Entry>;
-	Entries& entries() {return m_entries;}
-	Entries const& entries() const {return m_entries;}
-private:
-	Entries m_entries{};
-};
-
-// The BAS Journal keeps a record of all documented transactions of a specific type.
-/*
-Utskrivet 2022-02-17 17:43
-
-Vernr: A 11
-Bokföringsdatum: 2021-07-14
-Benämning: Kjell&Company
-
-Konto	Benämning									Debet		Kredit		
-1920	PlusGiro												89,90
-1227	Elektroniklabb - Lager V-slot 2040 Profil	71,92	
-2641	Debiterad ingående moms						17,98	
-*/
-
 bool do_share_tokens(std::string const& s1,std::string const& s2) {
 	bool result{false};
 	auto had_heading_words = tokenize::splits(s1);
@@ -759,8 +731,6 @@ class SIEEnvironment {
 public:
 	BASJournals& journals() {return m_journals;}
 	BASJournals const& journals() const {return m_journals;}
-	BASLedger& ledger() {return m_ledger;}
-	BASLedger const& ledger() const {return m_ledger;}
 	bool is_unposted(BAS::Series series, BAS::VerNo verno) const {
 		bool result{true};
 		if (verno_of_last_posted_to.contains(series)) result = verno > this->verno_of_last_posted_to.at(series);
@@ -813,7 +783,6 @@ public:
 	}
 private:
 	BASJournals m_journals{};
-	BASLedger m_ledger{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	BAS::JournalEntry add(BAS::JournalEntry const& je) {
 		BAS::JournalEntry result{je};
