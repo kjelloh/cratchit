@@ -1,76 +1,30 @@
 {
     "version": "2.0.0",
     "tasks": [
-        {
-			"type": "cppbuild",
-			"label": "C/C++: g++-8 build active file",
-			"command": "/usr/bin/g++-8",
-			"args": [
-				"-fdiagnostics-color=always",
-				"-fconcepts",
-				"-g",
-				"${file}",
-				"-o",
-				"${fileDirname}/${fileBasenameNoExtension}.out"
-			],
-			"options": {
-				"cwd": "${fileDirname}"
-			},
-			"problemMatcher": [
-				"$gcc"
-			],
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"detail": "compiler: /usr/bin/g++-8"
-		},
-        {
-            "type": "cppbuild",
-            "label": "macOS C/C++: g++-11 build active file",
-            "command": "/usr/local/bin/g++-11",
-            "args": [
-                "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-                "-fdiagnostics-color=always",
-                "-std=c++20",
-                "-g",
-                "${file}",
-                "-o",
-                "${workspaceFolder}/cratchit.out"
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "detail": "compiler: /usr/local/bin/g++-11"
+    {
+        "type": "cppbuild",
+        "label": "macOS C/C++: g++-11 build active file",
+        "command": "/usr/local/bin/g++-11",
+        "args": [
+            "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+            "-fdiagnostics-color=always",
+            "-std=c++20",
+            "-g",
+            "${file}",
+            "-o",
+            "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+            "cwd": "${fileDirname}"
         },
-        {
-            "type": "shell",
-            "label": "clang-13 build active file",
-            "command": "/usr/local/Cellar/llvm/13.0.1_1/bin/clang-13",
-            "args": [
-              "-std=c++20",
-              "-stdlib=libc++",
-              "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-              "-g",
-              "${file}",
-              "-o",
-              "${workspaceFolder}/cratchit.out"
-            ],
-            "options": {
-              "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": ["$gcc"],
-            "group": {
-              "kind": "build",
-              "isDefault": true
-            }
-          }        
+        "problemMatcher": [
+            "$gcc"
+        ],
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        },
+        "detail": "compiler: /usr/local/bin/g++-11"
+    }
     ]
 }

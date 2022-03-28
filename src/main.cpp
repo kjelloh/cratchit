@@ -15,6 +15,74 @@
 #include <regex>
 #include <chrono>
 
+// Scratch comments to "remember" what configuration for VSCode that does "work"
+
+// tasks.json/"tasks"/label:"macOS..."/args: ... "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" 
+//                                               to have third party g++-11 find includes for, and link with, mac OS libraries.
+//                                               Gcc will automatically search sub-directories /usr/include and /usr/lib.
+
+//                                               macOS 13 seems to have broken previous path /usr/include and usr/local/include (https://developer.apple.com/forums/thread/655588?answerId=665804022#665804022)
+/* "...This is fine if you’re using Xcode, or Apple’s command-line tools, because they know how to look inside an SDK for headers and stub libraries. 
+    If you’re using third-party tools then you need to consult the support resources for those tools 
+		to find out how they’ve adjusted to this new reality ... the critical point is the linker. 
+		If your third-party tools use the Apple linker then you should just be able to point the tools at the 
+		usr/include directory within the appropriate SDK." */
+
+// c_cpp_properties.json/"configurations":/"includePath": ... "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
+//                                               to have Intellisense find c++ library headers.
+
+// c_cpp_properties.json/"configurations":/"includePath": ... "/Library/Developer/CommandLineTools/usr/include/c++/v1"
+//                                               to have Intellisense find actual OS specific c++ library headers (required by macro "include_next" in c++ library headers).
+
+/*
+    "tasks": [
+    {
+        "type": "cppbuild",
+        "label": "macOS C/C++: g++-11 build active file",
+        "command": "/usr/local/bin/g++-11",
+        "args": [
+            "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+            "-fdiagnostics-color=always",
+            "-std=c++20",
+            "-g",
+            "${file}",
+            "-o",
+            "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+            "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+            "$gcc"
+        ],
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        },
+        "detail": "compiler: /usr/local/bin/g++-11"
+    }
+    ]
+
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
+                "/Library/Developer/CommandLineTools/usr/include/c++/v1"
+            ],
+            "defines": [],
+            "macFrameworkPath": [
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            ],
+            "compilerPath": "/usr/local/bin/gcc-11",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "macos-gcc-x64"
+        }
+    ],
+*/
+
 namespace tokenize {
 	// returns s split into first,second on provided delimiter delim.
 	// split fail returns first = "" and second = s
@@ -308,7 +376,30 @@ bool do_share_tokens(std::string const& s1,std::string const& s2) {
 	return result;
 }
 
+namespace SRU {
+	using Code = uint_fast16_t;
+	using OptionalCode = std::optional<Code>;
+}
+
 namespace BAS {
+
+	enum class AccountType {
+		// Account type is specified as T, S, K or I (asset, debt, cost or income)
+		// Swedish: tillgång, skuld, kostnad eller intäkt
+		Unknown
+		,Asset
+		,Debt
+		,Cost
+		,Income
+		,Undefined
+	};
+
+	using OptionalAccountType = std::optional<AccountType>;
+
+	struct AccountMeta {
+		OptionalAccountType account_type{};
+		SRU::OptionalCode sru_code{};
+	};
 
 	struct AccountTransaction {
 		BASAccountNo account_no;
@@ -509,6 +600,10 @@ std::string to_string(BAS::JournalEntry const& je) {
 
 using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
+
+struct HeadingAmountDateTransEntryMeta {
+	OptionalBASAccountNo transaction_amount_account{};
+};
 
 struct HeadingAmountDateTransEntry {
 	std::string heading{};
