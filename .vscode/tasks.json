@@ -43,6 +43,28 @@
         ],
         "group": "build",
         "detail": "compiler: /usr/local/Cellar/llvm/13.0.1_1/bin/clang++"
+      },
+      {
+        "type": "cppbuild",
+        "label": "C/C++: clang-14 build cratchit",
+        "command": "/usr/lib/llvm-14/bin/clang++",
+        "args": [
+          "-fdiagnostics-color=always",
+          "-std=c++20",
+          "-stdlib=libc++",
+          "${file}",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+          "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ],
+        "group": "build",
+        "detail": "compiler: /usr/lib/llvm-14/bin/clang++"
       }
+     
     ]
 }
