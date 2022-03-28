@@ -14,6 +14,8 @@
 #include <map>
 #include <regex>
 #include <chrono>
+#include <numeric>
+#include <functional>
 
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
@@ -207,26 +209,6 @@ namespace parse {
         virtual ParseResult<P> operator()(In const& in) const = 0;
     };
 
-    class ParseWord : public Parse<std::string> {
-    public:
-        using P = std::string;
-        virtual ParseResult<P> operator()(In const& in) const {
-            ParseResult<P> result{};
-            P p{};
-            auto iter=in.begin();
-            for (;iter!=in.end();++iter) if (delimeters.find(*iter)==std::string::npos) break; // skip delimeters
-            for (;iter!=in.end();++iter) {
-                if (delimeters.find(*iter)!=std::string::npos) break;
-                p += *iter;
-            }
-            if (p.size()>0) result = {p,In{iter,static_cast<std::size_t>(std::distance(iter,in.end()))
-						}}; // empty word = unsuccessful
-            return result;
-        }
-    private:
-        std::string const delimeters{" ,.;:="};
-    };
-
     template <typename T>
     auto parse(T const& p,In const& in) {
         return p(in);
@@ -310,7 +292,7 @@ optional_amount to_amount(std::string const& sAmount) {
 		// handle integer (no decimal point)
 		try {
 			auto int_amount = std::stoi(sAmount);
-			result = int_amount;
+			result = static_cast<Amount>(int_amount);
 		}
 		catch (std::exception const& e) { /* failed - do nothing */}
 	}
@@ -362,8 +344,8 @@ bool do_share_tokens(std::string const& s1,std::string const& s2) {
 	bool result{false};
 	auto had_heading_words = tokenize::splits(s1);
 	auto je_heading_words = tokenize::splits(s2);
-	for (auto hadw : had_heading_words) {
-		for (auto jew : je_heading_words) {
+	for (std::string hadw : had_heading_words) {
+		for (std::string jew : je_heading_words) {
 			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
 			std::transform(jew.begin(),jew.end(),jew.begin(),::toupper);
 			// std::cout << "\ncompare " << std::quoted(hadw) << " with " << std::quoted(jew);
@@ -1726,7 +1708,7 @@ public:
 						}
 						else {
 							// failed to parse sie-file into an SIE Environment 
-							prompt << "\nERROR - Failed to import sie file " << sie_file_path;
+							prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
 						}
 					}
 					else {
@@ -1744,7 +1726,7 @@ public:
 						}
 						else {
 							// failed to parse sie-file into an SIE Environment 
-							prompt << "\nERROR - Failed to import sie file " << sie_file_path;
+							prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
 						}
 					}
 					else {
