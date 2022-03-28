@@ -34,54 +34,52 @@
 // c_cpp_properties.json/"configurations":/"includePath": ... "/Library/Developer/CommandLineTools/usr/include/c++/v1"
 //                                               to have Intellisense find actual OS specific c++ library headers (required by macro "include_next" in c++ library headers).
 
-/*
-    "tasks": [
-    {
-        "type": "cppbuild",
-        "label": "macOS C/C++: g++-11 build active file",
-        "command": "/usr/local/bin/g++-11",
-        "args": [
-            "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            "-fdiagnostics-color=always",
-            "-std=c++20",
-            "-g",
-            "${file}",
-            "-o",
-            "${workspaceFolder}/cratchit.out"
-        ],
-        "options": {
-            "cwd": "${fileDirname}"
-        },
-        "problemMatcher": [
-            "$gcc"
-        ],
-        "group": {
-            "kind": "build",
-            "isDefault": true
-        },
-        "detail": "compiler: /usr/local/bin/g++-11"
-    }
-    ]
+    // "tasks": [
+    // {
+    //     "type": "cppbuild",
+    //     "label": "macOS C/C++: g++-11 build active file",
+    //     "command": "/usr/local/bin/g++-11",
+    //     "args": [
+    //         "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    //         "-fdiagnostics-color=always",
+    //         "-std=c++20",
+    //         "-g",
+    //         "${file}",
+    //         "-o",
+    //         "${workspaceFolder}/cratchit.out"
+    //     ],
+    //     "options": {
+    //         "cwd": "${fileDirname}"
+    //     },
+    //     "problemMatcher": [
+    //         "$gcc"
+    //     ],
+    //     "group": {
+    //         "kind": "build",
+    //         "isDefault": true
+    //     },
+    //     "detail": "compiler: /usr/local/bin/g++-11"
+    // }
+    // ]
 
-    "configurations": [
-        {
-            "name": "Mac",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
-                "/Library/Developer/CommandLineTools/usr/include/c++/v1"
-            ],
-            "defines": [],
-            "macFrameworkPath": [
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
-            ],
-            "compilerPath": "/usr/local/bin/gcc-11",
-            "cStandard": "gnu17",
-            "cppStandard": "gnu++17",
-            "intelliSenseMode": "macos-gcc-x64"
-        }
-    ],
-*/
+    // "configurations": [
+    //     {
+    //         "name": "Mac",
+    //         "includePath": [
+    //             "${workspaceFolder}/**",
+    //             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
+    //             "/Library/Developer/CommandLineTools/usr/include/c++/v1"
+    //         ],
+    //         "defines": [],
+    //         "macFrameworkPath": [
+    //             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+    //         ],
+    //         "compilerPath": "/usr/local/bin/gcc-11",
+    //         "cStandard": "gnu17",
+    //         "cppStandard": "gnu++17",
+    //         "intelliSenseMode": "macos-gcc-x64"
+    //     }
+    // ],
 
 namespace tokenize {
 	// returns s split into first,second on provided delimiter delim.
@@ -221,7 +219,8 @@ namespace parse {
                 if (delimeters.find(*iter)!=std::string::npos) break;
                 p += *iter;
             }
-            if (p.size()>0) result = {p,In{iter,in.end()}}; // empty word = unsuccessful
+            if (p.size()>0) result = {p,In{iter,static_cast<std::size_t>(std::distance(iter,in.end()))
+						}}; // empty word = unsuccessful
             return result;
         }
     private:
@@ -718,7 +717,7 @@ BAS::JournalEntries template_candidates(BASJournals const& journals,auto const& 
 			if (matches(entry)) result.push_back({series,verno,entry});
 		}
 	}
-	std::ranges::sort(result,[](auto const& je1,auto const& je2){
+	std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
 		return (je1.entry.date < je2.entry.date);
 	});
 	return result;
@@ -1694,6 +1693,10 @@ public:
 						model->at = *iter;
 						model->prompt_state = PromptState::Amount;
 					}
+					case PromptState::Amount:
+					case PromptState::Undefined:
+					case PromptState::Unknown:
+						break;
 				}
 			}
 			else if (ast[0] == "-sie") {
@@ -1759,7 +1762,7 @@ public:
 			else if (ast[0] == "-had") {
 				if (ast.size()==1) {
 					// Expose current hads (Heading Amount Date transaction entries) to the user
-					std::ranges::sort(model->heading_amount_date_entries,falling_date);
+					std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 					auto& hads = model->heading_amount_date_entries;
 					unsigned int index{0};
 					std::vector<std::string> sHads{};
@@ -1897,9 +1900,9 @@ private:
 		BAS::JournalEntries result{};
 		for (auto const& [year_key,sie] : model->sie) {
 			auto jes = template_candidates(sie.journals(),matches);
-			std::ranges::copy(jes,std::back_inserter(result));
+			std::copy(jes.begin(),jes.end(),std::back_inserter(result));
 		}
-		std::ranges::sort(result,[](auto const& je1,auto const& je2){
+		std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
 			return (je1.entry.date < je2.entry.date);
 		});
 		return result;

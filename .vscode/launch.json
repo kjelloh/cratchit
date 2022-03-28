@@ -1,7 +1,7 @@
 {
   "configurations": [
   {
-    "name": "(lldb) Launch",
+    "name": "(lldb) Launch cratchit",
     "type": "cppdbg",
     "request": "launch",
     "program": "${workspaceFolder}/cratchit.out",
@@ -12,5 +12,4 @@
     "externalConsole": true,
     "MIMode": "lldb"
   }
-  ]
 }
