@@ -25,7 +25,7 @@
       },
       {
         "type": "cppbuild",
-        "label": "C/C++: clang-13 build cratchit",
+        "label": "macOS C/C++: clang-13 build cratchit",
         "command": "/usr/local/Cellar/llvm/13.0.1_1/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
@@ -46,7 +46,7 @@
       },
       {
         "type": "cppbuild",
-        "label": "C/C++: clang-14 build cratchit",
+        "label": "Linux C/C++: clang-14 build cratchit",
         "command": "/usr/lib/llvm-14/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
