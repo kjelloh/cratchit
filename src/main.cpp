@@ -389,6 +389,7 @@ namespace BAS {
 		Amount amount;
 	};
 	using AccountTransactions = std::vector<AccountTransaction>;
+	using OptionalAccountTransaction = std::optional<AccountTransaction>;
 
 	namespace anonymous {
 		struct JournalEntry {
@@ -527,6 +528,28 @@ namespace BAS {
 	}
 } // namespace BAS
 
+BAS::OptionalAccountTransaction to_bas_account_transaction(std::vector<std::string> const& ast) {
+	BAS::OptionalAccountTransaction result;
+	if (ast.size() > 1) {
+			if (auto account_no = BAS::to_account_no(ast[0])) {
+				switch (ast.size()) {
+					case 2: {
+						if (auto amount = to_amount(ast[1])) {
+							result = BAS::AccountTransaction{.account_no=*account_no,.transtext=std::nullopt,.amount=*amount};
+						}
+					} break;
+					case 3: {
+						if (auto amount = to_amount(ast[2])) {
+							result = BAS::AccountTransaction{.account_no=*account_no,.transtext=ast[1],.amount=*amount};
+						}
+					} break;
+					default:;
+				}
+			}
+	}
+	return result;
+}
+
 std::ostream& operator<<(std::ostream& os,BAS::AccountTransaction const& at) {
 	os << at.account_no;
 	os << " " << at.transtext;
@@ -657,7 +680,41 @@ public:
 private:
 	BAS::Series m_series;
 	AccountTransactionTemplates templates{};
+}; // class JournalEntryTemplate
+
+// A template to guide production of a Gross Amount account
+// followed by 1..n numbers of {ExVat,Vat} account transaction pairs
+class GrossNNetVatJournalEntryTemplate {
+public:
+	GrossNNetVatJournalEntryTemplate(std::string const& heading,Amount trans_amount,std::chrono::year_month_day const& trans_date,BASAccountNo account_no) 
+		:  m_heading{heading}
+		  ,m_trans_date{trans_date}
+		  ,m_gross_at{.account_no = account_no,.amount=trans_amount} {}
+
+	BAS::JournalEntry to_je() {
+		BAS::JournalEntry result{};
+		result.series = '*';
+		result.verno = 0;
+		result.entry.caption = m_heading;
+		result.entry.date = m_trans_date;
+		result.entry.account_transactions.push_back(m_gross_at);
+		std::copy(m_net_ats.begin(),m_net_ats.end(),std::back_inserter(result.entry.account_transactions));
+		return result;
+	}
+
+	BAS::JournalEntry add(BAS::AccountTransaction const& at) {
+		this->m_net_ats.push_back(at);
+		return this->to_je();
+	}
+
+private:
+	std::string m_heading;
+	std::chrono::year_month_day m_trans_date;
+	BAS::AccountTransaction m_gross_at{};
+	BAS::AccountTransactions m_net_ats{};
 };
+
+using OptionalGrossNNetVatJournalEntryTemplate = std::optional<GrossNNetVatJournalEntryTemplate>;
 
 // ==================================================================================
 // Had -> journal_entry -> Template
@@ -1089,6 +1146,7 @@ public:
 	BAS::JournalEntries template_candidates{};
 	BAS::JournalEntry current_candidate{};
 	BAS::AccountTransaction at{};
+	OptionalGrossNNetVatJournalEntryTemplate gross_n_net_vat_template{};
   std::string prompt{};
 	bool quit{};
 	std::map<std::string,std::filesystem::path> sie_file_path{};
@@ -1587,7 +1645,24 @@ public:
 		if (ast.size() > 0) {			
 			int signed_ix{};
 			std::istringstream is{ast[0]};
-			if (model->prompt_state != PromptState::Amount and is >> signed_ix) {
+			if (model->gross_n_net_vat_template and model->prompt_state == PromptState::AccountIndex) {
+				std::cout << "\nGross and n x net + vat";
+				// There is a Gross n x net + Vat template
+				if (auto at = to_bas_account_transaction(ast)) {
+					model->gross_n_net_vat_template->add(*at);
+					auto je = model->gross_n_net_vat_template->to_je();
+					unsigned int i{};
+					std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+						prompt << "\n  " << i++ << " " << at;
+					});
+					model->current_candidate = je;
+					model->prompt_state = PromptState::AccountIndex;
+				}
+				else {
+					prompt << "\nPlease enter an account, an optional text, and an amount";
+				}
+			}
+			else if (model->prompt_state != PromptState::Amount and is >> signed_ix) {
 				size_t ix = std::abs(signed_ix);
 				bool do_remove = (signed_ix<0);
 				// Act on prompt state index input				
@@ -1626,47 +1701,63 @@ public:
 						}
 					} break;
 					case PromptState::JEIndex: {
-						auto iter = model->template_candidates.begin();
-						auto end = model->template_candidates.end();
-						std::advance(iter,ix);
-						if (iter != end) {
-							auto tp = to_template(*iter);
-							if (tp) {
-								auto iter = model->heading_amount_date_entries.begin();
-								auto end = model->heading_amount_date_entries.end();
-								std::advance(iter,model->had_index);
-								if (iter != end) {
-									auto had = *iter;
-									auto je = to_journal_entry(had,*tp);
-									// auto je = to_journal_entry(model->selected_had,*tp);
-									if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
-										return std::abs(at.amount) < 1.0;
-									})) {
-										// Assume we need to specify rounding
-										unsigned int i{};
-										std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
-											prompt << "\n  " << i++ << " " << at;
-										});
-										model->current_candidate = je;
-										model->prompt_state = PromptState::AccountIndex;
-									}
-									else {
-										auto staged_je = model->sie["current"].stage(je);
-										if (staged_je) {
-											prompt << "\n" << *staged_je << " STAGED";
-											model->heading_amount_date_entries.erase(iter);
-											model->prompt_state = PromptState::HADIndex;
+						auto had_iter = model->heading_amount_date_entries.begin();
+						auto end = model->heading_amount_date_entries.end();
+						std::advance(had_iter,model->had_index);
+						if (had_iter != end) {
+							auto had = *had_iter;
+							if (auto account_no = BAS::to_account_no(command)) {
+								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
+								GrossNNetVatJournalEntryTemplate tp{had.heading,had.amount,had.date,*account_no};
+								model->gross_n_net_vat_template = tp;
+								auto je = model->gross_n_net_vat_template->to_je();
+								unsigned int i{};
+								std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+									prompt << "\n  " << i++ << " " << at;
+								});
+								model->current_candidate = je;
+								model->prompt_state = PromptState::AccountIndex;
+							}
+							else {
+								// Assume user selected an entry as base for a template
+								auto je_iter = model->template_candidates.begin();
+								auto end = model->template_candidates.end();
+								std::advance(je_iter,ix);
+								if (je_iter != end) {
+									auto tp = to_template(*je_iter);
+									if (tp) {
+										auto je = to_journal_entry(had,*tp);
+										// auto je = to_journal_entry(model->selected_had,*tp);
+										if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
+											return std::abs(at.amount) < 1.0;
+										})) {
+											// Assume we need to specify rounding
+											unsigned int i{};
+											std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
+												prompt << "\n  " << i++ << " " << at;
+											});
+											model->current_candidate = je;
+											model->prompt_state = PromptState::AccountIndex;
 										}
 										else {
-											prompt << "\nSORRY - Failed to stage entry";
-											model->prompt_state = PromptState::Root;
+											// Assume we can apply template as-is and stage the generated journal entry
+											auto staged_je = model->sie["current"].stage(je);
+											if (staged_je) {
+												prompt << "\n" << *staged_je << " STAGED";
+												model->heading_amount_date_entries.erase(had_iter);
+												model->prompt_state = PromptState::HADIndex;
+											}
+											else {
+												prompt << "\nSORRY - Failed to stage entry";
+												model->prompt_state = PromptState::Root;
+											}
 										}
 									}
 								}
+								else {
+									prompt << "\nPlease enter a valid index";
+								}
 							}
-						}
-						else {
-							prompt << "\nPlease enter a valid index";
 						}
 					} break;
 					case PromptState::AccountIndex: {
