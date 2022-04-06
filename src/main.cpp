@@ -379,9 +379,11 @@ namespace BAS {
 	using OptionalAccountType = std::optional<AccountType>;
 
 	struct AccountMeta {
+		std::string name{};
 		OptionalAccountType account_type{};
 		SRU::OptionalCode sru_code{};
 	};
+	using AccountMetas = std::map<BASAccountNo,BAS::AccountMeta>;
 
 	struct AccountTransaction {
 		BASAccountNo account_no;
@@ -528,8 +530,34 @@ namespace BAS {
 	}
 } // namespace BAS
 
+// Name, Heading + Amount account transaction
+struct NameHeadingAmountAT {
+	std::string account_name;
+	std::optional<std::string> trans_text{};
+	Amount amount;
+};
+using OptionalNameHeadingAmountAT = std::optional<NameHeadingAmountAT>;
+
+OptionalNameHeadingAmountAT to_name_heading_amount(std::vector<std::string> const& ast) {
+	OptionalNameHeadingAmountAT result{};
+	switch (ast.size()) {
+		case 2: {
+			if (auto amount = to_amount(ast[1])) {
+				result = NameHeadingAmountAT{.account_name=ast[0],.amount=*amount};
+			}
+		} break;
+		case 3: {
+			if (auto amount = to_amount(ast[2])) {
+				result = NameHeadingAmountAT{.account_name=ast[0],.trans_text=ast[1],.amount=*amount};
+			}		
+		} break;
+		default:;
+	}
+	return result;
+}
+
 BAS::OptionalAccountTransaction to_bas_account_transaction(std::vector<std::string> const& ast) {
-	BAS::OptionalAccountTransaction result;
+	BAS::OptionalAccountTransaction result{};
 	if (ast.size() > 1) {
 			if (auto account_no = BAS::to_account_no(ast[0])) {
 				switch (ast.size()) {
@@ -595,7 +623,6 @@ std::string to_string(BAS::anonymous::JournalEntry const& je) {
 	os << je;
 	return os.str();
 };
-
 
 std::string to_string(BAS::JournalEntry const& je) {
 	std::ostringstream os{};
@@ -681,40 +708,6 @@ private:
 	BAS::Series m_series;
 	AccountTransactionTemplates templates{};
 }; // class JournalEntryTemplate
-
-// A template to guide production of a Gross Amount account
-// followed by 1..n numbers of {ExVat,Vat} account transaction pairs
-class GrossNNetVatJournalEntryTemplate {
-public:
-	GrossNNetVatJournalEntryTemplate(std::string const& heading,Amount trans_amount,std::chrono::year_month_day const& trans_date,BASAccountNo account_no) 
-		:  m_heading{heading}
-		  ,m_trans_date{trans_date}
-		  ,m_gross_at{.account_no = account_no,.amount=trans_amount} {}
-
-	BAS::JournalEntry to_je() {
-		BAS::JournalEntry result{};
-		result.series = '*';
-		result.verno = 0;
-		result.entry.caption = m_heading;
-		result.entry.date = m_trans_date;
-		result.entry.account_transactions.push_back(m_gross_at);
-		std::copy(m_net_ats.begin(),m_net_ats.end(),std::back_inserter(result.entry.account_transactions));
-		return result;
-	}
-
-	BAS::JournalEntry add(BAS::AccountTransaction const& at) {
-		this->m_net_ats.push_back(at);
-		return this->to_je();
-	}
-
-private:
-	std::string m_heading;
-	std::chrono::year_month_day m_trans_date;
-	BAS::AccountTransaction m_gross_at{};
-	BAS::AccountTransactions m_net_ats{};
-};
-
-using OptionalGrossNNetVatJournalEntryTemplate = std::optional<GrossNNetVatJournalEntryTemplate>;
 
 // ==================================================================================
 // Had -> journal_entry -> Template
@@ -915,7 +908,11 @@ public:
 		}
 		return result;
 	}
+
+	BAS::AccountMetas& account_metas() {return this->m_account_metas;}
+
 private:
+	BAS::AccountMetas m_account_metas{};
 	BASJournals m_journals{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	BAS::JournalEntry add(BAS::JournalEntry const& je) {
@@ -1135,6 +1132,7 @@ enum class PromptState {
 	,JEIndex
 	,AccountIndex
 	,Amount
+	,CounterAccountsEntry
 	,Unknown
 };
 
@@ -1146,7 +1144,6 @@ public:
 	BAS::JournalEntries template_candidates{};
 	BAS::JournalEntry current_candidate{};
 	BAS::AccountTransaction at{};
-	OptionalGrossNNetVatJournalEntryTemplate gross_n_net_vat_template{};
   std::string prompt{};
 	bool quit{};
 	std::map<std::string,std::filesystem::path> sie_file_path{};
@@ -1208,6 +1205,12 @@ namespace SIE {
 	struct Tag {
 		std::string const expected;
 	};
+	// #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
+	struct Konto {
+		std::string tag;
+		BASAccountNo account_no;
+		std::string name;
+	};
 	struct Trans {
 		// Spec: #TRANS account no {object list} amount transdate transtext quantity sign
 		// Ex:   #TRANS 1920 {} 802 "" "" 0
@@ -1233,7 +1236,7 @@ namespace SIE {
 		std::vector<Trans> transactions{};
 	};
 	struct AnonymousLine {};
-	using SIEFileEntry = std::variant<Ver,Trans,AnonymousLine>;
+	using SIEFileEntry = std::variant<Konto,Ver,Trans,AnonymousLine>;
 	using SIEParseResult = std::optional<SIEFileEntry>;
 	std::istream& operator>>(std::istream& in,Tag const& tag) {
 		if (in.good()) {
@@ -1321,6 +1324,26 @@ namespace SIE {
 		}
 		return in;		
 	}
+
+	SIEParseResult parse_KONTO(Stream& in,std::string const& konto_tag) {
+	// // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
+	// struct Konto {
+	// 	std::string tag;
+	// 	BASAccountNo account_no;
+	// 	std::string name;
+	// };
+		SIEParseResult result{};
+		SIE::Konto konto{};
+		auto pos = in.tellg();
+		if (in >> Tag{konto_tag} >> konto.account_no >> std::quoted(konto.name)) {
+			result = konto;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
 
 	SIEParseResult parse_TRANS(Stream& in,std::string const& trans_tag) {
 		SIEParseResult result{};
@@ -1551,8 +1574,12 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 	if (in) {
 		SIEEnvironment sie_environment{};
 		while (true) {
-			// std::cout << "\nparse";    
-			if (auto opt_entry = SIE::parse_ver(in)) {
+			// std::cout << "\nparse";
+			if (auto opt_entry = SIE::parse_KONTO(in,"#KONTO")) {
+				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
+				sie_environment.account_metas()[konto.account_no] = BAS::AccountMeta{.name = konto.name};
+			}
+			else if (auto opt_entry = SIE::parse_ver(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 				// std::cout << "\n\tVER!";
 				auto je = to_entry(ver);
@@ -1610,6 +1637,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::Amount: {
 			prompt << ":had:je:account:amount";
 		} break;
+		case PromptState::CounterAccountsEntry: {
+			prompt << "had:je:at";
+		} break;
 		default: {
 			prompt << ":??";
 		}
@@ -1645,24 +1675,7 @@ public:
 		if (ast.size() > 0) {			
 			int signed_ix{};
 			std::istringstream is{ast[0]};
-			if (model->gross_n_net_vat_template and model->prompt_state == PromptState::AccountIndex) {
-				std::cout << "\nGross and n x net + vat";
-				// There is a Gross n x net + Vat template
-				if (auto at = to_bas_account_transaction(ast)) {
-					model->gross_n_net_vat_template->add(*at);
-					auto je = model->gross_n_net_vat_template->to_je();
-					unsigned int i{};
-					std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
-						prompt << "\n  " << i++ << " " << at;
-					});
-					model->current_candidate = je;
-					model->prompt_state = PromptState::AccountIndex;
-				}
-				else {
-					prompt << "\nPlease enter an account, an optional text, and an amount";
-				}
-			}
-			else if (model->prompt_state != PromptState::Amount and is >> signed_ix) {
+			if (model->prompt_state != PromptState::Amount and is >> signed_ix) {
 				size_t ix = std::abs(signed_ix);
 				bool do_remove = (signed_ix<0);
 				// Act on prompt state index input				
@@ -1708,15 +1721,19 @@ public:
 							auto had = *had_iter;
 							if (auto account_no = BAS::to_account_no(command)) {
 								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
-								GrossNNetVatJournalEntryTemplate tp{had.heading,had.amount,had.date,*account_no};
-								model->gross_n_net_vat_template = tp;
-								auto je = model->gross_n_net_vat_template->to_je();
-								unsigned int i{};
-								std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
-									prompt << "\n  " << i++ << " " << at;
-								});
+								std::cout << "\nGross Account detected";
+								BAS::JournalEntry je{};
+								je.entry.caption = had.heading;
+								je.entry.date = had.date;
+								je.entry.account_transactions.emplace_back(BAS::AccountTransaction{.account_no=*account_no,.amount=had.amount});
 								model->current_candidate = je;
-								model->prompt_state = PromptState::AccountIndex;
+								// List the options to the user
+								unsigned int i{};
+								prompt << "\n" << model->current_candidate.entry.caption << " " << model->current_candidate.entry.date;
+								for (auto const& at : model->current_candidate.entry.account_transactions) {
+									prompt << "\n  " << i++ << " " << at;
+								}				
+								model->prompt_state = PromptState::CounterAccountsEntry;
 							}
 							else {
 								// Assume user selected an entry as base for a template
@@ -1760,13 +1777,15 @@ public:
 							}
 						}
 					} break;
+
 					case PromptState::AccountIndex: {
 						auto iter = model->current_candidate.entry.account_transactions.begin();
 						std::advance(iter,ix);
 						prompt << "\n" << *iter;
 						model->at = *iter;
 						model->prompt_state = PromptState::Amount;
-					}
+					} break;
+
 					case PromptState::Amount:
 					case PromptState::Undefined:
 					case PromptState::Unknown:
@@ -1852,6 +1871,11 @@ public:
 					model->prompt_state = PromptState::HADIndex;
 				}
 			}
+			else if (ast[0] == "-meta") {
+				for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+					prompt << "\n  " << account_no << " " << std::quoted(am.name);
+				}
+			}
 			else if (ast[0] == "-csv") {
 				// std::cout << "\nCSV :)";
 				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
@@ -1895,6 +1919,23 @@ public:
 					for (int i = 0; i < model->template_candidates.size(); ++i) {
 						prompt << "\n    " << i << " " << model->template_candidates[i];
 					}
+				}
+				else if (model->prompt_state == PromptState::CounterAccountsEntry) {
+					if (auto nha = to_name_heading_amount(ast)) {
+						// List account candidates for the assumed "Name, Heading + Amount" entry by the user
+						std::cout << "\nAccount:" << std::quoted(nha->account_name);
+						if (nha->trans_text) std::cout << " text:" << std::quoted(*nha->trans_text);
+						std::cout << " amount:" << nha->amount;
+					}
+					else {
+						prompt << "\nPlease enter an account, and optional transaction text and an amount";
+					}
+					// List the new current options
+					unsigned int i{};
+					prompt << "\n" << model->current_candidate.entry.caption << " " << model->current_candidate.entry.date;
+					for (auto const& at : model->current_candidate.entry.account_transactions) {
+						prompt << "\n  " << i++ << " " << at;
+					}				
 				}
 				else if (model->prompt_state == PromptState::Amount) {
 					std::cout << "\nPromptState::Amount " << std::quoted(command);
