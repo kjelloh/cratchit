@@ -666,6 +666,14 @@ using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTrans
 
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
+Amount entry_transaction_amount(BAS::anonymous::JournalEntry const& je) {
+	Amount result = std::accumulate(je.account_transactions.begin(),je.account_transactions.end(),Amount{},[](Amount acc,BAS::AccountTransaction const& account_transaction){
+		acc += (account_transaction.amount>0)?account_transaction.amount:0;
+		return acc;
+	});
+	return result;
+}
+
 struct AccountTransactionTemplate {
 	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
 		:  m_account_no{account_no}
@@ -687,10 +695,7 @@ class JournalEntryTemplate {
 public:
 
 	JournalEntryTemplate(BAS::Series series,BAS::JournalEntry const& bje) : m_series{series} {
-		auto gross_amount = std::accumulate(bje.entry.account_transactions.begin(),bje.entry.account_transactions.end(),Amount{},[](Amount acc,BAS::AccountTransaction const& account_transaction){
-			acc += (account_transaction.amount>0)?account_transaction.amount:0;
-			return acc;
-		});
+		auto gross_amount = entry_transaction_amount(bje.entry);
 		if (gross_amount >= 0.01) {
 			std::transform(bje.entry.account_transactions.begin(),bje.entry.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::AccountTransaction const& account_transaction){
 				AccountTransactionTemplate result(
@@ -958,6 +963,30 @@ private:
 
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 
+using SIEEnvironments = std::map<std::string,SIEEnvironment>;
+
+BAS::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::OptionalAccountTransaction result{};
+	auto trans_amount = entry_transaction_amount(je);
+	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == trans_amount;
+	});
+	if (iter != je.account_transactions.end()) result = *iter;
+	return result;
+}
+
+BAS::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
+	BAS::AccountTransactions result{};
+	for (auto const& [year_id,sie_env] : sie_envs) {
+		for (auto const& [journal_id,journal] : sie_env.journals()) {
+			for (auto const& [verno,je] : journal) {
+				if (auto gross_at = gross_account_transaction(je)) result.push_back(*gross_at);
+			}
+		}
+	}
+	return result;
+}
+
 using EnvironmentValue = std::map<std::string,std::string>;
 using Environment = std::multimap<std::string,EnvironmentValue>;
 
@@ -1155,11 +1184,12 @@ public:
 	size_t had_index{};
 	BAS::JournalEntries template_candidates{};
 	BAS::JournalEntry current_candidate{};
+	BAS::AccountTransactions at_candidates{};
 	BAS::AccountTransaction at{};
   std::string prompt{};
 	bool quit{};
 	std::map<std::string,std::filesystem::path> sie_file_path{};
-	std::map<std::string,SIEEnvironment> sie{};
+	SIEEnvironments sie{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
 	// Environment environment{};
@@ -2017,6 +2047,12 @@ public:
 					}
 				}
 			}
+			else if (ast[0] == "-gross") {
+				auto gats = gross_account_transactions(model->sie);
+				for (auto const& gat : gats) {
+					prompt << "\n" << gat;
+				}				
+			}
 			else if (ast[0] == "-csv") {
 				// std::cout << "\nCSV :)";
 				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
@@ -2050,15 +2086,28 @@ public:
 			else {
 				if (model->prompt_state == PromptState::JEIndex) {
 					// Assume the user has entered a new search criteria for template candidates
-					// model->template_candidates = template_candidates(model->sie["current"].journals(),[command](BAS::anonymous::JournalEntry const& je){
-					// 	return do_share_tokens(command,je.caption);
-					// });
-					model->template_candidates = this->all_years_template_candidates([command](BAS::anonymous::JournalEntry const& je){
+					model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& je){
 						return do_share_tokens(command,je.caption);
 					});
-					
-					for (int i = 0; i < model->template_candidates.size(); ++i) {
+					int i{0};
+					for (; i < model->template_candidates.size(); ++i) {
 						prompt << "\n    " << i << " " << model->template_candidates[i];
+					}
+					// Consider the user may have entered the name of a gross account to journal the transaction amount
+					auto gats = gross_account_transactions(model->sie);
+					model->at_candidates.clear();
+					std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::AccountTransaction const& at){
+						bool result{false};
+						if (at.transtext) result |= do_share_tokens(command,*at.transtext);
+						auto const& meta = model->sie["current"].account_metas().at(at.account_no);
+						if (model->sie["current"].account_metas().contains(at.account_no)) {
+							result |= do_share_tokens(command,meta.name);
+						}
+						return result;
+					});
+					int ei{0};
+					for (;ei < model->at_candidates.size();++ei) {
+						prompt << "\n    " << i+ei << " " << model->at_candidates[ei];
 					}
 				}
 				else if (model->prompt_state == PromptState::CounterAccountsEntry) {
