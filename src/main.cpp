@@ -359,8 +359,8 @@ bool do_share_tokens(std::string const& s1,std::string const& s2) {
 }
 
 namespace SRU {
-	using Code = uint_fast16_t;
-	using OptionalCode = std::optional<Code>;
+	using AccountNo = unsigned int;
+	using OptionalAccountNo = std::optional<AccountNo>;
 }
 
 namespace BAS {
@@ -381,7 +381,7 @@ namespace BAS {
 	struct AccountMeta {
 		std::string name{};
 		OptionalAccountType account_type{};
-		SRU::OptionalCode sru_code{};
+		SRU::OptionalAccountNo sru_code{};
 	};
 	using AccountMetas = std::map<BASAccountNo,BAS::AccountMeta>;
 
@@ -529,6 +529,17 @@ namespace BAS {
 
 	}
 } // namespace BAS
+
+using BASAccountNos = std::vector<BASAccountNo>;
+using Sru2BasMap = std::map<SRU::AccountNo,BASAccountNos>;
+
+Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
+	Sru2BasMap result{};
+	for (auto const& [bas_account_no,am] : metas) {
+		if (am.sru_code) result[*am.sru_code].push_back(bas_account_no);
+	}
+	return result;
+}
 
 // Name, Heading + Amount account transaction
 struct NameHeadingAmountAT {
@@ -1211,6 +1222,13 @@ namespace SIE {
 		BASAccountNo account_no;
 		std::string name;
 	};
+
+	struct Sru {
+		std::string tag;
+		BASAccountNo bas_account_no;
+		SRU::AccountNo sru_account_no;
+	};
+
 	struct Trans {
 		// Spec: #TRANS account no {object list} amount transdate transtext quantity sign
 		// Ex:   #TRANS 1920 {} 802 "" "" 0
@@ -1236,7 +1254,7 @@ namespace SIE {
 		std::vector<Trans> transactions{};
 	};
 	struct AnonymousLine {};
-	using SIEFileEntry = std::variant<Konto,Ver,Trans,AnonymousLine>;
+	using SIEFileEntry = std::variant<Konto,Sru,Ver,Trans,AnonymousLine>;
 	using SIEParseResult = std::optional<SIEFileEntry>;
 	std::istream& operator>>(std::istream& in,Tag const& tag) {
 		if (in.good()) {
@@ -1344,6 +1362,18 @@ namespace SIE {
 		return result;		
 	}
 
+	SIEParseResult parse_SRU(Stream& in,std::string const& sru_tag) {
+		SIEParseResult result{};
+		SIE::Sru sru{};
+		auto pos = in.tellg();
+		if (in >> Tag{sru_tag} >> sru.bas_account_no >> sru.sru_account_no) {
+			result = sru;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
 
 	SIEParseResult parse_TRANS(Stream& in,std::string const& trans_tag) {
 		SIEParseResult result{};
@@ -1577,7 +1607,11 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			// std::cout << "\nparse";
 			if (auto opt_entry = SIE::parse_KONTO(in,"#KONTO")) {
 				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
-				sie_environment.account_metas()[konto.account_no] = BAS::AccountMeta{.name = konto.name};
+				sie_environment.account_metas()[konto.account_no].name = konto.name;
+			}
+			else if (auto opt_entry = SIE::parse_SRU(in,"#SRU")) {
+				SIE::Sru sru = std::get<SIE::Sru>(*opt_entry);
+				sie_environment.account_metas()[sru.bas_account_no].sru_code = sru.sru_account_no;
 			}
 			else if (auto opt_entry = SIE::parse_ver(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
@@ -1874,6 +1908,18 @@ public:
 			else if (ast[0] == "-meta") {
 				for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
 					prompt << "\n  " << account_no << " " << std::quoted(am.name);
+					if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+				}
+			}
+			else if (ast[0] == "-sru") {
+				// List SRU Accounts mapped to BAS Accounts
+				auto const& account_metas = model->sie["current"].account_metas();
+				auto sru_map = sru_to_bas_map(account_metas);
+				for (auto const& [sru_account,bas_accounts] : sru_map) {
+					prompt << "\nSRU:" << sru_account;
+					for (auto const& bas_account_no : bas_accounts) {
+						prompt << "\n  BAS:" << bas_account_no << " " << std::quoted(account_metas.at(bas_account_no).name);
+					}
 				}
 			}
 			else if (ast[0] == "-csv") {
