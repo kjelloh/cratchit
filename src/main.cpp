@@ -965,6 +965,16 @@ using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 
 using SIEEnvironments = std::map<std::string,SIEEnvironment>;
 
+void for_each_journal_entry(SIEEnvironments const& sie_envs,auto& f) {
+	for (auto const& [year_id,sie_env] : sie_envs) {
+		for (auto const& [journal_id,journal] : sie_env.journals()) {
+			for (auto const& [verno,je] : journal) {
+				f(je);
+			}
+		}
+	}
+}
+
 BAS::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& je) {
 	BAS::OptionalAccountTransaction result{};
 	auto trans_amount = entry_transaction_amount(je);
@@ -975,16 +985,69 @@ BAS::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::Journa
 	return result;
 }
 
-BAS::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
-	BAS::AccountTransactions result{};
-	for (auto const& [year_id,sie_env] : sie_envs) {
-		for (auto const& [journal_id,journal] : sie_env.journals()) {
-			for (auto const& [verno,je] : journal) {
-				if (auto gross_at = gross_account_transaction(je)) result.push_back(*gross_at);
-			}
+BAS::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::OptionalAccountTransaction result{};
+	auto trans_amount = entry_transaction_amount(je);
+	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == 0.8*trans_amount;
+	});
+	if (iter != je.account_transactions.end()) result = *iter;
+	return result;
+}
+
+BAS::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::OptionalAccountTransaction result{};
+	auto trans_amount = entry_transaction_amount(je);
+	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == 0.2*trans_amount;
+	});
+	if (iter != je.account_transactions.end()) result = *iter;
+	return result;
+}
+
+struct GrossAccountTransactions {
+	BAS::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& je) {
+		if (auto at = gross_account_transaction(je)) {
+			result.push_back(*at);
 		}
 	}
-	return result;
+};
+
+struct NetAccountTransactions {
+	BAS::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& je) {
+		if (auto at = net_account_transaction(je)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+struct VatAccountTransactions {
+	BAS::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& je) {
+		if (auto at = vat_account_transaction(je)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+BAS::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
+	GrossAccountTransactions ats{};
+	for_each_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
+BAS::AccountTransactions net_account_transactions(SIEEnvironments const& sie_envs) {
+	NetAccountTransactions ats{};
+	for_each_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
+BAS::AccountTransactions vat_account_transactions(SIEEnvironments const& sie_envs) {
+	VatAccountTransactions ats{};
+	for_each_journal_entry(sie_envs,ats);
+	return ats.result;
 }
 
 using EnvironmentValue = std::map<std::string,std::string>;
@@ -2051,6 +2114,18 @@ public:
 				auto gats = gross_account_transactions(model->sie);
 				for (auto const& gat : gats) {
 					prompt << "\n" << gat;
+				}				
+			}
+			else if (ast[0] == "-net") {
+				auto nats = net_account_transactions(model->sie);
+				for (auto const& nat : nats) {
+					prompt << "\n" << nat;
+				}				
+			}
+			else if (ast[0] == "-vat") {
+				auto vats = vat_account_transactions(model->sie);
+				for (auto const& vat : vats) {
+					prompt << "\n" << vat;
 				}				
 			}
 			else if (ast[0] == "-csv") {
