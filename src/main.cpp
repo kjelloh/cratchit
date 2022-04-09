@@ -400,7 +400,7 @@ namespace BAS {
 			std::chrono::year_month_day date{};
 			AccountTransactions account_transactions;
 		};
-
+		using OptionalJournalEntry = std::optional<JournalEntry>;
 		using JournalEntries = std::vector<JournalEntry>;
 	} // namespace anonymous
 
@@ -413,7 +413,7 @@ namespace BAS {
 		OptionalVerNo verno;
 		anonymous::JournalEntry entry;
 	};
-
+	using OptionalJournalEntry = std::optional<JournalEntry>;
 	using JournalEntries = std::vector<JournalEntry>;
 
 	struct MetaEntry {
@@ -661,6 +661,7 @@ struct HeadingAmountDateTransEntry {
 	std::string heading{};
 	Amount amount;
 	std::chrono::year_month_day date{};
+	BAS::OptionalJournalEntry current_candidate{};
 };
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
@@ -1335,7 +1336,7 @@ public:
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
 	BAS::JournalEntries template_candidates{};
-	BAS::JournalEntry current_candidate{};
+	// BAS::JournalEntry current_candidate{};
 	BAS::AccountTransactions at_candidates{};
 	BAS::AccountTransaction at{};
   std::string prompt{};
@@ -1344,7 +1345,41 @@ public:
 	SIEEnvironments sie{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
-	// Environment environment{};
+	HeadingAmountDateTransEntries::iterator selected_had_iter() {
+		auto had_iter = this->heading_amount_date_entries.begin();
+		auto end = this->heading_amount_date_entries.end();
+		std::advance(had_iter,this->had_index);
+		return had_iter;
+	}
+	OptionalHeadingAmountDateTransEntry selected_had() {
+		OptionalHeadingAmountDateTransEntry result{};
+		auto had_iter = this->selected_had_iter();
+		if (had_iter != heading_amount_date_entries.end()) {
+			result = *had_iter;
+		}
+		return result;
+	}
+
+	BAS::OptionalAccountTransaction selected_had_at(int at_index) {
+		BAS::OptionalAccountTransaction result{};
+		if (auto had = this->selected_had()) {
+			if (had->current_candidate) {
+				auto iter = had->current_candidate->entry.account_transactions.begin();
+				auto end = had->current_candidate->entry.account_transactions.end();
+				std::advance(iter,at_index);
+				if (iter != end) result = *iter;
+			}
+		}
+		return result;
+	}
+	void erease_selected_had() {
+		auto iter = this->selected_had_iter();
+		if (iter != heading_amount_date_entries.end()) {
+			this->heading_amount_date_entries.erase(iter);
+			this->had_index = this->heading_amount_date_entries.size()-1; // default to select the now last one
+		}							
+	}
+
 private:
 };
 
@@ -2037,11 +2072,11 @@ public:
 								je.entry.caption = had.heading;
 								je.entry.date = had.date;
 								je.entry.account_transactions.emplace_back(BAS::AccountTransaction{.account_no=*account_no,.amount=had.amount});
-								model->current_candidate = je;
+								had.current_candidate = je;
 								// List the options to the user
 								unsigned int i{};
-								prompt << "\n" << model->current_candidate.entry.caption << " " << model->current_candidate.entry.date;
-								for (auto const& at : model->current_candidate.entry.account_transactions) {
+								prompt << "\n" << had.current_candidate->entry.caption << " " << had.current_candidate->entry.date;
+								for (auto const& at : had.current_candidate->entry.account_transactions) {
 									prompt << "\n  " << i++ << " " << at;
 								}				
 								model->prompt_state = PromptState::CounterAccountsEntry;
@@ -2064,7 +2099,7 @@ public:
 											std::for_each(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[&i,&prompt](auto const& at){
 												prompt << "\n  " << i++ << " " << at;
 											});
-											model->current_candidate = je;
+											had.current_candidate = je;
 											model->prompt_state = PromptState::AccountIndex;
 										}
 										else {
@@ -2090,11 +2125,13 @@ public:
 					} break;
 
 					case PromptState::AccountIndex: {
-						auto iter = model->current_candidate.entry.account_transactions.begin();
-						std::advance(iter,ix);
-						prompt << "\n" << *iter;
-						model->at = *iter;
-						model->prompt_state = PromptState::Amount;
+						if (auto at = model->selected_had_at(ix)) {
+							model->at = *at;
+							model->prompt_state = PromptState::Amount;
+						}
+						else {
+							prompt << "\nEntered index does not refer to an Account Trasnaction Entry in current Heading Amount Date entry";
+						}
 					} break;
 
 					case PromptState::Amount:
@@ -2289,35 +2326,58 @@ public:
 						prompt << "\nPlease enter an account, and optional transaction text and an amount";
 					}
 					// List the new current options
-					unsigned int i{};
-					prompt << "\n" << model->current_candidate.entry.caption << " " << model->current_candidate.entry.date;
-					for (auto const& at : model->current_candidate.entry.account_transactions) {
-						prompt << "\n  " << i++ << " " << at;
-					}				
+					if (auto had = model->selected_had()) {
+						if (had->current_candidate) {
+							unsigned int i{};
+							prompt << "\n" << had->current_candidate->entry.caption << " " << had->current_candidate->entry.date;
+							for (auto const& at : had->current_candidate->entry.account_transactions) {
+								prompt << "\n  " << i++ << " " << at;
+							}				
+						}
+						else {
+							prompt << "\nPlease enter a valid Account Transaction Index";
+						}
+					}
+					else {
+						prompt << "\nPlease select a Heading Amount Date entry";
+					}
+
 				}
 				else if (model->prompt_state == PromptState::Amount) {
 					std::cout << "\nPromptState::Amount " << std::quoted(command);
+					if (auto had = model->selected_had()) {
+						if (auto amount = to_amount(command)) {
+							prompt << "\nAmount " << *amount;
+							model->at.amount = *amount;
+							if (had->current_candidate) {
+								had->current_candidate = updated_entry(*had->current_candidate,model->at);
+								auto je = model->sie["current"].stage(*had->current_candidate);
+								if (je) {
+									prompt << "\n" << *je;
+									// Erase the 'had' we just turned into journal entry and staged
+									model->erease_selected_had();
+								}
+								else {
+									prompt << "\n" << "Sorry - This transaction redeemed a duplicate";
+								}
+								model->prompt_state = PromptState::Root;
+							}
+							else {
+								prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
+							}
+						}
+						else {
+							prompt << "\nPlease enter an Amount";
+						}
+
+					}
+					else {
+						prompt << "\nPlease select a Heading Amount Date entry";
+					}
+
 					try {
 						auto amount = to_amount(command);
 						if (amount) {
-							prompt << "\nAmount " << *amount;
-							model->at.amount = *amount;
-							model->current_candidate = updated_entry(model->current_candidate,model->at);
-							auto je = model->sie["current"].stage(model->current_candidate);
-							if (je) {
-								prompt << "\n" << *je;
-								// Erase the 'had' we just turned into journal entry and staged
-								auto iter = model->heading_amount_date_entries.begin();
-								auto end = model->heading_amount_date_entries.end();
-								std::advance(iter,model->had_index);
-								if (iter != end) {
-									model->heading_amount_date_entries.erase(iter);
-								}							
-							}
-							else {
-								prompt << "\n" << "Sorry - This transaction redeemed a duplicate";
-							}
-							model->prompt_state = PromptState::Root;
 						}
 						else {
 							prompt << "\nNot an amount - " << std::quoted(command);
