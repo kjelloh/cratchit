@@ -85,101 +85,6 @@
     //     }
     // ],
 
-namespace SKV {
-	namespace XML {
-		using XMLMap = std::map<std::string,std::string>;
-		bool to_employer_contributions_and_PAYE_tax_return_file(std::ostream& os,XMLMap const& xml_map) {
-			try {
-				// IMPORTANT: No empty line (nor any white space) allowed before the "<?xml..." tag *sigh*
-				os << R"(<?xml version="1.0" encoding="UTF-8" standalone="no"?>)";
-				os << "\n" << R"(<Skatteverket omrade="Arbetsgivardeklaration")";
-					os << "\n" << R"(xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1")";
-					os << "\n" << R"(xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1")";
-					os << "\n" << R"(xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">)";
-
-					os << "\n" << R"(<agd:Avsandare>)";
-						os << "\n" << R"(<agd:Programnamn>Programmakarna AB</agd:Programnamn>)";
-						os << "\n" << R"(<agd:Organisationsnummer>)" << xml_map.at("agd:Organisationsnummer") << R"(</agd:Organisationsnummer>)";
-						os << "\n" << R"(<agd:TekniskKontaktperson>)";
-							os << "\n" << R"(<agd:Namn>Valle Vadman</agd:Namn>)";
-							os << "\n" << R"(<agd:Telefon>23-2-4-244454</agd:Telefon>)";
-							os << "\n" << R"(<agd:Epostadress>valle.vadman@programmakarna.se</agd:Epostadress>)";
-							os << "\n" << R"(<agd:Utdelningsadress1>Artillerigatan 11</agd:Utdelningsadress1>)";
-							os << "\n" << R"(<agd:Utdelningsadress2>C/O Segemyhr</agd:Utdelningsadress2>)";
-							os << "\n" << R"(<agd:Postnummer>62145</agd:Postnummer>)";
-							os << "\n" << R"(<agd:Postort>Visby</agd:Postort>)";
-						os << "\n" << R"(</agd:TekniskKontaktperson>)";
-						os << "\n" << R"(<agd:Skapad>2021-01-30T07:42:25</agd:Skapad>)";
-					os << "\n" << R"(</agd:Avsandare>)";
-
-					os << "\n" << R"(<agd:Blankettgemensamt>)";
-						os << "\n" << R"(<agd:Arbetsgivare>)";
-							os << "\n" << R"(<agd:AgRegistreradId>165560269986</agd:AgRegistreradId>)";
-							os << "\n" << R"(<agd:Kontaktperson>)";
-								os << "\n" << R"(<agd:Namn>Ville Vessla</agd:Namn>)";
-								os << "\n" << R"(<agd:Telefon>555-244454</agd:Telefon>)";
-								os << "\n" << R"(<agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>)";
-								os << "\n" << R"(<agd:Sakomrade>skruv-avdelningens anställda</agd:Sakomrade>)";
-							os << "\n" << R"(</agd:Kontaktperson>)";
-							os << "\n" << R"(<agd:Kontaktperson>)";
-								os << "\n" << R"(<agd:Namn>Maria Olsson</agd:Namn>)";
-								os << "\n" << R"(<agd:Telefon>555-244121</agd:Telefon>)";
-								os << "\n" << R"(<agd:Epostadress>maria.olsson@foretaget.se</agd:Epostadress>)";
-								os << "\n" << R"(<agd:Sakomrade>mutter-avdelningens anställda</agd:Sakomrade>)";
-							os << "\n" << R"(</agd:Kontaktperson>)";
-						os << "\n" << R"(</agd:Arbetsgivare>)";
-					os << "\n" << R"(</agd:Blankettgemensamt>)";
-
-					os << "\n" << R"(<!-- Uppgift 1 HU -->)";
-					os << "\n" << R"(<agd:Blankett>)";
-						os << "\n" << R"(<agd:Arendeinformation>)";
-							os << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
-							os << "\n" << R"(<agd:Period>202101</agd:Period>)";
-						os << "\n" << R"(</agd:Arendeinformation>)";
-						os << "\n" << R"(<agd:Blankettinnehall>)";
-							os << "\n" << R"(<agd:HU>)";
-								os << "\n" << R"(<agd:ArbetsgivareHUGROUP>)";
-									os << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
-								os << "\n" << R"(</agd:ArbetsgivareHUGROUP>)";
-								os << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
-								os << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">0</agd:SummaArbAvgSlf>)";
-								os << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">0</agd:SummaSkatteavdr>)";
-							os << "\n" << R"(</agd:HU>)";
-						os << "\n" << R"(</agd:Blankettinnehall>)";
-					os << "\n" << R"(</agd:Blankett>)";
-
-					os << "\n" << R"(<!-- Uppgift 1 IU -->)";
-					os << "\n" << R"(<agd:Blankett>)";
-						os << "\n" << R"(<agd:Arendeinformation>)";
-							os << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
-							os << "\n" << R"(<agd:Period>202101</agd:Period>)";
-						os << "\n" << R"(</agd:Arendeinformation>)";
-						os << "\n" << R"(<agd:Blankettinnehall>)";
-							os << "\n" << R"(<agd:IU>)";
-								os << "\n" << R"(<agd:ArbetsgivareIUGROUP>)";
-									os << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
-								os << "\n" << R"(</agd:ArbetsgivareIUGROUP>)";
-								os << "\n" << R"(<agd:BetalningsmottagareIUGROUP>)";
-									os << "\n" << R"(<agd:BetalningsmottagareIDChoice>)";
-										os << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>)";
-									os << "\n" << R"(</agd:BetalningsmottagareIDChoice>)";
-								os << "\n" << R"(</agd:BetalningsmottagareIUGROUP>)";
-								os << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
-								os << "\n" << R"(<agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>)";
-								os << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>)";
-							os << "\n" << R"(</agd:IU>)";
-						os << "\n" << R"(</agd:Blankettinnehall>)";
-					os << "\n" << R"(</agd:Blankett>)";
-				os << "\n" << R"(</Skatteverket>)";
-			}
-			catch (std::exception const& e) {
-				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
-			}
-			return static_cast<bool>(os);
-		}
-	} // namespace XML
-} // namespace SKV
-
 namespace tokenize {
 	// returns s split into first,second on provided delimiter delim.
 	// split fail returns first = "" and second = s
@@ -312,64 +217,31 @@ namespace parse {
     }
 } // namespace parse
 
-/*
-
-	How can we model bookkeeping of a company?
-
-	It seems we need to be able to model the following aspects.
-
-	One or more Journals with details of each financial transaction, what document is proof of the transaction and how the transaction is accounted for.
-	The Ledger in which all Journal transactions are summarised to.
-
-	So, it seems a Journal contains records of how each transaction is accounted for.
-	And the Ledger contains transactions as recorded to accounts?
-
-	Can we thus say that an SIE-file is in fact a representation of a Journal?
-	And when we read in an SIE file we create the Ledger?
-
-	The Swedish terms can thus be as follows.
-
-	"Bokföring" and "Verifikation" is about entering trasnactions into a Journal?
-	"Huvudbok" is the Ledger?
-
-	So then we should implement a model with one or more Journals linked to a single Ledger?
-
-	Journal 1											Ledger
-	Journal 2												Account
-	Journal 3												Account
-	...														Account
-	   Journal Entry {										Account
-		   Transaction Account <-> Account					   Transaction
-		   Transaction Account <-> Account
-		   ...
-	   }
-
-	From Wikipedia
-
-	*  A document is produced each time a transaction occurs
-	*  Bookkeeping first involves recording the details of all of these source documents into multi-column journals.
-	*  Each column in a journal normally corresponds to an account.
-	*  After a certain period ... each column in each journal .. are then transferred to their respective accounts in the ledger...
-
-*/
-
-// Helper for stream output of otpional string
-std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_s) {
-	if (opt_s) {
-		os << std::quoted(*opt_s);
+bool do_share_tokens(std::string const& s1,std::string const& s2) {
+	bool result{false};
+	auto had_heading_words = tokenize::splits(s1);
+	auto je_heading_words = tokenize::splits(s2);
+	for (std::string hadw : had_heading_words) {
+		for (std::string jew : je_heading_words) {
+			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
+			std::transform(jew.begin(),jew.end(),jew.begin(),::toupper);
+			// std::cout << "\ncompare " << std::quoted(hadw) << " with " << std::quoted(jew);
+			if (hadw == jew) {
+				result = true;
+			}
+		}
 	}
-	return os;
+	return result;
 }
 
-std::optional<std::filesystem::path> path_to_existing_file(std::string const& s) {
-	std::optional<std::filesystem::path> result{};
-	std::filesystem::path path{s};
-	if (std::filesystem::exists(path)) result = path;
-	return result;
+namespace SRU {
+	using AccountNo = unsigned int;
+	using OptionalAccountNo = std::optional<AccountNo>;
 }
 
 using Amount= float;
 using optional_amount = std::optional<Amount>;
+
 optional_amount to_amount(std::string const& sAmount) {
 	// std::cout << "\nto_amount " << std::quoted(sAmount);
 	optional_amount result{};
@@ -397,67 +269,8 @@ optional_amount to_amount(std::string const& sAmount) {
 	return result;
 }
 
-using optional_year_month_day = std::optional<std::chrono::year_month_day>;
-
-std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
-	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
-	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
-	return os;
-}
-std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
-		std::ostringstream os{};
-		os << yyyymmdd;
-		return os.str();
-}
-
-optional_year_month_day to_date(std::string const& sYYYYMMDD) {
-	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
-	optional_year_month_day result{};
-	if (sYYYYMMDD.size()==8) {
-		result = std::chrono::year_month_day(
-			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
-			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
-			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
-	}
-	else {
-		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
-		std::string sDate{};
-		std::copy_if(sYYYYMMDD.begin(),sYYYYMMDD.end(),std::back_inserter(sDate),[](char ch){
-			return std::isdigit(ch);
-		});
-		if (sDate.size()==8) result = to_date(sDate);
-	}
-	// if (result) std::cout << " = " << *result;
-	// else std::cout << " = null";
-	return result;
-}
-
 using BASAccountNo = unsigned int;
 using OptionalBASAccountNo = std::optional<BASAccountNo>;
-
-bool do_share_tokens(std::string const& s1,std::string const& s2) {
-	bool result{false};
-	auto had_heading_words = tokenize::splits(s1);
-	auto je_heading_words = tokenize::splits(s2);
-	for (std::string hadw : had_heading_words) {
-		for (std::string jew : je_heading_words) {
-			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
-			std::transform(jew.begin(),jew.end(),jew.begin(),::toupper);
-			// std::cout << "\ncompare " << std::quoted(hadw) << " with " << std::quoted(jew);
-			if (hadw == jew) {
-				result = true;
-			}
-		}
-	}
-	return result;
-}
-
-namespace SRU {
-	using AccountNo = unsigned int;
-	using OptionalAccountNo = std::optional<AccountNo>;
-}
 
 namespace BAS {
 
@@ -599,7 +412,6 @@ namespace BAS {
 			}
 		};
 
-
 		struct matches_user_search_criteria{
 			std::string user_search_string;
 			bool operator()(MetaEntry const& me) {
@@ -625,6 +437,99 @@ namespace BAS {
 
 	}
 } // namespace BAS
+
+/*
+
+	How can we model bookkeeping of a company?
+
+	It seems we need to be able to model the following aspects.
+
+	One or more Journals with details of each financial transaction, what document is proof of the transaction and how the transaction is accounted for.
+	The Ledger in which all Journal transactions are summarised to.
+
+	So, it seems a Journal contains records of how each transaction is accounted for.
+	And the Ledger contains transactions as recorded to accounts?
+
+	Can we thus say that an SIE-file is in fact a representation of a Journal?
+	And when we read in an SIE file we create the Ledger?
+
+	The Swedish terms can thus be as follows.
+
+	"Bokföring" and "Verifikation" is about entering trasnactions into a Journal?
+	"Huvudbok" is the Ledger?
+
+	So then we should implement a model with one or more Journals linked to a single Ledger?
+
+	Journal 1											Ledger
+	Journal 2												Account
+	Journal 3												Account
+	...														Account
+	   Journal Entry {										Account
+		   Transaction Account <-> Account					   Transaction
+		   Transaction Account <-> Account
+		   ...
+	   }
+
+	From Wikipedia
+
+	*  A document is produced each time a transaction occurs
+	*  Bookkeeping first involves recording the details of all of these source documents into multi-column journals.
+	*  Each column in a journal normally corresponds to an account.
+	*  After a certain period ... each column in each journal .. are then transferred to their respective accounts in the ledger...
+
+*/
+
+// Helper for stream output of otpional string
+std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_s) {
+	if (opt_s) {
+		os << std::quoted(*opt_s);
+	}
+	return os;
+}
+
+std::optional<std::filesystem::path> path_to_existing_file(std::string const& s) {
+	std::optional<std::filesystem::path> result{};
+	std::filesystem::path path{s};
+	if (std::filesystem::exists(path)) result = path;
+	return result;
+}
+
+using optional_year_month_day = std::optional<std::chrono::year_month_day>;
+
+std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
+	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
+	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
+	return os;
+}
+std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
+		std::ostringstream os{};
+		os << yyyymmdd;
+		return os.str();
+}
+
+optional_year_month_day to_date(std::string const& sYYYYMMDD) {
+	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
+	optional_year_month_day result{};
+	if (sYYYYMMDD.size()==8) {
+		result = std::chrono::year_month_day(
+			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
+			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
+			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
+	}
+	else {
+		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
+		std::string sDate{};
+		std::copy_if(sYYYYMMDD.begin(),sYYYYMMDD.end(),std::back_inserter(sDate),[](char ch){
+			return std::isdigit(ch);
+		});
+		if (sDate.size()==8) result = to_date(sDate);
+	}
+	// if (result) std::cout << " = " << *result;
+	// else std::cout << " = null";
+	return result;
+}
 
 using BASAccountNos = std::vector<BASAccountNo>;
 using Sru2BasMap = std::map<SRU::AccountNo,BASAccountNos>;
@@ -712,7 +617,6 @@ std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
 	return os;
 }
 
-
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
 	os << je.series << je.verno << " " << je.entry;
 	return os;
@@ -769,6 +673,684 @@ std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had
 using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
 
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
+
+namespace CSV {
+	namespace NORDEA {
+		struct istream {
+			std::istream& is;
+			operator bool() {return static_cast<bool>(is);}
+		};
+
+		enum element: std::size_t {
+			undefined
+			,Bokforingsdag = 0
+			,Belopp = 1
+			,Avsandare = 2
+			,Mottagare = 3
+			,Namn = 4
+			,Rubrik = 5
+			,Meddelande = 6
+			,Egna_anteckningar = 7
+			,Saldo = 8
+			,Valuta = 9
+			,unknown
+		};
+
+		CSV::NORDEA::istream& operator>>(CSV::NORDEA::istream& in,HeadingAmountDateTransEntry& had) {
+			//       0         1      2         3         4    5        6          7              8      9
+			// Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
+			//       0         1      2      3            4                             5                                 6                78 9
+			// 2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
+			std::string sEntry{};
+			if (std::getline(in.is,sEntry)) {
+				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::yes);
+				// LOG
+				if (false) {
+					std::cout << "\ncsv count: " << tokens.size(); // Expected 10
+					for (int i=0;i<tokens.size();++i) {
+						std::cout << "\n\t" << i << " " << tokens[i];
+					}
+				}
+				if (tokens.size()==10) {
+					while (true) {
+						std::string heading{tokens[element::Rubrik]};
+						had.heading = heading;
+						if (auto amount = to_amount(tokens[element::Belopp])) had.amount = *amount;
+						else {in.is.setstate(std::istream::failbit);break;}
+						if (auto date = to_date(tokens[element::Bokforingsdag])) had.date = *date;
+						else {in.is.setstate(std::istream::failbit);break;}
+						break;
+					}
+				}
+			}
+			return in;
+		}
+	} // namespace NORDEA
+
+	using CSVParseResult = std::optional<HeadingAmountDateTransEntry>;
+
+	CSVParseResult parse_TRANS(auto& in) {
+		CSVParseResult result{};
+		auto pos = in.is.tellg();
+		HeadingAmountDateTransEntry had{};
+		if (in >> had) {
+			// std::cout << "\nfrom csv: " << had;
+			result = had;
+			pos = in.is.tellg(); // accept new stream position
+		}
+		in.is.seekg(pos); // Reset position in case of failed parse
+		in.is.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
+	HeadingAmountDateTransEntries from_stream(auto& in) {
+		HeadingAmountDateTransEntries result{};
+		parse_TRANS(in); // skip first line with field names
+		while (auto had = parse_TRANS(in)) {
+			result.push_back(*had);
+		}
+		return result;
+	}
+} // namespace CSV
+
+namespace SKV {
+	namespace XML {
+		using XMLMap = std::map<std::string,std::string>;
+		bool to_employer_contributions_and_PAYE_tax_return_file(std::ostream& os,XMLMap const& xml_map) {
+			try {
+				// IMPORTANT: No empty line (nor any white space) allowed before the "<?xml..." tag *sigh*
+				os << R"(<?xml version="1.0" encoding="UTF-8" standalone="no"?>)";
+				os << "\n" << R"(<Skatteverket omrade="Arbetsgivardeklaration")";
+					os << "\n" << R"(xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1")";
+					os << "\n" << R"(xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1")";
+					os << "\n" << R"(xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">)";
+
+					os << "\n" << R"(<agd:Avsandare>)";
+						os << "\n" << R"(<agd:Programnamn>Programmakarna AB</agd:Programnamn>)";
+						os << "\n" << R"(<agd:Organisationsnummer>)" << xml_map.at("agd:Organisationsnummer") << R"(</agd:Organisationsnummer>)";
+						os << "\n" << R"(<agd:TekniskKontaktperson>)";
+							os << "\n" << R"(<agd:Namn>Valle Vadman</agd:Namn>)";
+							os << "\n" << R"(<agd:Telefon>23-2-4-244454</agd:Telefon>)";
+							os << "\n" << R"(<agd:Epostadress>valle.vadman@programmakarna.se</agd:Epostadress>)";
+							os << "\n" << R"(<agd:Utdelningsadress1>Artillerigatan 11</agd:Utdelningsadress1>)";
+							os << "\n" << R"(<agd:Utdelningsadress2>C/O Segemyhr</agd:Utdelningsadress2>)";
+							os << "\n" << R"(<agd:Postnummer>62145</agd:Postnummer>)";
+							os << "\n" << R"(<agd:Postort>Visby</agd:Postort>)";
+						os << "\n" << R"(</agd:TekniskKontaktperson>)";
+						os << "\n" << R"(<agd:Skapad>2021-01-30T07:42:25</agd:Skapad>)";
+					os << "\n" << R"(</agd:Avsandare>)";
+
+					os << "\n" << R"(<agd:Blankettgemensamt>)";
+						os << "\n" << R"(<agd:Arbetsgivare>)";
+							os << "\n" << R"(<agd:AgRegistreradId>165560269986</agd:AgRegistreradId>)";
+							os << "\n" << R"(<agd:Kontaktperson>)";
+								os << "\n" << R"(<agd:Namn>Ville Vessla</agd:Namn>)";
+								os << "\n" << R"(<agd:Telefon>555-244454</agd:Telefon>)";
+								os << "\n" << R"(<agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>)";
+								os << "\n" << R"(<agd:Sakomrade>skruv-avdelningens anställda</agd:Sakomrade>)";
+							os << "\n" << R"(</agd:Kontaktperson>)";
+							os << "\n" << R"(<agd:Kontaktperson>)";
+								os << "\n" << R"(<agd:Namn>Maria Olsson</agd:Namn>)";
+								os << "\n" << R"(<agd:Telefon>555-244121</agd:Telefon>)";
+								os << "\n" << R"(<agd:Epostadress>maria.olsson@foretaget.se</agd:Epostadress>)";
+								os << "\n" << R"(<agd:Sakomrade>mutter-avdelningens anställda</agd:Sakomrade>)";
+							os << "\n" << R"(</agd:Kontaktperson>)";
+						os << "\n" << R"(</agd:Arbetsgivare>)";
+					os << "\n" << R"(</agd:Blankettgemensamt>)";
+
+					os << "\n" << R"(<!-- Uppgift 1 HU -->)";
+					os << "\n" << R"(<agd:Blankett>)";
+						os << "\n" << R"(<agd:Arendeinformation>)";
+							os << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
+							os << "\n" << R"(<agd:Period>202101</agd:Period>)";
+						os << "\n" << R"(</agd:Arendeinformation>)";
+						os << "\n" << R"(<agd:Blankettinnehall>)";
+							os << "\n" << R"(<agd:HU>)";
+								os << "\n" << R"(<agd:ArbetsgivareHUGROUP>)";
+									os << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
+								os << "\n" << R"(</agd:ArbetsgivareHUGROUP>)";
+								os << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
+								os << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">0</agd:SummaArbAvgSlf>)";
+								os << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">0</agd:SummaSkatteavdr>)";
+							os << "\n" << R"(</agd:HU>)";
+						os << "\n" << R"(</agd:Blankettinnehall>)";
+					os << "\n" << R"(</agd:Blankett>)";
+
+					os << "\n" << R"(<!-- Uppgift 1 IU -->)";
+					os << "\n" << R"(<agd:Blankett>)";
+						os << "\n" << R"(<agd:Arendeinformation>)";
+							os << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
+							os << "\n" << R"(<agd:Period>202101</agd:Period>)";
+						os << "\n" << R"(</agd:Arendeinformation>)";
+						os << "\n" << R"(<agd:Blankettinnehall>)";
+							os << "\n" << R"(<agd:IU>)";
+								os << "\n" << R"(<agd:ArbetsgivareIUGROUP>)";
+									os << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
+								os << "\n" << R"(</agd:ArbetsgivareIUGROUP>)";
+								os << "\n" << R"(<agd:BetalningsmottagareIUGROUP>)";
+									os << "\n" << R"(<agd:BetalningsmottagareIDChoice>)";
+										os << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>)";
+									os << "\n" << R"(</agd:BetalningsmottagareIDChoice>)";
+								os << "\n" << R"(</agd:BetalningsmottagareIUGROUP>)";
+								os << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
+								os << "\n" << R"(<agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>)";
+								os << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>)";
+							os << "\n" << R"(</agd:IU>)";
+						os << "\n" << R"(</agd:Blankettinnehall>)";
+					os << "\n" << R"(</agd:Blankett>)";
+				os << "\n" << R"(</Skatteverket>)";
+			}
+			catch (std::exception const& e) {
+				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
+			}
+			return static_cast<bool>(os);
+		}
+	} // namespace XML
+} // namespace SKV
+
+using char16_t_string = std::wstring;
+
+namespace CP435 {
+	extern std::map<char,char16_t> cp435ToUnicodeMap;
+
+	char16_t cp435ToUnicode(char ch435) {
+		return cp435ToUnicodeMap[ch435];
+	}
+
+	char16_t_string cp435ToUnicode(std::string s435) {
+		char16_t_string result{};
+		std::transform(s435.begin(),s435.end(),std::back_inserter(result),[](char ch){
+			return CP435::cp435ToUnicode(ch);
+		});
+		return result;
+	}
+}
+
+namespace UTF8 {
+	// Unicode constants
+	// Leading (high) surrogates: 0xd800 - 0xdbff
+	// Trailing (low) surrogates: 0xdc00 - 0xdfff
+	const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
+	const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
+	const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
+	const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
+
+	// Maximum valid value for a Unicode code point
+	const char32_t CODE_POINT_MAX      = 0x0010ffff;
+
+	inline bool is_surrogate(char32_t cp) {
+				return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
+	}
+
+	bool is_valid_unicode(char32_t cp) {
+		return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
+	}
+
+	struct Stream {
+		std::ostream& os;
+	};
+
+	UTF8::Stream& operator<<(UTF8::Stream& os,char32_t cp) {
+		// Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
+		if (!is_valid_unicode(cp)) {
+			os.os << '?';
+		}
+		else if (cp < 0x80)                        // one octet
+				os.os << static_cast<char>(cp);
+		else if (cp < 0x800) {                // two octets
+				os.os << static_cast<char>((cp >> 6)            | 0xc0);
+				os.os << static_cast<char>((cp & 0x3f)          | 0x80);
+		}
+		else if (cp < 0x10000) {              // three octets
+				os.os << static_cast<char>((cp >> 12)           | 0xe0);
+				os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
+				os.os << static_cast<char>((cp & 0x3f)          | 0x80);
+		}
+		else {                                // four octets
+				os.os << static_cast<char>((cp >> 18)           | 0xf0);
+				os.os << static_cast<char>(((cp >> 12) & 0x3f)  | 0x80);
+				os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
+				os.os << static_cast<char>((cp & 0x3f)          | 0x80);
+		}
+		return os;
+	}
+
+	std::string unicode_to_utf8(char16_t_string const& s) {
+		std::ostringstream os{};
+		UTF8::Stream utf8_os{os};
+		for (auto cp : s) utf8_os << cp;
+		return os.str();
+	}
+} // namespace UTF8
+
+namespace SIE {
+
+	using Stream = std::istream;
+
+	struct Tag {
+		std::string const expected;
+	};
+
+	// ####
+
+	// #ORGNR CIN 
+	struct OrgNr {
+		std::string tag;
+		std::string CIN;
+		// acq_no 
+		// act_no
+	};
+
+	// #FNAMN company name
+	struct FNamn {
+		std::string tag;
+		std::string company_name;
+	};
+
+	// #ADRESS contact distribution address postal address tel
+	struct Adress {
+		std::string tag;
+		std::string contact;
+		std::string distribution_address;
+		std::string postal_address;
+		std::string tel;
+	};
+
+	// #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
+	struct Konto {
+		std::string tag;
+		BASAccountNo account_no;
+		std::string name;
+	};
+
+	struct Sru {
+		std::string tag;
+		BASAccountNo bas_account_no;
+		SRU::AccountNo sru_account_no;
+	};
+
+	struct Trans {
+		// Spec: #TRANS account no {object list} amount transdate transtext quantity sign
+		// Ex:   #TRANS 1920 {} 802 "" "" 0
+		std::string tag;
+		BASAccountNo account_no;
+		std::string object_list{};
+		float amount;
+		std::optional<std::chrono::year_month_day> transdate{};
+		std::optional<std::string> transtext{};
+		std::optional<float> quantity{};
+		std::optional<std::string> sign{};
+	};
+	struct Ver {
+		// Spec: #VER series verno verdate vertext regdate sign
+		// Ex:   #VER A 3 20210510 "Beanstalk" 20210817
+		std::string tag;
+		BAS::Series series;
+		BAS::VerNo verno;
+		std::chrono::year_month_day verdate;
+		std::string vertext;
+		std::optional<std::chrono::year_month_day> regdate{};
+		std::optional<std::string> sign{};
+		std::vector<Trans> transactions{};
+	};
+	struct AnonymousLine {};
+	using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Konto,Sru,Ver,Trans,AnonymousLine>;
+	using SIEParseResult = std::optional<SIEFileEntry>;
+	std::istream& operator>>(std::istream& in,Tag const& tag) {
+		if (in.good()) {
+			// std::cout << "\n>>Tag[expected:" << tag.expected;
+			auto pos = in.tellg();
+			std::string token{};
+			if (in >> token) {
+				// std::cout << ",read:" << token << "]";
+				if (token != tag.expected) {
+					in.seekg(pos); // Reset position for failed tag
+					in.setstate(std::ios::failbit); // failed to read expected tag
+					// std::cout << " rejected";
+				}
+			}
+			else {
+				// std::cout << "null";
+			}
+		}		
+		return in;
+	}
+
+	struct optional_YYYYMMdd_parser {
+		std::optional<std::chrono::year_month_day>& date;
+	};
+	struct YYYYMMdd_parser {
+		std::chrono::year_month_day& date;
+	};
+	std::istream& operator>>(std::istream& in,optional_YYYYMMdd_parser& p) {
+		if (in.good()) {
+			auto pos = in.tellg();
+			try {
+				// std::chrono::from_stream(in,p.fmt,p.date); // Not in g++11 libc++?
+				std::string sDate{};
+				in >> std::quoted(sDate);
+				if (sDate.size()==0) {
+					pos = in.tellg(); // Accept this parse position (e.g., "" is to be accepted)
+				}
+				else if (auto date = to_date(sDate);date) {
+					p.date = *date;
+					pos = in.tellg(); // Accept this parse position (an actual date was parsed)
+				}
+			}
+			catch (std::exception const& e) { /* swallow all failuires silently for optional parse */}
+			in.seekg(pos); // Reset position in case of failed parse
+			in.clear(); // Reset failbit to allow try for other parse
+		}
+		return in;
+	}
+	std::istream& operator>>(std::istream& in,YYYYMMdd_parser& p) {
+		if (in.good()) {
+			std::optional<std::chrono::year_month_day> od{};
+			optional_YYYYMMdd_parser op{od};
+			in >> op;
+			if (op.date) {
+				p.date = *op.date;
+			}
+			else {
+				in.setstate(std::ios::failbit);
+			}
+		}
+		return in;
+	}
+	struct optional_Text_parser {
+		std::optional<std::string>& text;
+	};
+	std::istream& operator>>(std::istream& in,optional_Text_parser& p) {
+		if (in.good()) {
+			auto pos = in.tellg();
+			std::string text{};
+			if (in >> std::quoted(text)) {
+				p.text = text;
+				pos = in.tellg(); // accept this parse pos
+			}
+			in.clear(); // Reset failbit to allow try for other parse
+			in.seekg(pos); // Reset position in case of failed parse
+		}
+		return in;
+	}
+	struct Scraps {};
+	std::istream& operator>>(std::istream& in,Scraps& p) {
+		if (in.good()) {
+			std::string scraps{};
+			std::getline(in,scraps);
+			// std::cout << "\nscraps:" << scraps;
+		}
+		return in;		
+	}
+
+	SIEParseResult parse_ORGNR(Stream& in,std::string const& konto_tag) {
+		SIEParseResult result{};
+		// #ORGNR CIN 
+		// struct OrgNr {
+		// 	std::string tag;
+		// 	std::string CIN;
+		// 	// acq_no 
+		// 	// act_no
+		// };
+		SIE::OrgNr orgnr{};
+		auto pos = in.tellg();
+		if (in >> Tag{konto_tag} >> orgnr.CIN) {
+			result = orgnr;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+
+		return result;
+	}
+
+	SIEParseResult parse_FNAMN(Stream& in,std::string const& konto_tag) {
+		SIEParseResult result{};
+		// #FNAMN company name
+		// struct FNamn {
+		// 	std::string tag;
+		// 	std::string company_name;
+		// };
+		SIE::FNamn fnamn{};
+		auto pos = in.tellg();
+		if (in >> Tag{konto_tag} >> std::quoted(fnamn.company_name)) {
+			result = fnamn;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;
+	}
+
+	SIEParseResult parse_ADRESS(Stream& in,std::string const& konto_tag) {
+		SIEParseResult result{};
+		// #ADRESS contact distribution address postal address tel
+		// struct Adress {
+		// 	std::string tag;
+		// 	std::string contact;
+		// 	std::string distribution_address;
+		// 	std::string postal_address;
+		// 	std::string tel;
+		// };
+		SIE::Adress adress{};
+		auto pos = in.tellg();
+		if (in >> Tag{konto_tag} >> std::quoted(adress.contact) >> std::quoted(adress.distribution_address) >> std::quoted(adress.postal_address) >> std::quoted(adress.tel)) {
+			result = adress;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;
+	}
+
+	SIEParseResult parse_KONTO(Stream& in,std::string const& konto_tag) {
+	// // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
+	// struct Konto {
+	// 	std::string tag;
+	// 	BASAccountNo account_no;
+	// 	std::string name;
+	// };
+		SIEParseResult result{};
+		SIE::Konto konto{};
+		auto pos = in.tellg();
+		if (in >> Tag{konto_tag} >> konto.account_no >> std::quoted(konto.name)) {
+
+			// Convert from code point 437 to utf-8
+			auto s437 = konto.name;
+			auto sUnicode = CP435::cp435ToUnicode(s437);
+			konto.name = UTF8::unicode_to_utf8(sUnicode);
+
+			result = konto;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
+	SIEParseResult parse_SRU(Stream& in,std::string const& sru_tag) {
+		SIEParseResult result{};
+		SIE::Sru sru{};
+		auto pos = in.tellg();
+		if (in >> Tag{sru_tag} >> sru.bas_account_no >> sru.sru_account_no) {
+			result = sru;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
+	SIEParseResult parse_TRANS(Stream& in,std::string const& trans_tag) {
+		SIEParseResult result{};
+		Scraps scraps{};
+		auto pos = in.tellg();
+		// #TRANS 2610 {} 25900 "" "" 0
+		SIE::Trans trans{};
+		optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
+		optional_Text_parser optional_transtext_parser{trans.transtext};
+		if (in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
+			// std::cout << trans_tag << trans.account_no << " " << trans.amount;
+
+			if (trans.transtext) {
+				// Convert from code point 437 to utf-8
+				auto s437 = *trans.transtext;
+				auto sUnicode = CP435::cp435ToUnicode(s437);
+				trans.transtext = UTF8::unicode_to_utf8(sUnicode);
+			}
+
+			result = trans;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
+	SIEParseResult parse_Tag(Stream& in,std::string const& tag) {
+		SIEParseResult result{};
+		Scraps scraps{};
+		auto pos = in.tellg();
+		if (in >> Tag{tag}) {
+			result = AnonymousLine{}; // Success but not data
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;		
+	}
+
+	SIEParseResult parse_VER(Stream& in) {
+		SIEParseResult result{};
+		Scraps scraps{};
+		auto pos = in.tellg();
+		// #VER A 1 20210505 "M�nadsavgift PG" 20210817
+		SIE::Ver ver{};
+		YYYYMMdd_parser verdate_parser{ver.verdate};
+		if (in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
+			if (true) {
+				// std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
+			}
+			// Convert from code point 437 to utf-8
+			auto s437 = ver.vertext;
+			auto sUnicode = CP435::cp435ToUnicode(s437);
+			ver.vertext = UTF8::unicode_to_utf8(sUnicode);
+
+			while (true) {
+				if (auto entry = parse_TRANS(in,"#TRANS")) {
+					// std::cout << "\nTRANS :)";	
+					ver.transactions.push_back(std::get<Trans>(*entry));					
+				}
+				else if (auto entry = parse_TRANS(in,"#BTRANS")) {
+					// Ignore
+					// std::cout << " Ignored";
+				}
+				else if (auto entry = parse_TRANS(in,"#RTRANS")) {
+					// Ignore
+					// std::cout << " Ignored";
+				}
+				else if (auto entry = parse_Tag(in,"}")) {
+					break;
+				}
+				else {
+					std::cerr << "\nERROR - Unexpected input while parsing #VER SIE entry";
+					break;
+				}
+			}
+			result = ver;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;
+	}
+
+	SIEParseResult parse_any_line(Stream& in) {
+		if (in.fail()) {
+			// std::cout << "\nparse_any_line in==fail";
+		}
+		auto pos = in.tellg();
+		std::string line{};
+		if (std::getline(in,line)) {
+			// std::cout << "\n\tany=" << line;
+			return AnonymousLine{};
+		}
+		else {
+			// std::cout << "\n\tany null";
+			in.seekg(pos);
+			return {};
+		}
+	}
+
+	// ===============================================================
+	// BEGIN operator<< framework for SIE::T stream to text stream in SIE file representation
+	// ===============================================================
+	struct ostream {
+		std::ostream& os;
+	};
+
+	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Trans const& trans) {
+		// #TRANS account no {object list} amount transdate transtext quantity sign
+		//                                           o          o        o      o
+		// #TRANS 1920 {} -890 "" "" 0
+		sieos.os << "\n#TRANS"
+		<< " " << trans.account_no
+		<< " " << "{}"
+		<< " " << trans.amount
+		<< " " << std::quoted("");
+		if (trans.transtext) sieos.os << " " << std::quoted(*trans.transtext);
+		else sieos.os << " " << std::quoted("");
+		return sieos;
+	}
+	
+	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Ver const& ver) {
+		// #VER A 1 20210505 "M�nadsavgift PG" 20210817	
+		sieos.os << "\n#VER" 
+		<< " " << ver.series 
+		<< " " << ver.verno
+		<< " " << to_string(ver.verdate) // TODO: make compiler find operator<< above (why can to_string use it but we can't?)
+		<< " " << std::quoted(ver.vertext);
+		sieos.os << "\n{";
+		for (auto const& trans : ver.transactions) {
+			sieos << trans;
+		}
+		sieos.os << "\n}";
+		return sieos;
+	}
+
+	// ===============================================================
+	// END operator<< framework for SIE::T stream to text stream in SIE file representation
+	// ===============================================================
+
+} // namespace SIE
+
+SIE::Trans to_sie_t(BAS::AccountTransaction const& trans) {
+	SIE::Trans result{
+		.account_no = trans.account_no
+		,.amount = trans.amount
+		,.transtext = trans.transtext
+	};
+	return result;
+}
+
+SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
+		/*
+		Series series;
+		BAS::VerNo verno;
+		std::chrono::year_month_day verdate;
+		std::string vertext;
+		*/
+
+	SIE::Ver result{
+		.series = jer.series
+		,.verno = (jer.verno)?*jer.verno:0
+		,.verdate = jer.entry.date
+		,.vertext = jer.entry.caption};
+	for (auto const& trans : jer.entry.account_transactions) {
+		result.transactions.push_back(to_sie_t(trans));
+	}
+	return result;
+}
 
 Amount entry_transaction_amount(BAS::anonymous::JournalEntry const& je) {
 	Amount result = std::accumulate(je.account_transactions.begin(),je.account_transactions.end(),Amount{},[](Amount acc,BAS::AccountTransaction const& account_transaction){
@@ -977,6 +1559,10 @@ BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransact
 
 class SIEEnvironment {
 public:
+	SIE::OrgNr organisation_no{};
+	SIE::FNamn organisation_name{};
+	SIE::Adress organisation_address{};
+
 	BASJournals& journals() {return m_journals;}
 	BASJournals const& journals() const {return m_journals;}
 	bool is_unposted(BAS::Series series, BAS::VerNo verno) const {
@@ -1065,11 +1651,13 @@ private:
 	}
 };
 
-std::optional<SKV::XML::XMLMap> skv_data_from_sie(SIEEnvironment const& sie_env) {
+std::optional<SKV::XML::XMLMap> sie_to_skv(SIEEnvironment const& sie_env) {
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
 		SKV::XML::XMLMap xml_map{};
-		xml_map["agd:Organisationsnummer"] = "190002039006";
+		std::string org_no_without_hyphen;
+		std::copy_if(sie_env.organisation_no.CIN.begin(),sie_env.organisation_no.CIN.end(),std::back_inserter(org_no_without_hyphen),[](char ch){return (ch != '-');});
+		xml_map["agd:Organisationsnummer"] = org_no_without_hyphen;
 		result = xml_map;
 	}
 	catch (std::exception const& e) {
@@ -1348,85 +1936,6 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	return result;
 }
 
-namespace CSV {
-	namespace NORDEA {
-		struct istream {
-			std::istream& is;
-			operator bool() {return static_cast<bool>(is);}
-		};
-
-		enum element: std::size_t {
-			undefined
-			,Bokforingsdag = 0
-			,Belopp = 1
-			,Avsandare = 2
-			,Mottagare = 3
-			,Namn = 4
-			,Rubrik = 5
-			,Meddelande = 6
-			,Egna_anteckningar = 7
-			,Saldo = 8
-			,Valuta = 9
-			,unknown
-		};
-
-		CSV::NORDEA::istream& operator>>(CSV::NORDEA::istream& in,HeadingAmountDateTransEntry& had) {
-			//       0         1      2         3         4    5        6          7              8      9
-			// Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
-			//       0         1      2      3            4                             5                                 6                78 9
-			// 2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
-			std::string sEntry{};
-			if (std::getline(in.is,sEntry)) {
-				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::yes);
-				// LOG
-				if (false) {
-					std::cout << "\ncsv count: " << tokens.size(); // Expected 10
-					for (int i=0;i<tokens.size();++i) {
-						std::cout << "\n\t" << i << " " << tokens[i];
-					}
-				}
-				if (tokens.size()==10) {
-					while (true) {
-						std::string heading{tokens[element::Rubrik]};
-						had.heading = heading;
-						if (auto amount = to_amount(tokens[element::Belopp])) had.amount = *amount;
-						else {in.is.setstate(std::istream::failbit);break;}
-						if (auto date = to_date(tokens[element::Bokforingsdag])) had.date = *date;
-						else {in.is.setstate(std::istream::failbit);break;}
-						break;
-					}
-				}
-			}
-			return in;
-		}
-	} // namespace NORDEA
-
-	using CSVParseResult = std::optional<HeadingAmountDateTransEntry>;
-
-	CSVParseResult parse_TRANS(auto& in) {
-		CSVParseResult result{};
-		auto pos = in.is.tellg();
-		HeadingAmountDateTransEntry had{};
-		if (in >> had) {
-			// std::cout << "\nfrom csv: " << had;
-			result = had;
-			pos = in.is.tellg(); // accept new stream position
-		}
-		in.is.seekg(pos); // Reset position in case of failed parse
-		in.is.clear(); // Reset failbit to allow try for other parse
-		return result;		
-	}
-
-	HeadingAmountDateTransEntries from_stream(auto& in) {
-		HeadingAmountDateTransEntries result{};
-		parse_TRANS(in); // skip first line with field names
-		while (auto had = parse_TRANS(in)) {
-			result.push_back(*had);
-		}
-		return result;
-	}
-} // namespace CSV
-
 enum class PromptState {
 	Undefined
 	,Root
@@ -1537,422 +2046,6 @@ std::vector<std::string> help_for(PromptState const& prompt_state) {
 	return result;
 }
 
-namespace SIE {
-
-	extern std::map<char,char16_t> cp435ToUnicodeMap;
-
-	char16_t cp435ToUnicode(char ch435) {
-		return cp435ToUnicodeMap[ch435];
-	}
-
-	using UTF16String = std::wstring;
-
-	UTF16String cp435ToUnicode(std::string s435) {
-		UTF16String result{};
-		std::transform(s435.begin(),s435.end(),std::back_inserter(result),[](char ch){
-			return cp435ToUnicode(ch);
-		});
-		return result;
-	}
-
-	namespace UTF8 {
-    // Unicode constants
-    // Leading (high) surrogates: 0xd800 - 0xdbff
-    // Trailing (low) surrogates: 0xdc00 - 0xdfff
-    const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
-    const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
-    const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
-    const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
-
-    // Maximum valid value for a Unicode code point
-    const char32_t CODE_POINT_MAX      = 0x0010ffff;
-
-		inline bool is_surrogate(char32_t cp) {
-					return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
-		}
-
-		bool is_valid_unicode(char32_t cp) {
-			return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
-		}
-
-		struct Stream {
-			std::ostream& os;
-		};
-
-		UTF8::Stream& operator<<(UTF8::Stream& os,char32_t cp) {
-			// Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
-			if (!is_valid_unicode(cp)) {
-				os.os << '?';
-			}
-			else if (cp < 0x80)                        // one octet
-					os.os << static_cast<char>(cp);
-			else if (cp < 0x800) {                // two octets
-					os.os << static_cast<char>((cp >> 6)            | 0xc0);
-					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-			}
-			else if (cp < 0x10000) {              // three octets
-					os.os << static_cast<char>((cp >> 12)           | 0xe0);
-					os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
-					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-			}
-			else {                                // four octets
-					os.os << static_cast<char>((cp >> 18)           | 0xf0);
-					os.os << static_cast<char>(((cp >> 12) & 0x3f)  | 0x80);
-					os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
-					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-			}
-			return os;
-		}
-
-		std::string unicode_to_utf8(UTF16String const& s) {
-			std::ostringstream os{};
-			UTF8::Stream utf8_os{os};
-			for (auto cp : s) utf8_os << cp;
-			return os.str();
-		}
-	}
-
-	using Stream = std::istream;
-
-	struct Tag {
-		std::string const expected;
-	};
-	// #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
-	struct Konto {
-		std::string tag;
-		BASAccountNo account_no;
-		std::string name;
-	};
-
-	struct Sru {
-		std::string tag;
-		BASAccountNo bas_account_no;
-		SRU::AccountNo sru_account_no;
-	};
-
-	struct Trans {
-		// Spec: #TRANS account no {object list} amount transdate transtext quantity sign
-		// Ex:   #TRANS 1920 {} 802 "" "" 0
-		std::string tag;
-		BASAccountNo account_no;
-		std::string object_list{};
-		float amount;
-		std::optional<std::chrono::year_month_day> transdate{};
-		std::optional<std::string> transtext{};
-		std::optional<float> quantity{};
-		std::optional<std::string> sign{};
-	};
-	struct Ver {
-		// Spec: #VER series verno verdate vertext regdate sign
-		// Ex:   #VER A 3 20210510 "Beanstalk" 20210817
-		std::string tag;
-		BAS::Series series;
-		BAS::VerNo verno;
-		std::chrono::year_month_day verdate;
-		std::string vertext;
-		std::optional<std::chrono::year_month_day> regdate{};
-		std::optional<std::string> sign{};
-		std::vector<Trans> transactions{};
-	};
-	struct AnonymousLine {};
-	using SIEFileEntry = std::variant<Konto,Sru,Ver,Trans,AnonymousLine>;
-	using SIEParseResult = std::optional<SIEFileEntry>;
-	std::istream& operator>>(std::istream& in,Tag const& tag) {
-		if (in.good()) {
-			// std::cout << "\n>>Tag[expected:" << tag.expected;
-			auto pos = in.tellg();
-			std::string token{};
-			if (in >> token) {
-				// std::cout << ",read:" << token << "]";
-				if (token != tag.expected) {
-					in.seekg(pos); // Reset position for failed tag
-					in.setstate(std::ios::failbit); // failed to read expected tag
-					// std::cout << " rejected";
-				}
-			}
-			else {
-				// std::cout << "null";
-			}
-		}		
-		return in;
-	}
-
-	struct optional_YYYYMMdd_parser {
-		std::optional<std::chrono::year_month_day>& date;
-	};
-	struct YYYYMMdd_parser {
-		std::chrono::year_month_day& date;
-	};
-	std::istream& operator>>(std::istream& in,optional_YYYYMMdd_parser& p) {
-		if (in.good()) {
-			auto pos = in.tellg();
-			try {
-				// std::chrono::from_stream(in,p.fmt,p.date); // Not in g++11 libc++?
-				std::string sDate{};
-				in >> std::quoted(sDate);
-				if (sDate.size()==0) {
-					pos = in.tellg(); // Accept this parse position (e.g., "" is to be accepted)
-				}
-				else if (auto date = to_date(sDate);date) {
-					p.date = *date;
-					pos = in.tellg(); // Accept this parse position (an actual date was parsed)
-				}
-			}
-			catch (std::exception const& e) { /* swallow all failuires silently for optional parse */}
-			in.seekg(pos); // Reset position in case of failed parse
-			in.clear(); // Reset failbit to allow try for other parse
-		}
-		return in;
-	}
-	std::istream& operator>>(std::istream& in,YYYYMMdd_parser& p) {
-		if (in.good()) {
-			std::optional<std::chrono::year_month_day> od{};
-			optional_YYYYMMdd_parser op{od};
-			in >> op;
-			if (op.date) {
-				p.date = *op.date;
-			}
-			else {
-				in.setstate(std::ios::failbit);
-			}
-		}
-		return in;
-	}
-	struct optional_Text_parser {
-		std::optional<std::string>& text;
-	};
-	std::istream& operator>>(std::istream& in,optional_Text_parser& p) {
-		if (in.good()) {
-			auto pos = in.tellg();
-			std::string text{};
-			if (in >> std::quoted(text)) {
-				p.text = text;
-				pos = in.tellg(); // accept this parse pos
-			}
-			in.clear(); // Reset failbit to allow try for other parse
-			in.seekg(pos); // Reset position in case of failed parse
-		}
-		return in;
-	}
-	struct Scraps {};
-	std::istream& operator>>(std::istream& in,Scraps& p) {
-		if (in.good()) {
-			std::string scraps{};
-			std::getline(in,scraps);
-			// std::cout << "\nscraps:" << scraps;
-		}
-		return in;		
-	}
-
-	SIEParseResult parse_KONTO(Stream& in,std::string const& konto_tag) {
-	// // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
-	// struct Konto {
-	// 	std::string tag;
-	// 	BASAccountNo account_no;
-	// 	std::string name;
-	// };
-		SIEParseResult result{};
-		SIE::Konto konto{};
-		auto pos = in.tellg();
-		if (in >> Tag{konto_tag} >> konto.account_no >> std::quoted(konto.name)) {
-
-			// Convert from code point 437 to utf-8
-			auto s437 = konto.name;
-			auto sUnicode = cp435ToUnicode(s437);
-			konto.name = UTF8::unicode_to_utf8(sUnicode);
-
-			result = konto;
-			pos = in.tellg(); // accept new stream position
-		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
-		return result;		
-	}
-
-	SIEParseResult parse_SRU(Stream& in,std::string const& sru_tag) {
-		SIEParseResult result{};
-		SIE::Sru sru{};
-		auto pos = in.tellg();
-		if (in >> Tag{sru_tag} >> sru.bas_account_no >> sru.sru_account_no) {
-			result = sru;
-			pos = in.tellg(); // accept new stream position
-		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
-		return result;		
-	}
-
-	SIEParseResult parse_TRANS(Stream& in,std::string const& trans_tag) {
-		SIEParseResult result{};
-		Scraps scraps{};
-		auto pos = in.tellg();
-		// #TRANS 2610 {} 25900 "" "" 0
-		SIE::Trans trans{};
-		optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
-		optional_Text_parser optional_transtext_parser{trans.transtext};
-		if (in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
-			// std::cout << trans_tag << trans.account_no << " " << trans.amount;
-
-			if (trans.transtext) {
-				// Convert from code point 437 to utf-8
-				auto s437 = *trans.transtext;
-				auto sUnicode = cp435ToUnicode(s437);
-				trans.transtext = UTF8::unicode_to_utf8(sUnicode);
-			}
-
-			result = trans;
-			pos = in.tellg(); // accept new stream position
-		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
-		return result;		
-	}
-
-	SIEParseResult parse_Tag(Stream& in,std::string const& tag) {
-		SIEParseResult result{};
-		Scraps scraps{};
-		auto pos = in.tellg();
-		if (in >> Tag{tag}) {
-			result = AnonymousLine{}; // Success but not data
-			pos = in.tellg(); // accept new stream position
-		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
-		return result;		
-	}
-
-	SIEParseResult parse_ver(Stream& in) {
-		SIEParseResult result{};
-		Scraps scraps{};
-		auto pos = in.tellg();
-		// #VER A 1 20210505 "M�nadsavgift PG" 20210817
-		SIE::Ver ver{};
-		YYYYMMdd_parser verdate_parser{ver.verdate};
-		if (in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
-			if (true) {
-				// std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
-			}
-			// Convert from code point 437 to utf-8
-			auto s437 = ver.vertext;
-			auto sUnicode = cp435ToUnicode(s437);
-			ver.vertext = UTF8::unicode_to_utf8(sUnicode);
-
-			while (true) {
-				if (auto entry = parse_TRANS(in,"#TRANS")) {
-					// std::cout << "\nTRANS :)";	
-					ver.transactions.push_back(std::get<Trans>(*entry));					
-				}
-				else if (auto entry = parse_TRANS(in,"#BTRANS")) {
-					// Ignore
-					// std::cout << " Ignored";
-				}
-				else if (auto entry = parse_TRANS(in,"#RTRANS")) {
-					// Ignore
-					// std::cout << " Ignored";
-				}
-				else if (auto entry = parse_Tag(in,"}")) {
-					break;
-				}
-				else {
-					std::cerr << "\nERROR - Unexpected input while parsing #VER SIE entry";
-					break;
-				}
-			}
-			result = ver;
-			pos = in.tellg(); // accept new stream position
-		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
-		return result;
-	}
-
-	SIEParseResult parse_any_line(Stream& in) {
-		if (in.fail()) {
-			// std::cout << "\nparse_any_line in==fail";
-		}
-		auto pos = in.tellg();
-		std::string line{};
-		if (std::getline(in,line)) {
-			// std::cout << "\n\tany=" << line;
-			return AnonymousLine{};
-		}
-		else {
-			// std::cout << "\n\tany null";
-			in.seekg(pos);
-			return {};
-		}
-	}
-
-	// ===============================================================
-	// BEGIN operator<< framework for SIE::T stream to text stream in SIE file representation
-	// ===============================================================
-	struct ostream {
-		std::ostream& os;
-	};
-
-	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Trans const& trans) {
-		// #TRANS account no {object list} amount transdate transtext quantity sign
-		//                                           o          o        o      o
-		// #TRANS 1920 {} -890 "" "" 0
-		sieos.os << "\n#TRANS"
-		<< " " << trans.account_no
-		<< " " << "{}"
-		<< " " << trans.amount
-		<< " " << std::quoted("");
-		if (trans.transtext) sieos.os << " " << std::quoted(*trans.transtext);
-		else sieos.os << " " << std::quoted("");
-		return sieos;
-	}
-	
-	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Ver const& ver) {
-		// #VER A 1 20210505 "M�nadsavgift PG" 20210817	
-		sieos.os << "\n#VER" 
-		<< " " << ver.series 
-		<< " " << ver.verno
-		<< " " << to_string(ver.verdate) // TODO: make compiler find operator<< above (why can to_string use it but we can't?)
-		<< " " << std::quoted(ver.vertext);
-		sieos.os << "\n{";
-		for (auto const& trans : ver.transactions) {
-			sieos << trans;
-		}
-		sieos.os << "\n}";
-		return sieos;
-	}
-
-	// ===============================================================
-	// END operator<< framework for SIE::T stream to text stream in SIE file representation
-	// ===============================================================
-
-} // namespace SIE
-
-SIE::Trans to_sie_t(BAS::AccountTransaction const& trans) {
-	SIE::Trans result{
-		.account_no = trans.account_no
-		,.amount = trans.amount
-		,.transtext = trans.transtext
-	};
-	return result;
-}
-
-SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
-		/*
-		Series series;
-		BAS::VerNo verno;
-		std::chrono::year_month_day verdate;
-		std::string vertext;
-		*/
-
-	SIE::Ver result{
-		.series = jer.series
-		,.verno = (jer.verno)?*jer.verno:0
-		,.verdate = jer.entry.date
-		,.vertext = jer.entry.caption};
-	for (auto const& trans : jer.entry.account_transactions) {
-		result.transactions.push_back(to_sie_t(trans));
-	}
-	return result;
-}
-
 class FilteredSIEEnvironment {
 public:
 	FilteredSIEEnvironment(SIEEnvironment const& sie_environment,BAS::MatchesMetaEntry matches_meta_entry)
@@ -2025,7 +2118,19 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 		SIEEnvironment sie_environment{};
 		while (true) {
 			// std::cout << "\nparse";
-			if (auto opt_entry = SIE::parse_KONTO(in,"#KONTO")) {
+			if (auto opt_entry = SIE::parse_ORGNR(in,"#ORGNR")) {
+				SIE::OrgNr orgnr = std::get<SIE::OrgNr>(*opt_entry);
+				sie_environment.organisation_no = orgnr;
+			}
+			else if (auto opt_entry = SIE::parse_FNAMN(in,"#FNAMN")) {
+				SIE::FNamn fnamn = std::get<SIE::FNamn>(*opt_entry);
+				sie_environment.organisation_name = fnamn;
+			}
+			else if (auto opt_entry = SIE::parse_ADRESS(in,"#ADRESS")) {
+				SIE::Adress adress = std::get<SIE::Adress>(*opt_entry);
+				sie_environment.organisation_address = adress;
+			}
+			else if (auto opt_entry = SIE::parse_KONTO(in,"#KONTO")) {
 				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
 				sie_environment.account_metas()[konto.account_no].name = konto.name;
 			}
@@ -2033,7 +2138,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 				SIE::Sru sru = std::get<SIE::Sru>(*opt_entry);
 				sie_environment.account_metas()[sru.bas_account_no].sru_code = sru.sru_account_no;
 			}
-			else if (auto opt_entry = SIE::parse_ver(in)) {
+			else if (auto opt_entry = SIE::parse_VER(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 				// std::cout << "\n\tVER!";
 				auto je = to_entry(ver);
@@ -2367,7 +2472,7 @@ public:
 				prompt << t2s;
 			}
 			else if (ast[0] == "-skv") {
-				if (auto xml_map = skv_data_from_sie(model->sie["current"])) {
+				if (auto xml_map = sie_to_skv(model->sie["current"])) {
 					std::filesystem::path skv_file_path{"to_skv.xml"};
 					std::ofstream skv_file{skv_file_path};
 					if (SKV::XML::to_employer_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
@@ -2752,7 +2857,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-namespace SIE {
+namespace CP435 {
 
 	// from http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/PC/CP437.TXT
 	std::map<char,char16_t> cp435ToUnicodeMap{
