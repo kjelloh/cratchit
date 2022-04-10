@@ -753,92 +753,172 @@ namespace CSV {
 	}
 } // namespace CSV
 
+namespace Key {
+		class Path {
+		public:
+			auto begin() const {return m_path.begin();}
+			auto end() const {return m_path.end();}
+			Path() = default;
+			Path(Path const& other) = default;
+			Path(std::string const& s_path) : m_path(tokenize::splits(s_path,'.')) {};
+			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
+			operator std::string() const {
+				std::ostringstream os{};
+				os << *this;
+				return os.str();
+			}
+			Path operator+=(std::string const& key) {m_path.push_back(key);return *this;}
+			auto size() {return m_path.size();}
+			std::string back() {return m_path.back();}
+			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
+		private:
+			std::vector<std::string> m_path{};
+		};
+
+		std::ostream& operator<<(std::ostream& os,Key::Path const& key_path) {
+			int key_count{0};
+			for (auto const& key : key_path) {
+				if (key_count++>0) os << '.';
+				os << key;
+			}
+			return os;
+		}
+
+} // namespace Key
+
 namespace SKV {
 	namespace XML {
+		
 		using XMLMap = std::map<std::string,std::string>;
+
+		struct EmployerDeclarationOStream {
+			std::ostream& os;
+		};
+
+		struct TagValuePair {
+			std::string tag{};
+			std::string value;
+		};
+
+		XMLMap::value_type to_entry(XMLMap const& xml_map,std::string tag) {
+			auto iter = xml_map.find(tag);
+			if (iter != xml_map.end()) {
+				return *iter;
+			}
+			else throw std::runtime_error(std::string{"to_entry failed, tag:"} + tag + " not defined");
+		}
+
+		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,std::string const& s) {
+			auto& os = edos.os;
+			os << s;
+			return edos;
+		}
+
+		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap::value_type const& entry) {
+			Key::Path p{entry.first};
+			std::string indent(p.size(),' ');
+			edos << indent << "<" << p.back() << ">" << entry.second << "</" << p.back() << ">";
+			return edos;
+		}
+
+		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap const& xml_map) {
+			try {
+				Key::Path p{};
+				// IMPORTANT: No empty line (nor any white space) allowed before the "<?xml..." tag! *sigh*
+				edos << R"(<?xml version="1.0" encoding="UTF-8" standalone="no"?>)";
+				edos << "\n" << R"(<Skatteverket omrade="Arbetsgivardeklaration")";
+					p += "Skatteverket";
+					edos << "\n" << R"(xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1")";
+					edos << "\n" << R"(xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1")";
+					edos << "\n" << R"(xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">)";
+
+					edos << "\n" << R"(<agd:Avsandare>)";
+						p += "agd:Avsandare";
+						edos << "\n" << R"(<agd:Programnamn>Programmakarna AB</agd:Programnamn>)";
+						edos << "\n" << to_entry(xml_map,p + "agd:Organisationsnummer");
+						edos << "\n" << R"(<agd:TekniskKontaktperson>)";
+							edos << "\n" << R"(<agd:Namn>Valle Vadman</agd:Namn>)";
+							edos << "\n" << R"(<agd:Telefon>23-2-4-244454</agd:Telefon>)";
+							edos << "\n" << R"(<agd:Epostadress>valle.vadman@programmakarna.se</agd:Epostadress>)";
+							edos << "\n" << R"(<agd:Utdelningsadress1>Artillerigatan 11</agd:Utdelningsadress1>)";
+							edos << "\n" << R"(<agd:Utdelningsadress2>C/O Segemyhr</agd:Utdelningsadress2>)";
+							edos << "\n" << R"(<agd:Postnummer>62145</agd:Postnummer>)";
+							edos << "\n" << R"(<agd:Postort>Visby</agd:Postort>)";
+						edos << "\n" << R"(</agd:TekniskKontaktperson>)";
+						edos << "\n" << R"(<agd:Skapad>2021-01-30T07:42:25</agd:Skapad>)";
+					edos << "\n" << R"(</agd:Avsandare>)";
+
+					edos << "\n" << R"(<agd:Blankettgemensamt>)";
+						edos << "\n" << R"(<agd:Arbetsgivare>)";
+							edos << "\n" << R"(<agd:AgRegistreradId>165560269986</agd:AgRegistreradId>)";
+							edos << "\n" << R"(<agd:Kontaktperson>)";
+								edos << "\n" << R"(<agd:Namn>Ville Vessla</agd:Namn>)";
+								edos << "\n" << R"(<agd:Telefon>555-244454</agd:Telefon>)";
+								edos << "\n" << R"(<agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>)";
+								edos << "\n" << R"(<agd:Sakomrade>skruv-avdelningens anställda</agd:Sakomrade>)";
+							edos << "\n" << R"(</agd:Kontaktperson>)";
+							edos << "\n" << R"(<agd:Kontaktperson>)";
+								edos << "\n" << R"(<agd:Namn>Maria Olsson</agd:Namn>)";
+								edos << "\n" << R"(<agd:Telefon>555-244121</agd:Telefon>)";
+								edos << "\n" << R"(<agd:Epostadress>maria.olsson@foretaget.se</agd:Epostadress>)";
+								edos << "\n" << R"(<agd:Sakomrade>mutter-avdelningens anställda</agd:Sakomrade>)";
+							edos << "\n" << R"(</agd:Kontaktperson>)";
+						edos << "\n" << R"(</agd:Arbetsgivare>)";
+					edos << "\n" << R"(</agd:Blankettgemensamt>)";
+
+					edos << "\n" << R"(<!-- Uppgift 1 HU -->)";
+					edos << "\n" << R"(<agd:Blankett>)";
+						edos << "\n" << R"(<agd:Arendeinformation>)";
+							edos << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
+							edos << "\n" << R"(<agd:Period>202101</agd:Period>)";
+						edos << "\n" << R"(</agd:Arendeinformation>)";
+						edos << "\n" << R"(<agd:Blankettinnehall>)";
+							edos << "\n" << R"(<agd:HU>)";
+								edos << "\n" << R"(<agd:ArbetsgivareHUGROUP>)";
+									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
+								edos << "\n" << R"(</agd:ArbetsgivareHUGROUP>)";
+								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
+								edos << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">0</agd:SummaArbAvgSlf>)";
+								edos << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">0</agd:SummaSkatteavdr>)";
+							edos << "\n" << R"(</agd:HU>)";
+						edos << "\n" << R"(</agd:Blankettinnehall>)";
+					edos << "\n" << R"(</agd:Blankett>)";
+
+					edos << "\n" << R"(<!-- Uppgift 1 IU -->)";
+					edos << "\n" << R"(<agd:Blankett>)";
+						edos << "\n" << R"(<agd:Arendeinformation>)";
+							edos << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
+							edos << "\n" << R"(<agd:Period>202101</agd:Period>)";
+						edos << "\n" << R"(</agd:Arendeinformation>)";
+						edos << "\n" << R"(<agd:Blankettinnehall>)";
+							edos << "\n" << R"(<agd:IU>)";
+								edos << "\n" << R"(<agd:ArbetsgivareIUGROUP>)";
+									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
+								edos << "\n" << R"(</agd:ArbetsgivareIUGROUP>)";
+								edos << "\n" << R"(<agd:BetalningsmottagareIUGROUP>)";
+									edos << "\n" << R"(<agd:BetalningsmottagareIDChoice>)";
+										edos << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>)";
+									edos << "\n" << R"(</agd:BetalningsmottagareIDChoice>)";
+								edos << "\n" << R"(</agd:BetalningsmottagareIUGROUP>)";
+								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
+								edos << "\n" << R"(<agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>)";
+								edos << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>)";
+							edos << "\n" << R"(</agd:IU>)";
+						edos << "\n" << R"(</agd:Blankettinnehall>)";
+					edos << "\n" << R"(</agd:Blankett>)";
+				edos << "\n" << R"(</Skatteverket>)";
+			}
+			catch (std::exception const& e) {
+				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
+				edos.os.setstate(std::ostream::badbit);
+			}
+			return edos;
+		}
+
 		bool to_employer_contributions_and_PAYE_tax_return_file(std::ostream& os,XMLMap const& xml_map) {
 			try {
-				// IMPORTANT: No empty line (nor any white space) allowed before the "<?xml..." tag *sigh*
-				os << R"(<?xml version="1.0" encoding="UTF-8" standalone="no"?>)";
-				os << "\n" << R"(<Skatteverket omrade="Arbetsgivardeklaration")";
-					os << "\n" << R"(xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1")";
-					os << "\n" << R"(xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1")";
-					os << "\n" << R"(xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">)";
-
-					os << "\n" << R"(<agd:Avsandare>)";
-						os << "\n" << R"(<agd:Programnamn>Programmakarna AB</agd:Programnamn>)";
-						os << "\n" << R"(<agd:Organisationsnummer>)" << xml_map.at("agd:Organisationsnummer") << R"(</agd:Organisationsnummer>)";
-						os << "\n" << R"(<agd:TekniskKontaktperson>)";
-							os << "\n" << R"(<agd:Namn>Valle Vadman</agd:Namn>)";
-							os << "\n" << R"(<agd:Telefon>23-2-4-244454</agd:Telefon>)";
-							os << "\n" << R"(<agd:Epostadress>valle.vadman@programmakarna.se</agd:Epostadress>)";
-							os << "\n" << R"(<agd:Utdelningsadress1>Artillerigatan 11</agd:Utdelningsadress1>)";
-							os << "\n" << R"(<agd:Utdelningsadress2>C/O Segemyhr</agd:Utdelningsadress2>)";
-							os << "\n" << R"(<agd:Postnummer>62145</agd:Postnummer>)";
-							os << "\n" << R"(<agd:Postort>Visby</agd:Postort>)";
-						os << "\n" << R"(</agd:TekniskKontaktperson>)";
-						os << "\n" << R"(<agd:Skapad>2021-01-30T07:42:25</agd:Skapad>)";
-					os << "\n" << R"(</agd:Avsandare>)";
-
-					os << "\n" << R"(<agd:Blankettgemensamt>)";
-						os << "\n" << R"(<agd:Arbetsgivare>)";
-							os << "\n" << R"(<agd:AgRegistreradId>165560269986</agd:AgRegistreradId>)";
-							os << "\n" << R"(<agd:Kontaktperson>)";
-								os << "\n" << R"(<agd:Namn>Ville Vessla</agd:Namn>)";
-								os << "\n" << R"(<agd:Telefon>555-244454</agd:Telefon>)";
-								os << "\n" << R"(<agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>)";
-								os << "\n" << R"(<agd:Sakomrade>skruv-avdelningens anställda</agd:Sakomrade>)";
-							os << "\n" << R"(</agd:Kontaktperson>)";
-							os << "\n" << R"(<agd:Kontaktperson>)";
-								os << "\n" << R"(<agd:Namn>Maria Olsson</agd:Namn>)";
-								os << "\n" << R"(<agd:Telefon>555-244121</agd:Telefon>)";
-								os << "\n" << R"(<agd:Epostadress>maria.olsson@foretaget.se</agd:Epostadress>)";
-								os << "\n" << R"(<agd:Sakomrade>mutter-avdelningens anställda</agd:Sakomrade>)";
-							os << "\n" << R"(</agd:Kontaktperson>)";
-						os << "\n" << R"(</agd:Arbetsgivare>)";
-					os << "\n" << R"(</agd:Blankettgemensamt>)";
-
-					os << "\n" << R"(<!-- Uppgift 1 HU -->)";
-					os << "\n" << R"(<agd:Blankett>)";
-						os << "\n" << R"(<agd:Arendeinformation>)";
-							os << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
-							os << "\n" << R"(<agd:Period>202101</agd:Period>)";
-						os << "\n" << R"(</agd:Arendeinformation>)";
-						os << "\n" << R"(<agd:Blankettinnehall>)";
-							os << "\n" << R"(<agd:HU>)";
-								os << "\n" << R"(<agd:ArbetsgivareHUGROUP>)";
-									os << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
-								os << "\n" << R"(</agd:ArbetsgivareHUGROUP>)";
-								os << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
-								os << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">0</agd:SummaArbAvgSlf>)";
-								os << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">0</agd:SummaSkatteavdr>)";
-							os << "\n" << R"(</agd:HU>)";
-						os << "\n" << R"(</agd:Blankettinnehall>)";
-					os << "\n" << R"(</agd:Blankett>)";
-
-					os << "\n" << R"(<!-- Uppgift 1 IU -->)";
-					os << "\n" << R"(<agd:Blankett>)";
-						os << "\n" << R"(<agd:Arendeinformation>)";
-							os << "\n" << R"(<agd:Arendeagare>165560269986</agd:Arendeagare>)";
-							os << "\n" << R"(<agd:Period>202101</agd:Period>)";
-						os << "\n" << R"(</agd:Arendeinformation>)";
-						os << "\n" << R"(<agd:Blankettinnehall>)";
-							os << "\n" << R"(<agd:IU>)";
-								os << "\n" << R"(<agd:ArbetsgivareIUGROUP>)";
-									os << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
-								os << "\n" << R"(</agd:ArbetsgivareIUGROUP>)";
-								os << "\n" << R"(<agd:BetalningsmottagareIUGROUP>)";
-									os << "\n" << R"(<agd:BetalningsmottagareIDChoice>)";
-										os << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>)";
-									os << "\n" << R"(</agd:BetalningsmottagareIDChoice>)";
-								os << "\n" << R"(</agd:BetalningsmottagareIUGROUP>)";
-								os << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
-								os << "\n" << R"(<agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>)";
-								os << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>)";
-							os << "\n" << R"(</agd:IU>)";
-						os << "\n" << R"(</agd:Blankettinnehall>)";
-					os << "\n" << R"(</agd:Blankett>)";
-				os << "\n" << R"(</Skatteverket>)";
+				EmployerDeclarationOStream edos{os};
+				edos << xml_map;
 			}
 			catch (std::exception const& e) {
 				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
@@ -1657,7 +1737,7 @@ std::optional<SKV::XML::XMLMap> sie_to_skv(SIEEnvironment const& sie_env) {
 		SKV::XML::XMLMap xml_map{};
 		std::string org_no_without_hyphen;
 		std::copy_if(sie_env.organisation_no.CIN.begin(),sie_env.organisation_no.CIN.end(),std::back_inserter(org_no_without_hyphen),[](char ch){return (ch != '-');});
-		xml_map["agd:Organisationsnummer"] = org_no_without_hyphen;
+		xml_map["Skatteverket.agd:Avsandare.agd:Organisationsnummer"] = org_no_without_hyphen;
 		result = xml_map;
 	}
 	catch (std::exception const& e) {
@@ -2002,12 +2082,12 @@ private:
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
 
-struct Key {char value;};
+struct KeyPress {char value;};
 using Command = std::string;
 struct Quit {};
 struct Nop {};
 
-using Msg = std::variant<Nop,Key,Quit,Command>;
+using Msg = std::variant<Nop,KeyPress,Quit,Command>;
 struct Cmd {std::optional<Msg> msg{};};
 using Ux = std::vector<std::string>;
 
@@ -2214,7 +2294,7 @@ auto falling_date = [](auto const& had1,auto const& had2){
 class Updater {
 public:
 	Model model;
-	Cmd operator()(Key const& key) {
+	Cmd operator()(KeyPress const& key) {
 		// std::cout << "\noperator(Key)";
 		if (model->user_input.size()==0) model->prompt = prompt_line(model->prompt_state);
 		Cmd cmd{};
@@ -2812,9 +2892,9 @@ public:
 				std::string user_input{};
 				std::getline(std::cin,user_input);
 				std::for_each(user_input.begin(),user_input.end(),[this](char ch){
-					this->in.push(Key{ch});
+					this->in.push(KeyPress{ch});
 				});
-				this->in.push(Key{'\n'});
+				this->in.push(KeyPress{'\n'});
 			}
 		}
 	}
