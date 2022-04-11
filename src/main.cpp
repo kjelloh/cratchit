@@ -85,6 +85,12 @@
     //     }
     // ],
 
+std::string filtered(std::string const& s,auto filter) {
+	std::string result{};;
+	std::copy_if(s.begin(),s.end(),std::back_inserter(result),filter);
+	return result;
+}
+
 namespace tokenize {
 	// returns s split into first,second on provided delimiter delim.
 	// split fail returns first = "" and second = s
@@ -520,10 +526,7 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 	}
 	else {
 		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
-		std::string sDate{};
-		std::copy_if(sYYYYMMDD.begin(),sYYYYMMDD.end(),std::back_inserter(sDate),[](char ch){
-			return std::isdigit(ch);
-		});
+		std::string sDate = filtered(sYYYYMMDD,::isdigit);
 		if (sDate.size()==8) result = to_date(sDate);
 	}
 	// if (result) std::cout << " = " << *result;
@@ -767,7 +770,16 @@ namespace Key {
 				os << *this;
 				return os.str();
 			}
-			Path operator+=(std::string const& key) {m_path.push_back(key);return *this;}
+			Path& operator+=(std::string const& key) {
+				m_path.push_back(key);
+				std::cout << "\n" << *this;
+				return *this;
+			}
+			Path& operator--() {
+				m_path.pop_back();
+				std::cout << "\n" << *this;
+				return *this;
+			}
 			auto size() {return m_path.size();}
 			std::string back() {return m_path.back();}
 			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
@@ -788,6 +800,20 @@ namespace Key {
 
 namespace SKV {
 	namespace XML {
+
+		std::string to_orgno(std::string generic_org_no) {
+			std::string result{};
+			// The SKV IT-system requires 12 digit organisation numbers with digits only
+			// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into 16XXXXXXYYYY
+			// See https://sv.wikipedia.org/wiki/Organisationsnummer
+			std::string sdigits = filtered(generic_org_no,::isdigit);
+			switch (sdigits.size()) {
+				case 10: result = std::string{"16"} + sdigits; break;
+				case 12: result = sdigits; break;
+				default: throw std::runtime_error(std::string{"ERROR: to_orgno failed, invalid input generic_org_no:"} + "\"" + generic_org_no + "\""); break;
+			}
+			return result;
+		}
 		
 		using XMLMap = std::map<std::string,std::string>;
 
@@ -819,6 +845,162 @@ namespace SKV {
 			std::string indent(p.size(),' ');
 			edos << indent << "<" << p.back() << ">" << entry.second << "</" << p.back() << ">";
 			return edos;
+		}
+
+		void y(Key::Path const& p,std::string const& value) {
+			std::cout << "\n" << p << " = " << std::quoted(value);
+		}
+
+		XMLMap x() {
+			XMLMap result{};
+			Key::Path p{};
+			// <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+			// <Skatteverket omrade="Arbetsgivardeklaration"
+			p += "Skatteverket";
+			//   xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1"
+			//   xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1"
+			//   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">
+			//   <agd:Avsandare>
+			p += "agd:Avsandare";
+			//     <agd:Programnamn>Programmakarna AB</agd:Programnamn>
+			y(p + "agd:Programnamn","Programmakarna AB");
+			//     <agd:Organisationsnummer>190002039006</agd:Organisationsnummer>
+			y(p + "agd:Organisationsnummer","190002039006");
+			//     <agd:TekniskKontaktperson>
+			p += "agd:TekniskKontaktperson";
+			//       <agd:Namn>Valle Vadman</agd:Namn>
+			y(p + "agd:Namn","Valle Vadman");
+			//       <agd:Telefon>23-2-4-244454</agd:Telefon>
+			y(p + "agd:Telefon","23-2-4-244454");
+			//       <agd:Epostadress>valle.vadman@programmakarna.se</agd:Epostadress>
+			y(p + "agd:Epostadress","valle.vadman@programmakarna.se");
+			//       <agd:Utdelningsadress1>Artillerigatan 11</agd:Utdelningsadress1>
+			y(p + "agd:Utdelningsadress1","Artillerigatan 11");
+			//       <agd:Utdelningsadress2>C/O Segemyhr</agd:Utdelningsadress2>
+			y(p + "agd:Utdelningsadress2","C/O Segemyhr");
+			//       <agd:Postnummer>62145</agd:Postnummer>
+			y(p + "agd:Postnummer","62145");
+			//       <agd:Postort>Visby</agd:Postort>
+			y(p + "agd:Postort","Visby");
+			--p;
+			//     </agd:TekniskKontaktperson>
+			//     <agd:Skapad>2021-01-30T07:42:25</agd:Skapad>
+			y(p + "agd:Skapad","2021-01-30T07:42:25");
+			--p;
+			//   </agd:Avsandare>
+			//   <agd:Blankettgemensamt>
+			p += "agd:Blankettgemensamt";
+			//     <agd:Arbetsgivare>
+			p += "agd:Arbetsgivare";
+			//       <agd:AgRegistreradId>165560269986</agd:AgRegistreradId>
+			y(p + "agd:AgRegistreradId","165560269986");
+			//       <agd:Kontaktperson>
+			p += "agd:Kontaktperson";
+			//         <agd:Namn>Ville Vessla</agd:Namn>
+			y(p + "agd:Namn","Ville Vessla");
+			//         <agd:Telefon>555-244454</agd:Telefon>
+			y(p + "agd:Telefon","555-244454");
+			//         <agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>
+			y(p + "agd:Epostadress","ville.vessla@foretaget.se");
+			//         <agd:Sakomrade>skruv-avdelningens anställda</agd:Sakomrade>
+			y(p + "agd:Sakomrade","skruv-avdelningens anställda");
+			--p;
+			//       </agd:Kontaktperson>
+			//       <agd:Kontaktperson>
+			p += "agd:Kontaktperson";
+			//         <agd:Namn>Maria Olsson</agd:Namn>
+			y(p + "agd:Namn","Maria Olsson");
+			//         <agd:Telefon>555-244121</agd:Telefon>
+			y(p + "agd:Telefon","555-244121");
+			//         <agd:Epostadress>maria.olsson@foretaget.se</agd:Epostadress>
+			y(p + "agd:Epostadress","maria.olsson@foretaget.se");
+			//         <agd:Sakomrade>mutter-avdelningens anställda</agd:Sakomrade>
+			y(p + "agd:Sakomrade","mutter-avdelningens anställda");
+			--p;
+			//       </agd:Kontaktperson>
+			--p;
+			//     </agd:Arbetsgivare>
+			--p;
+			//   </agd:Blankettgemensamt>
+			//   <!-- Uppgift 1 HU -->
+			//   <agd:Blankett>
+			p += "agd:Kontaktperson";
+			//     <agd:Arendeinformation>
+			p += "agd:Arendeinformation";
+			//       <agd:Arendeagare>165560269986</agd:Arendeagare>
+			y(p + "agd:Arendeagare","165560269986");
+			//       <agd:Period>202101</agd:Period>
+			y(p + "agd:Period","202101");
+			--p;
+			//     </agd:Arendeinformation>
+			//     <agd:Blankettinnehall>
+			p += "agd:Blankettinnehall";
+			//       <agd:HU>
+			p += "agd:HU";
+			//         <agd:ArbetsgivareHUGROUP>
+			p += "agd:ArbetsgivareHUGROUP";
+			//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
+			y(p + R"(agd:AgRegistreradId faltkod="201")","16556026998");
+			--p;
+			//         </agd:ArbetsgivareHUGROUP>
+			//         <agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>
+			y(p + R"(agd:RedovisningsPeriod faltkod="006")","202101");
+			//         <agd:SummaArbAvgSlf faltkod="487">0</agd:SummaArbAvgSlf>
+			y(p + R"(agd:SummaArbAvgSlf faltkod="487")","0");
+			//         <agd:SummaSkatteavdr faltkod="497">0</agd:SummaSkatteavdr>
+			y(p + R"(agd:SummaSkatteavdr faltkod="497")","0");
+			--p;
+			//       </agd:HU>
+			--p;
+			//     </agd:Blankettinnehall>
+			--p;
+			//   </agd:Blankett>
+			//   <!-- Uppgift 1 IU -->
+			//   <agd:Blankett>
+			p += "agd:Blankett";
+			//     <agd:Arendeinformation>
+			p += "agd:Arendeinformation";
+			//       <agd:Arendeagare>165560269986</agd:Arendeagare>
+			y(p + R"(agd:Arendeagare)","165560269986");
+			//       <agd:Period>202101</agd:Period>
+			y(p + R"(agd:Period)","202101");
+			--p;
+			//     </agd:Arendeinformation>
+			//     <agd:Blankettinnehall>
+			p += "agd:Blankettinnehall";
+			//       <agd:IU>
+			p += "agd:IU";
+			//         <agd:ArbetsgivareIUGROUP>
+			p += "agd:ArbetsgivareIUGROUP";
+			//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
+			y(p + R"(agd:AgRegistreradId faltkod="201")","165560269986");
+			--p;
+			//         </agd:ArbetsgivareIUGROUP>
+			//         <agd:BetalningsmottagareIUGROUP>
+			p += "agd:BetalningsmottagareIUGROUP";
+			//           <agd:BetalningsmottagareIDChoice>
+			p += "agd:BetalningsmottagareIDChoice";
+			//             <agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>
+			y(p + R"(agd:BetalningsmottagarId faltkod="215")","198202252386");
+			--p;
+			//           </agd:BetalningsmottagareIDChoice>
+			--p;
+			//         </agd:BetalningsmottagareIUGROUP>
+			//         <agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>
+			y(p + R"(agd:RedovisningsPeriod faltkod="006")","202101");
+			//         <agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>
+			y(p + R"(agd:Specifikationsnummer faltkod="570")","001");
+			//         <agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>
+			y(p + R"(agd:AvdrPrelSkatt faltkod="001")","0");
+			--p;
+			//       </agd:IU>
+			--p;
+			//     </agd:Blankettinnehall>
+			--p;
+			//   </agd:Blankett>
+			--p;
+			// </Skatteverket>
+			return result;
 		}
 
 		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap const& xml_map) {
@@ -1735,9 +1917,7 @@ std::optional<SKV::XML::XMLMap> sie_to_skv(SIEEnvironment const& sie_env) {
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
 		SKV::XML::XMLMap xml_map{};
-		std::string org_no_without_hyphen;
-		std::copy_if(sie_env.organisation_no.CIN.begin(),sie_env.organisation_no.CIN.end(),std::back_inserter(org_no_without_hyphen),[](char ch){return (ch != '-');});
-		xml_map["Skatteverket.agd:Avsandare.agd:Organisationsnummer"] = org_no_without_hyphen;
+		xml_map["Skatteverket.agd:Avsandare.agd:Organisationsnummer"] = SKV::XML::to_orgno(sie_env.organisation_no.CIN);;
 		result = xml_map;
 	}
 	catch (std::exception const& e) {
@@ -2427,6 +2607,10 @@ public:
 						}
 					} break;
 
+					case PromptState::CounterAccountsEntry: {
+						prompt << "\nThe Counter Account Entry state is not yet active in this version of cratchit";
+					} break;
+
 					case PromptState::Amount:
 					case PromptState::Undefined:
 					case PromptState::Unknown:
@@ -2914,6 +3098,7 @@ private:
 
 int main(int argc, char *argv[])
 {
+	SKV::XML::x();
 	if (false) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
