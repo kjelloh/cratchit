@@ -800,6 +800,8 @@ namespace Key {
 
 namespace SKV {
 	namespace XML {
+		using XMLMap = std::map<std::string,std::string>;
+		extern SKV::XML::XMLMap skv_xml_template; // See bottom of this file
 
 		std::string to_orgno(std::string generic_org_no) {
 			std::string result{};
@@ -815,8 +817,6 @@ namespace SKV {
 			return result;
 		}
 		
-		using XMLMap = std::map<std::string,std::string>;
-
 		struct EmployerDeclarationOStream {
 			std::ostream& os;
 		};
@@ -1916,7 +1916,7 @@ private:
 std::optional<SKV::XML::XMLMap> sie_to_skv(SIEEnvironment const& sie_env) {
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
-		SKV::XML::XMLMap xml_map{};
+		SKV::XML::XMLMap xml_map{SKV::XML::skv_xml_template};
 		xml_map["Skatteverket.agd:Avsandare.agd:Organisationsnummer"] = SKV::XML::to_orgno(sie_env.organisation_no.CIN);;
 		result = xml_map;
 	}
@@ -3384,3 +3384,39 @@ namespace CP435 {
 	,{0xFF,0xA0}
 	};
 } // namespace SIE
+
+namespace SKV {
+	namespace XML {
+		SKV::XML::XMLMap skv_xml_template{
+		{R"(Skatteverket.agd:Avsandare.agd:Programnamn)",R"(Programmakarna AB)"}
+		,{R"(Skatteverket.agd:Avsandare.agd:Organisationsnummer)",R"(190002039006)"}
+		,{R"(Skatteverket.agd:Avsandare.agd:TekniskKontaktperson.agd:Namn)",R"(Valle Vadman)"}
+		,{R"(Skatteverket.agd:Avsandare.agd:TekniskKontaktperson.agd:Telefon)",R"(23-2-4-244454)"}
+		,{R"(Skatteverket.agd:Avsandare.agd:TekniskKontaktperson.agd:Epostadress)",R"(valle.vadman@programmakarna.se)"}
+		,{R"(Skatteverket.agd:Avsandare.agd:Skapad)",R"(2021-01-30T07:42:25)"}
+
+		,{R"(Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:AgRegistreradId)",R"(165560269986)"}
+		,{R"(Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:Kontaktperson.agd:Namn)",R"(Ville Vessla)"}
+		,{R"(Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:Kontaktperson.agd:Telefon)",R"(555-244454)"}
+		,{R"(Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:Kontaktperson.agd:Epostadress)",R"(ville.vessla@foretaget.se)"}
+
+		,{R"(Skatteverket.agd:Kontaktperson.agd:Arendeinformation.agd:Arendeagare)",R"(165560269986)"}
+		,{R"(Skatteverket.agd:Kontaktperson.agd:Arendeinformation.agd:Period)",R"(202101)"}
+
+		,{R"(Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:ArbetsgivareHUGROUP.agd:AgRegistreradId faltkod="201")",R"(16556026998)"}
+
+		,{R"(Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")",R"(202101)"}
+		,{R"(Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:SummaArbAvgSlf faltkod="487")",R"(0)"}
+		,{R"(Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:SummaSkatteavdr faltkod="497")",R"(0)"}
+
+		,{R"(Skatteverket.agd:Blankett.agd:Arendeinformation.agd:Arendeagare)",R"(165560269986)"}
+		,{R"(Skatteverket.agd:Blankett.agd:Arendeinformation.agd:Period)",R"(202101)"}
+
+		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:ArbetsgivareIUGROUP.agd:AgRegistreradId faltkod="201"))",R"(165560269986)"}
+		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:BetalningsmottagareIUGROUP.agd:BetalningsmottagareIDChoice.agd:BetalningsmottagarId faltkod="215")",R"(198202252386)"}
+		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod"},{"006")",R"(202101)"}
+		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:Specifikationsnummer faltkod="570")",R"(001)"}
+		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:AvdrPrelSkatt faltkod="001")",R"(0)"}
+		};
+	}
+}
