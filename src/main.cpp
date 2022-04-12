@@ -1935,36 +1935,39 @@ private:
 	}
 };
 
-struct ContactPersonMeta {
-	std::string name{};
-	std::string phone{};
-	std::string e_mail{};
-};
-
-struct OrganisationMeta {
-	std::string org_no{};
-	std::vector<ContactPersonMeta> contact_persons{};
-};
-
-struct DeclarationMeta {
-	std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
-	std::string declaration_period_id{}; // e.g., 202101
-};
-
-struct TaxDeclaration {
-	std::string employee_12_digit_birth_no{}; // e.g., 198202252386
-	Amount paid_employer_fee{};
-	Amount paid_tax{};
-};
-
-using TaxDeclarations = std::vector<TaxDeclaration>;
-
 namespace SKV {
+	struct ContactPersonMeta {
+		std::string name{};
+		std::string phone{};
+		std::string e_mail{};
+	};
+	using OptionalContactPersonMeta = std::optional<ContactPersonMeta>;
+
+	struct OrganisationMeta {
+		std::string org_no{};
+		std::vector<ContactPersonMeta> contact_persons{};
+	};
+	using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
+
+	struct DeclarationMeta {
+		std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
+		std::string declaration_period_id{}; // e.g., 202101
+	};
+	using OptionalDeclarationMeta = std::optional<DeclarationMeta>;
+
+	struct TaxDeclaration {
+		std::string employee_12_digit_birth_no{}; // e.g., 198202252386
+		Amount paid_employer_fee{};
+		Amount paid_tax{};
+	};
+
+	using TaxDeclarations = std::vector<TaxDeclaration>;
+
 	Amount to_tax(Amount amount) {return std::round(amount);}
 	Amount to_fee(Amount amount) {return std::round(amount);}
 }
 
-std::optional<SKV::XML::XMLMap> to_skv_xml_map(OrganisationMeta sender_meta,DeclarationMeta declaration_meta,OrganisationMeta employer_meta,TaxDeclarations tax_declarations) {
+std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta,SKV::DeclarationMeta declaration_meta,SKV::OrganisationMeta employer_meta,SKV::TaxDeclarations tax_declarations) {
 	std::cout << "\nto_skv_map" << std::flush;
 	std::optional<SKV::XML::XMLMap> result{};
 	SKV::XML::XMLMap xml_map{SKV::XML::skv_xml_template};
@@ -1985,23 +1988,18 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(OrganisationMeta sender_meta,Decl
 		//     <agd:Programnamn>Programmakarna AB</agd:Programnamn>
 		xml_map[p + "agd:Programnamn"] = "Programmakarna AB";
 		//     <agd:Organisationsnummer>190002039006</agd:Organisationsnummer>
-		sender_meta.org_no = "190002039006";
 		xml_map[p + "agd:Organisationsnummer"] = SKV::XML::to_orgno(sender_meta.org_no);
 		//     <agd:TekniskKontaktperson>
 		p += "agd:TekniskKontaktperson";
 		//       <agd:Namn>Valle Vadman</agd:Namn>
-		sender_meta.contact_persons[0].name = "Valle Vadman";
 		xml_map[p + "agd:Namn"] = sender_meta.contact_persons[0].name;
 		//       <agd:Telefon>23-2-4-244454</agd:Telefon>
-		sender_meta.contact_persons[0].phone = "23-2-4-244454";
 		xml_map[p + "agd:Telefon"] = sender_meta.contact_persons[0].phone;
 		//       <agd:Epostadress>valle.vadman@programmakarna.se</agd:Epostadress>
-		sender_meta.contact_persons[0].e_mail = "valle.vadman@programmakarna.se";
 		xml_map[p + "agd:Epostadress"] = sender_meta.contact_persons[0].e_mail;
 		--p;
 		//     </agd:TekniskKontaktperson>
 		//     <agd:Skapad>2021-01-30T07:42:25</agd:Skapad>
-		declaration_meta.creation_date_and_time = "2021-01-30T07:42:25";
 		xml_map[p + "agd:Skapad"] = declaration_meta.creation_date_and_time;
 		--p;
 		//   </agd:Avsandare>
@@ -2012,18 +2010,14 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(OrganisationMeta sender_meta,Decl
 		p += "agd:Arbetsgivare";
 		// employer_meta -> Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.*
 		//       <agd:AgRegistreradId>165560269986</agd:AgRegistreradId>
-		employer_meta.org_no = "165560269986";
 		xml_map[p + "agd:AgRegistreradId"] = SKV::XML::to_orgno(employer_meta.org_no);
 		//       <agd:Kontaktperson>
 		p += "agd:Kontaktperson";
 		//         <agd:Namn>Ville Vessla</agd:Namn>
-		employer_meta.contact_persons[0].name = "Ville Vessla";
 		xml_map[p + "agd:Namn"] = employer_meta.contact_persons[0].name;
 		//         <agd:Telefon>555-244454</agd:Telefon>
-		employer_meta.contact_persons[0].phone = "Telefon>555-244454";
 		xml_map[p + "agd:Telefon"] = employer_meta.contact_persons[0].phone;
 		//         <agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>
-		employer_meta.contact_persons[0].e_mail = "ville.vessla@foretaget.se";
 		xml_map[p + "agd:Epostadress"] = employer_meta.contact_persons[0].e_mail;
 		--p;
 		//     </agd:Arbetsgivare>
@@ -2037,7 +2031,6 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(OrganisationMeta sender_meta,Decl
 		//       <agd:Arendeagare>165560269986</agd:Arendeagare>
 		xml_map[p + "agd:Arendeagare"] = SKV::XML::to_orgno(employer_meta.org_no);
 		//       <agd:Period>202101</agd:Period>
-		declaration_meta.declaration_period_id = "202101";
 		xml_map[p + "agd:Period"] = declaration_meta.declaration_period_id;
 		--p;
 		//     </agd:Arendeinformation>
@@ -2101,7 +2094,6 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(OrganisationMeta sender_meta,Decl
 		//           <agd:BetalningsmottagareIDChoice>
 		p += "agd:BetalningsmottagareIDChoice";
 		//             <agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>
-		tax_declarations[0].employee_12_digit_birth_no = "198202252386";
 		xml_map[p + R"(agd:BetalningsmottagarId faltkod="215")"] = tax_declarations[0].employee_12_digit_birth_no;
 		--p;
 		//           </agd:BetalningsmottagareIDChoice>
@@ -2112,7 +2104,6 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(OrganisationMeta sender_meta,Decl
 		//         <agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>
 		xml_map[p + R"(agd:Specifikationsnummer faltkod="570")"] = "001";
 		//         <agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>
-		tax_declarations[0].paid_tax = 0;
 		xml_map[p + R"(agd:AvdrPrelSkatt faltkod="001")"] = std::to_string(SKV::to_tax(tax_declarations[0].paid_tax));
 		--p;
 		//       </agd:IU>
@@ -2130,15 +2121,36 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(OrganisationMeta sender_meta,Decl
 	return result;
 }
 
-std::optional<SKV::XML::XMLMap> sie_to_skv(SIEEnvironment const& sie_env) {
-	std::cout << "\nsie_to_skv" << std::flush;
+std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
+	std::cout << "\ncratchit_to_skv" << std::flush;
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
-		OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
-		DeclarationMeta declaration_meta{};
-		OrganisationMeta employer_meta{};employer_meta.contact_persons.push_back({});
-		TaxDeclarations tax_declarations{};tax_declarations.push_back({});
-		sender_meta.org_no = SKV::XML::to_orgno(sie_env.organisation_no.CIN);
+		SKV::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
+		SKV::DeclarationMeta declaration_meta{};
+		SKV::OrganisationMeta employer_meta{};employer_meta.contact_persons.push_back({});
+		SKV::TaxDeclarations tax_declarations{};tax_declarations.push_back({});
+		declaration_meta.creation_date_and_time = "2021-01-30T07:42:25";
+		declaration_meta.declaration_period_id = "202101";
+		sender_meta.org_no = "190002039006";
+		employer_meta.org_no = "165560269986";
+		// sender_meta.org_no = SKV::XML::to_orgno(sie_env.organisation_no.CIN);
+		if (organisation_contacts.size()>0) {
+			// Use orgnaisation contact person as the file sender technical contact
+			sender_meta.contact_persons[0] = organisation_contacts[0];
+
+			// Use organisation contact person as employer contact
+			employer_meta.contact_persons[0] = organisation_contacts[0];
+		}
+		else {
+			throw std::runtime_error("cratchit_to_skv failed. No organisation_contacts provided");
+		}
+		if (employee_birth_ids.size() > 0) {
+			tax_declarations[0].employee_12_digit_birth_no = "198202252386";
+			tax_declarations[0].paid_tax = 0;
+		}
+		else {
+			throw std::runtime_error("cratchit_to_skv failed. No employee_birth_ids provided");
+		}
 		result = to_skv_xml_map(sender_meta,declaration_meta,employer_meta,tax_declarations);
 	}
 	catch (std::exception const& e) {
@@ -2425,11 +2437,16 @@ enum class PromptState {
 	,AccountIndex
 	,Amount
 	,CounterAccountsEntry
+	,SKVEntryIndex
+	,EnterContact
+	,EnterEmployeeID
 	,Unknown
 };
 
 class ConcreteModel {
-public:	
+public:
+	std::vector<SKV::ContactPersonMeta> organisation_contacts{};
+	std::vector<std::string> employee_birth_ids{};
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
@@ -2651,10 +2668,17 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 }
 
 std::vector<std::string> quoted_tokens(std::string const& cli) {
+	// std::cout << "quoted_tokens count:" << cli.size();
+	// for (char ch : cli) {
+	// 	std::cout << " " << ch << ":" << static_cast<unsigned>(ch);
+	// }
 	std::vector<std::string> result{};
 	std::istringstream in{cli};
 	std::string token{};
-	while (in >> std::quoted(token)) result.push_back(token);
+	while (in >> std::quoted(token)) {
+		// std::cout << "\nquoted token:" << token;
+		result.push_back(token);
+	}
 	return result;
 }
 
@@ -2680,6 +2704,16 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::CounterAccountsEntry: {
 			prompt << "had:je:at";
 		} break;
+		case PromptState::SKVEntryIndex: {
+			prompt << ":skv";
+		} break;
+		case PromptState::EnterContact: {
+			prompt << ":contact";
+		} break;
+	  case PromptState::EnterEmployeeID: {
+			prompt << ":employee";
+		} break;
+
 		default: {
 			prompt << ":??";
 		}
@@ -2699,7 +2733,8 @@ public:
 		// std::cout << "\noperator(Key)";
 		if (model->user_input.size()==0) model->prompt = prompt_line(model->prompt_state);
 		Cmd cmd{};
-		if (std::isprint(key.value)) {
+		if (key.value != '\n') {
+			// std::cout << "\nKeyPress:" << key.value;
 			model->user_input += key.value;
 		}
 		else {
@@ -2832,6 +2867,16 @@ public:
 						prompt << "\nThe Counter Account Entry state is not yet active in this version of cratchit";
 					} break;
 
+					case PromptState::SKVEntryIndex: {
+						switch (ix) {
+							case 1: {model->prompt_state = PromptState::EnterContact;} break;
+							case 2: {model->prompt_state = PromptState::EnterEmployeeID;} break;
+							default: {prompt << "\nPlease enter a valid index (-skv to see valid options)";} break;
+						}
+					} break;
+
+					case PromptState::EnterContact:
+					case PromptState::EnterEmployeeID:
 					case PromptState::Amount:
 					case PromptState::Undefined:
 					case PromptState::Unknown:
@@ -2957,19 +3002,20 @@ public:
 				prompt << t2s;
 			}
 			else if (ast[0] == "-skv") {
-				if (auto xml_map = sie_to_skv(model->sie["current"])) {
-					std::filesystem::path skv_file_path{"to_skv.xml"};
-					std::ofstream skv_file{skv_file_path};
-					if (SKV::XML::to_employer_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
-						prompt << "\nCreated " << skv_file_path;
-					}
-					else {
-						prompt << "\nSorry, filed to create " << skv_file_path;
-					}
+				if (model->organisation_contacts.size()==0) {
+					model->organisation_contacts.push_back({
+						 .name = "Ville Vessla"
+						,.phone = "555-244454"
+						,.e_mail = "ville.vessla@foretaget.se"
+					});
 				}
-				else {
-					prompt << "\nPlease import an sie-file to support creation of an skv data file";
+				prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
+				if (model->employee_birth_ids.size() == 0) {
+					model->employee_birth_ids.push_back({"198202252386"});
 				}
+				prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
+
+				model->prompt_state = PromptState::SKVEntryIndex;
 			}
 			else if (ast[0] == "-csv") {
 				// std::cout << "\nCSV :)";
@@ -3101,6 +3147,31 @@ public:
 						prompt << "\nPlease enter a valid amount";
 					}
 				}
+				else if (model->prompt_state == PromptState::EnterContact) {
+					if (ast.size() == 3) {
+						SKV::ContactPersonMeta cpm {
+							.name = ast[0]
+							,.phone = ast[1]
+							,.e_mail = ast[2]
+						};
+						if (model->organisation_contacts.size() == 0) {
+							model->organisation_contacts.push_back(cpm);
+						}
+						else {
+							model->organisation_contacts[0] = cpm;
+						}
+					}
+				}
+				else if (model->prompt_state == PromptState::EnterEmployeeID) {
+					if (ast.size() > 0) {
+						if (model->employee_birth_ids.size()==0) {
+							model->employee_birth_ids.push_back(ast[0]);
+						}
+						else {
+							model->employee_birth_ids[0] = ast[0];
+						}
+					}
+				}
 				else {
 					// Assume Caption + Amount + Date
 					auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
@@ -3172,15 +3243,39 @@ public:
 		return model;
 	}
 	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
-		Updater updater{std::move(model)};
-		auto cmd = std::visit(updater,msg);
-		if (updater.model->quit) {
-			auto model_environment = environment_from_model(updater.model);
+		// std::cout << "\nCratchit::update entry" << std::flush;
+		Cmd cmd{};
+		std::ostringstream prompt{};
+		{
+			// Scope to ensure correct move of model in and out of updater
+			Updater updater{std::move(model)};
+			// std::cout << "\nCratchit::update updater created" << std::flush;
+			cmd = std::visit(updater,msg);
+			model = std::move(updater.model);
+		}
+		// std::cout << "\nCratchit::update updater visit ok" << std::flush;
+		if (model->quit) {
+			// std::cout << "\nCratchit::update if (updater.model->quit) {" << std::flush;
+			auto model_environment = environment_from_model(model);
 			auto cratchit_environment = add_cratchit_environment(model_environment);
 			this->environment_to_file(cratchit_environment,cratchit_file_path);
-			unposted_to_sie_file(updater.model->sie["current"],updater.model->staged_sie_file_path);
-			}
-		return {std::move(updater.model),cmd};
+			unposted_to_sie_file(model->sie["current"],model->staged_sie_file_path);
+			// Update/create the skv xml-file (employer monthly tax declaration)
+			if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
+				std::filesystem::path skv_file_path{"to_skv_monthly_employer_declaration.xml"};
+				std::ofstream skv_file{skv_file_path};
+				if (SKV::XML::to_employer_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
+					prompt << "\nCreated " << skv_file_path;
+				}
+				else {
+					prompt << "\nSorry, filed to create " << skv_file_path;
+				}
+			}			
+		}
+		// std::cout << "\nCratchit::update before prompt update" << std::flush;
+		// std::cout << "\nCratchit::update before return" << std::flush;
+		model->prompt += prompt.str();
+		return {std::move(model),cmd};
 	}
 	Ux view(Model const& model) {
 		Ux ux{};
@@ -3280,7 +3375,9 @@ public:
     auto model = cratchit.init(command);
 		while (true) {
 			try {
+				// std::cout << "\nREPL::run before view" << std::flush;
 				auto ux = cratchit.view(model);
+				// std::cout << "\nREPL::run before render" << std::flush;
 				render_ux(ux);
 				if (model->quit) break; // Done
 				// process events (user input)
@@ -3289,14 +3386,18 @@ public:
 					in.pop();
 					// std::cout << "\nmsg[" << msg.index() << "]";
 					// Turn Event (Msg) into updated model
+					// std::cout << "\nREPL::run before cratchit.update " << std::flush;
 					auto [updated_model,cmd] = cratchit.update(msg,std::move(model));
+					// std::cout << "\nREPL::run cratchit.update ok" << std::flush;
 					model = std::move(updated_model);
+					// std::cout << "\nREPL::run model moved ok" << std::flush;
 					if (cmd.msg) in.push(*cmd.msg);
 				}
 				else {
 					// Get more buffered user input
 					std::string user_input{};
 					std::getline(std::cin,user_input);
+					// for (auto ch : user_input) std::cout << " " << ch << ":" << static_cast<int>(ch); 
 					std::for_each(user_input.begin(),user_input.end(),[this](char ch){
 						this->in.push(KeyPress{ch});
 					});
@@ -3307,6 +3408,7 @@ public:
 				std::cerr << "\nERROR: run() loop failed, exception=" << e.what() << std::flush;
 			}
 		}
+		// std::cout << "\nREPL::run exit" << std::flush;
 	}
 private:
     Cratchit cratchit;
@@ -3324,7 +3426,6 @@ private:
 
 int main(int argc, char *argv[])
 {
-	SKV::XML::x();
 	if (false) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
