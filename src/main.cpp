@@ -826,6 +826,13 @@ namespace SKV {
 			std::string value;
 		};
 
+		std::string to_value(XMLMap const& xml_map,std::string tag) {
+			if (xml_map.contains(tag) and xml_map.at(tag).size() > 0) {
+				return xml_map.at(tag);
+			}
+			else throw std::runtime_error(std::string{"to_string failed, no value for tag:"} + tag);
+		}
+
 		XMLMap::value_type to_entry(XMLMap const& xml_map,std::string tag) {
 			auto iter = xml_map.find(tag);
 			if (iter != xml_map.end()) {
@@ -1062,12 +1069,12 @@ namespace SKV {
 								p += "agd:HU";
 								edos << "\n" << R"(<agd:ArbetsgivareHUGROUP>)";
 									p += "agd:ArbetsgivareHUGROUP";
-									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">)" << "165560269986" << "</agd:AgRegistreradId>";
+									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">)" << to_value(xml_map,p + R"(agd:AgRegistreradId faltkod="201")") << "</agd:AgRegistreradId>";
 									--p;
 								edos << "\n" << R"(</agd:ArbetsgivareHUGROUP>)";
-								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
-								edos << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">0</agd:SummaArbAvgSlf>)";
-								edos << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">0</agd:SummaSkatteavdr>)";
+								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">)" << to_value(xml_map,p + R"(agd:RedovisningsPeriod faltkod="006")") << "</agd:RedovisningsPeriod>";
+								edos << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">)" <<  to_value(xml_map,p + R"(agd:SummaArbAvgSlf faltkod="487")") << "</agd:SummaArbAvgSlf>";
+								edos << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">)" <<  to_value(xml_map,p + R"(agd:SummaSkatteavdr faltkod="497")") << "</agd:SummaSkatteavdr>";
 								--p;
 							edos << "\n" << R"(</agd:HU>)";
 							--p;
@@ -1082,29 +1089,29 @@ namespace SKV {
 							p += "agd:Arendeinformation";
 							edos << "\n" << to_entry(xml_map,p + "agd:Arendeagare");
 							edos << "\n" << to_entry(xml_map,p + "agd:Period");
+							--p;
 						edos << "\n" << R"(</agd:Arendeinformation>)";
-						p += "agd:Arendeinformation";
 						edos << "\n" << R"(<agd:Blankettinnehall>)";
 							p += "agd:Blankettinnehall";
 							edos << "\n" << R"(<agd:IU>)";
 								p += "agd:IU";
 								edos << "\n" << R"(<agd:ArbetsgivareIUGROUP>)";
 									p += "agd:ArbetsgivareIUGROUP";
-									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>)";
+									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">)" << to_value(xml_map,p + R"(agd:AgRegistreradId faltkod="201")") << "</agd:AgRegistreradId>";
 									--p;
 								edos << "\n" << R"(</agd:ArbetsgivareIUGROUP>)";
 								edos << "\n" << R"(<agd:BetalningsmottagareIUGROUP>)";
 									p += "agd:BetalningsmottagareIUGROUP";
 									edos << "\n" << R"(<agd:BetalningsmottagareIDChoice>)";
 										p += "agd:BetalningsmottagareIDChoice";
-										edos << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>)";
+										edos << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">)" <<  to_value(xml_map,p + R"(agd:BetalningsmottagarId faltkod="215")") <<  "</agd:BetalningsmottagarId>";
 										--p;
 									edos << "\n" << R"(</agd:BetalningsmottagareIDChoice>)";
 									--p;
 								edos << "\n" << R"(</agd:BetalningsmottagareIUGROUP>)";
-								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>)";
-								edos << "\n" << R"(<agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>)";
-								edos << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>)";
+								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">)" <<  to_value(xml_map,p + R"(agd:RedovisningsPeriod faltkod="006")") << "</agd:RedovisningsPeriod>";
+								edos << "\n" << R"(<agd:Specifikationsnummer faltkod="570">)" <<  to_value(xml_map,p + R"(agd:Specifikationsnummer faltkod="570")") << "</agd:Specifikationsnummer>";
+								edos << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">)" <<  to_value(xml_map,p + R"(agd:AvdrPrelSkatt faltkod="001")") << "</agd:AvdrPrelSkatt>";
 								--p;
 							edos << "\n" << R"(</agd:IU>)";
 							--p;
@@ -1963,8 +1970,8 @@ namespace SKV {
 
 	using TaxDeclarations = std::vector<TaxDeclaration>;
 
-	Amount to_tax(Amount amount) {return std::round(amount);}
-	Amount to_fee(Amount amount) {return std::round(amount);}
+	int to_tax(Amount amount) {return std::round(amount);}
+	int to_fee(Amount amount) {return std::round(amount);}
 }
 
 std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta,SKV::DeclarationMeta declaration_meta,SKV::OrganisationMeta employer_meta,SKV::TaxDeclarations tax_declarations) {
@@ -1979,6 +1986,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		if (tax_declarations.size()==0) throw std::runtime_error(std::string{"to_skv_xml_map failed - zero tax_declarations"});
 		// <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 		// <Skatteverket omrade="Arbetsgivardeklaration"
+		
 		p += "Skatteverket";
 		//   xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1"
 		//   xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1"
@@ -2020,6 +2028,8 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//         <agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>
 		xml_map[p + "agd:Epostadress"] = employer_meta.contact_persons[0].e_mail;
 		--p;
+		//       </agd:Kontaktperson>
+		--p;
 		//     </agd:Arbetsgivare>
 		--p;
 		//   </agd:Blankettgemensamt>
@@ -2042,6 +2052,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//         <agd:ArbetsgivareHUGROUP>
 		p += "agd:ArbetsgivareHUGROUP";
 		//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
+		std::cout << "\nxml_map[" << p + R"(agd:AgRegistreradId faltkod="201")" << "] = " << SKV::XML::to_orgno(employer_meta.org_no);
 		xml_map[p + R"(agd:AgRegistreradId faltkod="201")"] = SKV::XML::to_orgno(employer_meta.org_no);
 		--p;
 		//         </agd:ArbetsgivareHUGROUP>
@@ -2118,22 +2129,77 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 	catch (std::exception const& e) {
 		std::cerr << "\nERROR: to_skv_xml_map failed, exception=" << e.what();
 	}
+	if (result) {
+		for (auto const& [tag,value] : *result) {
+			std::cout << "\nto_skv_xml_map: " << tag << " = " << std::quoted(value);
+		}
+	}
 	return result;
+}
+
+/*
+to_skv_xml_map: Skatteverket.agd:Avsandare.agd:Organisationsnummer = "165567828172"
+to_skv_xml_map: Skatteverket.agd:Avsandare.agd:Programnamn = "Programmakarna AB"
+to_skv_xml_map: Skatteverket.agd:Avsandare.agd:Skapad = "2022-04-12T19:07:27"
+to_skv_xml_map: Skatteverket.agd:Avsandare.agd:TekniskKontaktperson.agd:Epostadress = "ville.vessla@foretaget.se"
+to_skv_xml_map: Skatteverket.agd:Avsandare.agd:TekniskKontaktperson.agd:Namn = "Ville Vessla"
+to_skv_xml_map: Skatteverket.agd:Avsandare.agd:TekniskKontaktperson.agd:Telefon = "555-244454"
+to_skv_xml_map: Skatteverket.agd:Blankett.agd:Arendeinformation.agd:Arendeagare = "165560269986"
+to_skv_xml_map: Skatteverket.agd:Blankett.agd:Arendeinformation.agd:Period = "202101"
+to_skv_xml_map: Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:ArbetsgivareIUGROUP.agd:AgRegistreradId faltkod="201") = "165560269986"
+to_skv_xml_map: Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:AvdrPrelSkatt faltkod="001" = "0"
+to_skv_xml_map: Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:BetalningsmottagareIUGROUP.agd:BetalningsmottagareIDChoice.agd:BetalningsmottagarId faltkod="215" = "198202252386"
+to_skv_xml_map: Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod"},{"006" = "202101"
+to_skv_xml_map: Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:Specifikationsnummer faltkod="570" = "001"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:AgRegistreradId = "165567828172"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:Kontaktperson.agd:Epostadress = "ville.vessla@foretaget.se"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:Kontaktperson.agd:Namn = "Ville Vessla"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.agd:Kontaktperson.agd:Telefon = "555-244454"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Arendeinformation.agd:Arendeagare = "165567828172"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Arendeinformation.agd:Period = "202101"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:ArbetsgivareHUGROUP.agd:AgRegistreradId faltkod="201" = "165567828172"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006" = "202101"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:SummaArbAvgSlf faltkod="487" = "0.000000"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:SummaSkatteavdr faltkod="497" = "0.000000"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:ArbetsgivareIUGROUP.agd:AgRegistreradId faltkod="201" = "165567828172"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:AvdrPrelSkatt faltkod="001" = "0.000000"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:BetalningsmottagareIUGROUP.agd:BetalningsmottagareIDChoice.agd:BetalningsmottagarId faltkod="215" = "198202252386"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod="006" = "202101"
+to_skv_xml_map: Skatteverket.agd:Blankettgemensamt.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:Specifikationsnummer faltkod="570" = "001"
+to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Arendeinformation.agd:Arendeagare = "165560269986"
+to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Arendeinformation.agd:Period = "202101"
+to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:ArbetsgivareHUGROUP.agd:AgRegistreradId faltkod="201" = "16556026998"
+to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006" = "202101"
+to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:SummaArbAvgSlf faltkod="487" = "0"
+to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:SummaSkatteavdr faltkod="497" = "0"
+
+*/
+
+// "2021-01-30T07:42:25"
+std::string to_skv_date_and_time(std::chrono::time_point<std::chrono::system_clock> const current) {
+	std::ostringstream os{};
+	auto now_timet = std::chrono::system_clock::to_time_t(current);
+	auto now_local = localtime(&now_timet);
+	os << std::put_time(now_local,"%Y-%m-%dT%H:%M:%S");
+	return os.str();
 }
 
 std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
 	std::cout << "\ncratchit_to_skv" << std::flush;
+	std::cout << "\ncratchit_to_skv organisation_no.CIN=" << sie_env.organisation_no.CIN;
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
 		SKV::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
 		SKV::DeclarationMeta declaration_meta{};
 		SKV::OrganisationMeta employer_meta{};employer_meta.contact_persons.push_back({});
 		SKV::TaxDeclarations tax_declarations{};tax_declarations.push_back({});
-		declaration_meta.creation_date_and_time = "2021-01-30T07:42:25";
+		// declaration_meta.creation_date_and_time = "2021-01-30T07:42:25";
+		declaration_meta.creation_date_and_time = to_skv_date_and_time(std::chrono::system_clock::now());
 		declaration_meta.declaration_period_id = "202101";
-		sender_meta.org_no = "190002039006";
-		employer_meta.org_no = "165560269986";
-		// sender_meta.org_no = SKV::XML::to_orgno(sie_env.organisation_no.CIN);
+		// employer_meta.org_no = "165560269986";
+		employer_meta.org_no = SKV::XML::to_orgno(sie_env.organisation_no.CIN);
+		// sender_meta.org_no = "190002039006";
+		sender_meta.org_no = employer_meta.org_no;
 		if (organisation_contacts.size()>0) {
 			// Use orgnaisation contact person as the file sender technical contact
 			sender_meta.contact_persons[0] = organisation_contacts[0];
@@ -2145,7 +2211,7 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 			throw std::runtime_error("cratchit_to_skv failed. No organisation_contacts provided");
 		}
 		if (employee_birth_ids.size() > 0) {
-			tax_declarations[0].employee_12_digit_birth_no = "198202252386";
+			tax_declarations[0].employee_12_digit_birth_no = employee_birth_ids[0];
 			tax_declarations[0].paid_tax = 0;
 		}
 		else {
@@ -2580,6 +2646,7 @@ std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered
 }
 
 std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
+	os << "\nCIN:" << sie_environment.organisation_no.CIN;
 	for (auto const& je : sie_environment.journals()) {
 		auto& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {
@@ -2887,7 +2954,7 @@ public:
 				// Import sie and add as base of our environment
 				if (ast.size()==1) {
 					// List current sie environment
-					prompt << model->sie["current"];					
+					prompt << model->sie["current"];				
 					// std::cout << model->sie["current"];
 				}
 				else if (ast.size()==2) {
@@ -3002,20 +3069,45 @@ public:
 				prompt << t2s;
 			}
 			else if (ast[0] == "-skv") {
-				if (model->organisation_contacts.size()==0) {
-					model->organisation_contacts.push_back({
-						 .name = "Ville Vessla"
-						,.phone = "555-244454"
-						,.e_mail = "ville.vessla@foretaget.se"
-					});
+				if (ast.size() == 2) {
+					if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
+						auto period_to_declare = ast[1];
+						// Brute force the period into the map
+						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Arendeinformation.agd:Period)"] = period_to_declare;
+						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+						(*xml_map)[R"(Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+						std::filesystem::path skv_file_path{std::string{"to_skv_"} + period_to_declare + ".xml"};
+						std::ofstream skv_file{skv_file_path};
+						if (SKV::XML::to_employer_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
+							prompt << "\nCreated " << skv_file_path;
+						}
+						else {
+							prompt << "\nSorry, failed to create " << skv_file_path;
+						}
+					}	
+					else {
+						prompt << "\nSorry, failed to acquire required data to generate xml-file to SKV";
+					}
+					model->prompt_state = PromptState::Root;
 				}
-				prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
-				if (model->employee_birth_ids.size() == 0) {
-					model->employee_birth_ids.push_back({"198202252386"});
+				else {
+					if (model->organisation_contacts.size()==0) {
+						model->organisation_contacts.push_back({
+							.name = "Ville Vessla"
+							,.phone = "555-244454"
+							,.e_mail = "ville.vessla@foretaget.se"
+						});
+					}
+					prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
+					if (model->employee_birth_ids.size() == 0) {
+						model->employee_birth_ids.push_back({"198202252386"});
+					}
+					prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
+					model->prompt_state = PromptState::SKVEntryIndex;
 				}
-				prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
-
-				model->prompt_state = PromptState::SKVEntryIndex;
+			}
+			else if (ast[0] == "+skv") {
 			}
 			else if (ast[0] == "-csv") {
 				// std::cout << "\nCSV :)";
@@ -3261,16 +3353,7 @@ public:
 			this->environment_to_file(cratchit_environment,cratchit_file_path);
 			unposted_to_sie_file(model->sie["current"],model->staged_sie_file_path);
 			// Update/create the skv xml-file (employer monthly tax declaration)
-			if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
-				std::filesystem::path skv_file_path{"to_skv_monthly_employer_declaration.xml"};
-				std::ofstream skv_file{skv_file_path};
-				if (SKV::XML::to_employer_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
-					prompt << "\nCreated " << skv_file_path;
-				}
-				else {
-					prompt << "\nSorry, filed to create " << skv_file_path;
-				}
-			}			
+			std::cout << R"(\nmodel->sie["current"].organisation_no.CIN=)" << model->sie["current"].organisation_no.CIN;
 		}
 		// std::cout << "\nCratchit::update before prompt update" << std::flush;
 		// std::cout << "\nCratchit::update before return" << std::flush;
@@ -3740,7 +3823,7 @@ namespace SKV {
 
 		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:ArbetsgivareIUGROUP.agd:AgRegistreradId faltkod="201"))",R"(165560269986)"}
 		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:BetalningsmottagareIUGROUP.agd:BetalningsmottagareIDChoice.agd:BetalningsmottagarId faltkod="215")",R"(198202252386)"}
-		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod"},{"006")",R"(202101)"}
+		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod="006")",R"(202101)"}
 		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:Specifikationsnummer faltkod="570")",R"(001)"}
 		,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:AvdrPrelSkatt faltkod="001")",R"(0)"}
 		};
