@@ -799,6 +799,125 @@ namespace Key {
 } // namespace Key
 
 namespace SKV {
+
+	namespace CSV {
+		// See https://www.skatteverket.se/foretag/moms/deklareramoms/periodisksammanstallning/lamnaperiodisksammanstallningmedfiloverforing.4.7eada0316ed67d72822104.html
+		// Note 1: I have failed to find an actual technical specification document that specifies the format of the file to send for the form "Periodisk Sammanställning"
+		// Note 2: This CSV format is one of three file formats (CSV, SRU and XML) I know of so far that Swedish tax agency uses for file uploads?
+
+		// Example: "SKV574008;""
+		namespace EUSalesList {
+
+			using Amount = int;
+
+			struct SwedishVATRegistrationID {std::string twenty_digits{};};
+			struct EUVATRegistrationID {std::string with_country_code{};};
+			struct Year {std::string yyyy;};
+			struct Quarter {std::string yy_hyphen_quarted_seq_no{};};
+			struct Contact {std::string name_max_35_characters;};
+			struct Phone {
+				// Swedish telephone numbers are between eight and ten digits long. 
+				// They start with a two to four digit area code. 
+				// A three digit code starting with 07 indicates that the number is for a mobile phone. 
+				// All national numbers start with one leading 0, and international calls are specified by 00 or +. 
+				// The numbers are written with the area code followed by a hyphen, 
+				// and then two to three groups of digits separated by spaces.
+				std::string swedish_format_no_space_max_17_chars{}; // E.g., +CCAA-XXXXXXX where AA is area code without leading zero (070 => 70)
+			}; // Consider https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers#Sweden
+
+			using PeriodID = std::variant<Year,Quarter>;
+
+			struct FirstRow {
+				char const* entry = "SKV574008";
+			};
+
+		// Swedish Specification
+		/*
+		• Det 12-siffriga momsregistreringsnumret för den som är skyldig att lämna uppgifterna. Med eller utan landskoden SE.
+		• Månads- eller kvartalskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 20-4 för fjärde kvartalet 2020 eller 21-1 för första kvartalet 2021.
+		• Namnet på personen som är ansvarig för de lämnade uppgifterna (högst 35 tecken).
+		• Telefonnummer till den som är ansvarig för uppgifterna (endast siffror, med bindestreck efter riktnumret eller utlandsnummer, som inleds med plustecken (högst 17 tecken)).
+		• Frivillig uppgift om e-postadress till den som är ansvarig för uppgifterna.		
+		*/
+		// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
+			struct SecondRow {
+				SwedishVATRegistrationID vat_registration_id{};
+				PeriodID period_id{};
+				Contact name{};
+				Phone phone_number{};
+				std::optional<std::string> e_mail{};
+			};
+
+		// Swedish Specification
+			/*
+			• Köparens momsregistreringsnummer (VAT-nummer) med inledande landskod.
+			• Värde av varuleveranser (högst 12 siffror inklusive eventuellt minustecken).
+			• Värde av trepartshandel (högst 12 siffror inklusive eventuellt minustecken).
+			• Värde av tjänster enligt huvudregeln (högst 12 siffror inklusive eventuellt minustecken)."
+			*/
+			struct RowN {
+				EUVATRegistrationID vat_registration_id{};
+				std::optional<Amount> goods_amount{};
+				std::optional<Amount> three_part_business_amount{};
+				std::optional<Amount> services_amount{};
+			};
+
+			struct Form {
+				static constexpr FirstRow first_row{};
+				SecondRow second_row{};
+				std::vector<RowN> third_to_n_row{};
+			};
+
+			struct OStream {std::ostream& os;};
+
+			OStream& operator<<(OStream& os,char ch) {
+				os.os << ch;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,std::string const& s) {
+				os.os << s;
+				return os;
+			}
+
+			struct PeriodIDStreamer {
+				OStream& os;
+				void operator()(Year const& year) {
+					os << ';' << year.yyyy;
+				}	
+				void operator()(Quarter const& quarter) {
+					os << ';' << quarter.yy_hyphen_quarted_seq_no;
+				}	
+			};
+
+			OStream& operator<<(OStream& os,PeriodID const& period_id) {
+				PeriodIDStreamer streamer{os};
+				std::visit(streamer,period_id);
+				return os;
+			}
+			
+			OStream& operator<<(OStream& os,FirstRow const& row) {
+				os.os << row.entry << ';';
+				return os;
+			}
+			OStream& operator<<(OStream& os,SecondRow const& row) {
+				os.os << row.vat_registration_id.twenty_digits;
+				os << ';' << row.period_id;
+				return os;
+			}
+			OStream& operator<<(OStream& os,RowN const& row) {
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,Form const& form) {
+				os << form.first_row;
+				os << form.second_row;
+				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {os << row;});
+				return os;
+			}
+		} // namespace EUSalesList
+	} // namespace CSV {
+
 	namespace XML {
 		using XMLMap = std::map<std::string,std::string>;
 		extern SKV::XML::XMLMap skv_xml_template; // See bottom of this file
