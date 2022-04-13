@@ -868,7 +868,11 @@ namespace SKV {
 				std::vector<RowN> third_to_n_row{};
 			};
 
-			struct OStream {std::ostream& os;};
+			class OStream {
+			public:
+				std::ostream& os;
+				operator bool() const {return static_cast<bool>(os);}
+			};
 
 			OStream& operator<<(OStream& os,char ch) {
 				os.os << ch;
@@ -900,19 +904,40 @@ namespace SKV {
 				os.os << row.entry << ';';
 				return os;
 			}
+
+			// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
 			OStream& operator<<(OStream& os,SecondRow const& row) {
-				os.os << row.vat_registration_id.twenty_digits;
+				os << row.vat_registration_id.twenty_digits;
 				os << ';' << row.period_id;
+				os << ';' << row.name.name_max_35_characters;
+				os << ';' << row.phone_number.swedish_format_no_space_max_17_chars;
+				if (row.e_mail) os << ';' << *row.e_mail;
 				return os;
 			}
+
+			OStream& operator<<(OStream& os,std::optional<Amount> const& ot) {
+				if (ot) os << ';' << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
+				return os;
+			}
+
+			// Example: FI01409351;16400;;;
 			OStream& operator<<(OStream& os,RowN const& row) {
+				// EUVATRegistrationID vat_registration_id{};
+				// std::optional<Amount> goods_amount{};
+				// std::optional<Amount> three_part_business_amount{};
+				// std::optional<Amount> services_amount{};
+				os << row.vat_registration_id.with_country_code;
+				os << row.goods_amount;
 				return os;
 			}
 
 			OStream& operator<<(OStream& os,Form const& form) {
 				os << form.first_row;
 				os << form.second_row;
-				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {os << row;});
+				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {
+					os << row;
+				});
+				os.os << std::flush;
 				return os;
 			}
 		} // namespace EUSalesList
@@ -2623,8 +2648,10 @@ enum class PromptState {
 	,Amount
 	,CounterAccountsEntry
 	,SKVEntryIndex
+	,SKVTaxReturnEntryIndex
 	,EnterContact
 	,EnterEmployeeID
+	,EUListPeriodEntry
 	,Unknown
 };
 
@@ -2684,6 +2711,27 @@ private:
 };
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
+
+std::optional<SKV::CSV::EUSalesList::Form> model_to_eu_list_form(Model const& model,std::string period) {
+	std::optional<SKV::CSV::EUSalesList::Form> result{};
+	SKV::CSV::EUSalesList::Form form{};
+	try {
+		// ##
+		// Default example data
+		// 556000016701;2001;Per Persson;0123-45690; post@filmkopia.se
+		form.second_row.vat_registration_id = SKV::CSV::EUSalesList::SwedishVATRegistrationID{"556000016701"};
+		form.second_row.period_id = SKV::CSV::EUSalesList::Year{"2001"};
+		form.second_row.name = SKV::CSV::EUSalesList::Contact{"Per Persson"};
+		// auto ats = filter_ats(model->sie.at("current"),period,is_account{3308}); // 3308 "Försäljning tjänster till annat EU-land"
+		form.third_to_n_row.push_back({});
+		form.third_to_n_row.back().services_amount = 714;
+		result = form;
+	}
+	catch (std::exception& e) {
+		std::cerr << "\nmodel_to_eu_list_form failed. Exception = " << std::quoted(e.what());
+	}
+	return result;
+}
 
 struct KeyPress {char value;};
 using Command = std::string;
@@ -2893,13 +2941,18 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::SKVEntryIndex: {
 			prompt << ":skv";
 		} break;
+		case PromptState::SKVTaxReturnEntryIndex: {
+			prompt << ":skv:tax_return";
+		}
 		case PromptState::EnterContact: {
 			prompt << ":contact";
 		} break;
 	  case PromptState::EnterEmployeeID: {
 			prompt << ":employee";
 		} break;
-
+		case PromptState::EUListPeriodEntry: {
+			prompt << ":skv:eu_list:period";
+		} break;
 		default: {
 			prompt << ":??";
 		}
@@ -3054,10 +3107,43 @@ public:
 					} break;
 
 					case PromptState::SKVEntryIndex: {
+						// prompt << "\n1: Arbetsgivardeklaration (Employer’s contributions and PAYE tax return form)";
+						// prompt << "\n2: Periodisk Sammanställning (EU sales list)"
+						switch (ix) {
+							case 1: {
+								// Assume Employer’s contributions and PAYE tax return form
+
+								// Instantiate defauilt values if required
+								if (model->organisation_contacts.size()==0) {
+									model->organisation_contacts.push_back({
+										.name = "Ville Vessla"
+										,.phone = "555-244454"
+										,.e_mail = "ville.vessla@foretaget.se"
+									});
+								}
+								if (model->employee_birth_ids.size() == 0) {
+									model->employee_birth_ids.push_back({"198202252386"});
+								}
+								// List Tax Return Form skv options (user data edit)
+								// #### 1
+								auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
+								prompt << delta_prompt;
+								model->prompt_state = prompt_state;
+							} break;
+							case 2: {
+								// #### 2
+								model->prompt_state = PromptState::EUListPeriodEntry;
+								prompt << "\nTODO: Generate EU List Form";
+							} break;
+							default: {prompt << "\nPlease enter a valid index";} break;
+						}
+					} break;
+
+					case PromptState::SKVTaxReturnEntryIndex: {
 						switch (ix) {
 							case 1: {model->prompt_state = PromptState::EnterContact;} break;
 							case 2: {model->prompt_state = PromptState::EnterEmployeeID;} break;
-							default: {prompt << "\nPlease enter a valid index (-skv to see valid options)";} break;
+							default: {prompt << "\nPlease enter a valid index";} break;
 						}
 					} break;
 
@@ -3188,10 +3274,18 @@ public:
 				prompt << t2s;
 			}
 			else if (ast[0] == "-skv") {
-				if (ast.size() == 2) {
+				if (ast.size() == 1) {
+					// List skv options
+					// ####
+					prompt << "\n1: Arbetsgivardeklaration (Employer’s contributions and PAYE tax return form)";
+					prompt << "\n2: Periodisk Sammanställning (EU sales list)";
+					model->prompt_state = PromptState::SKVEntryIndex;
+				}
+				else if (ast.size() == 2) {
+					// Assume -skv <period>
 					if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
 						auto period_to_declare = ast[1];
-						// Brute force the period into the map
+						// Brute force the period into the map (TODO: Inject this value in a better way into the production code above?)
 						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Arendeinformation.agd:Period)"] = period_to_declare;
 						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
 						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
@@ -3209,21 +3303,6 @@ public:
 						prompt << "\nSorry, failed to acquire required data to generate xml-file to SKV";
 					}
 					model->prompt_state = PromptState::Root;
-				}
-				else {
-					if (model->organisation_contacts.size()==0) {
-						model->organisation_contacts.push_back({
-							.name = "Ville Vessla"
-							,.phone = "555-244454"
-							,.e_mail = "ville.vessla@foretaget.se"
-						});
-					}
-					prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
-					if (model->employee_birth_ids.size() == 0) {
-						model->employee_birth_ids.push_back({"198202252386"});
-					}
-					prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
-					model->prompt_state = PromptState::SKVEntryIndex;
 				}
 			}
 			else if (ast[0] == "+skv") {
@@ -3259,6 +3338,7 @@ public:
 				model->prompt_state = PromptState::Root;
 			}
 			else {
+				// Assume word based input
 				if (model->prompt_state == PromptState::JEIndex) {
 					// Assume the user has entered a new search criteria for template candidates
 					model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& je){
@@ -3371,6 +3451,9 @@ public:
 						else {
 							model->organisation_contacts[0] = cpm;
 						}
+						auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
+						prompt << delta_prompt;
+						model->prompt_state = prompt_state;
 					}
 				}
 				else if (model->prompt_state == PromptState::EnterEmployeeID) {
@@ -3381,6 +3464,27 @@ public:
 						else {
 							model->employee_birth_ids[0] = ast[0];
 						}
+						auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
+						prompt << delta_prompt;
+						model->prompt_state = prompt_state;
+					}
+				}
+				else if (model->prompt_state == PromptState::EUListPeriodEntry) {
+					// ####
+					// Assume EU List period input
+					if (auto eu_list_form = model_to_eu_list_form(model,ast[0])) {
+						std::filesystem::path eu_list_form_file_path{std::string{"to_skv_"} + ast[0] + ".csv"};
+						std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
+						SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
+						if (os << *eu_list_form) {
+							prompt << "\nCreated file " << eu_list_form_file_path << " OK";
+						}
+						else {
+							prompt << "\nSorry, failed to write " << eu_list_form_file_path;
+						}
+					}
+					else {
+						prompt << "\nSorry, failed to acquire required data for the EU List form file";
 					}
 				}
 				else {
@@ -3402,8 +3506,11 @@ public:
 				}
 			}
 		}
+		// std::cout << "\n*prompt=" << prompt.str();
 		prompt << prompt_line(model->prompt_state);
+		// std::cout << "\nprompt=" << prompt.str();
 		model->prompt = prompt.str();
+		// std::cout << "\nmodel->prompt=" << model->prompt;
 		return {};
 	}
 	Cmd operator()(Quit const& quit) {
@@ -3435,6 +3542,22 @@ private:
 		});
 		return result;
 	}
+
+	// ####
+	std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
+		std::ostringstream prompt{};
+		switch (to_state) {
+			case PromptState::SKVTaxReturnEntryIndex: {
+				prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
+				prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
+			} break;
+			default: {
+				prompt << "\nPlease mail developer that transition_prompt_state detected a potential design insufficiency";
+			} break;
+		}
+		return {prompt.str(),to_state};
+	}
+
 };
 
 class Cratchit {
