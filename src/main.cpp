@@ -1007,163 +1007,6 @@ namespace SKV {
 			return edos;
 		}
 
-		void y(Key::Path const& p,std::string const& value) {
-			std::cout << "\n" << p << " = " << std::quoted(value);
-		}
-
-		// Investigative code to get an understanding of the xml example file for empoyer tax declaration to Swedish tax Agency (Skatteverket or SKV)
-		XMLMap x() {
-			XMLMap result{};
-			Key::Path p{};
-			// <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-			// <Skatteverket omrade="Arbetsgivardeklaration"
-			p += "Skatteverket";
-			//   xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1"
-			//   xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1"
-			//   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">
-			//   <agd:Avsandare>
-			p += "agd:Avsandare";
-			//     <agd:Programnamn>Programmakarna AB</agd:Programnamn>
-			y(p + "agd:Programnamn","Programmakarna AB");
-			//     <agd:Organisationsnummer>190002039006</agd:Organisationsnummer>
-			y(p + "agd:Organisationsnummer","190002039006");
-			//     <agd:TekniskKontaktperson>
-			p += "agd:TekniskKontaktperson";
-			//       <agd:Namn>Valle Vadman</agd:Namn>
-			y(p + "agd:Namn","Valle Vadman");
-			//       <agd:Telefon>23-2-4-244454</agd:Telefon>
-			y(p + "agd:Telefon","23-2-4-244454");
-			//       <agd:Epostadress>valle.vadman@programmakarna.se</agd:Epostadress>
-			y(p + "agd:Epostadress","valle.vadman@programmakarna.se");
-			//       <agd:Utdelningsadress1>Artillerigatan 11</agd:Utdelningsadress1>
-			y(p + "agd:Utdelningsadress1","Artillerigatan 11");
-			//       <agd:Utdelningsadress2>C/O Segemyhr</agd:Utdelningsadress2>
-			y(p + "agd:Utdelningsadress2","C/O Segemyhr");
-			//       <agd:Postnummer>62145</agd:Postnummer>
-			y(p + "agd:Postnummer","62145");
-			//       <agd:Postort>Visby</agd:Postort>
-			y(p + "agd:Postort","Visby");
-			--p;
-			//     </agd:TekniskKontaktperson>
-			//     <agd:Skapad>2021-01-30T07:42:25</agd:Skapad>
-			y(p + "agd:Skapad","2021-01-30T07:42:25");
-			--p;
-			//   </agd:Avsandare>
-			//   <agd:Blankettgemensamt>
-			p += "agd:Blankettgemensamt";
-			//     <agd:Arbetsgivare>
-			p += "agd:Arbetsgivare";
-			//       <agd:AgRegistreradId>165560269986</agd:AgRegistreradId>
-			y(p + "agd:AgRegistreradId","165560269986");
-			//       <agd:Kontaktperson>
-			p += "agd:Kontaktperson";
-			//         <agd:Namn>Ville Vessla</agd:Namn>
-			y(p + "agd:Namn","Ville Vessla");
-			//         <agd:Telefon>555-244454</agd:Telefon>
-			y(p + "agd:Telefon","555-244454");
-			//         <agd:Epostadress>ville.vessla@foretaget.se</agd:Epostadress>
-			y(p + "agd:Epostadress","ville.vessla@foretaget.se");
-			//         <agd:Sakomrade>skruv-avdelningens anställda</agd:Sakomrade>
-			y(p + "agd:Sakomrade","skruv-avdelningens anställda");
-			--p;
-			//       </agd:Kontaktperson>
-			//       <agd:Kontaktperson>
-			p += "agd:Kontaktperson";
-			//         <agd:Namn>Maria Olsson</agd:Namn>
-			y(p + "agd:Namn","Maria Olsson");
-			//         <agd:Telefon>555-244121</agd:Telefon>
-			y(p + "agd:Telefon","555-244121");
-			//         <agd:Epostadress>maria.olsson@foretaget.se</agd:Epostadress>
-			y(p + "agd:Epostadress","maria.olsson@foretaget.se");
-			//         <agd:Sakomrade>mutter-avdelningens anställda</agd:Sakomrade>
-			y(p + "agd:Sakomrade","mutter-avdelningens anställda");
-			--p;
-			//       </agd:Kontaktperson>
-			--p;
-			//     </agd:Arbetsgivare>
-			--p;
-			//   </agd:Blankettgemensamt>
-			//   <!-- Uppgift 1 HU -->
-			//   <agd:Blankett>
-			p += "agd:Kontaktperson";
-			//     <agd:Arendeinformation>
-			p += "agd:Arendeinformation";
-			//       <agd:Arendeagare>165560269986</agd:Arendeagare>
-			y(p + "agd:Arendeagare","165560269986");
-			//       <agd:Period>202101</agd:Period>
-			y(p + "agd:Period","202101");
-			--p;
-			//     </agd:Arendeinformation>
-			//     <agd:Blankettinnehall>
-			p += "agd:Blankettinnehall";
-			//       <agd:HU>
-			p += "agd:HU";
-			//         <agd:ArbetsgivareHUGROUP>
-			p += "agd:ArbetsgivareHUGROUP";
-			//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
-			y(p + R"(agd:AgRegistreradId faltkod="201")","16556026998");
-			--p;
-			//         </agd:ArbetsgivareHUGROUP>
-			//         <agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>
-			y(p + R"(agd:RedovisningsPeriod faltkod="006")","202101");
-			//         <agd:SummaArbAvgSlf faltkod="487">0</agd:SummaArbAvgSlf>
-			y(p + R"(agd:SummaArbAvgSlf faltkod="487")","0");
-			//         <agd:SummaSkatteavdr faltkod="497">0</agd:SummaSkatteavdr>
-			y(p + R"(agd:SummaSkatteavdr faltkod="497")","0");
-			--p;
-			//       </agd:HU>
-			--p;
-			//     </agd:Blankettinnehall>
-			--p;
-			//   </agd:Blankett>
-			//   <!-- Uppgift 1 IU -->
-			//   <agd:Blankett>
-			p += "agd:Blankett";
-			//     <agd:Arendeinformation>
-			p += "agd:Arendeinformation";
-			//       <agd:Arendeagare>165560269986</agd:Arendeagare>
-			y(p + R"(agd:Arendeagare)","165560269986");
-			//       <agd:Period>202101</agd:Period>
-			y(p + R"(agd:Period)","202101");
-			--p;
-			//     </agd:Arendeinformation>
-			//     <agd:Blankettinnehall>
-			p += "agd:Blankettinnehall";
-			//       <agd:IU>
-			p += "agd:IU";
-			//         <agd:ArbetsgivareIUGROUP>
-			p += "agd:ArbetsgivareIUGROUP";
-			//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
-			y(p + R"(agd:AgRegistreradId faltkod="201")","165560269986");
-			--p;
-			//         </agd:ArbetsgivareIUGROUP>
-			//         <agd:BetalningsmottagareIUGROUP>
-			p += "agd:BetalningsmottagareIUGROUP";
-			//           <agd:BetalningsmottagareIDChoice>
-			p += "agd:BetalningsmottagareIDChoice";
-			//             <agd:BetalningsmottagarId faltkod="215">198202252386</agd:BetalningsmottagarId>
-			y(p + R"(agd:BetalningsmottagarId faltkod="215")","198202252386");
-			--p;
-			//           </agd:BetalningsmottagareIDChoice>
-			--p;
-			//         </agd:BetalningsmottagareIUGROUP>
-			//         <agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>
-			y(p + R"(agd:RedovisningsPeriod faltkod="006")","202101");
-			//         <agd:Specifikationsnummer faltkod="570">001</agd:Specifikationsnummer>
-			y(p + R"(agd:Specifikationsnummer faltkod="570")","001");
-			//         <agd:AvdrPrelSkatt faltkod="001">0</agd:AvdrPrelSkatt>
-			y(p + R"(agd:AvdrPrelSkatt faltkod="001")","0");
-			--p;
-			//       </agd:IU>
-			--p;
-			//     </agd:Blankettinnehall>
-			--p;
-			//   </agd:Blankett>
-			--p;
-			// </Skatteverket>
-			return result;
-		}
-
 		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap const& xml_map) {
 			try {
 				Key::Path p{};
@@ -2128,7 +1971,7 @@ namespace SKV {
 }
 
 std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta,SKV::DeclarationMeta declaration_meta,SKV::OrganisationMeta employer_meta,SKV::TaxDeclarations tax_declarations) {
-	std::cout << "\nto_skv_map" << std::flush;
+	// std::cout << "\nto_skv_map" << std::flush;
 	std::optional<SKV::XML::XMLMap> result{};
 	SKV::XML::XMLMap xml_map{SKV::XML::skv_xml_template};
 	// sender_meta -> Skatteverket.agd:Avsandare.*
@@ -2147,7 +1990,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//   <agd:Avsandare>
 		p += "agd:Avsandare";
 		//     <agd:Programnamn>Programmakarna AB</agd:Programnamn>
-		xml_map[p + "agd:Programnamn"] = "Programmakarna AB";
+		xml_map[p + "agd:Programnamn"] = "https://github.com/kjelloh/cratchit";
 		//     <agd:Organisationsnummer>190002039006</agd:Organisationsnummer>
 		xml_map[p + "agd:Organisationsnummer"] = SKV::XML::to_orgno(sender_meta.org_no);
 		//     <agd:TekniskKontaktperson>
@@ -3334,7 +3177,10 @@ public:
 						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
 						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
 						(*xml_map)[R"(Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-						std::filesystem::path skv_file_path{std::string{"to_skv_"} + period_to_declare + ".xml"};
+						std::filesystem::path skv_files_folder{"to_skv"};						
+						std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};						
+						std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+						std::filesystem::create_directories(skv_file_path.parent_path());
 						std::ofstream skv_file{skv_file_path};
 						if (SKV::XML::to_employer_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
 							prompt << "\nCreated " << skv_file_path;
@@ -3515,8 +3361,12 @@ public:
 				else if (model->prompt_state == PromptState::EUListPeriodEntry) {
 					// ####
 					// Assume EU List period input
-					if (auto eu_list_form = model_to_eu_list_form(model,ast[0])) {
-						std::filesystem::path eu_list_form_file_path{std::string{"to_skv_"} + ast[0] + ".csv"};
+					auto period_to_declare = ast[0];
+					if (auto eu_list_form = model_to_eu_list_form(model,period_to_declare)) {
+						std::filesystem::path skv_files_folder{"to_skv"};						
+						std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + period_to_declare + ".csv"};						
+						std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
+						std::filesystem::create_directories(eu_list_form_file_path.parent_path());
 						std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
 						SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
 						if (os << *eu_list_form) {
