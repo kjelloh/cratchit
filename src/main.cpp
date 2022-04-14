@@ -798,161 +798,42 @@ namespace Key {
 
 } // namespace Key
 
+	namespace SKV {
+	}
+
 namespace SKV {
 
-	namespace CSV {
-		// See https://www.skatteverket.se/foretag/moms/deklareramoms/periodisksammanstallning/lamnaperiodisksammanstallningmedfiloverforing.4.7eada0316ed67d72822104.html
-		// Note 1: I have failed to find an actual technical specification document that specifies the format of the file to send for the form "Periodisk Sammanställning"
-		// Note 2: This CSV format is one of three file formats (CSV, SRU and XML) I know of so far that Swedish tax agency uses for file uploads?
-
-		// Example: "SKV574008;""
-		namespace EUSalesList {
-
-			using Amount = int;
-
-			struct SwedishVATRegistrationID {std::string twenty_digits{};};
-			struct EUVATRegistrationID {std::string with_country_code{};};
-			struct Year {std::string yyyy;};
-			struct Quarter {std::string yy_hyphen_quarted_seq_no{};};
-			struct Contact {std::string name_max_35_characters;};
-			struct Phone {
-				// Swedish telephone numbers are between eight and ten digits long. 
-				// They start with a two to four digit area code. 
-				// A three digit code starting with 07 indicates that the number is for a mobile phone. 
-				// All national numbers start with one leading 0, and international calls are specified by 00 or +. 
-				// The numbers are written with the area code followed by a hyphen, 
-				// and then two to three groups of digits separated by spaces.
-				std::string swedish_format_no_space_max_17_chars{}; // E.g., +CCAA-XXXXXXX where AA is area code without leading zero (070 => 70)
-			}; // Consider https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers#Sweden
-
-			using PeriodID = std::variant<Year,Quarter>;
-
-			struct FirstRow {
-				char const* entry = "SKV574008";
-			};
-
-		// Swedish Specification
-		/*
-		• Det 12-siffriga momsregistreringsnumret för den som är skyldig att lämna uppgifterna. Med eller utan landskoden SE.
-		• Månads- eller kvartalskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 20-4 för fjärde kvartalet 2020 eller 21-1 för första kvartalet 2021.
-		• Namnet på personen som är ansvarig för de lämnade uppgifterna (högst 35 tecken).
-		• Telefonnummer till den som är ansvarig för uppgifterna (endast siffror, med bindestreck efter riktnumret eller utlandsnummer, som inleds med plustecken (högst 17 tecken)).
-		• Frivillig uppgift om e-postadress till den som är ansvarig för uppgifterna.		
-		*/
-		// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
-			struct SecondRow {
-				SwedishVATRegistrationID vat_registration_id{};
-				PeriodID period_id{};
-				Contact name{};
-				Phone phone_number{};
-				std::optional<std::string> e_mail{};
-			};
-
-		// Swedish Specification
-			/*
-			• Köparens momsregistreringsnummer (VAT-nummer) med inledande landskod.
-			• Värde av varuleveranser (högst 12 siffror inklusive eventuellt minustecken).
-			• Värde av trepartshandel (högst 12 siffror inklusive eventuellt minustecken).
-			• Värde av tjänster enligt huvudregeln (högst 12 siffror inklusive eventuellt minustecken)."
-			*/
-			struct RowN {
-				EUVATRegistrationID vat_registration_id{};
-				std::optional<Amount> goods_amount{};
-				std::optional<Amount> three_part_business_amount{};
-				std::optional<Amount> services_amount{};
-			};
-
-			struct Form {
-				static constexpr FirstRow first_row{};
-				SecondRow second_row{};
-				std::vector<RowN> third_to_n_row{};
-			};
-
-			class OStream {
-			public:
-				std::ostream& os;
-				operator bool() const {return static_cast<bool>(os);}
-			};
-
-			OStream& operator<<(OStream& os,char ch) {
-				os.os << ch;
-				return os;
-			}
-
-			OStream& operator<<(OStream& os,std::string const& s) {
-				os.os << s;
-				return os;
-			}
-
-			struct PeriodIDStreamer {
-				OStream& os;
-				void operator()(Year const& year) {
-					os << year.yyyy;
-				}	
-				void operator()(Quarter const& quarter) {
-					os << quarter.yy_hyphen_quarted_seq_no;
-				}	
-			};
-
-			OStream& operator<<(OStream& os,PeriodID const& period_id) {
-				PeriodIDStreamer streamer{os};
-				std::visit(streamer,period_id);
-				return os;
-			}
-			
-			OStream& operator<<(OStream& os,FirstRow const& row) {
-				os.os << row.entry << ';';
-				return os;
-			}
-
-			// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
-			OStream& operator<<(OStream& os,SecondRow const& row) {
-				os << row.vat_registration_id.twenty_digits;
-				os << ';' << row.period_id;
-				os << ';' << row.name.name_max_35_characters;
-				os << ';' << row.phone_number.swedish_format_no_space_max_17_chars;
-				if (row.e_mail) os << ';' << *row.e_mail;
-				return os;
-			}
-
-			OStream& operator<<(OStream& os,std::optional<Amount> const& ot) {
-				os << ';';
-				if (ot) os << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
-				return os;
-			}
-
-			// Example: FI01409351;16400;;;
-			OStream& operator<<(OStream& os,RowN const& row) {
-				// EUVATRegistrationID vat_registration_id{};
-				// std::optional<Amount> goods_amount{};
-				// std::optional<Amount> three_part_business_amount{};
-				// std::optional<Amount> services_amount{};
-				os << row.vat_registration_id.with_country_code;
-				os << row.goods_amount;
-				os << row.three_part_business_amount;
-				os << row.services_amount;
-				return os;
-			}
-
-			OStream& operator<<(OStream& os,Form const& form) {
-				os << form.first_row;
-				// os.os << form.first_row.entry << ';';
-				// std::cout << '\n' << form.first_row.entry << ';';
-				// os << form.second_row;
-				os << '\n' << form.second_row;
-				// std::cout << '\n' << form.second_row.vat_registration_id.twenty_digits;
-				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {
-				 	os << '\n' << row;
-					// os.os << '\n' << row.vat_registration_id.with_country_code;
-					// std::cout << '\n' << row.vat_registration_id.with_country_code;
-				});
-				// os.os << std::flush;
-				return os;
-			}
-		} // namespace EUSalesList
-	} // namespace CSV {
+	int to_tax(Amount amount) {return std::round(amount);}
+	int to_fee(Amount amount) {return std::round(amount);}
 
 	namespace XML {
+		struct ContactPersonMeta {
+			std::string name{};
+			std::string phone{};
+			std::string e_mail{};
+		};
+		using OptionalContactPersonMeta = std::optional<ContactPersonMeta>;
+
+		struct OrganisationMeta {
+			std::string org_no{};
+			std::vector<ContactPersonMeta> contact_persons{};
+		};
+		using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
+
+		struct DeclarationMeta {
+			std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
+			std::string declaration_period_id{}; // e.g., 202101
+		};
+		using OptionalDeclarationMeta = std::optional<DeclarationMeta>;
+
+		struct TaxDeclaration {
+			std::string employee_12_digit_birth_no{}; // e.g., 198202252386
+			Amount paid_employer_fee{};
+			Amount paid_tax{};
+		};
+
+		using TaxDeclarations = std::vector<TaxDeclaration>;
+
 		using XMLMap = std::map<std::string,std::string>;
 		extern SKV::XML::XMLMap skv_xml_template; // See bottom of this file
 
@@ -1135,6 +1016,158 @@ namespace SKV {
 			return static_cast<bool>(os);
 		}
 	} // namespace XML
+
+	namespace CSV {
+		// See https://www.skatteverket.se/foretag/moms/deklareramoms/periodisksammanstallning/lamnaperiodisksammanstallningmedfiloverforing.4.7eada0316ed67d72822104.html
+		// Note 1: I have failed to find an actual technical specification document that specifies the format of the file to send for the form "Periodisk Sammanställning"
+		// Note 2: This CSV format is one of three file formats (CSV, SRU and XML) I know of so far that Swedish tax agency uses for file uploads?
+
+		// Example: "SKV574008;""
+		namespace EUSalesList {
+
+			using Amount = int;
+
+			struct SwedishVATRegistrationID {std::string twenty_digits{};};
+			struct EUVATRegistrationID {std::string with_country_code{};};
+			struct Year {std::string yyyy;};
+			struct Quarter {std::string yy_hyphen_quarted_seq_no{};};
+			struct Contact {std::string name_max_35_characters;};
+			struct Phone {
+				// Swedish telephone numbers are between eight and ten digits long. 
+				// They start with a two to four digit area code. 
+				// A three digit code starting with 07 indicates that the number is for a mobile phone. 
+				// All national numbers start with one leading 0, and international calls are specified by 00 or +. 
+				// The numbers are written with the area code followed by a hyphen, 
+				// and then two to three groups of digits separated by spaces.
+				std::string swedish_format_no_space_max_17_chars{}; // E.g., +CCAA-XXXXXXX where AA is area code without leading zero (070 => 70)
+			}; // Consider https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers#Sweden
+
+			using PeriodID = std::variant<Year,Quarter>;
+
+			struct FirstRow {
+				char const* entry = "SKV574008";
+			};
+
+		// Swedish Specification
+		/*
+		• Det 12-siffriga momsregistreringsnumret för den som är skyldig att lämna uppgifterna. Med eller utan landskoden SE.
+		• Månads- eller kvartalskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 20-4 för fjärde kvartalet 2020 eller 21-1 för första kvartalet 2021.
+		• Namnet på personen som är ansvarig för de lämnade uppgifterna (högst 35 tecken).
+		• Telefonnummer till den som är ansvarig för uppgifterna (endast siffror, med bindestreck efter riktnumret eller utlandsnummer, som inleds med plustecken (högst 17 tecken)).
+		• Frivillig uppgift om e-postadress till den som är ansvarig för uppgifterna.		
+		*/
+		// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
+			struct SecondRow {
+				SwedishVATRegistrationID vat_registration_id{};
+				PeriodID period_id{};
+				Contact name{};
+				Phone phone_number{};
+				std::optional<std::string> e_mail{};
+			};
+
+		// Swedish Specification
+			/*
+			• Köparens momsregistreringsnummer (VAT-nummer) med inledande landskod.
+			• Värde av varuleveranser (högst 12 siffror inklusive eventuellt minustecken).
+			• Värde av trepartshandel (högst 12 siffror inklusive eventuellt minustecken).
+			• Värde av tjänster enligt huvudregeln (högst 12 siffror inklusive eventuellt minustecken)."
+			*/
+			struct RowN {
+				EUVATRegistrationID vat_registration_id{};
+				std::optional<Amount> goods_amount{};
+				std::optional<Amount> three_part_business_amount{};
+				std::optional<Amount> services_amount{};
+			};
+
+			struct Form {
+				static constexpr FirstRow first_row{};
+				SecondRow second_row{};
+				std::vector<RowN> third_to_n_row{};
+			};
+
+			class OStream {
+			public:
+				std::ostream& os;
+				operator bool() const {return static_cast<bool>(os);}
+			};
+
+			OStream& operator<<(OStream& os,char ch) {
+				os.os << ch;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,std::string const& s) {
+				os.os << s;
+				return os;
+			}
+
+			struct PeriodIDStreamer {
+				OStream& os;
+				void operator()(Year const& year) {
+					os << year.yyyy;
+				}	
+				void operator()(Quarter const& quarter) {
+					os << quarter.yy_hyphen_quarted_seq_no;
+				}	
+			};
+
+			OStream& operator<<(OStream& os,PeriodID const& period_id) {
+				PeriodIDStreamer streamer{os};
+				std::visit(streamer,period_id);
+				return os;
+			}
+			
+			OStream& operator<<(OStream& os,FirstRow const& row) {
+				os.os << row.entry << ';';
+				return os;
+			}
+
+			// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
+			OStream& operator<<(OStream& os,SecondRow const& row) {
+				os << row.vat_registration_id.twenty_digits;
+				os << ';' << row.period_id;
+				os << ';' << row.name.name_max_35_characters;
+				os << ';' << row.phone_number.swedish_format_no_space_max_17_chars;
+				if (row.e_mail) os << ';' << *row.e_mail;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,std::optional<Amount> const& ot) {
+				os << ';';
+				if (ot) os << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
+				return os;
+			}
+
+			// Example: FI01409351;16400;;;
+			OStream& operator<<(OStream& os,RowN const& row) {
+				// EUVATRegistrationID vat_registration_id{};
+				// std::optional<Amount> goods_amount{};
+				// std::optional<Amount> three_part_business_amount{};
+				// std::optional<Amount> services_amount{};
+				os << row.vat_registration_id.with_country_code;
+				os << row.goods_amount;
+				os << row.three_part_business_amount;
+				os << row.services_amount;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,Form const& form) {
+				os << form.first_row;
+				// os.os << form.first_row.entry << ';';
+				// std::cout << '\n' << form.first_row.entry << ';';
+				// os << form.second_row;
+				os << '\n' << form.second_row;
+				// std::cout << '\n' << form.second_row.vat_registration_id.twenty_digits;
+				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {
+				 	os << '\n' << row;
+					// os.os << '\n' << row.vat_registration_id.with_country_code;
+					// std::cout << '\n' << row.vat_registration_id.with_country_code;
+				});
+				// os.os << std::flush;
+				return os;
+			}
+		} // namespace EUSalesList
+	} // namespace CSV {
 } // namespace SKV
 
 using char16_t_string = std::wstring;
@@ -1938,39 +1971,18 @@ private:
 	}
 };
 
-namespace SKV {
-	struct ContactPersonMeta {
-		std::string name{};
-		std::string phone{};
-		std::string e_mail{};
+std::vector<SKV::CSV::EUSalesList::RowN> sie_to_eu_sales_list_rows(SIEEnvironment const& sie_env) {
+	std::vector<SKV::CSV::EUSalesList::RowN> result{};
+	SKV::CSV::EUSalesList::RowN row_n {
+		// .vat_registration_id = {"FI01409351"}
+		.vat_registration_id = {"IE6388047V"} // Google Ireland VAT regno
+		,.goods_amount = 16400
 	};
-	using OptionalContactPersonMeta = std::optional<ContactPersonMeta>;
-
-	struct OrganisationMeta {
-		std::string org_no{};
-		std::vector<ContactPersonMeta> contact_persons{};
-	};
-	using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
-
-	struct DeclarationMeta {
-		std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
-		std::string declaration_period_id{}; // e.g., 202101
-	};
-	using OptionalDeclarationMeta = std::optional<DeclarationMeta>;
-
-	struct TaxDeclaration {
-		std::string employee_12_digit_birth_no{}; // e.g., 198202252386
-		Amount paid_employer_fee{};
-		Amount paid_tax{};
-	};
-
-	using TaxDeclarations = std::vector<TaxDeclaration>;
-
-	int to_tax(Amount amount) {return std::round(amount);}
-	int to_fee(Amount amount) {return std::round(amount);}
+	result.push_back(row_n);
+	return result;
 }
 
-std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta,SKV::DeclarationMeta declaration_meta,SKV::OrganisationMeta employer_meta,SKV::TaxDeclarations tax_declarations) {
+std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::XML::OrganisationMeta sender_meta,SKV::XML::DeclarationMeta declaration_meta,SKV::XML::OrganisationMeta employer_meta,SKV::XML::TaxDeclarations tax_declarations) {
 	// std::cout << "\nto_skv_map" << std::flush;
 	std::optional<SKV::XML::XMLMap> result{};
 	SKV::XML::XMLMap xml_map{SKV::XML::skv_xml_template};
@@ -2180,15 +2192,15 @@ std::string to_skv_date_and_time(std::chrono::time_point<std::chrono::system_clo
 	return os.str();
 }
 
-std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
+std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::XML::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
 	std::cout << "\ncratchit_to_skv" << std::flush;
 	std::cout << "\ncratchit_to_skv organisation_no.CIN=" << sie_env.organisation_no.CIN;
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
-		SKV::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
-		SKV::DeclarationMeta declaration_meta{};
-		SKV::OrganisationMeta employer_meta{};employer_meta.contact_persons.push_back({});
-		SKV::TaxDeclarations tax_declarations{};tax_declarations.push_back({});
+		SKV::XML::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
+		SKV::XML::DeclarationMeta declaration_meta{};
+		SKV::XML::OrganisationMeta employer_meta{};employer_meta.contact_persons.push_back({});
+		SKV::XML::TaxDeclarations tax_declarations{};tax_declarations.push_back({});
 		// declaration_meta.creation_date_and_time = "2021-01-30T07:42:25";
 		declaration_meta.creation_date_and_time = to_skv_date_and_time(std::chrono::system_clock::now());
 		declaration_meta.declaration_period_id = "202101";
@@ -2509,7 +2521,7 @@ enum class PromptState {
 
 class ConcreteModel {
 public:
-	std::vector<SKV::ContactPersonMeta> organisation_contacts{};
+	std::vector<SKV::XML::ContactPersonMeta> organisation_contacts{};
 	std::vector<std::string> employee_birth_ids{};
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
@@ -2595,12 +2607,8 @@ std::optional<SKV::CSV::EUSalesList::Form> model_to_eu_list_form(Model const& mo
 		// };
 		// Default example data
 		// FI01409351;16400;;;
-		SKV::CSV::EUSalesList::RowN row_n {
-			// .vat_registration_id = {"FI01409351"}
-			.vat_registration_id = {"IE6388047V"} // Google Ireland VAT regno
-			,.goods_amount = 16400
-		};
-		form.third_to_n_row.push_back(row_n);
+		auto rows = sie_to_eu_sales_list_rows(model->sie["current"]);
+		std::copy(rows.begin(),rows.end(),std::back_inserter(form.third_to_n_row));
 		result = form;
 	}
 	catch (std::exception& e) {
@@ -3020,7 +3028,6 @@ public:
 							case 2: {
 								// #### 2
 								model->prompt_state = PromptState::EUListPeriodEntry;
-								prompt << "\nTODO: Generate EU List Form";
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
@@ -3329,7 +3336,7 @@ public:
 				}
 				else if (model->prompt_state == PromptState::EnterContact) {
 					if (ast.size() == 3) {
-						SKV::ContactPersonMeta cpm {
+						SKV::XML::ContactPersonMeta cpm {
 							.name = ast[0]
 							,.phone = ast[1]
 							,.e_mail = ast[2]
