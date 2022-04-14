@@ -887,10 +887,10 @@ namespace SKV {
 			struct PeriodIDStreamer {
 				OStream& os;
 				void operator()(Year const& year) {
-					os << ';' << year.yyyy;
+					os << year.yyyy;
 				}	
 				void operator()(Quarter const& quarter) {
-					os << ';' << quarter.yy_hyphen_quarted_seq_no;
+					os << quarter.yy_hyphen_quarted_seq_no;
 				}	
 			};
 
@@ -916,7 +916,8 @@ namespace SKV {
 			}
 
 			OStream& operator<<(OStream& os,std::optional<Amount> const& ot) {
-				if (ot) os << ';' << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
+				os << ';';
+				if (ot) os << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
 				return os;
 			}
 
@@ -928,16 +929,24 @@ namespace SKV {
 				// std::optional<Amount> services_amount{};
 				os << row.vat_registration_id.with_country_code;
 				os << row.goods_amount;
+				os << row.three_part_business_amount;
+				os << row.services_amount;
 				return os;
 			}
 
 			OStream& operator<<(OStream& os,Form const& form) {
 				os << form.first_row;
-				os << form.second_row;
+				// os.os << form.first_row.entry << ';';
+				// std::cout << '\n' << form.first_row.entry << ';';
+				// os << form.second_row;
+				os << '\n' << form.second_row;
+				// std::cout << '\n' << form.second_row.vat_registration_id.twenty_digits;
 				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {
-					os << row;
+				 	os << '\n' << row;
+					// os.os << '\n' << row.vat_registration_id.with_country_code;
+					// std::cout << '\n' << row.vat_registration_id.with_country_code;
 				});
-				os.os << std::flush;
+				// os.os << std::flush;
 				return os;
 			}
 		} // namespace EUSalesList
@@ -2716,15 +2725,39 @@ std::optional<SKV::CSV::EUSalesList::Form> model_to_eu_list_form(Model const& mo
 	std::optional<SKV::CSV::EUSalesList::Form> result{};
 	SKV::CSV::EUSalesList::Form form{};
 	try {
-		// ##
+		// ####
+		// struct SecondRow {
+		// 	SwedishVATRegistrationID vat_registration_id{};
+		// 	PeriodID period_id{};
+		// 	Contact name{};
+		// 	Phone phone_number{};
+		// 	std::optional<std::string> e_mail{};
+		// };
 		// Default example data
 		// 556000016701;2001;Per Persson;0123-45690; post@filmkopia.se
-		form.second_row.vat_registration_id = SKV::CSV::EUSalesList::SwedishVATRegistrationID{"556000016701"};
-		form.second_row.period_id = SKV::CSV::EUSalesList::Year{"2001"};
-		form.second_row.name = SKV::CSV::EUSalesList::Contact{"Per Persson"};
+		SKV::CSV::EUSalesList::SecondRow second_row{
+			.vat_registration_id = {"556000016701"}
+			,.period_id = SKV::CSV::EUSalesList::Year{period}
+			,.name = {"Per Persson"}
+			,.phone_number = {"0123-45690"}
+			,.e_mail = {"post@filmkopia.se"}
+		};
+		form.second_row = second_row;
 		// auto ats = filter_ats(model->sie.at("current"),period,is_account{3308}); // 3308 "Försäljning tjänster till annat EU-land"
-		form.third_to_n_row.push_back({});
-		form.third_to_n_row.back().services_amount = 714;
+		// struct RowN {
+		// 	EUVATRegistrationID vat_registration_id{};
+		// 	std::optional<Amount> goods_amount{};
+		// 	std::optional<Amount> three_part_business_amount{};
+		// 	std::optional<Amount> services_amount{};
+		// };
+		// Default example data
+		// FI01409351;16400;;;
+		SKV::CSV::EUSalesList::RowN row_n {
+			// .vat_registration_id = {"FI01409351"}
+			.vat_registration_id = {"IE6388047V"} // Google Ireland VAT regno
+			,.goods_amount = 16400
+		};
+		form.third_to_n_row.push_back(row_n);
 		result = form;
 	}
 	catch (std::exception& e) {
@@ -2965,6 +2998,16 @@ auto falling_date = [](auto const& had1,auto const& had2){
 	return (had1.date > had2.date);
 };
 
+std::optional<int> to_signed_ix(std::string const& s) {
+	std::optional<int> result{};
+	try {
+		const std::regex signed_ix_regex("^\\s*[+-]?\\d+$"); // +/-ddd...
+		if (std::regex_match(s,signed_ix_regex)) result = std::stoi(s);
+	}
+	catch (...) {}
+	return result;
+}
+
 class Updater {
 public:
 	Model model;
@@ -2986,12 +3029,13 @@ public:
 		// std::cout << "\noperator(Command)";
 		std::ostringstream prompt{};
 		auto ast = quoted_tokens(command);
-		if (ast.size() > 0) {			
+		if (ast.size() > 0) {
 			int signed_ix{};
 			std::istringstream is{ast[0]};
-			if (model->prompt_state != PromptState::Amount and is >> signed_ix) {
-				size_t ix = std::abs(signed_ix);
-				bool do_remove = (signed_ix<0);
+			if (auto signed_ix = to_signed_ix(ast[0]); model->prompt_state != PromptState::Amount and model->prompt_state != PromptState::EUListPeriodEntry and signed_ix) {
+				std::cout << "\nAct on ix = " << *signed_ix;
+				size_t ix = std::abs(*signed_ix);
+				bool do_remove = (*signed_ix<0);
 				// Act on prompt state index input				
 				switch (model->prompt_state) {
 					case PromptState::Root: {
@@ -3305,8 +3349,6 @@ public:
 					model->prompt_state = PromptState::Root;
 				}
 			}
-			else if (ast[0] == "+skv") {
-			}
 			else if (ast[0] == "-csv") {
 				// std::cout << "\nCSV :)";
 				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
@@ -3338,6 +3380,7 @@ public:
 				model->prompt_state = PromptState::Root;
 			}
 			else {
+				std::cout << "\nAct on words";
 				// Assume word based input
 				if (model->prompt_state == PromptState::JEIndex) {
 					// Assume the user has entered a new search criteria for template candidates
