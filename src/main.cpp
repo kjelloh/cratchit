@@ -300,15 +300,17 @@ namespace BAS {
 	};
 	using AccountMetas = std::map<BASAccountNo,BAS::AccountMeta>;
 
-	struct AccountTransaction {
-		BASAccountNo account_no;
-		std::optional<std::string> transtext{};
-		Amount amount;
-	};
-	using AccountTransactions = std::vector<AccountTransaction>;
-	using OptionalAccountTransaction = std::optional<AccountTransaction>;
 
 	namespace anonymous {
+
+		struct AccountTransaction {
+			BASAccountNo account_no;
+			std::optional<std::string> transtext{};
+			Amount amount;
+		};
+		using OptionalAccountTransaction = std::optional<AccountTransaction>;
+		using AccountTransactions = std::vector<AccountTransaction>;
+
 		struct JournalEntry {
 			std::string caption{};
 			std::chrono::year_month_day date{};
@@ -571,19 +573,19 @@ OptionalNameHeadingAmountAT to_name_heading_amount(std::vector<std::string> cons
 	return result;
 }
 
-BAS::OptionalAccountTransaction to_bas_account_transaction(std::vector<std::string> const& ast) {
-	BAS::OptionalAccountTransaction result{};
+BAS::anonymous::OptionalAccountTransaction to_bas_account_transaction(std::vector<std::string> const& ast) {
+	BAS::anonymous::OptionalAccountTransaction result{};
 	if (ast.size() > 1) {
 			if (auto account_no = BAS::to_account_no(ast[0])) {
 				switch (ast.size()) {
 					case 2: {
 						if (auto amount = to_amount(ast[1])) {
-							result = BAS::AccountTransaction{.account_no=*account_no,.transtext=std::nullopt,.amount=*amount};
+							result = BAS::anonymous::AccountTransaction{.account_no=*account_no,.transtext=std::nullopt,.amount=*amount};
 						}
 					} break;
 					case 3: {
 						if (auto amount = to_amount(ast[2])) {
-							result = BAS::AccountTransaction{.account_no=*account_no,.transtext=ast[1],.amount=*amount};
+							result = BAS::anonymous::AccountTransaction{.account_no=*account_no,.transtext=ast[1],.amount=*amount};
 						}
 					} break;
 					default:;
@@ -593,14 +595,14 @@ BAS::OptionalAccountTransaction to_bas_account_transaction(std::vector<std::stri
 	return result;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::AccountTransaction const& at) {
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at) {
 	os << at.account_no;
 	os << " " << at.transtext;
 	os << " " << at.amount;
 	return os;
 };
 
-std::string to_string(BAS::AccountTransaction const& at) {
+std::string to_string(BAS::anonymous::AccountTransaction const& at) {
 	std::ostringstream os{};
 	os << at;
 	return os.str();
@@ -1644,7 +1646,7 @@ namespace SIE {
 
 } // namespace SIE
 
-SIE::Trans to_sie_t(BAS::AccountTransaction const& trans) {
+SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
 	SIE::Trans result{
 		.account_no = trans.account_no
 		,.amount = trans.amount
@@ -1673,7 +1675,7 @@ SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
 }
 
 Amount entry_transaction_amount(BAS::anonymous::JournalEntry const& je) {
-	Amount result = std::accumulate(je.account_transactions.begin(),je.account_transactions.end(),Amount{},[](Amount acc,BAS::AccountTransaction const& account_transaction){
+	Amount result = std::accumulate(je.account_transactions.begin(),je.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
 		acc += (account_transaction.amount>0)?account_transaction.amount:0;
 		return acc;
 	});
@@ -1686,9 +1688,9 @@ struct AccountTransactionTemplate {
 			,m_percent{static_cast<int>(std::round(account_amount*100 / gross_amount))}  {}
 	BASAccountNo m_account_no;
 	int m_percent;
-	BAS::AccountTransaction operator()(Amount amount) const {
-		// BAS::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
-		BAS::AccountTransaction result{
+	BAS::anonymous::AccountTransaction operator()(Amount amount) const {
+		// BAS::anonymous::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
+		BAS::anonymous::AccountTransaction result{
 			 .account_no = m_account_no
 			,.transtext=""
 			,.amount=static_cast<Amount>(std::round(amount*m_percent)/100.0)};
@@ -1703,7 +1705,7 @@ public:
 	JournalEntryTemplate(BAS::Series series,BAS::JournalEntry const& bje) : m_series{series} {
 		auto gross_amount = entry_transaction_amount(bje.entry);
 		if (gross_amount >= 0.01) {
-			std::transform(bje.entry.account_transactions.begin(),bje.entry.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::AccountTransaction const& account_transaction){
+			std::transform(bje.entry.account_transactions.begin(),bje.entry.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& account_transaction){
 				AccountTransactionTemplate result(
 					 account_transaction.account_no
 					,gross_amount
@@ -1719,8 +1721,8 @@ public:
 
 	BAS::Series series() const {return m_series;}
 
-	BAS::AccountTransactions operator()(Amount amount) const {
-		BAS::AccountTransactions result{};
+	BAS::anonymous::AccountTransactions operator()(Amount amount) const {
+		BAS::anonymous::AccountTransactions result{};
 		std::transform(templates.begin(),templates.end(),std::back_inserter(result),[amount](AccountTransactionTemplate const& att){
 			return att(amount);
 		});
@@ -1785,7 +1787,7 @@ bool same_whole_units(Amount const& a1,Amount const& a2) {
 	return (std::round(a1) == std::round(a2));
 }
 
-BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::AccountTransaction const& at) {
+BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::anonymous::AccountTransaction const& at) {
 	BAS::JournalEntry result{je};
 	std::sort(result.entry.account_transactions.begin(),result.entry.account_transactions.end(),[](auto const& e1,auto const& e2){
 		return (std::abs(e1.amount) > std::abs(e2.amount)); // greater to lesser
@@ -2013,8 +2015,8 @@ void for_each_account_transaction(SIEEnvironment const& sie_env,auto& f) {
 	for_each_anonymous_journal_entry(sie_env,f_caller);
 }
 
-BAS::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& je) {
-	BAS::OptionalAccountTransaction result{};
+BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::anonymous::OptionalAccountTransaction result{};
 	auto trans_amount = entry_transaction_amount(je);
 	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
 		return std::abs(at.amount) == trans_amount;
@@ -2023,8 +2025,8 @@ BAS::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::Journa
 	return result;
 }
 
-BAS::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& je) {
-	BAS::OptionalAccountTransaction result{};
+BAS::anonymous::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::anonymous::OptionalAccountTransaction result{};
 	auto trans_amount = entry_transaction_amount(je);
 	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
 		return std::abs(at.amount) == 0.8*trans_amount;
@@ -2033,8 +2035,8 @@ BAS::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalE
 	return result;
 }
 
-BAS::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& je) {
-	BAS::OptionalAccountTransaction result{};
+BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::anonymous::OptionalAccountTransaction result{};
 	auto trans_amount = entry_transaction_amount(je);
 	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
 		return std::abs(at.amount) == 0.2*trans_amount;
@@ -2044,7 +2046,7 @@ BAS::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalE
 }
 
 struct GrossAccountTransactions {
-	BAS::AccountTransactions result;
+	BAS::anonymous::AccountTransactions result;
 	void operator()(BAS::anonymous::JournalEntry const& aje) {
 		if (auto at = gross_account_transaction(aje)) {
 			result.push_back(*at);
@@ -2053,7 +2055,7 @@ struct GrossAccountTransactions {
 };
 
 struct NetAccountTransactions {
-	BAS::AccountTransactions result;
+	BAS::anonymous::AccountTransactions result;
 	void operator()(BAS::anonymous::JournalEntry const& aje) {
 		if (auto at = net_account_transaction(aje)) {
 			result.push_back(*at);
@@ -2062,7 +2064,7 @@ struct NetAccountTransactions {
 };
 
 struct VatAccountTransactions {
-	BAS::AccountTransactions result;
+	BAS::anonymous::AccountTransactions result;
 	void operator()(BAS::anonymous::JournalEntry const& aje) {
 		if (auto at = vat_account_transaction(aje)) {
 			result.push_back(*at);
@@ -2070,19 +2072,19 @@ struct VatAccountTransactions {
 	}
 };
 
-BAS::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
+BAS::anonymous::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
 	GrossAccountTransactions ats{};
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
 }
 
-BAS::AccountTransactions net_account_transactions(SIEEnvironments const& sie_envs) {
+BAS::anonymous::AccountTransactions net_account_transactions(SIEEnvironments const& sie_envs) {
 	NetAccountTransactions ats{};
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
 }
 
-BAS::AccountTransactions vat_account_transactions(SIEEnvironments const& sie_envs) {
+BAS::anonymous::AccountTransactions vat_account_transactions(SIEEnvironments const& sie_envs) {
 	VatAccountTransactions ats{};
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
@@ -2133,8 +2135,8 @@ struct CollectT2s {
 		for (;t2_iter != t2s.end();++t2_iter) {
 			if (!t2_iter->counter_trans) {
 				// No counter trans found yet
-				auto at_iter1 = std::find_if(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[&t2_iter](BAS::AccountTransaction const& at1){
-					auto  at_iter2 = std::find_if(t2_iter->me.aje.account_transactions.begin(),t2_iter->me.aje.account_transactions.end(),[&at1](BAS::AccountTransaction const& at2){
+				auto at_iter1 = std::find_if(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[&t2_iter](BAS::anonymous::AccountTransaction const& at1){
+					auto  at_iter2 = std::find_if(t2_iter->me.aje.account_transactions.begin(),t2_iter->me.aje.account_transactions.end(),[&at1](BAS::anonymous::AccountTransaction const& at2){
 						return (at1.account_no == at2.account_no) and (at1.amount == -at2.amount);
 					});
 					return (at_iter2 != t2_iter->me.aje.account_transactions.end());
@@ -2162,8 +2164,8 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 std::vector<SKV::CSV::EUSalesList::RowN> sie_to_eu_sales_list_rows(SIEEnvironment const& sie_env) {
 	std::vector<SKV::CSV::EUSalesList::RowN> result{};
 	// 1. generate a list of account transactions to account 3308 (hard coded)
-	BAS::AccountTransactions ats{};
-	auto gather_3308_at = [&ats](BAS::AccountTransaction const& at) {
+	BAS::anonymous::AccountTransactions ats{};
+	auto gather_3308_at = [&ats](BAS::anonymous::AccountTransaction const& at) {
 		if (at.account_no == 3308) {
 			ats.push_back(at);
 			std::cout << "\nat:" << at;
@@ -2560,8 +2562,8 @@ public:
 	size_t had_index{};
 	BAS::JournalEntries template_candidates{};
 	// BAS::JournalEntry current_candidate{};
-	BAS::AccountTransactions at_candidates{};
-	BAS::AccountTransaction at{};
+	BAS::anonymous::AccountTransactions at_candidates{};
+	BAS::anonymous::AccountTransaction at{};
   std::string prompt{};
 	bool quit{};
 	std::map<std::string,std::filesystem::path> sie_file_path{};
@@ -2583,8 +2585,8 @@ public:
 		return result;
 	}
 
-	BAS::OptionalAccountTransaction selected_had_at(int at_index) {
-		BAS::OptionalAccountTransaction result{};
+	BAS::anonymous::OptionalAccountTransaction selected_had_at(int at_index) {
+		BAS::anonymous::OptionalAccountTransaction result{};
 		if (auto had = this->selected_had()) {
 			if (had->current_candidate) {
 				auto iter = had->current_candidate->entry.account_transactions.begin();
@@ -2749,7 +2751,7 @@ BAS::JournalEntry to_entry(SIE::Ver const& ver) {
 	result.entry.caption = ver.vertext;
 	result.entry.date = ver.verdate;
 	for (auto const& trans : ver.transactions) {								
-		result.entry.account_transactions.push_back(BAS::AccountTransaction{
+		result.entry.account_transactions.push_back(BAS::anonymous::AccountTransaction{
 			.account_no = trans.account_no
 			,.transtext = trans.transtext
 			,.amount = trans.amount
@@ -2965,7 +2967,7 @@ public:
 								BAS::JournalEntry je{};
 								je.entry.caption = had.heading;
 								je.entry.date = had.date;
-								je.entry.account_transactions.emplace_back(BAS::AccountTransaction{.account_no=*account_no,.amount=had.amount});
+								je.entry.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
 								had.current_candidate = je;
 								// List the options to the user
 								unsigned int i{};
@@ -2985,7 +2987,7 @@ public:
 									if (tp) {
 										auto je = to_journal_entry(had,*tp);
 										// auto je = to_journal_entry(model->selected_had,*tp);
-										if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::AccountTransaction const& at){
+										if (std::any_of(je.entry.account_transactions.begin(),je.entry.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
 											return std::abs(at.amount) < 1.0;
 										})) {
 											// Assume we need to specify rounding
@@ -3278,7 +3280,7 @@ public:
 					// Consider the user may have entered the name of a gross account to journal the transaction amount
 					auto gats = gross_account_transactions(model->sie);
 					model->at_candidates.clear();
-					std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::AccountTransaction const& at){
+					std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
 						bool result{false};
 						if (at.transtext) result |= do_share_tokens(command,*at.transtext);
 						auto const& meta = model->sie["current"].account_metas().at(at.account_no);
