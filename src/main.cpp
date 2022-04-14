@@ -1896,7 +1896,7 @@ public:
 			verno_of_last_posted_to[je.series] = *je.verno;
 		}
 		else {
-			std::cerr << "\nSIEEnvironment::post failed - cant post an entry with null verno";
+			std::cerr << "\nSIEEnvironment::post failed - can't post an entry with null verno";
 		}
 	}
 	std::optional<BAS::JournalEntry> stage(BAS::JournalEntry const& entry) {
@@ -1971,8 +1971,210 @@ private:
 	}
 };
 
+using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
+using SIEEnvironments = std::map<std::string,SIEEnvironment>;
+
+void for_each_anonymous_journal_entry(SIEEnvironment const& sie_env,auto& f) {
+	for (auto const& [journal_id,journal] : sie_env.journals()) {
+		for (auto const& [verno,aje] : journal) {
+			f(aje);
+		}
+	}
+}
+
+void for_each_anonymous_journal_entry(SIEEnvironments const& sie_envs,auto& f) {
+	for (auto const& [year_id,sie_env] : sie_envs) {
+		for_each_anonymous_journal_entry(sie_env,f);
+	}
+}
+
+void for_each_meta_entry(SIEEnvironment const& sie_env,auto& f) {
+	for (auto const& [series,journal] : sie_env.journals()) {
+		for (auto const& [verno,aje] : journal) {
+			f(BAS::MetaEntry{.series=series,.verno=verno,.aje=aje});
+		}
+	}
+}
+
+void for_each_meta_entry(SIEEnvironments const& sie_envs,auto& f) {
+	for (auto const& [year_id,sie_env] : sie_envs) {
+		for_each_meta_entry(sie_env,f);
+	}
+}
+
+void for_each_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
+	for (auto const& at : aje.account_transactions) {
+		f(at);
+	}
+}
+
+void for_each_account_transaction(SIEEnvironment const& sie_env,auto& f) {
+	auto f_caller = [&f](BAS::anonymous::JournalEntry const& aje){for_each_account_transaction(aje,f);};
+	for_each_anonymous_journal_entry(sie_env,f_caller);
+}
+
+BAS::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::OptionalAccountTransaction result{};
+	auto trans_amount = entry_transaction_amount(je);
+	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == trans_amount;
+	});
+	if (iter != je.account_transactions.end()) result = *iter;
+	return result;
+}
+
+BAS::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::OptionalAccountTransaction result{};
+	auto trans_amount = entry_transaction_amount(je);
+	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == 0.8*trans_amount;
+	});
+	if (iter != je.account_transactions.end()) result = *iter;
+	return result;
+}
+
+BAS::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& je) {
+	BAS::OptionalAccountTransaction result{};
+	auto trans_amount = entry_transaction_amount(je);
+	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == 0.2*trans_amount;
+	});
+	if (iter != je.account_transactions.end()) result = *iter;
+	return result;
+}
+
+struct GrossAccountTransactions {
+	BAS::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& aje) {
+		if (auto at = gross_account_transaction(aje)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+struct NetAccountTransactions {
+	BAS::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& aje) {
+		if (auto at = net_account_transaction(aje)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+struct VatAccountTransactions {
+	BAS::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& aje) {
+		if (auto at = vat_account_transaction(aje)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+BAS::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
+	GrossAccountTransactions ats{};
+	for_each_anonymous_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
+BAS::AccountTransactions net_account_transactions(SIEEnvironments const& sie_envs) {
+	NetAccountTransactions ats{};
+	for_each_anonymous_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
+BAS::AccountTransactions vat_account_transactions(SIEEnvironments const& sie_envs) {
+	VatAccountTransactions ats{};
+	for_each_anonymous_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
+struct T2 {
+	BAS::MetaEntry me;
+	struct CounterTrans {
+		BASAccountNo linking_account;
+		BAS::MetaEntry me;
+	};
+	std::optional<CounterTrans> counter_trans{};
+};
+using T2s = std::vector<T2>;
+
+using T2Entry = std::pair<BAS::MetaEntry,T2::CounterTrans>;
+using T2Entries = std::vector<T2Entry>;
+
+std::ostream& operator<<(std::ostream& os,T2Entry const& t2e) {
+	os << "    " << t2e.first.series << t2e.first.verno;
+	os << " <- " << t2e.second.linking_account << " ->";
+	os << " " << t2e.second.me.series << t2e.second.me.verno;
+	os << "\n 1:" << t2e.first;
+	os << "\n 2:" << t2e.second.me;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,T2Entries const& t2es) {
+	for (auto const& t2e : t2es) os << "\n\n" << t2e;
+	return os;
+}
+
+T2Entries to_t2_entries(T2s const& t2s) {
+	T2Entries result{};
+	for (auto const& t2 : t2s) {
+		if (t2.counter_trans) result.push_back({t2.me,*t2.counter_trans});
+	}
+	return result;
+}
+
+struct CollectT2s {
+	T2s t2s{};
+	T2Entries result() const { 
+		return to_t2_entries(t2s);
+	}
+	void operator() (BAS::MetaEntry const& me) {
+		auto t2_iter = t2s.begin();
+		for (;t2_iter != t2s.end();++t2_iter) {
+			if (!t2_iter->counter_trans) {
+				// No counter trans found yet
+				auto at_iter1 = std::find_if(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[&t2_iter](BAS::AccountTransaction const& at1){
+					auto  at_iter2 = std::find_if(t2_iter->me.aje.account_transactions.begin(),t2_iter->me.aje.account_transactions.end(),[&at1](BAS::AccountTransaction const& at2){
+						return (at1.account_no == at2.account_no) and (at1.amount == -at2.amount);
+					});
+					return (at_iter2 != t2_iter->me.aje.account_transactions.end());
+				});
+				if (at_iter1 != me.aje.account_transactions.end()) {
+					// iter refers to an account transaction in me to the same account but a counter amount as in t2.je
+					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.me = me};
+					t2_iter->counter_trans = counter_trans;
+					break;
+				}
+			}
+		}
+		if (t2_iter == t2s.end()) {
+			t2s.push_back(T2{.me = me});
+		}
+	}
+};
+
+T2Entries t2_entries(SIEEnvironments const& sie_envs) {
+	CollectT2s collect_t2s{};
+	for_each_meta_entry(sie_envs,collect_t2s);
+	return collect_t2s.result();
+}
+
 std::vector<SKV::CSV::EUSalesList::RowN> sie_to_eu_sales_list_rows(SIEEnvironment const& sie_env) {
 	std::vector<SKV::CSV::EUSalesList::RowN> result{};
+	// 1. generate a list of account transactions to account 3308 (hard coded)
+	BAS::AccountTransactions ats{};
+	auto gather_3308_at = [&ats](BAS::AccountTransaction const& at) {
+		if (at.account_no == 3308) {
+			ats.push_back(at);
+			std::cout << "\nat:" << at;
+		}
+	};
+	for_each_account_transaction(sie_env,gather_3308_at);
+	// auto ats = filter_ats(model->sie.at("current"),is_account{3308}); // 3308 "Försäljning tjänster till annat EU-land"
+	// 2. Assume account trasnaction text defines the EU VAT reg no for each transaction (account 3308 "Försäljning tjänster till annat EU-land")
+	//    E.g., #EUVATID=...
+	//    Or, assume the transaction text can be used to search an EU VAT ID list <text,vat_id>?
+	//    Or, have the user edit the transactions ad define VAT ID prior to calling us (not have us parse the sie_env?)
 	SKV::CSV::EUSalesList::RowN row_n {
 		// .vat_registration_id = {"FI01409351"}
 		.vat_registration_id = {"IE6388047V"} // Google Ireland VAT regno
@@ -2233,176 +2435,6 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 	return result;
 }
 
-using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
-
-using SIEEnvironments = std::map<std::string,SIEEnvironment>;
-
-void for_each_journal_entry(SIEEnvironments const& sie_envs,auto& f) {
-	for (auto const& [year_id,sie_env] : sie_envs) {
-		for (auto const& [journal_id,journal] : sie_env.journals()) {
-			for (auto const& [verno,je] : journal) {
-				f(je);
-			}
-		}
-	}
-}
-
-void for_each_meta_entry(SIEEnvironments const& sie_envs,auto& f) {
-	for (auto const& [year_id,sie_env] : sie_envs) {
-		for (auto const& [series,journal] : sie_env.journals()) {
-			for (auto const& [verno,aje] : journal) {
-				f(BAS::MetaEntry{.series=series,.verno=verno,.aje=aje});
-			}
-		}
-	}
-}
-
-BAS::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& je) {
-	BAS::OptionalAccountTransaction result{};
-	auto trans_amount = entry_transaction_amount(je);
-	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == trans_amount;
-	});
-	if (iter != je.account_transactions.end()) result = *iter;
-	return result;
-}
-
-BAS::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& je) {
-	BAS::OptionalAccountTransaction result{};
-	auto trans_amount = entry_transaction_amount(je);
-	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == 0.8*trans_amount;
-	});
-	if (iter != je.account_transactions.end()) result = *iter;
-	return result;
-}
-
-BAS::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& je) {
-	BAS::OptionalAccountTransaction result{};
-	auto trans_amount = entry_transaction_amount(je);
-	auto iter = std::find_if(je.account_transactions.begin(),je.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == 0.2*trans_amount;
-	});
-	if (iter != je.account_transactions.end()) result = *iter;
-	return result;
-}
-
-struct GrossAccountTransactions {
-	BAS::AccountTransactions result;
-	void operator()(BAS::anonymous::JournalEntry const& je) {
-		if (auto at = gross_account_transaction(je)) {
-			result.push_back(*at);
-		}
-	}
-};
-
-struct NetAccountTransactions {
-	BAS::AccountTransactions result;
-	void operator()(BAS::anonymous::JournalEntry const& je) {
-		if (auto at = net_account_transaction(je)) {
-			result.push_back(*at);
-		}
-	}
-};
-
-struct VatAccountTransactions {
-	BAS::AccountTransactions result;
-	void operator()(BAS::anonymous::JournalEntry const& je) {
-		if (auto at = vat_account_transaction(je)) {
-			result.push_back(*at);
-		}
-	}
-};
-
-BAS::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
-	GrossAccountTransactions ats{};
-	for_each_journal_entry(sie_envs,ats);
-	return ats.result;
-}
-
-BAS::AccountTransactions net_account_transactions(SIEEnvironments const& sie_envs) {
-	NetAccountTransactions ats{};
-	for_each_journal_entry(sie_envs,ats);
-	return ats.result;
-}
-
-BAS::AccountTransactions vat_account_transactions(SIEEnvironments const& sie_envs) {
-	VatAccountTransactions ats{};
-	for_each_journal_entry(sie_envs,ats);
-	return ats.result;
-}
-
-struct T2 {
-	BAS::MetaEntry me;
-	struct CounterTrans {
-		BASAccountNo linking_account;
-		BAS::MetaEntry me;
-	};
-	std::optional<CounterTrans> counter_trans{};
-};
-using T2s = std::vector<T2>;
-
-using T2Entry = std::pair<BAS::MetaEntry,T2::CounterTrans>;
-using T2Entries = std::vector<T2Entry>;
-
-std::ostream& operator<<(std::ostream& os,T2Entry const& t2e) {
-	os << "    " << t2e.first.series << t2e.first.verno;
-	os << " <- " << t2e.second.linking_account << " ->";
-	os << " " << t2e.second.me.series << t2e.second.me.verno;
-	os << "\n 1:" << t2e.first;
-	os << "\n 2:" << t2e.second.me;
-	return os;
-}
-
-std::ostream& operator<<(std::ostream& os,T2Entries const& t2es) {
-	for (auto const& t2e : t2es) os << "\n\n" << t2e;
-	return os;
-}
-
-T2Entries to_t2_entries(T2s const& t2s) {
-	T2Entries result{};
-	for (auto const& t2 : t2s) {
-		if (t2.counter_trans) result.push_back({t2.me,*t2.counter_trans});
-	}
-	return result;
-}
-
-struct CollectT2s {
-	T2s t2s{};
-	T2Entries result() const { 
-		return to_t2_entries(t2s);
-	}
-	void operator() (BAS::MetaEntry const& me) {
-		auto t2_iter = t2s.begin();
-		for (;t2_iter != t2s.end();++t2_iter) {
-			if (!t2_iter->counter_trans) {
-				// No counter trans found yet
-				auto at_iter1 = std::find_if(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[&t2_iter](BAS::AccountTransaction const& at1){
-					auto  at_iter2 = std::find_if(t2_iter->me.aje.account_transactions.begin(),t2_iter->me.aje.account_transactions.end(),[&at1](BAS::AccountTransaction const& at2){
-						return (at1.account_no == at2.account_no) and (at1.amount == -at2.amount);
-					});
-					return (at_iter2 != t2_iter->me.aje.account_transactions.end());
-				});
-				if (at_iter1 != me.aje.account_transactions.end()) {
-					// iter refers to an account transaction in me to the same account but a counter amount as in t2.je
-					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.me = me};
-					t2_iter->counter_trans = counter_trans;
-					break;
-				}
-			}
-		}
-		if (t2_iter == t2s.end()) {
-			t2s.push_back(T2{.me = me});
-		}
-	}
-};
-
-T2Entries t2_entries(SIEEnvironments const& sie_envs) {
-	CollectT2s collect_t2s{};
-	for_each_meta_entry(sie_envs,collect_t2s);
-	return collect_t2s.result();
-}
-
 using EnvironmentValue = std::map<std::string,std::string>;
 using Environment = std::multimap<std::string,EnvironmentValue>;
 
@@ -2598,7 +2630,6 @@ std::optional<SKV::CSV::EUSalesList::Form> model_to_eu_list_form(Model const& mo
 			,.e_mail = {"post@filmkopia.se"}
 		};
 		form.second_row = second_row;
-		// auto ats = filter_ats(model->sie.at("current"),period,is_account{3308}); // 3308 "Försäljning tjänster till annat EU-land"
 		// struct RowN {
 		// 	EUVATRegistrationID vat_registration_id{};
 		// 	std::optional<Amount> goods_amount{};
