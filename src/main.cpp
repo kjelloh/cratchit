@@ -343,8 +343,10 @@ namespace BAS {
 		// Series series;
 		// OptionalVerNo verno;
 		JournalEntryMeta meta;
-		anonymous::JournalEntry aje;
+		anonymous::JournalEntry defacto;
+		bool dummy{};
 	};
+
 	using OptionalJournalEntry = std::optional<JournalEntry>;
 	using JournalEntries = std::vector<JournalEntry>;
 
@@ -353,6 +355,8 @@ namespace BAS {
 	// 	BAS::anonymous::JournalEntry aje;
 	// };
 	using MetaEntry = MetaDefacto<JournalEntryMeta,BAS::anonymous::JournalEntry>;
+	using OptionalMetaEntry = std::optional<MetaEntry>;
+	using MetaEntries = std::vector<MetaEntry>;
 
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
@@ -647,7 +651,7 @@ std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me) {
 }
 
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
-	os << je.meta << " " << je.aje;
+	os << je.meta << " " << je.defacto;
 	return os;
 };
 
@@ -1675,9 +1679,9 @@ SIE::Ver to_sie_t(BAS::JournalEntry const& je) {
 	SIE::Ver result{
 		.series = je.meta.series
 		,.verno = (je.meta.verno)?*je.meta.verno:0
-		,.verdate = je.aje.date
-		,.vertext = je.aje.caption};
-	for (auto const& trans : je.aje.account_transactions) {
+		,.verdate = je.defacto.date
+		,.vertext = je.defacto.caption};
+	for (auto const& trans : je.defacto.account_transactions) {
 		result.transactions.push_back(to_sie_t(trans));
 	}
 	return result;
@@ -1712,9 +1716,9 @@ class JournalEntryTemplate {
 public:
 
 	JournalEntryTemplate(BAS::Series series,BAS::JournalEntry const& je) : m_series{series} {
-		auto gross_amount = entry_transaction_amount(je.aje);
+		auto gross_amount = entry_transaction_amount(je.defacto);
 		if (gross_amount >= 0.01) {
-			std::transform(je.aje.account_transactions.begin(),je.aje.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& account_transaction){
+			std::transform(je.defacto.account_transactions.begin(),je.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& account_transaction){
 				AccountTransactionTemplate result(
 					 account_transaction.account_no
 					,gross_amount
@@ -1759,9 +1763,9 @@ BAS::JournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,Journa
 	result.meta = {
 		.series = jet.series()
 	};
-	result.aje.caption = had.heading;
-	result.aje.date = had.date;
-	result.aje.account_transactions = jet(std::abs(had.amount)); // Ignore sign to have template apply its sign
+	result.defacto.caption = had.heading;
+	result.defacto.date = had.date;
+	result.defacto.account_transactions = jet(std::abs(had.amount)); // Ignore sign to have template apply its sign
 	return result;
 }
 
@@ -1787,7 +1791,7 @@ BAS::JournalEntries template_candidates(BASJournals const& journals,auto const& 
 		}
 	}
 	std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
-		return (je1.aje.date < je2.aje.date);
+		return (je1.defacto.date < je2.defacto.date);
 	});
 	return result;
 }
@@ -1800,23 +1804,23 @@ bool same_whole_units(Amount const& a1,Amount const& a2) {
 
 BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::anonymous::AccountTransaction const& at) {
 	BAS::JournalEntry result{je};
-	std::sort(result.aje.account_transactions.begin(),result.aje.account_transactions.end(),[](auto const& e1,auto const& e2){
+	std::sort(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[](auto const& e1,auto const& e2){
 		return (std::abs(e1.amount) > std::abs(e2.amount)); // greater to lesser
 	});
-	auto iter = std::find_if(result.aje.account_transactions.begin(),result.aje.account_transactions.end(),[&at](auto const& entry){
+	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&at](auto const& entry){
 		return (entry.account_no == at.account_no);
 	});
-	if (iter == result.aje.account_transactions.end()) {
-		result.aje.account_transactions.push_back(at);
+	if (iter == result.defacto.account_transactions.end()) {
+		result.defacto.account_transactions.push_back(at);
 		return updated_entry(result,at); // recurse with added entry
 	}
-	else if (je.aje.account_transactions.size()==4) {
+	else if (je.defacto.account_transactions.size()==4) {
 		// std::cout << "\n4 OK";
 		// Assume 0: Transaction Amount, 1: Amount no VAT, 3: VAT, 4: rounding amount
-		auto& trans_amount = result.aje.account_transactions[0].amount;
-		auto& ex_vat_amount = result.aje.account_transactions[1].amount;
-		auto& vat_amount = result.aje.account_transactions[2].amount;
-		auto& round_amount = result.aje.account_transactions[3].amount;
+		auto& trans_amount = result.defacto.account_transactions[0].amount;
+		auto& ex_vat_amount = result.defacto.account_transactions[1].amount;
+		auto& vat_amount = result.defacto.account_transactions[2].amount;
+		auto& round_amount = result.defacto.account_transactions[3].amount;
 
 		auto abs_trans_amount = std::abs(trans_amount);
 		auto abs_ex_vat_amount = std::abs(ex_vat_amount);
@@ -1834,7 +1838,7 @@ BAS::JournalEntry updated_entry(BAS::JournalEntry const& je,BAS::anonymous::Acco
 			case 12:
 			case 6: {
 				// std::cout << "\nVAT OK";
-				switch (std::distance(result.aje.account_transactions.begin(),iter)) {
+				switch (std::distance(result.defacto.account_transactions.begin(),iter)) {
 					case 0: {
 						// Assume update transaction amount
 						std::cout << "\nUpdate Transaction Amount";
@@ -1905,7 +1909,7 @@ public:
 	}
 	void post(BAS::JournalEntry const& je) {
 		if (je.meta.verno) {
-			m_journals[je.meta.series][*je.meta.verno] = je.aje;
+			m_journals[je.meta.series][*je.meta.verno] = je.defacto;
 			verno_of_last_posted_to[je.meta.series] = *je.meta.verno;
 		}
 		else {
@@ -1943,7 +1947,7 @@ public:
 						.series = series
 						,.verno = iter->first
 					}
-					,.aje = iter->second
+					,.defacto = iter->second
 				};
 				result.push_back(bjer);
 			}
@@ -1962,7 +1966,7 @@ private:
 		// Assign "actual" sequence number
 		auto verno = largest_verno(je.meta.series) + 1;
 		result.meta.verno = verno;
-		m_journals[je.meta.series][verno] = je.aje;
+		m_journals[je.meta.series][verno] = je.defacto;
 		return result;
 	}
 	BAS::VerNo largest_verno(BAS::Series series) {
@@ -2465,13 +2469,13 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 						.meta = {
 							.series = series
 							,.verno = verno}
-						,.aje = aje});
+						,.defacto = aje});
 				}
 			}
 		}
 		// select the entry with the latest date
 		std::nth_element(candidates.begin(),candidates.begin(),candidates.end(),[](auto const& je1, auto const& je2){
-			return (je1.aje.date > je2.aje.date);
+			return (je1.defacto.date > je2.defacto.date);
 		});
 		result = to_template(candidates.front());
 	}
@@ -2606,8 +2610,8 @@ public:
 		BAS::anonymous::OptionalAccountTransaction result{};
 		if (auto had = this->selected_had()) {
 			if (had->current_candidate) {
-				auto iter = had->current_candidate->aje.account_transactions.begin();
-				auto end = had->current_candidate->aje.account_transactions.end();
+				auto iter = had->current_candidate->defacto.account_transactions.begin();
+				auto end = had->current_candidate->defacto.account_transactions.end();
 				std::advance(iter,at_index);
 				if (iter != end) result = *iter;
 			}
@@ -2767,10 +2771,10 @@ BAS::JournalEntry to_entry(SIE::Ver const& ver) {
 			,.verno = ver.verno
 		}
 	};
-	result.aje.caption = ver.vertext;
-	result.aje.date = ver.verdate;
+	result.defacto.caption = ver.vertext;
+	result.defacto.date = ver.verdate;
 	for (auto const& trans : ver.transactions) {								
-		result.aje.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+		result.defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
 			.account_no = trans.account_no
 			,.transtext = trans.transtext
 			,.amount = trans.amount
@@ -2984,14 +2988,14 @@ public:
 								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
 								std::cout << "\nGross Account detected";
 								BAS::JournalEntry je{};
-								je.aje.caption = had.heading;
-								je.aje.date = had.date;
-								je.aje.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
+								je.defacto.caption = had.heading;
+								je.defacto.date = had.date;
+								je.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
 								had.current_candidate = je;
 								// List the options to the user
 								unsigned int i{};
-								prompt << "\n" << had.current_candidate->aje.caption << " " << had.current_candidate->aje.date;
-								for (auto const& at : had.current_candidate->aje.account_transactions) {
+								prompt << "\n" << had.current_candidate->defacto.caption << " " << had.current_candidate->defacto.date;
+								for (auto const& at : had.current_candidate->defacto.account_transactions) {
 									prompt << "\n  " << i++ << " " << at;
 								}				
 								model->prompt_state = PromptState::CounterAccountsEntry;
@@ -3006,12 +3010,12 @@ public:
 									if (tp) {
 										auto je = to_journal_entry(had,*tp);
 										// auto je = to_journal_entry(model->selected_had,*tp);
-										if (std::any_of(je.aje.account_transactions.begin(),je.aje.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+										if (std::any_of(je.defacto.account_transactions.begin(),je.defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
 											return std::abs(at.amount) < 1.0;
 										})) {
 											// Assume we need to specify rounding
 											unsigned int i{};
-											std::for_each(je.aje.account_transactions.begin(),je.aje.account_transactions.end(),[&i,&prompt](auto const& at){
+											std::for_each(je.defacto.account_transactions.begin(),je.defacto.account_transactions.end(),[&i,&prompt](auto const& at){
 												prompt << "\n  " << i++ << " " << at;
 											});
 											had.current_candidate = je;
@@ -3328,8 +3332,8 @@ public:
 					if (auto had = model->selected_had()) {
 						if (had->current_candidate) {
 							unsigned int i{};
-							prompt << "\n" << had->current_candidate->aje.caption << " " << had->current_candidate->aje.date;
-							for (auto const& at : had->current_candidate->aje.account_transactions) {
+							prompt << "\n" << had->current_candidate->defacto.caption << " " << had->current_candidate->defacto.date;
+							for (auto const& at : had->current_candidate->defacto.account_transactions) {
 								prompt << "\n  " << i++ << " " << at;
 							}				
 						}
@@ -3491,7 +3495,7 @@ private:
 			std::copy(jes.begin(),jes.end(),std::back_inserter(result));
 		}
 		std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
-			return (je1.aje.date < je2.aje.date);
+			return (je1.defacto.date < je2.defacto.date);
 		});
 		return result;
 	}
