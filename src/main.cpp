@@ -248,6 +248,8 @@ namespace SRU {
 using Amount= float;
 using optional_amount = std::optional<Amount>;
 
+using Date = std::chrono::year_month_day;
+
 optional_amount to_amount(std::string const& sAmount) {
 	// std::cout << "\nto_amount " << std::quoted(sAmount);
 	optional_amount result{};
@@ -281,8 +283,8 @@ using OptionalBASAccountNo = std::optional<BASAccountNo>;
 template <typename Meta,typename Defacto>
 class MetaDefacto {
 public:
-	Meta meta{};
-	Defacto defacto{};
+	Meta meta;
+	Defacto defacto;
 private:
 };
 
@@ -320,7 +322,7 @@ namespace BAS {
 
 		struct JournalEntry {
 			std::string caption{};
-			std::chrono::year_month_day date{};
+			Date date{};
 			AccountTransactions account_transactions;
 		};
 		using OptionalJournalEntry = std::optional<JournalEntry>;
@@ -339,13 +341,13 @@ namespace BAS {
 	};
 	using OptionalJournalEntryMeta = std::optional<JournalEntryMeta>;
 
-	using MetaAccountTransaction = MetaDefacto<JournalEntryMeta,BAS::anonymous::AccountTransaction>;
-	using OptionalMetaAccountTransaction = std::optional<MetaAccountTransaction>;
-	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
-
 	using MetaEntry = MetaDefacto<JournalEntryMeta,BAS::anonymous::JournalEntry>;
 	using OptionalMetaEntry = std::optional<MetaEntry>;
 	using MetaEntries = std::vector<MetaEntry>;
+
+	using MetaAccountTransaction = MetaDefacto<BAS::MetaEntry,BAS::anonymous::AccountTransaction>;
+	using OptionalMetaAccountTransaction = std::optional<MetaAccountTransaction>;
+	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
 
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
@@ -505,16 +507,16 @@ std::optional<std::filesystem::path> path_to_existing_file(std::string const& s)
 	return result;
 }
 
-using optional_year_month_day = std::optional<std::chrono::year_month_day>;
+using optional_year_month_day = std::optional<Date>;
 
-std::ostream& operator<<(std::ostream& os, std::chrono::year_month_day const& yyyymmdd) {
+std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
 	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
 	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
 	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
 	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
 	return os;
 }
-std::string to_string(std::chrono::year_month_day const& yyyymmdd) {
+std::string to_string(Date const& yyyymmdd) {
 		std::ostringstream os{};
 		os << yyyymmdd;
 		return os.str();
@@ -524,7 +526,7 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
 	optional_year_month_day result{};
 	if (sYYYYMMDD.size()==8) {
-		result = std::chrono::year_month_day(
+		result = Date(
 			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
 			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
 			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
@@ -637,7 +639,7 @@ std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
 }
 
 std::ostream& operator<<(std::ostream& os,BAS::MetaAccountTransaction const& mat) {
-	os << mat.meta << " " << mat.defacto;
+	os << mat.meta.meta << " " << mat.defacto;
 	return os;
 };
 
@@ -675,7 +677,7 @@ struct HeadingAmountDateTransEntryMeta {
 struct HeadingAmountDateTransEntry {
 	std::string heading{};
 	Amount amount;
-	std::chrono::year_month_day date{};
+	Date date{};
 	BAS::OptionalMetaEntry current_candidate{};
 };
 
@@ -1043,7 +1045,10 @@ namespace SKV {
 			struct SwedishVATRegistrationID {std::string twenty_digits{};};
 			struct EUVATRegistrationID {std::string with_country_code{};};
 			struct Year {std::string yyyy;};
-			struct Quarter {std::string yy_hyphen_quarted_seq_no{};};
+			struct Quarter {
+				std::string yy_hyphen_quarter_seq_no{};
+				bool operator<(Quarter const& other) const {return yy_hyphen_quarter_seq_no < other.yy_hyphen_quarter_seq_no;};
+			};
 			struct Contact {std::string name_max_35_characters;};
 			struct Phone {
 				// Swedish telephone numbers are between eight and ten digits long. 
@@ -1120,7 +1125,7 @@ namespace SKV {
 					os << year.yyyy;
 				}	
 				void operator()(Quarter const& quarter) {
-					os << quarter.yy_hyphen_quarted_seq_no;
+					os << quarter.yy_hyphen_quarter_seq_no;
 				}	
 			};
 
@@ -1302,7 +1307,7 @@ namespace SIE {
 		BASAccountNo account_no;
 		std::string object_list{};
 		float amount;
-		std::optional<std::chrono::year_month_day> transdate{};
+		std::optional<Date> transdate{};
 		std::optional<std::string> transtext{};
 		std::optional<float> quantity{};
 		std::optional<std::string> sign{};
@@ -1313,9 +1318,9 @@ namespace SIE {
 		std::string tag;
 		BAS::Series series;
 		BAS::VerNo verno;
-		std::chrono::year_month_day verdate;
+		Date verdate;
 		std::string vertext;
-		std::optional<std::chrono::year_month_day> regdate{};
+		std::optional<Date> regdate{};
 		std::optional<std::string> sign{};
 		std::vector<Trans> transactions{};
 	};
@@ -1343,10 +1348,10 @@ namespace SIE {
 	}
 
 	struct optional_YYYYMMdd_parser {
-		std::optional<std::chrono::year_month_day>& date;
+		std::optional<Date>& date;
 	};
 	struct YYYYMMdd_parser {
-		std::chrono::year_month_day& date;
+		Date& date;
 	};
 	std::istream& operator>>(std::istream& in,optional_YYYYMMdd_parser& p) {
 		if (in.good()) {
@@ -1371,7 +1376,7 @@ namespace SIE {
 	}
 	std::istream& operator>>(std::istream& in,YYYYMMdd_parser& p) {
 		if (in.good()) {
-			std::optional<std::chrono::year_month_day> od{};
+			std::optional<Date> od{};
 			optional_YYYYMMdd_parser op{od};
 			in >> op;
 			if (op.date) {
@@ -1663,7 +1668,7 @@ SIE::Ver to_sie_t(BAS::MetaEntry const& me) {
 		/*
 		Series series;
 		BAS::VerNo verno;
-		std::chrono::year_month_day verdate;
+		Date verdate;
 		std::string vertext;
 		*/
 
@@ -2026,7 +2031,7 @@ void for_each_anonymous_account_transaction(SIEEnvironment const& sie_env,auto& 
 void for_each_meta_account_transaction(BAS::MetaEntry const& me,auto& f) {
 	for (auto const& at : me.defacto.account_transactions) {
 		f(BAS::MetaAccountTransaction{
-			.meta = me.meta
+			.meta = me
 			,.defacto = at
 		});
 	}
@@ -2183,6 +2188,10 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 	return collect_t2s.result();
 }
 
+SKV::CSV::EUSalesList::Quarter to_eu_list_quarter(Date const& date) {
+	return {std::to_string(static_cast<int>(date.year())) + "-" + std::to_string(1 + static_cast<unsigned int>(date.month()) / 4)}; // quarter yy-1..yy-4 
+}
+
 std::vector<SKV::CSV::EUSalesList::RowN> sie_to_eu_sales_list_rows(SIEEnvironment const& sie_env) {
 	std::vector<SKV::CSV::EUSalesList::RowN> result{};
 	// 1. generate a list of account transactions to account 3308 (hard coded)
@@ -2194,11 +2203,21 @@ std::vector<SKV::CSV::EUSalesList::RowN> sie_to_eu_sales_list_rows(SIEEnvironmen
 		}
 	};
 	for_each_meta_account_transaction(sie_env,gather_3308_at);
-	// auto ats = filter_ats(model->sie.at("current"),is_account{3308}); // 3308 "Försäljning tjänster till annat EU-land"
-	// 2. Assume account trasnaction text defines the EU VAT reg no for each transaction (account 3308 "Försäljning tjänster till annat EU-land")
-	//    E.g., #EUVATID=...
-	//    Or, assume the transaction text can be used to search an EU VAT ID list <text,vat_id>?
-	//    Or, have the user edit the transactions ad define VAT ID prior to calling us (not have us parse the sie_env?)
+	std::map<SKV::CSV::EUSalesList::Quarter,std::map<std::string,std::map<BASAccountNo,Amount>>> eu_list_map{};
+	std::for_each(mats.begin(),mats.end(),[&eu_list_map](BAS::MetaAccountTransaction const& mat){
+		std::string vat_id_text = (mat.defacto.transtext)?*mat.defacto.transtext:"";
+		eu_list_map[to_eu_list_quarter(mat.meta.defacto.date)][vat_id_text][mat.defacto.account_no] += mat.defacto.amount; // Sum amounts per quarter,vat_id and account no
+	});
+	for (auto const& [quarter,mats_map] : eu_list_map) {
+		std::cout << "\nQuarter:" << quarter.yy_hyphen_quarter_seq_no;
+		for (auto const& [vat_id,amount_map] : mats_map) {
+			std::cout << "\n\tEU VAT ID:" << vat_id;  
+			for (auto const& [account_no,amount] : amount_map) {
+				std::cout << "\n\t\tAccount:" << account_no << " amount:" << amount;
+			}
+		}
+	}
+
 	SKV::CSV::EUSalesList::RowN row_n {
 		// .vat_registration_id = {"FI01409351"}
 		.vat_registration_id = {"IE6388047V"} // Google Ireland VAT regno
