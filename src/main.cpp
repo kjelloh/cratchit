@@ -347,10 +347,11 @@ namespace BAS {
 	using OptionalJournalEntry = std::optional<JournalEntry>;
 	using JournalEntries = std::vector<JournalEntry>;
 
-	struct MetaEntry {
-		JournalEntryMeta meta;
-		BAS::anonymous::JournalEntry aje;
-	};
+	// struct MetaEntry {
+	// 	JournalEntryMeta meta;
+	// 	BAS::anonymous::JournalEntry aje;
+	// };
+	using MetaEntry = MetaDefacto<JournalEntryMeta,BAS::anonymous::JournalEntry>;
 
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
@@ -389,7 +390,7 @@ namespace BAS {
 		struct contains_account {
 			BASAccountNo account_no;
 			bool operator()(MetaEntry const& me) {
-				return std::any_of(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[this](auto const& at){
+				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](auto const& at){
 					return (this->account_no == at.account_no);
 				});
 			}
@@ -405,7 +406,7 @@ namespace BAS {
 		struct matches_amount {
 			Amount amount;
 			bool operator()(MetaEntry const& me) {
-				return std::any_of(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[this](auto const& at){
+				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](auto const& at){
 					return (this->amount == at.amount);
 				});
 			}
@@ -415,9 +416,9 @@ namespace BAS {
 			std::string user_search_string;
 			bool operator()(MetaEntry const& me) {
 				bool result{false};
-				result = do_share_tokens(user_search_string,me.aje.caption);
+				result = do_share_tokens(user_search_string,me.defacto.caption);
 				if (!result) {
-					result = std::any_of(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[this](auto const& at){
+					result = std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](auto const& at){
 						if (at.transtext) return do_share_tokens(user_search_string,*at.transtext);
 						return false;
 					});
@@ -645,7 +646,7 @@ std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
 }
 
 std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me) {
-	os << me.meta << " " << me.aje;
+	os << me.meta << " " << me.defacto;
 	return os;
 }
 
@@ -2000,7 +2001,7 @@ void for_each_anonymous_journal_entry(SIEEnvironments const& sie_envs,auto& f) {
 void for_each_meta_entry(SIEEnvironment const& sie_env,auto& f) {
 	for (auto const& [series,journal] : sie_env.journals()) {
 		for (auto const& [verno,aje] : journal) {
-			f(BAS::MetaEntry{.meta ={.series=series,.verno=verno,.unposted_flag=sie_env.is_unposted(series,verno)},.aje=aje});
+			f(BAS::MetaEntry{.meta ={.series=series,.verno=verno,.unposted_flag=sie_env.is_unposted(series,verno)},.defacto=aje});
 		}
 	}
 }
@@ -2142,13 +2143,13 @@ struct CollectT2s {
 		for (;t2_iter != t2s.end();++t2_iter) {
 			if (!t2_iter->counter_trans) {
 				// No counter trans found yet
-				auto at_iter1 = std::find_if(me.aje.account_transactions.begin(),me.aje.account_transactions.end(),[&t2_iter](BAS::anonymous::AccountTransaction const& at1){
-					auto  at_iter2 = std::find_if(t2_iter->me.aje.account_transactions.begin(),t2_iter->me.aje.account_transactions.end(),[&at1](BAS::anonymous::AccountTransaction const& at2){
+				auto at_iter1 = std::find_if(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[&t2_iter](BAS::anonymous::AccountTransaction const& at1){
+					auto  at_iter2 = std::find_if(t2_iter->me.defacto.account_transactions.begin(),t2_iter->me.defacto.account_transactions.end(),[&at1](BAS::anonymous::AccountTransaction const& at2){
 						return (at1.account_no == at2.account_no) and (at1.amount == -at2.amount);
 					});
-					return (at_iter2 != t2_iter->me.aje.account_transactions.end());
+					return (at_iter2 != t2_iter->me.defacto.account_transactions.end());
 				});
-				if (at_iter1 != me.aje.account_transactions.end()) {
+				if (at_iter1 != me.defacto.account_transactions.end()) {
 					// iter refers to an account transaction in me to the same account but a counter amount as in t2.je
 					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.me = me};
 					t2_iter->counter_trans = counter_trans;
@@ -2742,7 +2743,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 					,.verno = verno
 					,.unposted_flag = sie_environment.is_unposted(series,verno)
 				}
-				,.aje = entry
+				,.defacto = entry
 			};
 			os << '\n' << me;
 		}
