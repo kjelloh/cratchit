@@ -278,6 +278,14 @@ optional_amount to_amount(std::string const& sAmount) {
 using BASAccountNo = unsigned int;
 using OptionalBASAccountNo = std::optional<BASAccountNo>;
 
+template <typename Meta,typename Defacto>
+class MetaDefacto {
+public:
+	Meta meta{};
+	Defacto defacto{};
+private:
+};
+
 namespace BAS {
 
 	enum class AccountType {
@@ -325,9 +333,9 @@ namespace BAS {
 
 	struct JournalEntryMeta {
 		Series series;
-		VerNo verno;
-		bool is_unposted{};
-		auto operator<=>(JournalEntryMeta const&) const = default;
+		OptionalVerNo verno;
+		std::optional<bool> unposted_flag{};
+		bool operator==(JournalEntryMeta const& other) const = default;
 	};
 	using OptionalJournalEntryMeta = std::optional<JournalEntryMeta>;
 
@@ -372,9 +380,9 @@ namespace BAS {
 			}
 		};
 
-		struct is_unposted {
+		struct is_flagged_unposted {
 			bool operator()(MetaEntry const& me) {
-				return me.meta.is_unposted;
+				return (me.meta.unposted_flag and *me.meta.unposted_flag); // Rely on C++ short-circuit (https://en.cppreference.com/w/cpp/language/operator_logical)
 			}
 		};
 
@@ -625,10 +633,14 @@ std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
 	return os;
 };
 
+std::ostream& operator<<(std::ostream& os,std::optional<bool> flag) {
+	auto ch = (flag)?((*flag)?'*':' '):' '; // '*' if known and set, else ' '
+	os << ch;
+	return os;
+}
+
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
-	if (jem.is_unposted) os << "*";
-	else os << " ";
-	os << jem.series << jem.verno;
+	os << jem.unposted_flag << jem.series << jem.verno;
 	return os;
 }
 
@@ -1988,7 +2000,7 @@ void for_each_anonymous_journal_entry(SIEEnvironments const& sie_envs,auto& f) {
 void for_each_meta_entry(SIEEnvironment const& sie_env,auto& f) {
 	for (auto const& [series,journal] : sie_env.journals()) {
 		for (auto const& [verno,aje] : journal) {
-			f(BAS::MetaEntry{.meta ={.series=series,.verno=verno,.is_unposted=sie_env.is_unposted(series,verno)},.aje=aje});
+			f(BAS::MetaEntry{.meta ={.series=series,.verno=verno,.unposted_flag=sie_env.is_unposted(series,verno)},.aje=aje});
 		}
 	}
 }
@@ -2724,10 +2736,15 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 	for (auto const& je : sie_environment.journals()) {
 		auto& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {
-			os << "\n";
-			if (sie_environment.is_unposted(series,verno)) os << "*";
-			else os << " ";
-			os << " " << series << verno << " " << to_string(entry);
+			BAS::MetaEntry me {
+				.meta = {
+					 .series = series
+					,.verno = verno
+					,.unposted_flag = sie_environment.is_unposted(series,verno)
+				}
+				,.aje = entry
+			};
+			os << '\n' << me;
 		}
 	}
 	return os;
@@ -3083,7 +3100,7 @@ public:
 					if (model->sie.contains(ast[1])) prompt << model->sie[ast[1]];
 					else if (ast[1]=="*") {
 						// List unposted sie entries
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_unposted{}};
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_flagged_unposted{}};
 						prompt << filtered_sie;
 					}
 					else if (auto sie_file_path = path_to_existing_file(ast[1])) {
