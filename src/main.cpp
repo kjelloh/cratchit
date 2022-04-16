@@ -339,20 +339,10 @@ namespace BAS {
 	};
 	using OptionalJournalEntryMeta = std::optional<JournalEntryMeta>;
 
-	// struct JournalEntry {
-	// 	// Series series;
-	// 	// OptionalVerNo verno;
-	// 	JournalEntryMeta meta;
-	// 	anonymous::JournalEntry defacto;
-	// 	bool dummy{};
-	// };
-	// using OptionalJournalEntry = std::optional<JournalEntry>;
-	// using JournalEntries = std::vector<JournalEntry>;
+	using MetaAccountTransaction = MetaDefacto<JournalEntryMeta,BAS::anonymous::AccountTransaction>;
+	using OptionalMetaAccountTransaction = std::optional<MetaAccountTransaction>;
+	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
 
-	// struct MetaEntry {
-	// 	JournalEntryMeta meta;
-	// 	BAS::anonymous::JournalEntry aje;
-	// };
 	using MetaEntry = MetaDefacto<JournalEntryMeta,BAS::anonymous::JournalEntry>;
 	using OptionalMetaEntry = std::optional<MetaEntry>;
 	using MetaEntries = std::vector<MetaEntry>;
@@ -373,7 +363,9 @@ namespace BAS {
 	OptionalJournalEntryMeta to_journal_meta(std::string const& s) {
 		OptionalJournalEntryMeta result{};
 		const std::regex meta_regex("[A-Z]\\d+"); // series followed by verification number
-		if (std::regex_match(s,meta_regex)) result = JournalEntryMeta{s[0],static_cast<VerNo>(std::stoi(s.substr(1)))};
+		if (std::regex_match(s,meta_regex)) result = JournalEntryMeta{
+			.series = s[0]
+			,.verno = static_cast<VerNo>(std::stoi(s.substr(1)))};
 		return result;
 	}
 
@@ -643,6 +635,11 @@ std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
 	os << jem.unposted_flag << jem.series << jem.verno;
 	return os;
 }
+
+std::ostream& operator<<(std::ostream& os,BAS::MetaAccountTransaction const& mat) {
+	os << mat.meta << " " << mat.defacto;
+	return os;
+};
 
 std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me) {
 	os << me.meta << " " << me.defacto;
@@ -2015,15 +2012,29 @@ void for_each_meta_entry(SIEEnvironments const& sie_envs,auto& f) {
 	}
 }
 
-void for_each_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
+void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
 	for (auto const& at : aje.account_transactions) {
 		f(at);
 	}
 }
 
-void for_each_account_transaction(SIEEnvironment const& sie_env,auto& f) {
-	auto f_caller = [&f](BAS::anonymous::JournalEntry const& aje){for_each_account_transaction(aje,f);};
+void for_each_anonymous_account_transaction(SIEEnvironment const& sie_env,auto& f) {
+	auto f_caller = [&f](BAS::anonymous::JournalEntry const& aje){for_each_anonymous_account_transaction(aje,f);};
 	for_each_anonymous_journal_entry(sie_env,f_caller);
+}
+
+void for_each_meta_account_transaction(BAS::MetaEntry const& me,auto& f) {
+	for (auto const& at : me.defacto.account_transactions) {
+		f(BAS::MetaAccountTransaction{
+			.meta = me.meta
+			,.defacto = at
+		});
+	}
+}
+
+void for_each_meta_account_transaction(SIEEnvironment const& sie_env,auto& f) {
+	auto f_caller = [&f](BAS::MetaEntry const& mee){for_each_meta_account_transaction(mee,f);};
+	for_each_meta_entry(sie_env,f_caller);
 }
 
 BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
@@ -2175,14 +2186,14 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 std::vector<SKV::CSV::EUSalesList::RowN> sie_to_eu_sales_list_rows(SIEEnvironment const& sie_env) {
 	std::vector<SKV::CSV::EUSalesList::RowN> result{};
 	// 1. generate a list of account transactions to account 3308 (hard coded)
-	BAS::anonymous::AccountTransactions ats{};
-	auto gather_3308_at = [&ats](BAS::anonymous::AccountTransaction const& at) {
-		if (at.account_no == 3308) {
-			ats.push_back(at);
-			std::cout << "\nat:" << at;
+	BAS::MetaAccountTransactions mats{};
+	auto gather_3308_at = [&mats](BAS::MetaAccountTransaction const& mat) {
+		if (mat.defacto.account_no == 3308) {
+			mats.push_back(mat);
+			std::cout << "\nmat:" << mat;
 		}
 	};
-	for_each_account_transaction(sie_env,gather_3308_at);
+	for_each_meta_account_transaction(sie_env,gather_3308_at);
 	// auto ats = filter_ats(model->sie.at("current"),is_account{3308}); // 3308 "Försäljning tjänster till annat EU-land"
 	// 2. Assume account trasnaction text defines the EU VAT reg no for each transaction (account 3308 "Försäljning tjänster till annat EU-land")
 	//    E.g., #EUVATID=...
