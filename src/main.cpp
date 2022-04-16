@@ -340,8 +340,9 @@ namespace BAS {
 	using OptionalJournalEntryMeta = std::optional<JournalEntryMeta>;
 
 	struct JournalEntry {
-		Series series;
-		OptionalVerNo verno;
+		// Series series;
+		// OptionalVerNo verno;
+		JournalEntryMeta meta;
 		anonymous::JournalEntry aje;
 	};
 	using OptionalJournalEntry = std::optional<JournalEntry>;
@@ -629,11 +630,6 @@ std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
-	os << je.series << je.verno << " " << je.aje;
-	return os;
-};
-
 std::ostream& operator<<(std::ostream& os,std::optional<bool> flag) {
 	auto ch = (flag)?((*flag)?'*':' '):' '; // '*' if known and set, else ' '
 	os << ch;
@@ -649,6 +645,11 @@ std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me) {
 	os << me.meta << " " << me.defacto;
 	return os;
 }
+
+std::ostream& operator<<(std::ostream& os,BAS::JournalEntry const& je) {
+	os << je.meta << " " << je.aje;
+	return os;
+};
 
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntries const& jes) {
 	for (auto const& je : jes) {
@@ -1663,7 +1664,7 @@ SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
 	return result;
 }
 
-SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
+SIE::Ver to_sie_t(BAS::JournalEntry const& je) {
 		/*
 		Series series;
 		BAS::VerNo verno;
@@ -1672,11 +1673,11 @@ SIE::Ver to_sie_t(BAS::JournalEntry const& jer) {
 		*/
 
 	SIE::Ver result{
-		.series = jer.series
-		,.verno = (jer.verno)?*jer.verno:0
-		,.verdate = jer.aje.date
-		,.vertext = jer.aje.caption};
-	for (auto const& trans : jer.aje.account_transactions) {
+		.series = je.meta.series
+		,.verno = (je.meta.verno)?*je.meta.verno:0
+		,.verdate = je.aje.date
+		,.vertext = je.aje.caption};
+	for (auto const& trans : je.aje.account_transactions) {
 		result.transactions.push_back(to_sie_t(trans));
 	}
 	return result;
@@ -1749,13 +1750,15 @@ using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
 using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
 
 OptionalJournalEntryTemplate to_template(BAS::JournalEntry const& je) {
-	OptionalJournalEntryTemplate result({je.series,je});
+	OptionalJournalEntryTemplate result({je.meta.series,je});
 	return result;
 }
 
 BAS::JournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
 	BAS::JournalEntry result{};
-	result.series = jet.series();
+	result.meta = {
+		.series = jet.series()
+	};
 	result.aje.caption = had.heading;
 	result.aje.date = had.date;
 	result.aje.account_transactions = jet(std::abs(had.amount)); // Ignore sign to have template apply its sign
@@ -1780,7 +1783,7 @@ BAS::JournalEntries template_candidates(BASJournals const& journals,auto const& 
 	for (auto const& je : journals) {
 		auto const& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {								
-			if (matches(entry)) result.push_back({series,verno,entry});
+			if (matches(entry)) result.push_back({{.series = series,.verno = verno},entry});
 		}
 	}
 	std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
@@ -1901,9 +1904,9 @@ public:
 		return result;
 	}
 	void post(BAS::JournalEntry const& je) {
-		if (je.verno) {
-			m_journals[je.series][*je.verno] = je.aje;
-			verno_of_last_posted_to[je.series] = *je.verno;
+		if (je.meta.verno) {
+			m_journals[je.meta.series][*je.meta.verno] = je.aje;
+			verno_of_last_posted_to[je.meta.series] = *je.meta.verno;
 		}
 		else {
 			std::cerr << "\nSIEEnvironment::post failed - can't post an entry with null verno";
@@ -1919,9 +1922,9 @@ public:
 		BAS::JournalEntries result{};
 		for (auto const& [series,journal] : staged_sie_environment.journals()) {
 			for (auto const& [verno,aje] : journal) {
-				auto je = this->stage({series,verno,aje});
+				auto je = this->stage({{.series=series,.verno=verno},aje});
 				if (!je) {
-					result.push_back({series,verno,aje}); // no longer staged
+					result.push_back({{.series=series,.verno=verno},aje}); // no longer staged
 				}
 			}
 		}
@@ -1936,8 +1939,10 @@ public:
 			for (auto iter = ++last;iter!=m_journals.at(series).end();++iter) {
 				// std::cout << "\n\tunposted:" << iter->first;
 				BAS::JournalEntry bjer{
-					.series = series
-					,.verno = iter->first
+					.meta = {
+						.series = series
+						,.verno = iter->first
+					}
 					,.aje = iter->second
 				};
 				result.push_back(bjer);
@@ -1955,9 +1960,9 @@ private:
 	BAS::JournalEntry add(BAS::JournalEntry const& je) {
 		BAS::JournalEntry result{je};
 		// Assign "actual" sequence number
-		auto verno = largest_verno(je.series) + 1;
-		result.verno = verno;
-		m_journals[je.series][verno] = je.aje;
+		auto verno = largest_verno(je.meta.series) + 1;
+		result.meta.verno = verno;
+		m_journals[je.meta.series][verno] = je.aje;
 		return result;
 	}
 	BAS::VerNo largest_verno(BAS::Series series) {
@@ -1966,13 +1971,13 @@ private:
 			return (acc<entry.first)?entry.first:acc;
 		});
 	}
-	bool already_in_posted(BAS::JournalEntry const& entry_to_stage) {
+	bool already_in_posted(BAS::JournalEntry const& je) {
 		bool result{false};
-		if (entry_to_stage.verno and *entry_to_stage.verno > 0) {
-			auto journal_iter = m_journals.find(entry_to_stage.series);
+		if (je.meta.verno and *je.meta.verno > 0) {
+			auto journal_iter = m_journals.find(je.meta.series);
 			if (journal_iter != m_journals.end()) {
-				if (entry_to_stage.verno) {
-					auto entry_iter = journal_iter->second.find(*entry_to_stage.verno);
+				if (je.meta.verno) {
+					auto entry_iter = journal_iter->second.find(*je.meta.verno);
 					result = (entry_iter != journal_iter->second.end());
 				}
 			}
@@ -2454,9 +2459,13 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 		BAS::JournalEntries candidates{};
 		for (auto const& je : sie_environ.journals()) {
 			auto const& [series,journal] = je;
-			for (auto const& [verno,entry] : journal) {								
-				if (entry.caption.find(had->heading) != std::string::npos) {
-					candidates.push_back({series,verno,entry});
+			for (auto const& [verno,aje] : journal) {								
+				if (aje.caption.find(had->heading) != std::string::npos) {
+					candidates.push_back({
+						.meta = {
+							.series = series
+							,.verno = verno}
+						,.aje = aje});
 				}
 			}
 		}
@@ -2753,8 +2762,10 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 
 BAS::JournalEntry to_entry(SIE::Ver const& ver) {
 	BAS::JournalEntry result{
-		.series = ver.series
-		,.verno = ver.verno
+		.meta = {
+			.series = ver.series
+			,.verno = ver.verno
+		}
 	};
 	result.aje.caption = ver.vertext;
 	result.aje.date = ver.verdate;
@@ -3084,6 +3095,7 @@ public:
 
 					case PromptState::EnterContact:
 					case PromptState::EnterEmployeeID:
+					case PromptState::EUListPeriodEntry:
 					case PromptState::Amount:
 					case PromptState::Undefined:
 					case PromptState::Unknown:
