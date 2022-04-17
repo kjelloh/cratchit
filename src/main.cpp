@@ -778,7 +778,8 @@ namespace Key {
 			auto end() const {return m_path.end();}
 			Path() = default;
 			Path(Path const& other) = default;
-			Path(std::string const& s_path) : m_path(tokenize::splits(s_path,'.')) {};
+			Path(std::string const& s_path) : m_path(tokenize::splits(s_path,'^')) {};
+			auto size() const {return m_path.size();}
 			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
 			operator std::string() const {
 				std::ostringstream os{};
@@ -787,17 +788,32 @@ namespace Key {
 			}
 			Path& operator+=(std::string const& key) {
 				m_path.push_back(key);
-				std::cout << "\n" << *this << std::flush;
+				// std::cout << "\noperator+= :" << *this  << " size:" << this->size();
 				return *this;
 			}
 			Path& operator--() {
 				m_path.pop_back();
-				std::cout << "\n" << *this;
+				// std::cout << "\noperator-- :" << *this << " size:" << this->size();
 				return *this;
 			}
-			auto size() {return m_path.size();}
-			std::string back() {return m_path.back();}
+			Path parent() {
+				Path result{*this};
+				--result;
+				// std::cout << "\nparent:" << result << " size:" << result.size();
+				return result;
+			}
+			std::string back() const {return m_path.back();}
 			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
+			auto operator<=>(Path const&) const = default;
+			// bool operator==(Path const& other) const {
+			// 	bool result = (this->m_path == other.m_path);
+			// 	std::cout << "\n1:" << *this << " size:" << this->size();
+			// 	std::cout << "\n2:" << other << " size:" << other.size();
+			// 	std::cout << "\n============";
+			// 	if (result) std::cout << "IS EQUEAL";
+			// 	else std::cout << "differs";
+			// 	return result;
+			// }
 		private:
 			std::vector<std::string> m_path{};
 		};
@@ -805,381 +821,13 @@ namespace Key {
 		std::ostream& operator<<(std::ostream& os,Key::Path const& key_path) {
 			int key_count{0};
 			for (auto const& key : key_path) {
-				if (key_count++>0) os << '.';
+				if (key_count++>0) os << '^';
 				os << key;
+				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
 			}
 			return os;
 		}
-
 } // namespace Key
-
-	namespace SKV {
-	}
-
-namespace SKV {
-
-	int to_tax(Amount amount) {return std::round(amount);}
-	int to_fee(Amount amount) {return std::round(amount);}
-
-	namespace XML {
-		struct ContactPersonMeta {
-			std::string name{};
-			std::string phone{};
-			std::string e_mail{};
-		};
-		using OptionalContactPersonMeta = std::optional<ContactPersonMeta>;
-
-		struct OrganisationMeta {
-			std::string org_no{};
-			std::vector<ContactPersonMeta> contact_persons{};
-		};
-		using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
-
-		struct DeclarationMeta {
-			std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
-			std::string declaration_period_id{}; // e.g., 202101
-		};
-		using OptionalDeclarationMeta = std::optional<DeclarationMeta>;
-
-		struct TaxDeclaration {
-			std::string employee_12_digit_birth_no{}; // e.g., 198202252386
-			Amount paid_employer_fee{};
-			Amount paid_tax{};
-		};
-
-		using TaxDeclarations = std::vector<TaxDeclaration>;
-
-		using XMLMap = std::map<std::string,std::string>;
-		extern SKV::XML::XMLMap skv_xml_template; // See bottom of this file
-
-		std::string to_orgno(std::string generic_org_no) {
-			std::string result{};
-			// The SKV IT-system requires 12 digit organisation numbers with digits only
-			// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into 16XXXXXXYYYY
-			// See https://sv.wikipedia.org/wiki/Organisationsnummer
-			std::string sdigits = filtered(generic_org_no,::isdigit);
-			switch (sdigits.size()) {
-				case 10: result = std::string{"16"} + sdigits; break;
-				case 12: result = sdigits; break;
-				default: throw std::runtime_error(std::string{"ERROR: to_orgno failed, invalid input generic_org_no:"} + "\"" + generic_org_no + "\""); break;
-			}
-			return result;
-		}
-		
-		struct EmployerDeclarationOStream {
-			std::ostream& os;
-		};
-
-		struct TagValuePair {
-			std::string tag{};
-			std::string value;
-		};
-
-		std::string to_value(XMLMap const& xml_map,std::string tag) {
-			if (xml_map.contains(tag) and xml_map.at(tag).size() > 0) {
-				return xml_map.at(tag);
-			}
-			else throw std::runtime_error(std::string{"to_string failed, no value for tag:"} + tag);
-		}
-
-		XMLMap::value_type to_entry(XMLMap const& xml_map,std::string tag) {
-			auto iter = xml_map.find(tag);
-			if (iter != xml_map.end()) {
-				return *iter;
-			}
-			else throw std::runtime_error(std::string{"to_entry failed, tag:"} + tag + " not defined");
-		}
-
-		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,std::string const& s) {
-			auto& os = edos.os;
-			os << s;
-			return edos;
-		}
-
-		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap::value_type const& entry) {
-			Key::Path p{entry.first};
-			std::string indent(p.size(),' ');
-			edos << indent << "<" << p.back() << ">" << entry.second << "</" << p.back() << ">";
-			return edos;
-		}
-
-		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap const& xml_map) {
-			try {
-				Key::Path p{};
-				// IMPORTANT: No empty line (nor any white space) allowed before the "<?xml..." tag! *sigh*
-				edos << R"(<?xml version="1.0" encoding="UTF-8" standalone="no"?>)";
-				edos << "\n" << R"(<Skatteverket omrade="Arbetsgivardeklaration")";
-					p += "Skatteverket";
-					edos << "\n" << R"(xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1")";
-					edos << "\n" << R"(xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1")";
-					edos << "\n" << R"(xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">)";
-
-					edos << "\n" << R"(<agd:Avsandare>)";
-						p += "agd:Avsandare";
-						edos << "\n" << to_entry(xml_map,p + "agd:Programnamn");
-						edos << "\n" << to_entry(xml_map,p + "agd:Organisationsnummer");
-						edos << "\n" << R"(<agd:TekniskKontaktperson>)";
-							p += "agd:TekniskKontaktperson";
-							edos << "\n" << to_entry(xml_map,p + "agd:Namn");
-							edos << "\n" << to_entry(xml_map,p + "agd:Telefon");
-							edos << "\n" << to_entry(xml_map,p + "agd:Epostadress");
-							--p;
-						edos << "\n" << R"(</agd:TekniskKontaktperson>)";
-						edos << "\n" << to_entry(xml_map,p + "agd:Skapad");
-						--p;
-					edos << "\n" << R"(</agd:Avsandare>)";
-
-					edos << "\n" << R"(<agd:Blankettgemensamt>)";
-						p += "agd:Blankettgemensamt";
-						edos << "\n" << R"(<agd:Arbetsgivare>)";
-							p += "agd:Arbetsgivare";
-							edos << "\n" << to_entry(xml_map,p + "agd:AgRegistreradId");
-							edos << "\n" << R"(<agd:Kontaktperson>)";
-								p += "agd:Kontaktperson";
-								edos << "\n" << to_entry(xml_map,p + "agd:Namn");
-								edos << "\n" << to_entry(xml_map,p + "agd:Telefon");
-								edos << "\n" << to_entry(xml_map,p + "agd:Epostadress");
-								--p;
-							edos << "\n" << R"(</agd:Kontaktperson>)";
-							--p;
-						edos << "\n" << R"(</agd:Arbetsgivare>)";
-						--p;
-					edos << "\n" << R"(</agd:Blankettgemensamt>)";
-
-					edos << "\n" << R"(<!-- Uppgift 1 HU -->)";
-					edos << "\n" << R"(<agd:Blankett>)";
-						p += "agd:Blankett";
-						edos << "\n" << R"(<agd:Arendeinformation>)";
-							p += "agd:Arendeinformation";
-							edos << "\n" << to_entry(xml_map,p + "agd:Arendeagare");
-							edos << "\n" << to_entry(xml_map,p + "agd:Period");
-							--p;
-						edos << "\n" << R"(</agd:Arendeinformation>)";
-						edos << "\n" << R"(<agd:Blankettinnehall>)";
-							p += "agd:Blankettinnehall";
-							edos << "\n" << R"(<agd:HU>)";
-								p += "agd:HU";
-								edos << "\n" << R"(<agd:ArbetsgivareHUGROUP>)";
-									p += "agd:ArbetsgivareHUGROUP";
-									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">)" << to_value(xml_map,p + R"(agd:AgRegistreradId faltkod="201")") << "</agd:AgRegistreradId>";
-									--p;
-								edos << "\n" << R"(</agd:ArbetsgivareHUGROUP>)";
-								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">)" << to_value(xml_map,p + R"(agd:RedovisningsPeriod faltkod="006")") << "</agd:RedovisningsPeriod>";
-								edos << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">)" <<  to_value(xml_map,p + R"(agd:SummaArbAvgSlf faltkod="487")") << "</agd:SummaArbAvgSlf>";
-								edos << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">)" <<  to_value(xml_map,p + R"(agd:SummaSkatteavdr faltkod="497")") << "</agd:SummaSkatteavdr>";
-								--p;
-							edos << "\n" << R"(</agd:HU>)";
-							--p;
-						edos << "\n" << R"(</agd:Blankettinnehall>)";
-						--p;
-					edos << "\n" << R"(</agd:Blankett>)";
-
-					edos << "\n" << R"(<!-- Uppgift 1 IU -->)";
-					edos << "\n" << R"(<agd:Blankett>)";
-						p += "agd:Blankett";
-						edos << "\n" << R"(<agd:Arendeinformation>)";
-							p += "agd:Arendeinformation";
-							edos << "\n" << to_entry(xml_map,p + "agd:Arendeagare");
-							edos << "\n" << to_entry(xml_map,p + "agd:Period");
-							--p;
-						edos << "\n" << R"(</agd:Arendeinformation>)";
-						edos << "\n" << R"(<agd:Blankettinnehall>)";
-							p += "agd:Blankettinnehall";
-							edos << "\n" << R"(<agd:IU>)";
-								p += "agd:IU";
-								edos << "\n" << R"(<agd:ArbetsgivareIUGROUP>)";
-									p += "agd:ArbetsgivareIUGROUP";
-									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">)" << to_value(xml_map,p + R"(agd:AgRegistreradId faltkod="201")") << "</agd:AgRegistreradId>";
-									--p;
-								edos << "\n" << R"(</agd:ArbetsgivareIUGROUP>)";
-								edos << "\n" << R"(<agd:BetalningsmottagareIUGROUP>)";
-									p += "agd:BetalningsmottagareIUGROUP";
-									edos << "\n" << R"(<agd:BetalningsmottagareIDChoice>)";
-										p += "agd:BetalningsmottagareIDChoice";
-										edos << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">)" <<  to_value(xml_map,p + R"(agd:BetalningsmottagarId faltkod="215")") <<  "</agd:BetalningsmottagarId>";
-										--p;
-									edos << "\n" << R"(</agd:BetalningsmottagareIDChoice>)";
-									--p;
-								edos << "\n" << R"(</agd:BetalningsmottagareIUGROUP>)";
-								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">)" <<  to_value(xml_map,p + R"(agd:RedovisningsPeriod faltkod="006")") << "</agd:RedovisningsPeriod>";
-								edos << "\n" << R"(<agd:Specifikationsnummer faltkod="570">)" <<  to_value(xml_map,p + R"(agd:Specifikationsnummer faltkod="570")") << "</agd:Specifikationsnummer>";
-								edos << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">)" <<  to_value(xml_map,p + R"(agd:AvdrPrelSkatt faltkod="001")") << "</agd:AvdrPrelSkatt>";
-								--p;
-							edos << "\n" << R"(</agd:IU>)";
-							--p;
-						edos << "\n" << R"(</agd:Blankettinnehall>)";
-						--p;
-					edos << "\n" << R"(</agd:Blankett>)";
-					--p;
-				edos << "\n" << R"(</Skatteverket>)";
-			}
-			catch (std::exception const& e) {
-				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
-				edos.os.setstate(std::ostream::badbit);
-			}
-			return edos;
-		}
-
-		bool to_employer_contributions_and_PAYE_tax_return_file(std::ostream& os,XMLMap const& xml_map) {
-			try {
-				EmployerDeclarationOStream edos{os};
-				edos << xml_map;
-			}
-			catch (std::exception const& e) {
-				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
-			}
-			return static_cast<bool>(os);
-		}
-	} // namespace XML
-
-	namespace CSV {
-		// See https://www.skatteverket.se/foretag/moms/deklareramoms/periodisksammanstallning/lamnaperiodisksammanstallningmedfiloverforing.4.7eada0316ed67d72822104.html
-		// Note 1: I have failed to find an actual technical specification document that specifies the format of the file to send for the form "Periodisk Sammanställning"
-		// Note 2: This CSV format is one of three file formats (CSV, SRU and XML) I know of so far that Swedish tax agency uses for file uploads?
-
-		// Example: "SKV574008;""
-		namespace EUSalesList {
-
-			using Amount = int;
-
-			struct SwedishVATRegistrationID {std::string twenty_digits{};};
-			struct EUVATRegistrationID {std::string with_country_code{};};
-			struct Year {std::string yyyy;};
-			struct Quarter {
-				std::string yy_hyphen_quarter_seq_no{};
-				bool operator<(Quarter const& other) const {return yy_hyphen_quarter_seq_no < other.yy_hyphen_quarter_seq_no;};
-			};
-			struct Contact {std::string name_max_35_characters;};
-			struct Phone {
-				// Swedish telephone numbers are between eight and ten digits long. 
-				// They start with a two to four digit area code. 
-				// A three digit code starting with 07 indicates that the number is for a mobile phone. 
-				// All national numbers start with one leading 0, and international calls are specified by 00 or +. 
-				// The numbers are written with the area code followed by a hyphen, 
-				// and then two to three groups of digits separated by spaces.
-				std::string swedish_format_no_space_max_17_chars{}; // E.g., +CCAA-XXXXXXX where AA is area code without leading zero (070 => 70)
-			}; // Consider https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers#Sweden
-
-			using PeriodID = std::variant<Year,Quarter>;
-
-			struct FirstRow {
-				char const* entry = "SKV574008";
-			};
-
-		// Swedish Specification
-		/*
-		• Det 12-siffriga momsregistreringsnumret för den som är skyldig att lämna uppgifterna. Med eller utan landskoden SE.
-		• Månads- eller kvartalskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 20-4 för fjärde kvartalet 2020 eller 21-1 för första kvartalet 2021.
-		• Namnet på personen som är ansvarig för de lämnade uppgifterna (högst 35 tecken).
-		• Telefonnummer till den som är ansvarig för uppgifterna (endast siffror, med bindestreck efter riktnumret eller utlandsnummer, som inleds med plustecken (högst 17 tecken)).
-		• Frivillig uppgift om e-postadress till den som är ansvarig för uppgifterna.		
-		*/
-		// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
-			struct SecondRow {
-				SwedishVATRegistrationID vat_registration_id{};
-				PeriodID period_id{};
-				Contact name{};
-				Phone phone_number{};
-				std::optional<std::string> e_mail{};
-			};
-
-		// Swedish Specification
-			/*
-			• Köparens momsregistreringsnummer (VAT-nummer) med inledande landskod.
-			• Värde av varuleveranser (högst 12 siffror inklusive eventuellt minustecken).
-			• Värde av trepartshandel (högst 12 siffror inklusive eventuellt minustecken).
-			• Värde av tjänster enligt huvudregeln (högst 12 siffror inklusive eventuellt minustecken)."
-			*/
-			struct RowN {
-				EUVATRegistrationID vat_registration_id{};
-				std::optional<Amount> goods_amount{};
-				std::optional<Amount> three_part_business_amount{};
-				std::optional<Amount> services_amount{};
-			};
-
-			struct Form {
-				static constexpr FirstRow first_row{};
-				SecondRow second_row{};
-				std::vector<RowN> third_to_n_row{};
-			};
-
-			class OStream {
-			public:
-				std::ostream& os;
-				operator bool() const {return static_cast<bool>(os);}
-			};
-
-			OStream& operator<<(OStream& os,char ch) {
-				os.os << ch;
-				return os;
-			}
-
-			OStream& operator<<(OStream& os,std::string const& s) {
-				os.os << s;
-				return os;
-			}
-
-			struct PeriodIDStreamer {
-				OStream& os;
-				void operator()(Year const& year) {
-					os << year.yyyy;
-				}	
-				void operator()(Quarter const& quarter) {
-					os << quarter.yy_hyphen_quarter_seq_no;
-				}	
-			};
-
-			OStream& operator<<(OStream& os,PeriodID const& period_id) {
-				PeriodIDStreamer streamer{os};
-				std::visit(streamer,period_id);
-				return os;
-			}
-			
-			OStream& operator<<(OStream& os,FirstRow const& row) {
-				os.os << row.entry << ';';
-				return os;
-			}
-
-			// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
-			OStream& operator<<(OStream& os,SecondRow const& row) {
-				os << row.vat_registration_id.twenty_digits;
-				os << ';' << row.period_id;
-				os << ';' << row.name.name_max_35_characters;
-				os << ';' << row.phone_number.swedish_format_no_space_max_17_chars;
-				if (row.e_mail) os << ';' << *row.e_mail;
-				return os;
-			}
-
-			OStream& operator<<(OStream& os,std::optional<Amount> const& ot) {
-				os << ';';
-				if (ot) os << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
-				return os;
-			}
-
-			// Example: FI01409351;16400;;;
-			OStream& operator<<(OStream& os,RowN const& row) {
-				// EUVATRegistrationID vat_registration_id{};
-				// std::optional<Amount> goods_amount{};
-				// std::optional<Amount> three_part_business_amount{};
-				// std::optional<Amount> services_amount{};
-				os << row.vat_registration_id.with_country_code;
-				os << row.goods_amount;
-				os << row.three_part_business_amount;
-				os << row.services_amount;
-				return os;
-			}
-
-			OStream& operator<<(OStream& os,Form const& form) {
-				os << form.first_row;
-				os << '\n' << form.second_row;
-				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {
-				 	os << '\n' << row;
-				});
-				return os;
-			}
-		} // namespace EUSalesList
-	} // namespace CSV {
-} // namespace SKV
 
 using char16_t_string = std::wstring;
 
@@ -2188,6 +1836,679 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 	return collect_t2s.result();
 }
 
+namespace SKV {
+
+	int to_tax(Amount amount) {return std::round(amount);}
+	int to_fee(Amount amount) {return std::round(amount);}
+
+	namespace XML {
+		struct ContactPersonMeta {
+			std::string name{};
+			std::string phone{};
+			std::string e_mail{};
+		};
+		using OptionalContactPersonMeta = std::optional<ContactPersonMeta>;
+
+		struct OrganisationMeta {
+			std::string org_no{};
+			std::vector<ContactPersonMeta> contact_persons{};
+		};
+		using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
+
+		struct DeclarationMeta {
+			std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
+			std::string declaration_period_id{}; // e.g., 202101
+		};
+		using OptionalDeclarationMeta = std::optional<DeclarationMeta>;
+
+		struct TaxDeclaration {
+			std::string employee_12_digit_birth_no{}; // e.g., 198202252386
+			Amount paid_employer_fee{};
+			Amount paid_tax{};
+		};
+
+		using TaxDeclarations = std::vector<TaxDeclaration>;
+
+		using XMLMap = std::map<std::string,std::string>;
+		extern SKV::XML::XMLMap skv_xml_template; // See bottom of this file
+
+		std::string to_orgno(std::string generic_org_no) {
+			std::string result{};
+			// The SKV IT-system requires 12 digit organisation numbers with digits only
+			// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into 16XXXXXXYYYY
+			// See https://sv.wikipedia.org/wiki/Organisationsnummer
+			std::string sdigits = filtered(generic_org_no,::isdigit);
+			switch (sdigits.size()) {
+				case 10: result = std::string{"16"} + sdigits; break;
+				case 12: result = sdigits; break;
+				default: throw std::runtime_error(std::string{"ERROR: to_orgno failed, invalid input generic_org_no:"} + "\"" + generic_org_no + "\""); break;
+			}
+			return result;
+		}
+
+		struct TagValuePair {
+			std::string tag{};
+			std::string value;
+		};
+
+		std::string to_value(XMLMap const& xml_map,std::string tag) {
+			if (xml_map.contains(tag) and xml_map.at(tag).size() > 0) {
+				return xml_map.at(tag);
+			}
+			else throw std::runtime_error(std::string{"to_string failed, no value for tag:"} + tag);
+		}
+
+		XMLMap::value_type to_entry(XMLMap const& xml_map,std::string tag) {
+			auto iter = xml_map.find(tag);
+			if (iter != xml_map.end()) {
+				return *iter;
+			}
+			else throw std::runtime_error(std::string{"to_entry failed, tag:"} + tag + " not defined");
+		}
+		
+		struct EmployerDeclarationOStream {
+			std::ostream& os;
+		};
+
+		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,std::string const& s) {
+			auto& os = edos.os;
+			os << s;
+			return edos;
+		}
+
+		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap::value_type const& entry) {
+			Key::Path p{entry.first};
+			std::string indent(p.size(),' ');
+			edos << indent << "<" << p.back() << ">" << entry.second << "</" << p.back() << ">";
+			return edos;
+		}
+
+		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap const& xml_map) {
+			try {
+				Key::Path p{};
+				// IMPORTANT: No empty line (nor any white space) allowed before the "<?xml..." tag! *sigh*
+				edos << R"(<?xml version="1.0" encoding="UTF-8" standalone="no"?>)";
+				edos << "\n" << R"(<Skatteverket omrade="Arbetsgivardeklaration")";
+					p += "Skatteverket";
+					edos << "\n" << R"(xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1")";
+					edos << "\n" << R"(xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1")";
+					edos << "\n" << R"(xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1 http://xmls.skatteverket.se/se/skatteverket/da/arbetsgivardeklaration/arbetsgivardeklaration_1.1.xsd">)";
+
+					edos << "\n" << R"(<agd:Avsandare>)";
+						p += "agd:Avsandare";
+						edos << "\n" << to_entry(xml_map,p + "agd:Programnamn");
+						edos << "\n" << to_entry(xml_map,p + "agd:Organisationsnummer");
+						edos << "\n" << R"(<agd:TekniskKontaktperson>)";
+							p += "agd:TekniskKontaktperson";
+							edos << "\n" << to_entry(xml_map,p + "agd:Namn");
+							edos << "\n" << to_entry(xml_map,p + "agd:Telefon");
+							edos << "\n" << to_entry(xml_map,p + "agd:Epostadress");
+							--p;
+						edos << "\n" << R"(</agd:TekniskKontaktperson>)";
+						edos << "\n" << to_entry(xml_map,p + "agd:Skapad");
+						--p;
+					edos << "\n" << R"(</agd:Avsandare>)";
+
+					edos << "\n" << R"(<agd:Blankettgemensamt>)";
+						p += "agd:Blankettgemensamt";
+						edos << "\n" << R"(<agd:Arbetsgivare>)";
+							p += "agd:Arbetsgivare";
+							edos << "\n" << to_entry(xml_map,p + "agd:AgRegistreradId");
+							edos << "\n" << R"(<agd:Kontaktperson>)";
+								p += "agd:Kontaktperson";
+								edos << "\n" << to_entry(xml_map,p + "agd:Namn");
+								edos << "\n" << to_entry(xml_map,p + "agd:Telefon");
+								edos << "\n" << to_entry(xml_map,p + "agd:Epostadress");
+								--p;
+							edos << "\n" << R"(</agd:Kontaktperson>)";
+							--p;
+						edos << "\n" << R"(</agd:Arbetsgivare>)";
+						--p;
+					edos << "\n" << R"(</agd:Blankettgemensamt>)";
+
+					edos << "\n" << R"(<!-- Uppgift 1 HU -->)";
+					edos << "\n" << R"(<agd:Blankett>)";
+						p += "agd:Blankett";
+						edos << "\n" << R"(<agd:Arendeinformation>)";
+							p += "agd:Arendeinformation";
+							edos << "\n" << to_entry(xml_map,p + "agd:Arendeagare");
+							edos << "\n" << to_entry(xml_map,p + "agd:Period");
+							--p;
+						edos << "\n" << R"(</agd:Arendeinformation>)";
+						edos << "\n" << R"(<agd:Blankettinnehall>)";
+							p += "agd:Blankettinnehall";
+							edos << "\n" << R"(<agd:HU>)";
+								p += "agd:HU";
+								edos << "\n" << R"(<agd:ArbetsgivareHUGROUP>)";
+									p += "agd:ArbetsgivareHUGROUP";
+									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">)" << to_value(xml_map,p + R"(agd:AgRegistreradId faltkod="201")") << "</agd:AgRegistreradId>";
+									--p;
+								edos << "\n" << R"(</agd:ArbetsgivareHUGROUP>)";
+								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">)" << to_value(xml_map,p + R"(agd:RedovisningsPeriod faltkod="006")") << "</agd:RedovisningsPeriod>";
+								edos << "\n" << R"(<agd:SummaArbAvgSlf faltkod="487">)" <<  to_value(xml_map,p + R"(agd:SummaArbAvgSlf faltkod="487")") << "</agd:SummaArbAvgSlf>";
+								edos << "\n" << R"(<agd:SummaSkatteavdr faltkod="497">)" <<  to_value(xml_map,p + R"(agd:SummaSkatteavdr faltkod="497")") << "</agd:SummaSkatteavdr>";
+								--p;
+							edos << "\n" << R"(</agd:HU>)";
+							--p;
+						edos << "\n" << R"(</agd:Blankettinnehall>)";
+						--p;
+					edos << "\n" << R"(</agd:Blankett>)";
+
+					edos << "\n" << R"(<!-- Uppgift 1 IU -->)";
+					edos << "\n" << R"(<agd:Blankett>)";
+						p += "agd:Blankett";
+						edos << "\n" << R"(<agd:Arendeinformation>)";
+							p += "agd:Arendeinformation";
+							edos << "\n" << to_entry(xml_map,p + "agd:Arendeagare");
+							edos << "\n" << to_entry(xml_map,p + "agd:Period");
+							--p;
+						edos << "\n" << R"(</agd:Arendeinformation>)";
+						edos << "\n" << R"(<agd:Blankettinnehall>)";
+							p += "agd:Blankettinnehall";
+							edos << "\n" << R"(<agd:IU>)";
+								p += "agd:IU";
+								edos << "\n" << R"(<agd:ArbetsgivareIUGROUP>)";
+									p += "agd:ArbetsgivareIUGROUP";
+									edos << "\n" << R"(<agd:AgRegistreradId faltkod="201">)" << to_value(xml_map,p + R"(agd:AgRegistreradId faltkod="201")") << "</agd:AgRegistreradId>";
+									--p;
+								edos << "\n" << R"(</agd:ArbetsgivareIUGROUP>)";
+								edos << "\n" << R"(<agd:BetalningsmottagareIUGROUP>)";
+									p += "agd:BetalningsmottagareIUGROUP";
+									edos << "\n" << R"(<agd:BetalningsmottagareIDChoice>)";
+										p += "agd:BetalningsmottagareIDChoice";
+										edos << "\n" << R"(<agd:BetalningsmottagarId faltkod="215">)" <<  to_value(xml_map,p + R"(agd:BetalningsmottagarId faltkod="215")") <<  "</agd:BetalningsmottagarId>";
+										--p;
+									edos << "\n" << R"(</agd:BetalningsmottagareIDChoice>)";
+									--p;
+								edos << "\n" << R"(</agd:BetalningsmottagareIUGROUP>)";
+								edos << "\n" << R"(<agd:RedovisningsPeriod faltkod="006">)" <<  to_value(xml_map,p + R"(agd:RedovisningsPeriod faltkod="006")") << "</agd:RedovisningsPeriod>";
+								edos << "\n" << R"(<agd:Specifikationsnummer faltkod="570">)" <<  to_value(xml_map,p + R"(agd:Specifikationsnummer faltkod="570")") << "</agd:Specifikationsnummer>";
+								edos << "\n" << R"(<agd:AvdrPrelSkatt faltkod="001">)" <<  to_value(xml_map,p + R"(agd:AvdrPrelSkatt faltkod="001")") << "</agd:AvdrPrelSkatt>";
+								--p;
+							edos << "\n" << R"(</agd:IU>)";
+							--p;
+						edos << "\n" << R"(</agd:Blankettinnehall>)";
+						--p;
+					edos << "\n" << R"(</agd:Blankett>)";
+					--p;
+				edos << "\n" << R"(</Skatteverket>)";
+			}
+			catch (std::exception const& e) {
+				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
+				edos.os.setstate(std::ostream::badbit);
+			}
+			return edos;
+		}
+
+		bool to_employer_contributions_and_PAYE_tax_return_file(std::ostream& os,XMLMap const& xml_map) {
+			try {
+				EmployerDeclarationOStream edos{os};
+				edos << xml_map;
+			}
+			catch (std::exception const& e) {
+				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
+			}
+			return static_cast<bool>(os);
+		}
+
+		namespace VATReturns {
+
+			// An example provided by Swedish Tax Agency at https://www.skatteverket.se/download/18.3f4496fd14864cc5ac99cb2/1415022111801/momsexempel_v6.txt
+			auto eskd_template_0 = R"(<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
+<eSKDUpload Version="6.0">
+  <OrgNr>599900-0465</OrgNr>
+  <Moms>
+    <Period>201507</Period>
+    <ForsMomsEjAnnan>100000</ForsMomsEjAnnan>
+    <UttagMoms>200000</UttagMoms>
+    <UlagMargbesk>300000</UlagMargbesk>
+    <HyrinkomstFriv>400000</HyrinkomstFriv>
+    <InkopVaruAnnatEg>5000</InkopVaruAnnatEg>
+    <InkopTjanstAnnatEg>6000</InkopTjanstAnnatEg>
+    <InkopTjanstUtomEg>7000</InkopTjanstUtomEg>
+    <InkopVaruSverige>8000</InkopVaruSverige>
+    <InkopTjanstSverige>9000</InkopTjanstSverige>
+    <MomsUlagImport>10000</MomsUlagImport>
+    <ForsVaruAnnatEg>11000</ForsVaruAnnatEg>
+    <ForsVaruUtomEg>12000</ForsVaruUtomEg>
+    <InkopVaruMellan3p>13000</InkopVaruMellan3p>
+    <ForsVaruMellan3p>14000</ForsVaruMellan3p>
+    <ForsTjSkskAnnatEg>15000</ForsTjSkskAnnatEg>
+    <ForsTjOvrUtomEg>16000</ForsTjOvrUtomEg>
+    <ForsKopareSkskSverige>17000</ForsKopareSkskSverige>
+    <ForsOvrigt>18000</ForsOvrigt>
+    <MomsUtgHog>200000</MomsUtgHog>
+    <MomsUtgMedel>15000</MomsUtgMedel>
+    <MomsUtgLag>5000</MomsUtgLag>
+    <MomsInkopUtgHog>2500</MomsInkopUtgHog>
+    <MomsInkopUtgMedel>1000</MomsInkopUtgMedel>
+    <MomsInkopUtgLag>500</MomsInkopUtgLag>
+    <MomsImportUtgHog>2000</MomsImportUtgHog>
+    <MomsImportUtgMedel>350</MomsImportUtgMedel>
+    <MomsImportUtgLag>150</MomsImportUtgLag>
+    <MomsIngAvdr>1000</MomsIngAvdr>
+    <MomsBetala>225500</MomsBetala>
+    <TextUpplysningMoms>Bla bla bla bla</TextUpplysningMoms>
+  </Moms>
+</eSKDUpload>)";
+
+			// An example eskd-file generated by the online program Fortnox
+			auto eskd_template_1 = R"(<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
+<eSKDUpload Version="6.0">
+  <OrgNr>556782-8172</OrgNr>
+  <Moms>
+    <Period>202109</Period>
+    <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
+    <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
+    <MomsUtgHog>83300</MomsUtgHog>
+    <MomsInkopUtgHog>1654</MomsInkopUtgHog>
+    <MomsIngAvdr>2539</MomsIngAvdr>
+    <MomsBetala>82415</MomsBetala>
+  </Moms>
+</eSKDUpload>)";
+
+		// An example eskd-file generated by Swedish Tax Agency web service at https://www1.skatteverket.se/es/skapaeskdfil/tillStart.do
+		auto eskd_template_2 = R"(<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
+<eSKDUpload Version="6.0">
+  <OrgNr>556782-8172</OrgNr>
+  <Moms>
+    <Period>202203</Period>
+    <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
+    <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
+    <MomsUlagImport>597</MomsUlagImport>
+    <ForsTjSkskAnnatEg>957</ForsTjSkskAnnatEg>
+    <MomsUtgHog>83300</MomsUtgHog>
+    <MomsInkopUtgHog>1654</MomsInkopUtgHog>
+    <MomsImportUtgHog>149</MomsImportUtgHog>
+    <MomsIngAvdr>2688</MomsIngAvdr>
+    <MomsBetala>82415</MomsBetala>
+  </Moms>
+</eSKDUpload>)";
+
+			// Deduced mapping between some VAT Return form box numbers and XML tag names to hold corresponding amount
+			// Amount		VAT Return Box			XML Tag
+			// 333200		05									"ForsMomsEjAnnan"
+			// 83300		10									"MomsUtgHog"
+			// 6616			20									"InkopVaruAnnatEg"
+			// 1654			30									"MomsInkopUtgHog"
+			// 957			39									"ForsTjSkskAnnatEg"
+			// 2688			48									"MomsIngAvdr"
+			// 82415		49									"MomsBetala"
+			// 597			50									"MomsUlagImport"
+			// 149			60									"MomsImportUtgHog"
+
+			using BoxNo = unsigned int;
+			using FormBoxMap = std::map<BoxNo,Amount>;
+
+			struct OStream {
+				std::ostream& os;
+				operator bool() {return static_cast<bool>(os);}
+			};
+
+			OStream& operator<<(OStream& os,std::string const& s) {
+				os.os << s;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,XMLMap::value_type const& entry) {
+				Key::Path p{entry.first};
+				std::string indent(p.size(),' ');
+				os << indent << "<" << p.back() << ">" << entry.second << "</" << p.back() << ">";
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,SKV::XML::XMLMap const& xml_map) {
+				Key::Path p{};
+				os << R"(<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">)";
+				os << "\n" << R"(<eSKDUpload Version="6.0">)";
+				p += R"(eSKDUpload Version="6.0")";
+				//   <OrgNr>556782-8172</OrgNr>
+				os << "\n" << to_entry(xml_map,p + "OrgNr");
+				os << "\n  " << R"(<Moms>)";
+				p += R"(Moms)";
+				// NOTE: It seems SKV requires the XML tags to come in a required sequence
+				// See DTD file 
+				// <!ELEMENT Moms (Period, ForsMomsEjAnnan?, UttagMoms?, UlagMargbesk?, HyrinkomstFriv?, InkopVaruAnnatEg?, InkopTjanstAnnatEg?, InkopTjanstUtomEg?, InkopVaruSverige?, InkopTjanstSverige?, MomsUlagImport?, ForsVaruAnnatEg?, ForsVaruUtomEg?, InkopVaruMellan3p?, ForsVaruMellan3p?, ForsTjSkskAnnatEg?, ForsTjOvrUtomEg?, ForsKopareSkskSverige?, ForsOvrigt?, MomsUtgHog?, MomsUtgMedel?, MomsUtgLag?, MomsInkopUtgHog?, MomsInkopUtgMedel?, MomsInkopUtgLag?, MomsImportUtgHog?, MomsImportUtgMedel?, MomsImportUtgLag?, MomsIngAvdr?, MomsBetala?, TextUpplysningMoms?)>
+				//     <!ELEMENT Period (#PCDATA)>
+				//     <!ELEMENT ForsMomsEjAnnan (#PCDATA)>
+				//     <!ELEMENT UttagMoms (#PCDATA)>
+				//     <!ELEMENT UlagMargbesk (#PCDATA)>
+				//     <!ELEMENT HyrinkomstFriv (#PCDATA)>
+				//     <!ELEMENT InkopVaruAnnatEg (#PCDATA)>
+				//     <!ELEMENT InkopTjanstAnnatEg (#PCDATA)>
+				//     <!ELEMENT InkopTjanstUtomEg (#PCDATA)>
+				//     <!ELEMENT InkopVaruSverige (#PCDATA)>
+				//     <!ELEMENT InkopTjanstSverige (#PCDATA)>
+				//     <!ELEMENT MomsUlagImport (#PCDATA)>
+				//     <!ELEMENT ForsVaruAnnatEg (#PCDATA)>
+				//     <!ELEMENT ForsVaruUtomEg (#PCDATA)>
+				//     <!ELEMENT InkopVaruMellan3p (#PCDATA)>
+				//     <!ELEMENT ForsVaruMellan3p (#PCDATA)>
+				//     <!ELEMENT ForsTjSkskAnnatEg (#PCDATA)>
+				//     <!ELEMENT ForsTjOvrUtomEg (#PCDATA)>
+				//     <!ELEMENT ForsKopareSkskSverige (#PCDATA)>
+				//     <!ELEMENT ForsOvrigt (#PCDATA)>
+				//     <!ELEMENT MomsUtgHog (#PCDATA)>
+				//     <!ELEMENT MomsUtgMedel (#PCDATA)>
+				//     <!ELEMENT MomsUtgLag (#PCDATA)>
+				//     <!ELEMENT MomsInkopUtgHog (#PCDATA)>
+				//     <!ELEMENT MomsInkopUtgMedel (#PCDATA)>
+				//     <!ELEMENT MomsInkopUtgLag (#PCDATA)>
+				//     <!ELEMENT MomsImportUtgHog (#PCDATA)>
+				//     <!ELEMENT MomsImportUtgMedel (#PCDATA)>
+				//     <!ELEMENT MomsImportUtgLag (#PCDATA)>
+				//     <!ELEMENT MomsIngAvdr (#PCDATA)>
+				//     <!ELEMENT MomsBetala (#PCDATA)>
+				//     <!ELEMENT TextUpplysningMoms (#PCDATA)>
+
+				//     <Period>202203</Period>
+				os << "\n" << to_entry(xml_map,p + "Period");
+				//     <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
+				os << "\n" << to_entry(xml_map,p + "ForsMomsEjAnnan");
+				//     <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
+				os << "\n" << to_entry(xml_map,p + "InkopVaruAnnatEg");
+				//     <MomsUlagImport>597</MomsUlagImport>
+				os << "\n" << to_entry(xml_map,p + "MomsUlagImport");
+				//     <ForsTjSkskAnnatEg>957</ForsTjSkskAnnatEg>
+				os << "\n" << to_entry(xml_map,p + "ForsTjSkskAnnatEg");
+				//     <MomsUtgHog>83300</MomsUtgHog>
+				os << "\n" << to_entry(xml_map,p + "MomsUtgHog");
+				//     <MomsInkopUtgHog>1654</MomsInkopUtgHog>
+				os << "\n" << to_entry(xml_map,p + "MomsInkopUtgHog");
+				//     <MomsImportUtgHog>149</MomsImportUtgHog>
+				os << "\n" << to_entry(xml_map,p + "MomsImportUtgHog");
+				//     <MomsIngAvdr>2688</MomsIngAvdr>
+				os << "\n" << to_entry(xml_map,p + "MomsIngAvdr");
+				//     <MomsBetala>82415</MomsBetala>
+				os << "\n" << to_entry(xml_map,p + "MomsBetala");
+				--p;
+				os << "\n  " << R"(</Moms>)";
+				--p;
+				os << "\n" << R"(</eSKDUpload>)";
+				return os;
+			}
+
+			std::map<BoxNo,std::string> BOXNO_XML_TAG_MAP {
+				// Amount		VAT Return Box			XML Tag
+				// 333200		05									"ForsMomsEjAnnan"
+				{5,R"(ForsMomsEjAnnan)"}
+				// 83300		10									"MomsUtgHog"
+				,{10,R"(MomsUtgHog)"}
+				// 6616			20									"InkopVaruAnnatEg"
+				,{20,R"(InkopVaruAnnatEg)"}
+				// 1654			30									"MomsInkopUtgHog"
+				,{30,R"(MomsInkopUtgHog)"}
+				// 957			39									"ForsTjSkskAnnatEg"
+				,{39,R"(ForsTjSkskAnnatEg)"}
+				// 2688			48									"MomsIngAvdr"
+				,{48,R"(MomsIngAvdr)"}
+				// 82415		49									"MomsBetala"
+				,{49,R"(MomsBetala)"}
+				// 597			50									"MomsUlagImport"
+				,{50,R"(MomsUlagImport)"}
+				// 149			60									"MomsImportUtgHog"
+				,{60,R"(MomsImportUtgHog)"}
+			};
+
+			std::string to_xml_tag(BoxNo const& box_no) {
+				std::string result{"??"};
+				if (BOXNO_XML_TAG_MAP.contains(box_no)) {
+					auto const& tag = BOXNO_XML_TAG_MAP.at(box_no);
+					if (tag.size() > 0) result = tag;
+					else throw std::runtime_error{std::string{"ERROR: to_xml_tag failed. tag for box_no:"} + std::to_string(box_no) + " of zero length"};  
+				}
+				else throw std::runtime_error{std::string{"ERROR: to_xml_tag failed. box_no:"} + std::to_string(box_no) + " not defined"};
+				return result;
+			}
+
+			std::string to_orgno_with_hyphen(std::string generic_org_no) {
+				std::string result{generic_org_no};
+				switch (result.size()) {
+					case 10: result = result.substr(0,7) + "-" + result.substr(7,4);
+						break;
+					case 11: if (result[6] != '-') throw std::runtime_error(std::string{"ERROR: to_orgno_with_hyphen failed, can't process org_no="} + generic_org_no);
+						break;
+					default: throw std::runtime_error(std::string{"ERROR: to_orgno_with_hyphen failed, wrong length org_no="} + generic_org_no);
+						break;
+				}
+				return result;
+			}
+
+			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta, SIEEnvironment const& sie_env) {
+				std::optional<SKV::XML::XMLMap> result{};
+				try {
+					XMLMap xml_map{};
+						// Amount		VAT Return Box			XML Tag
+						// 333200		05									"ForsMomsEjAnnan"
+						// 83300		10									"MomsUtgHog"
+						// 6616			20									"InkopVaruAnnatEg"
+						// 1654			30									"MomsInkopUtgHog"
+						// 957			39									"ForsTjSkskAnnatEg"
+						// 2688			48									"MomsIngAvdr"
+						// 82415		49									"MomsBetala"
+						// 597			50									"MomsUlagImport"
+						// 149			60									"MomsImportUtgHog"
+						Key::Path p{};
+						// <!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
+						// <eSKDUpload Version="6.0">
+						p += R"(eSKDUpload Version="6.0")";
+						//   <OrgNr>556782-8172</OrgNr>
+						xml_map[p+"OrgNr"] = to_orgno_with_hyphen(org_meta.org_no);
+						//   <Moms>
+						p += R"(Moms)";
+						//     <Period>202203</Period>
+						xml_map[p+"Period"] = form_meta.declaration_period_id;
+						for (auto const& [box_no,amount] : vat_returns_form_box_map)  {
+							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(amount));
+						}
+						//     <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
+						//     <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
+						//     <MomsUlagImport>597</MomsUlagImport>
+						//     <ForsTjSkskAnnatEg>957</ForsTjSkskAnnatEg>
+						//     <MomsUtgHog>83300</MomsUtgHog>
+						//     <MomsInkopUtgHog>1654</MomsInkopUtgHog>
+						//     <MomsImportUtgHog>149</MomsImportUtgHog>
+						//     <MomsIngAvdr>2688</MomsIngAvdr>
+						//     <MomsBetala>82415</MomsBetala>
+						--p;
+						//   </Moms>
+						--p;
+						// </eSKDUpload>;
+						result = xml_map;
+				}
+				catch (std::exception const& e) {
+					std::cerr << "\nERROR, to_xml_map failed. Expection=" << std::quoted(e.what());
+				}
+				return result;
+			}
+
+			std::optional<FormBoxMap> to_form_box_map() {
+				std::optional<FormBoxMap> result{};
+				try {
+					FormBoxMap box_map{};
+					// Amount		VAT Return Box			XML Tag
+					// 333200		05									"ForsMomsEjAnnan"
+					box_map[5] = 333200;
+					// 83300		10									"MomsUtgHog"
+					box_map[10] = 83300;
+					// 6616			20									"InkopVaruAnnatEg"
+					box_map[20] = 6616;
+					// 1654			30									"MomsInkopUtgHog"
+					box_map[30] = 1654;
+					// 957			39									"ForsTjSkskAnnatEg"
+					box_map[39] = 957;
+					// 2688			48									"MomsIngAvdr"
+					box_map[48] = 2688;
+					// 82415		49									"MomsBetala"
+					box_map[49] = 82415;
+					// 597			50									"MomsUlagImport"
+					box_map[50] = 597;
+					// 149			60									"MomsImportUtgHog"
+					box_map[60] = 149;
+					result = box_map;
+				}
+				catch (std::exception const& e) {
+					std::cerr << "\nERROR, to_form_box_map failed. Expection=" << std::quoted(e.what());
+				}
+				return result;
+			}
+
+
+		} // namespace VATReturns
+	} // namespace XML
+
+	namespace CSV {
+		// See https://www.skatteverket.se/foretag/moms/deklareramoms/periodisksammanstallning/lamnaperiodisksammanstallningmedfiloverforing.4.7eada0316ed67d72822104.html
+		// Note 1: I have failed to find an actual technical specification document that specifies the format of the file to send for the form "Periodisk Sammanställning"
+		// Note 2: This CSV format is one of three file formats (CSV, SRU and XML) I know of so far that Swedish tax agency uses for file uploads?
+
+		// Example: "SKV574008;""
+		namespace EUSalesList {
+
+			using Amount = int;
+
+			struct SwedishVATRegistrationID {std::string twenty_digits{};};
+			struct EUVATRegistrationID {std::string with_country_code{};};
+			struct Year {std::string yyyy;};
+			struct Quarter {
+				std::string yy_hyphen_quarter_seq_no{};
+				bool operator<(Quarter const& other) const {return yy_hyphen_quarter_seq_no < other.yy_hyphen_quarter_seq_no;};
+			};
+			struct Contact {std::string name_max_35_characters;};
+			struct Phone {
+				// Swedish telephone numbers are between eight and ten digits long. 
+				// They start with a two to four digit area code. 
+				// A three digit code starting with 07 indicates that the number is for a mobile phone. 
+				// All national numbers start with one leading 0, and international calls are specified by 00 or +. 
+				// The numbers are written with the area code followed by a hyphen, 
+				// and then two to three groups of digits separated by spaces.
+				std::string swedish_format_no_space_max_17_chars{}; // E.g., +CCAA-XXXXXXX where AA is area code without leading zero (070 => 70)
+			}; // Consider https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers#Sweden
+
+			using PeriodID = std::variant<Year,Quarter>;
+
+			struct FirstRow {
+				char const* entry = "SKV574008";
+			};
+
+		// Swedish Specification
+		/*
+		• Det 12-siffriga momsregistreringsnumret för den som är skyldig att lämna uppgifterna. Med eller utan landskoden SE.
+		• Månads- eller kvartalskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 20-4 för fjärde kvartalet 2020 eller 21-1 för första kvartalet 2021.
+		• Namnet på personen som är ansvarig för de lämnade uppgifterna (högst 35 tecken).
+		• Telefonnummer till den som är ansvarig för uppgifterna (endast siffror, med bindestreck efter riktnumret eller utlandsnummer, som inleds med plustecken (högst 17 tecken)).
+		• Frivillig uppgift om e-postadress till den som är ansvarig för uppgifterna.		
+		*/
+		// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
+			struct SecondRow {
+				SwedishVATRegistrationID vat_registration_id{};
+				PeriodID period_id{};
+				Contact name{};
+				Phone phone_number{};
+				std::optional<std::string> e_mail{};
+			};
+
+		// Swedish Specification
+			/*
+			• Köparens momsregistreringsnummer (VAT-nummer) med inledande landskod.
+			• Värde av varuleveranser (högst 12 siffror inklusive eventuellt minustecken).
+			• Värde av trepartshandel (högst 12 siffror inklusive eventuellt minustecken).
+			• Värde av tjänster enligt huvudregeln (högst 12 siffror inklusive eventuellt minustecken)."
+			*/
+			struct RowN {
+				EUVATRegistrationID vat_registration_id{};
+				std::optional<Amount> goods_amount{};
+				std::optional<Amount> three_part_business_amount{};
+				std::optional<Amount> services_amount{};
+			};
+
+			struct Form {
+				static constexpr FirstRow first_row{};
+				SecondRow second_row{};
+				std::vector<RowN> third_to_n_row{};
+			};
+
+			class OStream {
+			public:
+				std::ostream& os;
+				operator bool() const {return static_cast<bool>(os);}
+			};
+
+			OStream& operator<<(OStream& os,char ch) {
+				os.os << ch;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,std::string const& s) {
+				os.os << s;
+				return os;
+			}
+
+			struct PeriodIDStreamer {
+				OStream& os;
+				void operator()(Year const& year) {
+					os << year.yyyy;
+				}	
+				void operator()(Quarter const& quarter) {
+					os << quarter.yy_hyphen_quarter_seq_no;
+				}	
+			};
+
+			OStream& operator<<(OStream& os,PeriodID const& period_id) {
+				PeriodIDStreamer streamer{os};
+				std::visit(streamer,period_id);
+				return os;
+			}
+			
+			OStream& operator<<(OStream& os,FirstRow const& row) {
+				os.os << row.entry << ';';
+				return os;
+			}
+
+			// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
+			OStream& operator<<(OStream& os,SecondRow const& row) {
+				os << row.vat_registration_id.twenty_digits;
+				os << ';' << row.period_id;
+				os << ';' << row.name.name_max_35_characters;
+				os << ';' << row.phone_number.swedish_format_no_space_max_17_chars;
+				if (row.e_mail) os << ';' << *row.e_mail;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,std::optional<Amount> const& ot) {
+				os << ';';
+				if (ot) os << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
+				return os;
+			}
+
+			// Example: FI01409351;16400;;;
+			OStream& operator<<(OStream& os,RowN const& row) {
+				// EUVATRegistrationID vat_registration_id{};
+				// std::optional<Amount> goods_amount{};
+				// std::optional<Amount> three_part_business_amount{};
+				// std::optional<Amount> services_amount{};
+				os << row.vat_registration_id.with_country_code;
+				os << row.goods_amount;
+				os << row.three_part_business_amount;
+				os << row.services_amount;
+				return os;
+			}
+
+			OStream& operator<<(OStream& os,Form const& form) {
+				os << form.first_row;
+				os << '\n' << form.second_row;
+				std::for_each(form.third_to_n_row.begin(),form.third_to_n_row.end(),[&os](auto row) {
+				 	os << '\n' << row;
+				});
+				return os;
+			}
+		} // namespace EUSalesList
+	} // namespace CSV {
+} // namespace SKV
+
 SKV::CSV::EUSalesList::Quarter to_eu_list_quarter(Date const& date) {
 	return {std::to_string(static_cast<int>(date.year())) + "-" + std::to_string(1 + static_cast<unsigned int>(date.month()) / 4)}; // quarter yy-1..yy-4 
 }
@@ -3109,6 +3430,32 @@ public:
 								// #### 2
 								model->prompt_state = PromptState::EUListPeriodEntry;
 							} break;
+							case 3: {
+								// VAT Returns
+								std::string period_to_declare{"202203"};
+								SKV::XML::OrganisationMeta org_meta {
+									.org_no = model->sie["current"].organisation_no.CIN
+								};
+								SKV::XML::DeclarationMeta form_meta {
+									.declaration_period_id = period_to_declare
+								};
+								auto box_map = SKV::XML::VATReturns::to_form_box_map();
+								if (box_map) {
+									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta,model->sie["current"]);
+									if (xml_map) {
+										std::filesystem::path skv_files_folder{"to_skv"};
+										std::filesystem::path skv_file_name{std::string{"moms_"} + period_to_declare + ".eskd"};
+										std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+										std::filesystem::create_directories(skv_file_path.parent_path());
+										std::ofstream skv_file{skv_file_path};
+										SKV::XML::VATReturns::OStream os{skv_file};
+										if (os << *xml_map) prompt << "\nCreated " << skv_file_path;
+										else prompt << "\nSorry, failed to create the file " << skv_file_path;
+									}
+									else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
+								}
+								else prompt << "\nSorry, failed to gather form data required for the VAR Returns form";
+							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
 					} break;
@@ -3252,8 +3599,9 @@ public:
 				if (ast.size() == 1) {
 					// List skv options
 					// ####
-					prompt << "\n1: Arbetsgivardeklaration (Employer’s contributions and PAYE tax return form)";
+					prompt << "\n1: Arbetsgivardeklaration (TAX Returns)";
 					prompt << "\n2: Periodisk Sammanställning (EU sales list)";
+					prompt << "\n3: Momsrapport (VAT Returns)";
 					model->prompt_state = PromptState::SKVEntryIndex;
 				}
 				else if (ast.size() == 2) {
@@ -3265,7 +3613,7 @@ public:
 						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
 						(*xml_map)[R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
 						(*xml_map)[R"(Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-						std::filesystem::path skv_files_folder{"to_skv"};						
+						std::filesystem::path skv_files_folder{"to_skv"};
 						std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};						
 						std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
 						std::filesystem::create_directories(skv_file_path.parent_path());
