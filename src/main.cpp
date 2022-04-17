@@ -778,7 +778,9 @@ namespace Key {
 			auto end() const {return m_path.end();}
 			Path() = default;
 			Path(Path const& other) = default;
-			Path(std::string const& s_path) : m_path(tokenize::splits(s_path,'^')) {};
+			Path(std::string const& s_path,char delim = '^') : 
+			  m_delim{delim}
+				,m_path(tokenize::splits(s_path,delim)) {};
 			auto size() const {return m_path.size();}
 			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
 			operator std::string() const {
@@ -803,6 +805,7 @@ namespace Key {
 				return result;
 			}
 			std::string back() const {return m_path.back();}
+			std::string operator[](std::size_t pos) const {return m_path[pos];}
 			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
 			auto operator<=>(Path const&) const = default;
 			// bool operator==(Path const& other) const {
@@ -816,12 +819,15 @@ namespace Key {
 			// }
 		private:
 			std::vector<std::string> m_path{};
+			char m_delim{'^'};
 		};
+
+		using Paths = std::vector<Path>;
 
 		std::ostream& operator<<(std::ostream& os,Key::Path const& key_path) {
 			int key_count{0};
 			for (auto const& key : key_path) {
-				if (key_count++>0) os << '^';
+				if (key_count++>0) os << key_path.m_delim;
 				os << key;
 				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
 			}
@@ -2276,6 +2282,95 @@ namespace SKV {
 				}
 				return result;
 			}
+
+			char const* ACCOUNT_VAT_CSV = R"(KONTO;BENÄMNING;MOMSKOD (MOMSRUTA);SRU
+3305;Försäljning tjänster till land utanför EU;ÖTEU (40);7410
+3521;Fakturerade frakter, EU-land;VTEU (35);7410
+3108;Försäljning varor till annat EU-land, momsfri;VTEU (35);7410
+2634;Utgående moms omvänd skattskyldighet, 6 %;UTFU3 (32);7369
+2624;Utgående moms omvänd skattskyldighet, 12 %;UTFU2 (31);7369
+2614;Utgående moms omvänd skattskyldighet, 25 %;UOS1 (30);7369
+2635;Utgående moms import av varor, 6 %;UI6 (62);7369
+2615;Utgående moms import av varor, 25 %;UI25 (60);7369
+2625;Utgående moms import av varor, 12 %;UI12 (61);7369
+2636;Utgående moms VMB 6 %;U3 (12);7369
+2631;Utgående moms på försäljning inom Sverige, 6 %;U3 (12);7369
+2630;Utgående moms, 6 %;U3 (12);7369
+2633;Utgående moms för uthyrning, 6 %;U3 (12);7369
+2632;Utgående moms på egna uttag, 6 %;U3 (12);7369
+2626;Utgående moms VMB 12 %;U2 (11);7369
+2622;Utgående moms på egna uttag, 12 %;U2 (11);7369
+2621;Utgående moms på försäljning inom Sverige, 12 %;U2 (11);7369
+2620;Utgående moms, 12 %;U2 (11);7369
+2623;Utgående moms för uthyrning, 12 %;U2 (11);7369
+2612;Utgående moms på egna uttag, 25 %;U1 (10);7369
+2610;Utgående moms, 25 %;U1 (10);7369
+2611;Utgående moms på försäljning inom Sverige, 25 %;U1 (10);7369
+2616;Utgående moms VMB 25 %;U1 (10);7369
+2613;Utgående moms för uthyrning, 25 %;U1 (10);7369
+2650;Redovisningskonto för moms;R2 (49);7369
+1650;Momsfordran;R1 (49);7261
+3231;Försäljning inom byggsektorn, omvänd skattskyldighet moms;OTTU (41);7410
+3003;Försäljning inom Sverige, 6 % moms;MP3 (05);7410
+3403;Egna uttag momspliktiga, 6 %;MP3 (05);7410
+3402;Egna uttag momspliktiga, 12 %;MP2 (05);7410
+3002;Försäljning inom Sverige, 12 % moms;MP2 (05);7410
+3401;Egna uttag momspliktiga, 25 %;MP1 (05);7410
+3510;Fakturerat emballage;MP1 (05);7410
+3600;Rörelsens sidointäkter (gruppkonto);MP1 (05);7410
+3530;Fakturerade tull- och speditionskostnader m.m.;MP1 (05);7410
+3520;Fakturerade frakter;MP1 (05);7410
+3001;Försäljning inom Sverige, 25 % moms;MP1 (05);7410
+3540;Faktureringsavgifter;MP1 (05);7410
+3106;Försäljning varor till annat EU-land, momspliktig;MP1 (05);7410
+3990;Övriga ersättningar och intäkter;MF (42);7413
+3404;Egna uttag, momsfria;MF (42);7410
+3004;Försäljning inom Sverige, momsfri;MF (42);7410
+3980;Erhållna offentliga stöd m.m.;MF (42);7413
+4516;Inköp av varor från annat EU-land, 12 %;IVEU (20);7512
+4515;Inköp av varor från annat EU-land, 25 %;IVEU (20);7512
+9021;Varuvärde Inlöp annat EG-land (Momsrapport ruta 20);IVEU (20);
+4517;Inköp av varor från annat EU-land, 6 %;IVEU (20);7512
+4415;Inköpta varor i Sverige, omvänd skattskyldighet, 25 % moms;IV (23);7512
+4531;Inköp av tjänster från ett land utanför EU, 25 % moms;ITGLOB (22);7512
+4532;Inköp av tjänster från ett land utanför EU, 12 % moms;ITGLOB (22);7512
+4533;Inköp av tjänster från ett land utanför EU, 6 % moms;ITGLOB (22);7512
+4537;Inköp av tjänster från annat EU-land, 6 %;ITEU (21);7512
+4536;Inköp av tjänster från annat EU-land, 12 %;ITEU (21);7512
+4535;Inköp av tjänster från annat EU-land, 25 %;ITEU (21);7512
+4427;Inköpta tjänster i Sverige, omvänd skattskyldighet, 6 %;IT (24);7512
+4426;Inköpta tjänster i Sverige, omvänd skattskyldighet, 12 %;IT (24);7512
+2642;Debiterad ingående moms i anslutning till frivillig skattskyldighet;I (48);7369
+2640;Ingående moms;I (48);7369
+2647;Ingående moms omvänd skattskyldighet varor och tjänster i Sverige;I (48);7369
+2641;Debiterad ingående moms;I (48);7369
+2649;Ingående moms, blandad verksamhet;I (48);7369
+2646;Ingående moms på uthyrning;I (48);7369
+2645;Beräknad ingående moms på förvärv från utlandet;I (48);7369
+3913;Frivilligt momspliktiga hyresintäkter;HFS (08);7413
+3541;Faktureringsavgifter, EU-land;FTEU (39);7410
+3308;Försäljning tjänster till annat EU-land;FTEU (39);7410
+3542;Faktureringsavgifter, export;E (36);7410
+3522;Fakturerade frakter, export;E (36);7410
+3105;Försäljning varor till land utanför EU;E (36);7410
+3211;Försäljning positiv VMB 25 %;BVMB (07);7410
+3212;Försäljning negativ VMB 25 %;BVMB (07);7410
+9022;Beskattningsunderlag vid import (Momsrapport Ruta 50);BI (50);
+4545;Import av varor, 25 % moms;BI (50);7512
+4546;Import av varor, 12 % moms;BI (50);7512
+4547;Import av varor, 6 % moms;BI (50);7512
+3740;Öres- och kronutjämning;A;7410)";
+
+			Key::Paths account_vat_form_mapping() {
+				Key::Paths result{};
+				std::istringstream is{ACCOUNT_VAT_CSV};
+				std::string row{};
+				while (std::getline(is,row)) {
+					result.push_back(Key::Path{row,';'});
+				}
+				return result;
+			}
+
 
 			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta, SIEEnvironment const& sie_env) {
 				std::optional<SKV::XML::XMLMap> result{};
@@ -4080,6 +4175,8 @@ private:
 
 int main(int argc, char *argv[])
 {
+	auto avfm = SKV::XML::VATReturns::account_vat_form_mapping();
+	for (auto const& p : avfm) std::cout << "\nvat_returns_map:" << p[0] << " " << p[2];
 	if (false) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
