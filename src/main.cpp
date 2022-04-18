@@ -295,13 +295,15 @@ struct IsPeriod {
 	}
 };
 
-IsPeriod to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+	std::optional<IsPeriod> result{};
 	auto begin = to_date(yyyymmdd_begin);
 	auto end = to_date(yyyymmdd_end);
-	if (begin and end) return IsPeriod{.begin = *begin, .end = *end};
+	if (begin and end) result = IsPeriod{.begin = *begin, .end = *end};
 	else {
 		std::cerr << "\nERROR, to_is_period failed. Invalid begin=" << std::quoted(yyyymmdd_begin) << " and/or end=" << std::quoted(yyyymmdd_begin);
 	}
+	return result;
 }
 
 optional_amount to_amount(std::string const& sAmount) {
@@ -3664,7 +3666,7 @@ public:
 									.declaration_period_id = period_to_declare
 								};
 								auto is_quarter = to_is_period("20210701","20210930");
-								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
+								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,*is_quarter);
 								if (box_map) {
 									prompt << *box_map;
 									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
