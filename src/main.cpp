@@ -249,14 +249,60 @@ using Amount= float;
 using optional_amount = std::optional<Amount>;
 
 using Date = std::chrono::year_month_day;
+using optional_year_month_day = std::optional<Date>;
+
+std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
+	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
+	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
+	return os;
+}
+std::string to_string(Date const& yyyymmdd) {
+		std::ostringstream os{};
+		os << yyyymmdd;
+		return os.str();
+}
+
+optional_year_month_day to_date(std::string const& sYYYYMMDD) {
+	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
+	optional_year_month_day result{};
+	if (sYYYYMMDD.size()==8) {
+		result = Date(
+			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
+			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
+			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
+	}
+	else {
+		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
+		std::string sDate = filtered(sYYYYMMDD,::isdigit);
+		if (sDate.size()==8) result = to_date(sDate);
+	}
+	// if (result) std::cout << " = " << *result;
+	// else std::cout << " = null";
+	return result;
+}
 
 auto any_date_predicate = [](Date const& date){
 	return true;
 };
 
-auto Q3_date_predicate =  [](Date const& date){
-	return (static_cast<unsigned>(date.month())>=7u and static_cast<unsigned>(date.month())<=9u);
+struct IsPeriod {
+	Date begin{};
+	Date end{};
+	bool operator()(Date const& date) const {
+		return (begin <= date and date <= end);
+	}
 };
+
+IsPeriod to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+	auto begin = to_date(yyyymmdd_begin);
+	auto end = to_date(yyyymmdd_end);
+	if (begin and end) return IsPeriod{.begin = *begin, .end = *end};
+	else {
+		std::cerr << "\nERROR, to_is_period failed. Invalid begin=" << std::quoted(yyyymmdd_begin) << " and/or end=" << std::quoted(yyyymmdd_begin);
+	}
+}
 
 optional_amount to_amount(std::string const& sAmount) {
 	// std::cout << "\nto_amount " << std::quoted(sAmount);
@@ -519,40 +565,6 @@ std::optional<std::filesystem::path> path_to_existing_file(std::string const& s)
 	std::optional<std::filesystem::path> result{};
 	std::filesystem::path path{s};
 	if (std::filesystem::exists(path)) result = path;
-	return result;
-}
-
-using optional_year_month_day = std::optional<Date>;
-
-std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
-	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
-	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
-	return os;
-}
-std::string to_string(Date const& yyyymmdd) {
-		std::ostringstream os{};
-		os << yyyymmdd;
-		return os.str();
-}
-
-optional_year_month_day to_date(std::string const& sYYYYMMDD) {
-	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
-	optional_year_month_day result{};
-	if (sYYYYMMDD.size()==8) {
-		result = Date(
-			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
-			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
-			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
-	}
-	else {
-		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
-		std::string sDate = filtered(sYYYYMMDD,::isdigit);
-		if (sDate.size()==8) result = to_date(sDate);
-	}
-	// if (result) std::cout << " = " << *result;
-	// else std::cout << " = null";
 	return result;
 }
 
@@ -1711,6 +1723,13 @@ void for_each_meta_account_transaction(SIEEnvironment const& sie_env,auto& f) {
 	for_each_meta_entry(sie_env,f_caller);
 }
 
+void for_each_meta_account_transaction(SIEEnvironments const& sie_envs,auto& f) {
+	auto f_caller = [&f](BAS::MetaEntry const& me){for_each_meta_account_transaction(me,f);};
+	for (auto const& [year_id,sie_env] : sie_envs) {
+		for_each_meta_entry(sie_env,f_caller);
+	}
+}
+
 BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountTransaction result{};
 	auto trans_amount = entry_transaction_amount(aje);
@@ -2430,7 +2449,16 @@ namespace SKV {
 				return result;
 			}
 
-			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta, SIEEnvironment const& sie_env) {
+			BAS::MetaAccountTransactions to_mats(SIEEnvironments const& sie_envs,auto const& matches_mat) {
+				BAS::MetaAccountTransactions result{};
+				auto x = [&matches_mat,&result](BAS::MetaAccountTransaction const& mat){
+					if (matches_mat(mat)) result.push_back(mat);
+				};
+				for_each_meta_account_transaction(sie_envs,x);
+				return result;
+			}
+
+			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta) {
 				std::optional<SKV::XML::XMLMap> result{};
 				try {
 					XMLMap xml_map{};
@@ -2494,44 +2522,44 @@ namespace SKV {
 				};
 			}
 
-			BAS::MetaAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironment const& sie_env,auto is_period_date) {
+			BAS::MetaAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironments const& sie_envs,auto is_period_date) {
 				auto account_nos = to_accounts(box_no);
-				return to_mats(sie_env,[&is_period_date,&account_nos](BAS::MetaAccountTransaction const& mat) {
+				return to_mats(sie_envs,[&is_period_date,&account_nos](BAS::MetaAccountTransaction const& mat) {
 					return (is_period_date(mat.meta.defacto.date) and is_any_of_accounts(mat,account_nos) and is_not_vat_returns_form_transaction(mat));
 				});
 			}
 
-			std::optional<FormBoxMap> to_form_box_map(SIEEnvironment const& sie_env,auto date_predicate) {
+			std::optional<FormBoxMap> to_form_box_map(SIEEnvironments const& sie_envs,auto date_predicate) {
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
 					// Amount		VAT Return Box			XML Tag
 					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5] = to_vat_returns_mats(5,sie_env,date_predicate);
+					box_map[5] = to_vat_returns_mats(5,sie_envs,date_predicate);
 					// box_map[5].push_back(dummy_mat(333200));
 					// 83300		10									"MomsUtgHog"
-					box_map[10] = to_vat_returns_mats(10,sie_env,date_predicate);
+					box_map[10] = to_vat_returns_mats(10,sie_envs,date_predicate);
 					// box_map[10].push_back(dummy_mat(83300));
 					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20] = to_vat_returns_mats(20,sie_env,date_predicate);
+					box_map[20] = to_vat_returns_mats(20,sie_envs,date_predicate);
 					// box_map[20].push_back(dummy_mat(6616));
 					// 1654			30									"MomsInkopUtgHog"
-					box_map[30] = to_vat_returns_mats(30,sie_env,date_predicate);
+					box_map[30] = to_vat_returns_mats(30,sie_envs,date_predicate);
 					// box_map[30].push_back(dummy_mat(1654));
 					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39] = to_vat_returns_mats(39,sie_env,date_predicate);
+					box_map[39] = to_vat_returns_mats(39,sie_envs,date_predicate);
 					// box_map[39].push_back(dummy_mat(957));
 					// 2688			48									"MomsIngAvdr"
-					box_map[48] = to_vat_returns_mats(48,sie_env,date_predicate);
+					box_map[48] = to_vat_returns_mats(48,sie_envs,date_predicate);
 					// box_map[48].push_back(dummy_mat(2688));
 					// 597			50									"MomsUlagImport"
-					box_map[50] = to_vat_returns_mats(50,sie_env,date_predicate);
+					box_map[50] = to_vat_returns_mats(50,sie_envs,date_predicate);
 					// box_map[50].push_back(dummy_mat(597));
 					// 149			60									"MomsImportUtgHog"
-					box_map[60] = to_vat_returns_mats(60,sie_env,date_predicate);
+					box_map[60] = to_vat_returns_mats(60,sie_envs,date_predicate);
 					// box_map[60].push_back(dummy_mat(149));
 
-					// NOTE: Box 49 (vat designation id R1, R2 is a  t a r g e t  account, NOT a source)
+					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
 					std::vector<BoxNo> vat_box_nos{10,11,12,30,31,32,50,61,62,48};
 					auto box_49_amount = std::accumulate(vat_box_nos.begin(),vat_box_nos.end(),Amount{},[&box_map](Amount acc,BoxNo box_no){
 						if (box_map.contains(box_no)) acc += BAS::mats_sum(box_map.at(box_no));
@@ -3635,10 +3663,11 @@ public:
 								SKV::XML::DeclarationMeta form_meta {
 									.declaration_period_id = period_to_declare
 								};
-								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie[year_id],Q3_date_predicate);
+								auto is_quarter = to_is_period("20210701","20210930");
+								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
 								if (box_map) {
 									prompt << *box_map;
-									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta,model->sie["current"]);
+									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
 									if (xml_map) {
 										std::filesystem::path skv_files_folder{"to_skv"};
 										std::filesystem::path skv_file_name{std::string{"moms_"} + period_to_declare + ".eskd"};
