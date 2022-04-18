@@ -2147,7 +2147,7 @@ namespace SKV {
 			// 149			60									"MomsImportUtgHog"
 
 			using BoxNo = unsigned int;
-			using FormBoxMap = std::map<BoxNo,Amount>;
+			using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
 
 			struct OStream {
 				std::ostream& os;
@@ -2283,6 +2283,7 @@ namespace SKV {
 				return result;
 			}
 
+			// Mapping between BAS Account numbers and VAT Returns form designation codes (SRU Codes as "bonus")
 			char const* ACCOUNT_VAT_CSV = R"(KONTO;BENÄMNING;MOMSKOD (MOMSRUTA);SRU
 3305;Försäljning tjänster till land utanför EU;ÖTEU (40);7410
 3521;Fakturerade frakter, EU-land;VTEU (35);7410
@@ -2371,6 +2372,12 @@ namespace SKV {
 				return result;
 			}
 
+			Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
+				return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
+					acc += mat.defacto.amount;
+					return acc;
+				});
+			}
 
 			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta, SIEEnvironment const& sie_env) {
 				std::optional<SKV::XML::XMLMap> result{};
@@ -2396,8 +2403,8 @@ namespace SKV {
 						p += R"(Moms)";
 						//     <Period>202203</Period>
 						xml_map[p+"Period"] = form_meta.declaration_period_id;
-						for (auto const& [box_no,amount] : vat_returns_form_box_map)  {
-							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(amount));
+						for (auto const& [box_no,mats] : vat_returns_form_box_map)  {
+							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(mats_sum(mats)));
 						}
 						//     <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
 						//     <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
@@ -2420,29 +2427,45 @@ namespace SKV {
 				return result;
 			}
 
+			BAS::MetaAccountTransaction dummy_mat(Amount amount) {
+				return {
+					.meta = {
+						.meta = {
+							.series = 'X'
+						}
+						,.defacto = {
+							.caption = "Dummy..."
+						}
+					}
+					,.defacto = {
+						.amount = amount
+					}
+				};
+			}
+
 			std::optional<FormBoxMap> to_form_box_map() {
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
 					// Amount		VAT Return Box			XML Tag
 					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5] = 333200;
+					box_map[5].push_back(dummy_mat(333200));
 					// 83300		10									"MomsUtgHog"
-					box_map[10] = 83300;
+					box_map[10].push_back(dummy_mat(83300));
 					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20] = 6616;
+					box_map[20].push_back(dummy_mat(6616));
 					// 1654			30									"MomsInkopUtgHog"
-					box_map[30] = 1654;
+					box_map[30].push_back(dummy_mat(1654));
 					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39] = 957;
+					box_map[39].push_back(dummy_mat(957));
 					// 2688			48									"MomsIngAvdr"
-					box_map[48] = 2688;
+					box_map[48].push_back(dummy_mat(2688));
 					// 82415		49									"MomsBetala"
-					box_map[49] = 82415;
+					box_map[49].push_back(dummy_mat(82415));
 					// 597			50									"MomsUlagImport"
-					box_map[50] = 597;
+					box_map[50].push_back(dummy_mat(597));
 					// 149			60									"MomsImportUtgHog"
-					box_map[60] = 149;
+					box_map[60].push_back(dummy_mat(149));
 					result = box_map;
 				}
 				catch (std::exception const& e) {
@@ -2603,6 +2626,16 @@ namespace SKV {
 		} // namespace EUSalesList
 	} // namespace CSV {
 } // namespace SKV
+
+std::ostream& operator<<(std::ostream& os,SKV::XML::VATReturns::FormBoxMap const& fbm) {
+	for (auto const& [boxno,mats] : fbm) {
+		os << "\nVAT returns Form[" << boxno << "]";
+		for (auto const& mat : mats) {
+			os << "\n\t" << mat;
+		}
+	}
+	return os;
+}
 
 SKV::CSV::EUSalesList::Quarter to_eu_list_quarter(Date const& date) {
 	return {std::to_string(static_cast<int>(date.year())) + "-" + std::to_string(1 + static_cast<unsigned int>(date.month()) / 4)}; // quarter yy-1..yy-4 
@@ -3536,6 +3569,7 @@ public:
 								};
 								auto box_map = SKV::XML::VATReturns::to_form_box_map();
 								if (box_map) {
+									prompt << *box_map;
 									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta,model->sie["current"]);
 									if (xml_map) {
 										std::filesystem::path skv_files_folder{"to_skv"};
@@ -3543,8 +3577,8 @@ public:
 										std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
 										std::filesystem::create_directories(skv_file_path.parent_path());
 										std::ofstream skv_file{skv_file_path};
-										SKV::XML::VATReturns::OStream os{skv_file};
-										if (os << *xml_map) prompt << "\nCreated " << skv_file_path;
+										SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
+										if (vat_returns_os << *xml_map) prompt << "\nCreated " << skv_file_path;
 										else prompt << "\nSorry, failed to create the file " << skv_file_path;
 									}
 									else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
