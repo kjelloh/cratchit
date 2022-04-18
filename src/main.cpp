@@ -349,6 +349,13 @@ namespace BAS {
 	using OptionalMetaAccountTransaction = std::optional<MetaAccountTransaction>;
 	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
 
+	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
+		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
+			acc += mat.defacto.amount;
+			return acc;
+		});
+	}
+
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
 	OptionalBASAccountNo to_account_no(std::string const& s) {
@@ -2149,6 +2156,18 @@ namespace SKV {
 			using BoxNo = unsigned int;
 			using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
 
+			std::ostream& operator<<(std::ostream& os,SKV::XML::VATReturns::FormBoxMap const& fbm) {
+				for (auto const& [boxno,mats] : fbm) {
+					os << "\nVAT returns Form[" << boxno << "] = " << to_tax(BAS::mats_sum(mats));
+					Amount rolling_amount{};
+					for (auto const& mat : mats) {
+						rolling_amount += mat.defacto.amount;
+						os << "\n\t" << mat << " " << rolling_amount;
+					}
+				}
+				return os;
+			}
+
 			struct OStream {
 				std::ostream& os;
 				operator bool() {return static_cast<bool>(os);}
@@ -2372,11 +2391,30 @@ namespace SKV {
 				return result;
 			}
 
-			Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
-				return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
-					acc += mat.defacto.amount;
+			BASAccountNos to_accounts(BoxNo box_no) {
+				static auto const ps = account_vat_form_mapping();
+				BASAccountNos result{};
+				return std::accumulate(ps.begin(),ps.end(),BASAccountNos{},[&box_no](auto acc,Key::Path const& p){
+					std::ostringstream os{};
+					os << std::setfill('0') << std::setw(2) << box_no;
+					if (p[2].find(os.str()) != std::string::npos) acc.push_back(std::stoi(p[0]));
 					return acc;
 				});
+				return result;
+			}
+
+			BAS::MetaAccountTransactions to_mats(BASAccountNos account_nos,SIEEnvironment const& sie_env) {
+				BAS::MetaAccountTransactions result{};
+				auto x = [&account_nos,&result](BAS::MetaAccountTransaction const& mat){
+					if (std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){return other == mat.defacto.account_no;})) result.push_back(mat);
+				};
+				for_each_meta_account_transaction(sie_env,x);
+				return result;
+			}
+
+			BAS::MetaAccountTransactions to_mats(BoxNo box_no,SIEEnvironment const& sie_env) {
+				auto account_nos = to_accounts(box_no);
+				return to_mats(account_nos,sie_env);
 			}
 
 			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta, SIEEnvironment const& sie_env) {
@@ -2404,7 +2442,7 @@ namespace SKV {
 						//     <Period>202203</Period>
 						xml_map[p+"Period"] = form_meta.declaration_period_id;
 						for (auto const& [box_no,mats] : vat_returns_form_box_map)  {
-							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(mats_sum(mats)));
+							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(BAS::mats_sum(mats)));
 						}
 						//     <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
 						//     <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
@@ -2443,29 +2481,38 @@ namespace SKV {
 				};
 			}
 
-			std::optional<FormBoxMap> to_form_box_map() {
+			std::optional<FormBoxMap> to_form_box_map(SIEEnvironment const& sie_env) {
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
 					// Amount		VAT Return Box			XML Tag
 					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5].push_back(dummy_mat(333200));
+					box_map[5] = to_mats(5,sie_env);
+					// box_map[5].push_back(dummy_mat(333200));
 					// 83300		10									"MomsUtgHog"
-					box_map[10].push_back(dummy_mat(83300));
+					box_map[10] = to_mats(10,sie_env);
+					// box_map[10].push_back(dummy_mat(83300));
 					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20].push_back(dummy_mat(6616));
+					box_map[20] = to_mats(20,sie_env);
+					// box_map[20].push_back(dummy_mat(6616));
 					// 1654			30									"MomsInkopUtgHog"
-					box_map[30].push_back(dummy_mat(1654));
+					box_map[30] = to_mats(30,sie_env);
+					// box_map[30].push_back(dummy_mat(1654));
 					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39].push_back(dummy_mat(957));
+					box_map[39] = to_mats(39,sie_env);
+					// box_map[39].push_back(dummy_mat(957));
 					// 2688			48									"MomsIngAvdr"
-					box_map[48].push_back(dummy_mat(2688));
+					box_map[48] = to_mats(48,sie_env);
+					// box_map[48].push_back(dummy_mat(2688));
 					// 82415		49									"MomsBetala"
-					box_map[49].push_back(dummy_mat(82415));
+					box_map[49] = to_mats(49,sie_env);
+					// box_map[49].push_back(dummy_mat(82415));
 					// 597			50									"MomsUlagImport"
-					box_map[50].push_back(dummy_mat(597));
+					box_map[50] = to_mats(50,sie_env);
+					// box_map[50].push_back(dummy_mat(597));
 					// 149			60									"MomsImportUtgHog"
-					box_map[60].push_back(dummy_mat(149));
+					box_map[60] = to_mats(60,sie_env);
+					// box_map[60].push_back(dummy_mat(149));
 					result = box_map;
 				}
 				catch (std::exception const& e) {
@@ -2627,15 +2674,9 @@ namespace SKV {
 	} // namespace CSV {
 } // namespace SKV
 
-std::ostream& operator<<(std::ostream& os,SKV::XML::VATReturns::FormBoxMap const& fbm) {
-	for (auto const& [boxno,mats] : fbm) {
-		os << "\nVAT returns Form[" << boxno << "]";
-		for (auto const& mat : mats) {
-			os << "\n\t" << mat;
-		}
-	}
-	return os;
-}
+// expose operator<< for type alias FormBoxMap, which being an std::map template is causing compiler to consider all std::operator<< in std and not in the one in SKV::XML::VATReturns
+// See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
+using SKV::XML::VATReturns::operator<<;
 
 SKV::CSV::EUSalesList::Quarter to_eu_list_quarter(Date const& date) {
 	return {std::to_string(static_cast<int>(date.year())) + "-" + std::to_string(1 + static_cast<unsigned int>(date.month()) / 4)}; // quarter yy-1..yy-4 
@@ -3560,6 +3601,7 @@ public:
 							} break;
 							case 3: {
 								// VAT Returns
+								std::string year_id = (ast.size()>1)?ast[1]:"current";
 								std::string period_to_declare{"202203"};
 								SKV::XML::OrganisationMeta org_meta {
 									.org_no = model->sie["current"].organisation_no.CIN
@@ -3567,7 +3609,7 @@ public:
 								SKV::XML::DeclarationMeta form_meta {
 									.declaration_period_id = period_to_declare
 								};
-								auto box_map = SKV::XML::VATReturns::to_form_box_map();
+								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie[year_id]);
 								if (box_map) {
 									prompt << *box_map;
 									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta,model->sie["current"]);
