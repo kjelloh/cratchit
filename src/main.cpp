@@ -250,6 +250,14 @@ using optional_amount = std::optional<Amount>;
 
 using Date = std::chrono::year_month_day;
 
+auto any_date_predicate = [](Date const& date){
+	return true;
+};
+
+auto Q3_date_predicate =  [](Date const& date){
+	return (static_cast<unsigned>(date.month())>=7u and static_cast<unsigned>(date.month())<=9u);
+};
+
 optional_amount to_amount(std::string const& sAmount) {
 	// std::cout << "\nto_amount " << std::quoted(sAmount);
 	optional_amount result{};
@@ -2162,7 +2170,7 @@ namespace SKV {
 					Amount rolling_amount{};
 					for (auto const& mat : mats) {
 						rolling_amount += mat.defacto.amount;
-						os << "\n\t" << mat << " " << rolling_amount;
+						os << "\n\t" << to_string(mat.meta.defacto.date) << " " << mat << " " << rolling_amount;
 					}
 				}
 				return os;
@@ -2403,18 +2411,23 @@ namespace SKV {
 				return result;
 			}
 
-			BAS::MetaAccountTransactions to_mats(BASAccountNos account_nos,SIEEnvironment const& sie_env) {
+			auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BASAccountNos const& account_nos) {
+				return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
+					return other == mat.defacto.account_no;
+				});
+			}
+
+			auto is_not_vat_returns_form_transaction(BAS::MetaAccountTransaction const& mat) {
+				return (mat.meta.meta.series != 'M');
+			}
+
+			BAS::MetaAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
 				BAS::MetaAccountTransactions result{};
-				auto x = [&account_nos,&result](BAS::MetaAccountTransaction const& mat){
-					if (std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){return other == mat.defacto.account_no;})) result.push_back(mat);
+				auto x = [&matches_mat,&result](BAS::MetaAccountTransaction const& mat){
+					if (matches_mat(mat)) result.push_back(mat);
 				};
 				for_each_meta_account_transaction(sie_env,x);
 				return result;
-			}
-
-			BAS::MetaAccountTransactions to_mats(BoxNo box_no,SIEEnvironment const& sie_env) {
-				auto account_nos = to_accounts(box_no);
-				return to_mats(account_nos,sie_env);
 			}
 
 			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta, SIEEnvironment const& sie_env) {
@@ -2481,38 +2494,51 @@ namespace SKV {
 				};
 			}
 
-			std::optional<FormBoxMap> to_form_box_map(SIEEnvironment const& sie_env) {
+			BAS::MetaAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironment const& sie_env,auto is_period_date) {
+				auto account_nos = to_accounts(box_no);
+				return to_mats(sie_env,[&is_period_date,&account_nos](BAS::MetaAccountTransaction const& mat) {
+					return (is_period_date(mat.meta.defacto.date) and is_any_of_accounts(mat,account_nos) and is_not_vat_returns_form_transaction(mat));
+				});
+			}
+
+			std::optional<FormBoxMap> to_form_box_map(SIEEnvironment const& sie_env,auto date_predicate) {
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
 					// Amount		VAT Return Box			XML Tag
 					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5] = to_mats(5,sie_env);
+					box_map[5] = to_vat_returns_mats(5,sie_env,date_predicate);
 					// box_map[5].push_back(dummy_mat(333200));
 					// 83300		10									"MomsUtgHog"
-					box_map[10] = to_mats(10,sie_env);
+					box_map[10] = to_vat_returns_mats(10,sie_env,date_predicate);
 					// box_map[10].push_back(dummy_mat(83300));
 					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20] = to_mats(20,sie_env);
+					box_map[20] = to_vat_returns_mats(20,sie_env,date_predicate);
 					// box_map[20].push_back(dummy_mat(6616));
 					// 1654			30									"MomsInkopUtgHog"
-					box_map[30] = to_mats(30,sie_env);
+					box_map[30] = to_vat_returns_mats(30,sie_env,date_predicate);
 					// box_map[30].push_back(dummy_mat(1654));
 					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39] = to_mats(39,sie_env);
+					box_map[39] = to_vat_returns_mats(39,sie_env,date_predicate);
 					// box_map[39].push_back(dummy_mat(957));
 					// 2688			48									"MomsIngAvdr"
-					box_map[48] = to_mats(48,sie_env);
+					box_map[48] = to_vat_returns_mats(48,sie_env,date_predicate);
 					// box_map[48].push_back(dummy_mat(2688));
-					// 82415		49									"MomsBetala"
-					box_map[49] = to_mats(49,sie_env);
-					// box_map[49].push_back(dummy_mat(82415));
 					// 597			50									"MomsUlagImport"
-					box_map[50] = to_mats(50,sie_env);
+					box_map[50] = to_vat_returns_mats(50,sie_env,date_predicate);
 					// box_map[50].push_back(dummy_mat(597));
 					// 149			60									"MomsImportUtgHog"
-					box_map[60] = to_mats(60,sie_env);
+					box_map[60] = to_vat_returns_mats(60,sie_env,date_predicate);
 					// box_map[60].push_back(dummy_mat(149));
+
+					// NOTE: Box 49 (vat designation id R1, R2 is a  t a r g e t  account, NOT a source)
+					std::vector<BoxNo> vat_box_nos{10,11,12,30,31,32,50,61,62,48};
+					auto box_49_amount = std::accumulate(vat_box_nos.begin(),vat_box_nos.end(),Amount{},[&box_map](Amount acc,BoxNo box_no){
+						if (box_map.contains(box_no)) acc += BAS::mats_sum(box_map.at(box_no));
+						return acc;
+					});
+					box_map[49].push_back(dummy_mat(box_49_amount));
+
 					result = box_map;
 				}
 				catch (std::exception const& e) {
@@ -3609,7 +3635,7 @@ public:
 								SKV::XML::DeclarationMeta form_meta {
 									.declaration_period_id = period_to_declare
 								};
-								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie[year_id]);
+								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie[year_id],Q3_date_predicate);
 								if (box_map) {
 									prompt << *box_map;
 									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta,model->sie["current"]);
