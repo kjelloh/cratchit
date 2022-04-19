@@ -300,10 +300,6 @@ Date to_today() {
 	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
 }
 
-auto any_date_predicate = [](Date const& date){
-	return true;
-};
-
 class DateRange {
 public:
 	DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
@@ -335,6 +331,11 @@ DateRange to_quarter_range(Date const& a_period_date) {
 	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
 	auto end = Date{a_period_date.year()/end_month/std::chrono::last};
 	return {begin,end};
+}
+
+DateRange to_previous_quarter(DateRange const& quarter) {
+	auto const quarter_duration = std::chrono::months{3};
+	return {quarter.begin() - quarter_duration,quarter.end() - quarter_duration};
 }
 
 std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
@@ -2632,41 +2633,41 @@ namespace SKV {
 				};
 			}
 
-			BAS::MetaAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironments const& sie_envs,auto is_period_date) {
+			BAS::MetaAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironments const& sie_envs,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
-				return to_mats(sie_envs,[&is_period_date,&account_nos](BAS::MetaAccountTransaction const& mat) {
-					return (is_period_date(mat.meta.defacto.date) and is_any_of_accounts(mat,account_nos) and is_not_vat_returns_form_transaction(mat));
+				return to_mats(sie_envs,[&mat_predicate,&account_nos](BAS::MetaAccountTransaction const& mat) {
+					return (mat_predicate(mat) and is_any_of_accounts(mat,account_nos) and is_not_vat_returns_form_transaction(mat));
 				});
 			}
 
-			std::optional<FormBoxMap> to_form_box_map(SIEEnvironments const& sie_envs,auto date_predicate) {
+			std::optional<FormBoxMap> to_form_box_map(SIEEnvironments const& sie_envs,auto mat_predicate) {
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
 					// Amount		VAT Return Box			XML Tag
 					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5] = to_vat_returns_mats(5,sie_envs,date_predicate);
+					box_map[5] = to_vat_returns_mats(5,sie_envs,mat_predicate);
 					// box_map[5].push_back(dummy_mat(333200));
 					// 83300		10									"MomsUtgHog"
-					box_map[10] = to_vat_returns_mats(10,sie_envs,date_predicate);
+					box_map[10] = to_vat_returns_mats(10,sie_envs,mat_predicate);
 					// box_map[10].push_back(dummy_mat(83300));
 					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20] = to_vat_returns_mats(20,sie_envs,date_predicate);
+					box_map[20] = to_vat_returns_mats(20,sie_envs,mat_predicate);
 					// box_map[20].push_back(dummy_mat(6616));
 					// 1654			30									"MomsInkopUtgHog"
-					box_map[30] = to_vat_returns_mats(30,sie_envs,date_predicate);
+					box_map[30] = to_vat_returns_mats(30,sie_envs,mat_predicate);
 					// box_map[30].push_back(dummy_mat(1654));
 					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39] = to_vat_returns_mats(39,sie_envs,date_predicate);
+					box_map[39] = to_vat_returns_mats(39,sie_envs,mat_predicate);
 					// box_map[39].push_back(dummy_mat(957));
 					// 2688			48									"MomsIngAvdr"
-					box_map[48] = to_vat_returns_mats(48,sie_envs,date_predicate);
+					box_map[48] = to_vat_returns_mats(48,sie_envs,mat_predicate);
 					// box_map[48].push_back(dummy_mat(2688));
 					// 597			50									"MomsUlagImport"
-					box_map[50] = to_vat_returns_mats(50,sie_envs,date_predicate);
+					box_map[50] = to_vat_returns_mats(50,sie_envs,mat_predicate);
 					// box_map[50].push_back(dummy_mat(597));
 					// 149			60									"MomsImportUtgHog"
-					box_map[60] = to_vat_returns_mats(60,sie_envs,date_predicate);
+					box_map[60] = to_vat_returns_mats(60,sie_envs,mat_predicate);
 					// box_map[60].push_back(dummy_mat(149));
 
 					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
@@ -2685,6 +2686,50 @@ namespace SKV {
 				return result;
 			}
 
+			OptionalHeadingAmountDateTransEntry to_vat_returns_had(SIEEnvironments const& sie_envs) {
+				OptionalHeadingAmountDateTransEntry result{};
+				try {
+					// Create a had for last quarter if there is no journal entry in the M series for it
+					// Otherwise create a had for current quarter
+					auto today = to_today();
+					{
+						// had for previous quarter VAT Returns
+						auto quarter = to_previous_quarter(to_quarter_range(today));
+						auto vat_returns_meta = to_vat_returns_meta(quarter);
+						auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+							return vat_returns_meta->period.contains(mat.meta.defacto.date);
+						};
+						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
+							std::cerr << "\nTODO: In to_vat_returns_had turn created box_map for previous quarter to a had";
+						}
+					}
+					{
+						auto quarter = to_quarter_range(today);
+						auto vat_returns_meta = to_vat_returns_meta(quarter);
+						auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+							return vat_returns_meta->period.contains(mat.meta.defacto.date);
+						};
+						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
+							std::cerr << "\nTODO: In to_vat_returns_had turn created box_map for current quarter to a had";
+						}
+					}
+
+					// if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta()) {
+					// 	SKV::XML::OrganisationMeta org_meta {
+					// 		.org_no = model->sie["current"].organisation_no.CIN
+					// 	};
+					// 	SKV::XML::DeclarationMeta form_meta {
+					// 		.declaration_period_id = vat_returns_meta->period_to_declare
+					// 	};
+					// 	auto is_quarter = to_is_period(vat_returns_meta->period);
+					// 	auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
+					// }
+				}
+				catch (std::exception const& e) {
+					std::cerr << "\nERROR: to_vat_returns_had failed. Excpetion = " << std::quoted(e.what());
+				}
+				return result;
+			}
 
 		} // namespace VATReturns
 	} // namespace XML
@@ -3767,14 +3812,16 @@ public:
 								std::string period_id = (ast.size()>1)?ast[1]:"";
 								if (auto period_range = SKV::XML::VATReturns::to_date_range(period_id)) {
 									prompt << "\nVAT Returns for " << *period_range;
-									if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range);static_cast<bool>(vat_returns_meta)) {
+									if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
 										SKV::XML::OrganisationMeta org_meta {
 											.org_no = model->sie["current"].organisation_no.CIN
 										};
 										SKV::XML::DeclarationMeta form_meta {
 											.declaration_period_id = vat_returns_meta->period_to_declare
 										};
-										auto is_quarter = to_is_period(vat_returns_meta->period);
+										auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+											return vat_returns_meta->period.contains(mat.meta.defacto.date);
+										};
 										auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
 										if (box_map) {
 											prompt << *box_map;
@@ -3830,11 +3877,13 @@ public:
 					// std::cout << model->sie["current"];
 				}
 				else if (ast.size()==2) {
-					if (model->sie.contains(ast[1])) prompt << model->sie[ast[1]];
-					else if (ast[1]=="*") {
+					if (ast[1]=="*") {
 						// List unposted sie entries
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_flagged_unposted{}};
 						prompt << filtered_sie;
+					}
+					else if (model->sie.contains(ast[1])) {
+						prompt << model->sie[ast[1]];
 					}
 					else if (auto sie_file_path = path_to_existing_file(ast[1])) {
 						if (auto sie_env = from_sie_file(*sie_file_path)) {
@@ -3855,6 +3904,8 @@ public:
 					else {
 						// assume user search criteria on transaction heading and comments
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
+						prompt << "\nNot '*', existing year id or existing file: " << std::quoted(ast[1]);
+						prompt << "\nFilter current sie for " << std::quoted(ast[1]); 
 						prompt << filtered_sie;
 					}
 				}
@@ -3883,6 +3934,10 @@ public:
 				}
 			}
 			else if (ast[0] == "-had") {
+				if (auto vat_returns_had = SKV::XML::VATReturns::to_vat_returns_had(model->sie)) {
+						prompt << "\n*NEW* " << *vat_returns_had;
+						model->heading_amount_date_entries.push_back(*vat_returns_had);
+				}
 				if (ast.size()==1) {
 					// Expose current hads (Heading Amount Date transaction entries) to the user
 					std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
