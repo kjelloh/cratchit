@@ -249,7 +249,7 @@ using Amount= float;
 using optional_amount = std::optional<Amount>;
 
 using Date = std::chrono::year_month_day;
-using optional_year_month_day = std::optional<Date>;
+using OptionalDate = std::optional<Date>;
 
 std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
 	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
@@ -264,14 +264,22 @@ std::string to_string(Date const& yyyymmdd) {
 		return os.str();
 }
 
-optional_year_month_day to_date(std::string const& sYYYYMMDD) {
+Date to_date(int year,unsigned month,unsigned day) {
+	return Date {
+		std::chrono::year{year}
+		,std::chrono::month{month}
+		,std::chrono::day{day}
+	};
+}
+
+OptionalDate to_date(std::string const& sYYYYMMDD) {
 	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
-	optional_year_month_day result{};
+	OptionalDate result{};
 	if (sYYYYMMDD.size()==8) {
-		result = Date(
-			std::chrono::year{std::stoi(sYYYYMMDD.substr(0,4))}
-			,std::chrono::month{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))}
-			,std::chrono::day{static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2)))});
+		result = to_date(
+			 std::stoi(sYYYYMMDD.substr(0,4))
+			,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
+			,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
 	}
 	else {
 		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
@@ -283,25 +291,73 @@ optional_year_month_day to_date(std::string const& sYYYYMMDD) {
 	return result;
 }
 
+Date to_today() {
+	// TODO: Upgrade to correct std::chrono way when C++20 compiler support is there
+	// std::cout << "\nto_today";
+	std::ostringstream os{};
+	auto now_timet = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	std::tm* now_local = localtime(&now_timet);
+	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
+}
+
 auto any_date_predicate = [](Date const& date){
 	return true;
 };
 
+class DateRange {
+public:
+	DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
+	DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+		OptionalDate begin{to_date(yyyymmdd_begin)};
+		OptionalDate end{to_date(yyyymmdd_end)};
+		if (begin and end) {
+			m_valid = true;
+			m_begin = *begin;
+			m_end = *end;
+		}
+	}
+	Date begin() const {return m_begin;}
+	Date end() const {return m_end;}
+	bool contains(Date const& date) const { return begin() <= date and date <= end();}
+	operator bool() const {return m_valid;}
+private:
+	bool m_valid{};
+	Date m_begin{};
+	Date m_end{};
+};
+using OptionalDateRange = std::optional<DateRange>;
+
+DateRange to_quarter_range(Date const& a_period_date) {
+	std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
+	unsigned begin_month_no = ((static_cast<unsigned>(a_period_date.month())-1) / 3u) * 3u + 1u; // ((0..3)*3 + 1 = 1,4,7,10
+	auto begin_month = std::chrono::month{begin_month_no}; 
+	auto end_month = std::chrono::month{begin_month_no + 2u};
+	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
+	auto end = Date{a_period_date.year()/end_month/std::chrono::last};
+	return {begin,end};
+}
+
+std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
+	os << dr.begin() << "..." << dr.end();
+	return os;
+}
+
 struct IsPeriod {
-	Date begin{};
-	Date end{};
+	DateRange period;
 	bool operator()(Date const& date) const {
-		return (begin <= date and date <= end);
+		return period.contains(date);
 	}
 };
 
+IsPeriod to_is_period(DateRange const& period) {
+	return {period};
+}
+
 std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
 	std::optional<IsPeriod> result{};
-	auto begin = to_date(yyyymmdd_begin);
-	auto end = to_date(yyyymmdd_end);
-	if (begin and end) result = IsPeriod{.begin = *begin, .end = *end};
+	if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
 	else {
-		std::cerr << "\nERROR, to_is_period failed. Invalid begin=" << std::quoted(yyyymmdd_begin) << " and/or end=" << std::quoted(yyyymmdd_begin);
+		std::cerr << "\nERROR, to_is_period failed. Invalid period " << std::quoted(yyyymmdd_begin) << " ... " << std::quoted(yyyymmdd_begin);
 	}
 	return result;
 }
@@ -2185,6 +2241,58 @@ namespace SKV {
 			using BoxNo = unsigned int;
 			using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
 
+			// Meta-data required to frame a VAT Returns form to SKV
+			struct VatReturnsMeta {
+				DateRange period;
+				std::string period_to_declare; // VAT Returns period e.g., 202203 for Mars 2022 (also implying Q1 jan-mars)
+			};
+			using OptionalVatReturnsMeta = std::optional<VatReturnsMeta>;
+
+			OptionalDateRange to_date_range(std::string const& period_id) {
+				OptionalDateRange result{};
+				try {
+					auto today = to_today();
+					const std::regex is_year_quarter("^\\s*\\d\\d-Q[1-4]\\s*$"); // YY-Q1..YY-Q4
+					const std::regex is_anonymous_quarter("Q[1-4]"); // Q1..Q4
+					if (period_id.size()==0) {
+						// default to current quarter
+						result = to_quarter_range(today);
+					}
+					else if (std::regex_match(period_id,is_year_quarter)) {
+						// Create quarter range of given year YY-Qx
+						auto current_century = static_cast<int>(today.year()) / 100;
+						std::chrono::year year{current_century*100 + std::stoi(period_id.substr(0,2))};
+						std::chrono::month end_month{3u * static_cast<unsigned>(period_id[4] - '0')};
+						result = to_quarter_range(year/end_month/std::chrono::last);
+					}
+					else if (std::regex_match(period_id,is_anonymous_quarter)) {
+						// Create quarter range of current year Qx
+						std::chrono::month end_month{3u * static_cast<unsigned>(period_id[1]-'0')};
+						result = to_quarter_range(today.year()/end_month/std::chrono::last);
+					}
+					else throw std::runtime_error(std::string{"Can't interpret period_id=\""} + period_id + "\"");
+				}
+				catch (std::exception const& e) {
+					std::cerr << "\nERROR, to_date_range failed. Exception = " << std::quoted(e.what());
+				}
+				return result;
+			}
+
+			OptionalVatReturnsMeta to_vat_returns_meta(DateRange const& period) {
+				OptionalVatReturnsMeta result{};
+				try {
+					std::string period_to_declare = to_string(period.end()); // YYYYMMDD
+					result = {
+						.period = period
+						,.period_to_declare = period_to_declare.substr(6) // only YYYYMM
+					};
+				}
+				catch (std::exception const& e) {
+					std::cerr << "ERROR, to_vat_returns_meta failed. Excpetion=" << std::quoted(e.what());
+				}
+				return result;
+			}
+
 			std::ostream& operator<<(std::ostream& os,SKV::XML::VATReturns::FormBoxMap const& fbm) {
 				for (auto const& [boxno,mats] : fbm) {
 					os << "\nVAT returns Form[" << boxno << "] = " << to_tax(BAS::mats_sum(mats));
@@ -2971,7 +3079,6 @@ to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:A
 to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:RedovisningsPeriod faltkod="006" = "202101"
 to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:SummaArbAvgSlf faltkod="487" = "0"
 to_skv_xml_map: Skatteverket.agd:Kontaktperson.agd:Blankettinnehall.agd:HU.agd:SummaSkatteavdr faltkod="497" = "0"
-
 */
 
 // "2021-01-30T07:42:25"
@@ -3657,32 +3764,42 @@ public:
 							} break;
 							case 3: {
 								// VAT Returns
-								std::string year_id = (ast.size()>1)?ast[1]:"current";
-								std::string period_to_declare{"202203"};
-								SKV::XML::OrganisationMeta org_meta {
-									.org_no = model->sie["current"].organisation_no.CIN
-								};
-								SKV::XML::DeclarationMeta form_meta {
-									.declaration_period_id = period_to_declare
-								};
-								auto is_quarter = to_is_period("20210701","20210930");
-								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,*is_quarter);
-								if (box_map) {
-									prompt << *box_map;
-									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
-									if (xml_map) {
-										std::filesystem::path skv_files_folder{"to_skv"};
-										std::filesystem::path skv_file_name{std::string{"moms_"} + period_to_declare + ".eskd"};
-										std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
-										std::filesystem::create_directories(skv_file_path.parent_path());
-										std::ofstream skv_file{skv_file_path};
-										SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
-										if (vat_returns_os << *xml_map) prompt << "\nCreated " << skv_file_path;
-										else prompt << "\nSorry, failed to create the file " << skv_file_path;
+								std::string period_id = (ast.size()>1)?ast[1]:"";
+								if (auto period_range = SKV::XML::VATReturns::to_date_range(period_id)) {
+									prompt << "\nVAT Returns for " << *period_range;
+									if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range);static_cast<bool>(vat_returns_meta)) {
+										SKV::XML::OrganisationMeta org_meta {
+											.org_no = model->sie["current"].organisation_no.CIN
+										};
+										SKV::XML::DeclarationMeta form_meta {
+											.declaration_period_id = vat_returns_meta->period_to_declare
+										};
+										auto is_quarter = to_is_period(vat_returns_meta->period);
+										auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
+										if (box_map) {
+											prompt << *box_map;
+											auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
+											if (xml_map) {
+												std::filesystem::path skv_files_folder{"to_skv"};
+												std::filesystem::path skv_file_name{std::string{"moms_"} + vat_returns_meta->period_to_declare + ".eskd"};
+												std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+												std::filesystem::create_directories(skv_file_path.parent_path());
+												std::ofstream skv_file{skv_file_path};
+												SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
+												if (vat_returns_os << *xml_map) prompt << "\nCreated " << skv_file_path;
+												else prompt << "\nSorry, failed to create the file " << skv_file_path;
+											}
+											else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
+										}
+										else prompt << "\nSorry, failed to gather form data required for the VAR Returns form";
 									}
-									else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
+									else {
+										prompt << "\nSorry, Failed to failed to gather requiored data for period " << period_range;
+									}
 								}
-								else prompt << "\nSorry, failed to gather form data required for the VAR Returns form";
+								else {
+									prompt << "\nSorry, failed to understand how to interpret period " << std::quoted(period_id);
+								}
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
@@ -4205,7 +4322,7 @@ private:
 			os << entry.first << "=" << entry.second.string();
 			return os.str();
 		});
-		sev += std::string{";"} + "path" + "=" + model->sie_file_path["current"].string();
+		// sev += std::string{";"} + "path" + "=" + model->sie_file_path["current"].string();
 		result.insert({"sie_file",to_environment_value(sev)});
 		return result;
 	}
