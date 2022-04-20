@@ -4399,6 +4399,22 @@ public:
 	}
 private:
 	std::filesystem::path cratchit_file_path{};
+	std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
+		std::vector<SKV::ContactPersonMeta> result{};
+		// Instantiate default values if required
+		result.push_back({
+				.name = "Ville Vessla"
+				,.phone = "555-244454"
+				,.e_mail = "ville.vessla@foretaget.se"
+			});
+		return result;
+	}
+	std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
+		std::vector<std::string> result{};
+		result.push_back({"198202252386"});
+		return result;
+	}
+	
 	HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
 		HeadingAmountDateTransEntries result{};
 		auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
@@ -4425,17 +4441,8 @@ private:
 			model->sie["current"].stage(*sse);
 		}
 		model->heading_amount_date_entries = this->hads_from_environment(environment);
-		// Instantiate defauilt values if required
-		if (model->organisation_contacts.size()==0) {
-			model->organisation_contacts.push_back({
-				.name = "Ville Vessla"
-				,.phone = "555-244454"
-				,.e_mail = "ville.vessla@foretaget.se"
-			});
-		}
-		if (model->employee_birth_ids.size() == 0) {
-			model->employee_birth_ids.push_back({"198202252386"});
-		}
+		model->organisation_contacts = this->contacts_from_environment(environment);
+		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
 		return model;
 	}
 	Environment environment_from_model(Model const& model) {
