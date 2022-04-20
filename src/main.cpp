@@ -252,7 +252,7 @@ using Date = std::chrono::year_month_day;
 using OptionalDate = std::optional<Date>;
 
 std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
-	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support)
+	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support?)
 	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
 	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
 	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
@@ -2285,7 +2285,7 @@ namespace SKV {
 					std::string period_to_declare = to_string(period.end()); // YYYYMMDD
 					result = {
 						.period = period
-						,.period_to_declare = period_to_declare.substr(6) // only YYYYMM
+						,.period_to_declare = period_to_declare.substr(0,6) // only YYYYMM
 					};
 				}
 				catch (std::exception const& e) {
@@ -2294,9 +2294,18 @@ namespace SKV {
 				return result;
 			}
 
+			Amount to_form_sign(BoxNo box_no, Amount amount) {
+				// All VAT Returns form amounts are without sign except box 49 where + means VAT to pay and - means VAT to "get back"
+				switch (box_no) {
+					case 49: return -1 * amount; break; // The VAT Returns form must encode VAT to be paied as positive (opposite of how it is booked in BAS, negative meaning a debt to SKV)
+					default: return std::abs(amount);
+				}
+			}
+
 			std::ostream& operator<<(std::ostream& os,SKV::XML::VATReturns::FormBoxMap const& fbm) {
 				for (auto const& [boxno,mats] : fbm) {
-					os << "\nVAT returns Form[" << boxno << "] = " << to_tax(BAS::mats_sum(mats));
+					auto mat_sum = BAS::mats_sum(mats);
+					os << "\nVAT returns Form[" << boxno << "] = " << to_tax(to_form_sign(boxno,mat_sum)) << " (from sum " <<  mat_sum << ")";
 					Amount rolling_amount{};
 					for (auto const& mat : mats) {
 						rolling_amount += mat.defacto.amount;
@@ -2594,7 +2603,7 @@ namespace SKV {
 						//     <Period>202203</Period>
 						xml_map[p+"Period"] = form_meta.declaration_period_id;
 						for (auto const& [box_no,mats] : vat_returns_form_box_map)  {
-							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(BAS::mats_sum(mats)));
+							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(to_form_sign(box_no,BAS::mats_sum(mats))));
 						}
 						//     <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
 						//     <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
@@ -3833,7 +3842,11 @@ public:
 												std::filesystem::create_directories(skv_file_path.parent_path());
 												std::ofstream skv_file{skv_file_path};
 												SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
-												if (vat_returns_os << *xml_map) prompt << "\nCreated " << skv_file_path;
+												if (vat_returns_os << *xml_map) {
+													prompt << "\nCreated " << skv_file_path;
+													SKV::XML::VATReturns::OStream vat_returns_prompt{prompt};
+													vat_returns_prompt << "\n" << *xml_map;
+												}
 												else prompt << "\nSorry, failed to create the file " << skv_file_path;
 											}
 											else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
