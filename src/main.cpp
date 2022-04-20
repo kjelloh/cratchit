@@ -2187,7 +2187,7 @@ namespace SKV {
 			return edos;
 		}
 
-		bool to_employer_contributions_and_PAYE_tax_return_file(std::ostream& os,XMLMap const& xml_map) {
+		bool to_employee_contributions_and_PAYE_tax_return_file(std::ostream& os,XMLMap const& xml_map) {
 			try {
 				EmployerDeclarationOStream edos{os};
 				edos << xml_map;
@@ -3395,6 +3395,42 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	return result;
 }
 
+EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
+	EnvironmentValue ev{};
+	ev["name"] = cpm.name;
+	ev["phone"] = cpm.phone;
+	ev["e-mail"] = cpm.e_mail;
+	return ev;
+}
+
+SKV::OptionalContactPersonMeta to_contact(EnvironmentValue const& ev) {
+	SKV::OptionalContactPersonMeta result;
+	SKV::ContactPersonMeta cpm{};
+	while (true) {
+		if (auto iter = ev.find("name");iter != ev.end()) cpm.name = iter->second;
+		else break;
+		if (auto iter = ev.find("phone");iter != ev.end()) cpm.phone = iter->second;
+		else break;
+		if (auto iter = ev.find("e-mail");iter != ev.end()) cpm.e_mail = iter->second;
+		else break;
+		result = cpm;
+		break;
+	}
+	return result;
+}
+
+std::optional<std::string> to_employee(EnvironmentValue const& ev) {
+	std::optional<std::string> result{};
+	std::string birth_id{};
+	while (true) {
+		if (auto iter = ev.find("birth-id");iter != ev.end()) birth_id = iter->second;
+		else break;
+		result = birth_id;
+		break;
+	}
+	return result;
+}
+
 enum class PromptState {
 	Undefined
 	,Root
@@ -4101,7 +4137,7 @@ public:
 						std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
 						std::filesystem::create_directories(skv_file_path.parent_path());
 						std::ofstream skv_file{skv_file_path};
-						if (SKV::XML::to_employer_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
+						if (SKV::XML::to_employee_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
 							prompt << "\nCreated " << skv_file_path;
 						}
 						else {
@@ -4401,17 +4437,34 @@ private:
 	std::filesystem::path cratchit_file_path{};
 	std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
 		std::vector<SKV::ContactPersonMeta> result{};
-		// Instantiate default values if required
-		result.push_back({
-				.name = "Ville Vessla"
-				,.phone = "555-244454"
-				,.e_mail = "ville.vessla@foretaget.se"
+		auto [begin,end] = environment.equal_range("contact");
+		if (begin == end) {
+			// Instantiate default values if required
+			result.push_back({
+					.name = "Ville Vessla"
+					,.phone = "555-244454"
+					,.e_mail = "ville.vessla@foretaget.se"
+				});
+		}
+		else {
+			std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+				return *to_contact(entry.second); // Assume success
 			});
+		}
 		return result;
 	}
 	std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
 		std::vector<std::string> result{};
-		result.push_back({"198202252386"});
+		auto [begin,end] = environment.equal_range("employee");
+		if (begin == end) {
+			// Instantiate default values if required
+			result.push_back({"198202252386"});
+		}
+		else {
+			std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+				return *to_employee(entry.second); // Assume success
+			});
+		}
 		return result;
 	}
 	
@@ -4458,6 +4511,12 @@ private:
 		});
 		// sev += std::string{";"} + "path" + "=" + model->sie_file_path["current"].string();
 		result.insert({"sie_file",to_environment_value(sev)});
+		for (auto const& entry : model->organisation_contacts) {
+			result.insert({"contact",to_environment_value(entry)});
+		}
+		for (auto const& entry : model->employee_birth_ids) {
+			result.insert({"employee",to_environment_value(std::string{"birth-id="} + entry)});
+		}
 		return result;
 	}
 	Environment add_cratchit_environment(Environment const& environment) {
