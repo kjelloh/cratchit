@@ -2019,16 +2019,16 @@ namespace SKV {
 		using XMLMap = std::map<std::string,std::string>;
 		extern SKV::XML::XMLMap skv_xml_template; // See bottom of this file
 
-		std::string to_orgno(std::string generic_org_no) {
+		std::string to_12_digit_orgno(std::string generic_org_no) {
 			std::string result{};
-			// The SKV IT-system requires 12 digit organisation numbers with digits only
+			// The SKV XML IT-system requires 12 digit organisation numbers with digits only
 			// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into 16XXXXXXYYYY
 			// See https://sv.wikipedia.org/wiki/Organisationsnummer
 			std::string sdigits = filtered(generic_org_no,::isdigit);
 			switch (sdigits.size()) {
 				case 10: result = std::string{"16"} + sdigits; break;
 				case 12: result = sdigits; break;
-				default: throw std::runtime_error(std::string{"ERROR: to_orgno failed, invalid input generic_org_no:"} + "\"" + generic_org_no + "\""); break;
+				default: throw std::runtime_error(std::string{"ERROR: to_12_digit_orgno failed, invalid input generic_org_no:"} + "\"" + generic_org_no + "\""); break;
 			}
 			return result;
 		}
@@ -2454,14 +2454,16 @@ namespace SKV {
 				return result;
 			}
 
-			std::string to_orgno_with_hyphen(std::string generic_org_no) {
+			std::string to_11_digit_orgno(std::string generic_org_no) {
 				std::string result{generic_org_no};
 				switch (result.size()) {
 					case 10: result = result.substr(0,7) + "-" + result.substr(7,4);
 						break;
-					case 11: if (result[6] != '-') throw std::runtime_error(std::string{"ERROR: to_orgno_with_hyphen failed, can't process org_no="} + generic_org_no);
+					case 11: if (result[6] != '-') throw std::runtime_error(std::string{"ERROR: to_11_digit_orgno failed, can't process org_no="} + generic_org_no);
 						break;
-					default: throw std::runtime_error(std::string{"ERROR: to_orgno_with_hyphen failed, wrong length org_no="} + generic_org_no);
+					case 12: result = to_11_digit_orgno(result.substr(2)); // recurce with assumed prefix "16" removed
+						break;							
+					default: throw std::runtime_error(std::string{"ERROR: to_11_digit_orgno failed, wrong length org_no="} + generic_org_no);
 						break;
 				}
 				return result;
@@ -2615,7 +2617,7 @@ namespace SKV {
 						// <eSKDUpload Version="6.0">
 						p += R"(eSKDUpload Version="6.0")";
 						//   <OrgNr>556782-8172</OrgNr>
-						xml_map[p+"OrgNr"] = to_orgno_with_hyphen(org_meta.org_no);
+						xml_map[p+"OrgNr"] = to_11_digit_orgno(org_meta.org_no);
 						//   <Moms>
 						p += R"(Moms)";
 						//     <Period>202203</Period>
@@ -2769,7 +2771,32 @@ namespace SKV {
 		// Example: "SKV574008;""
 		namespace EUSalesList {
 
-			using Amount = int;
+			using FormAmount = unsigned int; // All EU Sales List amounts are positive (as opposed to BAS account sales that are credit = negative)
+
+			// Correct sign and rounding
+			Amount to_eu_sales_list_amount(Amount amount) {
+				return std::abs(std::round(amount)); // All amounts in the sales list form are defined to be positve (although sales in BAS are negative credits)
+			}
+
+			// Correct amount type for the form
+			FormAmount to_form_amount(Amount amount) {
+				return to_eu_sales_list_amount(amount);
+			}
+
+			std::string to_10_digit_orgno(std::string generic_org_no) {
+				std::string result{};
+				// The SKV CSV IT-system requires 10 digit organisation numbers with digits only
+				// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into XXXXXXYYYY
+				// See https://sv.wikipedia.org/wiki/Organisationsnummer
+				std::string sdigits = filtered(generic_org_no,::isdigit);
+				switch (sdigits.size()) {
+					case 10: result = sdigits; break;
+					case 12: result = sdigits.substr(2); // Assume the two first are the prefix "16"
+					default: throw std::runtime_error(std::string{"ERROR: to_10_digit_orgno failed, invalid input generic_org_no:"} + "\"" + generic_org_no + "\""); break;
+				}
+				return result;
+			}
+
 
 			struct SwedishVATRegistrationID {std::string twenty_digits{};};
 			struct EUVATRegistrationID {
@@ -2830,9 +2857,9 @@ namespace SKV {
 			*/
 			struct RowN {
 				EUVATRegistrationID vat_registration_id{};
-				std::optional<Amount> goods_amount{};
-				std::optional<Amount> three_part_business_amount{};
-				std::optional<Amount> services_amount{};
+				std::optional<FormAmount> goods_amount{};
+				std::optional<FormAmount> three_part_business_amount{};
+				std::optional<FormAmount> services_amount{};
 			};
 
 			struct Form {
@@ -2888,7 +2915,7 @@ namespace SKV {
 				return os;
 			}
 
-			OStream& operator<<(OStream& os,std::optional<Amount> const& ot) {
+			OStream& operator<<(OStream& os,std::optional<FormAmount> const& ot) {
 				os << ';';
 				if (ot) os << std::to_string(*ot); // to_string to solve ambugiouty (TODO: Try to get rid of ambugiouty? and use os << *ot ?)
 				return os;
@@ -2896,10 +2923,6 @@ namespace SKV {
 
 			// Example: FI01409351;16400;;;
 			OStream& operator<<(OStream& os,RowN const& row) {
-				// EUVATRegistrationID vat_registration_id{};
-				// std::optional<Amount> goods_amount{};
-				// std::optional<Amount> three_part_business_amount{};
-				// std::optional<Amount> services_amount{};
 				os << row.vat_registration_id.with_country_code;
 				os << row.goods_amount;
 				os << row.three_part_business_amount;
@@ -2919,35 +2942,29 @@ namespace SKV {
 			Quarter to_eu_list_quarter(Date const& date) {
 				auto quarter = to_quarter(date);
 				std::ostringstream os{};
-				os << (static_cast<int>(date.year()) / 100u) << "-" << quarter.ix;
+				os << (static_cast<int>(date.year()) % 100u) << "-" << quarter.ix;
 				return {os.str()};
 			}
 
 			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MetaAccountTransaction const& mat) {
 				std::ostringstream os{};
 				if (!mat.defacto.transtext) {
-						os << "* transtext for " << mat << " does not define the EU VAT ID for this transaction *";						
+						os << "* transtext " << std::quoted("") << " for " << mat << " does not define the EU VAT ID for this transaction *";						
 				}
 				else {
 					// See https://en.wikipedia.org/wiki/VAT_identification_number#European_Union_VAT_identification_numbers
-					const std::regex eu_vat_id("^[A-Z]{2}"); // Must begin with two uppercase charachters for the county code
+					const std::regex eu_vat_id("^[A-Z]{2}\\w*"); // Must begin with two uppercase charachters for the country code
 					if (std::regex_match(*mat.defacto.transtext,eu_vat_id)) {
 						os << *mat.defacto.transtext;
 					}
 					else {
-						os << "* transtext for " << mat << " does not define the EU VAT ID for this transaction *";						
+						os << "* transtext " << std::quoted(*mat.defacto.transtext) << " for " << mat << " does not define the EU VAT ID for this transaction *";						
 					}
 				}
 				return {os.str()};
 			}
 
 			std::vector<RowN> sie_to_eu_sales_list_rows(SKV::XML::VATReturns::FormBoxMap const& box_map) {
-				// struct RowN {
-				// 	EUVATRegistrationID vat_registration_id{};
-				// 	std::optional<Amount> goods_amount{};
-				// 	std::optional<Amount> three_part_business_amount{};
-				// 	std::optional<Amount> services_amount{};
-				// };
 				// Default example data
 				// FI01409351;16400;;;
 				std::vector<RowN> result{};
@@ -2965,7 +2982,7 @@ namespace SKV {
 								auto eu_vat_id = to_eu_vat_id(box_no,mat);
 								if (!vat_id_map.contains(eu_vat_id)) vat_id_map[eu_vat_id].vat_registration_id = eu_vat_id;
 								if (!vat_id_map[eu_vat_id].services_amount) vat_id_map[eu_vat_id].services_amount = 0;
-								*vat_id_map[eu_vat_id].services_amount += mat.defacto.amount;
+								*vat_id_map[eu_vat_id].services_amount += to_form_amount(mat.defacto.amount);
 							};
 							std::for_each(mats.begin(),mats.end(),x);
 						} break;
@@ -2976,9 +2993,11 @@ namespace SKV {
 				});
 				return result;
 			}
-
-			SwedishVATRegistrationID to_org_no(SKV::OrganisationMeta const& org_meta) {
-				return {org_meta.org_no};
+			
+			SwedishVATRegistrationID to_swedish_vat_registration_id(SKV::OrganisationMeta const& org_meta) {
+				std::ostringstream os{};
+				os << "SE" << to_10_digit_orgno(org_meta.org_no) << "01";
+				return {os.str()};
 			}
 
 			std::optional<Form> vat_returns_to_eu_sales_list_form(SKV::XML::VATReturns::FormBoxMap const& box_map,SKV::OrganisationMeta const& org_meta,DateRange const& period) {
@@ -2998,7 +3017,7 @@ namespace SKV {
 					// Default example data
 					// 556000016701;2001;Per Persson;0123-45690; post@filmkopia.se					
 					SecondRow second_row{
-						.vat_registration_id = to_org_no(org_meta)
+						.vat_registration_id = to_swedish_vat_registration_id(org_meta)
 						,.period_id = to_eu_list_quarter(period.end()) // Support for quarter Sales List form so far
 						,.name = {org_meta.contact_persons[0].name}
 						,.phone_number = {org_meta.contact_persons[0].phone}
@@ -3044,7 +3063,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//     <agd:Programnamn>Programmakarna AB</agd:Programnamn>
 		xml_map[p + "agd:Programnamn"] = "https://github.com/kjelloh/cratchit";
 		//     <agd:Organisationsnummer>190002039006</agd:Organisationsnummer>
-		xml_map[p + "agd:Organisationsnummer"] = SKV::XML::to_orgno(sender_meta.org_no);
+		xml_map[p + "agd:Organisationsnummer"] = SKV::XML::to_12_digit_orgno(sender_meta.org_no);
 		//     <agd:TekniskKontaktperson>
 		p += "agd:TekniskKontaktperson";
 		//       <agd:Namn>Valle Vadman</agd:Namn>
@@ -3066,7 +3085,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		p += "agd:Arbetsgivare";
 		// employer_meta -> Skatteverket.agd:Blankettgemensamt.agd:Arbetsgivare.*
 		//       <agd:AgRegistreradId>165560269986</agd:AgRegistreradId>
-		xml_map[p + "agd:AgRegistreradId"] = SKV::XML::to_orgno(employer_meta.org_no);
+		xml_map[p + "agd:AgRegistreradId"] = SKV::XML::to_12_digit_orgno(employer_meta.org_no);
 		//       <agd:Kontaktperson>
 		p += "agd:Kontaktperson";
 		//         <agd:Namn>Ville Vessla</agd:Namn>
@@ -3087,7 +3106,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//     <agd:Arendeinformation>
 		p += "agd:Arendeinformation";
 		//       <agd:Arendeagare>165560269986</agd:Arendeagare>
-		xml_map[p + "agd:Arendeagare"] = SKV::XML::to_orgno(employer_meta.org_no);
+		xml_map[p + "agd:Arendeagare"] = SKV::XML::to_12_digit_orgno(employer_meta.org_no);
 		//       <agd:Period>202101</agd:Period>
 		xml_map[p + "agd:Period"] = declaration_meta.declaration_period_id;
 		--p;
@@ -3100,8 +3119,8 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//         <agd:ArbetsgivareHUGROUP>
 		p += "agd:ArbetsgivareHUGROUP";
 		//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
-		std::cout << "\nxml_map[" << p + R"(agd:AgRegistreradId faltkod="201")" << "] = " << SKV::XML::to_orgno(employer_meta.org_no);
-		xml_map[p + R"(agd:AgRegistreradId faltkod="201")"] = SKV::XML::to_orgno(employer_meta.org_no);
+		std::cout << "\nxml_map[" << p + R"(agd:AgRegistreradId faltkod="201")" << "] = " << SKV::XML::to_12_digit_orgno(employer_meta.org_no);
+		xml_map[p + R"(agd:AgRegistreradId faltkod="201")"] = SKV::XML::to_12_digit_orgno(employer_meta.org_no);
 		--p;
 		//         </agd:ArbetsgivareHUGROUP>
 		//         <agd:RedovisningsPeriod faltkod="006">202101</agd:RedovisningsPeriod>
@@ -3132,7 +3151,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//     <agd:Arendeinformation>
 		p += "agd:Arendeinformation";
 		//       <agd:Arendeagare>165560269986</agd:Arendeagare>
-		xml_map[p + R"(agd:Arendeagare)"] = SKV::XML::to_orgno(employer_meta.org_no);
+		xml_map[p + R"(agd:Arendeagare)"] = SKV::XML::to_12_digit_orgno(employer_meta.org_no);
 		//       <agd:Period>202101</agd:Period>
 		xml_map[p + R"(agd:Period)"] = declaration_meta.declaration_period_id;
 		--p;
@@ -3145,7 +3164,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//         <agd:ArbetsgivareIUGROUP>
 		p += "agd:ArbetsgivareIUGROUP";
 		//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
-		xml_map[p + R"(agd:AgRegistreradId faltkod="201")"] = SKV::XML::to_orgno(employer_meta.org_no);
+		xml_map[p + R"(agd:AgRegistreradId faltkod="201")"] = SKV::XML::to_12_digit_orgno(employer_meta.org_no);
 		--p;
 		//         </agd:ArbetsgivareIUGROUP>
 		//         <agd:BetalningsmottagareIUGROUP>
@@ -3244,7 +3263,7 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 		declaration_meta.creation_date_and_time = to_skv_date_and_time(std::chrono::system_clock::now());
 		declaration_meta.declaration_period_id = "202101";
 		// employer_meta.org_no = "165560269986";
-		employer_meta.org_no = SKV::XML::to_orgno(sie_env.organisation_no.CIN);
+		employer_meta.org_no = SKV::XML::to_12_digit_orgno(sie_env.organisation_no.CIN);
 		// sender_meta.org_no = "190002039006";
 		sender_meta.org_no = employer_meta.org_no;
 		if (organisation_contacts.size()>0) {
@@ -3838,17 +3857,6 @@ public:
 							case 1: {
 								// Assume Employer’s contributions and PAYE tax return form
 
-								// Instantiate defauilt values if required
-								if (model->organisation_contacts.size()==0) {
-									model->organisation_contacts.push_back({
-										.name = "Ville Vessla"
-										,.phone = "555-244454"
-										,.e_mail = "ville.vessla@foretaget.se"
-									});
-								}
-								if (model->employee_birth_ids.size() == 0) {
-									model->employee_birth_ids.push_back({"198202252386"});
-								}
 								// List Tax Return Form skv options (user data edit)
 								// #### 1
 								auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
@@ -3865,6 +3873,7 @@ public:
 										std::cout << "\nvat_returns_meta ";
 										SKV::OrganisationMeta org_meta {
 											.org_no = model->sie["current"].organisation_no.CIN
+											,.contact_persons = model->organisation_contacts
 										};
 										SKV::XML::DeclarationMeta form_meta {
 											.declaration_period_id = vat_returns_meta->period_to_declare
@@ -4416,6 +4425,17 @@ private:
 			model->sie["current"].stage(*sse);
 		}
 		model->heading_amount_date_entries = this->hads_from_environment(environment);
+		// Instantiate defauilt values if required
+		if (model->organisation_contacts.size()==0) {
+			model->organisation_contacts.push_back({
+				.name = "Ville Vessla"
+				,.phone = "555-244454"
+				,.e_mail = "ville.vessla@foretaget.se"
+			});
+		}
+		if (model->employee_birth_ids.size() == 0) {
+			model->employee_birth_ids.push_back({"198202252386"});
+		}
 		return model;
 	}
 	Environment environment_from_model(Model const& model) {
