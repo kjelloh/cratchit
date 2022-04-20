@@ -323,11 +323,28 @@ private:
 };
 using OptionalDateRange = std::optional<DateRange>;
 
+struct Quarter {
+	unsigned ix;
+};
+
+Quarter to_quarter(Date const& a_period_date) {
+	return {((static_cast<unsigned>(a_period_date.month())-1) / 3u)+ 1u}; // ((0..3) + 1
+}
+
+std::chrono::month to_quarter_begin(Quarter const& quarter) {
+	unsigned begin_month_no = (quarter.ix-1u) * 3u + 1u; // [0..3]*3 = [0,3,6,9] + 1 = [1,4,7,10]
+	return std::chrono::month{begin_month_no};
+}
+
+std::chrono::month to_quarter_end(Quarter const& quarter) {
+	return (to_quarter_begin(quarter) + std::chrono::months{2});
+}
+
 DateRange to_quarter_range(Date const& a_period_date) {
 	std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
-	unsigned begin_month_no = ((static_cast<unsigned>(a_period_date.month())-1) / 3u) * 3u + 1u; // ((0..3)*3 + 1 = 1,4,7,10
-	auto begin_month = std::chrono::month{begin_month_no}; 
-	auto end_month = std::chrono::month{begin_month_no + 2u};
+	auto quarter = to_quarter(a_period_date);
+	auto begin_month = to_quarter_begin(quarter);
+	auto end_month = to_quarter_end(quarter);
 	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
 	auto end = Date{a_period_date.year()/end_month/std::chrono::last};
 	return {begin,end};
@@ -1940,19 +1957,50 @@ namespace SKV {
 	int to_tax(Amount amount) {return std::round(amount);}
 	int to_fee(Amount amount) {return std::round(amount);}
 
-	namespace XML {
-		struct ContactPersonMeta {
-			std::string name{};
-			std::string phone{};
-			std::string e_mail{};
-		};
-		using OptionalContactPersonMeta = std::optional<ContactPersonMeta>;
+	OptionalDateRange to_date_range(std::string const& period_id) {
+		OptionalDateRange result{};
+		try {
+			auto today = to_today();
+			const std::regex is_year_quarter("^\\s*\\d\\d-Q[1-4]\\s*$"); // YY-Q1..YY-Q4
+			const std::regex is_anonymous_quarter("Q[1-4]"); // Q1..Q4
+			if (period_id.size()==0) {
+				// default to current quarter
+				result = to_quarter_range(today);
+			}
+			else if (std::regex_match(period_id,is_year_quarter)) {
+				// Create quarter range of given year YY-Qx
+				auto current_century = static_cast<int>(today.year()) / 100;
+				std::chrono::year year{current_century*100 + std::stoi(period_id.substr(0,2))};
+				std::chrono::month end_month{3u * static_cast<unsigned>(period_id[4] - '0')};
+				result = to_quarter_range(year/end_month/std::chrono::last);
+			}
+			else if (std::regex_match(period_id,is_anonymous_quarter)) {
+				// Create quarter range of current year Qx
+				std::chrono::month end_month{3u * static_cast<unsigned>(period_id[1]-'0')};
+				result = to_quarter_range(today.year()/end_month/std::chrono::last);
+			}
+			else throw std::runtime_error(std::string{"Can't interpret period_id=\""} + period_id + "\"");
+		}
+		catch (std::exception const& e) {
+			std::cerr << "\nERROR, to_date_range failed. Exception = " << std::quoted(e.what());
+		}
+		return result;
+	}
 
-		struct OrganisationMeta {
-			std::string org_no{};
-			std::vector<ContactPersonMeta> contact_persons{};
-		};
-		using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
+	struct ContactPersonMeta {
+		std::string name{};
+		std::string phone{};
+		std::string e_mail{};
+	};
+	using OptionalContactPersonMeta = std::optional<ContactPersonMeta>;
+
+	struct OrganisationMeta {
+		std::string org_no{};
+		std::vector<ContactPersonMeta> contact_persons{};
+	};
+	using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
+
+	namespace XML {
 
 		struct DeclarationMeta {
 			std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
@@ -2248,36 +2296,6 @@ namespace SKV {
 				std::string period_to_declare; // VAT Returns period e.g., 202203 for Mars 2022 (also implying Q1 jan-mars)
 			};
 			using OptionalVatReturnsMeta = std::optional<VatReturnsMeta>;
-
-			OptionalDateRange to_date_range(std::string const& period_id) {
-				OptionalDateRange result{};
-				try {
-					auto today = to_today();
-					const std::regex is_year_quarter("^\\s*\\d\\d-Q[1-4]\\s*$"); // YY-Q1..YY-Q4
-					const std::regex is_anonymous_quarter("Q[1-4]"); // Q1..Q4
-					if (period_id.size()==0) {
-						// default to current quarter
-						result = to_quarter_range(today);
-					}
-					else if (std::regex_match(period_id,is_year_quarter)) {
-						// Create quarter range of given year YY-Qx
-						auto current_century = static_cast<int>(today.year()) / 100;
-						std::chrono::year year{current_century*100 + std::stoi(period_id.substr(0,2))};
-						std::chrono::month end_month{3u * static_cast<unsigned>(period_id[4] - '0')};
-						result = to_quarter_range(year/end_month/std::chrono::last);
-					}
-					else if (std::regex_match(period_id,is_anonymous_quarter)) {
-						// Create quarter range of current year Qx
-						std::chrono::month end_month{3u * static_cast<unsigned>(period_id[1]-'0')};
-						result = to_quarter_range(today.year()/end_month/std::chrono::last);
-					}
-					else throw std::runtime_error(std::string{"Can't interpret period_id=\""} + period_id + "\"");
-				}
-				catch (std::exception const& e) {
-					std::cerr << "\nERROR, to_date_range failed. Exception = " << std::quoted(e.what());
-				}
-				return result;
-			}
 
 			OptionalVatReturnsMeta to_vat_returns_meta(DateRange const& period) {
 				OptionalVatReturnsMeta result{};
@@ -2578,7 +2596,7 @@ namespace SKV {
 				return result;
 			}
 
-			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::XML::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta) {
+			std::optional<SKV::XML::XMLMap> to_xml_map(FormBoxMap const& vat_returns_form_box_map,SKV::OrganisationMeta const& org_meta,SKV::XML::DeclarationMeta const& form_meta) {
 				std::optional<SKV::XML::XMLMap> result{};
 				try {
 					XMLMap xml_map{};
@@ -2724,7 +2742,7 @@ namespace SKV {
 					}
 
 					// if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta()) {
-					// 	SKV::XML::OrganisationMeta org_meta {
+					// 	SKV::OrganisationMeta org_meta {
 					// 		.org_no = model->sie["current"].organisation_no.CIN
 					// 	};
 					// 	SKV::XML::DeclarationMeta form_meta {
@@ -2754,12 +2772,23 @@ namespace SKV {
 			using Amount = int;
 
 			struct SwedishVATRegistrationID {std::string twenty_digits{};};
-			struct EUVATRegistrationID {std::string with_country_code{};};
-			struct Year {std::string yyyy;};
+			struct EUVATRegistrationID {
+				std::string with_country_code{};
+				bool operator<(EUVATRegistrationID const& other) const {return with_country_code < other.with_country_code;}
+			};
+
+			struct Month {
+				// Månadskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 
+				std::string yymm;
+			};
+
 			struct Quarter {
+				// Kvartalskoden för det kvartar som uppgifterna gäller, till exempel 20-4 för fjärde kvartalet 2020 eller 21-1 för första kvartalet 2021.
 				std::string yy_hyphen_quarter_seq_no{};
 				bool operator<(Quarter const& other) const {return yy_hyphen_quarter_seq_no < other.yy_hyphen_quarter_seq_no;};
 			};
+			using PeriodID = std::variant<Quarter,Month>;
+
 			struct Contact {std::string name_max_35_characters;};
 			struct Phone {
 				// Swedish telephone numbers are between eight and ten digits long. 
@@ -2770,8 +2799,6 @@ namespace SKV {
 				// and then two to three groups of digits separated by spaces.
 				std::string swedish_format_no_space_max_17_chars{}; // E.g., +CCAA-XXXXXXX where AA is area code without leading zero (070 => 70)
 			}; // Consider https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers#Sweden
-
-			using PeriodID = std::variant<Year,Quarter>;
 
 			struct FirstRow {
 				char const* entry = "SKV574008";
@@ -2832,8 +2859,8 @@ namespace SKV {
 
 			struct PeriodIDStreamer {
 				OStream& os;
-				void operator()(Year const& year) {
-					os << year.yyyy;
+				void operator()(Month const& month) {
+					os << month.yymm;
 				}	
 				void operator()(Quarter const& quarter) {
 					os << quarter.yy_hyphen_quarter_seq_no;
@@ -2888,6 +2915,105 @@ namespace SKV {
 				});
 				return os;
 			}
+
+			Quarter to_eu_list_quarter(Date const& date) {
+				auto quarter = to_quarter(date);
+				std::ostringstream os{};
+				os << (static_cast<int>(date.year()) / 100u) << "-" << quarter.ix;
+				return {os.str()};
+			}
+
+			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MetaAccountTransaction const& mat) {
+				std::ostringstream os{};
+				if (!mat.defacto.transtext) {
+						os << "* transtext for " << mat << " does not define the EU VAT ID for this transaction *";						
+				}
+				else {
+					// See https://en.wikipedia.org/wiki/VAT_identification_number#European_Union_VAT_identification_numbers
+					const std::regex eu_vat_id("^[A-Z]{2}"); // Must begin with two uppercase charachters for the county code
+					if (std::regex_match(*mat.defacto.transtext,eu_vat_id)) {
+						os << *mat.defacto.transtext;
+					}
+					else {
+						os << "* transtext for " << mat << " does not define the EU VAT ID for this transaction *";						
+					}
+				}
+				return {os.str()};
+			}
+
+			std::vector<RowN> sie_to_eu_sales_list_rows(SKV::XML::VATReturns::FormBoxMap const& box_map) {
+				// struct RowN {
+				// 	EUVATRegistrationID vat_registration_id{};
+				// 	std::optional<Amount> goods_amount{};
+				// 	std::optional<Amount> three_part_business_amount{};
+				// 	std::optional<Amount> services_amount{};
+				// };
+				// Default example data
+				// FI01409351;16400;;;
+				std::vector<RowN> result{};
+				// Generate a row for each EU VAT Id
+				std::map<EUVATRegistrationID,RowN> vat_id_map{};
+				for (auto const& [box_no,mats] : box_map) {
+					switch (box_no) {
+						case 35: {
+						} break;
+						case 38: {
+
+						} break;
+						case 39: {
+							auto x = [box_no=box_no,&vat_id_map](BAS::MetaAccountTransaction const& mat){
+								auto eu_vat_id = to_eu_vat_id(box_no,mat);
+								if (!vat_id_map.contains(eu_vat_id)) vat_id_map[eu_vat_id].vat_registration_id = eu_vat_id;
+								if (!vat_id_map[eu_vat_id].services_amount) vat_id_map[eu_vat_id].services_amount = 0;
+								*vat_id_map[eu_vat_id].services_amount += mat.defacto.amount;
+							};
+							std::for_each(mats.begin(),mats.end(),x);
+						} break;
+					}
+				}
+				std::transform(vat_id_map.begin(),vat_id_map.end(),std::back_inserter(result),[](auto const& entry){
+					return entry.second;
+				});
+				return result;
+			}
+
+			SwedishVATRegistrationID to_org_no(SKV::OrganisationMeta const& org_meta) {
+				return {org_meta.org_no};
+			}
+
+			std::optional<Form> vat_returns_to_eu_sales_list_form(SKV::XML::VATReturns::FormBoxMap const& box_map,SKV::OrganisationMeta const& org_meta,DateRange const& period) {
+				std::optional<Form> result{};
+				try {
+					if (org_meta.contact_persons.size()==0) throw std::runtime_error(std::string{"vat_returns_to_eu_sales_list_form failed - zero org_meta.contact_persons"});
+
+					Form form{};
+					// ####
+					// struct SecondRow {
+					// 	SwedishVATRegistrationID vat_registration_id{};
+					// 	PeriodID period_id{};
+					// 	Contact name{};
+					// 	Phone phone_number{};
+					// 	std::optional<std::string> e_mail{};
+					// };
+					// Default example data
+					// 556000016701;2001;Per Persson;0123-45690; post@filmkopia.se					
+					SecondRow second_row{
+						.vat_registration_id = to_org_no(org_meta)
+						,.period_id = to_eu_list_quarter(period.end()) // Support for quarter Sales List form so far
+						,.name = {org_meta.contact_persons[0].name}
+						,.phone_number = {org_meta.contact_persons[0].phone}
+						,.e_mail = {org_meta.contact_persons[0].e_mail}
+					};
+					form.second_row = second_row;
+					auto rows = sie_to_eu_sales_list_rows(box_map);
+					std::copy(rows.begin(),rows.end(),std::back_inserter(form.third_to_n_row));
+					result = form;
+				}
+				catch (std::exception& e) {
+					std::cerr << "\nvat_returns_to_eu_sales_list_form failed. Exception = " << std::quoted(e.what());
+				}
+				return result;
+			}
 		} // namespace EUSalesList
 	} // namespace CSV {
 } // namespace SKV
@@ -2896,46 +3022,7 @@ namespace SKV {
 // See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
 using SKV::XML::VATReturns::operator<<;
 
-SKV::CSV::EUSalesList::Quarter to_eu_list_quarter(Date const& date) {
-	return {std::to_string(static_cast<int>(date.year())) + "-" + std::to_string(1 + static_cast<unsigned int>(date.month()) / 4)}; // quarter yy-1..yy-4 
-}
-
-std::vector<SKV::CSV::EUSalesList::RowN> sie_to_eu_sales_list_rows(SIEEnvironment const& sie_env) {
-	std::vector<SKV::CSV::EUSalesList::RowN> result{};
-	// 1. generate a list of account transactions to account 3308 (hard coded)
-	BAS::MetaAccountTransactions mats{};
-	auto gather_3308_at = [&mats](BAS::MetaAccountTransaction const& mat) {
-		if (mat.defacto.account_no == 3308) {
-			mats.push_back(mat);
-			std::cout << "\nmat:" << mat;
-		}
-	};
-	for_each_meta_account_transaction(sie_env,gather_3308_at);
-	std::map<SKV::CSV::EUSalesList::Quarter,std::map<std::string,std::map<BASAccountNo,Amount>>> eu_list_map{};
-	std::for_each(mats.begin(),mats.end(),[&eu_list_map](BAS::MetaAccountTransaction const& mat){
-		std::string vat_id_text = (mat.defacto.transtext)?*mat.defacto.transtext:"";
-		eu_list_map[to_eu_list_quarter(mat.meta.defacto.date)][vat_id_text][mat.defacto.account_no] += mat.defacto.amount; // Sum amounts per quarter,vat_id and account no
-	});
-	for (auto const& [quarter,mats_map] : eu_list_map) {
-		std::cout << "\nQuarter:" << quarter.yy_hyphen_quarter_seq_no;
-		for (auto const& [vat_id,amount_map] : mats_map) {
-			std::cout << "\n\tEU VAT ID:" << vat_id;  
-			for (auto const& [account_no,amount] : amount_map) {
-				std::cout << "\n\t\tAccount:" << account_no << " amount:" << amount;
-			}
-		}
-	}
-
-	SKV::CSV::EUSalesList::RowN row_n {
-		// .vat_registration_id = {"FI01409351"}
-		.vat_registration_id = {"IE6388047V"} // Google Ireland VAT regno
-		,.goods_amount = 16400
-	};
-	result.push_back(row_n);
-	return result;
-}
-
-std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::XML::OrganisationMeta sender_meta,SKV::XML::DeclarationMeta declaration_meta,SKV::XML::OrganisationMeta employer_meta,SKV::XML::TaxDeclarations tax_declarations) {
+std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta,SKV::XML::DeclarationMeta declaration_meta,SKV::OrganisationMeta employer_meta,SKV::XML::TaxDeclarations tax_declarations) {
 	// std::cout << "\nto_skv_map" << std::flush;
 	std::optional<SKV::XML::XMLMap> result{};
 	SKV::XML::XMLMap xml_map{SKV::XML::skv_xml_template};
@@ -3144,14 +3231,14 @@ std::string to_skv_date_and_time(std::chrono::time_point<std::chrono::system_clo
 	return os.str();
 }
 
-std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::XML::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
+std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
 	std::cout << "\ncratchit_to_skv" << std::flush;
 	std::cout << "\ncratchit_to_skv organisation_no.CIN=" << sie_env.organisation_no.CIN;
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
-		SKV::XML::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
+		SKV::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
 		SKV::XML::DeclarationMeta declaration_meta{};
-		SKV::XML::OrganisationMeta employer_meta{};employer_meta.contact_persons.push_back({});
+		SKV::OrganisationMeta employer_meta{};employer_meta.contact_persons.push_back({});
 		SKV::XML::TaxDeclarations tax_declarations{};tax_declarations.push_back({});
 		// declaration_meta.creation_date_and_time = "2021-01-30T07:42:25";
 		declaration_meta.creation_date_and_time = to_skv_date_and_time(std::chrono::system_clock::now());
@@ -3301,13 +3388,12 @@ enum class PromptState {
 	,SKVTaxReturnEntryIndex
 	,EnterContact
 	,EnterEmployeeID
-	,EUListPeriodEntry
 	,Unknown
 };
 
 class ConcreteModel {
 public:
-	std::vector<SKV::XML::ContactPersonMeta> organisation_contacts{};
+	std::vector<SKV::ContactPersonMeta> organisation_contacts{};
 	std::vector<std::string> employee_birth_ids{};
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
@@ -3361,46 +3447,6 @@ private:
 };
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
-
-std::optional<SKV::CSV::EUSalesList::Form> model_to_eu_list_form(Model const& model,std::string period) {
-	std::optional<SKV::CSV::EUSalesList::Form> result{};
-	SKV::CSV::EUSalesList::Form form{};
-	try {
-		// ####
-		// struct SecondRow {
-		// 	SwedishVATRegistrationID vat_registration_id{};
-		// 	PeriodID period_id{};
-		// 	Contact name{};
-		// 	Phone phone_number{};
-		// 	std::optional<std::string> e_mail{};
-		// };
-		// Default example data
-		// 556000016701;2001;Per Persson;0123-45690; post@filmkopia.se
-		SKV::CSV::EUSalesList::SecondRow second_row{
-			.vat_registration_id = {"556000016701"}
-			,.period_id = SKV::CSV::EUSalesList::Year{period}
-			,.name = {"Per Persson"}
-			,.phone_number = {"0123-45690"}
-			,.e_mail = {"post@filmkopia.se"}
-		};
-		form.second_row = second_row;
-		// struct RowN {
-		// 	EUVATRegistrationID vat_registration_id{};
-		// 	std::optional<Amount> goods_amount{};
-		// 	std::optional<Amount> three_part_business_amount{};
-		// 	std::optional<Amount> services_amount{};
-		// };
-		// Default example data
-		// FI01409351;16400;;;
-		auto rows = sie_to_eu_sales_list_rows(model->sie["current"]);
-		std::copy(rows.begin(),rows.end(),std::back_inserter(form.third_to_n_row));
-		result = form;
-	}
-	catch (std::exception& e) {
-		std::cerr << "\nmodel_to_eu_list_form failed. Exception = " << std::quoted(e.what());
-	}
-	return result;
-}
 
 struct KeyPress {char value;};
 using Command = std::string;
@@ -3621,9 +3667,6 @@ std::string prompt_line(PromptState const& prompt_state) {
 	  case PromptState::EnterEmployeeID: {
 			prompt << ":employee";
 		} break;
-		case PromptState::EUListPeriodEntry: {
-			prompt << ":skv:eu_list:period";
-		} break;
 		default: {
 			prompt << ":??";
 		}
@@ -3664,13 +3707,13 @@ public:
 		return cmd;
 	}
 	Cmd operator()(Command const& command) {
-		// std::cout << "\noperator(Command)";
+		std::cout << "\noperator(Command)";
 		std::ostringstream prompt{};
 		auto ast = quoted_tokens(command);
 		if (ast.size() > 0) {
 			int signed_ix{};
 			std::istringstream is{ast[0]};
-			if (auto signed_ix = to_signed_ix(ast[0]); model->prompt_state != PromptState::Amount and model->prompt_state != PromptState::EUListPeriodEntry and signed_ix) {
+			if (auto signed_ix = to_signed_ix(ast[0]); signed_ix and model->prompt_state != PromptState::Amount) {
 				std::cout << "\nAct on ix = " << *signed_ix;
 				size_t ix = std::abs(*signed_ix);
 				bool do_remove = (*signed_ix<0);
@@ -3812,17 +3855,15 @@ public:
 								prompt << delta_prompt;
 								model->prompt_state = prompt_state;
 							} break;
-							case 2: {
-								// #### 2
-								model->prompt_state = PromptState::EUListPeriodEntry;
-							} break;
 							case 3: {
 								// VAT Returns
 								std::string period_id = (ast.size()>1)?ast[1]:"";
-								if (auto period_range = SKV::XML::VATReturns::to_date_range(period_id)) {
+								if (auto period_range = SKV::to_date_range(period_id)) {
+									std::cout << "\nperiod_range " << *period_range;
 									prompt << "\nVAT Returns for " << *period_range;
 									if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
-										SKV::XML::OrganisationMeta org_meta {
+										std::cout << "\nvat_returns_meta ";
+										SKV::OrganisationMeta org_meta {
 											.org_no = model->sie["current"].organisation_no.CIN
 										};
 										SKV::XML::DeclarationMeta form_meta {
@@ -3850,6 +3891,28 @@ public:
 												else prompt << "\nSorry, failed to create the file " << skv_file_path;
 											}
 											else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
+											// Generate an EU Sales List form for the VAt Returns form
+											if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(*box_map,org_meta,*period_range)) {
+												auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range->end());
+												std::filesystem::path skv_files_folder{"to_skv"};						
+												std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + ".csv"};						
+												std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
+												std::filesystem::create_directories(eu_list_form_file_path.parent_path());
+												std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
+												SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
+												if (os << *eu_list_form) {
+													prompt << "\nCreated file " << eu_list_form_file_path << " OK";
+													SKV::CSV::EUSalesList::OStream eu_sales_list_prompt{prompt};
+													eu_sales_list_prompt << "\n" <<  *eu_list_form;
+
+												}
+												else {
+													prompt << "\nSorry, failed to write " << eu_list_form_file_path;
+												}
+											}
+											else {
+												prompt << "\nSorry, failed to acquire required data for the EU List form file";
+											}
 										}
 										else prompt << "\nSorry, failed to gather form data required for the VAR Returns form";
 									}
@@ -3875,7 +3938,6 @@ public:
 
 					case PromptState::EnterContact:
 					case PromptState::EnterEmployeeID:
-					case PromptState::EUListPeriodEntry:
 					case PromptState::Amount:
 					case PromptState::Undefined:
 					case PromptState::Unknown:
@@ -4013,7 +4075,6 @@ public:
 					// List skv options
 					// ####
 					prompt << "\n1: Arbetsgivardeklaration (TAX Returns)";
-					prompt << "\n2: Periodisk Sammanställning (EU sales list)";
 					prompt << "\n3: Momsrapport (VAT Returns)";
 					model->prompt_state = PromptState::SKVEntryIndex;
 				}
@@ -4178,7 +4239,7 @@ public:
 				}
 				else if (model->prompt_state == PromptState::EnterContact) {
 					if (ast.size() == 3) {
-						SKV::XML::ContactPersonMeta cpm {
+						SKV::ContactPersonMeta cpm {
 							.name = ast[0]
 							,.phone = ast[1]
 							,.e_mail = ast[2]
@@ -4205,28 +4266,6 @@ public:
 						auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
 						prompt << delta_prompt;
 						model->prompt_state = prompt_state;
-					}
-				}
-				else if (model->prompt_state == PromptState::EUListPeriodEntry) {
-					// ####
-					// Assume EU List period input
-					auto period_to_declare = ast[0];
-					if (auto eu_list_form = model_to_eu_list_form(model,period_to_declare)) {
-						std::filesystem::path skv_files_folder{"to_skv"};						
-						std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + period_to_declare + ".csv"};						
-						std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
-						std::filesystem::create_directories(eu_list_form_file_path.parent_path());
-						std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
-						SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
-						if (os << *eu_list_form) {
-							prompt << "\nCreated file " << eu_list_form_file_path << " OK";
-						}
-						else {
-							prompt << "\nSorry, failed to write " << eu_list_form_file_path;
-						}
-					}
-					else {
-						prompt << "\nSorry, failed to acquire required data for the EU List form file";
 					}
 				}
 				else {
