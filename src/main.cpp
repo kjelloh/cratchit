@@ -18,7 +18,7 @@
 #include <chrono>
 #include <numeric>
 #include <functional>
-
+ 
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
 // tasks.json/"tasks"/label:"macOS..."/args: ... "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" 
@@ -588,6 +588,25 @@ namespace BAS {
 	}
 } // namespace BAS
 
+using BASAccountNos = std::vector<BASAccountNo>;
+using Sru2BasMap = std::map<SRU::AccountNo,BASAccountNos>;
+
+Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
+	Sru2BasMap result{};
+	for (auto const& [bas_account_no,am] : metas) {
+		if (am.sru_code) result[*am.sru_code].push_back(bas_account_no);
+	}
+	return result;
+}
+
+BASAccountNos to_vat_accounts(); // Forward (future header)
+
+auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BASAccountNos const& account_nos) {
+	return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
+		return other == mat.defacto.account_no;
+	});
+}
+
 /*
 
 	How can we model bookkeeping of a company?
@@ -641,17 +660,6 @@ std::optional<std::filesystem::path> path_to_existing_file(std::string const& s)
 	std::optional<std::filesystem::path> result{};
 	std::filesystem::path path{s};
 	if (std::filesystem::exists(path)) result = path;
-	return result;
-}
-
-using BASAccountNos = std::vector<BASAccountNo>;
-using Sru2BasMap = std::map<SRU::AccountNo,BASAccountNos>;
-
-Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
-	Sru2BasMap result{};
-	for (auto const& [bas_account_no,am] : metas) {
-		if (am.sru_code) result[*am.sru_code].push_back(bas_account_no);
-	}
 	return result;
 }
 
@@ -1440,7 +1448,7 @@ SIE::Ver to_sie_t(BAS::MetaEntry const& me) {
 	return result;
 }
 
-Amount entry_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
+Amount positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
 	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
 		acc += (account_transaction.amount>0)?account_transaction.amount:0;
 		return acc;
@@ -1448,30 +1456,98 @@ Amount entry_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
 	return result;
 }
 
+BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
+	BAS::anonymous::OptionalAccountTransaction result{};
+	auto trans_amount = positive_gross_transaction_amount(aje);
+	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == trans_amount;
+	});
+	if (iter != aje.account_transactions.end()) result = *iter;
+	return result;
+}
+
+Amount to_account_transactions_sum(BAS::anonymous::AccountTransactions const& ats) {
+	Amount result = std::accumulate(ats.begin(),ats.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& at){
+		acc += at.amount;
+		return acc;
+	});
+	return result;
+}
+
+bool have_opposite_signs(Amount a1,Amount a2) {
+	return ((a1 > 0) and (a2 < 0)) or ((a1 < 0) and (a2 > 0)); // Note: false also for a1==a2==0
+}
+
+BAS::anonymous::AccountTransactions counter_account_transactions(BAS::anonymous::JournalEntry const& aje,BAS::anonymous::AccountTransaction const& gross_at) {
+	BAS::anonymous::AccountTransactions result{};
+	// Gather all ats with opposite sign and that sums upp to gross_at amount
+	std::copy_if(aje.account_transactions.begin(),aje.account_transactions.end(),std::back_inserter(result),[&gross_at](auto const& at){
+		return (have_opposite_signs(at.amount,gross_at.amount));
+	});
+	if (to_account_transactions_sum(result) != -gross_at.amount) result.clear();
+	return result;
+}
+
+BAS::anonymous::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& aje) {
+	BAS::anonymous::OptionalAccountTransaction result{};
+	auto trans_amount = positive_gross_transaction_amount(aje);
+	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == 0.8*trans_amount;
+	});
+	if (iter != aje.account_transactions.end()) result = *iter;
+	return result;
+}
+
+BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& aje) {
+	BAS::anonymous::OptionalAccountTransaction result{};
+	auto trans_amount = positive_gross_transaction_amount(aje);
+	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
+		return std::abs(at.amount) == 0.2*trans_amount;
+	});
+	if (iter != aje.account_transactions.end()) result = *iter;
+	return result;
+}
+
+bool is_vat_account(BASAccountNo account_no) {
+	// auto vat_accounts = to_vat_accounts();
+	// return std::any_of(vat_accounts.begin(),vat_accounts.end(),[&account_no](BASAccountNo other) {return account_no == other;});
+	return true; // test
+}
+
+auto is_vat_account_at = [](BAS::anonymous::AccountTransaction const& at){
+	return is_vat_account(at.account_no);
+};
+
 class PurchaseNoVATTemplate {
-public:
-	PurchaseNoVATTemplate(BAS::anonymous::AccountTransaction const& trans_amount_at) : m_trans_amount_at{trans_amount_at} {}
-	using counter_at = BAS::anonymous::AccountTransaction;
 	// One transaction account  100% amount
 	// n counter accounts			  sums to 100% amount
+public:
+	using counter_at = BAS::anonymous::AccountTransaction;
+	PurchaseNoVATTemplate(HeadingAmountDateTransEntry const& had,BAS::MetaEntry const& me) : m_had{had} {
+		if (this->m_trans_amount_at = gross_account_transaction(me.defacto)) {
+			if (std::none_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),is_vat_account_at))
+			this->m_counter_ats = counter_account_transactions(me.defacto,*this->m_trans_amount_at);
+			m_viable = (this->m_counter_ats.size() > 0);
+		}
+	}
+	operator bool() const {return m_viable;}
 private:
-	friend std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet);
-	BAS::anonymous::AccountTransaction m_trans_amount_at{};
+	bool m_viable{false};
+	HeadingAmountDateTransEntry m_had;
+	BAS::anonymous::OptionalAccountTransaction m_trans_amount_at{};
 	std::vector<counter_at> m_counter_ats{};
+	friend std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet);
 };
 
 std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet) {
-	os << jet.m_trans_amount_at;
+	os << "PurchaseNoVATTemplate: ";
+	if (jet.m_trans_amount_at) os << *jet.m_trans_amount_at;
+	else os << "null";
 	for (auto const& at : jet.m_counter_ats) os << "\n" << at;
 	return os;
 }
 using PurchaseNoVATTemplates = std::vector<PurchaseNoVATTemplate>;
 using OptionalPurchaseNoVATTemplate = std::optional<PurchaseNoVATTemplate>;
-
-OptionalPurchaseNoVATTemplate to_purchase_no_vat_template(BAS::MetaEntry const& me) {
-	OptionalPurchaseNoVATTemplate result{};
-	return result;
-}
 
 class EUPurchase25PercentVATTemplate {
 public:
@@ -1521,7 +1597,7 @@ class JournalEntryTemplate {
 public:
 
 	JournalEntryTemplate(BAS::Series series,BAS::MetaEntry const& me) : m_series{series} {
-		auto gross_amount = entry_transaction_amount(me.defacto);
+		auto gross_amount = positive_gross_transaction_amount(me.defacto);
 		if (gross_amount >= 0.01) {
 			std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& account_transaction){
 				AccountTransactionTemplate result(
@@ -1858,36 +1934,6 @@ void for_each_meta_account_transaction(SIEEnvironments const& sie_envs,auto& f) 
 	}
 }
 
-BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
-	BAS::anonymous::OptionalAccountTransaction result{};
-	auto trans_amount = entry_transaction_amount(aje);
-	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == trans_amount;
-	});
-	if (iter != aje.account_transactions.end()) result = *iter;
-	return result;
-}
-
-BAS::anonymous::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& aje) {
-	BAS::anonymous::OptionalAccountTransaction result{};
-	auto trans_amount = entry_transaction_amount(aje);
-	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == 0.8*trans_amount;
-	});
-	if (iter != aje.account_transactions.end()) result = *iter;
-	return result;
-}
-
-BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& aje) {
-	BAS::anonymous::OptionalAccountTransaction result{};
-	auto trans_amount = entry_transaction_amount(aje);
-	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == 0.2*trans_amount;
-	});
-	if (iter != aje.account_transactions.end()) result = *iter;
-	return result;
-}
-
 struct GrossAccountTransactions {
 	BAS::anonymous::AccountTransactions result;
 	void operator()(BAS::anonymous::JournalEntry const& aje) {
@@ -2006,10 +2052,10 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 
 // Journal Entry Templates
 
-PurchaseNoVATTemplates to_purchase_no_vat_templates(SIEEnvironments const& sie_envs) {
+PurchaseNoVATTemplates to_purchase_no_vat_templates(HeadingAmountDateTransEntry const& had,SIEEnvironments const& sie_envs) {
 	PurchaseNoVATTemplates result{};
-	auto x = [&result](BAS::MetaEntry const& me){
-		if (auto jet = to_purchase_no_vat_template(me)) result.push_back(*jet);
+	auto x = [&had,&result](BAS::MetaEntry const& me){
+		if (auto jet = PurchaseNoVATTemplate{had,me}) result.push_back(jet);
 	};
 	for_each_meta_entry(sie_envs,x);
 	return result;	
@@ -2264,6 +2310,8 @@ namespace SKV {
 		}
 
 		namespace VATReturns {
+
+		extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
 
 			// An example provided by Swedish Tax Agency at https://www.skatteverket.se/download/18.3f4496fd14864cc5ac99cb2/1415022111801/momsexempel_v6.txt
 			auto eskd_template_0 = R"(<?xml version="1.0" encoding="ISO-8859-1"?>
@@ -2534,85 +2582,6 @@ namespace SKV {
 				return result;
 			}
 
-			// Mapping between BAS Account numbers and VAT Returns form designation codes (SRU Codes as "bonus")
-			char const* ACCOUNT_VAT_CSV = R"(KONTO;BENÄMNING;MOMSKOD (MOMSRUTA);SRU
-3305;Försäljning tjänster till land utanför EU;ÖTEU (40);7410
-3521;Fakturerade frakter, EU-land;VTEU (35);7410
-3108;Försäljning varor till annat EU-land, momsfri;VTEU (35);7410
-2634;Utgående moms omvänd skattskyldighet, 6 %;UTFU3 (32);7369
-2624;Utgående moms omvänd skattskyldighet, 12 %;UTFU2 (31);7369
-2614;Utgående moms omvänd skattskyldighet, 25 %;UOS1 (30);7369
-2635;Utgående moms import av varor, 6 %;UI6 (62);7369
-2615;Utgående moms import av varor, 25 %;UI25 (60);7369
-2625;Utgående moms import av varor, 12 %;UI12 (61);7369
-2636;Utgående moms VMB 6 %;U3 (12);7369
-2631;Utgående moms på försäljning inom Sverige, 6 %;U3 (12);7369
-2630;Utgående moms, 6 %;U3 (12);7369
-2633;Utgående moms för uthyrning, 6 %;U3 (12);7369
-2632;Utgående moms på egna uttag, 6 %;U3 (12);7369
-2626;Utgående moms VMB 12 %;U2 (11);7369
-2622;Utgående moms på egna uttag, 12 %;U2 (11);7369
-2621;Utgående moms på försäljning inom Sverige, 12 %;U2 (11);7369
-2620;Utgående moms, 12 %;U2 (11);7369
-2623;Utgående moms för uthyrning, 12 %;U2 (11);7369
-2612;Utgående moms på egna uttag, 25 %;U1 (10);7369
-2610;Utgående moms, 25 %;U1 (10);7369
-2611;Utgående moms på försäljning inom Sverige, 25 %;U1 (10);7369
-2616;Utgående moms VMB 25 %;U1 (10);7369
-2613;Utgående moms för uthyrning, 25 %;U1 (10);7369
-2650;Redovisningskonto för moms;R2 (49);7369
-1650;Momsfordran;R1 (49);7261
-3231;Försäljning inom byggsektorn, omvänd skattskyldighet moms;OTTU (41);7410
-3003;Försäljning inom Sverige, 6 % moms;MP3 (05);7410
-3403;Egna uttag momspliktiga, 6 %;MP3 (05);7410
-3402;Egna uttag momspliktiga, 12 %;MP2 (05);7410
-3002;Försäljning inom Sverige, 12 % moms;MP2 (05);7410
-3401;Egna uttag momspliktiga, 25 %;MP1 (05);7410
-3510;Fakturerat emballage;MP1 (05);7410
-3600;Rörelsens sidointäkter (gruppkonto);MP1 (05);7410
-3530;Fakturerade tull- och speditionskostnader m.m.;MP1 (05);7410
-3520;Fakturerade frakter;MP1 (05);7410
-3001;Försäljning inom Sverige, 25 % moms;MP1 (05);7410
-3540;Faktureringsavgifter;MP1 (05);7410
-3106;Försäljning varor till annat EU-land, momspliktig;MP1 (05);7410
-3990;Övriga ersättningar och intäkter;MF (42);7413
-3404;Egna uttag, momsfria;MF (42);7410
-3004;Försäljning inom Sverige, momsfri;MF (42);7410
-3980;Erhållna offentliga stöd m.m.;MF (42);7413
-4516;Inköp av varor från annat EU-land, 12 %;IVEU (20);7512
-4515;Inköp av varor från annat EU-land, 25 %;IVEU (20);7512
-9021;Varuvärde Inlöp annat EG-land (Momsrapport ruta 20);IVEU (20);
-4517;Inköp av varor från annat EU-land, 6 %;IVEU (20);7512
-4415;Inköpta varor i Sverige, omvänd skattskyldighet, 25 % moms;IV (23);7512
-4531;Inköp av tjänster från ett land utanför EU, 25 % moms;ITGLOB (22);7512
-4532;Inköp av tjänster från ett land utanför EU, 12 % moms;ITGLOB (22);7512
-4533;Inköp av tjänster från ett land utanför EU, 6 % moms;ITGLOB (22);7512
-4537;Inköp av tjänster från annat EU-land, 6 %;ITEU (21);7512
-4536;Inköp av tjänster från annat EU-land, 12 %;ITEU (21);7512
-4535;Inköp av tjänster från annat EU-land, 25 %;ITEU (21);7512
-4427;Inköpta tjänster i Sverige, omvänd skattskyldighet, 6 %;IT (24);7512
-4426;Inköpta tjänster i Sverige, omvänd skattskyldighet, 12 %;IT (24);7512
-2642;Debiterad ingående moms i anslutning till frivillig skattskyldighet;I (48);7369
-2640;Ingående moms;I (48);7369
-2647;Ingående moms omvänd skattskyldighet varor och tjänster i Sverige;I (48);7369
-2641;Debiterad ingående moms;I (48);7369
-2649;Ingående moms, blandad verksamhet;I (48);7369
-2646;Ingående moms på uthyrning;I (48);7369
-2645;Beräknad ingående moms på förvärv från utlandet;I (48);7369
-3913;Frivilligt momspliktiga hyresintäkter;HFS (08);7413
-3541;Faktureringsavgifter, EU-land;FTEU (39);7410
-3308;Försäljning tjänster till annat EU-land;FTEU (39);7410
-3542;Faktureringsavgifter, export;E (36);7410
-3522;Fakturerade frakter, export;E (36);7410
-3105;Försäljning varor till land utanför EU;E (36);7410
-3211;Försäljning positiv VMB 25 %;BVMB (07);7410
-3212;Försäljning negativ VMB 25 %;BVMB (07);7410
-9022;Beskattningsunderlag vid import (Momsrapport Ruta 50);BI (50);
-4545;Import av varor, 25 % moms;BI (50);7512
-4546;Import av varor, 12 % moms;BI (50);7512
-4547;Import av varor, 6 % moms;BI (50);7512
-3740;Öres- och kronutjämning;A;7410)";
-
 			Key::Paths account_vat_form_mapping() {
 				Key::Paths result{};
 				std::istringstream is{ACCOUNT_VAT_CSV};
@@ -2635,11 +2604,16 @@ namespace SKV {
 				return result;
 			}
 
-			auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BASAccountNos const& account_nos) {
-				return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
-					return other == mat.defacto.account_no;
-				});
-			}
+			BASAccountNos to_vat_accounts() {
+				BASAccountNos result{};
+				std::vector<BoxNo> vat_box_no{10,11,12,30,31,32,60,61,62,48,49};
+				for (auto const& box_no : vat_box_no) {
+					auto vat_account_nos = to_accounts(box_no);
+					std::copy(vat_account_nos.begin(),vat_account_nos.end(),std::back_inserter(result));
+				}
+				return result;
+			}			
+
 
 			auto is_not_vat_returns_form_transaction(BAS::MetaAccountTransaction const& mat) {
 				return (mat.meta.meta.series != 'M');
@@ -3101,6 +3075,12 @@ namespace SKV {
 		} // namespace EUSalesList
 	} // namespace CSV {
 } // namespace SKV
+
+BASAccountNos to_vat_accounts() {
+	static auto const vat_accounts = SKV::XML::VATReturns::to_vat_accounts(); // cache
+	// Define in terms of how SKV VAT returns form defines linking to BAS Accounts for correct content
+	return vat_accounts;
+}
 
 // expose operator<< for type alias FormBoxMap, which being an std::map template is causing compiler to consider all std::operator<< in std and not in the one in SKV::XML::VATReturns
 // See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
@@ -3859,7 +3839,7 @@ public:
 								model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
 									return had_matches_trans(had,aje);
 								});
-								model->purchase_no_vat_template_candidates = to_purchase_no_vat_templates(model->sie);
+								model->purchase_no_vat_template_candidates = to_purchase_no_vat_templates(had,model->sie);
 								// List options
 								int i=0; 
 								int offset = model->template_candidates.size();
@@ -4715,6 +4695,91 @@ int main(int argc, char *argv[])
 	std::cout << std::endl;
 	return 0;
 }
+
+namespace SKV { 
+	namespace XML {
+		namespace VATReturns {
+// Mapping between BAS Account numbers and VAT Returns form designation codes (SRU Codes as "bonus")
+char const* ACCOUNT_VAT_CSV = R"(KONTO;BENÄMNING;MOMSKOD (MOMSRUTA);SRU
+3305;Försäljning tjänster till land utanför EU;ÖTEU (40);7410
+3521;Fakturerade frakter, EU-land;VTEU (35);7410
+3108;Försäljning varor till annat EU-land, momsfri;VTEU (35);7410
+2634;Utgående moms omvänd skattskyldighet, 6 %;UTFU3 (32);7369
+2624;Utgående moms omvänd skattskyldighet, 12 %;UTFU2 (31);7369
+2614;Utgående moms omvänd skattskyldighet, 25 %;UOS1 (30);7369
+2635;Utgående moms import av varor, 6 %;UI6 (62);7369
+2615;Utgående moms import av varor, 25 %;UI25 (60);7369
+2625;Utgående moms import av varor, 12 %;UI12 (61);7369
+2636;Utgående moms VMB 6 %;U3 (12);7369
+2631;Utgående moms på försäljning inom Sverige, 6 %;U3 (12);7369
+2630;Utgående moms, 6 %;U3 (12);7369
+2633;Utgående moms för uthyrning, 6 %;U3 (12);7369
+2632;Utgående moms på egna uttag, 6 %;U3 (12);7369
+2626;Utgående moms VMB 12 %;U2 (11);7369
+2622;Utgående moms på egna uttag, 12 %;U2 (11);7369
+2621;Utgående moms på försäljning inom Sverige, 12 %;U2 (11);7369
+2620;Utgående moms, 12 %;U2 (11);7369
+2623;Utgående moms för uthyrning, 12 %;U2 (11);7369
+2612;Utgående moms på egna uttag, 25 %;U1 (10);7369
+2610;Utgående moms, 25 %;U1 (10);7369
+2611;Utgående moms på försäljning inom Sverige, 25 %;U1 (10);7369
+2616;Utgående moms VMB 25 %;U1 (10);7369
+2613;Utgående moms för uthyrning, 25 %;U1 (10);7369
+2650;Redovisningskonto för moms;R2 (49);7369
+1650;Momsfordran;R1 (49);7261
+3231;Försäljning inom byggsektorn, omvänd skattskyldighet moms;OTTU (41);7410
+3003;Försäljning inom Sverige, 6 % moms;MP3 (05);7410
+3403;Egna uttag momspliktiga, 6 %;MP3 (05);7410
+3402;Egna uttag momspliktiga, 12 %;MP2 (05);7410
+3002;Försäljning inom Sverige, 12 % moms;MP2 (05);7410
+3401;Egna uttag momspliktiga, 25 %;MP1 (05);7410
+3510;Fakturerat emballage;MP1 (05);7410
+3600;Rörelsens sidointäkter (gruppkonto);MP1 (05);7410
+3530;Fakturerade tull- och speditionskostnader m.m.;MP1 (05);7410
+3520;Fakturerade frakter;MP1 (05);7410
+3001;Försäljning inom Sverige, 25 % moms;MP1 (05);7410
+3540;Faktureringsavgifter;MP1 (05);7410
+3106;Försäljning varor till annat EU-land, momspliktig;MP1 (05);7410
+3990;Övriga ersättningar och intäkter;MF (42);7413
+3404;Egna uttag, momsfria;MF (42);7410
+3004;Försäljning inom Sverige, momsfri;MF (42);7410
+3980;Erhållna offentliga stöd m.m.;MF (42);7413
+4516;Inköp av varor från annat EU-land, 12 %;IVEU (20);7512
+4515;Inköp av varor från annat EU-land, 25 %;IVEU (20);7512
+9021;Varuvärde Inlöp annat EG-land (Momsrapport ruta 20);IVEU (20);
+4517;Inköp av varor från annat EU-land, 6 %;IVEU (20);7512
+4415;Inköpta varor i Sverige, omvänd skattskyldighet, 25 % moms;IV (23);7512
+4531;Inköp av tjänster från ett land utanför EU, 25 % moms;ITGLOB (22);7512
+4532;Inköp av tjänster från ett land utanför EU, 12 % moms;ITGLOB (22);7512
+4533;Inköp av tjänster från ett land utanför EU, 6 % moms;ITGLOB (22);7512
+4537;Inköp av tjänster från annat EU-land, 6 %;ITEU (21);7512
+4536;Inköp av tjänster från annat EU-land, 12 %;ITEU (21);7512
+4535;Inköp av tjänster från annat EU-land, 25 %;ITEU (21);7512
+4427;Inköpta tjänster i Sverige, omvänd skattskyldighet, 6 %;IT (24);7512
+4426;Inköpta tjänster i Sverige, omvänd skattskyldighet, 12 %;IT (24);7512
+2642;Debiterad ingående moms i anslutning till frivillig skattskyldighet;I (48);7369
+2640;Ingående moms;I (48);7369
+2647;Ingående moms omvänd skattskyldighet varor och tjänster i Sverige;I (48);7369
+2641;Debiterad ingående moms;I (48);7369
+2649;Ingående moms, blandad verksamhet;I (48);7369
+2646;Ingående moms på uthyrning;I (48);7369
+2645;Beräknad ingående moms på förvärv från utlandet;I (48);7369
+3913;Frivilligt momspliktiga hyresintäkter;HFS (08);7413
+3541;Faktureringsavgifter, EU-land;FTEU (39);7410
+3308;Försäljning tjänster till annat EU-land;FTEU (39);7410
+3542;Faktureringsavgifter, export;E (36);7410
+3522;Fakturerade frakter, export;E (36);7410
+3105;Försäljning varor till land utanför EU;E (36);7410
+3211;Försäljning positiv VMB 25 %;BVMB (07);7410
+3212;Försäljning negativ VMB 25 %;BVMB (07);7410
+9022;Beskattningsunderlag vid import (Momsrapport Ruta 50);BI (50);
+4545;Import av varor, 25 % moms;BI (50);7512
+4546;Import av varor, 12 % moms;BI (50);7512
+4547;Import av varor, 6 % moms;BI (50);7512
+3740;Öres- och kronutjämning;A;7410)";
+		} // namespace VATReturns
+	} // namespace XML
+} // namespace SKV 
 
 namespace CP435 {
 
