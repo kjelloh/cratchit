@@ -424,10 +424,10 @@ namespace BAS {
 		// Account type is specified as T, S, K or I (asset, debt, cost or income)
 		// Swedish: tillgång, skuld, kostnad eller intäkt
 		Unknown
-		,Asset
-		,Debt
-		,Cost
-		,Income
+		,Asset 	// + or Debit for MORE assets
+		,Debt		// - or credit for MORE debt 
+		,Cost		// + or Debit for MORE cost
+		,Income // - or Credit for MORE income
 		,Undefined
 	};
 
@@ -1448,6 +1448,58 @@ Amount entry_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
 	return result;
 }
 
+class PurchaseNoVATTemplate {
+public:
+	PurchaseNoVATTemplate(BAS::anonymous::AccountTransaction const& trans_amount_at) : m_trans_amount_at{trans_amount_at} {}
+	using counter_at = BAS::anonymous::AccountTransaction;
+	// One transaction account  100% amount
+	// n counter accounts			  sums to 100% amount
+private:
+	friend std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet);
+	BAS::anonymous::AccountTransaction m_trans_amount_at{};
+	std::vector<counter_at> m_counter_ats{};
+};
+
+std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet) {
+	os << jet.m_trans_amount_at;
+	for (auto const& at : jet.m_counter_ats) os << "\n" << at;
+	return os;
+}
+using PurchaseNoVATTemplates = std::vector<PurchaseNoVATTemplate>;
+using OptionalPurchaseNoVATTemplate = std::optional<PurchaseNoVATTemplate>;
+
+OptionalPurchaseNoVATTemplate to_purchase_no_vat_template(BAS::MetaEntry const& me) {
+	OptionalPurchaseNoVATTemplate result{};
+	return result;
+}
+
+class EUPurchase25PercentVATTemplate {
+public:
+	EUPurchase25PercentVATTemplate(BAS::anonymous::AccountTransaction const& trans_amount_at) : m_trans_amount_at{trans_amount_at} {}
+	struct counter_ats_aggregate {
+		BAS::anonymous::AccountTransaction aggregate_ex_vat_amount_at{};			//   80% (purchased item at)
+		BAS::anonymous::AccountTransaction eu_list_box_30_vat_at{};						//   20% (EU VAT Return form box 30 amount)
+		BAS::anonymous::AccountTransaction swedish_vat_return_at{};						// - 20% (EU VAT journal Cancel out)
+		BAS::anonymous::AccountTransaction eu_list_box_20_sales_at{};					//   80% (EU Purchase VAT return form box 20 (dummy)
+		BAS::anonymous::AccountTransaction eu_list_box_20_counter_sales_at{};	// - 80% (Cancel out EU Purchase VAT return form box 20)
+	};
+private:
+	BAS::anonymous::AccountTransaction m_trans_amount_at{};
+	std::vector<counter_ats_aggregate> m_counter_ats{};
+};
+
+class SwedishPurchase25PercentVATTemplate {
+public:
+	SwedishPurchase25PercentVATTemplate(BAS::anonymous::AccountTransaction const& trans_amount_at) : m_trans_amount_at{trans_amount_at} {}
+	struct counter_ats_aggregate {
+		BAS::anonymous::AccountTransaction aggregate_ex_vat_amount_at{};			//   80% (purchased item at)
+		BAS::anonymous::AccountTransaction swedish_vat_return_at{};						//   20% (VAT Return at)
+	};
+private:
+	BAS::anonymous::AccountTransaction m_trans_amount_at{};
+	std::vector<counter_ats_aggregate> m_counter_ats{};
+};
+
 struct AccountTransactionTemplate {
 	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
 		:  m_account_no{account_no}
@@ -1951,6 +2003,19 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 	for_each_meta_entry(sie_envs,collect_t2s);
 	return collect_t2s.result();
 }
+
+// Journal Entry Templates
+
+PurchaseNoVATTemplates to_purchase_no_vat_templates(SIEEnvironments const& sie_envs) {
+	PurchaseNoVATTemplates result{};
+	auto x = [&result](BAS::MetaEntry const& me){
+		if (auto jet = to_purchase_no_vat_template(me)) result.push_back(*jet);
+	};
+	for_each_meta_entry(sie_envs,x);
+	return result;	
+}
+
+// SKV Electronic API (file formats for upload)
 
 namespace SKV {
 
@@ -3454,7 +3519,7 @@ public:
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
 	BAS::MetaEntries template_candidates{};
-	// BAS::MetaEntry current_candidate{};
+	PurchaseNoVATTemplates purchase_no_vat_template_candidates{};
 	BAS::anonymous::AccountTransactions at_candidates{};
 	BAS::anonymous::AccountTransaction at{};
   std::string prompt{};
@@ -3794,9 +3859,18 @@ public:
 								model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
 									return had_matches_trans(had,aje);
 								});
-								for (int i = 0; i < model->template_candidates.size(); ++i) {
+								model->purchase_no_vat_template_candidates = to_purchase_no_vat_templates(model->sie);
+								// List options
+								int i=0; 
+								int offset = model->template_candidates.size();
+								for (; i-offset < 0; ++i) {
 									prompt << "\n    " << i << " " << model->template_candidates[i];
 								}
+								offset += model->purchase_no_vat_template_candidates.size();
+								for (; i-offset < 0; ++i) {
+									prompt << "\n    " << i << " " << model->purchase_no_vat_template_candidates[i];
+								}
+
 								model->prompt_state = PromptState::JEIndex;
 							}
 						}
@@ -4369,7 +4443,6 @@ private:
 		return result;
 	}
 
-	// ####
 	std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
 		std::ostringstream prompt{};
 		switch (to_state) {
