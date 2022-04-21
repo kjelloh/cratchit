@@ -18,6 +18,7 @@
 #include <chrono>
 #include <numeric>
 #include <functional>
+#include <set>
  
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
@@ -599,7 +600,7 @@ Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
 	return result;
 }
 
-BASAccountNos to_vat_accounts(); // Forward (future header)
+std::set<BASAccountNo> const& to_vat_accounts(); // Forward (future header)
 
 auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BASAccountNos const& account_nos) {
 	return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
@@ -1509,9 +1510,8 @@ BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymou
 }
 
 bool is_vat_account(BASAccountNo account_no) {
-	// auto vat_accounts = to_vat_accounts();
-	// return std::any_of(vat_accounts.begin(),vat_accounts.end(),[&account_no](BASAccountNo other) {return account_no == other;});
-	return true; // test
+	auto const& vat_accounts = to_vat_accounts();
+	return vat_accounts.contains(account_no);
 }
 
 auto is_vat_account_at = [](BAS::anonymous::AccountTransaction const& at){
@@ -1525,25 +1525,28 @@ public:
 	using counter_at = BAS::anonymous::AccountTransaction;
 	PurchaseNoVATTemplate(HeadingAmountDateTransEntry const& had,BAS::MetaEntry const& me) : m_had{had} {
 		if (this->m_trans_amount_at = gross_account_transaction(me.defacto)) {
-			if (std::none_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),is_vat_account_at))
-			this->m_counter_ats = counter_account_transactions(me.defacto,*this->m_trans_amount_at);
-			m_viable = (this->m_counter_ats.size() > 0);
+			if (std::none_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),is_vat_account_at)) {
+				this->m_counter_ats = counter_account_transactions(me.defacto,*this->m_trans_amount_at);
+				m_viable = (this->m_counter_ats.size() > 0);
+			}
 		}
 	}
-	operator bool() const {return m_viable;}
+	operator bool() const {
+		// std::cout << "\noperator bool()=" << m_viable;
+		return m_viable;
+	}
 private:
 	bool m_viable{false};
 	HeadingAmountDateTransEntry m_had;
 	BAS::anonymous::OptionalAccountTransaction m_trans_amount_at{};
-	std::vector<counter_at> m_counter_ats{};
+	BAS::anonymous::AccountTransactions m_counter_ats{};
 	friend std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet);
 };
 
 std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet) {
-	os << "PurchaseNoVATTemplate: ";
 	if (jet.m_trans_amount_at) os << *jet.m_trans_amount_at;
 	else os << "null";
-	for (auto const& at : jet.m_counter_ats) os << "\n" << at;
+	for (auto const& at : jet.m_counter_ats) os << "\n        " << at;
 	return os;
 }
 using PurchaseNoVATTemplates = std::vector<PurchaseNoVATTemplate>;
@@ -2604,16 +2607,15 @@ namespace SKV {
 				return result;
 			}
 
-			BASAccountNos to_vat_accounts() {
-				BASAccountNos result{};
+			std::set<BASAccountNo> to_vat_accounts() {
+				std::set<BASAccountNo> result{};
 				std::vector<BoxNo> vat_box_no{10,11,12,30,31,32,60,61,62,48,49};
 				for (auto const& box_no : vat_box_no) {
 					auto vat_account_nos = to_accounts(box_no);
-					std::copy(vat_account_nos.begin(),vat_account_nos.end(),std::back_inserter(result));
+					std::copy(vat_account_nos.begin(),vat_account_nos.end(),std::inserter(result,result.end()));
 				}
 				return result;
 			}			
-
 
 			auto is_not_vat_returns_form_transaction(BAS::MetaAccountTransaction const& mat) {
 				return (mat.meta.meta.series != 'M');
@@ -3076,7 +3078,7 @@ namespace SKV {
 	} // namespace CSV {
 } // namespace SKV
 
-BASAccountNos to_vat_accounts() {
+std::set<BASAccountNo> const& to_vat_accounts() {
 	static auto const vat_accounts = SKV::XML::VATReturns::to_vat_accounts(); // cache
 	// Define in terms of how SKV VAT returns form defines linking to BAS Accounts for correct content
 	return vat_accounts;
@@ -3841,14 +3843,12 @@ public:
 								});
 								model->purchase_no_vat_template_candidates = to_purchase_no_vat_templates(had,model->sie);
 								// List options
-								int i=0; 
-								int offset = model->template_candidates.size();
-								for (; i-offset < 0; ++i) {
-									prompt << "\n    " << i << " " << model->template_candidates[i];
+								unsigned ix = 0;
+								for (int i=0; i < model->template_candidates.size(); ++i) {
+									prompt << "\n    " << ix++ << " " << model->template_candidates[i];
 								}
-								offset += model->purchase_no_vat_template_candidates.size();
-								for (; i-offset < 0; ++i) {
-									prompt << "\n    " << i << " " << model->purchase_no_vat_template_candidates[i];
+								for (int i=0; i < model->purchase_no_vat_template_candidates.size(); ++i) {
+									prompt << "\n    " << ix++ << " " << model->purchase_no_vat_template_candidates[i];
 								}
 
 								model->prompt_state = PromptState::JEIndex;
