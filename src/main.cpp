@@ -441,6 +441,14 @@ namespace BAS {
 	};
 	using AccountMetas = std::map<BASAccountNo,BAS::AccountMeta>;
 
+	namespace detail {
+		// "Hidden" Global mapping between BAS account no and its registered meta data like name, SRU code etc (from SIE file(s) imported)
+		// See accessor global_account_metas().
+		AccountMetas global_account_metas{};
+	}
+
+	AccountMetas const& global_account_metas() {return detail::global_account_metas;}
+
 	namespace anonymous {
 
 		struct AccountTransaction {
@@ -724,6 +732,7 @@ BAS::anonymous::OptionalAccountTransaction to_bas_account_transaction(std::vecto
 }
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at) {
+	if (BAS::global_account_metas().contains(at.account_no)) os << std::quoted(BAS::global_account_metas().at(at.account_no).name) << ":";
 	os << at.account_no;
 	os << " " << at.transtext;
 	os << " " << at.amount;
@@ -1851,10 +1860,9 @@ public:
 		return result;
 	}
 
-	BAS::AccountMetas& account_metas() {return this->m_account_metas;}
+	BAS::AccountMetas& account_metas() {return BAS::detail::global_account_metas;}
 
 private:
-	BAS::AccountMetas m_account_metas{};
 	BASJournals m_journals{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	BAS::MetaEntry add(BAS::MetaEntry const& me) {
@@ -4103,22 +4111,22 @@ public:
 								if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
 								if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
 
-								// TODO: Add type tagging for this EU Purchase
-								// typed: A21
-								// 	 ? : 1920 "" -189.85
-								// 	 ? : 2893 "" -758.15
-								// 	 vat : 2641 "" 189.54
-								// 	 ? : 6212 "" 758.15
-								// 	 cents : 3740 "" 0.31
+								// TODO: Add recognition of this entry?
+								// typed: A21Privat betalt Telia faktura20210201
+								// 	 ? : "PlusGiro":1920 "" -189.85
+								// 	 ? : "Skulder till närstående personer, kortfristig del":2893 "" -758.15
+								// 	 vat : "Debiterad ingående moms":2641 "" 189.54
+								// 	 ? : "Mobiltelefon":6212 "" 758.15
+								// 	 cents : "Öres- och kronutjämning":3740 "" 0.31
 
-								// TODO: Add type tagging for this EU Purchase
-								// typed: A27
-								// 	 ? : 1920 "" -6616.93
-								// 	 vat : 2614 "Momsrapport (30)" -1654.23
-								// 	 vat : 2640 "" 1654.23
-								// 	 ? : 9021 "Momsrapport (20)" 6616.93
-								// 	 ? : 9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
-								// 	 ? : 1226 "Favero Assioma DUO-Shi" 6616.93
+								// TODO: Add recognition of this entry?
+								// typed: A27Direktinköp EU20210914
+								// 	 ? : "PlusGiro":1920 "" -6616.93
+								// 	 vat : "Utgående moms omvänd skattskyldighet, 25 %":2614 "Momsrapport (30)" -1654.23
+								// 	 vat : "Ingående moms":2640 "" 1654.23
+								// 	 ? : "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Momsrapport (20)" 6616.93
+								// 	 ? : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
+								// 	 ? : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
 
 							}
 							// ex vat amount
@@ -4142,7 +4150,7 @@ public:
 								}
 							}
 							// LOG
-							prompt << "\ntyped:" << me.meta;
+							prompt << "\ntyped:" << me.meta << me.defacto.caption << me.defacto.date;
 							for (auto const& at : me.defacto.account_transactions) {
 								prompt << "\n\t";
 								if (typed_ats.contains(at)) {
