@@ -1860,7 +1860,26 @@ public:
 		return result;
 	}
 
-	BAS::AccountMetas& account_metas() {return BAS::detail::global_account_metas;}
+	BAS::AccountMetas const & account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
+
+	void set_account_name(BASAccountNo bas_account_no ,std::string const& name) {
+		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
+			if (BAS::detail::global_account_metas[bas_account_no].name != name) {
+				std::cerr << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
+			}
+		}
+		BAS::detail::global_account_metas[bas_account_no].name = name; // Mutate global instance
+	}
+	void set_account_SRU(BASAccountNo bas_account_no, SRU::AccountNo sru_code) {
+		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
+			if (BAS::detail::global_account_metas[bas_account_no].sru_code) {
+				if (*BAS::detail::global_account_metas[bas_account_no].sru_code != sru_code) {
+					std::cerr << "\nWARNING: BAS Account " << bas_account_no << " SRU Code " << *BAS::detail::global_account_metas[bas_account_no].sru_code << " changed to " << sru_code;
+				}
+			}
+		}
+		BAS::detail::global_account_metas[bas_account_no].sru_code = sru_code; // Mutate global instance
+	}
 
 private:
 	BASJournals m_journals{};
@@ -3708,11 +3727,11 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			}
 			else if (auto opt_entry = SIE::parse_KONTO(in,"#KONTO")) {
 				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
-				sie_environment.account_metas()[konto.account_no].name = konto.name;
+				sie_environment.set_account_name(konto.account_no,konto.name);
 			}
 			else if (auto opt_entry = SIE::parse_SRU(in,"#SRU")) {
 				SIE::Sru sru = std::get<SIE::Sru>(*opt_entry);
-				sie_environment.account_metas()[sru.bas_account_no].sru_code = sru.sru_account_no;
+				sie_environment.set_account_SRU(sru.bas_account_no,sru.sru_account_no);
 			}
 			else if (auto opt_entry = SIE::parse_VER(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
@@ -4342,8 +4361,8 @@ public:
 					std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
 						bool result{false};
 						if (at.transtext) result |= strings_share_tokens(command,*at.transtext);
-						auto const& meta = model->sie["current"].account_metas().at(at.account_no);
 						if (model->sie["current"].account_metas().contains(at.account_no)) {
+							auto const& meta = model->sie["current"].account_metas().at(at.account_no);
 							result |= strings_share_tokens(command,meta.name);
 						}
 						return result;
