@@ -409,6 +409,9 @@ optional_amount to_amount(std::string const& sAmount) {
 }
 
 using BASAccountNo = unsigned int;
+unsigned first_digit(BASAccountNo account_no) {
+	return account_no / 1000;
+}
 using OptionalBASAccountNo = std::optional<BASAccountNo>;
 
 template <typename Meta,typename Defacto>
@@ -619,6 +622,21 @@ Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
 	return result;
 }
 
+namespace SKV { 
+	namespace XML {
+		namespace VATReturns {
+			using BoxNo = unsigned int;
+			using BoxNos = std::vector<BoxNo>;
+
+			BoxNos const EU_VAT_BOX_NOS{30,31,32};
+			BoxNos const EU_PURCHASE_BOX_NOS{20,21};
+			BoxNos const VAT_BOX_NOS{10,11,12,30,31,32,60,61,62,48,49};
+
+		} // namespace VATReturns 
+	} // namespace XML 
+} // namespace SKV 
+
+std::set<BASAccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos); // Forward (future header)
 std::set<BASAccountNo> const& to_vat_accounts(); // Forward (future header)
 
 auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BASAccountNos const& account_nos) {
@@ -1466,6 +1484,11 @@ SIE::Ver to_sie_t(BAS::MetaEntry const& me) {
 		result.transactions.push_back(to_sie_t(trans));
 	}
 	return result;
+}
+
+bool is_vat_returns_form_at(std::vector<SKV::XML::VATReturns::BoxNo> const& box_nos,BAS::anonymous::AccountTransaction const& at) {
+	auto const& bas_account_nos = to_vat_returns_form_bas_accounts(box_nos);
+	return bas_account_nos.contains(at.account_no);
 }
 
 bool is_vat_account(BASAccountNo account_no) {
@@ -2359,7 +2382,7 @@ namespace SKV {
 
 		namespace VATReturns {
 
-		extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
+			extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
 
 			// An example provided by Swedish Tax Agency at https://www.skatteverket.se/download/18.3f4496fd14864cc5ac99cb2/1415022111801/momsexempel_v6.txt
 			auto eskd_template_0 = R"(<?xml version="1.0" encoding="ISO-8859-1"?>
@@ -2448,7 +2471,6 @@ namespace SKV {
 			// 597			50									"MomsUlagImport"
 			// 149			60									"MomsImportUtgHog"
 
-			using BoxNo = unsigned int;
 			using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
 
 			// Meta-data required to frame a VAT Returns form to SKV
@@ -2652,14 +2674,17 @@ namespace SKV {
 				return result;
 			}
 
-			std::set<BASAccountNo> to_vat_accounts() {
+			std::set<BASAccountNo> to_accounts(BoxNos const& box_nos) {
 				std::set<BASAccountNo> result{};
-				std::vector<BoxNo> vat_box_no{10,11,12,30,31,32,60,61,62,48,49};
-				for (auto const& box_no : vat_box_no) {
+				for (auto const& box_no : box_nos) {
 					auto vat_account_nos = to_accounts(box_no);
 					std::copy(vat_account_nos.begin(),vat_account_nos.end(),std::inserter(result,result.end()));
 				}
 				return result;
+			}
+
+			std::set<BASAccountNo> to_vat_accounts() {
+				return to_accounts({10,11,12,30,31,32,60,61,62,48,49});
 			}			
 
 			auto is_not_vat_returns_form_transaction(BAS::MetaAccountTransaction const& mat) {
@@ -2786,7 +2811,7 @@ namespace SKV {
 					// box_map[60].push_back(dummy_mat(149));
 
 					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
-					std::vector<BoxNo> vat_box_nos{10,11,12,30,31,32,50,61,62,48};
+					BoxNos vat_box_nos{10,11,12,30,31,32,50,61,62,48};
 					auto box_49_amount = std::accumulate(vat_box_nos.begin(),vat_box_nos.end(),Amount{},[&box_map](Amount acc,BoxNo box_no){
 						if (box_map.contains(box_no)) acc += BAS::mats_sum(box_map.at(box_no));
 						return acc;
@@ -3121,6 +3146,10 @@ namespace SKV {
 		} // namespace EUSalesList
 	} // namespace CSV {
 } // namespace SKV
+
+std::set<BASAccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos) {
+	return SKV::XML::VATReturns::to_accounts(box_nos);
+}
 
 std::set<BASAccountNo> const& to_vat_accounts() {
 	static auto const vat_accounts = SKV::XML::VATReturns::to_vat_accounts(); // cache
@@ -4124,19 +4153,13 @@ public:
 						auto f = [&prompt](BAS::MetaEntry const& me) {
 							TypedAccountTransactions typed_ats{};
 							auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
+
+							// Direct type detection based on gross_amount and account meta data
 							for (auto const& at : me.defacto.account_transactions) {
 								if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
 								if (is_vat_account_at(at)) typed_ats[at].insert("vat");
 								if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
 								if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
-
-								// TODO: Add recognition of this entry?
-								// typed: A21Privat betalt Telia faktura20210201
-								// 	 ? : "PlusGiro":1920 "" -189.85
-								// 	 ? : "Skulder till närstående personer, kortfristig del":2893 "" -758.15
-								// 	 vat : "Debiterad ingående moms":2641 "" 189.54
-								// 	 ? : "Mobiltelefon":6212 "" 758.15
-								// 	 cents : "Öres- och kronutjämning":3740 "" 0.31
 
 								// TODO: Add recognition of this entry?
 								// typed: A27Direktinköp EU20210914
@@ -4148,7 +4171,8 @@ public:
 								// 	 ? : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
 
 							}
-							// ex vat amount
+
+							// Ex vat amount Detection
 							Amount ex_vat_amount{},vat_amount{};
 							for (auto const& at : me.defacto.account_transactions) {
 								if (!typed_ats.contains(at)) {
@@ -4168,8 +4192,44 @@ public:
 									}
 								}
 							}
+
+							// Identify an EU Purchase journal entry
+							// NOTE: I am sure there is some secret algorithm to make thus much easier? (But her goes brute force programming...)
+							// Example:
+							// typed: A27 Direktinköp EU 20210914
+							// 	 gross : "PlusGiro":1920 "" -6616.93
+							// 	 eu_vat vat : "Utgående moms omvänd skattskyldighet, 25 %":2614 "Momsrapport (30)" -1654.23
+							// 	 eu_vat vat : "Ingående moms":2640 "" 1654.23
+							// 	 eu_purchase : "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Momsrapport (20)" 6616.93
+							// 	 eu_purchase : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
+							// 	 gross : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
+							Amount eu_vat_amount{},eu_purchase_amount{};
+							for (auto const& at : me.defacto.account_transactions) {
+								// Identify transactions to EU VAT and EU Purchase tagged accounts
+								if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,at)) {
+									typed_ats[at].insert("eu_vat");
+									eu_vat_amount = at.amount;
+								}
+								if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,at)) {
+									typed_ats[at].insert("eu_purchase");
+									eu_purchase_amount = at.amount;
+								}
+							}
+							for (auto const& at : me.defacto.account_transactions) {
+								// Identify counter transactions to EU VAT and EU Purchase tagged accounts
+								if (at.amount == -eu_vat_amount) typed_ats[at].insert("eu_vat"); // The counter trans for EU VAT
+								if ((first_digit(at.account_no) == 4 or first_digit(at.account_no) == 9) and (at.amount == -eu_purchase_amount)) typed_ats[at].insert("eu_purchase"); // The counter trans for EU Purchase
+							}
+							// Mark gross accounts for EU VAT transaction journal entry
+							for (auto const& at : me.defacto.account_transactions) {
+								// We expect two accounts left unmarked and they are the gross accounts
+								if (!typed_ats.contains(at) and (std::abs(at.amount) == std::abs(eu_purchase_amount))) {
+									typed_ats[at].insert("gross");
+								}
+							}
+							
 							// LOG
-							prompt << "\ntyped:" << me.meta << me.defacto.caption << me.defacto.date;
+							prompt << "\ntyped:" << me.meta << " " << me.defacto.caption << " " << me.defacto.date;
 							for (auto const& at : me.defacto.account_transactions) {
 								prompt << "\n\t";
 								if (typed_ats.contains(at)) {
