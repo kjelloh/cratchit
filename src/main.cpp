@@ -447,6 +447,17 @@ namespace BAS {
 			BASAccountNo account_no;
 			std::optional<std::string> transtext{};
 			Amount amount;
+			bool operator<(AccountTransaction const& other) const {
+				bool result{false};
+				if (account_no == other.account_no) {
+					if (amount == other.amount) {
+						result = (transtext < other.transtext);
+					}
+					else result = (amount < other.amount);
+				}
+				else result = (account_no < other.account_no);
+				return result;
+			}
 		};
 		using OptionalAccountTransaction = std::optional<AccountTransaction>;
 		using AccountTransactions = std::vector<AccountTransaction>;
@@ -919,7 +930,6 @@ namespace Key {
 			std::string back() const {return m_path.back();}
 			std::string operator[](std::size_t pos) const {return m_path[pos];}
 			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
-			auto operator<=>(Path const&) const = default;
 			// bool operator==(Path const& other) const {
 			// 	bool result = (this->m_path == other.m_path);
 			// 	std::cout << "\n1:" << *this << " size:" << this->size();
@@ -1449,7 +1459,16 @@ SIE::Ver to_sie_t(BAS::MetaEntry const& me) {
 	return result;
 }
 
-Amount positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
+bool is_vat_account(BASAccountNo account_no) {
+	auto const& vat_accounts = to_vat_accounts();
+	return vat_accounts.contains(account_no);
+}
+
+auto is_vat_account_at = [](BAS::anonymous::AccountTransaction const& at){
+	return is_vat_account(at.account_no);
+};
+
+Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
 	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
 		acc += (account_transaction.amount>0)?account_transaction.amount:0;
 		return acc;
@@ -1459,7 +1478,7 @@ Amount positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje
 
 BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountTransaction result{};
-	auto trans_amount = positive_gross_transaction_amount(aje);
+	auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
 		return std::abs(at.amount) == trans_amount;
 	});
@@ -1491,9 +1510,10 @@ BAS::anonymous::AccountTransactions counter_account_transactions(BAS::anonymous:
 
 BAS::anonymous::OptionalAccountTransaction net_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountTransaction result{};
-	auto trans_amount = positive_gross_transaction_amount(aje);
+	auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == 0.8*trans_amount;
+		return (std::abs(at.amount) < trans_amount and not is_vat_account_at(at));
+		// return std::abs(at.amount) == 0.8*trans_amount;
 	});
 	if (iter != aje.account_transactions.end()) result = *iter;
 	return result;
@@ -1501,22 +1521,14 @@ BAS::anonymous::OptionalAccountTransaction net_account_transaction(BAS::anonymou
 
 BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountTransaction result{};
-	auto trans_amount = positive_gross_transaction_amount(aje);
+	auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == 0.2*trans_amount;
+		return is_vat_account_at(at);
+		// return std::abs(at.amount) == 0.2*trans_amount;
 	});
 	if (iter != aje.account_transactions.end()) result = *iter;
 	return result;
 }
-
-bool is_vat_account(BASAccountNo account_no) {
-	auto const& vat_accounts = to_vat_accounts();
-	return vat_accounts.contains(account_no);
-}
-
-auto is_vat_account_at = [](BAS::anonymous::AccountTransaction const& at){
-	return is_vat_account(at.account_no);
-};
 
 class PurchaseNoVATTemplate {
 	// One transaction account  100% amount
@@ -1524,7 +1536,7 @@ class PurchaseNoVATTemplate {
 public:
 	using counter_at = BAS::anonymous::AccountTransaction;
 	PurchaseNoVATTemplate(HeadingAmountDateTransEntry const& had,BAS::MetaEntry const& me) : m_had{had} {
-		if (this->m_trans_amount_at = gross_account_transaction(me.defacto)) {
+		if ((this->m_trans_amount_at = gross_account_transaction(me.defacto))) {
 			if (std::none_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),is_vat_account_at)) {
 				this->m_counter_ats = counter_account_transactions(me.defacto,*this->m_trans_amount_at);
 				m_viable = (this->m_counter_ats.size() > 0);
@@ -1600,7 +1612,7 @@ class JournalEntryTemplate {
 public:
 
 	JournalEntryTemplate(BAS::Series series,BAS::MetaEntry const& me) : m_series{series} {
-		auto gross_amount = positive_gross_transaction_amount(me.defacto);
+		auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
 		if (gross_amount >= 0.01) {
 			std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& account_transaction){
 				AccountTransactionTemplate result(
@@ -1964,19 +1976,25 @@ struct VatAccountTransactions {
 	}
 };
 
-BAS::anonymous::AccountTransactions gross_account_transactions(SIEEnvironments const& sie_envs) {
+BAS::anonymous::AccountTransactions to_gross_account_transactions(BAS::anonymous::JournalEntry const& aje) {
+	GrossAccountTransactions ats{};
+	ats(aje);
+	return ats.result;
+}
+
+BAS::anonymous::AccountTransactions to_gross_account_transactions(SIEEnvironments const& sie_envs) {
 	GrossAccountTransactions ats{};
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
 }
 
-BAS::anonymous::AccountTransactions net_account_transactions(SIEEnvironments const& sie_envs) {
+BAS::anonymous::AccountTransactions to_net_account_transactions(SIEEnvironments const& sie_envs) {
 	NetAccountTransactions ats{};
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
 }
 
-BAS::anonymous::AccountTransactions vat_account_transactions(SIEEnvironments const& sie_envs) {
+BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironments const& sie_envs) {
 	VatAccountTransactions ats{};
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
@@ -3047,7 +3065,6 @@ namespace SKV {
 					if (org_meta.contact_persons.size()==0) throw std::runtime_error(std::string{"vat_returns_to_eu_sales_list_form failed - zero org_meta.contact_persons"});
 
 					Form form{};
-					// ####
 					// struct SecondRow {
 					// 	SwedishVATRegistrationID vat_registration_id{};
 					// 	PeriodID period_id{};
@@ -3948,7 +3965,6 @@ public:
 								// Assume Employer’s contributions and PAYE tax return form
 
 								// List Tax Return Form skv options (user data edit)
-								// #### 1
 								auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
 								prompt << delta_prompt;
 								model->prompt_state = prompt_state;
@@ -4075,6 +4091,73 @@ public:
 							prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
 						}
 					}
+					else if (ast[1] == "-types") {
+						// #TYPES
+						using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,std::set<std::string>>;
+						auto f = [&prompt](BAS::MetaEntry const& me) {
+							TypedAccountTransactions typed_ats{};
+							auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
+							for (auto const& at : me.defacto.account_transactions) {
+								if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
+								if (is_vat_account_at(at)) typed_ats[at].insert("vat");
+								if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
+								if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
+
+								// TODO: Add type tagging for this EU Purchase
+								// typed: A21
+								// 	 ? : 1920 "" -189.85
+								// 	 ? : 2893 "" -758.15
+								// 	 vat : 2641 "" 189.54
+								// 	 ? : 6212 "" 758.15
+								// 	 cents : 3740 "" 0.31
+
+								// TODO: Add type tagging for this EU Purchase
+								// typed: A27
+								// 	 ? : 1920 "" -6616.93
+								// 	 vat : 2614 "Momsrapport (30)" -1654.23
+								// 	 vat : 2640 "" 1654.23
+								// 	 ? : 9021 "Momsrapport (20)" 6616.93
+								// 	 ? : 9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
+								// 	 ? : 1226 "Favero Assioma DUO-Shi" 6616.93
+
+							}
+							// ex vat amount
+							Amount ex_vat_amount{},vat_amount{};
+							for (auto const& at : me.defacto.account_transactions) {
+								if (!typed_ats.contains(at)) {
+									// Not gross, Not VAT = candidate for ex VAT
+									ex_vat_amount += at.amount;
+								}
+								else if (typed_ats.at(at).contains("vat")) {
+									vat_amount += at.amount;
+								}
+							}
+							if (std::abs(std::round(std::abs(ex_vat_amount)) + std::round(std::abs(vat_amount)) - gross_amount) <= 1) {
+								// ex_vat + vat within cents of gross
+								// tag non typed ats as ex-vat
+								for (auto const& at : me.defacto.account_transactions) {
+									if (!typed_ats.contains(at)) {
+										typed_ats[at].insert("net");
+									}
+								}
+							}
+							// LOG
+							prompt << "\ntyped:" << me.meta;
+							for (auto const& at : me.defacto.account_transactions) {
+								prompt << "\n\t";
+								if (typed_ats.contains(at)) {
+									for (auto const& prop : typed_ats.at(at)) {
+										prompt << " " << prop;
+									}
+								}
+								else {
+									prompt << " " << "?";
+								}
+								prompt << " : " << at;
+							}
+						};
+						for_each_meta_entry(model->sie,f);
+					}
 					else {
 						// assume user search criteria on transaction heading and comments
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
@@ -4148,19 +4231,19 @@ public:
 				}
 			}
 			else if (ast[0] == "-gross") {
-				auto gats = gross_account_transactions(model->sie);
-				for (auto const& gat : gats) {
-					prompt << "\n" << gat;
+				auto ats = to_gross_account_transactions(model->sie);
+				for (auto const& at : ats) {
+					prompt << "\n" << at;
 				}				
 			}
 			else if (ast[0] == "-net") {
-				auto nats = net_account_transactions(model->sie);
-				for (auto const& nat : nats) {
-					prompt << "\n" << nat;
+				auto ats = to_net_account_transactions(model->sie);
+				for (auto const& at : ats) {
+					prompt << "\n" << at;
 				}				
 			}
 			else if (ast[0] == "-vat") {
-				auto vats = vat_account_transactions(model->sie);
+				auto vats = to_vat_account_transactions(model->sie);
 				for (auto const& vat : vats) {
 					prompt << "\n" << vat;
 				}				
@@ -4172,7 +4255,6 @@ public:
 			else if (ast[0] == "-skv") {
 				if (ast.size() == 1) {
 					// List skv options
-					// ####
 					prompt << "\n1: Arbetsgivardeklaration (TAX Returns)";
 					prompt << "\n3: Momsrapport (VAT Returns)";
 					model->prompt_state = PromptState::SKVEntryIndex;
@@ -4247,7 +4329,7 @@ public:
 						prompt << "\n    " << i << " " << model->template_candidates[i];
 					}
 					// Consider the user may have entered the name of a gross account to journal the transaction amount
-					auto gats = gross_account_transactions(model->sie);
+					auto gats = to_gross_account_transactions(model->sie);
 					model->at_candidates.clear();
 					std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
 						bool result{false};
