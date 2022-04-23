@@ -1562,67 +1562,6 @@ BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymou
 	return result;
 }
 
-class PurchaseNoVATTemplate {
-	// One transaction account  100% amount
-	// n counter accounts			  sums to 100% amount
-public:
-	using counter_at = BAS::anonymous::AccountTransaction;
-	PurchaseNoVATTemplate(HeadingAmountDateTransEntry const& had,BAS::MetaEntry const& me) : m_had{had} {
-		if ((this->m_trans_amount_at = gross_account_transaction(me.defacto))) {
-			if (std::none_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),is_vat_account_at)) {
-				this->m_counter_ats = counter_account_transactions(me.defacto,*this->m_trans_amount_at);
-				m_viable = (this->m_counter_ats.size() > 0);
-			}
-		}
-	}
-	operator bool() const {
-		// std::cout << "\noperator bool()=" << m_viable;
-		return m_viable;
-	}
-private:
-	bool m_viable{false};
-	HeadingAmountDateTransEntry m_had;
-	BAS::anonymous::OptionalAccountTransaction m_trans_amount_at{};
-	BAS::anonymous::AccountTransactions m_counter_ats{};
-	friend std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet);
-};
-
-std::ostream& operator<<(std::ostream& os,PurchaseNoVATTemplate const& jet) {
-	if (jet.m_trans_amount_at) os << *jet.m_trans_amount_at;
-	else os << "null";
-	for (auto const& at : jet.m_counter_ats) os << "\n        " << at;
-	return os;
-}
-using PurchaseNoVATTemplates = std::vector<PurchaseNoVATTemplate>;
-using OptionalPurchaseNoVATTemplate = std::optional<PurchaseNoVATTemplate>;
-
-class EUPurchase25PercentVATTemplate {
-public:
-	EUPurchase25PercentVATTemplate(BAS::anonymous::AccountTransaction const& trans_amount_at) : m_trans_amount_at{trans_amount_at} {}
-	struct counter_ats_aggregate {
-		BAS::anonymous::AccountTransaction aggregate_ex_vat_amount_at{};			//   80% (purchased item at)
-		BAS::anonymous::AccountTransaction eu_list_box_30_vat_at{};						//   20% (EU VAT Return form box 30 amount)
-		BAS::anonymous::AccountTransaction swedish_vat_return_at{};						// - 20% (EU VAT journal Cancel out)
-		BAS::anonymous::AccountTransaction eu_list_box_20_sales_at{};					//   80% (EU Purchase VAT return form box 20 (dummy)
-		BAS::anonymous::AccountTransaction eu_list_box_20_counter_sales_at{};	// - 80% (Cancel out EU Purchase VAT return form box 20)
-	};
-private:
-	BAS::anonymous::AccountTransaction m_trans_amount_at{};
-	std::vector<counter_ats_aggregate> m_counter_ats{};
-};
-
-class SwedishPurchase25PercentVATTemplate {
-public:
-	SwedishPurchase25PercentVATTemplate(BAS::anonymous::AccountTransaction const& trans_amount_at) : m_trans_amount_at{trans_amount_at} {}
-	struct counter_ats_aggregate {
-		BAS::anonymous::AccountTransaction aggregate_ex_vat_amount_at{};			//   80% (purchased item at)
-		BAS::anonymous::AccountTransaction swedish_vat_return_at{};						//   20% (VAT Return at)
-	};
-private:
-	BAS::anonymous::AccountTransaction m_trans_amount_at{};
-	std::vector<counter_ats_aggregate> m_counter_ats{};
-};
-
 struct AccountTransactionTemplate {
 	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
 		:  m_account_no{account_no}
@@ -2119,17 +2058,6 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 	CollectT2s collect_t2s{};
 	for_each_meta_entry(sie_envs,collect_t2s);
 	return collect_t2s.result();
-}
-
-// Journal Entry Templates
-
-PurchaseNoVATTemplates to_purchase_no_vat_templates(HeadingAmountDateTransEntry const& had,SIEEnvironments const& sie_envs) {
-	PurchaseNoVATTemplates result{};
-	auto x = [&had,&result](BAS::MetaEntry const& me){
-		if (auto jet = PurchaseNoVATTemplate{had,me}) result.push_back(jet);
-	};
-	for_each_meta_entry(sie_envs,x);
-	return result;	
 }
 
 // SKV Electronic API (file formats for upload)
@@ -3574,7 +3502,6 @@ public:
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
 	BAS::MetaEntries template_candidates{};
-	PurchaseNoVATTemplates purchase_no_vat_template_candidates{};
 	BAS::anonymous::AccountTransactions at_candidates{};
 	BAS::anonymous::AccountTransaction at{};
   std::string prompt{};
@@ -3914,16 +3841,51 @@ public:
 								model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
 									return had_matches_trans(had,aje);
 								});
-								model->purchase_no_vat_template_candidates = to_purchase_no_vat_templates(had,model->sie);
+								{
+									// hard code a template for Inventory gross + n x (ex_vat + vat) journal entry
+									// 0  *** "Amazon" 20210924
+									// 	"Leverantörsskuld":2440 "" -1489.66
+									// 	"Invenmtarier":1221 "Garmin Edge 130" 1185.93
+									// 	"Debiterad ingående moms":2641 "Garmin Edge 130" 303.73
+
+									// struct JournalEntry {
+									// 	std::string caption{};
+									// 	Date date{};
+									// 	AccountTransactions account_transactions;
+									// };
+
+									Amount amount{1000};
+									BAS::MetaEntry me{
+										.meta = {
+											.series = 'A'
+										}
+										,.defacto = {
+											.caption = "Bestallning Inventarie"
+											,.date = had.date
+										}
+									};
+									BAS::anonymous::AccountTransaction gross_at{
+										.account_no = 2440
+										,.amount = -amount
+									};
+									BAS::anonymous::AccountTransaction net_at{
+										.account_no = 1221
+										,.amount = static_cast<Amount>(amount*0.8f)
+									};
+									BAS::anonymous::AccountTransaction vat_at{
+										.account_no = 2641
+										,.amount = static_cast<Amount>(amount*0.2f)
+									};
+									me.defacto.account_transactions.push_back(gross_at);
+									me.defacto.account_transactions.push_back(net_at);
+									me.defacto.account_transactions.push_back(vat_at);
+									model->template_candidates.push_back(me);
+								}
 								// List options
 								unsigned ix = 0;
 								for (int i=0; i < model->template_candidates.size(); ++i) {
 									prompt << "\n    " << ix++ << " " << model->template_candidates[i];
 								}
-								for (int i=0; i < model->purchase_no_vat_template_candidates.size(); ++i) {
-									prompt << "\n    " << ix++ << " " << model->purchase_no_vat_template_candidates[i];
-								}
-
 								model->prompt_state = PromptState::JEIndex;
 							}
 						}
