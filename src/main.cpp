@@ -612,9 +612,12 @@ namespace BAS {
 	}
 
 	// TYPED Journal Entries (to identify patterns of interest in how the individual account transactions of an entry is dispositioned in amount and on semantics of the account)
-	using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,std::set<std::string>>;
-	using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
-	using TypedMetaEntry = MetaDefacto<BAS::JournalEntryMeta,TypedJournalEntry>;
+	namespace anonymous {
+		using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,std::set<std::string>>;
+		using TypedAccountTransaction = TypedAccountTransactions::value_type;
+		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
+	}
+	using TypedMetaEntry = MetaDefacto<JournalEntryMeta,anonymous::TypedJournalEntry>;
 	using TypedMetaEntries = std::vector<TypedMetaEntry>;
 } // namespace BAS
 
@@ -824,6 +827,33 @@ std::string to_string(BAS::MetaEntry const& me) {
 	return os.str();
 };
 
+// TYPED ENTRY
+
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat) {
+	auto const& [at,props] = tat;
+	if (props.size()==0) os << " ?";
+	else for (auto const& prop : props) {
+		os << " " << prop;
+	}
+	os << " : " << at;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedJournalEntry const& tje) {
+	os << std::quoted(tje.caption) << " " << tje.date;
+	for (auto const& tat : tje.account_transactions) {
+		os << "\n\t" << tat;
+	}
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::TypedMetaEntry const& tme) {
+	os << tme.meta << " " << tme.defacto;
+	return os;
+}
+
+// JOURNAL
+
 using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
 
@@ -928,7 +958,6 @@ namespace CSV {
 		HeadingAmountDateTransEntries result{};
 		parse_TRANS(in); // skip first line with field names
 		while (auto had = parse_TRANS(in)) {
-			// ####
 			if (gross_bas_account_no) {
 				std::cout << "\nfrom_stream to gross_bas_account_no:" << *gross_bas_account_no;
 				// Add a template with the gross amount transacted to provided bas account no
@@ -2023,7 +2052,7 @@ BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironments 
 }
 
 auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
-	BAS::TypedAccountTransactions typed_ats{};
+	BAS::anonymous::TypedAccountTransactions typed_ats{};
 	auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
 
 	// Direct type detection based on gross_amount and account meta data
@@ -2881,7 +2910,7 @@ namespace SKV {
 							return vat_returns_meta->period.contains(mat.meta.defacto.date);
 						};
 						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
-							std::cerr << "\nTODO: In to_vat_returns_had turn created box_map for previous quarter to a had";
+							std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map for  p r e v i o u s  quarter to a had";
 						}
 					}
 					{
@@ -2891,7 +2920,7 @@ namespace SKV {
 							return vat_returns_meta->period.contains(mat.meta.defacto.date);
 						};
 						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
-							std::cerr << "\nTODO: In to_vat_returns_had turn created box_map for current quarter to a had";
+							std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map for  c u r r e n t  quarter to a had";
 						}
 					}
 
@@ -4109,6 +4138,8 @@ public:
 								prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
 								// 1) We need to identify the "type" of the template
 								// ####
+								auto tme = to_typed_meta_entry(*had.current_candidate);
+								prompt << "\n" << tme;
 							}
 							else {
 								prompt << "\nPlease enter a valid had index";
@@ -4277,14 +4308,7 @@ public:
 						for_each_meta_entry(model->sie,f);
 						// List
 						for (auto const& tme : typed_mes) {
-							prompt << "\ntyped: " << tme.meta << " " << tme.defacto.caption << " " << tme.defacto.date;
-							for (auto const& [at,props] : tme.defacto.account_transactions) {
-								prompt << "\n\t";
-								for (auto const& prop : props) {
-									prompt << " " << prop;
-								}
-								prompt << " : " << at;
-							}							
+							prompt << "\ntyped:" << tme;
 						}
 					}
 					else {
@@ -4428,7 +4452,6 @@ public:
 				2021-12-03;-3,40;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;58736,28;SEK
 				*/
 				if (ast.size()>1) {
-					// ####
 					std::filesystem::path csv_file_path{ast[1]};
 					std::cout << "\ncsv file " << csv_file_path;
 					std::ifstream ifs{csv_file_path};
