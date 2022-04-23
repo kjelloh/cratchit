@@ -4140,6 +4140,22 @@ public:
 								// ####
 								auto tme = to_typed_meta_entry(*had.current_candidate);
 								prompt << "\n" << tme;
+								std::map<std::string,unsigned int> props_counter{};
+								for (auto const& [at,props] : tme.defacto.account_transactions) {
+									for (auto const& prop : props) props_counter[prop]++;
+								}
+								for (auto const& [prop,count] : props_counter) {
+									prompt << "\n" << prop << " count:" << count; 
+								}
+								if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat")) {
+									auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
+										acc += entry.second;
+										return acc;
+									});
+									if (props_sum == 3) {
+										prompt << "\nDetected: gross + n x {net,vat} pattern";
+									}
+								}
 							}
 							else {
 								prompt << "\nPlease enter a valid had index";
