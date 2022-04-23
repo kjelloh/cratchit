@@ -857,8 +857,35 @@ std::ostream& operator<<(std::ostream& os,BAS::TypedMetaEntry const& tme) {
 using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
 
-struct HeadingAmountDateTransEntryMeta {
-	OptionalBASAccountNo transaction_amount_account{};
+class ToNetVatAccountTransactions {
+public:
+
+	ToNetVatAccountTransactions(BAS::anonymous::AccountTransaction const& net_at, BAS::anonymous::AccountTransaction const& vat_at)
+		:  m_net_at{net_at}
+		  ,m_vat_at{vat_at}
+			,m_vat_rate{static_cast<Amount>(std::abs((net_at.amount != 0)?vat_at.amount/net_at.amount:1.0))}
+			,m_sign{m_vat_rate/std::abs(m_vat_rate)} {}
+
+	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,optional_amount const& inc_vat_amount) {
+		BAS::anonymous::AccountTransactions result{};
+		Amount gross_amount = (inc_vat_amount)?*inc_vat_amount:remaining_counter_amount;
+		BAS::anonymous::AccountTransaction net_at{
+			.account_no = m_net_at.account_no
+			,.transtext = transtext
+			,.amount = static_cast<Amount>(m_sign * gross_amount * (1.0-m_vat_rate))
+		};
+		BAS::anonymous::AccountTransaction vat_at{
+			.account_no = m_vat_at.account_no
+			,.transtext = transtext
+			,.amount = static_cast<Amount>(m_sign * gross_amount * m_vat_rate)
+		};
+		return result;
+	}
+private:
+	BAS::anonymous::AccountTransaction m_net_at;
+	BAS::anonymous::AccountTransaction m_vat_at;
+	float m_vat_rate;
+	float m_sign;
 };
 
 struct HeadingAmountDateTransEntry {
@@ -866,6 +893,7 @@ struct HeadingAmountDateTransEntry {
 	Amount amount;
 	Date date{};
 	BAS::OptionalMetaEntry current_candidate{};
+	std::optional<ToNetVatAccountTransactions> to_net_vat_transactions{};
 };
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
@@ -1565,6 +1593,14 @@ auto is_vat_account_at = [](BAS::anonymous::AccountTransaction const& at){
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
 	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
 		acc += (account_transaction.amount>0)?account_transaction.amount:0;
+		return acc;
+	});
+	return result;
+}
+
+Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
+	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
+		acc += (account_transaction.amount<0)?account_transaction.amount:0;
 		return acc;
 	});
 	return result;
@@ -4160,6 +4196,28 @@ public:
 										});
 										if (props_sum == 3) {
 											prompt << "\nDetected: gross + n x {net,vat} pattern";
+											BAS::anonymous::OptionalAccountTransaction net_at;
+											BAS::anonymous::OptionalAccountTransaction vat_at;
+											for (auto const& [at,props] : tme.defacto.account_transactions) {
+												if (props.contains("net")) net_at = at;
+												if (props.contains("vat")) vat_at = at;
+											}
+											if (net_at and vat_at) {
+												had.to_net_vat_transactions = ToNetVatAccountTransactions{*net_at,*vat_at};
+												auto net_iter = std::find_if(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&net_at](auto const& at){
+													return (at.account_no == net_at->account_no);
+												});
+												auto vat_iter = std::find_if(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&vat_at](auto const& at){
+													return (at.account_no == vat_at->account_no);
+												});
+												// if ((net_iter != had.current_candidate->defacto.account_transactions.end()) and (vat_iter != had.current_candidate->defacto.account_transactions.end())) {
+												// 	had.current_candidate->defacto.account_transactions.erase(net_iter);
+												// 	had.current_candidate->defacto.account_transactions.erase(vat_iter);
+												// }
+												// else {
+												// 	std::cerr << "\nERROR: Failed to remove net and vat ats from had.current_candidate";
+												// }
+											}
 											model->prompt_state = PromptState::EnterHA;
 										}
 									}
@@ -4513,31 +4571,57 @@ public:
 				std::cout << "\nAct on words";
 				// Assume word based input
 				if (model->prompt_state == PromptState::EnterHA) {
-					switch (ast.size()) {
-						case 0: {
-							prompt << "\nPlease enter:";
-							prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
-							prompt << "\n\t Amount           (to add a transaction aggregate with a NO caption)";
-							prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
-						} break;
-						case 1: {
-							if (auto amount = to_amount(ast[0])) {
-								prompt << "\nAMOUNT " << *amount;
-								prompt << "\nWe will create a {net,vat} using this amount (NO HEADER)";
-							}
-							else {
-								prompt << "\nHEADER " << ast[0];
-								prompt << "\nWe will create a {net,vat} using this this header and REMAINING NET AMOUNT";
-							}
-						} break;
-						case 2: {
-							if (auto amount = to_amount(ast[1])) {
-								prompt << "\nHEADER " << ast[0];
-								prompt << "\nAMOUNT " << *amount;
-								prompt << "\nWe will create a {net,vat} using this this header and amount";
-							}
-						} break;
+					auto had_iter = model->heading_amount_date_entries.begin();
+					auto end = model->heading_amount_date_entries.end();
+					std::advance(had_iter,model->had_index);
+					if (had_iter != end) {
+						auto had = *had_iter;
+						switch (ast.size()) {
+							case 0: {
+								prompt << "\nPlease enter:";
+								prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
+								prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
+							} break;
+							case 1: {
+								if (auto amount = to_amount(ast[0])) {
+									prompt << "\nAMOUNT " << *amount;
+									prompt << "\nPlease enter Heading only (full remaining amount implied) or Heading + Amount";
+								}
+								else {
+									prompt << "\nHEADER " << ast[0];
+									prompt << "\nWe will create a {net,vat} using this this header and REMAINING NET AMOUNT";
+								}
+							} break;
+							case 2: {
+								if (auto amount = to_amount(ast[1])) {
+									prompt << "\nHEADER " << ast[0];
+									prompt << "\nAMOUNT " << *amount;
+									prompt << "\nWe will create a {net,vat} using this this header and amount";
+									if (had.current_candidate and had.to_net_vat_transactions) {
+										// ####
+										auto gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
+										auto gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
+										if (std::abs(gross_positive_amount) > std::abs(gross_negative_amount)) {
+											auto ats = (*had.to_net_vat_transactions)(gross_negative_amount,ast[0],amount);
+											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+										}
+										else {
+											auto ats = (*had.to_net_vat_transactions)(gross_positive_amount,ast[0],amount);
+											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+										}
+										prompt << *had.current_candidate;
+									}
+									else {
+										prompt << "\nPlease re-select a valid HAD and template (Seems to have failed to identify a valid template for current situation)";
+									}
+								}
+							} break;
+						}
 					}
+					else {
+						prompt << "\nPlease re-select a valid had (seems to have lost previously selected had)";
+					}
+
 				}
 				else if (model->prompt_state == PromptState::JEIndex) {
 					// Assume the user has entered a new search criteria for template candidates
