@@ -3627,6 +3627,7 @@ enum class PromptState {
 	,HADIndex
 	,JEIndex
 	,JEAggregateOptionIndex
+	,EnterHA
 	,AccountIndex
 	,Amount
 	,CounterAccountsEntry
@@ -3892,7 +3893,10 @@ std::string prompt_line(PromptState const& prompt_state) {
 			prompt << ":had:je";
 		} break;
 		case PromptState::JEAggregateOptionIndex: {
-			prompt << ":had:je:nx_ha";
+			prompt << ":had:je:1or*";
+		} break;
+		case PromptState::EnterHA: {
+			prompt << ":had:je:ha";
 		} break;
 		case PromptState::AccountIndex: {
 			prompt << ":had:je:account";
@@ -4103,63 +4107,67 @@ public:
 						std::advance(had_iter,model->had_index);
 						if (had_iter != end) {
 							auto had = *had_iter;
-							if (ix == 0) {
-								// Try to stage gross + single counter transactions aggregate
-								if (auto me = had.current_candidate) {
-									if (std::any_of(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
-										return std::abs(at.amount) < 1.0;
-									})) {
-										// Assume we need to specify rounding
-										unsigned int i{};
-										std::for_each(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
-											prompt << "\n  " << i++ << " " << at;
-										});
-										model->prompt_state = PromptState::AccountIndex;
-									}
-									else {
-										// Stage as-is
-										auto staged_je = model->sie["current"].stage(*had.current_candidate);
-										if (staged_je) {
-											prompt << "\n" << *staged_je << " STAGED";
-											model->heading_amount_date_entries.erase(had_iter);
-											model->prompt_state = PromptState::HADIndex;
+							switch (ix) {
+
+								case 0: {
+									// Try to stage gross + single counter transactions aggregate
+									if (auto me = had.current_candidate) {
+										if (std::any_of(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+											return std::abs(at.amount) < 1.0;
+										})) {
+											// Assume we need to specify rounding
+											unsigned int i{};
+											std::for_each(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+												prompt << "\n  " << i++ << " " << at;
+											});
+											model->prompt_state = PromptState::AccountIndex;
 										}
 										else {
-											prompt << "\nSORRY - Failed to stage entry";
-											model->prompt_state = PromptState::Root;
+											// Stage as-is
+											auto staged_je = model->sie["current"].stage(*had.current_candidate);
+											if (staged_je) {
+												prompt << "\n" << *staged_je << " STAGED";
+												model->heading_amount_date_entries.erase(had_iter);
+												model->prompt_state = PromptState::HADIndex;
+											}
+											else {
+												prompt << "\nSORRY - Failed to stage entry";
+												model->prompt_state = PromptState::Root;
+											}
 										}
 									}
-								}
-								else {
-									prompt << "\nPlease re-enter a valid had-index and template index (No entry candidate detected)";
-								}
-							}
-							else if (ix == 1) {
-								prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
-								// 1) We need to identify the "type" of the template
-								// ####
-								auto tme = to_typed_meta_entry(*had.current_candidate);
-								prompt << "\n" << tme;
-								std::map<std::string,unsigned int> props_counter{};
-								for (auto const& [at,props] : tme.defacto.account_transactions) {
-									for (auto const& prop : props) props_counter[prop]++;
-								}
-								for (auto const& [prop,count] : props_counter) {
-									prompt << "\n" << prop << " count:" << count; 
-								}
-								if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat")) {
-									auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
-										acc += entry.second;
-										return acc;
-									});
-									if (props_sum == 3) {
-										prompt << "\nDetected: gross + n x {net,vat} pattern";
+									else {
+										prompt << "\nPlease re-enter a valid had-index and template index (No entry candidate detected)";
 									}
-								}
+								} break;
+								case 1: {
+									prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
+									// 1) We need to identify the "type" of the template
+									// ####
+									auto tme = to_typed_meta_entry(*had.current_candidate);
+									prompt << "\n" << tme;
+									std::map<std::string,unsigned int> props_counter{};
+									for (auto const& [at,props] : tme.defacto.account_transactions) {
+										for (auto const& prop : props) props_counter[prop]++;
+									}
+									for (auto const& [prop,count] : props_counter) {
+										prompt << "\n" << std::quoted(prop) << " count:" << count; 
+									}
+									if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat")) {
+										auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
+											acc += entry.second;
+											return acc;
+										});
+										if (props_sum == 3) {
+											prompt << "\nDetected: gross + n x {net,vat} pattern";
+											model->prompt_state = PromptState::EnterHA;
+										}
+									}
+								} break;
+								default: {
+									prompt << "\nPlease enter a valid had index";
+								} break;			
 							}
-							else {
-								prompt << "\nPlease enter a valid had index";
-							}							
 						}
 						else {
 							prompt << "\nPlease re-enter a valid had index";
@@ -4274,11 +4282,13 @@ public:
 						}
 					} break;
 
+					case PromptState::EnterHA:
 					case PromptState::EnterContact:
 					case PromptState::EnterEmployeeID:
 					case PromptState::Amount:
 					case PromptState::Undefined:
 					case PromptState::Unknown:
+						prompt << "\nPlease enter \"word\" like text (index option not available in this state)";
 						break;
 				}
 			}
@@ -4502,7 +4512,34 @@ public:
 			else {
 				std::cout << "\nAct on words";
 				// Assume word based input
-				if (model->prompt_state == PromptState::JEIndex) {
+				if (model->prompt_state == PromptState::EnterHA) {
+					switch (ast.size()) {
+						case 0: {
+							prompt << "\nPlease enter:";
+							prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
+							prompt << "\n\t Amount           (to add a transaction aggregate with a NO caption)";
+							prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
+						} break;
+						case 1: {
+							if (auto amount = to_amount(ast[0])) {
+								prompt << "\nAMOUNT " << *amount;
+								prompt << "\nWe will create a {net,vat} using this amount (NO HEADER)";
+							}
+							else {
+								prompt << "\nHEADER " << ast[0];
+								prompt << "\nWe will create a {net,vat} using this this header and REMAINING NET AMOUNT";
+							}
+						} break;
+						case 2: {
+							if (auto amount = to_amount(ast[1])) {
+								prompt << "\nHEADER " << ast[0];
+								prompt << "\nAMOUNT " << *amount;
+								prompt << "\nWe will create a {net,vat} using this this header and amount";
+							}
+						} break;
+					}
+				}
+				else if (model->prompt_state == PromptState::JEIndex) {
 					// Assume the user has entered a new search criteria for template candidates
 					model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& aje){
 						return strings_share_tokens(command,aje.caption);
