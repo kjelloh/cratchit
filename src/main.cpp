@@ -3484,6 +3484,7 @@ enum class PromptState {
 	,Root
 	,HADIndex
 	,JEIndex
+	,JEAggregateOptionIndex
 	,AccountIndex
 	,Amount
 	,CounterAccountsEntry
@@ -3748,6 +3749,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::JEIndex: {
 			prompt << ":had:je";
 		} break;
+		case PromptState::JEAggregateOptionIndex: {
+			prompt << ":had:je:nx_ha";
+		} break;
 		case PromptState::AccountIndex: {
 			prompt << ":had:je:account";
 		} break;
@@ -3927,31 +3931,10 @@ public:
 									auto tp = to_template(*je_iter);
 									if (tp) {
 										auto me = to_journal_entry(had,*tp);
-										// auto je = to_journal_entry(model->selected_had,*tp);
-										if (std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
-											return std::abs(at.amount) < 1.0;
-										})) {
-											// Assume we need to specify rounding
-											unsigned int i{};
-											std::for_each(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[&i,&prompt](auto const& at){
-												prompt << "\n  " << i++ << " " << at;
-											});
-											had.current_candidate = me;
-											model->prompt_state = PromptState::AccountIndex;
-										}
-										else {
-											// Assume we can apply template as-is and stage the generated journal entry
-											auto staged_je = model->sie["current"].stage(me);
-											if (staged_je) {
-												prompt << "\n" << *staged_je << " STAGED";
-												model->heading_amount_date_entries.erase(had_iter);
-												model->prompt_state = PromptState::HADIndex;
-											}
-											else {
-												prompt << "\nSORRY - Failed to stage entry";
-												model->prompt_state = PromptState::Root;
-											}
-										}
+										had.current_candidate = me;
+										prompt << "\n0 1 x counter transactions aggregate";
+										prompt << "\n1 n x counter transactions aggregate";
+										model->prompt_state = PromptState::JEAggregateOptionIndex;
 									}
 								}
 								else {
@@ -3960,7 +3943,55 @@ public:
 							}
 						}
 					} break;
+					case PromptState::JEAggregateOptionIndex: {
+						auto had_iter = model->heading_amount_date_entries.begin();
+						auto end = model->heading_amount_date_entries.end();
+						std::advance(had_iter,model->had_index);
+						if (had_iter != end) {
+							auto had = *had_iter;
+							if (ix == 0) {
+								// Try to stage gross + single counter transactions aggregate
+								if (auto me = had.current_candidate) {
+									if (std::any_of(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+										return std::abs(at.amount) < 1.0;
+									})) {
+										// Assume we need to specify rounding
+										unsigned int i{};
+										std::for_each(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+											prompt << "\n  " << i++ << " " << at;
+										});
+										model->prompt_state = PromptState::AccountIndex;
+									}
+									else {
+										// Stage as-is
+										auto staged_je = model->sie["current"].stage(*had.current_candidate);
+										if (staged_je) {
+											prompt << "\n" << *staged_je << " STAGED";
+											model->heading_amount_date_entries.erase(had_iter);
+											model->prompt_state = PromptState::HADIndex;
+										}
+										else {
+											prompt << "\nSORRY - Failed to stage entry";
+											model->prompt_state = PromptState::Root;
+										}
+									}
+								}
+								else {
+									prompt << "\nPlease re-enter a valid had-index and template index (No entry candidate detected)";
+								}
+							}
+							else if (ix == 1) {
+								prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
+							}
+							else {
+								prompt << "\nPlease enter a valid had index";
+							}							
+						}
+						else {
+							prompt << "\nPlease re-enter a valid had index";
+						}
 
+					} break;
 					case PromptState::AccountIndex: {
 						if (auto at = model->selected_had_at(ix)) {
 							model->at = *at;
