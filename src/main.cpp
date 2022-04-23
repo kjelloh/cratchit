@@ -473,11 +473,13 @@ namespace BAS {
 		using OptionalAccountTransaction = std::optional<AccountTransaction>;
 		using AccountTransactions = std::vector<AccountTransaction>;
 
-		struct JournalEntry {
+		template <typename T>
+		struct JournalEntry_t {
 			std::string caption{};
 			Date date{};
-			AccountTransactions account_transactions;
+			T account_transactions;
 		};
+		using JournalEntry = JournalEntry_t<AccountTransactions>;
 		using OptionalJournalEntry = std::optional<JournalEntry>;
 		using JournalEntries = std::vector<JournalEntry>;
 	} // namespace anonymous
@@ -607,8 +609,13 @@ namespace BAS {
 				return result;
 			}
 		};
-
 	}
+
+	// TYPED Journal Entries (to identify patterns of interest in how the individual account transactions of an entry is dispositioned in amount and on semantics of the account)
+	using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,std::set<std::string>>;
+	using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
+	using TypedMetaEntry = MetaDefacto<BAS::JournalEntryMeta,TypedJournalEntry>;
+	using TypedMetaEntries = std::vector<TypedMetaEntry>;
 } // namespace BAS
 
 using BASAccountNos = std::vector<BASAccountNo>;
@@ -2014,6 +2021,86 @@ BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironments 
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
 }
+
+auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
+	BAS::TypedAccountTransactions typed_ats{};
+	auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
+
+	// Direct type detection based on gross_amount and account meta data
+	for (auto const& at : me.defacto.account_transactions) {
+		if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
+		if (is_vat_account_at(at)) typed_ats[at].insert("vat");
+		if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
+		if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
+	}
+
+	// Ex vat amount Detection
+	Amount ex_vat_amount{},vat_amount{};
+	for (auto const& at : me.defacto.account_transactions) {
+		if (!typed_ats.contains(at)) {
+			// Not gross, Not VAT = candidate for ex VAT
+			ex_vat_amount += at.amount;
+		}
+		else if (typed_ats.at(at).contains("vat")) {
+			vat_amount += at.amount;
+		}
+	}
+	if (std::abs(std::round(std::abs(ex_vat_amount)) + std::round(std::abs(vat_amount)) - gross_amount) <= 1) {
+		// ex_vat + vat within cents of gross
+		// tag non typed ats as ex-vat
+		for (auto const& at : me.defacto.account_transactions) {
+			if (!typed_ats.contains(at)) {
+				typed_ats[at].insert("net");
+			}
+		}
+	}
+	// Identify an EU Purchase journal entry
+	// Example:
+	// typed: A27 Direktinköp EU 20210914
+	// 	 gross : "PlusGiro":1920 "" -6616.93
+	// 	 eu_vat vat : "Utgående moms omvänd skattskyldighet, 25 %":2614 "Momsrapport (30)" -1654.23
+	// 	 eu_vat vat : "Ingående moms":2640 "" 1654.23
+	// 	 eu_purchase : "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Momsrapport (20)" 6616.93
+	// 	 eu_purchase : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
+	// 	 gross : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
+	Amount eu_vat_amount{},eu_purchase_amount{};
+	for (auto const& at : me.defacto.account_transactions) {
+		// Identify transactions to EU VAT and EU Purchase tagged accounts
+		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,at)) {
+			typed_ats[at].insert("eu_vat");
+			eu_vat_amount = at.amount;
+		}
+		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,at)) {
+			typed_ats[at].insert("eu_purchase");
+			eu_purchase_amount = at.amount;
+		}
+	}
+	for (auto const& at : me.defacto.account_transactions) {
+		// Identify counter transactions to EU VAT and EU Purchase tagged accounts
+		if (at.amount == -eu_vat_amount) typed_ats[at].insert("eu_vat"); // The counter trans for EU VAT
+		if ((first_digit(at.account_no) == 4 or first_digit(at.account_no) == 9) and (at.amount == -eu_purchase_amount)) typed_ats[at].insert("eu_purchase"); // The counter trans for EU Purchase
+	}
+	// Mark gross accounts for EU VAT transaction journal entry
+	for (auto const& at : me.defacto.account_transactions) {
+		// We expect two accounts left unmarked and they are the gross accounts
+		if (!typed_ats.contains(at) and (std::abs(at.amount) == std::abs(eu_purchase_amount))) {
+			typed_ats[at].insert("gross");
+		}
+	}
+	// Finally add any still untyped at with empty property set
+	for (auto const& at : me.defacto.account_transactions) {
+		if (!typed_ats.contains(at)) typed_ats.insert({at,{}});
+	}
+	BAS::TypedMetaEntry result{
+		.meta = me.meta
+		,.defacto = {
+			.caption = me.defacto.caption
+			,.date = me.defacto.date
+			,.account_transactions = typed_ats
+		}
+	};		
+	return result;
+};
 
 struct T2 {
 	BAS::MetaEntry me;
@@ -4020,6 +4107,8 @@ public:
 							}
 							else if (ix == 1) {
 								prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
+								// 1) We need to identify the "type" of the template
+								// ####
 							}
 							else {
 								prompt << "\nPlease enter a valid had index";
@@ -4179,102 +4268,24 @@ public:
 						}
 					}
 					else if (ast[1] == "-types") {
-						// #TYPES
-						using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,std::set<std::string>>;
-						auto f = [&prompt](BAS::MetaEntry const& me) {
-							TypedAccountTransactions typed_ats{};
-							auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
-
-							// Direct type detection based on gross_amount and account meta data
-							for (auto const& at : me.defacto.account_transactions) {
-								if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
-								if (is_vat_account_at(at)) typed_ats[at].insert("vat");
-								if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
-								if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
-
-								// TODO: Add recognition of this entry?
-								// typed: A27Direktinköp EU20210914
-								// 	 ? : "PlusGiro":1920 "" -6616.93
-								// 	 vat : "Utgående moms omvänd skattskyldighet, 25 %":2614 "Momsrapport (30)" -1654.23
-								// 	 vat : "Ingående moms":2640 "" 1654.23
-								// 	 ? : "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Momsrapport (20)" 6616.93
-								// 	 ? : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
-								// 	 ? : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
-
-							}
-
-							// Ex vat amount Detection
-							Amount ex_vat_amount{},vat_amount{};
-							for (auto const& at : me.defacto.account_transactions) {
-								if (!typed_ats.contains(at)) {
-									// Not gross, Not VAT = candidate for ex VAT
-									ex_vat_amount += at.amount;
-								}
-								else if (typed_ats.at(at).contains("vat")) {
-									vat_amount += at.amount;
-								}
-							}
-							if (std::abs(std::round(std::abs(ex_vat_amount)) + std::round(std::abs(vat_amount)) - gross_amount) <= 1) {
-								// ex_vat + vat within cents of gross
-								// tag non typed ats as ex-vat
-								for (auto const& at : me.defacto.account_transactions) {
-									if (!typed_ats.contains(at)) {
-										typed_ats[at].insert("net");
-									}
-								}
-							}
-
-							// Identify an EU Purchase journal entry
-							// NOTE: I am sure there is some secret algorithm to make thus much easier? (But her goes brute force programming...)
-							// Example:
-							// typed: A27 Direktinköp EU 20210914
-							// 	 gross : "PlusGiro":1920 "" -6616.93
-							// 	 eu_vat vat : "Utgående moms omvänd skattskyldighet, 25 %":2614 "Momsrapport (30)" -1654.23
-							// 	 eu_vat vat : "Ingående moms":2640 "" 1654.23
-							// 	 eu_purchase : "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Momsrapport (20)" 6616.93
-							// 	 eu_purchase : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
-							// 	 gross : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
-							Amount eu_vat_amount{},eu_purchase_amount{};
-							for (auto const& at : me.defacto.account_transactions) {
-								// Identify transactions to EU VAT and EU Purchase tagged accounts
-								if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,at)) {
-									typed_ats[at].insert("eu_vat");
-									eu_vat_amount = at.amount;
-								}
-								if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,at)) {
-									typed_ats[at].insert("eu_purchase");
-									eu_purchase_amount = at.amount;
-								}
-							}
-							for (auto const& at : me.defacto.account_transactions) {
-								// Identify counter transactions to EU VAT and EU Purchase tagged accounts
-								if (at.amount == -eu_vat_amount) typed_ats[at].insert("eu_vat"); // The counter trans for EU VAT
-								if ((first_digit(at.account_no) == 4 or first_digit(at.account_no) == 9) and (at.amount == -eu_purchase_amount)) typed_ats[at].insert("eu_purchase"); // The counter trans for EU Purchase
-							}
-							// Mark gross accounts for EU VAT transaction journal entry
-							for (auto const& at : me.defacto.account_transactions) {
-								// We expect two accounts left unmarked and they are the gross accounts
-								if (!typed_ats.contains(at) and (std::abs(at.amount) == std::abs(eu_purchase_amount))) {
-									typed_ats[at].insert("gross");
-								}
-							}
-							
-							// LOG
-							prompt << "\ntyped:" << me.meta << " " << me.defacto.caption << " " << me.defacto.date;
-							for (auto const& at : me.defacto.account_transactions) {
+						BAS::TypedMetaEntries typed_mes{};
+						// Traversor
+						auto f = [&typed_mes](BAS::MetaEntry const& me) {
+							typed_mes.push_back(to_typed_meta_entry(me));
+						};
+						// Traverse
+						for_each_meta_entry(model->sie,f);
+						// List
+						for (auto const& tme : typed_mes) {
+							prompt << "\ntyped: " << tme.meta << " " << tme.defacto.caption << " " << tme.defacto.date;
+							for (auto const& [at,props] : tme.defacto.account_transactions) {
 								prompt << "\n\t";
-								if (typed_ats.contains(at)) {
-									for (auto const& prop : typed_ats.at(at)) {
-										prompt << " " << prop;
-									}
-								}
-								else {
-									prompt << " " << "?";
+								for (auto const& prop : props) {
+									prompt << " " << prop;
 								}
 								prompt << " : " << at;
-							}
-						};
-						for_each_meta_entry(model->sie,f);
+							}							
+						}
 					}
 					else {
 						// assume user search criteria on transaction heading and comments
