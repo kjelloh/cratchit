@@ -832,9 +832,15 @@ struct HeadingAmountDateTransEntry {
 };
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
+	if (auto me = had.current_candidate) {
+		os << '*';
+	}
+	else {
+		os << ' ';
+	}
 	os << had.heading;
 	os << " " << had.amount;
-	os << " " << to_string(had.date); 
+	os << " " << to_string(had.date);
 	return os;
 }
 
@@ -911,10 +917,30 @@ namespace CSV {
 		return result;		
 	}
 
-	HeadingAmountDateTransEntries from_stream(auto& in) {
+	HeadingAmountDateTransEntries from_stream(auto& in,OptionalBASAccountNo gross_bas_account_no = std::nullopt) {
 		HeadingAmountDateTransEntries result{};
 		parse_TRANS(in); // skip first line with field names
 		while (auto had = parse_TRANS(in)) {
+			// ####
+			if (gross_bas_account_no) {
+				std::cout << "\nfrom_stream to gross_bas_account_no:" << *gross_bas_account_no;
+				// Add a template with the gross amount transacted to provided bas account no
+				BAS::MetaEntry me{
+					.meta = {
+						.series = 'A'
+					}
+					,.defacto = {
+						.caption = had->heading
+						,.date = had->date
+					}
+				};
+				BAS::anonymous::AccountTransaction gross_at{
+					.account_no = *gross_bas_account_no
+					,.amount = had->amount
+				};
+				me.defacto.account_transactions.push_back(gross_at);
+				had->current_candidate = me;
+			}
 			result.push_back(*had);
 		}
 		return result;
@@ -3833,7 +3859,7 @@ public:
 						auto end = model->heading_amount_date_entries.end();
 						std::advance(iter,ix);
 						if (iter != end) {
-							auto had = *iter;
+							auto& had = *iter;
 							prompt << "\n" << had;
 							if (do_remove) {
 								model->heading_amount_date_entries.erase(iter);
@@ -3841,56 +3867,66 @@ public:
 								model->prompt_state = PromptState::Root;
 							}
 							else {
+								// selected HAD and list template options
 								model->had_index = ix;
 								model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
 									return had_matches_trans(had,aje);
 								});
-								{
-									// hard code a template for Inventory gross + n x (ex_vat + vat) journal entry
-									// 0  *** "Amazon" 20210924
-									// 	"Leverantörsskuld":2440 "" -1489.66
-									// 	"Invenmtarier":1221 "Garmin Edge 130" 1185.93
-									// 	"Debiterad ingående moms":2641 "Garmin Edge 130" 303.73
-
-									// struct JournalEntry {
-									// 	std::string caption{};
-									// 	Date date{};
-									// 	AccountTransactions account_transactions;
-									// };
-
-									Amount amount{1000};
-									BAS::MetaEntry me{
-										.meta = {
-											.series = 'A'
-										}
-										,.defacto = {
-											.caption = "Bestallning Inventarie"
-											,.date = had.date
-										}
-									};
-									BAS::anonymous::AccountTransaction gross_at{
-										.account_no = 2440
-										,.amount = -amount
-									};
-									BAS::anonymous::AccountTransaction net_at{
-										.account_no = 1221
-										,.amount = static_cast<Amount>(amount*0.8f)
-									};
-									BAS::anonymous::AccountTransaction vat_at{
-										.account_no = 2641
-										,.amount = static_cast<Amount>(amount*0.2f)
-									};
-									me.defacto.account_transactions.push_back(gross_at);
-									me.defacto.account_transactions.push_back(net_at);
-									me.defacto.account_transactions.push_back(vat_at);
-									model->template_candidates.push_back(me);
+								if (had.current_candidate) {
+									prompt << "\n\t" << *had.current_candidate;
+									// Go directly to opetate on candidate me
+									prompt << "\n0 1 x counter transactions aggregate";
+									prompt << "\n1 n x counter transactions aggregate";
+									model->prompt_state = PromptState::JEAggregateOptionIndex;
 								}
-								// List options
-								unsigned ix = 0;
-								for (int i=0; i < model->template_candidates.size(); ++i) {
-									prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+								else {
+									{
+										// hard code a template for Inventory gross + n x (ex_vat + vat) journal entry
+										// 0  *** "Amazon" 20210924
+										// 	"Leverantörsskuld":2440 "" -1489.66
+										// 	"Invenmtarier":1221 "Garmin Edge 130" 1185.93
+										// 	"Debiterad ingående moms":2641 "Garmin Edge 130" 303.73
+
+										// struct JournalEntry {
+										// 	std::string caption{};
+										// 	Date date{};
+										// 	AccountTransactions account_transactions;
+										// };
+
+										Amount amount{1000};
+										BAS::MetaEntry me{
+											.meta = {
+												.series = 'A'
+											}
+											,.defacto = {
+												.caption = "Bestallning Inventarie"
+												,.date = had.date
+											}
+										};
+										BAS::anonymous::AccountTransaction gross_at{
+											.account_no = 2440
+											,.amount = -amount
+										};
+										BAS::anonymous::AccountTransaction net_at{
+											.account_no = 1221
+											,.amount = static_cast<Amount>(amount*0.8f)
+										};
+										BAS::anonymous::AccountTransaction vat_at{
+											.account_no = 2641
+											,.amount = static_cast<Amount>(amount*0.2f)
+										};
+										me.defacto.account_transactions.push_back(gross_at);
+										me.defacto.account_transactions.push_back(net_at);
+										me.defacto.account_transactions.push_back(vat_at);
+										model->template_candidates.push_back(me);
+									}
+									// List options
+									unsigned ix = 0;
+									for (int i=0; i < model->template_candidates.size(); ++i) {
+										prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+									}
+									model->prompt_state = PromptState::JEIndex;
 								}
-								model->prompt_state = PromptState::JEIndex;
 							}
 						}
 						else {
@@ -3902,7 +3938,7 @@ public:
 						auto end = model->heading_amount_date_entries.end();
 						std::advance(had_iter,model->had_index);
 						if (had_iter != end) {
-							auto had = *had_iter;
+							auto& had = *had_iter;
 							if (auto account_no = BAS::to_account_no(command)) {
 								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
 								std::cout << "\nGross Account detected";
@@ -3913,6 +3949,7 @@ public:
 									}
 								};
 								me.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
+								std::cout << "\ncandidate " << me;
 								had.current_candidate = me;
 								// List the options to the user
 								unsigned int i{};
@@ -3931,6 +3968,7 @@ public:
 									auto tp = to_template(*je_iter);
 									if (tp) {
 										auto me = to_journal_entry(had,*tp);
+										std::cout << "\ncandidate " << me;
 										had.current_candidate = me;
 										prompt << "\n0 1 x counter transactions aggregate";
 										prompt << "\n1 n x counter transactions aggregate";
@@ -4367,7 +4405,7 @@ public:
 				}
 			}
 			else if (ast[0] == "-csv") {
-				// std::cout << "\nCSV :)";
+				std::cout << "\nCSV :)";
 				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 				/*
 				Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
@@ -4379,14 +4417,29 @@ public:
 				2021-12-03;-3,40;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;58736,28;SEK
 				*/
 				if (ast.size()>1) {
+					// ####
 					std::filesystem::path csv_file_path{ast[1]};
-					// std::cout << "\ncsv file " << csv_file_path;
+					std::cout << "\ncsv file " << csv_file_path;
 					std::ifstream ifs{csv_file_path};
 					if (std::filesystem::exists(csv_file_path)) {
-						// std::cout << "\ncsv file exists ok";
+						std::cout << "\ncsv file exists ok";
 						CSV::NORDEA::istream in{ifs};
-						auto hads = CSV::from_stream(in);
+						OptionalBASAccountNo gross_bas_account_no{};
+						if (ast.size()>2) {
+							std::cout << "\n ast[2]:)" << ast[2];
+							if (auto bas_account_no = BAS::to_account_no(ast[2])) {
+								gross_bas_account_no = *bas_account_no;
+								std::cout << "\n gross_bas_account_no:" << *gross_bas_account_no;
+							}
+							else {
+								prompt << "\nPlease enter a valid BAS account no for gross amount transaction. " << std::quoted(ast[2]) << " is not a valid BAS account no";
+							}
+						}
+						auto hads = CSV::from_stream(in,gross_bas_account_no);
 						std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
+					}
+					else {
+						prompt << "\nERROR - Please provide a path to an existing file. Can't find " << csv_file_path;
 					}
 				}
 				else {
