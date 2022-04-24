@@ -1,0 +1,35 @@
+
+#GEN 20220424
+#VER A 29 20211004 "PRIS ENL SPEC"
+{
+#TRANS 1920 {} -5.1 "" ""
+#TRANS 6570 {} 5.1 "" ""
+}
+#VER A 30 20211008 "KORT             BEANSTALK APP   26"
+{
+#TRANS 1920 {} -135.14 "" ""
+#TRANS 6230 {} 135.14 "" ""
+}
+#VER A 31 20211011 "BestΓò¼├┤Γö£ΓòóΓö¼├║╬ô├╢┬ú╬ô├╗├ållning Γò¼├┤Γö£ΓòóΓö¼├║╬ô├╢┬úΓö£├¡rsredovisning Online"
+{
+#TRANS 1920 {} -1725 "" ""
+#TRANS 6530 {} 1380 "" ""
+#TRANS 2641 {} 345 "" ""
+}
+#VER A 32 20211013 "Amazon BestΓö£├▒llning"
+{
+#TRANS 2440 {} -1799 "" ""
+#TRANS 1221 {} 1439 "" "Teleprompter Pafieo S12"
+#TRANS 2641 {} 360 "" "Teleprompter Pafieo S12"
+}
+#VER A 33 20211017 "Noxon Beställning"
+{
+#TRANS 2440 {} -11441.2 "" ""
+#TRANS 1221 {} 9152.96 "" "Div Fotoutrustning, sliders mm"
+#TRANS 2641 {} 2288.24 "" "Div Fotoutrustning, sliders mm"
+}
+#VER E 11 20211014 "KORT             AmazonMktplc*F7 26"
+{
+#TRANS 1920 {} -1799 "" ""
+#TRANS 2440 {} 1799 "" ""
+}

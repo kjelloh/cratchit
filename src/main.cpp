@@ -424,6 +424,10 @@ private:
 
 namespace BAS {
 
+	Amount cents_amount(Amount amount) {
+		return std::round(amount*100.0)/100.0;
+	}
+
 	enum class AccountType {
 		// Account type is specified as T, S, K or I (asset, debt, cost or income)
 		// Swedish: tillgång, skuld, kostnad eller intäkt
@@ -877,12 +881,12 @@ public:
 		BAS::anonymous::AccountTransaction net_at{
 			.account_no = m_net_at.account_no
 			,.transtext = transtext
-			,.amount = static_cast<Amount>(m_sign * gross_amount * (1.0-m_gross_vat_rate))
+			,.amount = BAS::cents_amount(static_cast<Amount>(m_sign * gross_amount * (1.0-m_gross_vat_rate)))
 		};
 		BAS::anonymous::AccountTransaction vat_at{
 			.account_no = m_vat_at.account_no
 			,.transtext = transtext
-			,.amount = static_cast<Amount>(m_sign * gross_amount * m_gross_vat_rate)
+			,.amount = BAS::cents_amount(static_cast<Amount>(m_sign * gross_amount * m_gross_vat_rate))
 		};
 		result.push_back(net_at);
 		result.push_back(vat_at);
@@ -4629,7 +4633,12 @@ public:
 										}
 										else if (std::abs(gross_amounts_diff) < 1.0) {
 											// Consider a cents rounding account transaction
-											prompt << "\nTODO: Add cents rounding account transaction";
+											prompt << "\nAdded cents rounding to account 3740";
+											auto cents_rounding_at = BAS::anonymous::AccountTransaction{
+												.account_no = 3740
+												,.amount = -gross_amounts_diff
+											};
+											had.current_candidate->defacto.account_transactions.push_back(cents_rounding_at);
 										}
 										else {
 											// The journal entry candidate balances. Consider to stage it
@@ -4644,6 +4653,19 @@ public:
 							gross_amounts_diff = gross_positive_amount + gross_negative_amount;
 							prompt << "\n-------------------------------";
 							prompt << "\ndiff:" << gross_amounts_diff;
+							if (gross_amounts_diff == 0) {
+								// Stage the journal entry
+								auto me = model->sie["current"].stage(*had.current_candidate);
+								if (me) {
+									prompt << "\n" << *me << " STAGED";
+									model->heading_amount_date_entries.erase(had_iter);
+									model->prompt_state = PromptState::HADIndex;
+								}
+								else {
+									prompt << "\nSORRY - Failed to stage entry";
+									model->prompt_state = PromptState::Root;
+								}
+							}
 
 						}
 						else {

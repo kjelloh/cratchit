@@ -1,0 +1,16 @@
+<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
+<eSKDUpload Version="6.0">
+  <OrgNr>556782-8172</OrgNr>
+  <Moms>
+   <Period>202109</Period>
+   <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
+   <InkopVaruAnnatEg>6617</InkopVaruAnnatEg>
+   <MomsUlagImport>0</MomsUlagImport>
+   <ForsTjSkskAnnatEg>0</ForsTjSkskAnnatEg>
+   <MomsUtgHog>83300</MomsUtgHog>
+   <MomsInkopUtgHog>1654</MomsInkopUtgHog>
+   <MomsImportUtgHog>0</MomsImportUtgHog>
+   <MomsIngAvdr>2540</MomsIngAvdr>
+   <MomsBetala>82415</MomsBetala>
+  </Moms>
+</eSKDUpload>
