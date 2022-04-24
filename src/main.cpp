@@ -773,11 +773,16 @@ std::string to_string(BAS::anonymous::AccountTransaction const& at) {
 	return os.str();
 };
 
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
+	for (auto const& at : ats) {
+		os << "\n\t" << at; 
+	}
+	return os;
+}
+
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje) {
 	os << std::quoted(aje.caption) << " " << aje.date;
-	for (auto const& at : aje.account_transactions) {
-		os << "\n\t" << to_string(at); 
-	}
+	os << aje.account_transactions;
 	return os;
 };
 
@@ -863,28 +868,30 @@ public:
 	ToNetVatAccountTransactions(BAS::anonymous::AccountTransaction const& net_at, BAS::anonymous::AccountTransaction const& vat_at)
 		:  m_net_at{net_at}
 		  ,m_vat_at{vat_at}
-			,m_vat_rate{static_cast<Amount>(std::abs((net_at.amount != 0)?vat_at.amount/net_at.amount:1.0))}
-			,m_sign{m_vat_rate/std::abs(m_vat_rate)} {}
+			,m_gross_vat_rate{static_cast<Amount>((net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0)}
+			,m_sign{(net_at.amount<0)?-1.0f:1.0f} /* 0 gets sign + */ {}
 
-	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,optional_amount const& inc_vat_amount) {
+	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,optional_amount const& inc_vat_amount = std::nullopt) {
 		BAS::anonymous::AccountTransactions result{};
 		Amount gross_amount = (inc_vat_amount)?*inc_vat_amount:remaining_counter_amount;
 		BAS::anonymous::AccountTransaction net_at{
 			.account_no = m_net_at.account_no
 			,.transtext = transtext
-			,.amount = static_cast<Amount>(m_sign * gross_amount * (1.0-m_vat_rate))
+			,.amount = static_cast<Amount>(m_sign * gross_amount * (1.0-m_gross_vat_rate))
 		};
 		BAS::anonymous::AccountTransaction vat_at{
 			.account_no = m_vat_at.account_no
 			,.transtext = transtext
-			,.amount = static_cast<Amount>(m_sign * gross_amount * m_vat_rate)
+			,.amount = static_cast<Amount>(m_sign * gross_amount * m_gross_vat_rate)
 		};
+		result.push_back(net_at);
+		result.push_back(vat_at);
 		return result;
 	}
 private:
 	BAS::anonymous::AccountTransaction m_net_at;
 	BAS::anonymous::AccountTransaction m_vat_at;
-	float m_vat_rate;
+	float m_gross_vat_rate;
 	float m_sign;
 };
 
@@ -4142,7 +4149,7 @@ public:
 						auto end = model->heading_amount_date_entries.end();
 						std::advance(had_iter,model->had_index);
 						if (had_iter != end) {
-							auto had = *had_iter;
+							auto& had = *had_iter;
 							switch (ix) {
 
 								case 0: {
@@ -4202,22 +4209,22 @@ public:
 												if (props.contains("net")) net_at = at;
 												if (props.contains("vat")) vat_at = at;
 											}
+											if (!net_at) std::cerr << "\nNo net_at";
+											if (!vat_at) std::cerr << "\nNo vat_at";
 											if (net_at and vat_at) {
 												had.to_net_vat_transactions = ToNetVatAccountTransactions{*net_at,*vat_at};
-												auto net_iter = std::find_if(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&net_at](auto const& at){
-													return (at.account_no == net_at->account_no);
+												
+												BAS::anonymous::AccountTransactions ats_to_keep{};
+												std::remove_copy_if(
+													had.current_candidate->defacto.account_transactions.begin()
+													,had.current_candidate->defacto.account_transactions.end()
+													,std::back_inserter(ats_to_keep)
+													,[&net_at,&vat_at](auto const& at){
+														return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
 												});
-												auto vat_iter = std::find_if(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&vat_at](auto const& at){
-													return (at.account_no == vat_at->account_no);
-												});
-												// if ((net_iter != had.current_candidate->defacto.account_transactions.end()) and (vat_iter != had.current_candidate->defacto.account_transactions.end())) {
-												// 	had.current_candidate->defacto.account_transactions.erase(net_iter);
-												// 	had.current_candidate->defacto.account_transactions.erase(vat_iter);
-												// }
-												// else {
-												// 	std::cerr << "\nERROR: Failed to remove net and vat ats from had.current_candidate";
-												// }
+												had.current_candidate->defacto.account_transactions = ats_to_keep;
 											}
+											prompt << "\ncadidate: " << *had.current_candidate;
 											model->prompt_state = PromptState::EnterHA;
 										}
 									}
@@ -4575,47 +4582,72 @@ public:
 					auto end = model->heading_amount_date_entries.end();
 					std::advance(had_iter,model->had_index);
 					if (had_iter != end) {
-						auto had = *had_iter;
-						switch (ast.size()) {
-							case 0: {
-								prompt << "\nPlease enter:";
-								prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
-								prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
-							} break;
-							case 1: {
-								if (auto amount = to_amount(ast[0])) {
-									prompt << "\nAMOUNT " << *amount;
-									prompt << "\nPlease enter Heading only (full remaining amount implied) or Heading + Amount";
-								}
-								else {
-									prompt << "\nHEADER " << ast[0];
-									prompt << "\nWe will create a {net,vat} using this this header and REMAINING NET AMOUNT";
-								}
-							} break;
-							case 2: {
-								if (auto amount = to_amount(ast[1])) {
-									prompt << "\nHEADER " << ast[0];
-									prompt << "\nAMOUNT " << *amount;
-									prompt << "\nWe will create a {net,vat} using this this header and amount";
-									if (had.current_candidate and had.to_net_vat_transactions) {
-										// ####
-										auto gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
-										auto gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
-										if (std::abs(gross_positive_amount) > std::abs(gross_negative_amount)) {
-											auto ats = (*had.to_net_vat_transactions)(gross_negative_amount,ast[0],amount);
-											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
-										}
-										else {
-											auto ats = (*had.to_net_vat_transactions)(gross_positive_amount,ast[0],amount);
-											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
-										}
-										prompt << *had.current_candidate;
+						auto& had = *had_iter;
+						if (!had.current_candidate) std::cerr << "\nNo had.current_candidate";
+						if (!had.to_net_vat_transactions) std::cerr << "\nNo had.to_net_vat_transactions";
+						if (had.current_candidate and had.to_net_vat_transactions) {
+							// ####
+							auto gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
+							auto gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
+							auto gross_amounts_diff = gross_positive_amount + gross_negative_amount;
+							std::cout << "\ngross_positive_amount:" << gross_positive_amount << " gross_negative_amount:" << gross_negative_amount << " gross_amounts_diff:" << gross_amounts_diff;
+
+							switch (ast.size()) {
+								case 0: {
+									prompt << "\nPlease enter:";
+									prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
+									prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
+								} break;
+								case 1: {
+									if (auto amount = to_amount(ast[0])) {
+										prompt << "\nAMOUNT " << *amount;
+										prompt << "\nPlease enter Heading only (full remaining amount implied) or Heading + Amount";
 									}
 									else {
-										prompt << "\nPlease re-select a valid HAD and template (Seems to have failed to identify a valid template for current situation)";
+										prompt << "\nHEADER " << ast[0];
+										auto ats = (*had.to_net_vat_transactions)(std::abs(gross_amounts_diff),ast[0]);
+										std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+										prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
 									}
-								}
-							} break;
+								} break;
+								case 2: {
+									if (auto amount = to_amount(ast[1])) {
+										prompt << "\nHEADER " << ast[0];
+										prompt << "\nAMOUNT " << *amount;
+										prompt << "\nWe will create a {net,vat} using this this header and amount";
+										if (gross_amounts_diff > 0) {
+											// We need to balance up with negative account transaction aggregates
+											auto ats = (*had.to_net_vat_transactions)(std::abs(gross_amounts_diff),ast[0],amount);
+											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+											prompt << "\nAdded negative transactions aggregate" << ats;
+										}
+										else if (gross_amounts_diff < 0) {
+											// We need to balance up with positive account transaction aggregates
+											auto ats = (*had.to_net_vat_transactions)(std::abs(gross_amounts_diff),ast[0],amount);
+											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+											prompt << "\nAdded positive transaction aggregate";
+										}
+										else if (std::abs(gross_amounts_diff) < 1.0) {
+											// Consider a cents rounding account transaction
+											prompt << "\nTODO: Add cents rounding account transaction";
+										}
+										else {
+											// The journal entry candidate balances. Consider to stage it
+											prompt << "\nTODO: Stage balancing journal entry";
+										}
+									}
+								} break;
+							}
+							prompt << "\ncandidate:" << *had.current_candidate;
+							gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
+							gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
+							gross_amounts_diff = gross_positive_amount + gross_negative_amount;
+							prompt << "\n-------------------------------";
+							prompt << "\ndiff:" << gross_amounts_diff;
+
+						}
+						else {
+							prompt << "\nPlease re-select a valid HAD and template (Seems to have failed to identify a valid template for current situation)";
 						}
 					}
 					else {
