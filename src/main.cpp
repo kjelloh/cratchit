@@ -1088,12 +1088,22 @@ namespace Key {
 using char16_t_string = std::wstring;
 
 namespace charset {
+
 	namespace CP435 {
 		extern std::map<char,char16_t> cp435ToUnicodeMap;
 
 		char16_t cp435ToUnicode(char ch435) {
 			return cp435ToUnicodeMap[ch435];
 		}
+	
+		uint8_t UnicodeToCP435(char16_t unicode) {
+			uint8_t result{'?'};
+			auto iter = std::find_if(cp435ToUnicodeMap.begin(),cp435ToUnicodeMap.end(),[&unicode](auto const& entry){
+				return entry.second == unicode;
+			});
+			if (iter != cp435ToUnicodeMap.end()) result = iter->first;
+			return result;
+		} 
 
 		char16_t_string cp435ToUnicode(std::string s435) {
 			char16_t_string result{};
@@ -1161,6 +1171,62 @@ namespace encoding {
 			for (auto cp : s) utf8_os << cp;
 			return os.str();
 		}
+
+		// UTF-8 to Unicode
+		class ToUnicodeBuffer {
+		public:
+			using OptionalUnicode = std::optional<uint16_t>;
+			OptionalUnicode push(uint8_t b) {
+				OptionalUnicode result{};
+				// See https://en.wikipedia.org/wiki/UTF-8#Encoding
+				// Code point <-> UTF-8 conversion
+				// First code point	Last code point	Byte 1		Byte 2    Byte 3    Byte 4
+				// U+0000	U+007F										0xxxxxxx	
+				// U+0080	U+07FF										110xxxxx	10xxxxxx	
+				// U+0800	U+FFFF										1110xxxx	10xxxxxx	10xxxxxx	
+				// U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
+				this->m_utf_8_buffer.push_back(b);
+				return this->to_unicode();
+			}
+		private:
+			std::deque<uint8_t> m_utf_8_buffer{};
+			OptionalUnicode to_unicode() {
+				OptionalUnicode result{};
+				switch (m_utf_8_buffer.size()) {
+					case 1: {
+						if (m_utf_8_buffer[0] < 0x7F) {
+							result = m_utf_8_buffer[0];
+							m_utf_8_buffer.clear();
+						}
+					} break;
+					case 2: {
+						if (m_utf_8_buffer[0]>>5 == 0b110) {
+							uint16_t wch = (m_utf_8_buffer[0] & 0b00011111) << 6;
+							wch += (m_utf_8_buffer[1] & 0b00111111);
+							result = wch;
+							m_utf_8_buffer.clear();
+						}
+					} break;
+					case 3: {
+						if (m_utf_8_buffer[0]>>4 == 0b1110) {
+							uint16_t wch = (m_utf_8_buffer[0] & 0b00001111) << 6;
+							wch += (m_utf_8_buffer[1] & 0b00111111);
+							wch = (wch << 6) + (m_utf_8_buffer[2] & 0b00111111);
+							result = wch;
+							m_utf_8_buffer.clear();
+						}
+					} break;
+					default: {
+						// We don't support Unicodes over the range U+0800	U+FFFF
+						// Clean out any encoding bytes
+						while (m_utf_8_buffer.size()>0 and m_utf_8_buffer.front() > 0x7F) m_utf_8_buffer.pop_front();
+						result = to_unicode(); // Recurse with the new buffer
+					}
+				}
+				return result;
+			}
+		};
+
 	} // namespace UTF8
 } // namespace encoding
 
@@ -1523,11 +1589,39 @@ namespace SIE {
 	// BEGIN operator<< framework for SIE::T stream to text stream in SIE file representation
 	// ===============================================================
 
-	struct ostream {
+	/**
+	 * NOTE ABOUT UTF-8 TO Code Page 435 used as the character set of an SIE file
+	 * 
+	 * The convertion is made in overloaded operator<<(SIE::OStream& sieos,char ch) called by operator<<(SIE::OStream& sieos,std::string s).
+	 * 
+	 * But I have not yet overloaded operator<<(SIE::OStream& for things like Amount, account_no etc.
+	 * SO - basically it is mainly transtext and vertext that is fed to the operator<<(SIE::OStream& sieos,std::string s).
+	 * TAKE CARE to not mess this up or you will get UTF-8 encoded text into the SIE file that will mess things up quite a lot...
+	 */
+
+
+	struct OStream {
 		std::ostream& os;
+		encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
 	};
 
-	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Trans const& trans) {
+	SIE::OStream& operator<<(SIE::OStream& sieos,char ch) {
+		// Assume s is in UTF-8 and convert it to CP435 charachter set in file
+		if (auto unicode = sieos.to_unicode_buffer.push(ch)) {
+			auto cp435_ch = charset::CP435::UnicodeToCP435(*unicode);
+			sieos.os.put(cp435_ch);
+		}
+		return sieos;
+	}
+
+	SIE::OStream& operator<<(SIE::OStream& sieos,std::string s) {
+		for (char ch : s) {
+			sieos << ch; // Stream through operator<<(SIE::OStream& sieos,char ch) that will tarnsform utf-8 encoded Unicode, to char encoded CP435
+		}
+		return sieos;
+	}
+
+	SIE::OStream& operator<<(SIE::OStream& sieos,SIE::Trans const& trans) {
 		// #TRANS account no {object list} amount transdate transtext quantity sign
 		//                                           o          o        o      o
 		// #TRANS 1920 {} -890 "" "" 0
@@ -1536,18 +1630,18 @@ namespace SIE {
 		<< " " << "{}"
 		<< " " << trans.amount
 		<< " " << std::quoted("");
-		if (trans.transtext) sieos.os << " " << std::quoted(*trans.transtext);
+		if (trans.transtext) sieos << " \"" << *trans.transtext << "\"";
 		else sieos.os << " " << std::quoted("");
 		return sieos;
 	}
 	
-	SIE::ostream& operator<<(SIE::ostream& sieos,SIE::Ver const& ver) {
+	SIE::OStream& operator<<(SIE::OStream& sieos,SIE::Ver const& ver) {
 		// #VER A 1 20210505 "M�nadsavgift PG" 20210817	
 		sieos.os << "\n#VER" 
 		<< " " << ver.series 
 		<< " " << ver.verno
-		<< " " << to_string(ver.verdate) // TODO: make compiler find operator<< above (why can to_string use it but we can't?)
-		<< " " << std::quoted(ver.vertext);
+		<< " " << to_string(ver.verdate); // TODO: make compiler find operator<< above (why can to_string use it but we can't?)
+		sieos << " \"" << ver.vertext << "\"";
 		sieos.os << "\n{";
 		for (auto const& trans : ver.transactions) {
 			sieos << trans;
@@ -3902,7 +3996,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
 	// std::cout << "\nunposted_to_sie_file " << p;
 	std::ofstream os{p};
-	SIE::ostream sieos{os};
+	SIE::OStream sieos{os};
 	// auto now = std::chrono::utc_clock::now();
 	auto now = std::chrono::system_clock::now();
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
@@ -5114,8 +5208,6 @@ private:
 
 int main(int argc, char *argv[])
 {
-	auto avfm = SKV::XML::VATReturns::account_vat_form_mapping();
-	for (auto const& p : avfm) std::cout << "\nvat_returns_map:" << p[0] << " " << p[2];
 	if (false) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
@@ -5125,8 +5217,12 @@ int main(int argc, char *argv[])
 			for (auto const& ch : sHello) {
 				std::cout << "\n" << ch << " " << std::hex << static_cast<int>(ch) << std::dec; // check stream and console encoding, std::locale behaviour
 			}
+			std::ofstream os{"cp435_test.txt"};
+			SIE::OStream sieos{os};
+			sieos << sHello; // We expect SIE file encoding of CP435
+			return 0;
 			std::string sPATH{std::getenv("PATH")};
-			// std::cout << "\nPATH=" << sPATH;
+			std::cout << "\nPATH=" << sPATH;
 	}
 	std::string command{};
 	for (int i=1;i < argc;i++) command+= std::string{argv[i]} + " ";
