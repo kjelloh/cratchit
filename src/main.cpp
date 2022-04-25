@@ -904,7 +904,7 @@ struct HeadingAmountDateTransEntry {
 	Amount amount;
 	Date date{};
 	BAS::OptionalMetaEntry current_candidate{};
-	std::optional<ToNetVatAccountTransactions> to_net_vat_transactions{};
+	std::optional<ToNetVatAccountTransactions> counter_ats_producer{};
 };
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
@@ -1791,11 +1791,11 @@ public:
 	JournalEntryTemplate(BAS::Series series,BAS::MetaEntry const& me) : m_series{series} {
 		auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
 		if (gross_amount >= 0.01) {
-			std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& account_transaction){
+			std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& at){
 				AccountTransactionTemplate result(
-					 account_transaction.account_no
+					 at.account_no
 					,gross_amount
-					,account_transaction.amount
+					,at.amount
 				);
 				return result;
 			});
@@ -4138,10 +4138,18 @@ public:
 								});
 								if (had.current_candidate) {
 									prompt << "\n\t" << *had.current_candidate;
-									// Go directly to opetate on candidate me
-									prompt << "\n0 1 x counter transactions aggregate";
-									prompt << "\n1 n x counter transactions aggregate";
-									model->prompt_state = PromptState::JEAggregateOptionIndex;
+									if (had.counter_ats_producer) {
+										// We alreade have a "counter transactions" producer.
+										// Go directly to state for user to apply it to complete the candidate
+										model->prompt_state = PromptState::EnterHA;
+									}
+									else {
+										// The user has already selected a candidate
+										// But have not gone through assigning a "counter transaction" producer
+										prompt << "\n0 1 x counter transactions aggregate";
+										prompt << "\n1 n x counter transactions aggregate";
+										model->prompt_state = PromptState::JEAggregateOptionIndex;
+									}
 								}
 								else {
 									{
@@ -4313,7 +4321,7 @@ public:
 											if (!net_at) std::cerr << "\nNo net_at";
 											if (!vat_at) std::cerr << "\nNo vat_at";
 											if (net_at and vat_at) {
-												had.to_net_vat_transactions = ToNetVatAccountTransactions{*net_at,*vat_at};
+												had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
 												
 												BAS::anonymous::AccountTransactions ats_to_keep{};
 												std::remove_copy_if(
@@ -4685,8 +4693,8 @@ public:
 					if (had_iter != end) {
 						auto& had = *had_iter;
 						if (!had.current_candidate) std::cerr << "\nNo had.current_candidate";
-						if (!had.to_net_vat_transactions) std::cerr << "\nNo had.to_net_vat_transactions";
-						if (had.current_candidate and had.to_net_vat_transactions) {
+						if (!had.counter_ats_producer) std::cerr << "\nNo had.counter_ats_producer";
+						if (had.current_candidate and had.counter_ats_producer) {
 							// ####
 							auto gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
 							auto gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
@@ -4706,7 +4714,7 @@ public:
 									}
 									else {
 										prompt << "\nHEADER " << ast[0];
-										auto ats = (*had.to_net_vat_transactions)(std::abs(gross_amounts_diff),ast[0]);
+										auto ats = (*had.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0]);
 										std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
 										prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
 									}
@@ -4718,13 +4726,13 @@ public:
 										prompt << "\nWe will create a {net,vat} using this this header and amount";
 										if (gross_amounts_diff > 0) {
 											// We need to balance up with negative account transaction aggregates
-											auto ats = (*had.to_net_vat_transactions)(std::abs(gross_amounts_diff),ast[0],amount);
+											auto ats = (*had.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
 											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
 											prompt << "\nAdded negative transactions aggregate" << ats;
 										}
 										else if (gross_amounts_diff < 0) {
 											// We need to balance up with positive account transaction aggregates
-											auto ats = (*had.to_net_vat_transactions)(std::abs(gross_amounts_diff),ast[0],amount);
+											auto ats = (*had.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
 											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
 											prompt << "\nAdded positive transaction aggregate";
 										}
