@@ -1768,20 +1768,24 @@ BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymou
 	return result;
 }
 
-struct AccountTransactionTemplate {
-	AccountTransactionTemplate(BASAccountNo account_no,Amount gross_amount,Amount account_amount) 
-		:  m_account_no{account_no}
-			,m_percent{static_cast<int>(std::round(account_amount*100 / gross_amount))}  {}
-	BASAccountNo m_account_no;
-	int m_percent;
+class AccountTransactionTemplate {
+public:
+	AccountTransactionTemplate(Amount gross_amount,BAS::anonymous::AccountTransaction const& at) 
+		:  m_at{at}
+			,m_percent{static_cast<int>(std::round(at.amount*100 / gross_amount))}  {}
 	BAS::anonymous::AccountTransaction operator()(Amount amount) const {
 		// BAS::anonymous::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
 		BAS::anonymous::AccountTransaction result{
-			 .account_no = m_account_no
-			,.transtext=""
+			 .account_no = m_at.account_no
+			,.transtext = m_at.transtext
 			,.amount=static_cast<Amount>(std::round(amount*m_percent)/100.0)};
 		return result;
 	}
+	int percent() const {return m_percent;}
+private:
+	BAS::anonymous::AccountTransaction m_at;
+	int m_percent;
+	friend std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att);
 };
 using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
 
@@ -1792,15 +1796,11 @@ public:
 		auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
 		if (gross_amount >= 0.01) {
 			std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& at){
-				AccountTransactionTemplate result(
-					 at.account_no
-					,gross_amount
-					,at.amount
-				);
+				AccountTransactionTemplate result{gross_amount,at};
 				return result;
 			});
 			std::sort(this->templates.begin(),this->templates.end(),[](auto const& e1,auto const& e2){
-				return (std::abs(e1.m_percent) > std::abs(e2.m_percent)); // greater to lesser
+				return (std::abs(e1.percent()) > std::abs(e2.percent())); // greater to lesser
 			});
 		}
 	}
@@ -1842,10 +1842,15 @@ BAS::MetaEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEn
 	return result;
 }
 
+std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att) {
+	os << "\n\t" << att.m_at.account_no << " " << att.m_percent;
+	return os;
+}
+
 std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	os << "template: series " << entry.series();
-	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& t){
-		os << "\n\t" << t.m_account_no << " " << t.m_percent;
+	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& att){
+		os << "\n\t" << att;
 	});
 	return os;
 }
