@@ -247,7 +247,7 @@ namespace SRU {
 }
 
 using Amount= float;
-using optional_amount = std::optional<Amount>;
+using OptionalAmount = std::optional<Amount>;
 
 using Date = std::chrono::year_month_day;
 using OptionalDate = std::optional<Date>;
@@ -381,9 +381,9 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 	return result;
 }
 
-optional_amount to_amount(std::string const& sAmount) {
+OptionalAmount to_amount(std::string const& sAmount) {
 	// std::cout << "\nto_amount " << std::quoted(sAmount);
-	optional_amount result{};
+	OptionalAmount result{};
 	Amount amount{};
 	std::istringstream is{sAmount};
 	if (auto pos = sAmount.find(','); pos != std::string::npos) {
@@ -875,7 +875,7 @@ public:
 			,m_gross_vat_rate{static_cast<Amount>((net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0)}
 			,m_sign{(net_at.amount<0)?-1.0f:1.0f} /* 0 gets sign + */ {}
 
-	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,optional_amount const& inc_vat_amount = std::nullopt) {
+	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,OptionalAmount const& inc_vat_amount = std::nullopt) {
 		BAS::anonymous::AccountTransactions result{};
 		Amount gross_amount = (inc_vat_amount)?*inc_vat_amount:remaining_counter_amount;
 		BAS::anonymous::AccountTransaction net_at{
@@ -4479,7 +4479,26 @@ public:
 					// std::cout << model->sie["current"];
 				}
 				else if (ast.size()==2) {
-					if (ast[1]=="*") {
+					if (auto gross_amount = to_amount(ast[1])) {
+						prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
+						class HasGrossAmount {
+						public:
+							HasGrossAmount(Amount gross_amount) : m_gross_amount(gross_amount) {}
+							bool operator()(BAS::MetaEntry const& me) {
+								if (m_gross_amount<0) {
+									return (to_negative_gross_transaction_amount(me.defacto) == m_gross_amount);
+								}
+								else {
+									return (to_positive_gross_transaction_amount(me.defacto) == m_gross_amount);
+								}
+							}
+						private:
+							Amount m_gross_amount;
+						};
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],HasGrossAmount{*gross_amount}};
+						prompt << filtered_sie;
+					}
+					else if (ast[1]=="*") {
 						// List unposted sie entries
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_flagged_unposted{}};
 						prompt << filtered_sie;
