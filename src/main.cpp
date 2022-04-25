@@ -4421,7 +4421,7 @@ public:
 						// prompt << "\n1: Arbetsgivardeklaration (Employer’s contributions and PAYE tax return form)";
 						// prompt << "\n2: Periodisk Sammanställning (EU sales list)"
 						switch (ix) {
-							case 1: {
+							case 0: {
 								// Assume Employer’s contributions and PAYE tax return form
 
 								// List Tax Return Form skv options (user data edit)
@@ -4429,17 +4429,17 @@ public:
 								prompt << delta_prompt;
 								model->prompt_state = prompt_state;
 							} break;
-							case 3: {
-								// Create current quarter, previous quarter and two previous quarters option
+							case 1: {
+								// Create current quarter, previous quarter or two previous quarters option
 								auto today = to_today();
 								auto current_qr = to_quarter_range(today);
 								auto previous_qr = to_previous_quarter(current_qr);
 								auto quarter_before_previous_qr = to_previous_quarter(previous_qr);
 								auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
 
-								prompt << "\n0: Current Quarter " << current_qr << " (to track)";
-								prompt << "\n1: Previous Quarter " << previous_qr << " (to report)";
-								prompt << "\n2: Previous two Quarters " << two_previous_quarters << " (to check)";
+								prompt << "\n0: Track Current Quarter " << current_qr;
+								prompt << "\n1: Report Previous Quarter " << previous_qr;
+								prompt << "\n2: Check Previous two Quarters " << two_previous_quarters;
 								model->prompt_state = PromptState::QuarterOptionIndex;								
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
@@ -4509,7 +4509,7 @@ public:
 									if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(*box_map,org_meta,*period_range)) {
 										auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range->end());
 										std::filesystem::path skv_files_folder{"to_skv"};						
-										std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + ".csv"};						
+										std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + "_" + to_string(today) + ".csv"};						
 										std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
 										std::filesystem::create_directories(eu_list_form_file_path.parent_path());
 										std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
@@ -4752,8 +4752,8 @@ public:
 			else if (ast[0] == "-skv") {
 				if (ast.size() == 1) {
 					// List skv options
-					prompt << "\n1: Arbetsgivardeklaration (TAX Returns)";
-					prompt << "\n3: Momsrapport (VAT Returns)";
+					prompt << "\n0: Arbetsgivardeklaration (TAX Returns)";
+					prompt << "\n1: Momsrapport (VAT Returns)";
 					model->prompt_state = PromptState::SKVEntryIndex;
 				}
 				else if (ast.size() == 2) {
