@@ -19,7 +19,7 @@
 #include <numeric>
 #include <functional>
 #include <set>
- 
+
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
 // tasks.json/"tasks"/label:"macOS..."/args: ... "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" 
@@ -510,6 +510,13 @@ namespace BAS {
 	using MetaAccountTransaction = MetaDefacto<BAS::MetaEntry,BAS::anonymous::AccountTransaction>;
 	using OptionalMetaAccountTransaction = std::optional<MetaAccountTransaction>;
 	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
+} // namespace BAS
+
+// Forward (TODO: Reorganise if/when splitting into proper header/cpp file structure)
+Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+
+namespace BAS {
 
 	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
 		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
@@ -552,6 +559,33 @@ namespace BAS {
 			bool operator()(MetaEntry const& me) {
 				return (me.meta.series == required_series);
 			}
+		};
+
+		class HasGrossAmount {
+		public:
+			HasGrossAmount(Amount gross_amount) : m_gross_amount(gross_amount) {}
+			bool operator()(BAS::MetaEntry const& me) {
+				if (m_gross_amount<0) {
+					return (to_negative_gross_transaction_amount(me.defacto) == m_gross_amount);
+				}
+				else {
+					return (to_positive_gross_transaction_amount(me.defacto) == m_gross_amount);
+				}
+			}
+		private:
+			Amount m_gross_amount;
+		};
+
+		class HasTransactionToAccount {
+		public:
+			HasTransactionToAccount(BASAccountNo bas_account_no) : m_bas_account_no(bas_account_no) {}
+			bool operator()(BAS::MetaEntry const& me) {
+				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](BAS::anonymous::AccountTransaction const& at){
+					return (at.account_no == this->m_bas_account_no);
+				});
+			}
+		private:
+			BASAccountNo m_bas_account_no;
 		};
 
 		struct is_flagged_unposted {
@@ -661,6 +695,7 @@ namespace SKV {
 
 std::set<BASAccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos); // Forward (future header)
 std::set<BASAccountNo> const& to_vat_accounts(); // Forward (future header)
+
 
 auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BASAccountNos const& account_nos) {
 	return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
@@ -3794,6 +3829,7 @@ enum class PromptState {
 	,Amount
 	,CounterAccountsEntry
 	,SKVEntryIndex
+	,QuarterOptionIndex
 	,SKVTaxReturnEntryIndex
 	,EnterContact
 	,EnterEmployeeID
@@ -4071,9 +4107,12 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::SKVEntryIndex: {
 			prompt << ":skv";
 		} break;
+		case PromptState::QuarterOptionIndex: {
+			prompt << ":skv:tax_return:period";
+		} break;
 		case PromptState::SKVTaxReturnEntryIndex: {
 			prompt << ":skv:tax_return";
-		}
+		} break;
 		case PromptState::EnterContact: {
 			prompt << ":contact";
 		} break;
@@ -4312,7 +4351,6 @@ public:
 								case 1: {
 									prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
 									// 1) We need to identify the "type" of the template
-									// ####
 									auto tme = to_typed_meta_entry(*had.current_candidate);
 									prompt << "\n" << tme;
 									std::map<std::string,unsigned int> props_counter{};
@@ -4392,79 +4430,110 @@ public:
 								model->prompt_state = prompt_state;
 							} break;
 							case 3: {
-								// VAT Returns
-								std::string period_id = (ast.size()>1)?ast[1]:"";
-								if (auto period_range = SKV::to_date_range(period_id)) {
-									std::cout << "\nperiod_range " << *period_range;
-									prompt << "\nVAT Returns for " << *period_range;
-									if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
-										std::cout << "\nvat_returns_meta ";
-										SKV::OrganisationMeta org_meta {
-											.org_no = model->sie["current"].organisation_no.CIN
-											,.contact_persons = model->organisation_contacts
-										};
-										SKV::XML::DeclarationMeta form_meta {
-											.declaration_period_id = vat_returns_meta->period_to_declare
-										};
-										auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
-											return vat_returns_meta->period.contains(mat.meta.defacto.date);
-										};
-										auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
-										if (box_map) {
-											prompt << *box_map;
-											auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
-											if (xml_map) {
-												std::filesystem::path skv_files_folder{"to_skv"};
-												std::filesystem::path skv_file_name{std::string{"moms_"} + vat_returns_meta->period_to_declare + ".eskd"};
-												std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
-												std::filesystem::create_directories(skv_file_path.parent_path());
-												std::ofstream skv_file{skv_file_path};
-												SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
-												if (vat_returns_os << *xml_map) {
-													prompt << "\nCreated " << skv_file_path;
-													SKV::XML::VATReturns::OStream vat_returns_prompt{prompt};
-													vat_returns_prompt << "\n" << *xml_map;
-												}
-												else prompt << "\nSorry, failed to create the file " << skv_file_path;
-											}
-											else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
-											// Generate an EU Sales List form for the VAt Returns form
-											if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(*box_map,org_meta,*period_range)) {
-												auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range->end());
-												std::filesystem::path skv_files_folder{"to_skv"};						
-												std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + ".csv"};						
-												std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
-												std::filesystem::create_directories(eu_list_form_file_path.parent_path());
-												std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
-												SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
-												if (os << *eu_list_form) {
-													prompt << "\nCreated file " << eu_list_form_file_path << " OK";
-													SKV::CSV::EUSalesList::OStream eu_sales_list_prompt{prompt};
-													eu_sales_list_prompt << "\n" <<  *eu_list_form;
+								// Create current quarter, previous quarter and two previous quarters option
+								auto today = to_today();
+								auto current_qr = to_quarter_range(today);
+								auto previous_qr = to_previous_quarter(current_qr);
+								auto quarter_before_previous_qr = to_previous_quarter(previous_qr);
+								auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
 
-												}
-												else {
-													prompt << "\nSorry, failed to write " << eu_list_form_file_path;
-												}
-											}
-											else {
-												prompt << "\nSorry, failed to acquire required data for the EU List form file";
-											}
-										}
-										else prompt << "\nSorry, failed to gather form data required for the VAR Returns form";
-									}
-									else {
-										prompt << "\nSorry, Failed to failed to gather requiored data for period " << period_range;
-									}
-								}
-								else {
-									prompt << "\nSorry, failed to understand how to interpret period " << std::quoted(period_id);
-								}
+								prompt << "\n0: Current Quarter " << current_qr << " (to track)";
+								prompt << "\n1: Previous Quarter " << previous_qr << " (to report)";
+								prompt << "\n2: Previous two Quarters " << two_previous_quarters << " (to check)";
+								model->prompt_state = PromptState::QuarterOptionIndex;								
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
 					} break;
 
+					case PromptState::QuarterOptionIndex: {
+						auto today = to_today();
+						auto current_qr = to_quarter_range(today);
+						auto previous_qr = to_previous_quarter(current_qr);
+						auto quarter_before_previous_qr = to_previous_quarter(previous_qr);
+						auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
+						OptionalDateRange period_range{};
+						switch (ix) {
+							case 0: {
+								prompt << "\nCurrent Quarter " << current_qr << " (to track)";
+								period_range = current_qr;
+							} break;
+							case 1: {
+								prompt << "\nPrevious Quarter " << previous_qr << " (to report)";
+								period_range = previous_qr;
+							} break;
+							case 2: {
+								prompt << "\nPrevious two Quarters " << two_previous_quarters << " (to check)";
+								period_range = two_previous_quarters;
+							} break;
+							default: {
+								prompt << "\nPlease select a valid option (it seems option " << ix << " is unknown to me";
+							} break;
+						}
+						if (period_range) {
+							// Create VAT Returns form for selected period
+							std::cout << "\nperiod_range " << *period_range;
+							prompt << "\nVAT Returns for " << *period_range;
+							if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
+								std::cout << "\nvat_returns_meta ";
+								SKV::OrganisationMeta org_meta {
+									.org_no = model->sie["current"].organisation_no.CIN
+									,.contact_persons = model->organisation_contacts
+								};
+								SKV::XML::DeclarationMeta form_meta {
+									.declaration_period_id = vat_returns_meta->period_to_declare
+								};
+								auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+									return vat_returns_meta->period.contains(mat.meta.defacto.date);
+								};
+								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
+								if (box_map) {
+									prompt << *box_map;
+									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
+									if (xml_map) {
+										std::filesystem::path skv_files_folder{"to_skv"};
+										std::filesystem::path skv_file_name{std::string{"moms_"} + vat_returns_meta->period_to_declare + ".eskd"};
+										std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+										std::filesystem::create_directories(skv_file_path.parent_path());
+										std::ofstream skv_file{skv_file_path};
+										SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
+										if (vat_returns_os << *xml_map) {
+											prompt << "\nCreated " << skv_file_path;
+											SKV::XML::VATReturns::OStream vat_returns_prompt{prompt};
+											vat_returns_prompt << "\n" << *xml_map;
+										}
+										else prompt << "\nSorry, failed to create the file " << skv_file_path;
+									}
+									else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
+									// Generate an EU Sales List form for the VAt Returns form
+									if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(*box_map,org_meta,*period_range)) {
+										auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range->end());
+										std::filesystem::path skv_files_folder{"to_skv"};						
+										std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + ".csv"};						
+										std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
+										std::filesystem::create_directories(eu_list_form_file_path.parent_path());
+										std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
+										SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
+										if (os << *eu_list_form) {
+											prompt << "\nCreated file " << eu_list_form_file_path << " OK";
+											SKV::CSV::EUSalesList::OStream eu_sales_list_prompt{prompt};
+											eu_sales_list_prompt << "\n" <<  *eu_list_form;
+										}
+										else {
+											prompt << "\nSorry, failed to write " << eu_list_form_file_path;
+										}
+									}
+									else {
+										prompt << "\nSorry, failed to acquire required data for the EU List form file";
+									}
+								}
+								else prompt << "\nSorry, failed to gather form data required for the VAT Returns form";
+							}
+							else {
+								prompt << "\nSorry, failed to gather meta-data for the VAT returns form for period " << *period_range;
+							}									
+						}
+					} break;
 					case PromptState::SKVTaxReturnEntryIndex: {
 						switch (ix) {
 							case 1: {model->prompt_state = PromptState::EnterContact;} break;
@@ -4491,23 +4560,15 @@ public:
 					// std::cout << model->sie["current"];
 				}
 				else if (ast.size()==2) {
-					if (auto gross_amount = to_amount(ast[1])) {
+					if (auto bas_account_no = BAS::to_account_no(ast[1])) {
+						prompt << "\nFilter journal entries that has a transaction to account no " << *bas_account_no;
+						prompt << "\nTIP: If you meant filter on amount please re-enter using '.00' to distinguish it from an account no.";
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
+						prompt << filtered_sie;
+					}
+					else if (auto gross_amount = to_amount(ast[1])) {
 						prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
-						class HasGrossAmount {
-						public:
-							HasGrossAmount(Amount gross_amount) : m_gross_amount(gross_amount) {}
-							bool operator()(BAS::MetaEntry const& me) {
-								if (m_gross_amount<0) {
-									return (to_negative_gross_transaction_amount(me.defacto) == m_gross_amount);
-								}
-								else {
-									return (to_positive_gross_transaction_amount(me.defacto) == m_gross_amount);
-								}
-							}
-						private:
-							Amount m_gross_amount;
-						};
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],HasGrossAmount{*gross_amount}};
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasGrossAmount{*gross_amount}};
 						prompt << filtered_sie;
 					}
 					else if (ast[1]=="*") {
@@ -4585,9 +4646,9 @@ public:
 						prompt << "\n*NEW* " << *vat_returns_had;
 						model->heading_amount_date_entries.push_back(*vat_returns_had);
 				}
+				std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 				if (ast.size()==1) {
 					// Expose current hads (Heading Amount Date transaction entries) to the user
-					std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 					auto& hads = model->heading_amount_date_entries;
 					unsigned int index{0};
 					std::vector<std::string> sHads{};
@@ -4601,6 +4662,29 @@ public:
 						return acc;
 					});
 					model->prompt_state = PromptState::HADIndex;
+				}
+				else if (ast.size()==2) {
+					// Assume the user has entered text to macth against had Heading
+					// Expose the hads (Heading Amount Date transaction entries) that matches user input
+					// NOTE: Keep correct index for later retreiving any had selected by the user
+					auto& hads = model->heading_amount_date_entries;
+					unsigned int index{0};
+					std::vector<std::string> sHads{};
+					auto text = ast[1];
+					std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index,&text](auto const& had){
+						std::stringstream os{};
+						if (strings_share_tokens(text,had.heading)) os << index << " " << had;
+						++index; // count even if not listed
+						return os.str();
+					});
+					prompt << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+						if (entry.size()>0) acc += "\n  " + entry;
+						return acc;
+					});
+					model->prompt_state = PromptState::HADIndex;
+				}
+				else {
+					prompt << "\nPlease re-enter a valid input (It seems you entered to many arguments for me to understand)";
 				}
 			}
 			else if (ast[0] == "-meta") {
@@ -4673,7 +4757,8 @@ public:
 					model->prompt_state = PromptState::SKVEntryIndex;
 				}
 				else if (ast.size() == 2) {
-					// Assume -skv <period>
+					// Assume Tax Returns form
+					// Assume second argument is period
 					if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
 						auto period_to_declare = ast[1];
 						// Brute force the period into the map (TODO: Inject this value in a better way into the production code above?)
