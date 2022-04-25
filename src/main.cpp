@@ -3931,7 +3931,6 @@ std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered
 }
 
 std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
-	os << "\nCIN:" << sie_environment.organisation_no.CIN;
 	for (auto const& je : sie_environment.journals()) {
 		auto& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {
@@ -4523,6 +4522,7 @@ public:
 						if (auto sie_env = from_sie_file(*sie_file_path)) {
 							model->sie_file_path["current"] = *sie_file_path;
 							model->sie["current"] = std::move(*sie_env);
+							// Update the list of staged entries
 							if (auto sse = from_sie_file(model->staged_sie_file_path)) {
 								auto unstaged = model->sie["current"].stage(*sse);
 								for (auto const& je : unstaged) {
@@ -5057,7 +5057,7 @@ public:
 		auto model = this->model_from_environment(environment);
 		model->prompt_state = PromptState::Root;
 		prompt << prompt_line(model->prompt_state);
-		model->prompt = prompt.str();
+		model->prompt += prompt.str();
 		return model;
 	}
 	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
@@ -5139,21 +5139,31 @@ private:
 	}
 	Model model_from_environment(Environment const& environment) {
 		Model model = std::make_unique<ConcreteModel>();
+		std::ostringstream prompt{};
 		if (auto val_iter = environment.find("sie_file");val_iter != environment.end()) {
 			for (auto const& [year_key,sie_file_name] : val_iter->second) {
 				std::filesystem::path sie_file_path{sie_file_name};
 				if (auto sie_environment = from_sie_file(sie_file_path)) {
 					model->sie[year_key] = std::move(*sie_environment);
-					model->sie_file_path[year_key] = {sie_file_name};		
+					model->sie_file_path[year_key] = {sie_file_name};
+					prompt << "\nsie[" << year_key << "] from " << sie_file_path;
 				}
 			}
 		}
 		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
-			model->sie["current"].stage(*sse);
+			if (sse->journals().size()>0) {
+				prompt << "\n<STAGED>";
+				prompt << *sse;
+			}
+			auto unstaged = model->sie["current"].stage(*sse);
+			for (auto const& je : unstaged) {
+				prompt << "\nnow posted " << je; 
+			}
 		}
 		model->heading_amount_date_entries = this->hads_from_environment(environment);
 		model->organisation_contacts = this->contacts_from_environment(environment);
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
+		model->prompt = prompt.str();
 		return model;
 	}
 	Environment environment_from_model(Model const& model) {
