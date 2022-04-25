@@ -230,7 +230,7 @@ bool strings_share_tokens(std::string const& s1,std::string const& s2) {
 	auto je_heading_words = tokenize::splits(s2);
 	for (std::string hadw : had_heading_words) {
 		for (std::string jew : je_heading_words) {
-			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper);
+			std::transform(hadw.begin(),hadw.end(),hadw.begin(),::toupper); // TODO: This toupper Does NOT work for UTF-8 codepoints > 7F
 			std::transform(jew.begin(),jew.end(),jew.begin(),::toupper);
 			// std::cout << "\ncompare " << std::quoted(hadw) << " with " << std::quoted(jew);
 			if (hadw == jew) {
@@ -276,19 +276,22 @@ Date to_date(int year,unsigned month,unsigned day) {
 OptionalDate to_date(std::string const& sYYYYMMDD) {
 	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
 	OptionalDate result{};
-	if (sYYYYMMDD.size()==8) {
-		result = to_date(
-			 std::stoi(sYYYYMMDD.substr(0,4))
-			,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
-			,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
+	try {
+		if (sYYYYMMDD.size()==8) {
+			result = to_date(
+				std::stoi(sYYYYMMDD.substr(0,4))
+				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
+				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
+		}
+		else {
+			// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
+			std::string sDate = filtered(sYYYYMMDD,::isdigit);
+			if (sDate.size()==8) result = to_date(sDate);
+		}
+		// if (result) std::cout << " = " << *result;
+		// else std::cout << " = null";
 	}
-	else {
-		// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
-		std::string sDate = filtered(sYYYYMMDD,::isdigit);
-		if (sDate.size()==8) result = to_date(sDate);
-	}
-	// if (result) std::cout << " = " << *result;
-	// else std::cout << " = null";
+	catch (std::exception const& e) {} // swallow silently
 	return result;
 }
 
@@ -519,21 +522,27 @@ namespace BAS {
 
 	OptionalBASAccountNo to_account_no(std::string const& s) {
 		OptionalBASAccountNo result{};
-		if (s.size()==4) {
-			if (std::all_of(s.begin(),s.end(),::isalnum)) {
-				auto account_no = std::stoi(s);
-				if (account_no >= 1000) result = account_no;
+		try {
+			if (s.size()==4) {
+				if (std::all_of(s.begin(),s.end(),::isdigit)) {
+					auto account_no = std::stoi(s);
+					if (account_no >= 1000) result = account_no;
+				}
 			}
 		}
+		catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_account_no(" << s << ") failed. Exception=" << std::quoted(e.what());}
 		return result;
 	}
 
 	OptionalJournalEntryMeta to_journal_meta(std::string const& s) {
 		OptionalJournalEntryMeta result{};
-		const std::regex meta_regex("[A-Z]\\d+"); // series followed by verification number
-		if (std::regex_match(s,meta_regex)) result = JournalEntryMeta{
-			.series = s[0]
-			,.verno = static_cast<VerNo>(std::stoi(s.substr(1)))};
+		try {
+			const std::regex meta_regex("[A-Z]\\d+"); // series followed by verification number
+			if (std::regex_match(s,meta_regex)) result = JournalEntryMeta{
+				.series = s[0]
+				,.verno = static_cast<VerNo>(std::stoi(s.substr(1)))};
+		}
+		catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_journal_meta(" << s << ") failed. Exception=" << std::quoted(e.what());}
 		return result;
 	}
 
@@ -2885,9 +2894,13 @@ namespace SKV {
 				static auto const ps = account_vat_form_mapping();
 				BASAccountNos result{};
 				return std::accumulate(ps.begin(),ps.end(),BASAccountNos{},[&box_no](auto acc,Key::Path const& p){
-					std::ostringstream os{};
-					os << std::setfill('0') << std::setw(2) << box_no;
-					if (p[2].find(os.str()) != std::string::npos) acc.push_back(std::stoi(p[0]));
+					try {
+						std::ostringstream os{};
+						os << std::setfill('0') << std::setw(2) << box_no;
+						if (p[2].find(os.str()) != std::string::npos) acc.push_back(std::stoi(p[0]));
+
+					}
+					catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_accounts::lambda failed. Exception=" << std::quoted(e.what());}					
 					return acc;
 				});
 				return result;
@@ -4591,9 +4604,32 @@ public:
 				}
 			}
 			else if (ast[0] == "-meta") {
-				for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
-					prompt << "\n  " << account_no << " " << std::quoted(am.name);
-					if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+				if (ast.size() > 1) {
+					// Assume filter on provided text
+					if (auto to_match_account_no = BAS::to_account_no(ast[1])) {
+						for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+							if ((*to_match_account_no == account_no) or (am.sru_code and (*to_match_account_no == *am.sru_code))) {
+								prompt << "\n  " << account_no << " " << std::quoted(am.name);
+								if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+							}
+						}
+					}
+					else {
+						// Assume match to account name
+						for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+							if (strings_share_tokens(ast[1],am.name) or (am.name.find(ast[1]) != std::string::npos)) {
+								prompt << "\n  " << account_no << " " << std::quoted(am.name);
+								if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+							}
+						}
+					}
+				}
+				else {
+					// list all metas
+					for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+						prompt << "\n  " << account_no << " " << std::quoted(am.name);
+						if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+					}
 				}
 			}
 			else if (ast[0] == "-sru") {
