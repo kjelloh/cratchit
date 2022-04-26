@@ -1925,6 +1925,10 @@ bool same_whole_units(Amount const& a1,Amount const& a2) {
 }
 
 BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
+	std::cout << "\nupdated_entry";
+	std::cout << "\nme:" << me;
+	std::cout << "\nat:" << at;
+	
 	BAS::MetaEntry result{me};
 	std::sort(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[](auto const& e1,auto const& e2){
 		return (std::abs(e1.amount) > std::abs(e2.amount)); // greater to lesser
@@ -1934,7 +1938,7 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 	});
 	if (iter == result.defacto.account_transactions.end()) {
 		result.defacto.account_transactions.push_back(at);
-		return updated_entry(result,at); // recurse with added entry
+		result = updated_entry(result,at); // recurse with added entry
 	}
 	else if (me.defacto.account_transactions.size()==4) {
 		// std::cout << "\n4 OK";
@@ -2013,6 +2017,7 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 	else {
 		// Todo: Future needs may require adjusting transaction amounts to still sum upp to the transaction amount?
 	}
+	std::cout << "\nresult:" << result;
 	return result;
 }
 
@@ -2101,8 +2106,13 @@ public:
 private:
 	BASJournals m_journals{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
-	BAS::MetaEntry add(BAS::MetaEntry const& me) {
+	BAS::MetaEntry add(BAS::MetaEntry me) {
 		BAS::MetaEntry result{me};
+		// Ensure a valid series
+		if (me.meta.series < 'A' or 'M' < me.meta.series) {
+			me.meta.series = 'A';
+			std::cerr << "\nadd(me) assigned series 'A' to entry with no series assigned";
+		}
 		// Assign "actual" sequence number
 		auto verno = largest_verno(me.meta.series) + 1;
 		result.meta.verno = verno;
@@ -3826,6 +3836,8 @@ enum class PromptState {
 	// Manual Build generator states
 	,GrossDebitorCreditOption // User selects if Gross account is Debit or Credit
 	,CounterTransactionsAggregateOption // User selects what kind of counter trasnaction aggregate to create
+	,GrossAccountInput
+	,NetVATAccountInput
 	,JEAggregateOptionIndex
 	,EnterHA
 	,AccountIndex
@@ -3860,8 +3872,10 @@ public:
 		std::optional<HeadingAmountDateTransEntries::iterator> result{};
 		auto had_iter = this->heading_amount_date_entries.begin();
 		auto end = this->heading_amount_date_entries.end();
+		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
 		std::advance(had_iter,this->had_index);
 		if (had_iter != heading_amount_date_entries.end()) {
+			// std::cout << "\nnto_had_iter = " << *had_iter;
 			result = had_iter;
 		}
 		return result;
@@ -3947,7 +3961,18 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("0: Gross counter transaction account aggregate");
 			result.push_back("1: {Net, VAT} counter transaction accounts aggregate");
 		} break;
-		case PromptState::JEAggregateOptionIndex: {result.push_back("PromptState::JEAggregateOptionIndex");} break;
+		case PromptState::GrossAccountInput: {
+			result.push_back("Please enter counter transaction account");
+		} break;
+		case PromptState::NetVATAccountInput: {
+			result.push_back("Please enter Net + VAT counter accounts (separated by space");
+		} break;
+		case PromptState::JEAggregateOptionIndex: {
+			result.push_back("0 1 x counter transactions aggregate");
+			result.push_back("1 n x counter transactions aggregate");
+			result.push_back("2 Edit account transactions");
+			result.push_back("3 STAGE as-is");
+		} break;
 		case PromptState::EnterHA: {result.push_back("PromptState::EnterHA");} break;
 		case PromptState::AccountIndex: {result.push_back("PromptState::AccountIndex");} break;
 		case PromptState::Amount: {
@@ -4124,8 +4149,14 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::CounterTransactionsAggregateOption: {		
 			prompt << "had:aggregate:counter:";
 		} break;
+		case PromptState::NetVATAccountInput: {
+			prompt << "had:aggregate:counter:gross";
+		} break;
+		case PromptState::GrossAccountInput: {
+			prompt << "had:aggregate:counter:net+vat";
+		} break;
 		case PromptState::JEAggregateOptionIndex: {
-			prompt << ":had:je:1or*";
+			prompt << ":had:je:1*at";
 		} break;
 		case PromptState::EnterHA: {
 			prompt << ":had:je:ha";
@@ -4210,6 +4241,7 @@ public:
 
 					} break;
 					case PromptState::HADIndex: {
+						model->had_index = ix;
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
 							prompt << "\n" << had;
@@ -4233,9 +4265,7 @@ public:
 									}
 									else {
 										// The user has already selected a candidate
-										// But have not gone through assigning a "counter transaction" producer
-										prompt << "\n0 1 x counter transactions aggregate";
-										prompt << "\n1 n x counter transactions aggregate";
+										// But have not yet gone through assigning a "counter transaction" producer
 										model->prompt_state = PromptState::JEAggregateOptionIndex;
 									}
 								}
@@ -4321,8 +4351,6 @@ public:
 										auto me = to_journal_entry(had,*tp);
 										std::cout << "\ncandidate " << me;
 										had.current_candidate = me;
-										prompt << "\n0 1 x counter transactions aggregate";
-										prompt << "\n1 n x counter transactions aggregate";
 										model->prompt_state = PromptState::JEAggregateOptionIndex;
 									}
 								}
@@ -4338,8 +4366,8 @@ public:
 					case PromptState::GrossDebitorCreditOption: {
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (auto me = had.current_candidate) {
-								if (me->defacto.account_transactions.size()==1) {
+							if (had.current_candidate) {
+								if (had.current_candidate->defacto.account_transactions.size()==1) {
 									switch (ix) {
 										case 0: {
 											// As is
@@ -4347,12 +4375,12 @@ public:
 										} break;
 										case 1: {
 											// Force debit
-											me->defacto.account_transactions[0].amount = std::abs(me->defacto.account_transactions[0].amount);
+											had.current_candidate->defacto.account_transactions[0].amount = std::abs(had.current_candidate->defacto.account_transactions[0].amount);
 											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
 										} break;
 										case 2: {
 												// Force credit
-											me->defacto.account_transactions[0].amount = -1.0 * std::abs(me->defacto.account_transactions[0].amount);
+											had.current_candidate->defacto.account_transactions[0].amount = -1.0f * std::abs(had.current_candidate->defacto.account_transactions[0].amount);
 											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
 										} break;
 										default: {
@@ -4363,7 +4391,7 @@ public:
 								else {
 									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
 								}
-								prompt << "\ncandidate:" << *me;
+								prompt << "\ncandidate:" << *had.current_candidate;
 							}
 							else {
 								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
@@ -4376,15 +4404,17 @@ public:
 					case PromptState::CounterTransactionsAggregateOption: {
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (auto me = had.current_candidate) {
-								if (me->defacto.account_transactions.size()==1) {
+							if (had.current_candidate) {
+								if (had.current_candidate->defacto.account_transactions.size()==1) {
 									switch (ix) {
 										case 0: {
 											// Gross counter transaction aggregate
+											model->prompt_state = PromptState::GrossAccountInput;
 										} break;
 										case 1: {
 											// {net,VAT} counter transactions aggregate
-										} break;
+											model->prompt_state = PromptState::NetVATAccountInput;
+										} break;										
 										default: {
 											prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
 										}
@@ -4393,7 +4423,90 @@ public:
 								else {
 									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
 								}
-								prompt << "\ncandidate:" << *me;
+								prompt << "\ncandidate:" << *had.current_candidate;
+							}
+							else {
+								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+							}
+						}
+						else {
+							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+						}
+					} break;
+					case PromptState::GrossAccountInput: {
+						// Act on user gross account number input
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
+							if (had.current_candidate) {
+								if (had.current_candidate->defacto.account_transactions.size()==1) {
+									if (ast.size() == 1) {
+										auto gross_counter_account_no = BAS::to_account_no(ast[0]);
+										if (gross_counter_account_no) {
+											Amount gross_transaction_amount = had.current_candidate->defacto.account_transactions[0].amount;
+											had.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+												.account_no = *gross_counter_account_no
+												,.amount = -1.0f * gross_transaction_amount
+											}
+											);
+											prompt << "\nmutated candidate:" << *had.current_candidate;
+											model->prompt_state = PromptState::JEAggregateOptionIndex;											
+										}
+										else {
+											prompt << "\nPlease enter a a valid single gross counter amount account number (it seems I don't understand your input " << std::quoted(command) << ")";
+										}
+									}
+									else {
+										prompt << "\nPlease enter two single gross counter amount account number (it seems I interpret " << std::quoted(command) << " the wrong number of arguments";
+									}
+								}
+								else {
+									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+								}
+								prompt << "\ncandidate:" << *had.current_candidate;
+							}
+							else {
+								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+							}
+						}
+						else {
+							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+						}
+					} break;
+					case PromptState::NetVATAccountInput: {
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
+							if (had.current_candidate) {
+								if (had.current_candidate->defacto.account_transactions.size()==1) {
+									if (ast.size() == 2) {
+										auto net_counter_account_no = BAS::to_account_no(ast[0]);
+										auto vat_counter_account_no = BAS::to_account_no(ast[1]);
+										if (net_counter_account_no and vat_counter_account_no) {
+											Amount gross_transaction_amount = had.current_candidate->defacto.account_transactions[0].amount;
+											had.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+												.account_no = *net_counter_account_no
+												,.amount = -0.8f * gross_transaction_amount
+											}
+											);
+											had.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+												.account_no = *vat_counter_account_no
+												,.amount = -0.2f * gross_transaction_amount
+											}
+											);
+											prompt << "\nNOTE: Cratchit currently assumes 25% VAT";
+											model->prompt_state = PromptState::JEAggregateOptionIndex;
+										}
+										else {
+											prompt << "\nPlease enter a a valid single gross counter amount account number (it seems I don't understand your input " << std::quoted(command) << ")";
+										}
+									}
+									else {
+										prompt << "\nPlease enter two single gross counter amount account number (it seems I interpret " << std::quoted(command) << " the wrong number of arguments";
+									}
+								}
+								else {
+									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+								}
+								prompt << "\ncandidate:" << *had.current_candidate;
 							}
 							else {
 								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
@@ -4404,28 +4517,27 @@ public:
 						}
 					} break;
 					case PromptState::JEAggregateOptionIndex: {
+						// prompt << ":had:je:1or*";
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							switch (ix) {
-
-								case 0: {
-									// Try to stage gross + single counter transactions aggregate
-									if (auto me = had.current_candidate) {
-										if (std::any_of(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+							if (had.current_candidate) {
+								switch (ix) {
+									case 0: {
+										// Try to stage gross + single counter transactions aggregate
+										if (std::any_of(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
 											return std::abs(at.amount) < 1.0;
 										})) {
-											// Assume we need to specify rounding
+											// Assume the user need to specify rounding by editing proposed account transactions
 											unsigned int i{};
-											std::for_each(me->defacto.account_transactions.begin(),me->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+											std::for_each(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
 												prompt << "\n  " << i++ << " " << at;
 											});
 											model->prompt_state = PromptState::AccountIndex;
 										}
 										else {
 											// Stage as-is
-											auto staged_je = model->sie["current"].stage(*had.current_candidate);
-											if (staged_je) {
-												prompt << "\n" << *staged_je << " STAGED";
+											if (auto staged_me = model->sie["current"].stage(*had.current_candidate)) {
+												prompt << "\n" << *staged_me << " STAGED";
 												model->heading_amount_date_entries.erase(*had_iter);
 												model->prompt_state = PromptState::HADIndex;
 											}
@@ -4434,59 +4546,79 @@ public:
 												model->prompt_state = PromptState::Root;
 											}
 										}
-									}
-									else {
-										prompt << "\nPlease re-enter a valid had-index and template index (No entry candidate detected)";
-									}
-								} break;
-								case 1: {
-									prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
-									// 1) We need to identify the "type" of the template
-									auto tme = to_typed_meta_entry(*had.current_candidate);
-									prompt << "\n" << tme;
-									std::map<std::string,unsigned int> props_counter{};
-									for (auto const& [at,props] : tme.defacto.account_transactions) {
-										for (auto const& prop : props) props_counter[prop]++;
-									}
-									for (auto const& [prop,count] : props_counter) {
-										prompt << "\n" << std::quoted(prop) << " count:" << count; 
-									}
-									if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat")) {
-										auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
-											acc += entry.second;
-											return acc;
+									} break;
+									case 1: {
+										prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
+										// 1) We need to identify the "type" of the template
+										auto tme = to_typed_meta_entry(*had.current_candidate);
+										prompt << "\n" << tme;
+										std::map<std::string,unsigned int> props_counter{};
+										for (auto const& [at,props] : tme.defacto.account_transactions) {
+											for (auto const& prop : props) props_counter[prop]++;
+										}
+										for (auto const& [prop,count] : props_counter) {
+											prompt << "\n" << std::quoted(prop) << " count:" << count; 
+										}
+										if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat")) {
+											auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
+												acc += entry.second;
+												return acc;
+											});
+											if (props_sum == 3) {
+												prompt << "\nDetected: gross + n x {net,vat} pattern";
+												BAS::anonymous::OptionalAccountTransaction net_at;
+												BAS::anonymous::OptionalAccountTransaction vat_at;
+												for (auto const& [at,props] : tme.defacto.account_transactions) {
+													if (props.contains("net")) net_at = at;
+													if (props.contains("vat")) vat_at = at;
+												}
+												if (!net_at) std::cerr << "\nNo net_at";
+												if (!vat_at) std::cerr << "\nNo vat_at";
+												if (net_at and vat_at) {
+													had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
+													
+													BAS::anonymous::AccountTransactions ats_to_keep{};
+													std::remove_copy_if(
+														had.current_candidate->defacto.account_transactions.begin()
+														,had.current_candidate->defacto.account_transactions.end()
+														,std::back_inserter(ats_to_keep)
+														,[&net_at,&vat_at](auto const& at){
+															return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
+													});
+													had.current_candidate->defacto.account_transactions = ats_to_keep;
+												}
+												prompt << "\ncadidate: " << *had.current_candidate;
+												model->prompt_state = PromptState::EnterHA;
+											}
+										}
+									} break;
+									case 2: {
+										// Allow the user to edit individual account transactions
+										unsigned int i{};
+										std::for_each(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+											prompt << "\n  " << i++ << " " << at;
 										});
-										if (props_sum == 3) {
-											prompt << "\nDetected: gross + n x {net,vat} pattern";
-											BAS::anonymous::OptionalAccountTransaction net_at;
-											BAS::anonymous::OptionalAccountTransaction vat_at;
-											for (auto const& [at,props] : tme.defacto.account_transactions) {
-												if (props.contains("net")) net_at = at;
-												if (props.contains("vat")) vat_at = at;
-											}
-											if (!net_at) std::cerr << "\nNo net_at";
-											if (!vat_at) std::cerr << "\nNo vat_at";
-											if (net_at and vat_at) {
-												had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
-												
-												BAS::anonymous::AccountTransactions ats_to_keep{};
-												std::remove_copy_if(
-													had.current_candidate->defacto.account_transactions.begin()
-													,had.current_candidate->defacto.account_transactions.end()
-													,std::back_inserter(ats_to_keep)
-													,[&net_at,&vat_at](auto const& at){
-														return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
-												});
-												had.current_candidate->defacto.account_transactions = ats_to_keep;
-											}
-											prompt << "\ncadidate: " << *had.current_candidate;
-											model->prompt_state = PromptState::EnterHA;
+										model->prompt_state = PromptState::AccountIndex;
+									} break;
+									case 3: {
+										// Stage the candidate
+										if (auto staged_me = model->sie["current"].stage(*had.current_candidate)) {
+											prompt << "\n" << *staged_me << " STAGED";
+											model->heading_amount_date_entries.erase(*had_iter);
+											model->prompt_state = PromptState::HADIndex;
+										}
+										else {
+											prompt << "\nSORRY - Failed to stage entry";
+											model->prompt_state = PromptState::Root;
 										}
 									}
-								} break;
-								default: {
-									prompt << "\nPlease enter a valid had index";
-								} break;			
+									default: {
+										prompt << "\nPlease enter a valid had index";
+									} break;			
+								}
+							}
+							else {
+								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
 							}
 						}
 						else {
@@ -4497,6 +4629,7 @@ public:
 					case PromptState::AccountIndex: {
 						if (auto at = model->selected_had_at(ix)) {
 							model->at = *at;
+							prompt << "\nTransaction:" << model->at;
 							model->prompt_state = PromptState::Amount;
 						}
 						else {
@@ -5077,16 +5210,7 @@ public:
 							model->at.amount = *amount;
 							if ((*had_iter)->current_candidate) {
 								(*had_iter)->current_candidate = updated_entry(*(*had_iter)->current_candidate,model->at);
-								auto me = model->sie["current"].stage(*(*had_iter)->current_candidate);
-								if (me) {
-									prompt << "\n" << *me;
-									// Erase the 'had' we just turned into journal entry and staged
-									model->erease_selected_had();
-								}
-								else {
-									prompt << "\n" << "Sorry - This transaction redeemed a duplicate";
-								}
-								model->prompt_state = PromptState::Root;
+								model->prompt_state = PromptState::JEAggregateOptionIndex;
 							}
 							else {
 								prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
