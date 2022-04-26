@@ -3823,6 +3823,9 @@ enum class PromptState {
 	,Root
 	,HADIndex
 	,JEIndex
+	// Manual Build generator states
+	,GrossDebitorCreditOption // User selects if Gross account is Debit or Credit
+	,CounterTransactionsAggregateOption // User selects what kind of counter trasnaction aggregate to create
 	,JEAggregateOptionIndex
 	,EnterHA
 	,AccountIndex
@@ -3852,39 +3855,40 @@ public:
 	SIEEnvironments sie{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
-	HeadingAmountDateTransEntries::iterator selected_had_iter() {
+
+	std::optional<HeadingAmountDateTransEntries::iterator> to_had_iter(int had_index) {
+		std::optional<HeadingAmountDateTransEntries::iterator> result{};
 		auto had_iter = this->heading_amount_date_entries.begin();
 		auto end = this->heading_amount_date_entries.end();
 		std::advance(had_iter,this->had_index);
-		return had_iter;
-	}
-	OptionalHeadingAmountDateTransEntry selected_had() {
-		OptionalHeadingAmountDateTransEntry result{};
-		auto had_iter = this->selected_had_iter();
 		if (had_iter != heading_amount_date_entries.end()) {
-			result = *had_iter;
+			result = had_iter;
 		}
 		return result;
 	}
 
+	std::optional<HeadingAmountDateTransEntries::iterator> selected_had() {
+		return to_had_iter(this->had_index);
+	}
+
 	BAS::anonymous::OptionalAccountTransaction selected_had_at(int at_index) {
 		BAS::anonymous::OptionalAccountTransaction result{};
-		if (auto had = this->selected_had()) {
-			if (had->current_candidate) {
-				auto iter = had->current_candidate->defacto.account_transactions.begin();
-				auto end = had->current_candidate->defacto.account_transactions.end();
+		if (auto had_iter = to_had_iter(this->had_index)) {
+			if ((*had_iter)->current_candidate) {
+				auto iter = (*had_iter)->current_candidate->defacto.account_transactions.begin();
+				auto end = (*had_iter)->current_candidate->defacto.account_transactions.end();
 				std::advance(iter,at_index);
 				if (iter != end) result = *iter;
 			}
 		}
 		return result;
 	}
+
 	void erease_selected_had() {
-		auto iter = this->selected_had_iter();
-		if (iter != heading_amount_date_entries.end()) {
-			this->heading_amount_date_entries.erase(iter);
+		if (auto had_iter = to_had_iter(this->had_index)) {
+			this->heading_amount_date_entries.erase(*had_iter);
 			this->had_index = this->heading_amount_date_entries.size()-1; // default to select the now last one
-		}							
+		}
 	}
 
 private:
@@ -3908,10 +3912,20 @@ Cmd to_cmd(std::string const& user_input) {
 	return result;
 }
 
-std::vector<std::string> help_for(PromptState const& prompt_state) {
+using PromptOptionsList = std::vector<std::string>;
+
+std::ostream& operator<<(std::ostream& os,PromptOptionsList const& pol) {
+	for (auto const& option : pol) {
+		os << "\n" << option;
+	}
+	return os;
+}
+
+PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) {
 	std::vector<std::string> result{};
-	result.push_back("Available Entry Options>");
+	result.push_back("Options:");
 	switch (prompt_state) {
+		case PromptState::Undefined: {result.push_back("DESIGN INSUFFICIENCY: options_list_of_prompt_state have no action for State PromptState::Undefined ");} break;
 		case PromptState::Root: {
 			result.push_back("<Heading> <Amount> <Date> : Entry of new Heading Amount Date (HAD) Transaction entry");
 			result.push_back("-had : lists current Heading Amount Date (HAD) entries");
@@ -3922,16 +3936,30 @@ std::vector<std::string> help_for(PromptState const& prompt_state) {
 			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");			
 			result.push_back("'q' or 'Quit'");
 		} break;
-		case PromptState::HADIndex:
-		case PromptState::JEIndex:
-		case PromptState::AccountIndex: {
-			result.push_back("Please Enter the index of the entry to edit");
+		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
+		case PromptState::JEIndex: {result.push_back("PromptState::JEIndex");} break;
+		case PromptState::GrossDebitorCreditOption: {
+			result.push_back("0: As is ");
+			result.push_back("1: (+) Force to Debit ");
+			result.push_back("2: (-) Force to Credit ");
 		} break;
+		case PromptState::CounterTransactionsAggregateOption: {
+			result.push_back("0: Gross counter transaction account aggregate");
+			result.push_back("1: {Net, VAT} counter transaction accounts aggregate");
+		} break;
+		case PromptState::JEAggregateOptionIndex: {result.push_back("PromptState::JEAggregateOptionIndex");} break;
+		case PromptState::EnterHA: {result.push_back("PromptState::EnterHA");} break;
+		case PromptState::AccountIndex: {result.push_back("PromptState::AccountIndex");} break;
 		case PromptState::Amount: {
 			result.push_back("Please Enter Amount");
-		}
-		default: {
-		}
+		} break;
+		case PromptState::CounterAccountsEntry: {result.push_back("PromptState::CounterAccountsEntry");} break;
+		case PromptState::SKVEntryIndex: {result.push_back("PromptState::SKVEntryIndex");} break;
+		case PromptState::QuarterOptionIndex: {result.push_back("PromptState::QuarterOptionIndex");} break;
+		case PromptState::SKVTaxReturnEntryIndex: {result.push_back("PromptState::SKVTaxReturnEntryIndex");} break;
+		case PromptState::EnterContact: {result.push_back("PromptState::EnterContact");} break;
+		case PromptState::EnterEmployeeID: {result.push_back("PromptState::EnterEmployeeID");} break;
+		case PromptState::Unknown: {result.push_back("DESIGN INSUFFICIENCY: options_list_of_prompt_state have no action for State PromptState::Unknown ");} break;
 	}
 	return result;
 }
@@ -4078,6 +4106,7 @@ std::vector<std::string> quoted_tokens(std::string const& cli) {
 
 std::string prompt_line(PromptState const& prompt_state) {
 	std::ostringstream prompt{};
+	prompt << options_list_of_prompt_state(prompt_state);
 	prompt << "\ncratchit";
 	switch (prompt_state) {
 		case PromptState::Root: {
@@ -4088,6 +4117,12 @@ std::string prompt_line(PromptState const& prompt_state) {
 		} break;
 		case PromptState::JEIndex: {
 			prompt << ":had:je";
+		} break;
+		case PromptState::GrossDebitorCreditOption: {
+			prompt << "had:aggregate:gross 0+or-:";
+		} break;
+		case PromptState::CounterTransactionsAggregateOption: {		
+			prompt << "had:aggregate:counter:";
 		} break;
 		case PromptState::JEAggregateOptionIndex: {
 			prompt << ":had:je:1or*";
@@ -4175,14 +4210,11 @@ public:
 
 					} break;
 					case PromptState::HADIndex: {
-						auto iter = model->heading_amount_date_entries.begin();
-						auto end = model->heading_amount_date_entries.end();
-						std::advance(iter,ix);
-						if (iter != end) {
-							auto& had = *iter;
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
 							prompt << "\n" << had;
 							if (do_remove) {
-								model->heading_amount_date_entries.erase(iter);
+								model->heading_amount_date_entries.erase(*had_iter);
 								prompt << " REMOVED";
 								model->prompt_state = PromptState::Root;
 							}
@@ -4262,11 +4294,8 @@ public:
 						}
 					} break;
 					case PromptState::JEIndex: {
-						auto had_iter = model->heading_amount_date_entries.begin();
-						auto end = model->heading_amount_date_entries.end();
-						std::advance(had_iter,model->had_index);
-						if (had_iter != end) {
-							auto& had = *had_iter;
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
 							if (auto account_no = BAS::to_account_no(command)) {
 								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
 								std::cout << "\nGross Account detected";
@@ -4277,15 +4306,9 @@ public:
 									}
 								};
 								me.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
-								std::cout << "\ncandidate " << me;
 								had.current_candidate = me;
-								// List the options to the user
-								unsigned int i{};
-								prompt << "\n" << had.current_candidate->defacto.caption << " " << had.current_candidate->defacto.date;
-								for (auto const& at : had.current_candidate->defacto.account_transactions) {
-									prompt << "\n  " << i++ << " " << at;
-								}				
-								model->prompt_state = PromptState::CounterAccountsEntry;
+								prompt << "\ncandidate:" << me;
+								model->prompt_state = PromptState::GrossDebitorCreditOption;
 							}
 							else {
 								// Assume user selected an entry as base for a template
@@ -4308,13 +4331,81 @@ public:
 								}
 							}
 						}
+						else {
+							prompt << "\nPlease re-enter a valid HAD index (It seems I have no record of a selected HAD at the moment)";
+						}
+					} break;
+					case PromptState::GrossDebitorCreditOption: {
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
+							if (auto me = had.current_candidate) {
+								if (me->defacto.account_transactions.size()==1) {
+									switch (ix) {
+										case 0: {
+											// As is
+											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
+										} break;
+										case 1: {
+											// Force debit
+											me->defacto.account_transactions[0].amount = std::abs(me->defacto.account_transactions[0].amount);
+											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
+										} break;
+										case 2: {
+												// Force credit
+											me->defacto.account_transactions[0].amount = -1.0 * std::abs(me->defacto.account_transactions[0].amount);
+											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
+										} break;
+										default: {
+											prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
+										}
+									}
+								}
+								else {
+									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+								}
+								prompt << "\ncandidate:" << *me;
+							}
+							else {
+								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+							}
+						}
+						else {
+							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+						}
+					} break;
+					case PromptState::CounterTransactionsAggregateOption: {
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
+							if (auto me = had.current_candidate) {
+								if (me->defacto.account_transactions.size()==1) {
+									switch (ix) {
+										case 0: {
+											// Gross counter transaction aggregate
+										} break;
+										case 1: {
+											// {net,VAT} counter transactions aggregate
+										} break;
+										default: {
+											prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
+										}
+									}
+								}
+								else {
+									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+								}
+								prompt << "\ncandidate:" << *me;
+							}
+							else {
+								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+							}
+						}
+						else {
+							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+						}
 					} break;
 					case PromptState::JEAggregateOptionIndex: {
-						auto had_iter = model->heading_amount_date_entries.begin();
-						auto end = model->heading_amount_date_entries.end();
-						std::advance(had_iter,model->had_index);
-						if (had_iter != end) {
-							auto& had = *had_iter;
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
 							switch (ix) {
 
 								case 0: {
@@ -4335,7 +4426,7 @@ public:
 											auto staged_je = model->sie["current"].stage(*had.current_candidate);
 											if (staged_je) {
 												prompt << "\n" << *staged_je << " STAGED";
-												model->heading_amount_date_entries.erase(had_iter);
+												model->heading_amount_date_entries.erase(*had_iter);
 												model->prompt_state = PromptState::HADIndex;
 											}
 											else {
@@ -4832,11 +4923,8 @@ public:
 				std::cout << "\nAct on words";
 				// Assume word based input
 				if (model->prompt_state == PromptState::EnterHA) {
-					auto had_iter = model->heading_amount_date_entries.begin();
-					auto end = model->heading_amount_date_entries.end();
-					std::advance(had_iter,model->had_index);
-					if (had_iter != end) {
-						auto& had = *had_iter;
+					if (auto had_iter = model->selected_had()) {
+						auto& had = *(*had_iter);
 						if (!had.current_candidate) std::cerr << "\nNo had.current_candidate";
 						if (!had.counter_ats_producer) std::cerr << "\nNo had.counter_ats_producer";
 						if (had.current_candidate and had.counter_ats_producer) {
@@ -4908,7 +4996,7 @@ public:
 								auto me = model->sie["current"].stage(*had.current_candidate);
 								if (me) {
 									prompt << "\n" << *me << " STAGED";
-									model->heading_amount_date_entries.erase(had_iter);
+									model->heading_amount_date_entries.erase(*had_iter);
 									model->prompt_state = PromptState::HADIndex;
 								}
 								else {
@@ -4964,11 +5052,11 @@ public:
 						prompt << "\nPlease enter an account, and optional transaction text and an amount";
 					}
 					// List the new current options
-					if (auto had = model->selected_had()) {
-						if (had->current_candidate) {
+					if (auto had_iter = model->selected_had()) {
+						if ((*had_iter)->current_candidate) {
 							unsigned int i{};
-							prompt << "\n" << had->current_candidate->defacto.caption << " " << had->current_candidate->defacto.date;
-							for (auto const& at : had->current_candidate->defacto.account_transactions) {
+							prompt << "\n" << (*had_iter)->current_candidate->defacto.caption << " " << (*had_iter)->current_candidate->defacto.date;
+							for (auto const& at : (*had_iter)->current_candidate->defacto.account_transactions) {
 								prompt << "\n  " << i++ << " " << at;
 							}				
 						}
@@ -4983,13 +5071,13 @@ public:
 				}
 				else if (model->prompt_state == PromptState::Amount) {
 					std::cout << "\nPromptState::Amount " << std::quoted(command);
-					if (auto had = model->selected_had()) {
+					if (auto had_iter = model->selected_had()) {
 						if (auto amount = to_amount(command)) {
 							prompt << "\nAmount " << *amount;
 							model->at.amount = *amount;
-							if (had->current_candidate) {
-								had->current_candidate = updated_entry(*had->current_candidate,model->at);
-								auto me = model->sie["current"].stage(*had->current_candidate);
+							if ((*had_iter)->current_candidate) {
+								(*had_iter)->current_candidate = updated_entry(*(*had_iter)->current_candidate,model->at);
+								auto me = model->sie["current"].stage(*(*had_iter)->current_candidate);
 								if (me) {
 									prompt << "\n" << *me;
 									// Erase the 'had' we just turned into journal entry and staged
@@ -5007,7 +5095,6 @@ public:
 						else {
 							prompt << "\nPlease enter an Amount";
 						}
-
 					}
 					else {
 						prompt << "\nPlease select a Heading Amount Date entry";
@@ -5094,7 +5181,7 @@ public:
 	Cmd operator()(Nop const& nop) {
 		// std::cout << "\noperator(Nop)";
 		std::ostringstream prompt{};
-		auto help = help_for(model->prompt_state);
+		auto help = options_list_of_prompt_state(model->prompt_state);
 		for (auto const& line : help) prompt << "\n" << line;
 		prompt << prompt_line(model->prompt_state);
 		model->prompt = prompt.str();
