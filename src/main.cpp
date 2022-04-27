@@ -4899,11 +4899,7 @@ public:
 						};
 						// Traverse
 						for_each_meta_entry(model->sie,f);
-						// List
-						for (auto const& tme : typed_mes) {
-							prompt << "\ntyped:" << tme;
-						}
-
+						// Group on Type Topology
 						std::map<std::size_t,std::map<BAS::kind::MetaEntryTypeToplogy,std::vector<BAS::TypedMetaEntry>>> meta_entry_topology_map{};
 						auto h = [&meta_entry_topology_map](BAS::TypedMetaEntry const& tme){
 							auto types_topology = BAS::kind::to_types_topology(tme);
@@ -4913,6 +4909,7 @@ public:
 						for (auto const& tme : typed_mes) {
 							h(tme);
 						}
+						// List grouped on type topology
 						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
 							for (auto const& [topology,tmes] : tme_map) {
 								prompt << "\n[";
@@ -4921,7 +4918,7 @@ public:
 								}
 								prompt << "] ";
 								for (auto const& tme : tmes) {
-									prompt << "\ntyped:" << tme;
+									prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
 								}
 							}
 						}
@@ -4942,7 +4939,7 @@ public:
 								}
 								prompt << "] ";
 								for (auto const& me : mes) {
-									prompt << "\n  " << me;
+									prompt << "\n      " << me.meta << " " << std::quoted(me.defacto.caption) << " " << me.defacto.date;
 								}
 							}
 						}
