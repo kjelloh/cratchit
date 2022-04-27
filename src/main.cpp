@@ -2084,21 +2084,6 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 	return strings_share_tokens(had.heading,aje.caption);
 }
 
-BAS::MetaEntries template_candidates(BASJournals const& journals,auto const& matches) {
-	// std::cout << "\ntemplate_candidates";
-	BAS::MetaEntries result{};
-	for (auto const& je : journals) {
-		auto const& [series,journal] = je;
-		for (auto const& [verno,entry] : journal) {								
-			if (matches(entry)) result.push_back({{.series = series,.verno = verno},entry});
-		}
-	}
-	std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
-		return (je1.defacto.date < je2.defacto.date);
-	});
-	return result;
-}
-
 // ==================================================================================
 
 bool same_whole_units(Amount const& a1,Amount const& a2) {
@@ -4092,9 +4077,8 @@ public:
 		auto had_iter = this->heading_amount_date_entries.begin();
 		auto end = this->heading_amount_date_entries.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
-		std::advance(had_iter,this->had_index);
-		if (had_iter != heading_amount_date_entries.end()) {
-			// std::cout << "\nnto_had_iter = " << *had_iter;
+		if (had_index < std::distance(had_iter,end)) {
+			std::advance(had_iter,this->had_index);
 			result = had_iter;
 		}
 		return result;
@@ -4108,10 +4092,11 @@ public:
 		BAS::anonymous::OptionalAccountTransaction result{};
 		if (auto had_iter = to_had_iter(this->had_index)) {
 			if ((*had_iter)->current_candidate) {
-				auto iter = (*had_iter)->current_candidate->defacto.account_transactions.begin();
+				auto at_iter = (*had_iter)->current_candidate->defacto.account_transactions.begin();
 				auto end = (*had_iter)->current_candidate->defacto.account_transactions.end();
-				std::advance(iter,at_index);
-				if (iter != end) result = *iter;
+				if (at_index < std::distance(at_iter,end))
+				std::advance(at_iter,at_index);
+				result = *at_iter;
 			}
 		}
 		return result;
@@ -4471,10 +4456,6 @@ public:
 							}
 							else {
 								// selected HAD and list template options
-								model->had_index = ix;
-								model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
-									return had_matches_trans(had,aje);
-								});
 								if (had.current_candidate) {
 									prompt << "\n\t" << *had.current_candidate;
 									if (had.counter_ats_producer) {
@@ -4489,6 +4470,10 @@ public:
 									}
 								}
 								else {
+									model->had_index = ix;
+									model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
+										return had_matches_trans(had,aje);
+									});
 									{
 										// hard code a template for Inventory gross + n x (ex_vat + vat) journal entry
 										// 0  *** "Amazon" 20210924
@@ -4562,16 +4547,21 @@ public:
 							else {
 								// Assume user selected an entry as base for a template
 								auto tme_iter = model->template_candidates.begin();
-								auto end = model->template_candidates.end();
-								std::advance(tme_iter,ix);
-								if (tme_iter != end) {
+								auto tme_end = model->template_candidates.end();
+								auto at_iter = model->at_candidates.begin();
+								auto at_end = model->at_candidates.end();
+								if (ix < std::distance(tme_iter,tme_end)) {
+									std::advance(tme_iter,ix);
 									auto tp = to_template(*tme_iter);
 									if (tp) {
 										auto me = to_journal_entry(had,*tp);
-										std::cout << "\ncandidate " << me;
+										prompt << "\ncandidate " << me;
 										had.current_candidate = me;
 										model->prompt_state = PromptState::JEAggregateOptionIndex;
 									}
+								}
+								else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
+									prompt << "\nTODO: Implement acting on selected gross account transaction " << model->at_candidates[at_ix];
 								}
 								else {
 									prompt << "\nPlease enter a valid index";
@@ -5398,9 +5388,9 @@ public:
 					model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& aje){
 						return strings_share_tokens(command,aje.caption);
 					});
-					int i{0};
-					for (; i < model->template_candidates.size(); ++i) {
-						prompt << "\n    " << i << " " << model->template_candidates[i];
+					int ix{0};
+					for (int i = 0; i < model->template_candidates.size(); ++i) {
+						prompt << "\n    " << ix++ << " " << model->template_candidates[i];
 					}
 					// Consider the user may have entered the name of a gross account to journal the transaction amount
 					auto gats = to_gross_account_transactions(model->sie);
@@ -5414,9 +5404,8 @@ public:
 						}
 						return result;
 					});
-					int ei{0};
-					for (;ei < model->at_candidates.size();++ei) {
-						prompt << "\n    " << i+ei << " " << model->at_candidates[ei];
+					for (int i=0;i < model->at_candidates.size();++i) {
+						prompt << "\n    " << ix++<< " " << model->at_candidates[i];
 					}
 				}
 				else if (model->prompt_state == PromptState::CounterAccountsEntry) {
@@ -5575,18 +5564,6 @@ private:
 		}
 		return result;
 	}
-
-	// BAS::MetaEntries all_years_template_candidates(auto const& matches) {
-	// 	BAS::MetaEntries result{};
-	// 	for (auto const& [year_key,sie] : model->sie) {
-	// 		auto mes = template_candidates(sie.journals(),matches);
-	// 		std::copy(mes.begin(),mes.end(),std::back_inserter(result));
-	// 	}
-	// 	std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
-	// 		return (je1.defacto.date < je2.defacto.date);
-	// 	});
-	// 	return result;
-	// }
 
 	std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
 		std::ostringstream prompt{};
