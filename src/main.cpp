@@ -554,6 +554,15 @@ namespace BAS {
 		return result;
 	}
 
+	auto has_greater_amount = [](BAS::anonymous::AccountTransaction const& at1,BAS::anonymous::AccountTransaction const& at2) {
+		return (at1.amount > at2.amount);
+	};
+
+	BAS::MetaEntry& sort(BAS::MetaEntry& me,auto& comp) {
+		std::sort(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),comp);
+		return me;
+	}
+
 	namespace filter {
 		struct is_series {
 			BAS::Series required_series;
@@ -678,7 +687,60 @@ namespace BAS {
 	namespace kind {
 
 		using BASAccountTopology = std::set<BASAccountNo>;
-		using MetaEntryTypeToplogy = std::set<std::string>;
+		using AccountTransactionTypeTopology = std::set<std::string>;
+
+		enum class ATType {
+			undefined
+			,transfer
+			,eu_purchase
+			,gross
+			,net
+			,eu_vat
+			,vat
+			,cents
+			,unknown
+		};
+
+		ATType to_at_type(std::string const& prop) {
+			ATType result{ATType::undefined};
+			static const std::map<std::string,ATType> AT_TYPE_TO_ID_MAP{
+				{"",ATType::undefined}
+				,{"transfer",ATType::transfer}
+				,{"eu_purchase",ATType::eu_purchase}
+				,{"gross",ATType::gross}
+				,{"net",ATType::net}
+				,{"eu_vat",ATType::eu_vat}
+				,{"vat",ATType::vat}
+				,{"cents",ATType::cents}
+			};
+			if (AT_TYPE_TO_ID_MAP.contains(prop)) {
+				result = AT_TYPE_TO_ID_MAP.at(prop);
+			}
+			else {
+				result = ATType::unknown;
+			}
+			return result;
+		}
+
+		std::size_t to_at_types_order(BAS::kind::AccountTransactionTypeTopology const& topology) {
+			std::size_t result{};
+			std::vector<ATType> at_types{};
+			for (auto const& prop : topology) at_types.push_back(to_at_type(prop));
+			std::sort(at_types.begin(),at_types.end(),[](ATType t1,ATType t2){
+				return (t1>t2);
+			});
+			// Assemble a "number" of "digits" each having value 0..ATType::unknown (Assumes C++ enumeration can be trusted to start at 0...)
+			for (auto at_type : at_types) result = result*static_cast<std::size_t>(ATType::unknown) + static_cast<std::size_t>(at_type);
+			return result;
+		}
+
+		std::vector<std::string> sorted(AccountTransactionTypeTopology const& topology) {
+			std::vector<std::string> result{topology.begin(),topology.end()};
+			std::sort(result.begin(),result.end(),[](auto const& s1,auto const& s2){
+				return (to_at_type(s1) < to_at_type(s2));
+			});
+			return result;
+		}
 
 		namespace detail {
 			template <typename T>
@@ -697,8 +759,8 @@ namespace BAS {
 			};
 
 			template <>
-			struct hash<MetaEntryTypeToplogy> {
-				std::size_t operator()(MetaEntryTypeToplogy const& met) {
+			struct hash<AccountTransactionTypeTopology> {
+				std::size_t operator()(AccountTransactionTypeTopology const& met) {
 					std::size_t result{};
 					for (auto const& s : met) {
 						auto h = std::hash<std::string>{}(s);
@@ -707,7 +769,7 @@ namespace BAS {
 					return result;
 				}	
 			};
-		}
+		} // namespace detail
 
 		BASAccountTopology to_accounts_topology(MetaEntry const& me) {
 			BASAccountTopology result{};
@@ -718,8 +780,18 @@ namespace BAS {
 			return result;
 		}
 
-		MetaEntryTypeToplogy to_types_topology(TypedMetaEntry const& tme) {
-			MetaEntryTypeToplogy result{};
+		BASAccountTopology to_accounts_topology(TypedMetaEntry const& tme) {
+			BASAccountTopology result{};
+			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+				auto const& [at,props] = tat;
+				result.insert(at.account_no);
+			};
+			for_each_typed_account_transaction(tme,f);
+			return result;
+		}
+
+		AccountTransactionTypeTopology to_types_topology(TypedMetaEntry const& tme) {
+			AccountTransactionTypeTopology result{};
 			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
 				auto const& [at,props] = tat;
 				for (auto const& prop : props) result.insert(prop);
@@ -732,9 +804,13 @@ namespace BAS {
 			return detail::hash<BASAccountTopology>{}(bat);
 		}
 
-		std::size_t to_signature(MetaEntryTypeToplogy const& met) {
-			return detail::hash<MetaEntryTypeToplogy>{}(met);
+		std::size_t to_signature(AccountTransactionTypeTopology const& met) {
+			return detail::hash<AccountTransactionTypeTopology>{}(met);
 		}
+
+	} // namespace kind
+
+	namespace group {
 
 	}
 } // namespace BAS
@@ -960,6 +1036,22 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransactio
 		os << " " << prop;
 	}
 	os << " : " << at;
+	return os;
+}
+
+template <typename T>
+struct IndentedOnNewLine{
+	IndentedOnNewLine(T const& val,int count) : val{val},count{count} {}
+	T const& val;
+	int count;
+};
+
+std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountTransactions> const& indented) {
+	for (auto const& at : indented.val) {
+		os << "\n";
+		for (int x = 0; x < indented.count; ++x) os << ' ';
+		os << at;
+	}
 	return os;
 }
 
@@ -2001,9 +2093,7 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 	std::cout << "\nat:" << at;
 	
 	BAS::MetaEntry result{me};
-	std::sort(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[](auto const& e1,auto const& e2){
-		return (std::abs(e1.amount) > std::abs(e2.amount)); // greater to lesser
-	});
+	BAS::sort(result,BAS::has_greater_amount);
 	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&at](auto const& entry){
 		return (entry.account_no == at.account_no);
 	});
@@ -2274,57 +2364,6 @@ void for_each_meta_account_transaction(SIEEnvironments const& sie_envs,auto& f) 
 	}
 }
 
-struct GrossAccountTransactions {
-	BAS::anonymous::AccountTransactions result;
-	void operator()(BAS::anonymous::JournalEntry const& aje) {
-		if (auto at = gross_account_transaction(aje)) {
-			result.push_back(*at);
-		}
-	}
-};
-
-struct NetAccountTransactions {
-	BAS::anonymous::AccountTransactions result;
-	void operator()(BAS::anonymous::JournalEntry const& aje) {
-		if (auto at = net_account_transaction(aje)) {
-			result.push_back(*at);
-		}
-	}
-};
-
-struct VatAccountTransactions {
-	BAS::anonymous::AccountTransactions result;
-	void operator()(BAS::anonymous::JournalEntry const& aje) {
-		if (auto at = vat_account_transaction(aje)) {
-			result.push_back(*at);
-		}
-	}
-};
-
-BAS::anonymous::AccountTransactions to_gross_account_transactions(BAS::anonymous::JournalEntry const& aje) {
-	GrossAccountTransactions ats{};
-	ats(aje);
-	return ats.result;
-}
-
-BAS::anonymous::AccountTransactions to_gross_account_transactions(SIEEnvironments const& sie_envs) {
-	GrossAccountTransactions ats{};
-	for_each_anonymous_journal_entry(sie_envs,ats);
-	return ats.result;
-}
-
-BAS::anonymous::AccountTransactions to_net_account_transactions(SIEEnvironments const& sie_envs) {
-	NetAccountTransactions ats{};
-	for_each_anonymous_journal_entry(sie_envs,ats);
-	return ats.result;
-}
-
-BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironments const& sie_envs) {
-	VatAccountTransactions ats{};
-	for_each_anonymous_journal_entry(sie_envs,ats);
-	return ats.result;
-}
-
 auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 	BAS::anonymous::TypedAccountTransactions typed_ats{};
 	auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
@@ -2401,9 +2440,69 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 			,.date = me.defacto.date
 			,.account_transactions = typed_ats
 		}
-	};		
+	};
 	return result;
 };
+
+void for_each_typed_meta_entry(SIEEnvironments const& sie_envs,auto& f) {
+	auto f_caller = [&f](BAS::MetaEntry const& me) {
+		auto tme = to_typed_meta_entry(me);
+		f(tme);
+	};
+	for_each_meta_entry(sie_envs,f_caller);
+}
+
+struct GrossAccountTransactions {
+	BAS::anonymous::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& aje) {
+		if (auto at = gross_account_transaction(aje)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+struct NetAccountTransactions {
+	BAS::anonymous::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& aje) {
+		if (auto at = net_account_transaction(aje)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+struct VatAccountTransactions {
+	BAS::anonymous::AccountTransactions result;
+	void operator()(BAS::anonymous::JournalEntry const& aje) {
+		if (auto at = vat_account_transaction(aje)) {
+			result.push_back(*at);
+		}
+	}
+};
+
+BAS::anonymous::AccountTransactions to_gross_account_transactions(BAS::anonymous::JournalEntry const& aje) {
+	GrossAccountTransactions ats{};
+	ats(aje);
+	return ats.result;
+}
+
+BAS::anonymous::AccountTransactions to_gross_account_transactions(SIEEnvironments const& sie_envs) {
+	GrossAccountTransactions ats{};
+	for_each_anonymous_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
+BAS::anonymous::AccountTransactions to_net_account_transactions(SIEEnvironments const& sie_envs) {
+	NetAccountTransactions ats{};
+	for_each_anonymous_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
+BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironments const& sie_envs) {
+	VatAccountTransactions ats{};
+	for_each_anonymous_journal_entry(sie_envs,ats);
+	return ats.result;
+}
+
 
 struct T2 {
 	BAS::MetaEntry me;
@@ -4892,54 +4991,46 @@ public:
 						}
 					}
 					else if (ast[1] == "-types") {
-						BAS::TypedMetaEntries typed_mes{};
-						// Traversor
-						auto f = [&typed_mes](BAS::MetaEntry const& me) {
-							typed_mes.push_back(to_typed_meta_entry(me));
-						};
-						// Traverse
-						for_each_meta_entry(model->sie,f);
 						// Group on Type Topology
-						std::map<std::size_t,std::map<BAS::kind::MetaEntryTypeToplogy,std::vector<BAS::TypedMetaEntry>>> meta_entry_topology_map{};
+						using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>; 
+						using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>;
+						MetaEntryTopologyMap meta_entry_topology_map{};
 						auto h = [&meta_entry_topology_map](BAS::TypedMetaEntry const& tme){
 							auto types_topology = BAS::kind::to_types_topology(tme);
 							auto signature = BAS::kind::to_signature(types_topology);
 							meta_entry_topology_map[signature][types_topology].push_back(tme);							
 						};
-						for (auto const& tme : typed_mes) {
-							h(tme);
-						}
+						for_each_typed_meta_entry(model->sie,h);
 						// List grouped on type topology
 						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
 							for (auto const& [topology,tmes] : tme_map) {
+								auto props = BAS::kind::sorted(topology);
 								prompt << "\n[";
-								for (auto const& prop : topology) {
+								for (auto const& prop : props) {
 									prompt << ":" << prop;
 								}
 								prompt << "] ";
-								for (auto const& tme : tmes) {
-									prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
-								}
-							}
-						}
-						
-						std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,std::vector<BAS::MetaEntry>>> accounts_topology_map{};
-						auto g = [&accounts_topology_map](BAS::MetaEntry const& me) {
-							auto accounts_topology = BAS::kind::to_accounts_topology(me);
-							auto signature = BAS::kind::to_signature(accounts_topology);
-							accounts_topology_map[signature][accounts_topology].push_back(me);
-						};
-						for_each_meta_entry(model->sie,g);
-						prompt << "\n<TOPOLOGY MAP>";
-						for (auto const& [signature,bat_map] : accounts_topology_map) {
-							for (auto const& [topology,mes] : bat_map) {
-								prompt << "\n[";
-								for (auto const& account_no : topology) {
-									prompt << ":" << account_no;
-								}
-								prompt << "] ";
-								for (auto const& me : mes) {
-									prompt << "\n      " << me.meta << " " << std::quoted(me.defacto.caption) << " " << me.defacto.date;
+								// Group tmes on BAS Accounts topology
+								std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,std::vector<BAS::TypedMetaEntry>>> accounts_topology_map{};
+								auto g = [&accounts_topology_map](BAS::TypedMetaEntry const& tme) {
+									auto accounts_topology = BAS::kind::to_accounts_topology(tme);
+									auto signature = BAS::kind::to_signature(accounts_topology);
+									accounts_topology_map[signature][accounts_topology].push_back(tme);
+								};
+								std::for_each(tmes.begin(),tmes.end(),g);
+								// List grouped BAS Accounts topology
+								for (auto const& [signature,bat_map] : accounts_topology_map) {
+									for (auto const& [topology,tmes] : bat_map) {
+										prompt << "\n    [";
+										for (auto const& account_no : topology) {
+											prompt << ":" << account_no;
+										}
+										prompt << "] ";
+										for (auto const& tme : tmes) {
+											prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
+											prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
+										}
+									}
 								}
 							}
 						}
