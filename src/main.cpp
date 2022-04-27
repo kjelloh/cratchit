@@ -515,6 +515,7 @@ namespace BAS {
 // Forward (TODO: Reorganise if/when splitting into proper header/cpp file structure)
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f);
 
 namespace BAS {
 
@@ -656,16 +657,86 @@ namespace BAS {
 				return result;
 			}
 		};
-	}
+	} // namespace filter
 
 	// TYPED Journal Entries (to identify patterns of interest in how the individual account transactions of an entry is dispositioned in amount and on semantics of the account)
 	namespace anonymous {
-		using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,std::set<std::string>>;
+		using AccountTransactionType = std::set<std::string>;
+		using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,AccountTransactionType>;
 		using TypedAccountTransaction = TypedAccountTransactions::value_type;
 		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
 	}
 	using TypedMetaEntry = MetaDefacto<JournalEntryMeta,anonymous::TypedJournalEntry>;
 	using TypedMetaEntries = std::vector<TypedMetaEntry>;
+
+	void for_each_typed_account_transaction(BAS::TypedMetaEntry const& tme,auto& f) {
+		for (auto const& tat : tme.defacto.account_transactions) {
+			f(tat);
+		}
+	}
+
+	namespace kind {
+
+		using BASAccountTopology = std::set<BASAccountNo>;
+		using MetaEntryTypeToplogy = std::set<std::string>;
+
+		namespace detail {
+			template <typename T>
+			struct hash {};
+
+			template <>
+			struct hash<BASAccountTopology> {
+				std::size_t operator()(BASAccountTopology const& bat) {
+					std::size_t result{};
+					for (auto const& account_no : bat) {
+						auto h = std::hash<BASAccountNo>{}(account_no);
+						result = result ^ (h << 1);
+					}
+					return result;
+				}	
+			};
+
+			template <>
+			struct hash<MetaEntryTypeToplogy> {
+				std::size_t operator()(MetaEntryTypeToplogy const& met) {
+					std::size_t result{};
+					for (auto const& s : met) {
+						auto h = std::hash<std::string>{}(s);
+						result = result ^ (h << 1);
+					}
+					return result;
+				}	
+			};
+		}
+
+		BASAccountTopology to_accounts_topology(MetaEntry const& me) {
+			BASAccountTopology result{};
+			auto f = [&result](BAS::anonymous::AccountTransaction const& at) {
+				result.insert(at.account_no);
+			};
+			for_each_anonymous_account_transaction(me.defacto,f);
+			return result;
+		}
+
+		MetaEntryTypeToplogy to_types_topology(TypedMetaEntry const& tme) {
+			MetaEntryTypeToplogy result{};
+			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+				auto const& [at,props] = tat;
+				for (auto const& prop : props) result.insert(prop);
+			};
+			for_each_typed_account_transaction(tme,f);
+			return result;
+		}
+
+		std::size_t to_signature(BASAccountTopology const& bat) {
+			return detail::hash<BASAccountTopology>{}(bat);
+		}
+
+		std::size_t to_signature(MetaEntryTypeToplogy const& met) {
+			return detail::hash<MetaEntryTypeToplogy>{}(met);
+		}
+
+	}
 } // namespace BAS
 
 using BASAccountNos = std::vector<BASAccountNo>;
@@ -4831,6 +4902,49 @@ public:
 						// List
 						for (auto const& tme : typed_mes) {
 							prompt << "\ntyped:" << tme;
+						}
+
+						std::map<std::size_t,std::map<BAS::kind::MetaEntryTypeToplogy,std::vector<BAS::TypedMetaEntry>>> meta_entry_topology_map{};
+						auto h = [&meta_entry_topology_map](BAS::TypedMetaEntry const& tme){
+							auto types_topology = BAS::kind::to_types_topology(tme);
+							auto signature = BAS::kind::to_signature(types_topology);
+							meta_entry_topology_map[signature][types_topology].push_back(tme);							
+						};
+						for (auto const& tme : typed_mes) {
+							h(tme);
+						}
+						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
+							for (auto const& [topology,tmes] : tme_map) {
+								prompt << "\n[";
+								for (auto const& prop : topology) {
+									prompt << ":" << prop;
+								}
+								prompt << "] ";
+								for (auto const& tme : tmes) {
+									prompt << "\ntyped:" << tme;
+								}
+							}
+						}
+						
+						std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,std::vector<BAS::MetaEntry>>> accounts_topology_map{};
+						auto g = [&accounts_topology_map](BAS::MetaEntry const& me) {
+							auto accounts_topology = BAS::kind::to_accounts_topology(me);
+							auto signature = BAS::kind::to_signature(accounts_topology);
+							accounts_topology_map[signature][accounts_topology].push_back(me);
+						};
+						for_each_meta_entry(model->sie,g);
+						prompt << "\n<TOPOLOGY MAP>";
+						for (auto const& [signature,bat_map] : accounts_topology_map) {
+							for (auto const& [topology,mes] : bat_map) {
+								prompt << "\n[";
+								for (auto const& account_no : topology) {
+									prompt << ":" << account_no;
+								}
+								prompt << "] ";
+								for (auto const& me : mes) {
+									prompt << "\n  " << me;
+								}
+							}
 						}
 					}
 					else {
