@@ -2038,6 +2038,24 @@ OptionalJournalEntryTemplate to_template(BAS::MetaEntry const& me) {
 	return result;
 }
 
+BAS::MetaEntry to_meta_entry(BAS::TypedMetaEntry const& tme) {
+	BAS::MetaEntry result {
+		.meta = tme.meta
+		,.defacto = {
+			.caption = tme.defacto.caption
+			,.date = tme.defacto.date
+		}
+	};
+	for (auto const& [at,props] : tme.defacto.account_transactions) {
+		result.defacto.account_transactions.push_back(at);
+	}
+	return result;
+}
+
+OptionalJournalEntryTemplate to_template(BAS::TypedMetaEntry const& tme) {
+	return to_template(to_meta_entry(tme));
+}
+
 BAS::MetaEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
 	BAS::MetaEntry result{};
 	result.meta = {
@@ -2451,6 +2469,36 @@ void for_each_typed_meta_entry(SIEEnvironments const& sie_envs,auto& f) {
 	};
 	for_each_meta_entry(sie_envs,f_caller);
 }
+
+using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>;
+using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>;
+
+MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironments const& sie_envs) {
+	MetaEntryTopologyMap result{};
+	// Group on Type Topology
+	MetaEntryTopologyMap meta_entry_topology_map{};
+	auto h = [&result](BAS::TypedMetaEntry const& tme){
+		auto types_topology = BAS::kind::to_types_topology(tme);
+		auto signature = BAS::kind::to_signature(types_topology);
+		result[signature][types_topology].push_back(tme);							
+	};
+	for_each_typed_meta_entry(sie_envs,h);
+	return result;
+}
+
+using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,BAS::TypedMetaEntries>>;
+
+AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) {
+	AccountsTopologyMap result{};
+	auto g = [&result](BAS::TypedMetaEntry const& tme) {
+		auto accounts_topology = BAS::kind::to_accounts_topology(tme);
+		auto signature = BAS::kind::to_signature(accounts_topology);
+		result[signature][accounts_topology].push_back(tme);
+	};
+	std::for_each(tmes.begin(),tmes.end(),g);
+	return result;
+}
+
 
 struct GrossAccountTransactions {
 	BAS::anonymous::AccountTransactions result;
@@ -4028,7 +4076,8 @@ public:
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
-	BAS::MetaEntries template_candidates{};
+	// BAS::MetaEntries template_candidates{};
+	BAS::TypedMetaEntries template_candidates{};
 	BAS::anonymous::AccountTransactions at_candidates{};
 	BAS::anonymous::AccountTransaction at{};
   std::string prompt{};
@@ -4478,7 +4527,7 @@ public:
 										me.defacto.account_transactions.push_back(gross_at);
 										me.defacto.account_transactions.push_back(net_at);
 										me.defacto.account_transactions.push_back(vat_at);
-										model->template_candidates.push_back(me);
+										model->template_candidates.push_back(to_typed_meta_entry(me));
 									}
 									// List options
 									unsigned ix = 0;
@@ -4512,11 +4561,11 @@ public:
 							}
 							else {
 								// Assume user selected an entry as base for a template
-								auto je_iter = model->template_candidates.begin();
+								auto tme_iter = model->template_candidates.begin();
 								auto end = model->template_candidates.end();
-								std::advance(je_iter,ix);
-								if (je_iter != end) {
-									auto tp = to_template(*je_iter);
+								std::advance(tme_iter,ix);
+								if (tme_iter != end) {
+									auto tp = to_template(*tme_iter);
 									if (tp) {
 										auto me = to_journal_entry(had,*tp);
 										std::cout << "\ncandidate " << me;
@@ -4992,15 +5041,16 @@ public:
 					}
 					else if (ast[1] == "-types") {
 						// Group on Type Topology
-						using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>; 
-						using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>;
-						MetaEntryTopologyMap meta_entry_topology_map{};
-						auto h = [&meta_entry_topology_map](BAS::TypedMetaEntry const& tme){
-							auto types_topology = BAS::kind::to_types_topology(tme);
-							auto signature = BAS::kind::to_signature(types_topology);
-							meta_entry_topology_map[signature][types_topology].push_back(tme);							
-						};
-						for_each_typed_meta_entry(model->sie,h);
+						// using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>;
+						// using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>;
+						// MetaEntryTopologyMap meta_entry_topology_map{};
+						// auto h = [&meta_entry_topology_map](BAS::TypedMetaEntry const& tme){
+						// 	auto types_topology = BAS::kind::to_types_topology(tme);
+						// 	auto signature = BAS::kind::to_signature(types_topology);
+						// 	meta_entry_topology_map[signature][types_topology].push_back(tme);							
+						// };
+						// for_each_typed_meta_entry(model->sie,h);
+						auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
 						// List grouped on type topology
 						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
 							for (auto const& [topology,tmes] : tme_map) {
@@ -5011,13 +5061,7 @@ public:
 								}
 								prompt << "] ";
 								// Group tmes on BAS Accounts topology
-								std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,std::vector<BAS::TypedMetaEntry>>> accounts_topology_map{};
-								auto g = [&accounts_topology_map](BAS::TypedMetaEntry const& tme) {
-									auto accounts_topology = BAS::kind::to_accounts_topology(tme);
-									auto signature = BAS::kind::to_signature(accounts_topology);
-									accounts_topology_map[signature][accounts_topology].push_back(tme);
-								};
-								std::for_each(tmes.begin(),tmes.end(),g);
+								auto accounts_topology_map = to_accounts_topology_map(tmes);
 								// List grouped BAS Accounts topology
 								for (auto const& [signature,bat_map] : accounts_topology_map) {
 									for (auto const& [topology,tmes] : bat_map) {
@@ -5263,7 +5307,6 @@ public:
 						if (!had.current_candidate) std::cerr << "\nNo had.current_candidate";
 						if (!had.counter_ats_producer) std::cerr << "\nNo had.counter_ats_producer";
 						if (had.current_candidate and had.counter_ats_producer) {
-							// ####
 							auto gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
 							auto gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
 							auto gross_amounts_diff = gross_positive_amount + gross_negative_amount;
@@ -5514,17 +5557,36 @@ public:
 		return {};
 	}	
 private:
-	BAS::MetaEntries all_years_template_candidates(auto const& matches) {
-		BAS::MetaEntries result{};
-		for (auto const& [year_key,sie] : model->sie) {
-			auto mes = template_candidates(sie.journals(),matches);
-			std::copy(mes.begin(),mes.end(),std::back_inserter(result));
+	BAS::TypedMetaEntries all_years_template_candidates(auto const& matches) {
+		BAS::TypedMetaEntries result{};
+		auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
+		for (auto const& [signature,tme_map] : meta_entry_topology_map) {
+			for (auto const& [topology,tmes] : tme_map) {
+				auto accounts_topology_map = to_accounts_topology_map(tmes);
+				for (auto const& [signature,bat_map] : accounts_topology_map) {
+					for (auto const& [topology,tmes] : bat_map) {
+						for (auto const& tme : tmes) {
+							auto me = to_meta_entry(tme);
+							if (matches(me.defacto)) result.push_back(tme);
+						}
+					}
+				}
+			}
 		}
-		std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
-			return (je1.defacto.date < je2.defacto.date);
-		});
 		return result;
 	}
+
+	// BAS::MetaEntries all_years_template_candidates(auto const& matches) {
+	// 	BAS::MetaEntries result{};
+	// 	for (auto const& [year_key,sie] : model->sie) {
+	// 		auto mes = template_candidates(sie.journals(),matches);
+	// 		std::copy(mes.begin(),mes.end(),std::back_inserter(result));
+	// 	}
+	// 	std::sort(result.begin(),result.end(),[](auto const& je1,auto const& je2){
+	// 		return (je1.defacto.date < je2.defacto.date);
+	// 	});
+	// 	return result;
+	// }
 
 	std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
 		std::ostringstream prompt{};
