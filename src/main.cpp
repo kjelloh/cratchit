@@ -2601,6 +2601,49 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 	return result;
 };
 
+int to_vat_type(BAS::TypedMetaEntry const& tme) {
+	static bool const log{false};
+	int result{-1};
+	// Count each type of property (NOTE: Can be less than transaction count as they may overlap, e.g., two or more gross account transactions)
+	std::map<std::string,unsigned int> props_counter{};
+	for (auto const& [at,props] : tme.defacto.account_transactions) {
+		for (auto const& prop : props) props_counter[prop]++;
+	}
+	// LOG
+	if (log) {
+		for (auto const& [prop,count] : props_counter) {
+			std::cout << "\n" << std::quoted(prop) << " count:" << count; 
+		}
+	}
+	// Calculate total number of properties (NOTE: Can be more that the transactions as e.g., vat and eu_vat overlaps)
+	auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
+		acc += entry.second;
+		return acc;
+	});
+	// Identify what type of VAT the candidate defines
+	if ((props_counter.size() == 1) and props_counter.contains("gross")) {
+		result = 0; // NO VAT (gross, counter gross)
+		if (log) std::cout << "\nTemplate is an NO VAT transaction :)"; // gross,gross
+	}
+	else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
+		if (props_sum == 3) {
+			if (log) std::cout << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
+			result = 1; // Swedish VAT
+		}
+	}
+	else if (
+		(     (props_counter.contains("gross"))
+			and (props_counter.contains("eu_purchase"))
+			and (props_counter.contains("eu_vat")))) {
+		result = 2; // EU VAT
+		if (log) std::cout << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
+	}
+	else {
+		if (log) std::cout << "\nFailed to recognise the VAT type";
+	}
+	return result;
+}
+
 void for_each_typed_meta_entry(SIEEnvironments const& sie_envs,auto& f) {
 	auto f_caller = [&f](BAS::MetaEntry const& me) {
 		auto tme = to_typed_meta_entry(me);
@@ -4891,39 +4934,63 @@ public:
 								// We need a typed entry to do some clever decisions
 								auto tme = to_typed_meta_entry(*had.current_candidate);
 								prompt << "\n" << tme;
-								std::map<std::string,unsigned int> props_counter{};
-								for (auto const& [at,props] : tme.defacto.account_transactions) {
-									for (auto const& prop : props) props_counter[prop]++;
-								}
-								for (auto const& [prop,count] : props_counter) {
-									prompt << "\n" << std::quoted(prop) << " count:" << count; 
-								}
-								auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
-									acc += entry.second;
-									return acc;
-								});
-								int vat_type{-1}; // unidentified VAT
-								// Identify what type of VAT the candidate defines
-								if ((props_counter.size() == 1) and props_counter.contains("gross")) {
-									vat_type = 0; // NO VAT (gross, counter gross)
-									prompt << "\nTemplate is an NO VAT transaction :)"; // gross,gross
-								}
-								else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
-									if (props_sum == 3) {
-										prompt << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
-										vat_type = 1; // Swedish VAT
+								switch (to_vat_type(tme)) {
+									case 0: {
+										// No VAT in candidate. 
+										// Continue with 
+										// 1) Some propose gross account transactions
+										// 2) a n x gross Counter aggregate
+									} break;
+									case 1: {
+										// Swedish VAT detcted in candidate.
+										// Continue with 
+										// 2) a n x {net,vat} counter aggregate
+									} break;
+									case 2: {
+										// EU VAT detected in candidate.
+										// Continue with a 
+										// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
+									} break;
+									case 3: {
+										// Import VAT detected in candidate
+										// Continue with a
+										// 1) Import cost gross transaction
+										// 2) Import Cost counter aggregate
 									}
 								}
-								else if (
-									(     (props_counter.contains("gross"))
-										and (props_counter.contains("eu_purchase"))
-										and (props_counter.contains("eu_vat")))) {
-									vat_type = 2; // EU VAT
-									prompt << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
-								}
-								else {
-									prompt << "\nFailed to recognise the VAT type";
-								}
+								// std::map<std::string,unsigned int> props_counter{};
+								// for (auto const& [at,props] : tme.defacto.account_transactions) {
+								// 	for (auto const& prop : props) props_counter[prop]++;
+								// }
+								// for (auto const& [prop,count] : props_counter) {
+								// 	prompt << "\n" << std::quoted(prop) << " count:" << count; 
+								// }
+								// auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
+								// 	acc += entry.second;
+								// 	return acc;
+								// });
+								// int vat_type{-1}; // unidentified VAT
+								// // Identify what type of VAT the candidate defines
+								// if ((props_counter.size() == 1) and props_counter.contains("gross")) {
+								// 	vat_type = 0; // NO VAT (gross, counter gross)
+								// 	prompt << "\nTemplate is an NO VAT transaction :)"; // gross,gross
+								// }
+								// else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
+								// 	if (props_sum == 3) {
+								// 		prompt << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
+								// 		vat_type = 1; // Swedish VAT
+								// 	}
+								// }
+								// else if (
+								// 	(     (props_counter.contains("gross"))
+								// 		and (props_counter.contains("eu_purchase"))
+								// 		and (props_counter.contains("eu_vat")))) {
+								// 	vat_type = 2; // EU VAT
+								// 	prompt << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
+								// }
+								// else {
+								// 	prompt << "\nFailed to recognise the VAT type";
+								// }
 
 								switch (ix) {
 									case 0: {
@@ -4952,35 +5019,29 @@ public:
 										}
 									} break;
 									case 1: {
-										if (vat_type == 1) {
-											prompt << "\nDetected: SWEDISH VAT gross + n x {net,vat} pattern";
-											BAS::anonymous::OptionalAccountTransaction net_at;
-											BAS::anonymous::OptionalAccountTransaction vat_at;
-											for (auto const& [at,props] : tme.defacto.account_transactions) {
-												if (props.contains("net")) net_at = at;
-												if (props.contains("vat")) vat_at = at;
-											}
-											if (!net_at) std::cerr << "\nNo net_at";
-											if (!vat_at) std::cerr << "\nNo vat_at";
-											if (net_at and vat_at) {
-												had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
-												
-												BAS::anonymous::AccountTransactions ats_to_keep{};
-												std::remove_copy_if(
-													had.current_candidate->defacto.account_transactions.begin()
-													,had.current_candidate->defacto.account_transactions.end()
-													,std::back_inserter(ats_to_keep)
-													,[&net_at,&vat_at](auto const& at){
-														return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
-												});
-												had.current_candidate->defacto.account_transactions = ats_to_keep;
-											}
-											prompt << "\ncadidate: " << *had.current_candidate;
-											model->prompt_state = PromptState::EnterHA;
+										BAS::anonymous::OptionalAccountTransaction net_at;
+										BAS::anonymous::OptionalAccountTransaction vat_at;
+										for (auto const& [at,props] : tme.defacto.account_transactions) {
+											if (props.contains("net")) net_at = at;
+											if (props.contains("vat")) vat_at = at;
 										}
-										else if (vat_type == 2) {
-											prompt << "\nTemplate is an EU PURCHASE :)";														
+										if (!net_at) std::cerr << "\nNo net_at";
+										if (!vat_at) std::cerr << "\nNo vat_at";
+										if (net_at and vat_at) {
+											had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
+											
+											BAS::anonymous::AccountTransactions ats_to_keep{};
+											std::remove_copy_if(
+												had.current_candidate->defacto.account_transactions.begin()
+												,had.current_candidate->defacto.account_transactions.end()
+												,std::back_inserter(ats_to_keep)
+												,[&net_at,&vat_at](auto const& at){
+													return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
+											});
+											had.current_candidate->defacto.account_transactions = ats_to_keep;
 										}
+										prompt << "\ncadidate: " << *had.current_candidate;
+										model->prompt_state = PromptState::EnterHA;
 									} break;
 									case 2: {
 										// Allow the user to edit individual account transactions
@@ -5272,6 +5333,7 @@ public:
 										}
 										prompt << "] ";
 										for (auto const& tme : tmes) {
+											prompt << "\n       VAT Type:" << to_vat_type(tme);
 											prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
 											prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
 										}
