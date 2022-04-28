@@ -241,6 +241,69 @@ namespace tokenize {
 	}
 } // namespace tokenize
 
+namespace Key {
+		class Path {
+		public:
+			auto begin() const {return m_path.begin();}
+			auto end() const {return m_path.end();}
+			Path() = default;
+			Path(Path const& other) = default;
+			Path(std::string const& s_path,char delim = '^') : 
+			  m_delim{delim}
+				,m_path(tokenize::splits(s_path,delim)) {};
+			auto size() const {return m_path.size();}
+			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
+			operator std::string() const {
+				std::ostringstream os{};
+				os << *this;
+				return os.str();
+			}
+			Path& operator+=(std::string const& key) {
+				m_path.push_back(key);
+				// std::cout << "\noperator+= :" << *this  << " size:" << this->size();
+				return *this;
+			}
+			Path& operator--() {
+				m_path.pop_back();
+				// std::cout << "\noperator-- :" << *this << " size:" << this->size();
+				return *this;
+			}
+			Path parent() {
+				Path result{*this};
+				--result;
+				// std::cout << "\nparent:" << result << " size:" << result.size();
+				return result;
+			}
+			std::string back() const {return m_path.back();}
+			std::string operator[](std::size_t pos) const {return m_path[pos];}
+			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
+			// bool operator==(Path const& other) const {
+			// 	bool result = (this->m_path == other.m_path);
+			// 	std::cout << "\n1:" << *this << " size:" << this->size();
+			// 	std::cout << "\n2:" << other << " size:" << other.size();
+			// 	std::cout << "\n============";
+			// 	if (result) std::cout << "IS EQUEAL";
+			// 	else std::cout << "differs";
+			// 	return result;
+			// }
+		private:
+			std::vector<std::string> m_path{};
+			char m_delim{'^'};
+		}; // class Path
+
+		using Paths = std::vector<Path>;
+
+		std::ostream& operator<<(std::ostream& os,Key::Path const& key_path) {
+			int key_count{0};
+			for (auto const& key : key_path) {
+				if (key_count++>0) os << key_path.m_delim;
+				os << key;
+				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
+			}
+			return os;
+		}
+} // namespace Key
+
 namespace parse {
     using In = std::string_view;
 
@@ -483,6 +546,29 @@ namespace BAS {
 
 	extern char const* bas_2022_account_plan_csv; // See bottom of this file
 
+	namespace detail {
+		// "hidden" poor mans singleton instance creation
+		Key::Paths bas_2022_account_plan_paths{};
+		Key::Paths const& to_bas_2022_account_plan_paths() {
+			Key::Paths result;
+			std::istringstream in{bas_2022_account_plan_csv};
+			// TODO: Parse in and assemble a path with nodes:
+			// One node per digit in account number?
+			// Or each node an optional<string> to handle digit position that is not a "grouping" level?
+			// first digit grouping: Always
+			// Second digit grouping: sometimes
+			// Third digit grouping: Always?
+			// ...
+			return result;
+		}
+	}
+	Key::Paths const& to_bas_2022_account_plan_paths() {
+		// Poor mans "singleton" instance
+		static auto const& result = detail::to_bas_2022_account_plan_paths();
+		return result;
+	}
+
+
 	void parse_bas_account_plan_csv(std::istream& in,std::ostream& prompt) {
 		std::string entry{};
 		int line_ix{0};
@@ -543,13 +629,38 @@ namespace BAS {
 		Unknown
 		,Asset 	// + or Debit for MORE assets
 		,Debt		// - or credit for MORE debt 
-		,Cost		// + or Debit for MORE cost
 		,Income // - or Credit for MORE income
+		,Cost		// + or Debit for MORE cost
+		,Result // - or Credit for MORE result (counter to Assets)
 		,Undefined
 	};
 	using OptionalAccountKind = std::optional<AccountKind>;
 
+	OptionalAccountKind to_account_kind(BASAccountNo const& bas_account_no) {
+		OptionalAccountKind result{};
+		auto s_account_no = std::to_string(bas_account_no);
+		if (s_account_no.size() == 4) {
+			switch (s_account_no[0]) {
+				case '1': {result = AccountKind::Asset;} break;
+				case '2': {result = AccountKind::Debt;} break;
+				case '3': {result = AccountKind::Income;} break;
+				case '4':
+				case '5':
+				case '6':
+				case '7': {result = AccountKind::Cost;} break;
+				case '8': {result = AccountKind::Result;} break;
+				case '9': {/* NOT a BAS account (free for use for use as seen fit) */} break;
+			}
+		}
+		return result;
+	}
 
+	using BASAccountNumberPath = Key::Path;
+	BASAccountNumberPath to_bas__account_number_path(BASAccountNo const& bas_account_no) {
+		BASAccountNumberPath result{};
+		// TODO: Search 
+		return result;
+	}
 
 	struct AccountMeta {
 		std::string name{};
@@ -1335,69 +1446,6 @@ namespace CSV {
 		return result;
 	}
 } // namespace CSV
-
-namespace Key {
-		class Path {
-		public:
-			auto begin() const {return m_path.begin();}
-			auto end() const {return m_path.end();}
-			Path() = default;
-			Path(Path const& other) = default;
-			Path(std::string const& s_path,char delim = '^') : 
-			  m_delim{delim}
-				,m_path(tokenize::splits(s_path,delim)) {};
-			auto size() const {return m_path.size();}
-			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
-			operator std::string() const {
-				std::ostringstream os{};
-				os << *this;
-				return os.str();
-			}
-			Path& operator+=(std::string const& key) {
-				m_path.push_back(key);
-				// std::cout << "\noperator+= :" << *this  << " size:" << this->size();
-				return *this;
-			}
-			Path& operator--() {
-				m_path.pop_back();
-				// std::cout << "\noperator-- :" << *this << " size:" << this->size();
-				return *this;
-			}
-			Path parent() {
-				Path result{*this};
-				--result;
-				// std::cout << "\nparent:" << result << " size:" << result.size();
-				return result;
-			}
-			std::string back() const {return m_path.back();}
-			std::string operator[](std::size_t pos) const {return m_path[pos];}
-			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
-			// bool operator==(Path const& other) const {
-			// 	bool result = (this->m_path == other.m_path);
-			// 	std::cout << "\n1:" << *this << " size:" << this->size();
-			// 	std::cout << "\n2:" << other << " size:" << other.size();
-			// 	std::cout << "\n============";
-			// 	if (result) std::cout << "IS EQUEAL";
-			// 	else std::cout << "differs";
-			// 	return result;
-			// }
-		private:
-			std::vector<std::string> m_path{};
-			char m_delim{'^'};
-		};
-
-		using Paths = std::vector<Path>;
-
-		std::ostream& operator<<(std::ostream& os,Key::Path const& key_path) {
-			int key_count{0};
-			for (auto const& key : key_path) {
-				if (key_count++>0) os << key_path.m_delim;
-				os << key;
-				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
-			}
-			return os;
-		}
-} // namespace Key
 
 using char16_t_string = std::wstring;
 
