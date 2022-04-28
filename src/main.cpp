@@ -4366,6 +4366,34 @@ std::vector<std::string> quoted_tokens(std::string const& cli) {
 	return result;
 }
 
+template <typename I>
+std::vector<std::pair<I,I>> to_ranges(std::vector<I> line_nos) {
+	std::vector<std::pair<I,I>> result{};
+	if (line_nos.size()>0) {
+		I begin{line_nos[0]}; 
+		I previous{begin};
+		for (auto line_ix : line_nos) {
+			if (line_ix > previous+1) {
+				// Broken sequence - push previous one
+				result.push_back({begin,previous});
+				begin = line_ix;
+			}
+			previous = line_ix;
+		}
+		if (previous > begin) result.push_back({begin,previous});
+	}
+	return result;
+}
+
+template <typename I>
+std::ostream& operator<<(std::ostream& os,std::vector<std::pair<I,I>> const& rr) {
+	for (auto const& r : rr) {
+		if (r.first == r.second) os << " " << r.first;
+		else os << " [" << r.first << ".." << r.second << "]";
+	}
+	return os;
+}
+
 std::string prompt_line(PromptState const& prompt_state) {
 	std::ostringstream prompt{};
 	prompt << options_list_of_prompt_state(prompt_state);
@@ -5026,20 +5054,52 @@ public:
 					if (std::filesystem::exists(p)) {
 						std::ifstream in{p};
 						std::string entry{};
-						int ix{0};
+						int line_ix{0};
 						std::map<int,int> count_distribution{};
+						using field_ix = int;
+						using line_no = int;
+						std::map<field_ix,std::map<std::string,std::vector<line_no>>> fields_map{};
 						while (std::getline(in,entry)) {
-							prompt << "\n" << ix++ << entry;
+							prompt << "\n" << line_ix << entry;
 							auto fields = tokenize::splits(entry,';',tokenize::eAllowEmptyTokens::YES);
-							int jx{0};
+							int field_ix{0};
 							prompt << "\n\tcount:" << fields.size();
 							++count_distribution[fields.size()];
 							for (auto const& field : fields) {
-								prompt << " " << jx++ << ":" << std::quoted(field);
+								prompt << "\n\t  " << field_ix << ":" << std::quoted(field);
+								fields_map[field_ix][field].push_back(line_ix);
+								++field_ix;
 							}
+							++line_ix;
 						}
 						prompt << "\nField Count distribution";
 						for (auto const& entry : count_distribution) prompt << "\nfield count:" << entry.first << " entry count:" << entry.second;
+						prompt << "\nField Distribution";
+						for (auto const& [field_ix,field_map] : fields_map) {
+							prompt << "\n\tindex:" << field_ix;
+							for (auto const& [field,line_nos] : field_map) {
+								prompt << "\n\t  field:" << std::quoted(field) << " line:";
+								auto rr = to_ranges(line_nos);
+								prompt << rr;
+								if (line_nos.size()>0) {
+									line_no begin{line_nos[0]}; 
+									line_no previous{begin};
+									for (auto line_ix : line_nos) {
+										if (line_ix > previous+1) {
+											// Broken sequence - log previous one
+											if (begin == previous) prompt << " " << begin;
+											else prompt << " [" << begin << ".." << previous << "]";
+											begin = line_ix;
+										}
+										// prompt << "<" << line_ix << ">";
+										previous = line_ix;
+									}
+									// Log last range
+									if (begin == previous) prompt << " " << previous;
+									else prompt << " [" << begin << ".." << previous << "]";
+								}
+							}
+						}
 					}
 					else {
 						prompt << "\nUse '-bas' to list available files to import (It seems I can't find the file " << p;
