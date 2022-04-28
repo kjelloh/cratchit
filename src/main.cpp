@@ -549,7 +549,7 @@ namespace BAS {
 	namespace detail {
 		// "hidden" poor mans singleton instance creation
 		Key::Paths bas_2022_account_plan_paths{};
-		Key::Paths const& to_bas_2022_account_plan_paths() {
+		Key::Paths to_bas_2022_account_plan_paths() {
 			Key::Paths result;
 			std::istringstream in{bas_2022_account_plan_csv};
 			// TODO: Parse in and assemble a path with nodes:
@@ -567,7 +567,6 @@ namespace BAS {
 		static auto const& result = detail::to_bas_2022_account_plan_paths();
 		return result;
 	}
-
 
 	void parse_bas_account_plan_csv(std::istream& in,std::ostream& prompt) {
 		std::string entry{};
@@ -4594,13 +4593,12 @@ public:
 			int signed_ix{};
 			std::istringstream is{ast[0]};
 			if (auto signed_ix = to_signed_ix(ast[0]); signed_ix and model->prompt_state != PromptState::Amount) {
-				std::cout << "\nAct on ix = " << *signed_ix;
+				std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
 				size_t ix = std::abs(*signed_ix);
 				bool do_remove = (*signed_ix<0);
-				// Act on prompt state index input				
+				// Act on prompt state index input
 				switch (model->prompt_state) {
 					case PromptState::Root: {
-
 					} break;
 					case PromptState::HADIndex: {
 						model->had_index = ix;
@@ -4884,10 +4882,49 @@ public:
 						}
 					} break;
 					case PromptState::JEAggregateOptionIndex: {
-						// prompt << ":had:je:1or*";
+						// ":had:je:1or*";
+						std::cout << "\ncase PromptState::JEAggregateOptionIndex: {";
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
 							if (had.current_candidate) {
+								std::cout << "\nif (had.current_candidate) {";
+								// We need a typed entry to do some clever decisions
+								auto tme = to_typed_meta_entry(*had.current_candidate);
+								prompt << "\n" << tme;
+								std::map<std::string,unsigned int> props_counter{};
+								for (auto const& [at,props] : tme.defacto.account_transactions) {
+									for (auto const& prop : props) props_counter[prop]++;
+								}
+								for (auto const& [prop,count] : props_counter) {
+									prompt << "\n" << std::quoted(prop) << " count:" << count; 
+								}
+								auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
+									acc += entry.second;
+									return acc;
+								});
+								int vat_type{-1}; // unidentified VAT
+								// Identify what type of VAT the candidate defines
+								if ((props_counter.size() == 1) and props_counter.contains("gross")) {
+									vat_type = 0; // NO VAT (gross, counter gross)
+									prompt << "\nTemplate is an NO VAT transaction :)"; // gross,gross
+								}
+								else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
+									if (props_sum == 3) {
+										prompt << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
+										vat_type = 1; // Swedish VAT
+									}
+								}
+								else if (
+									(     (props_counter.contains("gross"))
+										and (props_counter.contains("eu_purchase"))
+										and (props_counter.contains("eu_vat")))) {
+									vat_type = 2; // EU VAT
+									prompt << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
+								}
+								else {
+									prompt << "\nFailed to recognise the VAT type";
+								}
+
 								switch (ix) {
 									case 0: {
 										// Try to stage gross + single counter transactions aggregate
@@ -4915,48 +4952,34 @@ public:
 										}
 									} break;
 									case 1: {
-										prompt << "\nTODO: Act on n x (counter transactions gross,{net,vat},{net,vat,+eu_vat,-eu_vat,+eu_purchase,-eu_purchase}...)";
-										// 1) We need to identify the "type" of the template
-										auto tme = to_typed_meta_entry(*had.current_candidate);
-										prompt << "\n" << tme;
-										std::map<std::string,unsigned int> props_counter{};
-										for (auto const& [at,props] : tme.defacto.account_transactions) {
-											for (auto const& prop : props) props_counter[prop]++;
-										}
-										for (auto const& [prop,count] : props_counter) {
-											prompt << "\n" << std::quoted(prop) << " count:" << count; 
-										}
-										if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat")) {
-											auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
-												acc += entry.second;
-												return acc;
-											});
-											if (props_sum == 3) {
-												prompt << "\nDetected: gross + n x {net,vat} pattern";
-												BAS::anonymous::OptionalAccountTransaction net_at;
-												BAS::anonymous::OptionalAccountTransaction vat_at;
-												for (auto const& [at,props] : tme.defacto.account_transactions) {
-													if (props.contains("net")) net_at = at;
-													if (props.contains("vat")) vat_at = at;
-												}
-												if (!net_at) std::cerr << "\nNo net_at";
-												if (!vat_at) std::cerr << "\nNo vat_at";
-												if (net_at and vat_at) {
-													had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
-													
-													BAS::anonymous::AccountTransactions ats_to_keep{};
-													std::remove_copy_if(
-														had.current_candidate->defacto.account_transactions.begin()
-														,had.current_candidate->defacto.account_transactions.end()
-														,std::back_inserter(ats_to_keep)
-														,[&net_at,&vat_at](auto const& at){
-															return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
-													});
-													had.current_candidate->defacto.account_transactions = ats_to_keep;
-												}
-												prompt << "\ncadidate: " << *had.current_candidate;
-												model->prompt_state = PromptState::EnterHA;
+										if (vat_type == 1) {
+											prompt << "\nDetected: SWEDISH VAT gross + n x {net,vat} pattern";
+											BAS::anonymous::OptionalAccountTransaction net_at;
+											BAS::anonymous::OptionalAccountTransaction vat_at;
+											for (auto const& [at,props] : tme.defacto.account_transactions) {
+												if (props.contains("net")) net_at = at;
+												if (props.contains("vat")) vat_at = at;
 											}
+											if (!net_at) std::cerr << "\nNo net_at";
+											if (!vat_at) std::cerr << "\nNo vat_at";
+											if (net_at and vat_at) {
+												had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
+												
+												BAS::anonymous::AccountTransactions ats_to_keep{};
+												std::remove_copy_if(
+													had.current_candidate->defacto.account_transactions.begin()
+													,had.current_candidate->defacto.account_transactions.end()
+													,std::back_inserter(ats_to_keep)
+													,[&net_at,&vat_at](auto const& at){
+														return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
+												});
+												had.current_candidate->defacto.account_transactions = ats_to_keep;
+											}
+											prompt << "\ncadidate: " << *had.current_candidate;
+											model->prompt_state = PromptState::EnterHA;
+										}
+										else if (vat_type == 2) {
+											prompt << "\nTemplate is an EU PURCHASE :)";														
 										}
 									} break;
 									case 2: {
