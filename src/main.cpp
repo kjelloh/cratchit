@@ -7,7 +7,17 @@
 #include <vector>
 #include <optional>
 #include <string_view>
-#include <filesystem>
+#ifndef __cpp_lib_filesystem
+#error Does not support REQUIRED std::filesystem
+#endif
+
+#if __has_include(<filesystem>)
+#	include <filesystem>
+#elif __has_include(<experimental/filesystem>)
+#  include <experimental/filesystem>
+#  error DESIGN INSUFFICIENCY <experimental/filesystem>
+#endif
+
 #include <fstream>
 #include <algorithm>
 #include <random>
@@ -104,7 +114,7 @@ namespace tokenize {
 	enum class eAllowEmptyTokens {
 		unknown
 		,no
-		,yes
+		,YES
 		,undefined
 	};
 
@@ -1180,7 +1190,7 @@ namespace CSV {
 			// 2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
 			std::string sEntry{};
 			if (std::getline(in.is,sEntry)) {
-				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::yes);
+				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::YES);
 				// LOG
 				if (false) {
 					std::cout << "\ncsv count: " << tokens.size(); // Expected 10
@@ -5006,6 +5016,42 @@ public:
 					case PromptState::Unknown:
 						prompt << "\nPlease enter \"word\" like text (index option not available in this state)";
 						break;
+				}
+			}
+			else if (ast[0] == "-bas") {
+				std::cout << " :)";
+				if (ast.size() == 2) {
+					// Import bas account plan csv file
+					std::filesystem::path p{ast[1]};
+					if (std::filesystem::exists(p)) {
+						std::ifstream in{p};
+						std::string entry{};
+						int ix{0};
+						std::map<int,int> count_distribution{};
+						while (std::getline(in,entry)) {
+							prompt << "\n" << ix++ << entry;
+							auto fields = tokenize::splits(entry,';',tokenize::eAllowEmptyTokens::YES);
+							int jx{0};
+							prompt << "\n\tcount:" << fields.size();
+							++count_distribution[fields.size()];
+							for (auto const& field : fields) {
+								prompt << " " << jx++ << ":" << std::quoted(field);
+							}
+						}
+						prompt << "\nField Count distribution";
+						for (auto const& entry : count_distribution) prompt << "\nfield count:" << entry.first << " entry count:" << entry.second;
+					}
+					else {
+						prompt << "\nUse '-bas' to list available files to import (It seems I can't find the file " << p;
+					}
+				}
+				else {
+					// List csv-files in the resources sub-folder
+					std::filesystem::path resources_folder{"./resources"};
+					std::filesystem::directory_iterator dir_iter{resources_folder};
+					for (auto const& dir_entry : std::filesystem::directory_iterator{resources_folder}) {
+						prompt << "\n" << dir_entry.path(); // TODO: Remove .path() when stdc++ library supports streaming of std::filesystem::directory_entry 
+					}
 				}
 			}
 			else if (ast[0] == "-sie") {
