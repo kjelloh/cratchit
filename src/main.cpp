@@ -2677,12 +2677,64 @@ std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
 	return os;
 }
 
-TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaEntry const& tme) {
-	TestResult result{};
-	result.prompt << "Null";
+// A typed sub-meta-entry is a subset of transactions of provided typed meta entry
+// that are all of the same "type" and that all sums to zero (do balance) 
+std::vector<BAS::TypedMetaEntry> to_typed_sub_meta_entries(BAS::TypedMetaEntry const& tme) {
+	std::vector<BAS::TypedMetaEntry> result{};
+	// TODO: When needed, identify sub-entries of typed account transactions that balance (sums to zero)
+	result.push_back(tme); // For now, return input as the single sub-entry
 	return result;
 }
 
+BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEEnvironments const& sie_envs,BAS::anonymous::TypedAccountTransaction const& tat) {
+	BAS::anonymous::TypedAccountTransactions result{};
+	result.insert(tat); // For now, return ourself as the only alternative
+	return result;
+}
+
+bool operator==(BAS::TypedMetaEntry const& tme1,BAS::TypedMetaEntry const& tme2) {
+	return BAS::kind::to_types_topology(tme1) == BAS::kind::to_types_topology(tme2);
+}
+
+BAS::TypedMetaEntry to_tats_swapped_tme(BAS::TypedMetaEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
+	BAS::TypedMetaEntry result{tme};
+	// TODO: Implement actual swap of tats
+	return result;
+}
+
+BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Amount const& gross_amount) {
+	BAS::OptionalMetaEntry result{};
+	// TODO: Implement actual generation of a candidate using the provided typed meta entry and the gross amount
+	result = to_meta_entry(tme); // Return with unmodified amounts!
+	return result;
+}
+
+TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaEntry const& tme) {
+	TestResult result{};
+	result.prompt << "test_typed_meta_entry=";
+	auto sub_tmes = to_typed_sub_meta_entries(tme);
+	for (auto const& sub_tme : sub_tmes) {
+		for (auto const& tat : sub_tme.defacto.account_transactions) {
+			auto alt_tats = to_alternative_tats(sie_envs,tat);
+			for (auto const& alt_tat : alt_tats) {
+				// Check that we can replace a tat with an alternative and still get a typed meta entry of the "same type"
+				if (auto alt_tme = to_tats_swapped_tme(tme,tat,alt_tat); alt_tme == tme) {
+					// OK!
+					result.prompt << "\n\t\t" <<  "ok: was able to swap " << tat << " with " << alt_tat << " and preserve meta entry type";
+					if (auto const& candidate_me = to_meta_entry_candidate(alt_tme,100.0)) {
+						result.prompt << "\n\t\t" <<  "ok: was able to create candidate";
+						result.prompt << "\n\t" << *candidate_me;
+					}
+				}
+				else {
+					result.prompt << "\n\t\t" << "FAILED: Could not swap " << tat << " with " << alt_tat << " and preserve meta entry type";
+				}
+			}
+		}
+	}
+	result.prompt << "\n\t\t" << " *DONE*";
+	return result;
+}
 
 using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,BAS::TypedMetaEntries>>;
 
