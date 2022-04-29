@@ -2668,6 +2668,22 @@ MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironments const& sie_envs)
 	return result;
 }
 
+struct TestResult {
+	std::ostringstream prompt{};
+};
+
+std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
+	os << tr.prompt.str();
+	return os;
+}
+
+TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaEntry const& tme) {
+	TestResult result{};
+	result.prompt << "Null";
+	return result;
+}
+
+
 using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,BAS::TypedMetaEntries>>;
 
 AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) {
@@ -5336,6 +5352,7 @@ public:
 											prompt << "\n       VAT Type:" << to_vat_type(tme);
 											prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
 											prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
+											prompt << "\n       TEST: " << test_typed_meta_entry(model->sie,tme);
 										}
 									}
 								}
