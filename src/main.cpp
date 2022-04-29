@@ -2709,6 +2709,21 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 	return result;
 }
 
+bool operator==(BAS::MetaEntry const& me1, BAS::MetaEntry const& me2) {
+	bool result{false};
+	if (     (me1.meta == me2.meta)
+		   and (me1.defacto.caption == me2.defacto.caption)
+		   and (me1.defacto.date == me2.defacto.date)
+	     and (me1.defacto.account_transactions.size() == me2.defacto.account_transactions.size())) {
+	
+	  for (int i=0;i<me1.defacto.account_transactions.size() and !result;++i) {
+			result = (     (me1.defacto.account_transactions[i].transtext == me2.defacto.account_transactions[i].transtext)
+								 and (me1.defacto.account_transactions[i].amount == me2.defacto.account_transactions[i].amount));
+		}
+	}
+	return result;
+}
+
 TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaEntry const& tme) {
 	TestResult result{};
 	result.prompt << "test_typed_meta_entry=";
@@ -2717,17 +2732,24 @@ TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaE
 		for (auto const& tat : sub_tme.defacto.account_transactions) {
 			auto alt_tats = to_alternative_tats(sie_envs,tat);
 			for (auto const& alt_tat : alt_tats) {
-				// Check that we can replace a tat with an alternative and still get a typed meta entry of the "same type"
-				if (auto alt_tme = to_tats_swapped_tme(tme,tat,alt_tat); alt_tme == tme) {
-					// OK!
-					result.prompt << "\n\t\t" <<  "ok: was able to swap " << tat << " with " << alt_tat << " and preserve meta entry type";
-					if (auto const& candidate_me = to_meta_entry_candidate(alt_tme,100.0)) {
-						result.prompt << "\n\t\t" <<  "ok: was able to create candidate";
-						result.prompt << "\n\t" << *candidate_me;
-					}
+				auto alt_tme = to_tats_swapped_tme(tme,tat,alt_tat);
+				result.prompt << "\n\t\t" <<  "Swapped " << tat << " with " << alt_tat;
+				// Test that we can do a roundtrip and get the alt_tme back
+				auto gross_amount = std::accumulate(alt_tme.defacto.account_transactions.begin(),alt_tme.defacto.account_transactions.end(),Amount{0},[](auto acc, auto const& tat){
+					if (tat.first.amount > 0) acc += tat.first.amount;
+					return acc;
+				});
+				auto raw_alt_candidate = to_meta_entry(alt_tme); // Raw conversion
+				auto alt_candidate = to_meta_entry_candidate(alt_tme,gross_amount); // Generate from gross amount
+				if (alt_candidate and (*alt_candidate == raw_alt_candidate)) {
+					result.prompt << "\n\t\t" << "Succes, is equal ok!";
+					result.prompt << "\n\t\t      raw: " << raw_alt_candidate;
+					result.prompt << "\n\t\tgenerated: " << *alt_candidate;
 				}
 				else {
-					result.prompt << "\n\t\t" << "FAILED: Could not swap " << tat << " with " << alt_tat << " and preserve meta entry type";
+					result.prompt << "\n\t\t" << "FAILED, IS NOT EQUAL";
+					result.prompt << "\n\t\t      raw: " << raw_alt_candidate;
+					result.prompt << "\n\t\tgenerated: " << *alt_candidate;
 				}
 			}
 		}
