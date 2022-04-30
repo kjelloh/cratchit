@@ -2711,7 +2711,7 @@ BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEEnvironments con
 }
 
 bool operator==(BAS::TypedMetaEntry const& tme1,BAS::TypedMetaEntry const& tme2) {
-	return BAS::kind::to_types_topology(tme1) == BAS::kind::to_types_topology(tme2);
+	return (BAS::kind::to_types_topology(tme1) == BAS::kind::to_types_topology(tme2));
 }
 
 BAS::TypedMetaEntry to_tats_swapped_tme(BAS::TypedMetaEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
@@ -2724,6 +2724,14 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 	BAS::OptionalMetaEntry result{};
 	// TODO: Implement actual generation of a candidate using the provided typed meta entry and the gross amount
 	auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
+	BAS::MetaEntry me_candidate{
+		.meta = tme.meta
+		,.defacto = {
+			.caption = tme.defacto.caption
+			,.date = tme.defacto.date
+			,.account_transactions = {}
+		}
+	};
 	switch (order_code) {
 		// <DETECTED TOPOLOGIES>
 		// 	 eu_vat vat cents = sort_code: 0x567
@@ -2731,6 +2739,53 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 		// 	 gross net vat cents = sort_code: 0x3467
 		case 0x3467: {
 			// With Swedish VAT (with rounding)
+			if (tme.defacto.account_transactions.size() == 4) {
+				// One gross account + single counter {net,vat} and single rounding trans
+				for (auto const& tat : tme.defacto.account_transactions) {
+					switch (BAS::kind::to_at_types_order(tat.second)) {
+						case 0x3: {
+							// gross
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = gross_amount
+							});
+						}; break;
+						case 0x4: {
+							// net
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = static_cast<Amount>(gross_amount*0.8) // NOTE: Hard coded 25% VAT
+							});
+						}; break;
+						case 0x6: {
+							// VAT
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = static_cast<Amount>(gross_amount*0.2) // NOTE: Hard coded 25% VAT
+							});
+						}; break;
+						case 0x7: {
+							// Cents
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = static_cast<Amount>(0.0) // NOTE: No rounding here
+								// NOTE: Applying a rounding scheme has to "guess" what to aim for.
+								//       It seems some aim at making the gross amount without cents.
+								//       But I have seen Telia invoices with rounding although both gross and net amounts
+								//       are with cents (go figure how that come?)
+							});
+						}; break;
+					}
+				}
+				result = me_candidate;
+			}
+			else {
+				// Multipple counter transaction aggretates not yet supported
+			}
 		} break;
 
 		// 	 transfer gross cents = sort_code: 0x137
@@ -2757,8 +2812,8 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 		// 	 gross vat = sort_code: 0x36
 		// 	 transfer = sort_code: 0x1
 		// 	 transfer vat = sort_code: 0x16
-	}; // switch
-	result = to_meta_entry(tme); // Return with unmodified amounts!
+	} // switch
+	// result = to_meta_entry(tme); // Return with unmodified amounts!
 	return result;
 }
 
@@ -2771,7 +2826,7 @@ bool operator==(BAS::MetaEntry const& me1, BAS::MetaEntry const& me2) {
 	
 	  for (int i=0;i<me1.defacto.account_transactions.size() and !result;++i) {
 			result = (     (me1.defacto.account_transactions[i].transtext == me2.defacto.account_transactions[i].transtext)
-								 and (me1.defacto.account_transactions[i].amount == me2.defacto.account_transactions[i].amount));
+								 and (same_whole_units(me1.defacto.account_transactions[i].amount,me2.defacto.account_transactions[i].amount)));
 		}
 	}
 	return result;
@@ -5493,7 +5548,7 @@ public:
 						prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
 						for (auto const& tme : failed_tmes) {
 							auto types_topology = BAS::kind::to_types_topology(tme);
-							prompt << "\n" << types_topology << " " << tme.meta;
+							prompt << "\n" << types_topology << " " << tme.meta << " " << tme.defacto.caption << " " << tme.defacto.date;
 						}
 					}
 					else {
