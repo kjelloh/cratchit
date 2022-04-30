@@ -2803,6 +2803,24 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 		// 	 gross = sort_code: 0x3
 		case 0x3: {
 			// With gross, counter gross
+			if (tme.defacto.account_transactions.size() == 2) {
+				for (auto const& tat : tme.defacto.account_transactions) {
+					switch (BAS::kind::to_at_types_order(tat.second)) {
+						case 0x3: {
+							// gross
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+							});
+						}; break;
+					} // switch
+				} // for ats
+				result = me_candidate;
+			}
+			else {
+				// Multipple gounter gross accounts not yet supportered
+			}
 		}
 
 		// 	 gross net = sort_code: 0x34
