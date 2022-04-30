@@ -907,6 +907,7 @@ namespace BAS {
 		using AccountTransactionTypeTopology = std::set<std::string>;
 
 		enum class ATType {
+			// NOTE: Restrict to 16 values (Or to_at_types_order stops being reliable)
 			undefined
 			,transfer
 			,eu_purchase
@@ -944,10 +945,10 @@ namespace BAS {
 			std::vector<ATType> at_types{};
 			for (auto const& prop : topology) at_types.push_back(to_at_type(prop));
 			std::sort(at_types.begin(),at_types.end(),[](ATType t1,ATType t2){
-				return (t1>t2);
+				return (t1<t2);
 			});
-			// Assemble a "number" of "digits" each having value 0..ATType::unknown (Assumes C++ enumeration can be trusted to start at 0...)
-			for (auto at_type : at_types) result = result*static_cast<std::size_t>(ATType::unknown) + static_cast<std::size_t>(at_type);
+			// Assemble a "number" of "digits" each having value 0..15 (i.e, in effect a hexadecimal number with each digit indicating an at_type enum value)
+			for (auto at_type : at_types) result = result*0x10 + static_cast<std::size_t>(at_type);
 			return result;
 		}
 
@@ -1260,7 +1261,7 @@ std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopol
 	else for (auto const& prop : sorted_props) {
 		os << " " << prop;
 	}
-	os << " sort_code:" << BAS::kind::to_at_types_order(props);
+	os << " = sort_code: 0x" << std::hex << BAS::kind::to_at_types_order(props) << std::dec;
 	return os;
 }
 
@@ -2725,34 +2726,38 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 	auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
 	switch (order_code) {
 		// <DETECTED TOPOLOGIES>
-		// 	 eu_vat vat cents sort_code:501
-		// 	 gross net vat cents sort_code:4003
-		case 4003: {
-			// Create a Swedish VAT entry with rounding			
+		// 	 eu_vat vat cents = sort_code: 0x567
 
+		// 	 gross net vat cents = sort_code: 0x3467
+		case 0x3467: {
+			// With Swedish VAT (with rounding)
 		} break;
-		// 	 transfer gross cents sort_code:473
-		// 	 gross vat cents sort_code:499
-		// 	 vat cents sort_code:62
-		// 	 eu_purchase gross eu_vat vat sort_code:3418
-		case 3418: {
-			// Create an EU Purchase (no rounding)
-		} break;
-		// 	 gross sort_code:3
-		case 3: {
-			// Create a gross, counter gross journal entry
-		}
-		// 	 gross net sort_code:35
-		// 	 gross net vat sort_code:419
-		case 419: {
-			// Create a Swedish VAT journal entry (no rounding)
-		}
-		// 	 gross vat sort_code:51
-		// 	 transfer sort_code:1
-		// 	 transfer vat sort_code:49
-		deafult:; // Ignore (return nullopt)
-	}
 
+		// 	 transfer gross cents = sort_code: 0x137
+		// 	 gross vat cents = sort_code: 0x367
+		// 	 vat cents = sort_code: 0x67
+
+		// 	 eu_purchase gross eu_vat vat = sort_code: 0x2356
+		case 0x2356: {
+			// With EU VAT
+		} break;
+
+		// 	 gross = sort_code: 0x3
+		case 0x3: {
+			// With gross, counter gross
+		}
+
+		// 	 gross net = sort_code: 0x34
+
+		// 	 gross net vat = sort_code: 0x346
+		case 0x346: {
+			// With Swedish VAT (no rounding)
+		}
+
+		// 	 gross vat = sort_code: 0x36
+		// 	 transfer = sort_code: 0x1
+		// 	 transfer vat = sort_code: 0x16
+	}; // switch
 	result = to_meta_entry(tme); // Return with unmodified amounts!
 	return result;
 }
