@@ -2777,7 +2777,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 								,.transtext = tat.first.transtext
 								,.amount = static_cast<Amount>(0.0) // NOTE: No rounding here
 								// NOTE: Applying a rounding scheme has to "guess" what to aim for.
-								//       It seems some aim at making the gross amount without cents.
+								//       It seems some sellers aim at making the gross amount without cents.
 								//       But I have seen Telia invoices with rounding although both gross and net amounts
 								//       are with cents (go figure how that come?)
 							});
@@ -2798,6 +2798,44 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 		// 	 eu_purchase gross eu_vat vat = sort_code: 0x2356
 		case 0x2356: {
 			// With EU VAT
+			if (tme.defacto.account_transactions.size() == 6) {
+				// One gross + one counter gross trasnaction (EU Transactions between countries happens without charging the buyer with VAT)
+				// But to populate the VAT Returns form we need four more "fake" transactions
+				// One "fake" EU VAT + a counter "fake" VAT transactions (zero VAT to pay for the buyer)
+				// One "fake" EU Purchase + a counter EU Purchase (to not duble book the purchase in the buyers journal) 
+				for (auto const& tat : tme.defacto.account_transactions) {
+					switch (BAS::kind::to_at_types_order(tat.second)) {
+						case 0x2: {
+							// eu_purchase +/-
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+							});
+						} break;
+						case 0x3: {
+							// gross +/-
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+							});
+						} break;
+						case 0x5: {
+							// eu_vat +/-
+							auto vat_amount = static_cast<Amount>(((tat.first.amount<0)?-1.0:1.0) * 0.2 * std::abs(gross_amount));
+							me_candidate.defacto.account_transactions.push_back({
+								.account_no = tat.first.account_no
+								,.transtext = tat.first.transtext
+								,.amount = vat_amount
+							});
+						} break;
+						// NOTE: case 0x6: vat will hit the same transaction as the eu_vat tagged account trasnactiopn is also tagged vat ;)
+					} // switch
+				} // for ats
+				result = me_candidate;
+			}
+
 		} break;
 
 		// 	 gross = sort_code: 0x3
@@ -2807,7 +2845,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 				for (auto const& tat : tme.defacto.account_transactions) {
 					switch (BAS::kind::to_at_types_order(tat.second)) {
 						case 0x3: {
-							// gross
+							// gross +/-
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
