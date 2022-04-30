@@ -1246,11 +1246,21 @@ std::string to_string(BAS::MetaEntry const& me) {
 
 // TYPED ENTRY
 
+std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountTopology const& accounts) {
+	if (accounts.size()==0) os << " ?";
+	else for (auto const& account : accounts) {
+		os << " " << account;
+	}
+	return os;
+}
+
 std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopology const& props) {
-	if (props.size()==0) os << " ?";
-	else for (auto const& prop : props) {
+	auto sorted_props = BAS::kind::sorted(props); // props is a std::set, sorted_props is a vector
+	if (sorted_props.size()==0) os << " ?";
+	else for (auto const& prop : sorted_props) {
 		os << " " << prop;
 	}
+	os << " sort_code:" << BAS::kind::to_at_types_order(props);
 	return os;
 }
 
@@ -2656,8 +2666,10 @@ void for_each_typed_meta_entry(SIEEnvironments const& sie_envs,auto& f) {
 	for_each_meta_entry(sie_envs,f_caller);
 }
 
-using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>;
-using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>;
+using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
+using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>; // hash -> TypeMetaEntry
+// TODO: Consider to make MetaEntryTopologyMap an unordered_map (as it is already a map from hash -> TypedMetaEntry)
+//       All we should have to do is to define std::hash for this type to make std::unordered_map find it? 
 
 MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironments const& sie_envs) {
 	MetaEntryTopologyMap result{};
@@ -5414,22 +5426,13 @@ public:
 						// List grouped on type topology
 						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
 							for (auto const& [topology,tmes] : tme_map) {
-								auto props = BAS::kind::sorted(topology);
-								prompt << "\n[";
-								for (auto const& prop : props) {
-									prompt << ":" << prop;
-								}
-								prompt << "] ";
+								prompt << "\n[" << topology << "] ";
 								// Group tmes on BAS Accounts topology
 								auto accounts_topology_map = to_accounts_topology_map(tmes);
 								// List grouped BAS Accounts topology
 								for (auto const& [signature,bat_map] : accounts_topology_map) {
 									for (auto const& [topology,tmes] : bat_map) {
-										prompt << "\n    [";
-										for (auto const& account_no : topology) {
-											prompt << ":" << account_no;
-										}
-										prompt << "] ";
+										prompt << "\n    [" << topology << "] ";
 										for (auto const& tme : tmes) {
 											prompt << "\n       VAT Type:" << to_vat_type(tme);
 											prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
