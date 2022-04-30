@@ -977,10 +977,10 @@ namespace BAS {
 
 			template <>
 			struct hash<AccountTransactionTypeTopology> {
-				std::size_t operator()(AccountTransactionTypeTopology const& met) {
+				std::size_t operator()(AccountTransactionTypeTopology const& props) {
 					std::size_t result{};
-					for (auto const& s : met) {
-						auto h = std::hash<std::string>{}(s);
+					for (auto const& prop : props) {
+						auto h = std::hash<std::string>{}(prop);
 						result = result ^ (h << 1);
 					}
 					return result;
@@ -1246,13 +1246,17 @@ std::string to_string(BAS::MetaEntry const& me) {
 
 // TYPED ENTRY
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat) {
-	auto const& [at,props] = tat;
+std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopology const& props) {
 	if (props.size()==0) os << " ?";
 	else for (auto const& prop : props) {
 		os << " " << prop;
 	}
-	os << " : " << at;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat) {
+	auto const& [at,props] = tat;
+	os << props << " : " << at;
 	return os;
 }
 
@@ -2669,7 +2673,8 @@ MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironments const& sie_envs)
 }
 
 struct TestResult {
-	std::ostringstream prompt{};
+	std::ostringstream prompt{"null"};
+	bool failed{true};
 };
 
 std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
@@ -2745,6 +2750,7 @@ TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaE
 					result.prompt << "\n\t\t" << "Succes, is equal ok!";
 					result.prompt << "\n\t\t      raw: " << raw_alt_candidate;
 					result.prompt << "\n\t\tgenerated: " << *alt_candidate;
+					result.failed = false;
 				}
 				else {
 					result.prompt << "\n\t\t" << "FAILED, IS NOT EQUAL";
@@ -5403,6 +5409,8 @@ public:
 						// };
 						// for_each_typed_meta_entry(model->sie,h);
 						auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
+						// Prepare to record journal entries we could not use as template for new entries
+						std::vector<BAS::TypedMetaEntry> failed_tmes{};
 						// List grouped on type topology
 						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
 							for (auto const& [topology,tmes] : tme_map) {
@@ -5426,11 +5434,19 @@ public:
 											prompt << "\n       VAT Type:" << to_vat_type(tme);
 											prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
 											prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
-											prompt << "\n       TEST: " << test_typed_meta_entry(model->sie,tme);
+											auto test_result = test_typed_meta_entry(model->sie,tme);
+											prompt << "\n       TEST: " << test_result;
+											if (test_result.failed) failed_tmes.push_back(tme);											
 										}
 									}
 								}
 							}
+						}
+						// LOG tmes we failed to identify as templates for new journal entries
+						prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
+						for (auto const& tme : failed_tmes) {
+							auto types_topology = BAS::kind::to_types_topology(tme);
+							prompt << "\n" << types_topology << " " << tme.meta;
 						}
 					}
 					else {
