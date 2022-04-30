@@ -2722,6 +2722,37 @@ BAS::TypedMetaEntry to_tats_swapped_tme(BAS::TypedMetaEntry const& tme,BAS::anon
 BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Amount const& gross_amount) {
 	BAS::OptionalMetaEntry result{};
 	// TODO: Implement actual generation of a candidate using the provided typed meta entry and the gross amount
+	auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
+	switch (order_code) {
+		// <DETECTED TOPOLOGIES>
+		// 	 eu_vat vat cents sort_code:501
+		// 	 gross net vat cents sort_code:4003
+		case 4003: {
+			// Create a Swedish VAT entry with rounding			
+
+		} break;
+		// 	 transfer gross cents sort_code:473
+		// 	 gross vat cents sort_code:499
+		// 	 vat cents sort_code:62
+		// 	 eu_purchase gross eu_vat vat sort_code:3418
+		case 3418: {
+			// Create an EU Purchase (no rounding)
+		} break;
+		// 	 gross sort_code:3
+		case 3: {
+			// Create a gross, counter gross journal entry
+		}
+		// 	 gross net sort_code:35
+		// 	 gross net vat sort_code:419
+		case 419: {
+			// Create a Swedish VAT journal entry (no rounding)
+		}
+		// 	 gross vat sort_code:51
+		// 	 transfer sort_code:1
+		// 	 transfer vat sort_code:49
+		deafult:; // Ignore (return nullopt)
+	}
+
 	result = to_meta_entry(tme); // Return with unmodified amounts!
 	return result;
 }
@@ -5423,20 +5454,23 @@ public:
 						auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
 						// Prepare to record journal entries we could not use as template for new entries
 						std::vector<BAS::TypedMetaEntry> failed_tmes{};
+						std::set<BAS::kind::AccountTransactionTypeTopology> detected_topologies{};
 						// List grouped on type topology
 						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-							for (auto const& [topology,tmes] : tme_map) {
-								prompt << "\n[" << topology << "] ";
+							for (auto const& [type_topology,tmes] : tme_map) {
+								prompt << "\n[" << type_topology << "] ";
+								detected_topologies.insert(type_topology);
 								// Group tmes on BAS Accounts topology
 								auto accounts_topology_map = to_accounts_topology_map(tmes);
 								// List grouped BAS Accounts topology
 								for (auto const& [signature,bat_map] : accounts_topology_map) {
-									for (auto const& [topology,tmes] : bat_map) {
-										prompt << "\n    [" << topology << "] ";
+									for (auto const& [type_topology,tmes] : bat_map) {
+										prompt << "\n    [" << type_topology << "] ";
 										for (auto const& tme : tmes) {
 											prompt << "\n       VAT Type:" << to_vat_type(tme);
 											prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
 											prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
+											// TEST that we are able to operate on journal entries with this topology? 
 											auto test_result = test_typed_meta_entry(model->sie,tme);
 											prompt << "\n       TEST: " << test_result;
 											if (test_result.failed) failed_tmes.push_back(tme);											
@@ -5444,6 +5478,11 @@ public:
 									}
 								}
 							}
+						}
+						// LOG detected journal entry type topologies
+						prompt << "\n<DETECTED TOPOLOGIES>";
+						for (auto const& topology : detected_topologies) {
+							prompt << "\n\t" << topology;
 						}
 						// LOG tmes we failed to identify as templates for new journal entries
 						prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
