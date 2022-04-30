@@ -2255,8 +2255,9 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 
 // ==================================================================================
 
-bool same_whole_units(Amount const& a1,Amount const& a2) {
-	return (std::round(a1) == std::round(a2));
+bool are_same_and_less_than_100_cents_apart(Amount const& a1,Amount const& a2) {
+	bool result = (std::abs(std::abs(a1) - std::abs(a2)) < 1.0);
+	return result;
 }
 
 BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
@@ -2736,10 +2737,12 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 		// <DETECTED TOPOLOGIES>
 		// 	 eu_vat vat cents = sort_code: 0x567
 
+		// 	 gross net vat = sort_code: 0x346
+		case 0x346:
 		// 	 gross net vat cents = sort_code: 0x3467
 		case 0x3467: {
 			// With Swedish VAT (with rounding)
-			if (tme.defacto.account_transactions.size() == 4) {
+			if (tme.defacto.account_transactions.size() == 3 or tme.defacto.account_transactions.size() == 4) {
 				// One gross account + single counter {net,vat} and single rounding trans
 				for (auto const& tat : tme.defacto.account_transactions) {
 					switch (BAS::kind::to_at_types_order(tat.second)) {
@@ -2804,11 +2807,6 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 
 		// 	 gross net = sort_code: 0x34
 
-		// 	 gross net vat = sort_code: 0x346
-		case 0x346: {
-			// With Swedish VAT (no rounding)
-		}
-
 		// 	 gross vat = sort_code: 0x36
 		// 	 transfer = sort_code: 0x1
 		// 	 transfer vat = sort_code: 0x16
@@ -2817,19 +2815,35 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 	return result;
 }
 
-bool operator==(BAS::MetaEntry const& me1, BAS::MetaEntry const& me2) {
-	bool result{false};
-	if (     (me1.meta == me2.meta)
-		   and (me1.defacto.caption == me2.defacto.caption)
-		   and (me1.defacto.date == me2.defacto.date)
-	     and (me1.defacto.account_transactions.size() == me2.defacto.account_transactions.size())) {
-	
-	  for (int i=0;i<me1.defacto.account_transactions.size() and !result;++i) {
-			result = (     (me1.defacto.account_transactions[i].transtext == me2.defacto.account_transactions[i].transtext)
-								 and (same_whole_units(me1.defacto.account_transactions[i].amount,me2.defacto.account_transactions[i].amount)));
+bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransaction const& at1, BAS::anonymous::AccountTransaction const& at2) {
+	return (     (at1.account_no == at2.account_no)
+	         and (at1.transtext == at2.transtext)
+					 and (are_same_and_less_than_100_cents_apart(at1.amount,at2.amount)));
+}
+
+bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransactions const& ats1, BAS::anonymous::AccountTransactions const& ats2) {
+	bool result{true};
+	if (ats1.size() >= ats2.size()) {
+		for (int i=0;i<ats1.size() and result;++i) {
+			if (i<ats2.size()) {
+				result = are_same_and_less_than_100_cents_apart(ats1[i],ats2[i]);
+			}
+			else {
+				result = std::abs(ats1[i].amount) < 1.0; // Do not care about cents
+			}
 		}
 	}
+	else {
+		return are_same_and_less_than_100_cents_apart(ats2,ats1); // Recurse with swapped arguments
+	}
 	return result;
+}
+
+bool are_same_and_less_than_100_cents_apart(BAS::MetaEntry const& me1, BAS::MetaEntry const& me2) {
+	return (     	(me1.meta == me2.meta)
+						and (me1.defacto.caption == me2.defacto.caption)
+						and (me1.defacto.date == me2.defacto.date)
+						and (are_same_and_less_than_100_cents_apart(me1.defacto.account_transactions,me2.defacto.account_transactions)));
 }
 
 TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaEntry const& tme) {
@@ -2849,16 +2863,17 @@ TestResult test_typed_meta_entry(SIEEnvironments const& sie_envs,BAS::TypedMetaE
 				});
 				auto raw_alt_candidate = to_meta_entry(alt_tme); // Raw conversion
 				auto alt_candidate = to_meta_entry_candidate(alt_tme,gross_amount); // Generate from gross amount
-				if (alt_candidate and (*alt_candidate == raw_alt_candidate)) {
-					result.prompt << "\n\t\t" << "Succes, is equal ok!";
+				if (alt_candidate and are_same_and_less_than_100_cents_apart(*alt_candidate,raw_alt_candidate)) {
+					result.prompt << "\n\t\t" << "Success, are less that 100 cents apart :)!";
 					result.prompt << "\n\t\t      raw: " << raw_alt_candidate;
 					result.prompt << "\n\t\tgenerated: " << *alt_candidate;
 					result.failed = false;
 				}
 				else {
-					result.prompt << "\n\t\t" << "FAILED, IS NOT EQUAL";
+					result.prompt << "\n\t\t" << "FAILED, ARE NOT SAME OR SAME BUT MORE THAN 100 CENTS APART";
 					result.prompt << "\n\t\t      raw: " << raw_alt_candidate;
-					result.prompt << "\n\t\tgenerated: " << *alt_candidate;
+					if (alt_candidate) result.prompt << "\n\t\tgenerated: " << *alt_candidate;
+					else result.prompt << "\n\t\tgenerated: " << " null";
 				}
 			}
 		}
