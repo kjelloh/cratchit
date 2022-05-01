@@ -1467,6 +1467,32 @@ using char16_t_string = std::wstring;
 
 namespace charset {
 
+	namespace ISO_8859_1 {
+
+		// Unicode code points 0x00 to 0xFF maps directly to ISO 8895-1 (ISO Latin).
+		// So we have to convert UTF-8 to Unicode and then truncate the code point to the low value byte.
+		// Code points above 0xFF has NO obvious representation in ISO 8895-1 (I suppose we could cherry pick to get some similar ISO 8895-1 glyph but...)
+
+		char16_t iso8859ToUnicode(char ch8859) {
+			return ch8859;
+		}
+	
+		uint8_t UnicodeToISO8859(char16_t unicode) {
+			uint8_t result{'?'};
+			if (unicode<=0xFF) result = unicode;
+			return result;
+		} 
+
+		char16_t_string iso8859ToUnicode(std::string s8859) {
+			char16_t_string result{};
+			std::transform(s8859.begin(),s8859.end(),std::back_inserter(result),[](char ch){
+				return iso8859ToUnicode(ch);
+			});
+			return result;
+		}
+
+	}
+
 	namespace CP435 {
 		extern std::map<char,char16_t> cp435ToUnicodeMap;
 
@@ -1977,14 +2003,13 @@ namespace SIE {
 	 * TAKE CARE to not mess this up or you will get UTF-8 encoded text into the SIE file that will mess things up quite a lot...
 	 */
 
-
 	struct OStream {
 		std::ostream& os;
 		encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
 	};
 
 	SIE::OStream& operator<<(SIE::OStream& sieos,char ch) {
-		// Assume s is in UTF-8 and convert it to CP435 charachter set in file
+		// Assume ch is a byte in an UTF-8 stream and convert it to CP435 charachter set in file
 		if (auto unicode = sieos.to_unicode_buffer.push(ch)) {
 			auto cp435_ch = charset::CP435::UnicodeToCP435(*unicode);
 			sieos.os.put(cp435_ch);
@@ -3129,6 +3154,32 @@ namespace SKV {
 
 	namespace SRU {
 
+		struct OStream {
+			std::ostream& os;
+			encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
+			operator bool() {return static_cast<bool>(os);}
+		};
+
+		OStream& operator<<(OStream& sru_os,char ch) {
+			// Assume ch is a byte in an UTF-8 stream and convert it to CP435 charachter set in file
+			// std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
+			if (auto unicode = sru_os.to_unicode_buffer.push(ch)) {
+				auto iso8859_ch = charset::ISO_8859_1::UnicodeToISO8859(*unicode);
+				// std::cout << ":" << std::hex << static_cast<unsigned int>(iso8859_ch) << std::dec;
+				sru_os.os.put(iso8859_ch);
+			}
+			return sru_os;
+		}
+
+		OStream& operator<<(OStream& sru_os,std::string s) {
+			// std::cout << "\n" << std::quoted(s);
+			for (char ch : s) {
+				sru_os << ch; // Stream through operator<<(OStream& sieos,char ch) that will tarnsform utf-8 encoded Unicode, to char encoded ISO 8859-1
+			}
+			return sru_os;
+		}
+
+
 		// See https://skatteverket.se/download/18.96cca41179bad4b1aad958/1636640681760/SKV269_27.pdf
 		// 1. #DATABESKRIVNING_START
 		// 2. #PRODUKT SRU
@@ -3163,35 +3214,17 @@ namespace SKV {
 		using OptionalFilesMapping = std::optional<FilesMapping>;
 
 		struct InfoOStream {
-			std::ostream& os;
+			OStream& sru_os;
+			operator bool() {return static_cast<bool>(sru_os);}
 		};
 
 		struct BlanketterOStream {
-			std::ostream& os;
+			OStream& sru_os;
+			operator bool() {return static_cast<bool>(sru_os);}
 		};
 
 		SRUFileTagMap to_example_info_sru_file() {
 			SRUFileTagMap result{};
-			// INFO.SRU/INFOSRU
-			// #DATABESKRIVNING_START
-			// #PRODUKT SRU
-			// #MEDIAID DISK_12
-			// #SKAPAD 20130428 174557
-			// #PROGRAM SRUDEKLARATION 1.4
-			// #FILNAMN blanketter.sru
-			// #DATABESKRIVNING_SLUT
-			// #MEDIELEV_START
-			// #ORGNR 191111111111
-			// #NAMN Databokföraren
-			// #ADRESS BOX 159
-			// #POSTNR 12345
-			// #POSTORT SKATTSTAD
-			// #AVDELNING Ekonomi
-			// #KONTAKT KARL KARLSSON
-			// #EMAIL kk@Databokföraren
-			// #TELEFON 08-2121212
-			// #FAX 08-1212121
-			// #MEDIELEV_SLUT		
 			return result;	
 		}
 
@@ -3219,8 +3252,69 @@ namespace SKV {
 		}
 
 		InfoOStream& operator<<(InfoOStream& os,FilesMapping const& files_mapping) {
-			for (auto const& entry : files_mapping.info) {
-			}
+
+			// See https://skatteverket.se/download/18.96cca41179bad4b1aad958/1636640681760/SKV269_27.pdf
+				// INFO.SRU/INFOSRU
+
+			// 1. #DATABESKRIVNING_START
+			os.sru_os << "\n" << "#DATABESKRIVNING_START";
+
+			// 2. #PRODUKT SRU
+			os.sru_os << "\n" << "#PRODUKT SRU";
+
+			// 3. #MEDIAID (ej obligatorisk)
+				// #MEDIAID DISK_12
+
+			// 4. #SKAPAD (ej obligatorisk)
+				// #SKAPAD 20130428 174557
+
+			// 5. #PROGRAM (ej obligatorisk)
+			os.sru_os << "\n" << "#PROGRAM" << " " << "CRATCHIT (Github Open Source)";
+				// #PROGRAM SRUDEKLARATION 1.4
+
+			// 6. #FILNAMN (en post)
+				// #FILNAMN blanketter.sru
+			os.sru_os << "\n" << "#FILNAMN" << " " <<  "blanketter.sru";
+
+			// 7. #DATABESKRIVNING_SLUT
+			os.sru_os << "\n" << "#DATABESKRIVNING_SLUT";
+
+			// 8. #MEDIELEV_START
+			os.sru_os << "\n" << "#MEDIELEV_START";
+
+			// 9. #ORGNR
+				// #ORGNR 191111111111
+			os.sru_os << "\n" << "#ORGNR" << " " << "191111111111";
+
+			// 10. #NAMN
+				// #NAMN Databokföraren
+			os.sru_os << "\n" << "#NAMN" << " " << "Databokföraren";
+
+			// 11. #ADRESS (ej obligatorisk)
+				// #ADRESS BOX 159
+
+			// 12. #POSTNR
+				// #POSTNR 12345
+			os.sru_os << "\n" << "#POSTNR" << " " << "12345";
+
+			// 13. #POSTORT
+				// #POSTORT SKATTSTAD
+			os.sru_os << "\n" << "#POSTORT" << " " << "SKATTSTAD";
+			
+			// 14. #AVDELNING (ej obligatorisk)
+				// #AVDELNING Ekonomi
+			// 15. #KONTAKT (ej obligatorisk)
+				// #KONTAKT KARL KARLSSON
+			// 16. #EMAIL (ej obligatorisk)
+				// #EMAIL kk@Databokföraren
+			// 17. #TELEFON (ej obligatorisk)
+				// #TELEFON 08-2121212
+			// 18. #FAX (ej obligatorisk)
+				// #FAX 08-1212121
+
+			// 19. #MEDIELEV_SLUT
+			os.sru_os << "\n" << "#MEDIELEV_SLUT";
+
 			return os;
 		}
 
@@ -5518,14 +5612,26 @@ public:
 									std::filesystem::path info_file_path{"to_skv/K10/INFO.SRU"};
 									std::filesystem::create_directories(info_file_path.parent_path());
 									auto info_std_os = std::ofstream{info_file_path};
-									SKV::SRU::InfoOStream info_os{info_std_os};
-									info_os << *fm;
+									SKV::SRU::OStream info_sru_os{info_std_os};
+									SKV::SRU::InfoOStream info_os{info_sru_os};
+									if (info_os << *fm) {
+										prompt << "\nCreated " << info_file_path;
+									}
+									else {
+										prompt << "\nSorry, FAILED to create " << info_file_path;
+									}
 
 									std::filesystem::path blanketter_file_path{"to_skv/K10/BLANKETTER.SRU"};
 									std::filesystem::create_directories(blanketter_file_path.parent_path());
 									auto blanketter_std_os = std::ofstream{blanketter_file_path};
-									SKV::SRU::BlanketterOStream blanketter_os{blanketter_std_os};
-									blanketter_os << *fm;
+									SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
+									SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
+									if (blanketter_os << *fm) {
+										prompt << "\nCreated " << blanketter_file_path;
+									}
+									else {
+										prompt << "\nSorry, FAILED to create " << blanketter_file_path;
+									}
 								}
 								else {
 									prompt << "\nSorry, failed to create data for input to K10 SRU-files";
