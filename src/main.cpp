@@ -3235,6 +3235,7 @@ namespace SKV {
 		// 19. #MEDIELEV_SLUT
 
 		using SRUValueMap = std::map<AccountNo,std::string>;
+		using OptionalSRUValueMap = std::optional<SRUValueMap>;
 		using SRUValueMaps = std::vector<SRUValueMap>;
 
 		using SRUFileTagMap = std::map<std::string,std::string>;
@@ -4879,6 +4880,15 @@ private:
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
 
+namespace SKV {
+	namespace SRU {
+		OptionalSRUValueMap to_sru_value_map(Model const& model,::CSV::FieldRows const& field_rows) {
+			OptionalSRUValueMap result{};
+			return result;
+		}
+	}
+} // namespace SKV {
+
 struct KeyPress {char value;};
 using Command = std::string;
 struct Quit {};
@@ -6172,6 +6182,12 @@ public:
 								for (int i=0;i<field_row.size();++i) {
 									prompt << " [" << i << "]" << field_row[i];
 								}
+							}
+							if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
+
+							}
+							else {
+								prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
 							}
 						}
 						else {
