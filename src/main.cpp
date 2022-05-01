@@ -4891,6 +4891,18 @@ using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around 
 
 namespace SKV {
 	namespace SRU {
+
+		std::optional<std::string> to_sru_value(AccountNo const& sru_code,Model const& model) {
+			std::optional<std::string> result{};
+			Amount amount{};
+			auto f = [&sru_code,&amount](BAS::MetaAccountTransaction const& mat) {
+				// TODO: Implement a way to visit all BAS accounts with a specific SRU code!
+			};
+			for_each_meta_account_transaction(model->sie["current"],f);
+			if (amount != 0) result = std::to_string(to_tax(amount));
+			return result;
+		}
+
 		OptionalSRUValueMap to_sru_value_map(Model const& model,::CSV::FieldRows const& field_rows) {
 			OptionalSRUValueMap result{};
 			std::cout << "\nto_sru_value_map";
@@ -4901,7 +4913,13 @@ namespace SKV {
 					auto const& field_1 = field_row[1];
 					std::cout << "\n\t\t[1]=" << std::quoted(field_1);
 					if (auto sru_code = to_account_no(field_1)) {
-						std::cout << " ok!";
+						std::cout << " ok! Value=";
+						if (auto const& sru_value = to_sru_value(*sru_code,model)) {
+							std::cout << " " << *sru_value;
+						}
+						else {
+							std::cout << " null";
+						}
 					}
 					else {
 						std::cout << " NOT SRU";
