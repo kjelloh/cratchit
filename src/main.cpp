@@ -358,9 +358,11 @@ bool first_in_second_case_insensitive(std::string const& s1, std::string const& 
 	return (upper_s2.find(upper_s1) != std::string::npos);
 }
 
-namespace SRU {
-	using AccountNo = unsigned int;
-	using OptionalAccountNo = std::optional<AccountNo>;
+namespace SKV {
+	namespace SRU {
+		using AccountNo = unsigned int;
+		using OptionalAccountNo = std::optional<AccountNo>;
+	} // namespace SRU
 }
 
 using Amount= float;
@@ -664,7 +666,7 @@ namespace BAS {
 	struct AccountMeta {
 		std::string name{};
 		OptionalAccountKind account_kind{};
-		SRU::OptionalAccountNo sru_code{};
+		SKV::SRU::OptionalAccountNo sru_code{};
 	};
 	using AccountMetas = std::map<BASAccountNo,BAS::AccountMeta>;
 
@@ -1034,7 +1036,7 @@ namespace BAS {
 } // namespace BAS
 
 using BASAccountNos = std::vector<BASAccountNo>;
-using Sru2BasMap = std::map<SRU::AccountNo,BASAccountNos>;
+using Sru2BasMap = std::map<SKV::SRU::AccountNo,BASAccountNos>;
 
 Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
 	Sru2BasMap result{};
@@ -1645,7 +1647,7 @@ namespace SIE {
 	struct Sru {
 		std::string tag;
 		BASAccountNo bas_account_no;
-		SRU::AccountNo sru_account_no;
+		SKV::SRU::AccountNo sru_account_no;
 	};
 
 	struct Trans {
@@ -2426,7 +2428,7 @@ public:
 		}
 		BAS::detail::global_account_metas[bas_account_no].name = name; // Mutate global instance
 	}
-	void set_account_SRU(BASAccountNo bas_account_no, SRU::AccountNo sru_code) {
+	void set_account_SRU(BASAccountNo bas_account_no, SKV::SRU::AccountNo sru_code) {
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].sru_code) {
 				if (*BAS::detail::global_account_metas[bas_account_no].sru_code != sru_code) {
@@ -3124,6 +3126,127 @@ namespace SKV {
 		std::vector<ContactPersonMeta> contact_persons{};
 	};
 	using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
+
+	namespace SRU {
+
+		// See https://skatteverket.se/download/18.96cca41179bad4b1aad958/1636640681760/SKV269_27.pdf
+		// 1. #DATABESKRIVNING_START
+		// 2. #PRODUKT SRU
+		// 3. #MEDIAID (ej obligatorisk)
+		// 4. #SKAPAD (ej obligatorisk)
+		// 5. #PROGRAM (ej obligatorisk)
+		// 6. #FILNAMN (en post)
+		// 7. #DATABESKRIVNING_SLUT
+		// 8. #MEDIELEV_START
+		// 9. #ORGNR
+		// 10. #NAMN
+		// 11. #ADRESS (ej obligatorisk)
+		// 12. #POSTNR
+		// 13. #POSTORT
+		// 14. #AVDELNING (ej obligatorisk)
+		// 15. #KONTAKT (ej obligatorisk)
+		// 16. #EMAIL (ej obligatorisk)
+		// 17. #TELEFON (ej obligatorisk)
+		// 18. #FAX (ej obligatorisk)
+		// 19. #MEDIELEV_SLUT
+
+		using SRUValueMap = std::map<AccountNo,std::string>;
+		using SRUValueMaps = std::vector<SRUValueMap>;
+
+		using SRUFileTagMap = std::map<std::string,std::string>;
+		using SRUFileTagMaps = std::vector<SRUFileTagMap>;
+
+		struct FilesMapping {
+			SRUFileTagMap info{};
+			SRUFileTagMaps blanketter{};
+		};
+		using OptionalFilesMapping = std::optional<FilesMapping>;
+
+		struct InfoOStream {
+			std::ostream& os;
+		};
+
+		struct BlanketterOStream {
+			std::ostream& os;
+		};
+
+		SRUFileTagMap to_example_info_sru_file() {
+			SRUFileTagMap result{};
+			// INFO.SRU/INFOSRU
+			// #DATABESKRIVNING_START
+			// #PRODUKT SRU
+			// #MEDIAID DISK_12
+			// #SKAPAD 20130428 174557
+			// #PROGRAM SRUDEKLARATION 1.4
+			// #FILNAMN blanketter.sru
+			// #DATABESKRIVNING_SLUT
+			// #MEDIELEV_START
+			// #ORGNR 191111111111
+			// #NAMN Databokföraren
+			// #ADRESS BOX 159
+			// #POSTNR 12345
+			// #POSTORT SKATTSTAD
+			// #AVDELNING Ekonomi
+			// #KONTAKT KARL KARLSSON
+			// #EMAIL kk@Databokföraren
+			// #TELEFON 08-2121212
+			// #FAX 08-1212121
+			// #MEDIELEV_SLUT		
+			return result;	
+		}
+
+		SRUFileTagMap to_example_blanketter_sru_file() {
+			SRUFileTagMap result{};
+			// #BLANKETT N7-2013P1
+			// #IDENTITET 193510250100 20130426 174557
+			// #NAMN Kalle Andersson
+			// #UPPGIFT 4530 169780001096
+			// #SYSTEMINFO klarmarkerad 20130426 u. a.
+			// #UPPGIFT 7011 20120201
+			// #UPPGIFT 7012 20130131
+			// #UPPGIFT 8580 Anders Andersson
+			// #UPPGIFT 8585 20120315
+			// #UPPGIFT 8346 1000
+			// #UPPGIFT 8345 1250
+			// #UPPGIFT 8344 50500
+			// #UPPGIFT 8343 89500
+			// #UPPGIFT 8342 12500
+			// #UPPGIFT 8341 8500
+			// #UPPGIFT 8340 2555
+			// #BLANKETTSLUT
+			// #FIL_SLUT
+			return result;
+		}
+
+		InfoOStream& operator<<(InfoOStream& os,FilesMapping const& files_mapping) {
+			for (auto const& entry : files_mapping.info) {
+			}
+			return os;
+		}
+
+		BlanketterOStream& operator<<(BlanketterOStream& os,FilesMapping const& files_mapping) {
+			return os;
+		}
+
+		namespace K10 {
+
+			OptionalFilesMapping to_files_mapping() {
+				OptionalFilesMapping result{};
+				try {
+					FilesMapping fm {
+						.info = to_example_info_sru_file()
+					};
+					fm.blanketter.push_back(to_example_blanketter_sru_file());
+					result = fm;
+				}
+				catch (std::exception const& e) {
+					std::cerr << "\nDESIGN INSUFFICIENCY: to_files_mapping failed. Excpetion=" << std::quoted(e.what());
+				}
+				return result;
+			}
+
+		}
+	} // namespace SRU
 
 	namespace XML {
 
@@ -4097,6 +4220,12 @@ namespace SKV {
 	} // namespace CSV {
 } // namespace SKV
 
+// Expose operator<< for type aliases defined in SKV::SRU (for SRU-file output) 
+using SKV::SRU::operator<<;
+// expose operator<< for type alias FormBoxMap, which being an std::map template is causing compiler to consider all std::operator<< in std and not in the one in SKV::XML::VATReturns
+// See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
+using SKV::XML::VATReturns::operator<<;
+
 std::set<BASAccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos) {
 	return SKV::XML::VATReturns::to_accounts(box_nos);
 }
@@ -4106,10 +4235,6 @@ std::set<BASAccountNo> const& to_vat_accounts() {
 	// Define in terms of how SKV VAT returns form defines linking to BAS Accounts for correct content
 	return vat_accounts;
 }
-
-// expose operator<< for type alias FormBoxMap, which being an std::map template is causing compiler to consider all std::operator<< in std and not in the one in SKV::XML::VATReturns
-// See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
-using SKV::XML::VATReturns::operator<<;
 
 std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta,SKV::XML::DeclarationMeta declaration_meta,SKV::OrganisationMeta employer_meta,SKV::XML::TaxDeclarations tax_declarations) {
 	// std::cout << "\nto_skv_map" << std::flush;
@@ -5387,6 +5512,25 @@ public:
 								prompt << "\n2: Check Previous two Quarters " << two_previous_quarters;
 								model->prompt_state = PromptState::QuarterOptionIndex;								
 							} break;
+							case 2: {
+								// Create K10 form files
+								if (auto fm = SKV::SRU::K10::to_files_mapping()) {
+									std::filesystem::path info_file_path{"to_skv/K10/INFO.SRU"};
+									std::filesystem::create_directories(info_file_path.parent_path());
+									auto info_std_os = std::ofstream{info_file_path};
+									SKV::SRU::InfoOStream info_os{info_std_os};
+									info_os << *fm;
+
+									std::filesystem::path blanketter_file_path{"to_skv/K10/BLANKETTER.SRU"};
+									std::filesystem::create_directories(blanketter_file_path.parent_path());
+									auto blanketter_std_os = std::ofstream{blanketter_file_path};
+									SKV::SRU::BlanketterOStream blanketter_os{blanketter_std_os};
+									blanketter_os << *fm;
+								}
+								else {
+									prompt << "\nSorry, failed to create data for input to K10 SRU-files";
+								}
+							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
 					} break;
@@ -5767,6 +5911,7 @@ public:
 					// List skv options
 					prompt << "\n0: Arbetsgivardeklaration (TAX Returns)";
 					prompt << "\n1: Momsrapport (VAT Returns)";
+					prompt << "\n2: K10 (TAX Declaration Appendix Form)";
 					model->prompt_state = PromptState::SKVEntryIndex;
 				}
 				else if (ast.size() == 2) {
