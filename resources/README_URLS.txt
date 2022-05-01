@@ -1,6 +1,18 @@
 These resources has been downloaded from the web as follows.
 
 
+file: resources/INK1_SKV2000-31-02-0021-01_SKV269.xls
+file: resources/INK2_SKV2002-30-01-20-02_SKV269.xls
+file: resources/K10_SKV2110-34-04-21-02.xls
+	URL: https://skatteverket.se/privat/etjansterochblanketter/blanketterbroschyrer/broschyrer/info/269
+	These are selected files from the downloaded file structure from SKV.
+
+file: resources/INK1_SKV2000-31-02-0021-01_SKV269.csv
+file: resources/K10_SKV2110-34-04-21-02.csv
+	URL: - (created from csv-export of SKV xls-files with the same name
+	These are csv-files created from xls-files with the same name for import
+	to cratchit as base for SRU-file creation.
+
 file: resources/Exempelfil_01_Vanliga_lontagare_v1.1.9.xml
 	URL: *Swedish Tax agency*
 	This is a TAX Returns form for upload to Swedish tax agency

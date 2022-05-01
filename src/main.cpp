@@ -145,28 +145,33 @@ namespace tokenize {
 
 	std::vector<std::string> splits(std::string s,char delim,eAllowEmptyTokens allow_empty_tokens = eAllowEmptyTokens::no) {
 		std::vector<std::string> result;
-		// TODO: Refactor code so default is allowing for split into empty tokens and make skip whitespace a special case
-		if (allow_empty_tokens == eAllowEmptyTokens::no) {
-			auto head_tail = split(s,delim);
-			// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
-			while (head_tail.first.size()>0) {
-				auto const& [head,tail] = head_tail;
-				result.push_back(head);
-				head_tail = split(tail,delim);
+		try {
+			// TODO: Refactor code so default is allowing for split into empty tokens and make skip whitespace a special case
+			if (allow_empty_tokens == eAllowEmptyTokens::no) {
+				auto head_tail = split(s,delim);
 				// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
+				while (head_tail.first.size()>0) {
+					auto const& [head,tail] = head_tail;
+					result.push_back(head);
+					head_tail = split(tail,delim);
+					// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
+				}
+				if (head_tail.second.size()>0) {
+					result.push_back(head_tail.second);
+					// std::cout << "\ntail:" << head_tail.second;
+				}
 			}
-			if (head_tail.second.size()>0) {
-				result.push_back(head_tail.second);
-				// std::cout << "\ntail:" << head_tail.second;
+			else {
+				size_t first{},delim_pos{};
+				do {
+					delim_pos = s.find(delim,first);
+					result.push_back(s.substr(first,delim_pos-first));
+					first = delim_pos+1;
+				} while (delim_pos<s.size());
 			}
 		}
-		else {
-			size_t first{},delim_pos{};
-			do {
-				delim_pos = s.find(delim,first);
-				result.push_back(s.substr(first,delim_pos-first));
-				first = delim_pos+1;
-			} while (delim_pos<s.size());
+		catch (std::exception const& e) {
+			std::cerr << "\nDESIGN INSUFFICIENCY: splits(s,delim,allow_empty_tokens) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
 		}
 		return result;
 	}
@@ -179,7 +184,7 @@ namespace tokenize {
 			while (is >> std::quoted(token)) result.push_back(token);
 		}
 		catch (std::exception const& e) {
-			std::cerr << "\nDESIGN INSUFFICIENCY: splits failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
+			std::cerr << "\nDESIGN INSUFFICIENCY: splits(s) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
 		}
 		return result; 
 	}

@@ -1,35 +1,67 @@
 
-#GEN 20220424
-#VER A 29 20211004 "PRIS ENL SPEC"
+#GEN 20220501
+#VER A 43 20211113 "K�p IKEA"
 {
-#TRANS 1920 {} -5.1 "" ""
-#TRANS 6570 {} 5.1 "" ""
+#TRANS 2440 {} -496 "" ""
+#TRANS 1221 {} 396.8 "" "IKEA TR�DFRI gateway, uttag mm."
+#TRANS 2641 {} 99.2 "" "IKEA TR�DFRI gateway, uttag mm."
 }
-#VER A 30 20211008 "KORT             BEANSTALK APP   26"
+#VER A 44 20220124 "BG KONTOINS"
 {
-#TRANS 1920 {} -135.14 "" ""
-#TRANS 6230 {} 135.14 "" ""
+#TRANS 3308 {} -780.83 "" "IE6388047V"
+#TRANS 1920 {} 780.83 "" ""
 }
-#VER A 31 20211011 "BestΓò¼├┤Γö£ΓòóΓö¼├║╬ô├╢┬ú╬ô├╗├ållning Γò¼├┤Γö£ΓòóΓö¼├║╬ô├╢┬úΓö£├¡rsredovisning Online"
+#VER A 45 20211114 "Klackenbergs B�cker Kortk�p"
 {
-#TRANS 1920 {} -1725 "" ""
-#TRANS 6530 {} 1380 "" ""
-#TRANS 2641 {} 345 "" ""
+#TRANS 1920 {} -244 "" ""
+#TRANS 6110 {} 195.2 "" "Kolleigeblock"
+#TRANS 2641 {} 48.8 "" ""
 }
-#VER A 32 20211013 "Amazon BestΓö£├▒llning"
+#VER A 46 20211114 "K�p IKEA"
 {
-#TRANS 2440 {} -1799 "" ""
-#TRANS 1221 {} 1439 "" "Teleprompter Pafieo S12"
-#TRANS 2641 {} 360 "" "Teleprompter Pafieo S12"
+#TRANS 2440 {} -99 "" ""
+#TRANS 1221 {} 79.2 "" "IKEA TR�DFRI Dimmer"
+#TRANS 2641 {} 19.8 "" "IKEA TR�DFRI Dimmer"
 }
-#VER A 33 20211017 "Noxon Beställning"
+#VER A 47 20211113 "Moms juli 2021 - sept 2021"
 {
-#TRANS 2440 {} -11441.2 "" ""
-#TRANS 1221 {} 9152.96 "" "Div Fotoutrustning, sliders mm"
-#TRANS 2641 {} 2288.24 "" "Div Fotoutrustning, sliders mm"
+#TRANS 1630 {} -82415 "" ""
+#TRANS 2650 {} 82415 "" ""
 }
-#VER E 11 20211014 "KORT             AmazonMktplc*F7 26"
+#VER A 48 20211115 "SKATTEVERKET 5050-1055"
 {
-#TRANS 1920 {} -1799 "" ""
-#TRANS 2440 {} 1799 "" ""
+#TRANS 1920 {} -83665 "" ""
+#TRANS 1630 {} 83665 "" ""
+}
+#VER A 49 20211115 "Ins�ttning"
+{
+#TRANS 1920 {} 83665 "" ""
+#TRANS 1930 {} -83665 "" ""
+}
+#VER A 50 20211127 "F�rseningsavgift Periodisk sammanst�llning"
+{
+#TRANS 2510 {} -1250 "" ""
+#TRANS 6992 {} 1250 "" ""
+}
+#VER D 13 20211115 "Telia Faktura"
+{
+#TRANS 2440 {} -1394 "" ""
+#TRANS 6212 {} 1114.91 "" ""
+#TRANS 2641 {} 278.73 "" ""
+#TRANS 3740 {} 0.36 "" ""
+}
+#VER E 18 20211115 "KORT             IKEA BARKARBY   26"
+{
+#TRANS 1920 {} -496 "" ""
+#TRANS 2440 {} 496 "" ""
+}
+#VER E 19 20211116 "KORT             IKEA BARKARBY   26"
+{
+#TRANS 1920 {} -99 "" ""
+#TRANS 2440 {} 99 "" ""
+}
+#VER E 20 20211116 "KORT             KLACKENBERGS JA 26"
+{
+#TRANS 1920 {} -244 "" ""
+#TRANS 2440 {} 244 "" ""
 }
