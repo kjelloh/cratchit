@@ -391,10 +391,29 @@ bool first_in_second_case_insensitive(std::string const& s1, std::string const& 
 	return (upper_s2.find(upper_s1) != std::string::npos);
 }
 
+std::optional<unsigned int> to_four_digit_positive_int(std::string const& s) {
+	std::optional<unsigned int> result{};
+	try {
+		if (s.size()==4) {
+			if (std::all_of(s.begin(),s.end(),::isdigit)) {
+				auto account_no = std::stoi(s);
+				if (account_no >= 1000) result = account_no;
+			}
+		}
+	}
+	catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_four_digit_positive_int(" << s << ") failed. Exception=" << std::quoted(e.what());}
+	return result;
+}
+
 namespace SKV {
 	namespace SRU {
 		using AccountNo = unsigned int;
 		using OptionalAccountNo = std::optional<AccountNo>;
+
+		OptionalAccountNo to_account_no(std::string const& s) {
+			return to_four_digit_positive_int(s);
+		}
+
 	} // namespace SRU
 }
 
@@ -781,17 +800,7 @@ namespace BAS {
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
 	OptionalBASAccountNo to_account_no(std::string const& s) {
-		OptionalBASAccountNo result{};
-		try {
-			if (s.size()==4) {
-				if (std::all_of(s.begin(),s.end(),::isdigit)) {
-					auto account_no = std::stoi(s);
-					if (account_no >= 1000) result = account_no;
-				}
-			}
-		}
-		catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_account_no(" << s << ") failed. Exception=" << std::quoted(e.what());}
-		return result;
+		return to_four_digit_positive_int(s);
 	}
 
 	OptionalJournalEntryMeta to_journal_meta(std::string const& s) {
@@ -4884,6 +4893,24 @@ namespace SKV {
 	namespace SRU {
 		OptionalSRUValueMap to_sru_value_map(Model const& model,::CSV::FieldRows const& field_rows) {
 			OptionalSRUValueMap result{};
+			std::cout << "\nto_sru_value_map";
+			for (int i=0;i<field_rows.size();++i) {
+				auto const& field_row = field_rows[i];
+				std::cout << "\n\t" << static_cast<std::string>(field_row);
+				if (field_row.size() > 1) {
+					auto const& field_1 = field_row[1];
+					std::cout << "\n\t\t[1]=" << std::quoted(field_1);
+					if (auto sru_code = to_account_no(field_1)) {
+						std::cout << " ok!";
+					}
+					else {
+						std::cout << " NOT SRU";
+					}
+				}
+				else {
+					std::cout << " null (does not exist)";
+				}
+			}
 			return result;
 		}
 	}
