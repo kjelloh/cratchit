@@ -3230,34 +3230,16 @@ namespace SKV {
 
 		SRUFileTagMap to_example_blanketter_sru_file() {
 			SRUFileTagMap result{};
-			// #BLANKETT N7-2013P1
-			// #IDENTITET 193510250100 20130426 174557
-			// #NAMN Kalle Andersson
-			// #UPPGIFT 4530 169780001096
-			// #SYSTEMINFO klarmarkerad 20130426 u. a.
-			// #UPPGIFT 7011 20120201
-			// #UPPGIFT 7012 20130131
-			// #UPPGIFT 8580 Anders Andersson
-			// #UPPGIFT 8585 20120315
-			// #UPPGIFT 8346 1000
-			// #UPPGIFT 8345 1250
-			// #UPPGIFT 8344 50500
-			// #UPPGIFT 8343 89500
-			// #UPPGIFT 8342 12500
-			// #UPPGIFT 8341 8500
-			// #UPPGIFT 8340 2555
-			// #BLANKETTSLUT
-			// #FIL_SLUT
 			return result;
 		}
 
-		InfoOStream& operator<<(InfoOStream& os,FilesMapping const& files_mapping) {
+		InfoOStream& operator<<(InfoOStream& os,FilesMapping const& fm) {
 
 			// See https://skatteverket.se/download/18.96cca41179bad4b1aad958/1636640681760/SKV269_27.pdf
 				// INFO.SRU/INFOSRU
 
 			// 1. #DATABESKRIVNING_START
-			os.sru_os << "\n" << "#DATABESKRIVNING_START";
+			os.sru_os << "#DATABESKRIVNING_START"; // NOTE: Empty lines not allowed (so no new-line for first entry)
 
 			// 2. #PRODUKT SRU
 			os.sru_os << "\n" << "#PRODUKT SRU";
@@ -3318,7 +3300,68 @@ namespace SKV {
 			return os;
 		}
 
-		BlanketterOStream& operator<<(BlanketterOStream& os,FilesMapping const& files_mapping) {
+		BlanketterOStream& operator<<(BlanketterOStream& os,FilesMapping const& fm) {
+			
+			for (int i=0;i<fm.blanketter.size();++i) {
+				if (i>0) os.sru_os << "\n"; // NOTE: Empty lines not allowed (so no new-line for first entry)
+
+				// Posterna i ett blankettblock måste förekomma i följande ordning:
+				// 1. #BLANKETT
+				// #BLANKETT N7-2013P1
+				os.sru_os << "#BLANKETT" << " " << "N7-2013P1"; 
+
+				// 2. #IDENTITET
+				// #IDENTITET 193510250100 20130426 174557
+				os.sru_os << "\n" << "#IDENTITET" << " " << "193510250100 20130426 174557"; 
+
+				// 3. #NAMN (ej obligatorisk)
+				// #NAMN Kalle Andersson
+
+				// 4. #SYSTEMINFO och #UPPGIFT i valfri ordning och antal, dock endast en #SYSTEMINFO
+				// #SYSTEMINFO klarmarkerad 20130426 u. a.
+				os.sru_os << "\n" << "#SYSTEMINFO" << " " << " klarmarkerad 20130426 u. a.";
+
+				{
+					// TODO: Make this SRU value mapping an input argument
+					SRUValueMap sru_value{};
+					// #UPPGIFT 4530 169780001096
+					sru_value[4530] = "169780001096";
+					// #UPPGIFT 7011 20120201
+					sru_value[7011] = "20120201";
+					// #UPPGIFT 7012 20130131
+					sru_value[7012] = "20130131";
+					// #UPPGIFT 8580 Anders Andersson
+					sru_value[8580] = "Anders Andersson";
+					// #UPPGIFT 8585 20120315
+					sru_value[8585] = "20120315";
+					// #UPPGIFT 8346 1000
+					sru_value[8346] = "1000";
+					// #UPPGIFT 8345 1250
+					sru_value[8345] = "1250";
+					// #UPPGIFT 8344 50500
+					sru_value[8344] = "50500";
+					// #UPPGIFT 8343 89500
+					sru_value[8343] = "89500";
+					// #UPPGIFT 8342 12500
+					sru_value[8342] = "12500";
+					// #UPPGIFT 8341 8500
+					sru_value[8341] = "8500";
+					// #UPPGIFT 8340 2555
+					sru_value[8340] = "2555";
+
+					for (auto const& [account_no,value] : sru_value) {
+						os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << value;
+					}
+				}
+
+				// 5. #BLANKETTSLUT
+				// #BLANKETTSLUT
+				os.sru_os << "\n" << "#BLANKETTSLUT";
+			}
+			// Filen avslutas med #FIL_SLUT
+			os.sru_os << "\n" << "#FIL_SLUT";
+
+			// #FIL_SLUT
 			return os;
 		}
 
