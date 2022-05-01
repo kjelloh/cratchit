@@ -304,6 +304,18 @@ namespace Key {
 		}
 } // namespace Key
 
+namespace CSV {
+	using FieldRows = std::vector<Key::Path>;
+	using OptionalFieldRows = std::optional<FieldRows>;
+
+							
+	OptionalFieldRows to_field_rows(std::istream& is,char delim=';') {
+		OptionalFieldRows result{};
+		return result;
+	}
+
+} // namespace CSV
+
 namespace parse {
     using In = std::string_view;
 
@@ -6092,7 +6104,6 @@ public:
 				}
 			}
 			else if (ast[0] == "-csv") {
-				std::cout << "\nCSV :)";
 				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 				/*
 				Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
@@ -6103,33 +6114,55 @@ public:
 				2021-12-09;-593,58;51 86 87-9;;KORT             PAYPAL *PADDLE  26;KORT             PAYPAL *PADDLE  26;PAYPAL *PADDLE  2656;;58142,70;SEK
 				2021-12-03;-3,40;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;58736,28;SEK
 				*/
-				if (ast.size()>1) {
-					std::filesystem::path csv_file_path{ast[1]};
+				if ((ast.size()>2) and (ast[1] == "-had")) {
+					std::filesystem::path csv_file_path{ast[2]};
 					std::cout << "\ncsv file " << csv_file_path;
-					std::ifstream ifs{csv_file_path};
 					if (std::filesystem::exists(csv_file_path)) {
+						std::ifstream ifs{csv_file_path};
 						std::cout << "\ncsv file exists ok";
 						CSV::NORDEA::istream in{ifs};
 						OptionalBASAccountNo gross_bas_account_no{};
-						if (ast.size()>2) {
-							std::cout << "\n ast[2]:)" << ast[2];
-							if (auto bas_account_no = BAS::to_account_no(ast[2])) {
+						if (ast.size()>3) {
+							std::cout << "\n ast[3]:)" << ast[3];
+							if (auto bas_account_no = BAS::to_account_no(ast[3])) {
 								gross_bas_account_no = *bas_account_no;
 								std::cout << "\n gross_bas_account_no:" << *gross_bas_account_no;
 							}
 							else {
-								prompt << "\nPlease enter a valid BAS account no for gross amount transaction. " << std::quoted(ast[2]) << " is not a valid BAS account no";
+								prompt << "\nPlease enter a valid BAS account no for gross amount transaction. " << std::quoted(ast[3]) << " is not a valid BAS account no";
 							}
 						}
 						auto hads = CSV::from_stream(in,gross_bas_account_no);
 						std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
 					}
 					else {
-						prompt << "\nERROR - Please provide a path to an existing file. Can't find " << csv_file_path;
+						prompt << "\nPlease provide a path to an existing file. Can't find " << csv_file_path;
+					}
+				}
+				else if ((ast.size()>2) and (ast[1] == "-sru")) {
+					std::filesystem::path csv_file_path{ast[2]};
+					std::cout << "\ncsv file " << csv_file_path;
+					if (std::filesystem::exists(csv_file_path)) {
+						std::ifstream ifs{csv_file_path};
+						std::cout << "\ncsv file exists ok";
+						if (auto field_rows = CSV::to_field_rows(ifs)) {
+							for (auto const& field_row : *field_rows) {
+								if (field_row.size()>0) prompt << "\n";
+								for (int i=0;i<field_row.size();++i) {
+									prompt << " [" << i << "]" << field_row[i];
+								}
+							}
+						}
+						else {
+							prompt << "\nSorry, failed to parse as csv the file " << csv_file_path;
+						}
+					}
+					else {
+						prompt << "\nPlease provide a path to an existing file. Can't find " << csv_file_path;
 					}
 				}
 				else {
-					prompt << "\nERROR - Please provide a path to a file";
+					prompt << "\nPlease provide '-had' or '-sru' followed by a path to a csv-file";
 				}
 			}
 			else if (ast[0] == "-") {
