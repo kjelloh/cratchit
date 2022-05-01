@@ -173,9 +173,14 @@ namespace tokenize {
 
 	std::vector<std::string> splits(std::string const& s) {
 		std::vector<std::string> result;
-		std::istringstream is{s};
-		std::string token{};
-		while (is >> std::quoted(token)) result.push_back(token);
+		try {
+			std::istringstream is{s};
+			std::string token{};
+			while (is >> std::quoted(token)) result.push_back(token);
+		}
+		catch (std::exception const& e) {
+			std::cerr << "\nDESIGN INSUFFICIENCY: splits failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
+		}
 		return result; 
 	}
 
@@ -250,7 +255,7 @@ namespace Key {
 			Path(Path const& other) = default;
 			Path(std::string const& s_path,char delim = '^') : 
 			  m_delim{delim}
-				,m_path(tokenize::splits(s_path,delim)) {};
+				,m_path(tokenize::splits(s_path,delim,tokenize::eAllowEmptyTokens::YES)) {};
 			auto size() const {return m_path.size();}
 			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
 			operator std::string() const {
@@ -305,12 +310,23 @@ namespace Key {
 } // namespace Key
 
 namespace CSV {
-	using FieldRows = std::vector<Key::Path>;
+	using FieldRow = Key::Path;
+	using FieldRows = std::vector<FieldRow>;
 	using OptionalFieldRows = std::optional<FieldRows>;
-
 							
 	OptionalFieldRows to_field_rows(std::istream& is,char delim=';') {
 		OptionalFieldRows result{};
+		try {
+			FieldRows field_rows{};
+			std::string entry{};
+			while (std::getline(is,entry)) {
+				field_rows.push_back({entry,delim});
+			}
+			result = field_rows;
+		}
+		catch (std::exception const& e) {
+			std::cerr << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
+		}
 		return result;
 	}
 
