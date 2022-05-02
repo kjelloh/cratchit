@@ -1675,9 +1675,7 @@ namespace encoding {
 					} break;
 					default: {
 						// We don't support Unicodes over the range U+0800	U+FFFF
-						// Clean out any encoding bytes
-						while (m_utf_8_buffer.size()>0 and m_utf_8_buffer.front() > 0x7F) m_utf_8_buffer.pop_front();
-						result = to_unicode(); // Recurse with the new buffer
+						m_utf_8_buffer.clear(); // reset
 					}
 				}
 				return result;
@@ -1702,12 +1700,14 @@ namespace SIE {
 	};
 
 	// #FNAMN company name
+	// #FNAMN "The ITfied AB"
 	struct FNamn {
 		std::string tag;
 		std::string company_name;
 	};
 
 	// #ADRESS contact distribution address postal address tel
+	// #ADRESS "Kjell-Olov H?gdal" "Aron Lindgrens v?g 6, lgh 1801" "17668 J?rf?lla" "070-6850408" 	
 	struct Adress {
 		std::string tag;
 		std::string contact;
@@ -3381,8 +3381,18 @@ namespace SKV {
 			return result;
 		}
 
+		std::string to_tag(std::string const& tag,SRUFileTagMap const& tag_map) {
+			std::cout << "\nto_tag" << std::flush;
+			std::ostringstream os{};
+			os << "\n" << tag << " ";
+			if (tag_map.contains(tag)) os << tag_map.at(tag);
+			else os << "?" << tag << "?";
+			return os.str();
+		}
+
 		InfoOStream& operator<<(InfoOStream& os,FilesMapping const& fm) {
 
+			std::cout << "operator<<(InfoOStream& os" << std::flush;
 			// See https://skatteverket.se/download/18.96cca41179bad4b1aad958/1636640681760/SKV269_27.pdf
 				// INFO.SRU/INFOSRU
 
@@ -3414,22 +3424,28 @@ namespace SKV {
 
 			// 9. #ORGNR
 				// #ORGNR 191111111111
-			os.sru_os << "\n" << "#ORGNR" << " " << "191111111111";
+			// os.sru_os << "\n" << "#ORGNR" << " " << "191111111111";
+			os.sru_os << to_tag("#ORGNR",fm.info);
+
 
 			// 10. #NAMN
 				// #NAMN Databokföraren
-			os.sru_os << "\n" << "#NAMN" << " " << "Databokföraren";
+			// os.sru_os << "\n" << "#NAMN" << " " << "Databokföraren";
+			os.sru_os << to_tag("#NAMN",fm.info);
 
 			// 11. #ADRESS (ej obligatorisk)
 				// #ADRESS BOX 159
 
 			// 12. #POSTNR
 				// #POSTNR 12345
-			os.sru_os << "\n" << "#POSTNR" << " " << "12345";
+			// os.sru_os << "\n" << "#POSTNR" << " " << "12345";
+			os.sru_os << to_tag("#POSTNR",fm.info);
 
 			// 13. #POSTORT
 				// #POSTORT SKATTSTAD
-			os.sru_os << "\n" << "#POSTORT" << " " << "SKATTSTAD";
+			// os.sru_os << "\n" << "#POSTORT" << " " << "SKATTSTAD";
+			// os.sru_os << "\n" << "#POSTORT" << " " << "Järfälla";
+			os.sru_os << to_tag("#POSTORT",fm.info);
 			
 			// 14. #AVDELNING (ej obligatorisk)
 				// #AVDELNING Ekonomi
@@ -3444,6 +3460,8 @@ namespace SKV {
 
 			// 19. #MEDIELEV_SLUT
 			os.sru_os << "\n" << "#MEDIELEV_SLUT";
+
+			os.sru_os.os << std::flush;
 
 			return os;
 		}
@@ -5985,13 +6003,42 @@ public:
 								}
 								if (k10_sru_value_map and ink1_sru_value_map) {
 									SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
+									{
+										// Assume we are to send in with sender being this company?
+										// 9. #ORGNR
+											// #ORGNR 191111111111
+										info_sru_file_tag_map["#ORGNR"] = model->sie["current"].organisation_no.CIN;		
+										// 10. #NAMN
+											// #NAMN Databokföraren
+										info_sru_file_tag_map["#NAMN"] = model->sie["current"].organisation_name.company_name;
+
+										auto postal_address = model->sie["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
+										auto postal_address_tokens = tokenize::splits(postal_address,' ');
+
+										// 12. #POSTNR
+											// #POSTNR 12345
+										if (postal_address_tokens.size() > 0) {
+											info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
+											std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[0];
+										}
+										else {
+											info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
+										}
+										// 13. #POSTORT
+											// #POSTORT SKATTSTAD
+										if (postal_address_tokens.size() > 1) {
+											info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
+											std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[1] << std::flush;
+										}
+										else {
+											info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
+										}
+									}
 									SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
 									SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
 									SKV::SRU::FilesMapping fm {
 										.info = info_sru_file_tag_map
 									};
-									// Blankett blankett{SRUFileTagMaps{},SKV::SRU::SRUValueMap{}}; 
-									// Blankett blankett{to_example_blanketter_sru_file(),SKV::SRU::SRUValueMap{}}; 
 									SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map}; 
 									fm.blanketter.push_back(k10_blankett);
 									SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map}; 
@@ -6002,10 +6049,14 @@ public:
 									auto info_std_os = std::ofstream{info_file_path};
 									SKV::SRU::OStream info_sru_os{info_std_os};
 									SKV::SRU::InfoOStream info_os{info_sru_os};
+									std::cout << "\n(3)" << std::flush;
+
 									if (info_os << fm) {
+										std::cout << "\n(4)" << std::flush;
 										prompt << "\nCreated " << info_file_path;
 									}
 									else {
+										std::cout << "\n(5)" << std::flush;
 										prompt << "\nSorry, FAILED to create " << info_file_path;
 									}
 
@@ -6014,7 +6065,10 @@ public:
 									auto blanketter_std_os = std::ofstream{blanketter_file_path};
 									SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
 									SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
+									std::cout << "\n(6)" << std::flush;
+
 									if (blanketter_os << fm) {
+										std::cout << "\n(7)" << std::flush;
 										prompt << "\nCreated " << blanketter_file_path;
 									}
 									else {
