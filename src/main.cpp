@@ -407,12 +407,20 @@ std::optional<unsigned int> to_four_digit_positive_int(std::string const& s) {
 
 namespace SKV {
 	namespace SRU {
+
+		extern const char* ink1_csv_to_sru_template;
+		extern const char* k10_csv_to_sru_template;
+
 		using AccountNo = unsigned int;
 		using OptionalAccountNo = std::optional<AccountNo>;
 
 		OptionalAccountNo to_account_no(std::string const& s) {
 			return to_four_digit_positive_int(s);
 		}
+
+		using SRUValueMap = std::map<AccountNo,std::optional<std::string>>;
+		using OptionalSRUValueMap = std::optional<SRUValueMap>;
+		using SRUValueMaps = std::vector<SRUValueMap>;
 
 	} // namespace SRU
 }
@@ -2427,6 +2435,32 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 	return result;
 }
 
+class SRUEnvironment {
+public:
+	std::optional<std::string> at(SKV::SRU::AccountNo const& sru_code) {
+		std::optional<std::string> result;
+		if (m_sru_values.contains(sru_code)) result = m_sru_values[sru_code];
+		return result;
+	}
+	void set(SKV::SRU::AccountNo const& sru_code,std::string value) {
+		m_sru_values[sru_code] = value;
+	}
+private:
+	SKV::SRU::SRUValueMap m_sru_values{};
+	friend std::ostream& operator<<(std::ostream& os,SRUEnvironment const& sru_env);
+};
+std::ostream& operator<<(std::ostream& os,SRUEnvironment const& sru_env) {
+	int count{0};
+	for (auto const& [sru_code,value]: sru_env.m_sru_values) {
+		if (count++>0) os << "\n";
+		os << "\tSRU:" << sru_code << " = ";
+		if (value) os << std::quoted(*value);
+		else os << "null";
+	}
+	return os;
+}
+using SRUEnvironments = std::map<std::string,SRUEnvironment>;
+
 class SIEEnvironment {
 public:
 	SIE::OrgNr organisation_no{};
@@ -3297,10 +3331,6 @@ namespace SKV {
 		// 17. #TELEFON (ej obligatorisk)
 		// 18. #FAX (ej obligatorisk)
 		// 19. #MEDIELEV_SLUT
-
-		using SRUValueMap = std::map<AccountNo,std::optional<std::string>>;
-		using OptionalSRUValueMap = std::optional<SRUValueMap>;
-		using SRUValueMaps = std::vector<SRUValueMap>;
 
 		using SRUFileTagMap = std::map<std::string,std::string>;
 		using SRUFileTagMaps = std::vector<SRUFileTagMap>;
@@ -4833,6 +4863,17 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	return ev;
 }
 
+std::optional<SRUEnvironments::value_type> to_sru_environments_entry(EnvironmentValue const& ev) {
+	std::optional<SRUEnvironments::value_type> result{};
+	try {
+
+	}
+	catch (std::exception const& e) {
+		std::cerr << "\nto_sru_environments_entry failed. Exception=" << std::quoted(e.what());
+	}
+	return result;
+}
+
 SKV::OptionalContactPersonMeta to_contact(EnvironmentValue const& ev) {
 	SKV::OptionalContactPersonMeta result;
 	SKV::ContactPersonMeta cpm{};
@@ -4899,6 +4940,7 @@ public:
 	bool quit{};
 	std::map<std::string,std::filesystem::path> sie_file_path{};
 	SIEEnvironments sie{};
+	SRUEnvironments sru{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
@@ -4996,6 +5038,31 @@ namespace SKV {
 					}
 					else {
 						std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
+						// // K10
+						// SRU:4531	"Antal ägda andelar vid årets ingång"
+						// SRU:4532	"Totala antalet andelar i hela företaget vid årets ingång"
+						// SRU:4511	"Årets gränsbelopp enligt förenklingsregeln"				(=183 700 * ägar_andel)
+						// SRU:4501	"Sparat utdelningsutrymme från föregående år * 103%)	(103% av förra årets sparade utrymme, förra årets SRU:4724)
+						// SRU:4502	"Gränsbelopp enligt förenklingsregeln"					(SRU:4511 + SRU:4501
+						// SRU:4503	"Gränsbelopp att utnyttja vid p. 1.7 nedan"				(SRU:4502)
+
+						// // Utdelning som beskattas I TJÄNST"
+						// SRU:4504	"Utdelning"										(Från BAS:2898, SRU:7369)
+						// SRU:4721	"Gränsbelopp SRU:4503"
+						// SRU:4722	"Sparat utdelningsutrymme"							(SRU:4504 - SRU:4721)
+						// SRU:4724	"Sparat utdelningsutrymme till nästa år"					(SRU:4722)
+
+						// // Utdelning som beskattas i KAPITAL
+						// SRU:4506	"Utdelning"										(SRU:4504)
+						// SRU:4507	"Utdelning i Kapital"
+						// SRU:4508	Det minsta av (2/3 av gränsbelopp vs 2/3 av utdelning Kapital)
+						// SRU:4509	Resterande utdelning (utdelning kapital - gränsbelopp om positivt annars 0)
+						// SRU:4515	"Utdelning som tas upp i kapital"						(Till INK1 p. 7.7. SRU:1100)
+
+						// // INK1
+						// SRU:1000 	"1.1 Lön Förmåner, Sjukpenning mm"	(Från förtryckta uppgifter)
+						// SRU:1100	"7.2 Ränteinkomster, utdelningar..."	(från K10 SRU:4515	"Utdelning som tas upp i kapital")
+
 					}
 				}
 				result = sru_value_map;
@@ -5844,34 +5911,44 @@ public:
 								}
 							} break;
 							case 3: {
-								/*
-										// K10
-										SRU:4531	"Antal ägda andelar vid årets ingång"
-										SRU:4532	"Totala antalet andelar i hela företaget vid årets ingång"
-										SRU:4511	"Årets gränsbelopp enligt förenklingsregeln"				(=183 700 * ägar_andel)
-										SRU:4501	"Sparat utdelningsutrymme från föregående år * 103%)	(103% av förra årets sparade utrymme, förra årets SRU:4724)
-										SRU:4502	"Gränsbelopp enligt förenklingsregeln"					(SRU:4511 + SRU:4501
-										SRU:4503	"Gränsbelopp att utnyttja vid p. 1.7 nedan"				(SRU:4502)
+								// k10_csv_to_sru_template
+								std::istringstream k10_is{SKV::SRU::k10_csv_to_sru_template};
+								if (auto field_rows = CSV::to_field_rows(k10_is)) {
+									for (auto const& field_row : *field_rows) {
+										if (field_row.size()>0) prompt << "\n";
+										for (int i=0;i<field_row.size();++i) {
+											prompt << " [" << i << "]" << field_row[i];
+										}
+									}
+									if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
 
-										// Utdelning som beskattas I TJÄNST"
-										SRU:4504	"Utdelning"										(Från BAS:2898, SRU:7369)
-										SRU:4721	"Gränsbelopp SRU:4503"
-										SRU:4722	"Sparat utdelningsutrymme"							(SRU:4504 - SRU:4721)
-										SRU:4724	"Sparat utdelningsutrymme till nästa år"					(SRU:4722)
+									}
+									else {
+										prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
+									}
+								}
+								else {
+									prompt << "\nSorry, failed to acquire a valid template for the K10 form";
+								}
+								// ink1_csv_to_sru_template
+								std::istringstream ink1_is{SKV::SRU::ink1_csv_to_sru_template};
+								if (auto field_rows = CSV::to_field_rows(ink1_is)) {
+									for (auto const& field_row : *field_rows) {
+										if (field_row.size()>0) prompt << "\n";
+										for (int i=0;i<field_row.size();++i) {
+											prompt << " [" << i << "]" << field_row[i];
+										}
+									}
+									if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
 
-										// Utdelning som beskattas i KAPITAL
-										SRU:4506	"Utdelning"										(SRU:4504)
-										SRU:4507	"Utdelning i Kapital"
-										SRU:4508	Det minsta av (2/3 av gränsbelopp vs 2/3 av utdelning Kapital)
-										SRU:4509	Resterande utdelning (utdelning kapital - gränsbelopp om positivt annars 0)
-										SRU:4515	"Utdelning som tas upp i kapital"						(Till INK1 p. 7.7. SRU:1100)
-
-										// INK1
-										SRU:1000 	"1.1 Lön Förmåner, Sjukpenning mm"	(Från förtryckta uppgifter)
-										SRU:1100	"7.2 Ränteinkomster, utdelningar..."	(från K10 SRU:4515	"Utdelning som tas upp i kapital")
-
-								*/
-								prompt << "\nTODO: Generate INK1 and K10 forms as SRU-files";
+									}
+									else {
+										prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
+									}
+								}
+								else {
+									prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+								}
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
@@ -6216,13 +6293,26 @@ public:
 				}
 			}
 			else if (ast[0] == "-sru") {
-				// List SRU Accounts mapped to BAS Accounts
-				auto const& account_metas = model->sie["current"].account_metas();
-				auto sru_map = sru_to_bas_map(account_metas);
-				for (auto const& [sru_account,bas_accounts] : sru_map) {
-					prompt << "\nSRU:" << sru_account;
-					for (auto const& bas_account_no : bas_accounts) {
-						prompt << "\n  BAS:" << bas_account_no << " " << std::quoted(account_metas.at(bas_account_no).name);
+				if (ast.size() > 1) {
+					if (ast[1] == "-bas") {
+						// List SRU Accounts mapped to BAS Accounts
+						auto const& account_metas = model->sie["current"].account_metas();
+						auto sru_map = sru_to_bas_map(account_metas);
+						for (auto const& [sru_account,bas_accounts] : sru_map) {
+							prompt << "\nSRU:" << sru_account;
+							for (auto const& bas_account_no : bas_accounts) {
+								prompt << "\n  BAS:" << bas_account_no << " " << std::quoted(account_metas.at(bas_account_no).name);
+							}
+						}
+					}
+					else {
+						prompt << "\nPlease provide no argument or argument '-bas'";
+					}
+				}
+				else {
+					for (auto const& [year_id,sru_env] : model->sru) {
+						prompt << "\nyear:id:" << year_id;
+						prompt << "\n" << sru_env;
 					}
 				}
 			}
@@ -6726,6 +6816,17 @@ private:
 		}
 		return result;
 	}
+
+	SRUEnvironments srus_from_environment(Environment const& environment) {
+		SRUEnvironments result{};
+		auto [begin,end] = environment.equal_range("SRU");
+		std::transform(begin,end,std::inserter(result,result.end()),[](auto const& entry){
+			if (auto result_entry = to_sru_environments_entry(entry.second)) return *result_entry;
+			return SRUEnvironments::value_type{"null",{}};
+		});
+		return result;
+	}
+
 	std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
 		std::vector<std::string> result{};
 		auto [begin,end] = environment.equal_range("employee");
@@ -6735,7 +6836,7 @@ private:
 		}
 		else {
 			std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-				return *to_employee(entry.second); // Assume success
+				return *to_employee(entry.second); // dereference optional = Assume success
 			});
 		}
 		return result;
@@ -6778,6 +6879,7 @@ private:
 		model->heading_amount_date_entries = this->hads_from_environment(environment);
 		model->organisation_contacts = this->contacts_from_environment(environment);
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
+		model->sru = this->srus_from_environment(environment);
 		model->prompt = prompt.str();
 		return model;
 	}
@@ -7313,6 +7415,178 @@ namespace SKV {
 			,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:AvdrPrelSkatt faltkod="001")",R"(0)"}
 			};
 		} // namespace TAXReturns
+	}
+	namespace SRU {
+		const char* ink1_csv_to_sru_template = R"(Fältnamn på INK1_SKV2000-31-02-0021-01;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt person-/samordningsnummer eller organisationsnummer som inleds med 161 (dödsbo) eller 163 (gemensamma distriktet);PersOrgNr;Orgnr_Id_PD;J;;
+1.1 Lön, förmåner, sjukpenning m.m.;1000;Numeriskt_10;N;*;
+1.2 Kostnadsersättningar;1001;Numeriskt_10;N;*;
+1.3 Allmän pension och tjänstepension m.m.;1002;Numeriskt_10;N;*;
+1.4 Privat pension och livränta;1003;Numeriskt_10;N;*;
+1.5 Andra inkomster som inte är pensionsgrundande;1004;Numeriskt_10;N;*;
+1.6 Inkomster, t.ex. hobby som du själv ska betala egenavgifter för;1005;Numeriskt_10;N;*;
+1.7 Inkomst enligt bilaga K10, K10A och K13;1006;Numeriskt_10;N;*;
+2.1 Resor till och från arbetet;1070;Numeriskt_10;N;*;
+2.2 Tjänsteresor;1071;Numeriskt_10;N;*;
+2.3 Tillfälligt arbete, dubbel bosättning och hemresor;1072;Numeriskt_10;N;*;
+2.4 Övriga utgifter;1073;Numeriskt_10;N;*;
+3.1 Socialförsäkringsavgifter enligt EU-förordning m.m.;1501;Numeriskt_10;N;*;
+4.1 Rotarbete;1583;Numeriskt_10;N;*;
+4.2 Rutarbete;1584;Numeriskt_10;N;*;
+4.3 Förnybar el;1582;Numeriskt_10;N;*;
+4.4 Gåva;1581;Numeriskt_10;N;*;
+4.5 Installation av grön teknik;1585;Numeriskt_10;N;*;
+5.1 Småhus/ägarlägenhet hel avgift, 0,75 %;80;Numeriskt_B;N;*;
+5.2 Småhus/ägarlägenhet halv avgift, 0,375 %;82;Numeriskt_B;N;*;
+6.1 Småhus/ägarlägenhet: tomtmark, byggnad under uppförande 1,0 %;84;Numeriskt_B;N;*;
+7.1 Schablonintäkter;1106;Numeriskt_10;N;*;
+7.2 Ränteinkomster, utdelningar m.m. Vinst enligt bilaga K4 avsnitt C m.m.;1100;Numeriskt_10;N;*;
+7.3 Överskott vid uthyrning av privatbostad;1101;Numeriskt_10;N;*;
+"7.4 Vinst fondandelar m.m. Vinst från bilaga K4 avsnitt A och B, K9 avsnitt B, 
+K10, K10A, K11, K12 avsnitt B och K13.";1102;Numeriskt_10;N;*;
+7.5 Vinst ej marknadsnoterade fondandelar m.m. Vinst från bilaga K4 avsnitt D, K9 avsnitt B, K12 avsnitt C och K15A/B m.m.;1103;Numeriskt_10;N;*;
+7.6 Vinst från bilaga K5 och K6. Återfört uppskov från bilaga K2;1104;Numeriskt_10;N;*;
+7.7 Vinst från bilaga K7 och K8;1105;Numeriskt_10;N;*;
+8.1 Ränteutgifter m.m. Förlust enligt bilaga K4 avsnitt C m.m.;1170;Numeriskt_10;N;*;
+"8.3 Förlust fondandelar m.m. Förlust från bilaga K4 avsnitt A, K9 avsnitt B, K10,
+K12 avsnitt B och K13.";1172;Numeriskt_10;N;*;
+"8.4 Förlust ej marknadsnoterade fondandelar. Förlust från bilaga K4 avsnitt D, K9 avsnitt B,  K10A,
+K12 avsnitt Coch K15A/B.";1173;Numeriskt_10;N;*;
+8.5 Förlust från bilaga K5 och K6;1174;Numeriskt_10;N;*;
+8.6 Förlust enligt bilaga K7 och K8;1175;Numeriskt_10;N;*;
+8.7 Investeraravdrag från bilaga K11;1176;Numeriskt_10;N;*;
+9.1 Skatteunderlag för kapitalförsäkring;1550;Numeriskt_10;N;*;
+9.2 Skatteunderlag för pensionsförsäkring;1551;Numeriskt_10;N;*;
+10.1 Överskott av aktiv näringsverksamhet enskild;1200;Numeriskt_10;N;*;
+10.1 Överskott av aktiv näringsverksamhet handelsbolag;1201;Numeriskt_10;N;*;
+10.2 Underskott av aktiv näringsverksamhet enskild;1202;Numeriskt_10;N;*;
+10.2 Underskott av aktiv näringsverksamhet handelsbolag;1203;Numeriskt_10;N;*;
+10.3 Överskott av passiv näringsverksamhet enskild;1250;Numeriskt_10;N;*;
+10.3 Överskott av passiv näringsverksamhet handelsbolag;1251;Numeriskt_10;N;*;
+10.4 Underskott av passiv näringsverksamhet enskild;1252;Numeriskt_10;N;*;
+10.4 Underskott av passiv näringsverksamhet handelsbolag;1253;Numeriskt_10;N;*;
+10.5 Inkomster för vilka uppdragsgivare ska betala socialavgifter Brutto;1400;Numeriskt_10;N;*;
+10.5 Inkomster för vilka uppdragsgivare ska betala socialavgifter Kostnader;1401;Numeriskt_10;N;*;
+10.6 Underlag för särskild löneskatt på pensionskostnader eget;1301;Numeriskt_10;N;*;
+10.6 Underlag för särskild löneskatt på pensionskostnader anställdas;1300;Numeriskt_10;N;*;
+10.7 Underlag för avkastningsskatt på pensionskostnader;1305;Numeriskt_10;N;*;
+11.1 Positiv räntefördelning;1570;Numeriskt_10;N;*;
+11.2 Negativ räntefördelning;1571;Numeriskt_10;N;*;
+12.1 Underlag för expansionsfondsskatt ökning;1310;Numeriskt_10;N;*;
+12.2 Underlag för expansionsfondsskatt minskning;1311;Numeriskt_10;N;*;
+13.1 Regionalt nedsättningsbelopp, endast näringsverksamhet i stödområde;1411;Numeriskt_10;N;*;
+14.1 Allmänna avdrag underskott näringsverksamhet;1510;Numeriskt_10;N;*;
+15.1 Hyreshus: bostäder 0,3 %;93;Numeriskt_B;N;*;
+15.2 Hyreshus: bostäder 0,15 %;94;Numeriskt_B;N;*;
+16.1 Hyreshus: tomtmark, bostäder under uppförande 0,4 %;86;Numeriskt_B;N;*;
+16.2 Hyreshus: lokaler 1,0 %;95;Numeriskt_B;N;*;
+16.3 Industri och elproduktionsenhet, värmekraftverk 0,5 %;96;Numeriskt_B;N;*;
+16.4 Elproduktionsenhet: vattenkraftverk 0,5 %;97;Numeriskt_B;N;*;
+16.5 Elproduktionsenhet: vindkraftverk 0,2 %;98;Numeriskt_B;N;*;
+Kryssa här om din näringsverksamhet har upphört;92;Str_X;N;;
+Kryssa här om du begär omfördelning av skattereduktion för rot/-rutavdrag eller installation av grön teknik.;8052;Str_X;N;;
+Kryssa här om någon inkomstuppgift är felaktig/saknas;8051;Str_X;N;;
+Kryssa här om du har haft inkomst från utlandet;8055;Str_X;N;;
+Kryssa här om du begär avräkning av utländsk skatt.;8056;Str_X;N;;
+Övrigt;8090;Str_1000;N;;
+Kanal;Kanal;Str_250;N;;)";
+		const char* k10_csv_to_sru_template = R"(Fältnamn på K10_SKV2110-34-04-21-02;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt person-/samordningsnummer eller organisationsnummer som inleds med 161 (dödsbo) eller 163 (gemensamma distriktet);PersOrgNr;Orgnr_Id_PD;J;;
+Uppgiftslämnarens namn;Namn;Str_250;N;;
+Företagets organisationsnummer;4530;Orgnr_Id_O;J;;Ingen kontroll av värdet sker om 7050 är ifyllt
+Antal ägda andelar vid årets ingång;4531;Numeriskt_B;N;;
+Totala antalet andelar i hela företaget vid årets ingång;4532;Numeriskt_B;N;;
+Bolaget är ett utländskt bolag;7050;Str_X;N;;
+1.1 Årets gränsbelopp enligt förenklingsregeln;4511;Numeriskt_B;N;+;Regel_E
+1.2 Sparat utdelningsutrymme från föregående år x 103 %;4501;Numeriskt_B;N;+;Regel_E
+1.3 Gränsbelopp enligt förenklingsregeln;4502;Numeriskt_B;N;*;Regel_E
+1.4 Vid avyttring eller gåva innan utdelningstillfället...;4720;Numeriskt_B;N;-;Regel_E
+1.5 Gränsbelopp att ytnyttja vid  p. 1.7 nedan;4503;Numeriskt_B;N;*;Regel_E
+1.6 Utdelning;4504;Numeriskt_B;N;+;Regel_E
+1.7 Gränsbeloppet enligt p. 1.5 ovan;4721;Numeriskt_B;N;-;Regel_E
+1.8 Utdelning som beskattas i tjänst;4505;Numeriskt_B;N;+;Regel_E
+1.9 Sparat utdelningsutrymme;4722;Numeriskt_B;N;-;Regel_E
+1.10 Vid delavyttring eller gåva efter utdelningstillfället : sparat utdelningsutrymme som är hänförligt till de överlåtna andelarna enligt p. 3.7a;4723;Numeriskt_B;N;-;Regel_E
+1.11 Sparat utdelningsutrymme till nästa år;4724;Numeriskt_B;N;*;Regel_E
+1.12 Utdelning;4506;Numeriskt_B;N;+;Regel_E
+1.13 Belopp som beskattas i tjänst enligt p. 1.8 ovan;4725;Numeriskt_B;N;-;Regel_E
+1.14 Utdelning i kapital;4507;Numeriskt_B;N;*;Regel_E
+1.15 Beloppet i p. 1.5 x 2/3;4508;Numeriskt_B;N;+;Regel_E
+1.16 Resterande utdelning;4509;Numeriskt_B;N;+;Regel_E
+1.17 Utdelning som ska tas upp i kapital;4515;Numeriskt_B;N;*;Regel_E
+2.1 Omkostnadsbelopp vid årets ingång (alternativt omräknat omkostnadsbelopp) x 9 %;4520;Numeriskt_B;N;+;Regel_F
+2.2 Lönebaserat utrymme enligt avsnitt D p. 6.11;4521;Numeriskt_B;N;+;Regel_F
+2.3 Sparat utdelningsutrymme från föregående år x 103 %;4522;Numeriskt_B;N;+;Regel_F
+2.4 Gränsbelopp enligt huvudregeln;4523;Numeriskt_B;N;*;Regel_F
+2.5 Vid avyttring eller gåva..innanutdelningstillfället...;4730;Numeriskt_B;N;-;Regel_F
+2.6 Gränsbelopp att utnyttja vid punkt 2.8 nedan;4524;Numeriskt_B;N;*;Regel_F
+2.7 Utdelning;4525;Numeriskt_B;N;+;Regel_F
+2.8 Gränsbeloppet enligt p. 2.6 ovan;4731;Numeriskt_B;N;-;Regel_F
+2.9 Utdelning som beskattas i tjänst;4526;Numeriskt_B;N;+;Regel_F
+2.10 Sparat utdelningsutrymme;4732;Numeriskt_B;N;-;Regel_F
+2.11 Vid delavyttring eller gåva efter utdelningstillfället......;4733;Numeriskt_B;N;-;Regel_F
+2.12 Sparat utdelningsutrymme till nästa år;4734;Numeriskt_B;N;*;Regel_F
+2.13 Utdelning;4527;Numeriskt_B;N;+;Regel_F
+2.14 Belopp som beskattas i tjänst enligt p. 2.9 ovan;4735;Numeriskt_B;N;-;Regel_F
+2.15 Utdelning i kapital;4528;Numeriskt_B;N;*;Regel_F
+2.16 Beloppet i p. 2.6 x 2/3. Om beloppet i p. ...;4529;Numeriskt_B;N;+;Regel_F
+2.17 Resterande utdelning...;4540;Numeriskt_B;N;+;Regel_F
+2.18 Utdelning som ska tas upp i kapital;4541;Numeriskt_B;N;*;Regel_F
+Antal sålda andelar;4543;Numeriskt_B;N;*;
+Försäljningsdatum;4544;Datum_D;N;;
+3.1 Ersättning minus utgifter för avyttring;4545;Numeriskt_B;N;+;
+3.2 Verkligt omkostnadsbelopp;4740;Numeriskt_B;N;-;
+3.3 Vinst;4546;Numeriskt_B;N;+;
+3.4a. Förlust;4741;Numeriskt_B;N;-;
+3.4b. Förlust i p. 3.4a x 2/3;4742;Numeriskt_B;N;*;
+3.5 Ersättning minus utgifter för avyttring...;4547;Numeriskt_B;N;+;
+3.6 Omkostnadsbelopp (alternativt omräknat omkostnadsbelopp);4743;Numeriskt_B;N;-;
+3.7a. Om utdelning erhållits under året...;4744;Numeriskt_B;N;-;
+3.7b. Om utdelning erhållits efter delavyttring...;4745;Numeriskt_B;N;-;
+3.8 Skattepliktig vinst som ska beskattas i tjänst. (Max 6 820 000 kr);4548;Numeriskt_B;N;*;
+3.9 Vinst enligt p. 3.3 ovan;4549;Numeriskt_B;N;+;
+3.10 Belopp som beskattas i tjänst enligt p. 3.8 (max 6 820 000 kr;4746;Numeriskt_B;N;-;
+3.11 Vinst i inkomstslaget kapital;4550;Numeriskt_B;N;*;
+3.12. Belopp antingen enligt p. 3.7a x 2/3 eller 3.7b x 2/3. Om beloppet i p. 3.7a eller 3.7b är större än vinsten i p. 3.11 tas istället 2/3 av vinsten i p. 3.11 upp.;4551;Numeriskt_B;N;+;
+"3.13 Resterande vinst (p. 3.11 minus antingen p. 3.7a eller
+p. 3.7b). Beloppet kan inte bli lägre än 0 kr.";4552;Numeriskt_B;N;+;
+3.14 Vinst som ska tas upp i inkomstslaget kapital;4553;Numeriskt_B;N;*;
+Den i avsnitt B redovisade överlåtelsen avser avyttring (ej efterföljande byte) av andelar som har förvärvats genom andelsbyte;4555;Str_X;N;;
+4.1 Det omräknade omkostnadsbeloppet har beräknats enligt Indexregeln (andelar anskaffade före 1990);4556;Str_X;N;;
+4.2 Det omräknade omkostnadsbeloppet har beräknats enligt Kapitalunderlagsregeln (andelar anskaffade före 1992);4557;Str_X;N;;
+Lönekravet uppfylls av närstående. Personnummer;4560;Orgnr_Id_PD;N;;
+5.1 Din kontanta ersättning från företaget och dess dotterföretag under 2020;4561;Numeriskt_B;N;*;
+5.2 Sammanlagd kontant ersättning i företaget och dess dotterföretag under 2020;4562;Numeriskt_B;N;*;
+5.3 (Punkt 5.2 x 5%) + 400 800 kr;4563;Numeriskt_B;N;*;
+Om löneuttag enligt ovan gjorts i dotterföretag. Organisationsnummer;4564;Orgnr_Id_O;N;;Ingen kontroll av värdet sker om 7060 är ifyllt
+Om löneuttag enligt ovan gjorts i dotterföretag. Organisationsnummer;4565;Orgnr_Id_O;N;;Ingen kontroll av värdet sker om 7060 är ifyllt
+Om löneuttag enligt ovan gjorts i dotterföretag. Organisationsnummer;4566;Orgnr_Id_O;N;;Ingen kontroll av värdet sker om 7060 är ifyllt
+Utländskt dotterföretag;7060;Str_X;N;;
+6.1 Kontant ersättning till arbetstagare under 2020...;4570;Numeriskt_B;N;+;
+6.2 Kontant ersättning under 2020...;4571;Numeriskt_B;N;+;
+6.3 Löneunderlag;4572;Numeriskt_B;N;*;
+6.4 Löneunderlag enligt p. 6.3 x 50 %;4573;Numeriskt_B;N;*;
+6.5 Ditt lönebaserade utrymme för andelar ägda under hela 2020...;4576;Numeriskt_B;N;*;
+6.6 Kontant ersättning till arbetstagare under...;4577;Numeriskt_B;N;+;
+6.7 Kontant ersättning under...;4578;Numeriskt_B;N;+;
+6.8 Löneunderlag avseende den tid under 2020 andelarna ägts;4579;Numeriskt_B;N;*;
+6.9 Löneunderlag enligt p. 6.8 x 50 %;4580;Numeriskt_B;N;+;
+6.10 Ditt lönebaserade utrymme för andelar som anskaffats under 2020.;4583;Numeriskt_B;N;*;
+6.11 Totalt lönebaserat utrymme;4584;Numeriskt_B;N;*;)";		
 	}
 }
 
