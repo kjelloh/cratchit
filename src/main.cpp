@@ -5063,6 +5063,11 @@ namespace SKV {
 					}
 					else {
 						std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
+						if (auto const& stored_value = model->sru["0"].at(sru_code)) {
+							sru_value_map[sru_code] = stored_value;
+							std::cout << "\n\tstored:" << *stored_value;
+
+						}
 						// // K10
 						// SRU:4531	"Antal ägda andelar vid årets ingång"
 						// SRU:4532	"Totala antalet andelar i hela företaget vid årets ingång"
