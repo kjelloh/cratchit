@@ -6305,8 +6305,31 @@ public:
 							}
 						}
 					}
+					else if (ast.size() > 2) {
+						// Assume the user has provided a year-id and a path to a csv-file with SRU values for that year?
+						auto year_id = ast[1];
+						std::filesystem::path csv_file_path{ast[2]};
+						if (std::filesystem::exists(csv_file_path)) {
+							std::ifstream ifs{csv_file_path};
+							if (auto const& field_rows = CSV::to_field_rows(ifs,';')) {
+								for (auto const& field_row : *field_rows) {
+									if (field_row.size()==2) {
+										if (auto const& sru_code = SKV::SRU::to_account_no(field_row[0])) {
+											model->sru[year_id].set(*sru_code,field_row[1]);
+										}
+									}
+								}
+							}
+							else {
+								prompt << "\nSorry, seems to be unable to parse for SRU values in csv-file " << csv_file_path;
+							}
+						}
+						else {
+							prompt << "\nSorry, I seem to fail to find file " << csv_file_path;
+						}
+					}
 					else {
-						prompt << "\nPlease provide no argument or argument '-bas'";
+						prompt << "\nPlease provide no arguments, argument '-bas' or arguments <year-id> <csv-file-path>";
 					}
 				}
 				else {
