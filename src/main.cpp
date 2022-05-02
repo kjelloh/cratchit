@@ -2456,10 +2456,14 @@ public:
 	OptionalBASAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) {
 		OptionalBASAccountNos result{};
 		try {
-
+			BASAccountNos bas_account_nos{};
+			std::for_each(account_metas().begin(),account_metas().end(),[&sru_code,&bas_account_nos](auto const& entry){
+				if (entry.second.sru_code == sru_code) bas_account_nos.push_back(entry.first);
+			});
+			if (bas_account_nos.size() > 0) result = bas_account_nos;
 		}
 		catch (std::exception const& e) {
-			std::cerr << "\nto_bas_accounts fauled. Exception=" << std::quoted(e.what());
+			std::cerr << "\nto_bas_accounts failed. Exception=" << std::quoted(e.what());
 		}
 		return result;
 	}
@@ -2573,18 +2577,6 @@ private:
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 using SIEEnvironments = std::map<std::string,SIEEnvironment>;
 
-OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
-	OptionalAmount result{};
-	
-	return result;
-}
-
-std::optional<std::string> to_ats_sum_string(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
-	std::optional<std::string> result{};
-	if (auto const& ats_sum = to_ats_sum(sie_envs,bas_account_nos)) result = std::to_string(*ats_sum);
-	return result;
-}
-
 void for_each_anonymous_journal_entry(SIEEnvironment const& sie_env,auto& f) {
 	for (auto const& [journal_id,journal] : sie_env.journals()) {
 		for (auto const& [verno,aje] : journal) {
@@ -2643,6 +2635,30 @@ void for_each_meta_account_transaction(SIEEnvironments const& sie_envs,auto& f) 
 	for (auto const& [year_id,sie_env] : sie_envs) {
 		for_each_meta_entry(sie_env,f_caller);
 	}
+}
+
+OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
+	OptionalAmount result{};
+	try {
+		Amount amount{};
+		auto f = [&amount,&bas_account_nos](BAS::MetaAccountTransaction const& mat) {
+			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
+				amount += mat.defacto.amount;
+			}
+		};
+		for_each_meta_account_transaction(sie_envs,f);
+		result = amount;
+	}
+	catch (std::exception const& e) {
+		std::cerr << "\nto_ats_sum failed. Excpetion=" << std::quoted(e.what());
+	}
+	return result;
+}
+
+std::optional<std::string> to_ats_sum_string(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
+	std::optional<std::string> result{};
+	if (auto const& ats_sum = to_ats_sum(sie_envs,bas_account_nos)) result = std::to_string(*ats_sum);
+	return result;
 }
 
 auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
@@ -4969,11 +4985,17 @@ namespace SKV {
 				// Now retreive the sru values from bas accounts as mapped
 				SRUValueMap sru_value_map{};
 				for (auto const& [sru_code,bas_account_nos] : sru_to_bas_accounts) {
+					std::cout << "\nSRU:" << sru_code;
 					if (bas_account_nos) {
+						for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
 						sru_value_map[sru_code] = to_ats_sum_string(model->sie,*bas_account_nos);
+						std::cout << "\n\t------------------";
+						std::cout << "\n\tSUM:" << sru_code << " = ";
+						if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
+						else std::cout << " null";
 					}
 					else {
-						std::cout << "\nNO BAS Accounts map to SRU:" << sru_code;
+						std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
 					}
 				}
 				result = sru_value_map;
