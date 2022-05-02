@@ -4880,14 +4880,23 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 }
 
 std::optional<SRUEnvironments::value_type> to_sru_environments_entry(EnvironmentValue const& ev) {
-	std::optional<SRUEnvironments::value_type> result{};
 	try {
-
+		std::cout << "\nto_sru_environments_entry";
+		// "4531=360000;4532=360000;year_id=0"
+		SRUEnvironment sru_env{};
+		auto& year_id = ev.at("year_id");
+		for (auto const& [key,value] : ev) {
+			std::cout << "\nkey:" << key << " value:" << value;
+			if (auto const& sru_code = SKV::SRU::to_account_no(key)) {
+				sru_env.set(*sru_code,value);
+			}
+		}
+		return SRUEnvironments::value_type{year_id,sru_env};
 	}
 	catch (std::exception const& e) {
 		std::cerr << "\nto_sru_environments_entry failed. Exception=" << std::quoted(e.what());
 	}
-	return result;
+	return std::nullopt;
 }
 
 SKV::OptionalContactPersonMeta to_contact(EnvironmentValue const& ev) {
@@ -6858,7 +6867,7 @@ private:
 
 	SRUEnvironments srus_from_environment(Environment const& environment) {
 		SRUEnvironments result{};
-		auto [begin,end] = environment.equal_range("SRU");
+		auto [begin,end] = environment.equal_range("SRU:S");
 		std::transform(begin,end,std::inserter(result,result.end()),[](auto const& entry){
 			if (auto result_entry = to_sru_environments_entry(entry.second)) return *result_entry;
 			return SRUEnvironments::value_type{"null",{}};
