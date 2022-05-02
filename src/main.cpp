@@ -3351,9 +3351,13 @@ namespace SKV {
 		using SRUFileTagMap = std::map<std::string,std::string>;
 		using SRUFileTagMaps = std::vector<SRUFileTagMap>;
 
+		using Blankett = std::pair<SRUFileTagMap,SKV::SRU::SRUValueMap>;
+		using Blanketter = std::vector<Blankett>;
+
+
 		struct FilesMapping {
 			SRUFileTagMap info{};
-			SRUFileTagMaps blanketter{};
+			Blanketter blanketter{};
 		};
 		using OptionalFilesMapping = std::optional<FilesMapping>;
 
@@ -3465,8 +3469,8 @@ namespace SKV {
 				// #SYSTEMINFO klarmarkerad 20130426 u. a.
 				os.sru_os << "\n" << "#SYSTEMINFO" << " " << " klarmarkerad 20130426 u. a.";
 
-				{
-					// TODO: Make this SRU value mapping an input argument
+				if (false) {
+					// Hard coded example data
 					SRUValueMap sru_value{};
 					// #UPPGIFT 4530 169780001096
 					sru_value[4530] = "169780001096";
@@ -3498,6 +3502,11 @@ namespace SKV {
 					}
 				}
 
+				for (auto const& [account_no,value] : fm.blanketter[i].second) {
+					if (value) os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << *value;
+				}
+
+
 				// 5. #BLANKETTSLUT
 				// #BLANKETTSLUT
 				os.sru_os << "\n" << "#BLANKETTSLUT";
@@ -3517,7 +3526,9 @@ namespace SKV {
 					FilesMapping fm {
 						.info = to_example_info_sru_file()
 					};
-					fm.blanketter.push_back(to_example_blanketter_sru_file());
+					// Blankett blankett{SRUFileTagMaps{},SKV::SRU::SRUValueMap{}}; 
+					Blankett blankett{to_example_blanketter_sru_file(),SKV::SRU::SRUValueMap{}}; 
+					fm.blanketter.push_back(blankett);
 					result = fm;
 				}
 				catch (std::exception const& e) {
@@ -5942,6 +5953,9 @@ public:
 							} break;
 							case 3: {
 								// k10_csv_to_sru_template
+								SKV::SRU::OptionalSRUValueMap k10_sru_value_map{};
+								SKV::SRU::OptionalSRUValueMap ink1_sru_value_map{};
+
 								std::istringstream k10_is{SKV::SRU::k10_csv_to_sru_template};
 								if (auto field_rows = CSV::to_field_rows(k10_is)) {
 									for (auto const& field_row : *field_rows) {
@@ -5950,12 +5964,7 @@ public:
 											prompt << " [" << i << "]" << field_row[i];
 										}
 									}
-									if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
-
-									}
-									else {
-										prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
-									}
+									k10_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
 								}
 								else {
 									prompt << "\nSorry, failed to acquire a valid template for the K10 form";
@@ -5969,16 +5978,54 @@ public:
 											prompt << " [" << i << "]" << field_row[i];
 										}
 									}
-									if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
-
-									}
-									else {
-										prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
-									}
+									ink1_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
 								}
 								else {
 									prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
 								}
+								if (k10_sru_value_map and ink1_sru_value_map) {
+									SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
+									SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
+									SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
+									SKV::SRU::FilesMapping fm {
+										.info = info_sru_file_tag_map
+									};
+									// Blankett blankett{SRUFileTagMaps{},SKV::SRU::SRUValueMap{}}; 
+									// Blankett blankett{to_example_blanketter_sru_file(),SKV::SRU::SRUValueMap{}}; 
+									SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map}; 
+									fm.blanketter.push_back(k10_blankett);
+									SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map}; 
+									fm.blanketter.push_back(ink1_blankett);
+
+									std::filesystem::path info_file_path{"to_skv/SRU/INFO.SRU"};
+									std::filesystem::create_directories(info_file_path.parent_path());
+									auto info_std_os = std::ofstream{info_file_path};
+									SKV::SRU::OStream info_sru_os{info_std_os};
+									SKV::SRU::InfoOStream info_os{info_sru_os};
+									if (info_os << fm) {
+										prompt << "\nCreated " << info_file_path;
+									}
+									else {
+										prompt << "\nSorry, FAILED to create " << info_file_path;
+									}
+
+									std::filesystem::path blanketter_file_path{"to_skv/SRU/BLANKETTER.SRU"};
+									std::filesystem::create_directories(blanketter_file_path.parent_path());
+									auto blanketter_std_os = std::ofstream{blanketter_file_path};
+									SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
+									SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
+									if (blanketter_os << fm) {
+										prompt << "\nCreated " << blanketter_file_path;
+									}
+									else {
+										prompt << "\nSorry, FAILED to create " << blanketter_file_path;
+									}
+
+								}
+								else {
+									prompt << "\nSorry, Failed to acquirer the data for the K10 and INK1 forms";									
+								}
+								
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
