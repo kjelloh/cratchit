@@ -3384,7 +3384,7 @@ namespace SKV {
 		std::string to_tag(std::string const& tag,SRUFileTagMap const& tag_map) {
 			std::cout << "\nto_tag" << std::flush;
 			std::ostringstream os{};
-			os << "\n" << tag << " ";
+			os << tag << " ";
 			if (tag_map.contains(tag)) os << tag_map.at(tag);
 			else os << "?" << tag << "?";
 			return os.str();
@@ -3425,13 +3425,13 @@ namespace SKV {
 			// 9. #ORGNR
 				// #ORGNR 191111111111
 			// os.sru_os << "\n" << "#ORGNR" << " " << "191111111111";
-			os.sru_os << to_tag("#ORGNR",fm.info);
+			os.sru_os << "\n"  << to_tag("#ORGNR",fm.info);
 
 
 			// 10. #NAMN
 				// #NAMN Databokföraren
 			// os.sru_os << "\n" << "#NAMN" << " " << "Databokföraren";
-			os.sru_os << to_tag("#NAMN",fm.info);
+			os.sru_os << "\n" << to_tag("#NAMN",fm.info);
 
 			// 11. #ADRESS (ej obligatorisk)
 				// #ADRESS BOX 159
@@ -3439,13 +3439,13 @@ namespace SKV {
 			// 12. #POSTNR
 				// #POSTNR 12345
 			// os.sru_os << "\n" << "#POSTNR" << " " << "12345";
-			os.sru_os << to_tag("#POSTNR",fm.info);
+			os.sru_os << "\n" << to_tag("#POSTNR",fm.info);
 
 			// 13. #POSTORT
 				// #POSTORT SKATTSTAD
 			// os.sru_os << "\n" << "#POSTORT" << " " << "SKATTSTAD";
 			// os.sru_os << "\n" << "#POSTORT" << " " << "Järfälla";
-			os.sru_os << to_tag("#POSTORT",fm.info);
+			os.sru_os << "\n" << to_tag("#POSTORT",fm.info);
 			
 			// 14. #AVDELNING (ej obligatorisk)
 				// #AVDELNING Ekonomi
@@ -3474,18 +3474,20 @@ namespace SKV {
 				// Posterna i ett blankettblock måste förekomma i följande ordning:
 				// 1. #BLANKETT
 				// #BLANKETT N7-2013P1
-				os.sru_os << "#BLANKETT" << " " << "N7-2013P1"; 
+				// os.sru_os << "#BLANKETT" << " " << "N7-2013P1"; 
+				os.sru_os << to_tag("#BLANKETT",fm.blanketter[i].first);
 
 				// 2. #IDENTITET
 				// #IDENTITET 193510250100 20130426 174557
-				os.sru_os << "\n" << "#IDENTITET" << " " << "193510250100 20130426 174557"; 
+				// os.sru_os << "\n" << "#IDENTITET" << " " << "193510250100 20130426 174557"; 
+				os.sru_os << "\n" << to_tag("#IDENTITET",fm.blanketter[i].first);
 
 				// 3. #NAMN (ej obligatorisk)
 				// #NAMN Kalle Andersson
 
 				// 4. #SYSTEMINFO och #UPPGIFT i valfri ordning och antal, dock endast en #SYSTEMINFO
 				// #SYSTEMINFO klarmarkerad 20130426 u. a.
-				os.sru_os << "\n" << "#SYSTEMINFO" << " " << " klarmarkerad 20130426 u. a.";
+				os.sru_os << "\n" << "#SYSTEMINFO" << " " << "u.a.";
 
 				if (false) {
 					// Hard coded example data
@@ -6035,7 +6037,40 @@ public:
 										}
 									}
 									SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
+									{
+										// #BLANKETT N7-2013P1
+										k10_sru_file_tag_map["#BLANKETT"] = "K10-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+										// #IDENTITET 193510250100 20130426 174557
+										std::ostringstream os{};
+										if (model->employee_birth_ids[0].size()>0) {
+											os << " " << model->employee_birth_ids[0];
+										}
+										else {
+											os << " " << "?PERSONNR?";											
+										}
+										auto today = to_today();
+										os << " " << today;
+										os << " " << "120000";
+										k10_sru_file_tag_map["#IDENTITET"] = os.str();
+									}
 									SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
+									{
+										// #BLANKETT N7-2013P1
+										ink1_sru_file_tag_map["#BLANKETT"] = "INK1-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+										// #IDENTITET 193510250100 20130426 174557
+										std::ostringstream os{};
+										if (model->employee_birth_ids[0].size()>0) {
+											os << " " << model->employee_birth_ids[0];
+										}
+										else {
+											os << " " << "?PERSONNR?";											
+										}
+										auto today = to_today();
+										os << " " << today;
+										os << " " << "120000";
+
+										ink1_sru_file_tag_map["#IDENTITET"] = os.str();
+									}
 									SKV::SRU::FilesMapping fm {
 										.info = info_sru_file_tag_map
 									};
