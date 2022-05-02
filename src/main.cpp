@@ -583,10 +583,13 @@ OptionalAmount to_amount(std::string const& sAmount) {
 }
 
 using BASAccountNo = unsigned int;
+using BASAccountNos = std::vector<BASAccountNo>;
+
 unsigned first_digit(BASAccountNo account_no) {
 	return account_no / 1000;
 }
 using OptionalBASAccountNo = std::optional<BASAccountNo>;
+using OptionalBASAccountNos = std::optional<BASAccountNos>;
 
 template <typename Meta,typename Defacto>
 class MetaDefacto {
@@ -769,6 +772,7 @@ namespace BAS {
 	struct JournalEntryMeta {
 		Series series;
 		OptionalVerNo verno;
+		SKV::SRU::OptionalAccountNo sru_code{};
 		std::optional<bool> unposted_flag{};
 		bool operator==(JournalEntryMeta const& other) const = default;
 	};
@@ -1077,7 +1081,6 @@ namespace BAS {
 	}
 } // namespace BAS
 
-using BASAccountNos = std::vector<BASAccountNo>;
 using Sru2BasMap = std::map<SKV::SRU::AccountNo,BASAccountNos>;
 
 Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
@@ -2437,6 +2440,30 @@ public:
 		if (verno_of_last_posted_to.contains(series)) result = verno > this->verno_of_last_posted_to.at(series);
 		return result;
 	}
+	SKV::SRU::OptionalAccountNo sru_code(BASAccountNo const& bas_account_no) {
+		SKV::SRU::OptionalAccountNo result{};
+		try {
+			auto iter = std::find_if(account_metas().begin(),account_metas().end(),[&bas_account_no](auto const& entry){
+				return (entry.first == bas_account_no);
+			});
+			if (iter != account_metas().end()) {
+				result = iter->second.sru_code;
+			}
+		}
+		catch (std::exception const& e) {} // Ignore/silence
+		return result;
+	}
+	OptionalBASAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) {
+		OptionalBASAccountNos result{};
+		try {
+
+		}
+		catch (std::exception const& e) {
+			std::cerr << "\nto_bas_accounts fauled. Exception=" << std::quoted(e.what());
+		}
+		return result;
+	}
+
 	void post(BAS::MetaEntry const& me) {
 		if (me.meta.verno) {
 			m_journals[me.meta.series][*me.meta.verno] = me.defacto;
@@ -2546,6 +2573,18 @@ private:
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 using SIEEnvironments = std::map<std::string,SIEEnvironment>;
 
+OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
+	OptionalAmount result{};
+	
+	return result;
+}
+
+std::optional<std::string> to_ats_sum_string(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
+	std::optional<std::string> result{};
+	if (auto const& ats_sum = to_ats_sum(sie_envs,bas_account_nos)) result = std::to_string(*ats_sum);
+	return result;
+}
+
 void for_each_anonymous_journal_entry(SIEEnvironment const& sie_env,auto& f) {
 	for (auto const& [journal_id,journal] : sie_env.journals()) {
 		for (auto const& [verno,aje] : journal) {
@@ -2595,7 +2634,7 @@ void for_each_meta_account_transaction(BAS::MetaEntry const& me,auto& f) {
 }
 
 void for_each_meta_account_transaction(SIEEnvironment const& sie_env,auto& f) {
-	auto f_caller = [&f](BAS::MetaEntry const& mee){for_each_meta_account_transaction(mee,f);};
+	auto f_caller = [&f](BAS::MetaEntry const& me){for_each_meta_account_transaction(me,f);};
 	for_each_meta_entry(sie_env,f_caller);
 }
 
@@ -3243,7 +3282,7 @@ namespace SKV {
 		// 18. #FAX (ej obligatorisk)
 		// 19. #MEDIELEV_SLUT
 
-		using SRUValueMap = std::map<AccountNo,std::string>;
+		using SRUValueMap = std::map<AccountNo,std::optional<std::string>>;
 		using OptionalSRUValueMap = std::optional<SRUValueMap>;
 		using SRUValueMaps = std::vector<SRUValueMap>;
 
@@ -3393,7 +3432,7 @@ namespace SKV {
 					sru_value[8340] = "2555";
 
 					for (auto const& [account_no,value] : sru_value) {
-						os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << value;
+						if (value) os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << *value;
 					}
 				}
 
@@ -4892,47 +4931,61 @@ using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around 
 namespace SKV {
 	namespace SRU {
 
-		std::optional<std::string> to_sru_value(AccountNo const& sru_code,Model const& model) {
-			std::optional<std::string> result{};
-			Amount amount{};
-			auto f = [&sru_code,&amount](BAS::MetaAccountTransaction const& mat) {
-				// TODO: Implement a way to visit all BAS accounts with a specific SRU code!
-			};
-			for_each_meta_account_transaction(model->sie["current"],f);
-			if (amount != 0) result = std::to_string(to_tax(amount));
-			return result;
-		}
-
 		OptionalSRUValueMap to_sru_value_map(Model const& model,::CSV::FieldRows const& field_rows) {
 			OptionalSRUValueMap result{};
-			std::cout << "\nto_sru_value_map";
-			for (int i=0;i<field_rows.size();++i) {
-				auto const& field_row = field_rows[i];
-				std::cout << "\n\t" << static_cast<std::string>(field_row);
-				if (field_row.size() > 1) {
-					auto const& field_1 = field_row[1];
-					std::cout << "\n\t\t[1]=" << std::quoted(field_1);
-					if (auto sru_code = to_account_no(field_1)) {
-						std::cout << " ok! Value=";
-						if (auto const& sru_value = to_sru_value(*sru_code,model)) {
-							std::cout << " " << *sru_value;
+			try {
+				std::cout << "\nto_sru_value_map";
+				std::map<SKV::SRU::AccountNo,OptionalBASAccountNos> sru_to_bas_accounts{};
+				for (int i=0;i<field_rows.size();++i) {
+					auto const& field_row = field_rows[i];
+					std::cout << "\n\t" << static_cast<std::string>(field_row);
+					if (field_row.size() > 1) {
+						auto const& field_1 = field_row[1];
+						std::cout << "\n\t\t[1]=" << std::quoted(field_1);
+						if (auto sru_code = to_account_no(field_1)) {
+							std::cout << " ok! ";
+							if (field_row.size() > 3) {
+								auto mandatory = (field_row[3].find("J") != std::string::npos);
+								if (mandatory) {
+									std::cout << " Mandatory.";
+								}
+								else {
+									std::cout << " optional ;)";
+								}
+								sru_to_bas_accounts[*sru_code] = model->sie["current"].to_bas_accounts(*sru_code);
+							}
+							else {
+								std::cout << " NO [3]";
+							}
 						}
 						else {
-							std::cout << " null";
+							std::cout << " NOT SRU";
 						}
 					}
 					else {
-						std::cout << " NOT SRU";
+						std::cout << " null (does not exist)";
 					}
 				}
-				else {
-					std::cout << " null (does not exist)";
+				// Now retreive the sru values from bas accounts as mapped
+				SRUValueMap sru_value_map{};
+				for (auto const& [sru_code,bas_account_nos] : sru_to_bas_accounts) {
+					if (bas_account_nos) {
+						sru_value_map[sru_code] = to_ats_sum_string(model->sie,*bas_account_nos);
+					}
+					else {
+						std::cout << "\nNO BAS Accounts map to SRU:" << sru_code;
+					}
 				}
+				result = sru_value_map;
+			}
+			catch (std::exception const& e) {
+				std::cerr << "\nto_sru_value_map failed. Excpetion=" << std::quoted(e.what());
 			}
 			return result;
 		}
 	}
 } // namespace SKV {
+
 
 struct KeyPress {char value;};
 using Command = std::string;
