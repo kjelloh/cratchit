@@ -5843,6 +5843,36 @@ public:
 									prompt << "\nSorry, failed to create data for input to K10 SRU-files";
 								}
 							} break;
+							case 3: {
+								/*
+										// K10
+										SRU:4531	"Antal ägda andelar vid årets ingång"
+										SRU:4532	"Totala antalet andelar i hela företaget vid årets ingång"
+										SRU:4511	"Årets gränsbelopp enligt förenklingsregeln"				(=183 700 * ägar_andel)
+										SRU:4501	"Sparat utdelningsutrymme från föregående år * 103%)	(103% av förra årets sparade utrymme, förra årets SRU:4724)
+										SRU:4502	"Gränsbelopp enligt förenklingsregeln"					(SRU:4511 + SRU:4501
+										SRU:4503	"Gränsbelopp att utnyttja vid p. 1.7 nedan"				(SRU:4502)
+
+										// Utdelning som beskattas I TJÄNST"
+										SRU:4504	"Utdelning"										(Från BAS:2898, SRU:7369)
+										SRU:4721	"Gränsbelopp SRU:4503"
+										SRU:4722	"Sparat utdelningsutrymme"							(SRU:4504 - SRU:4721)
+										SRU:4724	"Sparat utdelningsutrymme till nästa år"					(SRU:4722)
+
+										// Utdelning som beskattas i KAPITAL
+										SRU:4506	"Utdelning"										(SRU:4504)
+										SRU:4507	"Utdelning i Kapital"
+										SRU:4508	Det minsta av (2/3 av gränsbelopp vs 2/3 av utdelning Kapital)
+										SRU:4509	Resterande utdelning (utdelning kapital - gränsbelopp om positivt annars 0)
+										SRU:4515	"Utdelning som tas upp i kapital"						(Till INK1 p. 7.7. SRU:1100)
+
+										// INK1
+										SRU:1000 	"1.1 Lön Förmåner, Sjukpenning mm"	(Från förtryckta uppgifter)
+										SRU:1100	"7.2 Ränteinkomster, utdelningar..."	(från K10 SRU:4515	"Utdelning som tas upp i kapital")
+
+								*/
+								prompt << "\nTODO: Generate INK1 and K10 forms as SRU-files";
+							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
 					} break;
@@ -6224,6 +6254,7 @@ public:
 					prompt << "\n0: Arbetsgivardeklaration (TAX Returns)";
 					prompt << "\n1: Momsrapport (VAT Returns)";
 					prompt << "\n2: K10 (TAX Declaration Appendix Form)";
+					prompt << "\n3: INK1 + K10 (Swedish Tax Agency private TAX Form + Dividend Form";
 					model->prompt_state = PromptState::SKVEntryIndex;
 				}
 				else if (ast.size() == 2) {
