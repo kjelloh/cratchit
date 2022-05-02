@@ -2435,6 +2435,10 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 	return result;
 }
 
+struct OEnvironmentValueOStream {
+	std::ostream& os;
+};
+
 class SRUEnvironment {
 public:
 	std::optional<std::string> at(SKV::SRU::AccountNo const& sru_code) {
@@ -2448,17 +2452,29 @@ public:
 private:
 	SKV::SRU::SRUValueMap m_sru_values{};
 	friend std::ostream& operator<<(std::ostream& os,SRUEnvironment const& sru_env);
+	friend OEnvironmentValueOStream& operator<<(OEnvironmentValueOStream& env_val_os,SRUEnvironment const& sru_env);
 };
 std::ostream& operator<<(std::ostream& os,SRUEnvironment const& sru_env) {
-	int count{0};
 	for (auto const& [sru_code,value]: sru_env.m_sru_values) {
-		if (count++>0) os << "\n";
-		os << "\tSRU:" << sru_code << " = ";
+		os << "\n\tSRU:" << sru_code << " = ";
 		if (value) os << std::quoted(*value);
 		else os << "null";
 	}
 	return os;
 }
+
+OEnvironmentValueOStream& operator<<(OEnvironmentValueOStream& env_val_os,std::string const& s) {
+	env_val_os.os << s;
+	return env_val_os;
+}
+
+OEnvironmentValueOStream& operator<<(OEnvironmentValueOStream& env_val_os,SRUEnvironment const& sru_env) {
+	for (auto const& [sru_code,value]: sru_env.m_sru_values) {
+		if (value) env_val_os << ";" << std::to_string(sru_code) << "=" << *value;
+	}
+	return env_val_os;
+}
+
 using SRUEnvironments = std::map<std::string,SRUEnvironment>;
 
 class SIEEnvironment {
@@ -6924,6 +6940,12 @@ private:
 		}
 		for (auto const& entry : model->employee_birth_ids) {
 			result.insert({"employee",to_environment_value(std::string{"birth-id="} + entry)});
+		}
+		for (auto const& [year_id,sru_env] : model->sru) {
+			std::ostringstream os{};
+			OEnvironmentValueOStream en_val_os{os};
+			en_val_os << "year_id=" << year_id << sru_env;
+			result.insert({"SRU:S",to_environment_value(os.str())});
 		}
 		return result;
 	}
