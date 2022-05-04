@@ -4976,6 +4976,9 @@ enum class PromptState {
 	,SKVEntryIndex
 	,QuarterOptionIndex
 	,SKVTaxReturnEntryIndex
+	,K10INK1EditOptions
+	,EnterIncome
+  ,EnterDividend
 	,EnterContact
 	,EnterEmployeeID
 	,Unknown
@@ -5209,6 +5212,9 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 		case PromptState::SKVEntryIndex: {result.push_back("PromptState::SKVEntryIndex");} break;
 		case PromptState::QuarterOptionIndex: {result.push_back("PromptState::QuarterOptionIndex");} break;
 		case PromptState::SKVTaxReturnEntryIndex: {result.push_back("PromptState::SKVTaxReturnEntryIndex");} break;
+		case PromptState::K10INK1EditOptions: {result.push_back("PromptState::K10INK1EditOptions");} break;
+		case PromptState::EnterIncome: {result.push_back("PromptState::EnterIncome");} break;
+		case PromptState::EnterDividend: {result.push_back("PromptState::EnterDividend");} break;
 		case PromptState::EnterContact: {result.push_back("PromptState::EnterContact");} break;
 		case PromptState::EnterEmployeeID: {result.push_back("PromptState::EnterEmployeeID");} break;
 		case PromptState::Unknown: {result.push_back("DESIGN INSUFFICIENCY: options_list_of_prompt_state have no action for State PromptState::Unknown ");} break;
@@ -5406,6 +5412,15 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::SKVTaxReturnEntryIndex: {
 			prompt << ":skv:tax_return";
 		} break;
+		case PromptState::K10INK1EditOptions: {
+			prompt << ":skv:to_tax";
+		}
+		case PromptState::EnterIncome: {
+			prompt << ":skv:income?";
+		} break;
+		case PromptState::EnterDividend: {
+			prompt << ":skv:dividend?";
+		} break;
 		case PromptState::EnterContact: {
 			prompt << ":contact";
 		} break;
@@ -5458,7 +5473,11 @@ public:
 		if (ast.size() > 0) {
 			int signed_ix{};
 			std::istringstream is{ast[0]};
-			if (auto signed_ix = to_signed_ix(ast[0]); signed_ix and model->prompt_state != PromptState::Amount) {
+			if (auto signed_ix = to_signed_ix(ast[0]); 
+					     signed_ix 
+				   and model->prompt_state != PromptState::Amount
+					 and model->prompt_state != PromptState::EnterIncome
+					 and model->prompt_state != PromptState::EnterDividend) {
 				std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
 				size_t ix = std::abs(*signed_ix);
 				bool do_remove = (*signed_ix<0);
@@ -5972,149 +5991,17 @@ public:
 								}
 							} break;
 							case 3: {
-								// k10_csv_to_sru_template
-								SKV::SRU::OptionalSRUValueMap k10_sru_value_map{};
-								SKV::SRU::OptionalSRUValueMap ink1_sru_value_map{};
+								// Generate the K10 and INK1 forms as SRU-files
 
-								std::istringstream k10_is{SKV::SRU::k10_csv_to_sru_template};
-								if (auto field_rows = CSV::to_field_rows(k10_is)) {
-									for (auto const& field_row : *field_rows) {
-										if (field_row.size()>0) prompt << "\n";
-										for (int i=0;i<field_row.size();++i) {
-											prompt << " [" << i << "]" << field_row[i];
-										}
-									}
-									k10_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
-								}
-								else {
-									prompt << "\nSorry, failed to acquire a valid template for the K10 form";
-								}
-								// ink1_csv_to_sru_template
-								std::istringstream ink1_is{SKV::SRU::ink1_csv_to_sru_template};
-								if (auto field_rows = CSV::to_field_rows(ink1_is)) {
-									for (auto const& field_row : *field_rows) {
-										if (field_row.size()>0) prompt << "\n";
-										for (int i=0;i<field_row.size();++i) {
-											prompt << " [" << i << "]" << field_row[i];
-										}
-									}
-									ink1_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
-								}
-								else {
-									prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
-								}
-								if (k10_sru_value_map and ink1_sru_value_map) {
-									SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
-									{
-										// Assume we are to send in with sender being this company?
-										// 9. #ORGNR
-											// #ORGNR 191111111111
-										info_sru_file_tag_map["#ORGNR"] = model->sie["current"].organisation_no.CIN;		
-										// 10. #NAMN
-											// #NAMN Databokföraren
-										info_sru_file_tag_map["#NAMN"] = model->sie["current"].organisation_name.company_name;
-
-										auto postal_address = model->sie["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
-										auto postal_address_tokens = tokenize::splits(postal_address,' ');
-
-										// 12. #POSTNR
-											// #POSTNR 12345
-										if (postal_address_tokens.size() > 0) {
-											info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
-											std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[0];
-										}
-										else {
-											info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
-										}
-										// 13. #POSTORT
-											// #POSTORT SKATTSTAD
-										if (postal_address_tokens.size() > 1) {
-											info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
-											std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[1] << std::flush;
-										}
-										else {
-											info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
-										}
-									}
-									SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
-									{
-										// #BLANKETT N7-2013P1
-										k10_sru_file_tag_map["#BLANKETT"] = "K10-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
-										// #IDENTITET 193510250100 20130426 174557
-										std::ostringstream os{};
-										if (model->employee_birth_ids[0].size()>0) {
-											os << " " << model->employee_birth_ids[0];
-										}
-										else {
-											os << " " << "?PERSONNR?";											
-										}
-										auto today = to_today();
-										os << " " << today;
-										os << " " << "120000";
-										k10_sru_file_tag_map["#IDENTITET"] = os.str();
-									}
-									SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
-									{
-										// #BLANKETT N7-2013P1
-										ink1_sru_file_tag_map["#BLANKETT"] = "INK1-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
-										// #IDENTITET 193510250100 20130426 174557
-										std::ostringstream os{};
-										if (model->employee_birth_ids[0].size()>0) {
-											os << " " << model->employee_birth_ids[0];
-										}
-										else {
-											os << " " << "?PERSONNR?";											
-										}
-										auto today = to_today();
-										os << " " << today;
-										os << " " << "120000";
-
-										ink1_sru_file_tag_map["#IDENTITET"] = os.str();
-									}
-									SKV::SRU::FilesMapping fm {
-										.info = info_sru_file_tag_map
-									};
-									SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map}; 
-									fm.blanketter.push_back(k10_blankett);
-									SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map}; 
-									fm.blanketter.push_back(ink1_blankett);
-
-									std::filesystem::path info_file_path{"to_skv/SRU/INFO.SRU"};
-									std::filesystem::create_directories(info_file_path.parent_path());
-									auto info_std_os = std::ofstream{info_file_path};
-									SKV::SRU::OStream info_sru_os{info_std_os};
-									SKV::SRU::InfoOStream info_os{info_sru_os};
-									std::cout << "\n(3)" << std::flush;
-
-									if (info_os << fm) {
-										std::cout << "\n(4)" << std::flush;
-										prompt << "\nCreated " << info_file_path;
-									}
-									else {
-										std::cout << "\n(5)" << std::flush;
-										prompt << "\nSorry, FAILED to create " << info_file_path;
-									}
-
-									std::filesystem::path blanketter_file_path{"to_skv/SRU/BLANKETTER.SRU"};
-									std::filesystem::create_directories(blanketter_file_path.parent_path());
-									auto blanketter_std_os = std::ofstream{blanketter_file_path};
-									SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
-									SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
-									std::cout << "\n(6)" << std::flush;
-
-									if (blanketter_os << fm) {
-										std::cout << "\n(7)" << std::flush;
-										prompt << "\nCreated " << blanketter_file_path;
-									}
-									else {
-										prompt << "\nSorry, FAILED to create " << blanketter_file_path;
-									}
-
-								}
-								else {
-									prompt << "\nSorry, Failed to acquirer the data for the K10 and INK1 forms";									
-								}
-								
+								// We need two input values verified by the user
+								// 1. The Total income to tax (SKV SRU Code 1000)
+								// 2. The dividend to Tax (SKV SRU Code 4504)
+								Amount income{};
+								prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
+								Amount dividend{};
+								prompt << "\n2) K10 1.6 Utdelning = " << dividend;
+								prompt << "\n3) Continue (Create K10 and INK1)";
+								model->prompt_state = PromptState::K10INK1EditOptions;								
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
@@ -6216,6 +6103,166 @@ public:
 						}
 					} break;
 
+					case PromptState::K10INK1EditOptions: {
+						switch (ix) {
+							case 1: {model->prompt_state = PromptState::EnterIncome;} break;
+							case 2: {model->prompt_state = PromptState::EnterDividend;} break;
+							case 3: {
+								if (true) {
+									// TODO: Split to allow edit of Income and Dividend before entering teh actual generation phase/code
+									// k10_csv_to_sru_template
+									SKV::SRU::OptionalSRUValueMap k10_sru_value_map{};
+									SKV::SRU::OptionalSRUValueMap ink1_sru_value_map{};
+
+									std::istringstream k10_is{SKV::SRU::k10_csv_to_sru_template};
+									if (auto field_rows = CSV::to_field_rows(k10_is)) {
+										// LOG
+										for (auto const& field_row : *field_rows) {
+											if (field_row.size()>0) prompt << "\n";
+											for (int i=0;i<field_row.size();++i) {
+												prompt << " [" << i << "]" << field_row[i];
+											}
+										}
+										// Acquire the SRU Values required for the K10 Form
+										k10_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+									}
+									else {
+										prompt << "\nSorry, failed to acquire a valid template for the K10 form";
+									}
+									// ink1_csv_to_sru_template
+									std::istringstream ink1_is{SKV::SRU::ink1_csv_to_sru_template};
+									if (auto field_rows = CSV::to_field_rows(ink1_is)) {
+										for (auto const& field_row : *field_rows) {
+											if (field_row.size()>0) prompt << "\n";
+											for (int i=0;i<field_row.size();++i) {
+												prompt << " [" << i << "]" << field_row[i];
+											}
+										}
+										// Acquire the SRU Values required for the INK1 Form
+										ink1_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+									}
+									else {
+										prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+									}
+									if (k10_sru_value_map and ink1_sru_value_map) {
+										SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
+										{
+											// Assume we are to send in with sender being this company?
+											// 9. #ORGNR
+												// #ORGNR 191111111111
+											info_sru_file_tag_map["#ORGNR"] = model->sie["current"].organisation_no.CIN;		
+											// 10. #NAMN
+												// #NAMN Databokföraren
+											info_sru_file_tag_map["#NAMN"] = model->sie["current"].organisation_name.company_name;
+
+											auto postal_address = model->sie["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
+											auto postal_address_tokens = tokenize::splits(postal_address,' ');
+
+											// 12. #POSTNR
+												// #POSTNR 12345
+											if (postal_address_tokens.size() > 0) {
+												info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
+												std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[0];
+											}
+											else {
+												info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
+											}
+											// 13. #POSTORT
+												// #POSTORT SKATTSTAD
+											if (postal_address_tokens.size() > 1) {
+												info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
+												std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[1] << std::flush;
+											}
+											else {
+												info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
+											}
+										}
+										SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
+										{
+											// #BLANKETT N7-2013P1
+											k10_sru_file_tag_map["#BLANKETT"] = "K10-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+											// #IDENTITET 193510250100 20130426 174557
+											std::ostringstream os{};
+											if (model->employee_birth_ids[0].size()>0) {
+												os << " " << model->employee_birth_ids[0];
+											}
+											else {
+												os << " " << "?PERSONNR?";											
+											}
+											auto today = to_today();
+											os << " " << today;
+											os << " " << "120000";
+											k10_sru_file_tag_map["#IDENTITET"] = os.str();
+										}
+										SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
+										{
+											// #BLANKETT N7-2013P1
+											ink1_sru_file_tag_map["#BLANKETT"] = "INK1-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+											// #IDENTITET 193510250100 20130426 174557
+											std::ostringstream os{};
+											if (model->employee_birth_ids[0].size()>0) {
+												os << " " << model->employee_birth_ids[0];
+											}
+											else {
+												os << " " << "?PERSONNR?";											
+											}
+											auto today = to_today();
+											os << " " << today;
+											os << " " << "120000";
+
+											ink1_sru_file_tag_map["#IDENTITET"] = os.str();
+										}
+										SKV::SRU::FilesMapping fm {
+											.info = info_sru_file_tag_map
+										};
+										SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map}; 
+										fm.blanketter.push_back(k10_blankett);
+										SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map}; 
+										fm.blanketter.push_back(ink1_blankett);
+
+										std::filesystem::path info_file_path{"to_skv/SRU/INFO.SRU"};
+										std::filesystem::create_directories(info_file_path.parent_path());
+										auto info_std_os = std::ofstream{info_file_path};
+										SKV::SRU::OStream info_sru_os{info_std_os};
+										SKV::SRU::InfoOStream info_os{info_sru_os};
+										std::cout << "\n(3)" << std::flush;
+
+										if (info_os << fm) {
+											std::cout << "\n(4)" << std::flush;
+											prompt << "\nCreated " << info_file_path;
+										}
+										else {
+											std::cout << "\n(5)" << std::flush;
+											prompt << "\nSorry, FAILED to create " << info_file_path;
+										}
+
+										std::filesystem::path blanketter_file_path{"to_skv/SRU/BLANKETTER.SRU"};
+										std::filesystem::create_directories(blanketter_file_path.parent_path());
+										auto blanketter_std_os = std::ofstream{blanketter_file_path};
+										SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
+										SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
+										std::cout << "\n(6)" << std::flush;
+
+										if (blanketter_os << fm) {
+											std::cout << "\n(7)" << std::flush;
+											prompt << "\nCreated " << blanketter_file_path;
+										}
+										else {
+											prompt << "\nSorry, FAILED to create " << blanketter_file_path;
+										}
+
+									}
+									else {
+										prompt << "\nSorry, Failed to acquirer the data for the K10 and INK1 forms";									
+									}
+								} // if false
+							} break;
+							default: {prompt << "\nPlease enter a valid index";} break;
+						}
+					}
+
+					case PromptState::EnterIncome:
+					case PromptState::EnterDividend:
 					case PromptState::EnterHA:
 					case PromptState::EnterContact:
 					case PromptState::EnterEmployeeID:
@@ -6857,6 +6904,36 @@ public:
 						auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
 						prompt << delta_prompt;
 						model->prompt_state = prompt_state;
+					}
+				}
+				else if (model->prompt_state == PromptState::EnterIncome) {
+					if (auto amount = to_amount(command)) {
+						model->sru["0"].set(1000,std::to_string(*amount));
+
+						Amount income{};
+						prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
+						Amount dividend{};
+						prompt << "\n2) K10 1.6 Utdelning = " << dividend;
+						prompt << "\n3) Continue (Create K10 and INK1)";
+						model->prompt_state = PromptState::K10INK1EditOptions;
+					}
+					else {
+						prompt << "\nPlease enter a valid amount";
+					}
+				}
+				else if (model->prompt_state == PromptState::EnterDividend) {
+					if (auto amount = to_amount(command)) {
+						model->sru["0"].set(4504,std::to_string(*amount));
+
+						Amount income{};
+						prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
+						Amount dividend{};
+						prompt << "\n2) K10 1.6 Utdelning = " << dividend;
+						prompt << "\n3) Continue (Create K10 and INK1)";
+						model->prompt_state = PromptState::K10INK1EditOptions;
+					}
+					else {
+						prompt << "\nPlease enter a valid amount";
 					}
 				}
 				else {
