@@ -2687,6 +2687,18 @@ void for_each_meta_account_transaction(SIEEnvironments const& sie_envs,auto& f) 
 	}
 }
 
+OptionalAmount account_sum(SIEEnvironment const& sie_env,BASAccountNo account_no) {
+	OptionalAmount result{};
+	auto f = [&account_no,&result](BAS::anonymous::AccountTransaction const& at) {
+		if (at.account_no == account_no) {
+			if (!result) result = at.amount;
+			else *result += at.amount;
+		}
+	};
+	for_each_anonymous_account_transaction(sie_env,f);
+	return result;
+}
+
 OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
 	OptionalAmount result{};
 	try {
@@ -3176,7 +3188,6 @@ BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironments 
 	for_each_anonymous_journal_entry(sie_envs,ats);
 	return ats.result;
 }
-
 
 struct T2 {
 	BAS::MetaEntry me;
@@ -5045,6 +5056,28 @@ private:
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
 
+Amount get_INK1_Income(Model const& model) {
+	Amount result{};
+	if (auto amount = model->sru["0"].at(1000)) {
+		std::istringstream is{*amount};
+		is >> result;
+	}
+	return result;
+}
+Amount get_K10_Dividend(Model const& model) {
+	Amount result{};
+	if (auto amount = model->sru["0"].at(4504)) {
+		// use amount assigned to SRU 4504
+		std::istringstream is{*amount};
+		is >> result;
+	}
+	else if (auto amount = account_sum(model->sie["current"],2898)) {
+		// Use any amount accounted for in 2898
+		result = *amount;
+	}
+	return result;
+}
+
 namespace SKV {
 	namespace SRU {
 
@@ -5996,9 +6029,9 @@ public:
 								// We need two input values verified by the user
 								// 1. The Total income to tax (SKV SRU Code 1000)
 								// 2. The dividend to Tax (SKV SRU Code 4504)
-								Amount income{};
+								Amount income = get_INK1_Income(model);
 								prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
-								Amount dividend{};
+								Amount dividend = get_K10_Dividend(model);
 								prompt << "\n2) K10 1.6 Utdelning = " << dividend;
 								prompt << "\n3) Continue (Create K10 and INK1)";
 								model->prompt_state = PromptState::K10INK1EditOptions;								
@@ -6908,14 +6941,14 @@ public:
 				}
 				else if (model->prompt_state == PromptState::EnterIncome) {
 					if (auto amount = to_amount(command)) {
-						model->sru["0"].set(1000,std::to_string(*amount));
+						model->sru["0"].set(1000,std::to_string(SKV::to_tax(*amount)));
 
-						Amount income{};
+						Amount income = get_INK1_Income(model);
 						prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
-						Amount dividend{};
+						Amount dividend = get_K10_Dividend(model);
 						prompt << "\n2) K10 1.6 Utdelning = " << dividend;
 						prompt << "\n3) Continue (Create K10 and INK1)";
-						model->prompt_state = PromptState::K10INK1EditOptions;
+						model->prompt_state = PromptState::K10INK1EditOptions;								
 					}
 					else {
 						prompt << "\nPlease enter a valid amount";
@@ -6923,14 +6956,14 @@ public:
 				}
 				else if (model->prompt_state == PromptState::EnterDividend) {
 					if (auto amount = to_amount(command)) {
-						model->sru["0"].set(4504,std::to_string(*amount));
+						model->sru["0"].set(4504,std::to_string(SKV::to_tax(*amount)));
 
-						Amount income{};
+						Amount income = get_INK1_Income(model);
 						prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
-						Amount dividend{};
+						Amount dividend = get_K10_Dividend(model);
 						prompt << "\n2) K10 1.6 Utdelning = " << dividend;
 						prompt << "\n3) Continue (Create K10 and INK1)";
-						model->prompt_state = PromptState::K10INK1EditOptions;
+						model->prompt_state = PromptState::K10INK1EditOptions;								
 					}
 					else {
 						prompt << "\nPlease enter a valid amount";
