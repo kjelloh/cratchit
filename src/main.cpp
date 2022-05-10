@@ -5626,12 +5626,52 @@ public:
 								auto at_end = model->at_candidates.end();
 								if (ix < std::distance(tme_iter,tme_end)) {
 									std::advance(tme_iter,ix);
-									auto tp = to_template(*tme_iter);
-									if (tp) {
-										auto me = to_journal_entry(had,*tp);
-										prompt << "\ncandidate " << me;
-										had.current_candidate = me;
-										model->prompt_state = PromptState::JEAggregateOptionIndex;
+									// #1 hard code for EU VAT Detection
+									switch (to_vat_type(*tme_iter)) {
+										case 0: {
+											// No VAT in candidate. 
+											// Continue with 
+											// 1) Some propose gross account transactions
+											// 2) a n x gross Counter aggregate
+											auto tp = to_template(*tme_iter);
+											if (tp) {
+												auto me = to_journal_entry(had,*tp);
+												prompt << "\nNo VAT candidate " << me;
+												had.current_candidate = me;
+												model->prompt_state = PromptState::JEAggregateOptionIndex;
+											}
+										} break;
+										case 1: {
+											// Swedish VAT detcted in candidate.
+											// Continue with 
+											// 2) a n x {net,vat} counter aggregate
+											auto tp = to_template(*tme_iter);
+											if (tp) {
+												auto me = to_journal_entry(had,*tp);
+												prompt << "\nSwedish VAT candidate " << me;
+												had.current_candidate = me;
+												model->prompt_state = PromptState::JEAggregateOptionIndex;
+											}
+										} break;
+										case 2: {
+											// EU VAT detected in candidate.
+											// Continue with a 
+											// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
+											std::cout << "\nEU VAT Detected in selected Cadidate :)";
+										} break;
+										case 3: {
+											// Import VAT detected in candidate
+											// Continue with a
+											// 1) Import cost gross transaction
+											// 2) Import Cost counter aggregate
+											auto tp = to_template(*tme_iter);
+											if (tp) {
+												auto me = to_journal_entry(had,*tp);
+												prompt << "\nImport VAT candidate " << me;
+												had.current_candidate = me;
+												model->prompt_state = PromptState::JEAggregateOptionIndex;
+											}
+										}
 									}
 								}
 								else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
@@ -6344,24 +6384,27 @@ public:
 					// std::cout << model->sie["current"];
 				}
 				else if (ast.size()==2) {
-					if (auto bas_account_no = BAS::to_account_no(ast[1])) {
+					if (ast[1]=="*") {
+						// List unposted (staged) sie entries
+						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_flagged_unposted{}};
+						prompt << filtered_sie;
+					}
+					else if (model->sie.contains(ast[1])) {
+						// List journal entries of a year index
+						prompt << model->sie[ast[1]];
+					}
+					else if (auto bas_account_no = BAS::to_account_no(ast[1])) {
+						// List journal entries filtered on an bas account number
 						prompt << "\nFilter journal entries that has a transaction to account no " << *bas_account_no;
 						prompt << "\nTIP: If you meant filter on amount please re-enter using '.00' to distinguish it from an account no.";
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
 						prompt << filtered_sie;
 					}
 					else if (auto gross_amount = to_amount(ast[1])) {
+						// List journal entries filtered on given amount
 						prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
 						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasGrossAmount{*gross_amount}};
 						prompt << filtered_sie;
-					}
-					else if (ast[1]=="*") {
-						// List unposted sie entries
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_flagged_unposted{}};
-						prompt << filtered_sie;
-					}
-					else if (model->sie.contains(ast[1])) {
-						prompt << model->sie[ast[1]];
 					}
 					else if (auto sie_file_path = path_to_existing_file(ast[1])) {
 						if (auto sie_env = from_sie_file(*sie_file_path)) {
