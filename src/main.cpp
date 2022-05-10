@@ -831,6 +831,10 @@ namespace BAS {
 		return (at1.amount > at2.amount);
 	};
 
+	auto has_greater_abs_amount = [](BAS::anonymous::AccountTransaction const& at1,BAS::anonymous::AccountTransaction const& at2) {
+		return (std::abs(at1.amount) > std::abs(at2.amount));
+	};
+
 	BAS::MetaEntry& sort(BAS::MetaEntry& me,auto& comp) {
 		std::sort(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),comp);
 		return me;
@@ -2340,22 +2344,43 @@ bool are_same_and_less_than_100_cents_apart(Amount const& a1,Amount const& a2) {
 	return result;
 }
 
+BAS::MetaEntry swapped_ats_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& target_at,BAS::anonymous::AccountTransaction const& new_at) {
+	BAS::MetaEntry result{me};
+	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&target_at](auto const& entry){
+		return (entry.account_no == target_at.account_no);
+	});
+	if (iter != result.defacto.account_transactions.end()) {
+		result.defacto.account_transactions.erase(iter);
+		result.defacto.account_transactions.push_back(new_at);
+	}
+	else {
+		std::cerr << "\nswapped_ats_entry failed. Could not match target " << target_at << " with new_at " << new_at;
+	}
+	BAS::sort(result,BAS::has_greater_abs_amount);
+	return result;
+}
+
+// #3
 BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
 	std::cout << "\nupdated_entry";
 	std::cout << "\nme:" << me;
 	std::cout << "\nat:" << at;
 	
 	BAS::MetaEntry result{me};
-	BAS::sort(result,BAS::has_greater_amount);
+	BAS::sort(result,BAS::has_greater_abs_amount);
+	std::cout << "\npre-result:" << result;
+
 	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&at](auto const& entry){
 		return (entry.account_no == at.account_no);
 	});
+	auto at_index = std::distance(result.defacto.account_transactions.begin(),iter);
+	std::cout << "\nat_index = " << at_index;
 	if (iter == result.defacto.account_transactions.end()) {
 		result.defacto.account_transactions.push_back(at);
 		result = updated_entry(result,at); // recurse with added entry
 	}
 	else if (me.defacto.account_transactions.size()==4) {
-		// std::cout << "\n4 OK";
+		std::cout << "\n4 OK";
 		// Assume 0: Transaction Amount, 1: Amount no VAT, 3: VAT, 4: rounding amount
 		auto& trans_amount = result.defacto.account_transactions[0].amount;
 		auto& ex_vat_amount = result.defacto.account_transactions[1].amount;
@@ -2373,19 +2398,20 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 		auto at_sign = static_cast<int>(at.amount/abs_at_amount);
 
 		auto vat_rate = static_cast<int>(std::round(abs_vat_amount*100/abs_ex_vat_amount));
+		std::cout << "\nabs_vat_amount:" << abs_vat_amount << " abs_ex_vat_amount:" << abs_ex_vat_amount << " vat_rate:" << vat_rate;
 		switch (vat_rate) {
 			case 25:
 			case 12:
 			case 6: {
-				// std::cout << "\nVAT OK";
-				switch (std::distance(result.defacto.account_transactions.begin(),iter)) {
+				std::cout << "\nVAT OK";
+				switch (at_index) {
 					case 0: {
-						// Assume update transaction amount
-						std::cout << "\nUpdate Transaction Amount";
+						// Assume update gross transaction amount
+						std::cout << "\nUpdate Gross Transaction Amount";
 					} break;
 					case 1: {
 						// Assume update amount ex VAT
-						// std::cout << "\n Update Amount Ex VAT";
+						std::cout << "\n Update Net Amount Ex VAT";
 						abs_ex_vat_amount = abs_at_amount;
 						abs_vat_amount = std::round(vat_rate*abs_ex_vat_amount)/100;
 
@@ -2399,7 +2425,7 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 					} break;
 					case 3: {
 						// Assume update the rounding amount
-						// std::cout << "\n Update Rounding";
+						std::cout << "\n Update Rounding";
 						if (at.amount < 1.0) {
 							// Assume a cent rounding amount
 							// Automate the following algorithm.
@@ -2422,6 +2448,7 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 				}
 			} break;
 			default: {
+				std::cout << "\nUnknown VAT rate ";
 				// Unknown VAT rate
 				// Do no adjustment
 				// Leave to user to deal with this update
@@ -2829,6 +2856,12 @@ int to_vat_type(BAS::TypedMetaEntry const& tme) {
 	}
 	else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
 		if (props_sum == 3) {
+			if (log) std::cout << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
+			result = 1; // Swedish VAT
+		}
+	}
+	else if ((props_counter.size() == 4) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and props_counter.contains("cents") and !props_counter.contains("eu_vat")) {
+		if (props_sum == 4) {
 			if (log) std::cout << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
 			result = 1; // Swedish VAT
 		}
@@ -5626,7 +5659,6 @@ public:
 								auto at_end = model->at_candidates.end();
 								if (ix < std::distance(tme_iter,tme_end)) {
 									std::advance(tme_iter,ix);
-									// #1 hard code for EU VAT Detection
 									switch (to_vat_type(*tme_iter)) {
 										case 0: {
 											// No VAT in candidate. 
@@ -5657,7 +5689,37 @@ public:
 											// EU VAT detected in candidate.
 											// Continue with a 
 											// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
-											std::cout << "\nEU VAT Detected in selected Cadidate :)";
+											// #1 hard code for EU VAT Candidate
+											BAS::MetaEntry me {
+												.defacto = {
+													.caption = had.heading
+													,.date = had.date
+												}
+											};
+											for (auto const& [at,props] : tme_iter->defacto.account_transactions) {
+												if (props.contains("gross") or props.contains("eu_purchase")) {
+													Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+													BAS::anonymous::AccountTransaction new_at{
+														.account_no = at.account_no
+														,.transtext = std::nullopt
+														,.amount = sign*std::abs(had.amount)
+													};
+													me.defacto.account_transactions.push_back(new_at);
+												}
+												else if (props.contains("vat")) {
+													Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+													BAS::anonymous::AccountTransaction new_at{
+														.account_no = at.account_no
+														,.transtext = std::nullopt
+														,.amount = sign*std::abs(had.amount*0.2f)
+													};
+													me.defacto.account_transactions.push_back(new_at);
+													prompt << "\nNOTE: Assumed 25% VAT for " << new_at;
+												}
+											}											
+											prompt << "\nEU VAT candidate " << me;
+											had.current_candidate = me;
+											model->prompt_state = PromptState::JEAggregateOptionIndex;
 										} break;
 										case 3: {
 											// Import VAT detected in candidate
@@ -6919,11 +6981,25 @@ public:
 				else if (model->prompt_state == PromptState::Amount) {
 					std::cout << "\nPromptState::Amount " << std::quoted(command);
 					if (auto had_iter = model->selected_had()) {
-						if (auto amount = to_amount(command)) {
+						if (auto account_no = BAS::to_account_no(command)) {
+							auto new_at = model->at;
+							new_at.account_no = *account_no;
+							prompt << "\nBAS Account: " << *account_no;
+							if ((*had_iter)->current_candidate) {
+								(*had_iter)->current_candidate = swapped_ats_entry(*(*had_iter)->current_candidate,model->at,new_at);
+								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
+								model->prompt_state = PromptState::JEAggregateOptionIndex;
+							}
+							else {
+								prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
+							}
+						}
+						else if (auto amount = to_amount(command)) {
 							prompt << "\nAmount " << *amount;
 							model->at.amount = *amount;
 							if ((*had_iter)->current_candidate) {
 								(*had_iter)->current_candidate = updated_entry(*(*had_iter)->current_candidate,model->at);
+								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
 								model->prompt_state = PromptState::JEAggregateOptionIndex;
 							}
 							else {
@@ -6931,24 +7007,22 @@ public:
 							}
 						}
 						else {
-							prompt << "\nPlease enter an Amount";
+							// Assume the user entered a new transtext
+							prompt << "\nTranstext " << std::quoted(command);
+							auto new_at = model->at;
+							new_at.transtext = command;
+							if ((*had_iter)->current_candidate) {
+								(*had_iter)->current_candidate = swapped_ats_entry(*(*had_iter)->current_candidate,model->at,new_at);
+								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
+								model->prompt_state = PromptState::JEAggregateOptionIndex;
+							}
+							else {
+								prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
+							}
 						}
 					}
 					else {
 						prompt << "\nPlease select a Heading Amount Date entry";
-					}
-
-					try {
-						auto amount = to_amount(command);
-						if (amount) {
-						}
-						else {
-							prompt << "\nNot an amount - " << std::quoted(command);
-						}
-					}
-					catch (std::exception const& e) {
-						prompt << "\nERROR - " << e.what();
-						prompt << "\nPlease enter a valid amount";
 					}
 				}
 				else if (model->prompt_state == PromptState::EnterContact) {
