@@ -2361,8 +2361,8 @@ BAS::MetaEntry swapped_ats_entry(BAS::MetaEntry const& me,BAS::anonymous::Accoun
 }
 
 // #3
-BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
-	std::cout << "\nupdated_entry";
+BAS::MetaEntry updated_gross_net_vat_cents_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
+	std::cout << "\nupdated_gross_net_vat_cents_entry";
 	std::cout << "\nme:" << me;
 	std::cout << "\nat:" << at;
 	
@@ -2377,7 +2377,7 @@ BAS::MetaEntry updated_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTra
 	std::cout << "\nat_index = " << at_index;
 	if (iter == result.defacto.account_transactions.end()) {
 		result.defacto.account_transactions.push_back(at);
-		result = updated_entry(result,at); // recurse with added entry
+		result = updated_gross_net_vat_cents_entry(result,at); // recurse with added entry
 	}
 	else if (me.defacto.account_transactions.size()==4) {
 		std::cout << "\n4 OK";
@@ -2872,6 +2872,9 @@ int to_vat_type(BAS::TypedMetaEntry const& tme) {
 			and (props_counter.contains("eu_vat")))) {
 		result = 2; // EU VAT
 		if (log) std::cout << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
+	}
+	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "vat") or (entry.first == "eu_vat") or  (entry.first == "cents");})) {
+		result = 3; // All VATS (probably a VAT report)
 	}
 	else {
 		if (log) std::cout << "\nFailed to recognise the VAT type";
@@ -5722,17 +5725,55 @@ public:
 											model->prompt_state = PromptState::JEAggregateOptionIndex;
 										} break;
 										case 3: {
-											// Import VAT detected in candidate
-											// Continue with a
-											// 1) Import cost gross transaction
-											// 2) Import Cost counter aggregate
-											auto tp = to_template(*tme_iter);
-											if (tp) {
-												auto me = to_journal_entry(had,*tp);
-												prompt << "\nImport VAT candidate " << me;
-												had.current_candidate = me;
-												model->prompt_state = PromptState::JEAggregateOptionIndex;
-											}
+											//  M2 "Momsrapport 2021-07-01 - 2021-09-30" 20210930
+											// 	 vat = sort_code: 0x6 : "Utgående moms, 25 %":2610 "" 83300
+											// 	 eu_vat vat = sort_code: 0x56 : "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1654.23
+											// 	 vat = sort_code: 0x6 : "Ingående moms":2640 "" -1690.21
+											// 	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" -849.52
+											// 	 vat = sort_code: 0x6 : "Redovisningskonto för moms":2650 "" -82415
+											// 	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" 0.5
+
+											// TODO: Consider to iterate over all bas accounts defined for VAT Return form
+											//       and create a candidate that will zero out these for period given by date (end of VAT period)
+											BAS::MetaEntry me {
+												.defacto = {
+													.caption = had.heading
+													,.date = had.date
+												}
+											};
+											me.defacto.account_transactions.push_back({
+												.account_no = 2610 // "Utgående moms, 25 %"
+												,.transtext = std::nullopt
+												,.amount = 0
+											});
+											me.defacto.account_transactions.push_back({
+												.account_no = 2614 // "Utgående moms omvänd skattskyldighet, 25 %"
+												,.transtext = std::nullopt
+												,.amount = 0
+											});
+											me.defacto.account_transactions.push_back({
+												.account_no = 2640 // "Ingående moms"
+												,.transtext = std::nullopt
+												,.amount = 0
+											});
+											me.defacto.account_transactions.push_back({
+												.account_no = 2641 // "Debiterad ingående moms"
+												,.transtext = std::nullopt
+												,.amount = 0
+											});
+											me.defacto.account_transactions.push_back({
+												.account_no = 2650 // "Redovisningskonto för moms"
+												,.transtext = std::nullopt
+												,.amount = had.amount
+											});
+											me.defacto.account_transactions.push_back({
+												.account_no = 3740 // "Öres- och kronutjämning"
+												,.transtext = std::nullopt
+												,.amount = 0
+											});
+											prompt << "\nVAT Consolidate candidate " << me;
+											had.current_candidate = me;
+											model->prompt_state = PromptState::JEAggregateOptionIndex;
 										}
 									}
 								}
@@ -5929,10 +5970,7 @@ public:
 										// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
 									} break;
 									case 3: {
-										// Import VAT detected in candidate
-										// Continue with a
-										// 1) Import cost gross transaction
-										// 2) Import Cost counter aggregate
+										// All VATS (VAT Report?)
 									}
 								}
 								// std::map<std::string,unsigned int> props_counter{};
@@ -6998,7 +7036,7 @@ public:
 							prompt << "\nAmount " << *amount;
 							model->at.amount = *amount;
 							if ((*had_iter)->current_candidate) {
-								(*had_iter)->current_candidate = updated_entry(*(*had_iter)->current_candidate,model->at);
+								(*had_iter)->current_candidate = updated_gross_net_vat_cents_entry(*(*had_iter)->current_candidate,model->at);
 								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
 								model->prompt_state = PromptState::JEAggregateOptionIndex;
 							}
