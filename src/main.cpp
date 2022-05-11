@@ -2361,8 +2361,8 @@ BAS::MetaEntry swapped_ats_entry(BAS::MetaEntry const& me,BAS::anonymous::Accoun
 }
 
 // #3
-BAS::MetaEntry updated_gross_net_vat_cents_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
-	std::cout << "\nupdated_gross_net_vat_cents_entry";
+BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
+	std::cout << "\nupdated_amounts_entry";
 	std::cout << "\nme:" << me;
 	std::cout << "\nat:" << at;
 	
@@ -2377,7 +2377,7 @@ BAS::MetaEntry updated_gross_net_vat_cents_entry(BAS::MetaEntry const& me,BAS::a
 	std::cout << "\nat_index = " << at_index;
 	if (iter == result.defacto.account_transactions.end()) {
 		result.defacto.account_transactions.push_back(at);
-		result = updated_gross_net_vat_cents_entry(result,at); // recurse with added entry
+		result = updated_amounts_entry(result,at); // recurse with added entry
 	}
 	else if (me.defacto.account_transactions.size()==4) {
 		std::cout << "\n4 OK";
@@ -2457,6 +2457,8 @@ BAS::MetaEntry updated_gross_net_vat_cents_entry(BAS::MetaEntry const& me,BAS::a
 	}
 	else {
 		// Todo: Future needs may require adjusting transaction amounts to still sum upp to the transaction amount?
+		// For now, handle as a simple "swap out" of the given amount
+		*iter = at;
 	}
 	std::cout << "\nresult:" << result;
 	return result;
@@ -2557,6 +2559,7 @@ public:
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& entry) {
 		std::optional<BAS::MetaEntry> result{};
 		if (this->already_in_posted(entry) == false) result = this->add(entry);
+		else result = this->update(entry);
 		return result;
 	}
 
@@ -2628,6 +2631,21 @@ private:
 		auto verno = largest_verno(me.meta.series) + 1;
 		result.meta.verno = verno;
 		m_journals[me.meta.series][verno] = me.defacto;
+		return result;
+	}
+	BAS::MetaEntry update(BAS::MetaEntry const& me) {
+		BAS::MetaEntry result{me};
+		if (me.meta.verno and *me.meta.verno > 0) {
+			auto journal_iter = m_journals.find(me.meta.series);
+			if (journal_iter != m_journals.end()) {
+				if (me.meta.verno) {
+					auto entry_iter = journal_iter->second.find(*me.meta.verno);
+					if (entry_iter != journal_iter->second.end()) {
+						entry_iter->second = me.defacto; // update
+					}
+				}
+			}
+		}
 		return result;
 	}
 	BAS::VerNo largest_verno(BAS::Series series) {
@@ -3296,12 +3314,32 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 	return collect_t2s.result();
 }
 
+BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vector<std::string> const& ast) {
+	BAS::OptionalMetaEntry result{};
+	try {
+		if ((ast.size()==1) and (ast[0].size()>2)) {
+			// Assume A1,M13 etc as designation for the meta entry to find
+			auto series = ast[0][0];
+			auto s_verno = ast[0].substr(1);
+			auto verno = std::stoi(s_verno);
+			auto f = [&series,&verno,&result](BAS::MetaEntry const& me) {
+				if (me.meta.series == series and me.meta.verno == verno) result = me;
+			};
+			for_each_meta_entry(sie_env,f);
+		}
+	}
+	catch (std::exception const& e) {
+		std::cerr << "\nfind_meta_entry failed. Exception=" << std::quoted(e.what());
+	}
+	return result;
+}
+
 // SKV Electronic API (file formats for upload)
 
 namespace SKV {
 
-	int to_tax(Amount amount) {return std::round(amount);}
-	int to_fee(Amount amount) {return std::round(amount);}
+	int to_tax(Amount amount) {return std::trunc(amount);} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
+	int to_fee(Amount amount) {return std::trunc(amount);} 
 
 	OptionalDateRange to_date_range(std::string const& period_id) {
 		OptionalDateRange result{};
@@ -4949,6 +4987,19 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	return result;
 }
 
+OptionalHeadingAmountDateTransEntry to_had(BAS::MetaEntry const& me) {
+	OptionalHeadingAmountDateTransEntry result{};
+	auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
+	HeadingAmountDateTransEntry had{
+		.heading = me.defacto.caption
+		,.amount = gross_amount
+		,.date = me.defacto.date
+		,.current_candidate = me
+	};
+	result = had;
+	return result;
+}
+
 EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	EnvironmentValue ev{};
 	ev["name"] = cpm.name;
@@ -5017,8 +5068,8 @@ enum class PromptState {
 	,NetVATAccountInput
 	,JEAggregateOptionIndex
 	,EnterHA
-	,AccountIndex
-	,Amount
+	,ATIndex
+	,EditAT
 	,CounterAccountsEntry
 	,SKVEntryIndex
 	,QuarterOptionIndex
@@ -5273,9 +5324,9 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("3 STAGE as-is");
 		} break;
 		case PromptState::EnterHA: {result.push_back("PromptState::EnterHA");} break;
-		case PromptState::AccountIndex: {result.push_back("PromptState::AccountIndex");} break;
-		case PromptState::Amount: {
-			result.push_back("Please Enter Amount");
+		case PromptState::ATIndex: {result.push_back("PromptState::ATIndex");} break;
+		case PromptState::EditAT: {
+			result.push_back("Please Enter new Account, new Amount (with decimal comma) or new transaction text");
 		} break;
 		case PromptState::CounterAccountsEntry: {result.push_back("PromptState::CounterAccountsEntry");} break;
 		case PromptState::SKVEntryIndex: {result.push_back("PromptState::SKVEntryIndex");} break;
@@ -5463,14 +5514,14 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::EnterHA: {
 			prompt << ":had:je:ha";
 		} break;
-		case PromptState::AccountIndex: {
-			prompt << ":had:je:account";
+		case PromptState::ATIndex: {
+			prompt << ":had:je:at";
 		} break;
-		case PromptState::Amount: {
-			prompt << ":had:je:account:amount";
+		case PromptState::EditAT: {
+			prompt << ":had:je:at:edit";
 		} break;
 		case PromptState::CounterAccountsEntry: {
-			prompt << "had:je:at";
+			prompt << "had:je:cat";
 		} break;
 		case PromptState::SKVEntryIndex: {
 			prompt << ":skv";
@@ -5544,7 +5595,7 @@ public:
 			std::istringstream is{ast[0]};
 			if (auto signed_ix = to_signed_ix(ast[0]); 
 					     signed_ix 
-				   and model->prompt_state != PromptState::Amount
+				   and model->prompt_state != PromptState::EditAT
 					 and model->prompt_state != PromptState::EnterIncome
 					 and model->prompt_state != PromptState::EnterDividend) {
 				std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
@@ -6018,7 +6069,7 @@ public:
 											std::for_each(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
 												prompt << "\n  " << i++ << " " << at;
 											});
-											model->prompt_state = PromptState::AccountIndex;
+											model->prompt_state = PromptState::ATIndex;
 										}
 										else {
 											// Stage as-is
@@ -6064,7 +6115,7 @@ public:
 										std::for_each(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
 											prompt << "\n  " << i++ << " " << at;
 										});
-										model->prompt_state = PromptState::AccountIndex;
+										model->prompt_state = PromptState::ATIndex;
 									} break;
 									case 3: {
 										// Stage the candidate
@@ -6092,11 +6143,11 @@ public:
 						}
 
 					} break;
-					case PromptState::AccountIndex: {
+					case PromptState::ATIndex: {
 						if (auto at = model->selected_had_at(ix)) {
 							model->at = *at;
-							prompt << "\nTransaction:" << model->at;
-							model->prompt_state = PromptState::Amount;
+							prompt << "\nAccount Transaction:" << model->at;
+							model->prompt_state = PromptState::EditAT;
 						}
 						else {
 							prompt << "\nEntered index does not refer to an Account Trasnaction Entry in current Heading Amount Date entry";
@@ -6129,7 +6180,8 @@ public:
 
 								prompt << "\n0: Track Current Quarter " << current_qr;
 								prompt << "\n1: Report Previous Quarter " << previous_qr;
-								prompt << "\n2: Check Previous two Quarters " << two_previous_quarters;
+								prompt << "\n2: Check Quarter before previous " << quarter_before_previous_qr;
+								prompt << "\n3: Check Previous two Quarters " << two_previous_quarters;
 								model->prompt_state = PromptState::QuarterOptionIndex;								
 							} break;
 							case 2: {
@@ -6197,9 +6249,13 @@ public:
 								period_range = previous_qr;
 							} break;
 							case 2: {
+								prompt << "\nQuarter before previous " << quarter_before_previous_qr << " (to check)";
+								period_range = quarter_before_previous_qr;
+							} break;
+							case 3: {
 								prompt << "\nPrevious two Quarters " << two_previous_quarters << " (to check)";
 								period_range = two_previous_quarters;
-							} break;
+							}
 							default: {
 								prompt << "\nPlease select a valid option (it seems option " << ix << " is unknown to me";
 							} break;
@@ -6439,7 +6495,7 @@ public:
 					case PromptState::EnterHA:
 					case PromptState::EnterContact:
 					case PromptState::EnterEmployeeID:
-					case PromptState::Amount:
+					case PromptState::EditAT:
 					case PromptState::Undefined:
 					case PromptState::Unknown:
 						prompt << "\nPlease enter \"word\" like text (index option not available in this state)";
@@ -6817,6 +6873,8 @@ public:
 							}
 						}
 						auto hads = CSV::from_stream(in,gross_bas_account_no);
+						// #X Filter entries in the read csv-file against already existing hads and sie-entries
+						// #X match date and amount
 						std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
 					}
 					else {
@@ -7016,8 +7074,9 @@ public:
 					}
 
 				}
-				else if (model->prompt_state == PromptState::Amount) {
-					std::cout << "\nPromptState::Amount " << std::quoted(command);
+				else if (model->prompt_state == PromptState::EditAT) {
+					// Handle user Edit of currently selected account transaction (at)
+					std::cout << "\nPromptState::EditAT " << std::quoted(command);
 					if (auto had_iter = model->selected_had()) {
 						if (auto account_no = BAS::to_account_no(command)) {
 							auto new_at = model->at;
@@ -7036,7 +7095,7 @@ public:
 							prompt << "\nAmount " << *amount;
 							model->at.amount = *amount;
 							if ((*had_iter)->current_candidate) {
-								(*had_iter)->current_candidate = updated_gross_net_vat_cents_entry(*(*had_iter)->current_candidate,model->at);
+								(*had_iter)->current_candidate = updated_amounts_entry(*(*had_iter)->current_candidate,model->at);
 								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
 								model->prompt_state = PromptState::JEAggregateOptionIndex;
 							}
@@ -7112,7 +7171,6 @@ public:
 				else if (model->prompt_state == PromptState::EnterDividend) {
 					if (auto amount = to_amount(command)) {
 						model->sru["0"].set(4504,std::to_string(SKV::to_tax(*amount)));
-
 						Amount income = get_INK1_Income(model);
 						prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
 						Amount dividend = get_K10_Dividend(model);
@@ -7122,6 +7180,22 @@ public:
 					}
 					else {
 						prompt << "\nPlease enter a valid amount";
+					}
+				}
+				else if (auto me = find_meta_entry(model->sie["current"],ast)) {
+					// The user has entered a search term for a specific journal entry (to edit)
+					// Allow the user to edit individual account transactions
+					if (auto had = to_had(*me)) {
+						model->heading_amount_date_entries.push_back(*had);
+						model->had_index = 0; // index zero is the "last" (newest) one
+						unsigned int i{};
+						std::for_each(had->current_candidate->defacto.account_transactions.begin(),had->current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+							prompt << "\n  " << i++ << " " << at;
+						});
+						model->prompt_state = PromptState::ATIndex;
+					}
+					else {
+						prompt << "\nSorry, I failed to turn selected journal entry into a valid had (it seems I am not sure exactly why...)";
 					}
 				}
 				else {
