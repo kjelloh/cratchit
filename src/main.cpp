@@ -952,7 +952,7 @@ namespace BAS {
 		using TypedAccountTransaction = TypedAccountTransactions::value_type;
 		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
 	}
-	using TypedMetaEntry = MetaDefacto<JournalEntryMeta,anonymous::TypedJournalEntry>;
+	using TypedMetaEntry = MetaDefacto<BAS::JournalEntryMeta,anonymous::TypedJournalEntry>;
 	using TypedMetaEntries = std::vector<TypedMetaEntry>;
 
 	void for_each_typed_account_transaction(BAS::TypedMetaEntry const& tme,auto& f) {
@@ -4296,12 +4296,54 @@ namespace SKV {
 				return result;
 			}
 
-			OptionalHeadingAmountDateTransEntry to_vat_returns_had(SIEEnvironments const& sie_envs) {
-				OptionalHeadingAmountDateTransEntry result{};
+			bool quarter_has_VAT_consilidation_entry(SIEEnvironments const& sie_envs,DateRange const& period) {
+				bool result{};
+				auto f = [&period,&result](BAS::TypedMetaEntry const& tme) {
+					auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
+					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2020-04-01 - 2020-06-30 20200630
+					// gross vat cents = sort_code: 0x367  M2 Momsrapport 2020-07-01 - 2020-09-30 20200930
+					// gross vat cents = sort_code: 0x367  M3 Momsrapport 2020-10-01 - 2020-12-31 20201231
+					// gross vat cents = sort_code: 0x367  M4 Momsrapport 2021-01-01 - 2021-03-31 20210331
+					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2021-04-01 - 2021-06-30 20210630
+					// eu_vat vat cents = sort_code: 0x567 M2 Momsrapport 2021-07-01 - 2021-09-30 20210930
+					// NOTE: A VAT consolidation entry will have a detectable gross VAT entry if we have no income to declare.
+					if (period.contains(tme.defacto.date)) {
+						std::cout << "\nquarter_has_VAT_consilidation_entry, scanning " << tme.meta.series;
+						if (tme.meta.verno) std::cout << *tme.meta.verno;
+						std::cout << " order_code:" << std::hex << order_code << std::dec;
+						result = result or  (order_code == 0x367) or (order_code == 0x567);
+					}
+				};
+				for_each_typed_meta_entry(sie_envs,f);
+				return result;
+			}
+			
+			HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironments const& sie_envs) {
+				HeadingAmountDateTransEntries result{};
 				try {
 					// Create a had for last quarter if there is no journal entry in the M series for it
 					// Otherwise create a had for current quarter
 					auto today = to_today();
+					auto quarter = to_quarter_range(today);
+					for (int i=0;i<5;++i) {
+						std::cout << "\nto_vat_returns_hads, checking quarter " << quarter;
+						// Check three quartes back for missing VAT consilidation journal entry
+						if (quarter_has_VAT_consilidation_entry(sie_envs,quarter) == false) {
+							std::cout << "\nTODO: Generate a VAT Consolidation had for quarter " << quarter;		
+						}
+						quarter = to_previous_quarter(quarter);
+					}
+					{
+						// had for quarter before previous quarter VAT Returns
+						auto quarter = to_previous_quarter(to_previous_quarter(to_quarter_range(today)));
+						auto vat_returns_meta = to_vat_returns_meta(quarter);
+						auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+							return vat_returns_meta->period.contains(mat.meta.defacto.date);
+						};
+						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
+							std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map for quarter b e f o r e previous quarter to a had";
+						}
+					}
 					{
 						// had for previous quarter VAT Returns
 						auto quarter = to_previous_quarter(to_quarter_range(today));
@@ -6663,9 +6705,10 @@ public:
 				}
 			}
 			else if (ast[0] == "-had") {
-				if (auto vat_returns_had = SKV::XML::VATReturns::to_vat_returns_had(model->sie)) {
-						prompt << "\n*NEW* " << *vat_returns_had;
-						model->heading_amount_date_entries.push_back(*vat_returns_had);
+				auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
+				for (auto const& vat_returns_had : vat_returns_hads) {
+						prompt << "\n*NEW* " << vat_returns_had;
+						model->heading_amount_date_entries.push_back(vat_returns_had);
 				}
 				std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 				if (ast.size()==1) {
