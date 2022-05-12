@@ -533,7 +533,7 @@ DateRange to_quarter_range(Date const& a_period_date) {
 	return {begin,end};
 }
 
-DateRange to_previous_quarter(DateRange const& quarter) {
+DateRange to_three_months_earlier(DateRange const& quarter) {
 	auto const quarter_duration = std::chrono::months{3};
 	return {quarter.begin() - quarter_duration,quarter.end() - quarter_duration};
 }
@@ -683,7 +683,7 @@ namespace BAS {
 		}
 	}
 
-	Amount cents_amount(Amount amount) {
+	Amount to_cents_amount(Amount amount) {
 		return std::round(amount*100.0)/100.0;
 	}
 
@@ -1383,12 +1383,12 @@ public:
 		BAS::anonymous::AccountTransaction net_at{
 			.account_no = m_net_at.account_no
 			,.transtext = transtext
-			,.amount = BAS::cents_amount(static_cast<Amount>(m_sign * gross_amount * (1.0-m_gross_vat_rate)))
+			,.amount = BAS::to_cents_amount(static_cast<Amount>(m_sign * gross_amount * (1.0-m_gross_vat_rate)))
 		};
 		BAS::anonymous::AccountTransaction vat_at{
 			.account_no = m_vat_at.account_no
 			,.transtext = transtext
-			,.amount = BAS::cents_amount(static_cast<Amount>(m_sign * gross_amount * m_gross_vat_rate))
+			,.amount = BAS::to_cents_amount(static_cast<Amount>(m_sign * gross_amount * m_gross_vat_rate))
 		};
 		result.push_back(net_at);
 		result.push_back(vat_at);
@@ -3970,6 +3970,7 @@ namespace SKV {
 			Amount to_form_sign(BoxNo box_no, Amount amount) {
 				// All VAT Returns form amounts are without sign except box 49 where + means VAT to pay and - means VAT to "get back"
 				switch (box_no) {
+					// TODO: Consider it is in fact so that all amounts to SKV are to have the opposite sign of those in BAS?
 					case 49: return -1 * amount; break; // The VAT Returns form must encode VAT to be paied as positive (opposite of how it is booked in BAS, negative meaning a debt to SKV)
 					default: return std::abs(amount);
 				}
@@ -4312,12 +4313,14 @@ namespace SKV {
 					// gross vat cents = sort_code: 0x367  M4 Momsrapport 2021-01-01 - 2021-03-31 20210331
 					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2021-04-01 - 2021-06-30 20210630
 					// eu_vat vat cents = sort_code: 0x567 M2 Momsrapport 2021-07-01 - 2021-09-30 20210930
+					// [ eu_vat vat = sort_code: 0x56] M3 "Momsrapport 20211001...20211230" 20211230
+
 					// NOTE: A VAT consolidation entry will have a detectable gross VAT entry if we have no income to declare.
 					if (period.contains(tme.defacto.date)) {
 						std::cout << "\nquarter_has_VAT_consilidation_entry, scanning " << tme.meta.series;
 						if (tme.meta.verno) std::cout << *tme.meta.verno;
 						std::cout << " order_code:" << std::hex << order_code << std::dec;
-						result = result or  (order_code == 0x367) or (order_code == 0x567);
+						result = result or  (order_code == 0x56) or (order_code == 0x367) or (order_code == 0x567);
 					}
 				};
 				for_each_typed_meta_entry(sie_envs,f);
@@ -4330,18 +4333,22 @@ namespace SKV {
 					// Create a had for last quarter if there is no journal entry in the M series for it
 					// Otherwise create a had for current quarter
 					auto today = to_today();
-					auto quarter = to_quarter_range(today);
+					auto quarter1 = to_quarter_range(today);
+					auto previous_quarter = to_three_months_earlier(quarter1);
+					auto vat_returns_range = DateRange{previous_quarter.begin(),quarter1.end()}; // previous and "current" quarters
+					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter aftre having created the VAT returns consolidation
+					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
+
 					for (int i=0;i<3;++i) {
-						std::cout << "\nto_vat_returns_hads, checking quarter " << quarter;
+						std::cout << "\nto_vat_returns_hads, checking vat_returns_range " << vat_returns_range;
 						// Check three quartes back for missing VAT consilidation journal entry
-						if (quarter_has_VAT_consilidation_entry(sie_envs,quarter) == false) {
-							std::cout << "\nTODO: Generate a VAT Consolidation had for quarter " << quarter;		
-							auto vat_returns_meta = to_vat_returns_meta(quarter);
-							auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+						if (quarter_has_VAT_consilidation_entry(sie_envs,quarter1) == false) {
+							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
+							auto is_vat_returns_range = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
 								return vat_returns_meta->period.contains(mat.meta.defacto.date);
 							};
-							if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
-								std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map into a had for quarter " << quarter;
+							if (auto box_map = to_form_box_map(sie_envs,is_vat_returns_range)) {
+								std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map into a had for vat returns period " << vat_returns_meta->period;
 								// box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
 								// We need a per-account amount to counter (consolidate) into 1650 (VAT to get back) or 2650 (VAT to pay)
 								// 2650 "Redovisningskonto för moms" SRU:7369
@@ -4355,41 +4362,18 @@ namespace SKV {
 								}
 
 								std::ostringstream heading{};
-								heading << "Momsrapport " << quarter;
+								heading << "Momsrapport " << quarter1;
 								HeadingAmountDateTransEntry had{
 									.heading = heading.str()
 									,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
-									,.date = quarter.end()
+									,.date = vat_returns_range.end()
 									,.vat_returns_form_box_map_candidate = box_map
 								};
-								BAS::MetaEntry me{
-									.meta = {
-										.series = 'M'
-									}
-									,.defacto = {
-										.caption = heading.str()
-										,.date = quarter.end()
-									}
-								};
-								for (auto const& [account_no,amount] : account_amounts) {
-									// account_amounts[0] = 4190.54
-									// account_amounts[2614] = -2364.4
-									// account_amounts[2640] = 2364.4
-									// account_amounts[2641] = 4190.54
-									// account_amounts[3308] = -888.1
-									// account_amounts[9021] = 11822
-									std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
-									// ####
-									me.defacto.account_transactions.push_back({
-										.account_no = account_no
-										,.amount = -amount
-									});
-								}
-								had.current_candidate = me;
 								result.push_back(had);
 							}
 						}
-						quarter = to_previous_quarter(quarter);
+						quarter1 = to_three_months_earlier(quarter1);
+						vat_returns_range = to_three_months_earlier(vat_returns_range);
 					}
 				}
 				catch (std::exception const& e) {
@@ -5721,11 +5705,41 @@ public:
 											// account_amounts[3308] = -888.1
 											// account_amounts[9021] = 11822
 											std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
-											// ####
-											me.defacto.account_transactions.push_back({
-												.account_no = (account_no==0)?2650:account_no
-												,.amount = -amount
-											});
+											// account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
+											// Book this on BAS 2650
+											// NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
+											if (account_no==0) {
+												me.defacto.account_transactions.push_back({
+													.account_no = 2650
+													,.amount = std::trunc(-amount)
+												});
+												me.defacto.account_transactions.push_back({
+													.account_no = 3740
+													,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+												});
+											}
+											else {
+												me.defacto.account_transactions.push_back({
+													.account_no = account_no
+													,.amount = BAS::to_cents_amount(-amount)
+												});
+											}
+											// Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
+											if (account_no == 9021) {
+												me.defacto.account_transactions.push_back({
+													.account_no = 9099
+													,.transtext = "Avbokning (20) 9021"
+													,.amount = BAS::to_cents_amount(amount)
+												});
+											}
+											// Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
+											if (account_no == 3308) {
+												me.defacto.account_transactions.push_back({
+													.account_no = 9099
+													,.transtext = "Avbokning (39) 3308"
+													,.amount = BAS::to_cents_amount(amount)
+												});
+											}
 										}
 										had.current_candidate = me;
 
@@ -5870,11 +5884,41 @@ public:
 											// account_amounts[3308] = -888.1
 											// account_amounts[9021] = 11822
 											std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
-											// ####
-											me.defacto.account_transactions.push_back({
-												.account_no = (account_no==0)?2650:account_no
-												,.amount = -amount // use the counter-amount ;)
-											});
+											// account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
+											// Book this on BAS 2650
+											// NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
+											if (account_no==0) {
+												me.defacto.account_transactions.push_back({
+													.account_no = 2650
+													,.amount = std::trunc(-amount)
+												});
+												me.defacto.account_transactions.push_back({
+													.account_no = 3740
+													,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+												});
+											}
+											else {
+												me.defacto.account_transactions.push_back({
+													.account_no = account_no
+													,.amount = BAS::to_cents_amount(-amount)
+												});
+											}
+											// Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
+											if (account_no == 9021) {
+												me.defacto.account_transactions.push_back({
+													.account_no = 9099
+													,.transtext = "Avbokning (20) 9021"
+													,.amount = BAS::to_cents_amount(amount)
+												});
+											}
+											// Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
+											if (account_no == 3308) {
+												me.defacto.account_transactions.push_back({
+													.account_no = 9099
+													,.transtext = "Avbokning (39) 3308"
+													,.amount = BAS::to_cents_amount(amount)
+												});
+											}
 										}
 										had.current_candidate = me;
 
@@ -6420,8 +6464,8 @@ public:
 								// Create current quarter, previous quarter or two previous quarters option
 								auto today = to_today();
 								auto current_qr = to_quarter_range(today);
-								auto previous_qr = to_previous_quarter(current_qr);
-								auto quarter_before_previous_qr = to_previous_quarter(previous_qr);
+								auto previous_qr = to_three_months_earlier(current_qr);
+								auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
 								auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
 
 								prompt << "\n0: Track Current Quarter " << current_qr;
@@ -6481,8 +6525,8 @@ public:
 					case PromptState::QuarterOptionIndex: {
 						auto today = to_today();
 						auto current_qr = to_quarter_range(today);
-						auto previous_qr = to_previous_quarter(current_qr);
-						auto quarter_before_previous_qr = to_previous_quarter(previous_qr);
+						auto previous_qr = to_three_months_earlier(current_qr);
+						auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
 						auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
 						OptionalDateRange period_range{};
 						switch (ix) {
