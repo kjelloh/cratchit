@@ -1113,6 +1113,7 @@ namespace SKV {
 			BoxNos const EU_PURCHASE_BOX_NOS{20,21};
 			BoxNos const VAT_BOX_NOS{10,11,12,30,31,32,60,61,62,48,49};
 
+			using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
 		} // namespace VATReturns 
 	} // namespace XML 
 } // namespace SKV 
@@ -1403,6 +1404,7 @@ struct HeadingAmountDateTransEntry {
 	Date date{};
 	BAS::OptionalMetaEntry current_candidate{};
 	std::optional<ToNetVatAccountTransactions> counter_ats_producer{};
+	std::optional<SKV::XML::VATReturns::FormBoxMap> vat_returns_form_box_map_candidate{};
 };
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
@@ -3937,8 +3939,6 @@ namespace SKV {
 			// 597			50									"MomsUlagImport"
 			// 149			60									"MomsImportUtgHog"
 
-			using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
-
 			// Meta-data required to frame a VAT Returns form to SKV
 			struct VatReturnsMeta {
 				DateRange period;
@@ -4350,6 +4350,7 @@ namespace SKV {
 									.heading = heading.str()
 									,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
 									,.date = quarter.end()
+									,.vat_returns_form_box_map_candidate = box_map
 								};
 								BAS::MetaEntry me{
 									.meta = {
@@ -5106,6 +5107,7 @@ enum class PromptState {
 	Undefined
 	,Root
 	,HADIndex
+	,VATReturnsFormIndex
 	,JEIndex
 	// Manual Build generator states
 	,GrossDebitorCreditOption // User selects if Gross account is Debit or Credit
@@ -5356,6 +5358,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("'q' or 'Quit'");
 		} break;
 		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
+		case PromptState::VATReturnsFormIndex: {result.push_back("PromptState::VATReturnsFormIndex");} break;
 		case PromptState::JEIndex: {result.push_back("PromptState::JEIndex");} break;
 		case PromptState::GrossDebitorCreditOption: {
 			result.push_back("0: As is ");
@@ -5548,6 +5551,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::HADIndex: {
 			prompt << ":had";
 		} break;
+		case PromptState::VATReturnsFormIndex: {
+			prompt << ":had:vat";
+		} break;
 		case PromptState::JEIndex: {
 			prompt << ":had:je";
 		} break;
@@ -5672,7 +5678,14 @@ public:
 							}
 							else {
 								// selected HAD and list template options
-								if (had.current_candidate) {
+								if (had.vat_returns_form_box_map_candidate) {
+									// provide the user with the ability to edit the propsed VAT Returns form
+									for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+										prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+									}
+									model->prompt_state = PromptState::VATReturnsFormIndex;
+								}
+								else if (had.current_candidate) {
 									prompt << "\n\t" << *had.current_candidate;
 									if (had.counter_ats_producer) {
 										// We alreade have a "counter transactions" producer.
@@ -5741,6 +5754,32 @@ public:
 						}
 						else {
 							prompt << "\nplease enter a valid index";
+						}
+					} break;
+					case PromptState::VATReturnsFormIndex: {
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
+							if (had.vat_returns_form_box_map_candidate) {
+								if (had.vat_returns_form_box_map_candidate->contains(ix)) {
+									auto box_no = ix;
+									auto const& mats = had.vat_returns_form_box_map_candidate->at(box_no);
+									prompt << "\nTODO: Implemed edit of VAT Returns [" << box_no << "] = " << BAS::mats_sum(mats);
+								}
+								else {
+									prompt << "\nPlease enter a valid VAT Returns form entry index";
+									// provide the user with the ability to edit the propsed VAT Returns form
+									auto ix{1};
+									for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+										prompt << "\n" << ix++ << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+									}
+								}
+							}
+							else {
+								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid VAT Returns form candidate to process)";
+							}
+						}
+						else {
+							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
 						}
 					} break;
 					case PromptState::JEIndex: {
@@ -6722,7 +6761,9 @@ public:
 				for (auto const& vat_returns_had : vat_returns_hads) {
 					if (auto o_iter = model->find_had(vat_returns_had)) {
 						auto iter = *o_iter;
-						if (iter->amount != vat_returns_had.amount) {
+						// TODO: When/if we actually save the state of iter->vat_returns_form_box_map_candidate, then remove the condition in following if-statement
+						if (!iter->vat_returns_form_box_map_candidate or iter->amount != vat_returns_had.amount) {
+							// NOTE: iter->vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
 							*iter = vat_returns_had;
 							prompt << "\n*UPDATED* " << vat_returns_had;
 						}
