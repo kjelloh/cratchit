@@ -4157,10 +4157,6 @@ namespace SKV {
 				return to_accounts({10,11,12,30,31,32,60,61,62,48,49});
 			}			
 
-			auto is_not_vat_returns_form_transaction(BAS::MetaAccountTransaction const& mat) {
-				return (mat.meta.meta.series != 'M');
-			}
-
 			BAS::MetaAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
 				BAS::MetaAccountTransactions result{};
 				auto x = [&matches_mat,&result](BAS::MetaAccountTransaction const& mat){
@@ -4246,7 +4242,7 @@ namespace SKV {
 			BAS::MetaAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironments const& sie_envs,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
 				return to_mats(sie_envs,[&mat_predicate,&account_nos](BAS::MetaAccountTransaction const& mat) {
-					return (mat_predicate(mat) and is_any_of_accounts(mat,account_nos) and is_not_vat_returns_form_transaction(mat));
+					return (mat_predicate(mat) and is_any_of_accounts(mat,account_nos));
 				});
 			}
 
@@ -4325,57 +4321,65 @@ namespace SKV {
 					// Otherwise create a had for current quarter
 					auto today = to_today();
 					auto quarter = to_quarter_range(today);
-					for (int i=0;i<5;++i) {
+					for (int i=0;i<3;++i) {
 						std::cout << "\nto_vat_returns_hads, checking quarter " << quarter;
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_envs,quarter) == false) {
 							std::cout << "\nTODO: Generate a VAT Consolidation had for quarter " << quarter;		
+							auto vat_returns_meta = to_vat_returns_meta(quarter);
+							auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+								return vat_returns_meta->period.contains(mat.meta.defacto.date);
+							};
+							if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
+								std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map into a had for quarter " << quarter;
+								// box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
+								// We need a per-account amount to counter (consolidate) into 1650 (VAT to get back) or 2650 (VAT to pay)
+								// 2650 "Redovisningskonto för moms" SRU:7369
+								// 1650 "Momsfordran" SRU:7261
+								std::map<BASAccountNo,Amount> account_amounts{};
+								for (auto const& [box_no,mats] : *box_map)  {
+									for (auto const& mat : mats) {
+										account_amounts[mat.defacto.account_no] += mat.defacto.amount;
+										std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+									}
+								}
+
+								std::ostringstream heading{};
+								heading << "Momsrapport " << quarter;
+								HeadingAmountDateTransEntry had{
+									.heading = heading.str()
+									,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
+									,.date = quarter.end()
+								};
+								BAS::MetaEntry me{
+									.meta = {
+										.series = 'M'
+									}
+									,.defacto = {
+										.caption = heading.str()
+										,.date = quarter.end()
+									}
+								};
+								for (auto const& [account_no,amount] : account_amounts) {
+									// account_amounts[0] = 4190.54
+									// account_amounts[2614] = -2364.4
+									// account_amounts[2640] = 2364.4
+									// account_amounts[2641] = 4190.54
+									// account_amounts[3308] = -888.1
+									// account_amounts[9021] = 11822
+									std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+									// ####
+									me.defacto.account_transactions.push_back({
+										.account_no = account_no
+										,.amount = -amount
+									});
+								}
+								had.current_candidate = me;
+								result.push_back(had);
+							}
 						}
 						quarter = to_previous_quarter(quarter);
 					}
-					{
-						// had for quarter before previous quarter VAT Returns
-						auto quarter = to_previous_quarter(to_previous_quarter(to_quarter_range(today)));
-						auto vat_returns_meta = to_vat_returns_meta(quarter);
-						auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
-							return vat_returns_meta->period.contains(mat.meta.defacto.date);
-						};
-						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
-							std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map for quarter b e f o r e previous quarter to a had";
-						}
-					}
-					{
-						// had for previous quarter VAT Returns
-						auto quarter = to_previous_quarter(to_quarter_range(today));
-						auto vat_returns_meta = to_vat_returns_meta(quarter);
-						auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
-							return vat_returns_meta->period.contains(mat.meta.defacto.date);
-						};
-						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
-							std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map for  p r e v i o u s  quarter to a had";
-						}
-					}
-					{
-						auto quarter = to_quarter_range(today);
-						auto vat_returns_meta = to_vat_returns_meta(quarter);
-						auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
-							return vat_returns_meta->period.contains(mat.meta.defacto.date);
-						};
-						if (auto box_map = to_form_box_map(sie_envs,is_quarter)) {
-							std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map for  c u r r e n t  quarter to a had";
-						}
-					}
-
-					// if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta()) {
-					// 	SKV::OrganisationMeta org_meta {
-					// 		.org_no = model->sie["current"].organisation_no.CIN
-					// 	};
-					// 	SKV::XML::DeclarationMeta form_meta {
-					// 		.declaration_period_id = vat_returns_meta->period_to_declare
-					// 	};
-					// 	auto is_quarter = to_is_period(vat_returns_meta->period);
-					// 	auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
-					// }
 				}
 				catch (std::exception const& e) {
 					std::cerr << "\nERROR: to_vat_returns_had failed. Excpetion = " << std::quoted(e.what());
@@ -5178,6 +5182,15 @@ public:
 			this->heading_amount_date_entries.erase(*had_iter);
 			this->had_index = this->heading_amount_date_entries.size()-1; // default to select the now last one
 		}
+	}
+
+	std::optional<HeadingAmountDateTransEntries::iterator> find_had(HeadingAmountDateTransEntry const& had) {
+		std::optional<HeadingAmountDateTransEntries::iterator> result{};
+		auto iter = std::find_if(this->heading_amount_date_entries.begin(),this->heading_amount_date_entries.end(),[&had](HeadingAmountDateTransEntry const& other){
+			return ((had.date == other.date) and had.heading == other.heading); // "same" if same date and heading
+		});
+		if (iter != this->heading_amount_date_entries.end()) result = iter;
+		return result;
 	}
 
 private:
@@ -6707,8 +6720,17 @@ public:
 			else if (ast[0] == "-had") {
 				auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
 				for (auto const& vat_returns_had : vat_returns_hads) {
-						prompt << "\n*NEW* " << vat_returns_had;
+					if (auto o_iter = model->find_had(vat_returns_had)) {
+						auto iter = *o_iter;
+						if (iter->amount != vat_returns_had.amount) {
+							*iter = vat_returns_had;
+							prompt << "\n*UPDATED* " << vat_returns_had;
+						}
+					}
+					else {
 						model->heading_amount_date_entries.push_back(vat_returns_had);
+						prompt << "\n*NEW* " << vat_returns_had;
+					}
 				}
 				std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 				if (ast.size()==1) {
