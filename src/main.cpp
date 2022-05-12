@@ -1114,6 +1114,9 @@ namespace SKV {
 			BoxNos const VAT_BOX_NOS{10,11,12,30,31,32,60,61,62,48,49};
 
 			using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
+
+			Amount to_box_49_amount(FormBoxMap const& box_map);
+
 		} // namespace VATReturns 
 	} // namespace XML 
 } // namespace SKV 
@@ -2896,6 +2899,9 @@ int to_vat_type(BAS::TypedMetaEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "vat") or (entry.first == "eu_vat") or  (entry.first == "cents");})) {
 		result = 3; // All VATS (probably a VAT report)
 	}
+	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "transfer") or (entry.first == "vat");})) {
+		result = 4; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
+	}
 	else {
 		if (log) std::cout << "\nFailed to recognise the VAT type";
 	}
@@ -3319,7 +3325,7 @@ T2Entries t2_entries(SIEEnvironments const& sie_envs) {
 BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vector<std::string> const& ast) {
 	BAS::OptionalMetaEntry result{};
 	try {
-		if ((ast.size()==1) and (ast[0].size()>2)) {
+		if ((ast.size()==1) and (ast[0].size()>=2)) {
 			// Assume A1,M13 etc as designation for the meta entry to find
 			auto series = ast[0][0];
 			auto s_verno = ast[0].substr(1);
@@ -4246,6 +4252,15 @@ namespace SKV {
 				});
 			}
 
+			Amount to_box_49_amount(FormBoxMap const& box_map) {
+				BoxNos vat_box_nos{10,11,12,30,31,32,50,61,62,48};
+				auto box_49_amount = std::accumulate(vat_box_nos.begin(),vat_box_nos.end(),Amount{},[&box_map](Amount acc,BoxNo box_no){
+					if (box_map.contains(box_no)) acc += BAS::mats_sum(box_map.at(box_no));
+					return acc;
+				});
+				return box_49_amount;
+			}
+
 			std::optional<FormBoxMap> to_form_box_map(SIEEnvironments const& sie_envs,auto mat_predicate) {
 				std::optional<FormBoxMap> result{};
 				try {
@@ -4277,12 +4292,7 @@ namespace SKV {
 					// box_map[60].push_back(dummy_mat(149));
 
 					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
-					BoxNos vat_box_nos{10,11,12,30,31,32,50,61,62,48};
-					auto box_49_amount = std::accumulate(vat_box_nos.begin(),vat_box_nos.end(),Amount{},[&box_map](Amount acc,BoxNo box_no){
-						if (box_map.contains(box_no)) acc += BAS::mats_sum(box_map.at(box_no));
-						return acc;
-					});
-					box_map[49].push_back(dummy_mat(box_49_amount));
+					box_map[49].push_back(dummy_mat(to_box_49_amount(box_map)));
 
 					result = box_map;
 				}
@@ -5680,10 +5690,48 @@ public:
 								// selected HAD and list template options
 								if (had.vat_returns_form_box_map_candidate) {
 									// provide the user with the ability to edit the propsed VAT Returns form
-									for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
-										prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+									{
+										// Adjust the sum in box 49
+										had.vat_returns_form_box_map_candidate->at(49).clear();
+										had.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.vat_returns_form_box_map_candidate)));
+										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+											prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+										}
+										BAS::MetaEntry me{
+											.meta = {
+												.series = 'M'
+											}
+											,.defacto = {
+												.caption = had.heading
+												,.date = had.date
+											}
+										};
+										std::map<BASAccountNo,Amount> account_amounts{};
+										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+											for (auto const& mat : mats) {
+												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
+												std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+											}
+										}
+										for (auto const& [account_no,amount] : account_amounts) {
+											// account_amounts[0] = 4190.54
+											// account_amounts[2614] = -2364.4
+											// account_amounts[2640] = 2364.4
+											// account_amounts[2641] = 4190.54
+											// account_amounts[3308] = -888.1
+											// account_amounts[9021] = 11822
+											std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+											// ####
+											me.defacto.account_transactions.push_back({
+												.account_no = (account_no==0)?2650:account_no
+												,.amount = -amount
+											});
+										}
+										had.current_candidate = me;
+
+										prompt << "\nCandidate: " << me;
+										model->prompt_state = PromptState::VATReturnsFormIndex;
 									}
-									model->prompt_state = PromptState::VATReturnsFormIndex;
 								}
 								else if (had.current_candidate) {
 									prompt << "\n\t" << *had.current_candidate;
@@ -5757,29 +5805,93 @@ public:
 						}
 					} break;
 					case PromptState::VATReturnsFormIndex: {
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (had.vat_returns_form_box_map_candidate) {
-								if (had.vat_returns_form_box_map_candidate->contains(ix)) {
-									auto box_no = ix;
-									auto const& mats = had.vat_returns_form_box_map_candidate->at(box_no);
-									prompt << "\nTODO: Implemed edit of VAT Returns [" << box_no << "] = " << BAS::mats_sum(mats);
+						if (ast.size() > 1) {
+							if (auto had_iter = model->selected_had()) {
+								auto& had = *(*had_iter);
+								if (had.vat_returns_form_box_map_candidate) {
+									if (had.vat_returns_form_box_map_candidate->contains(ix)) {
+										auto box_no = ix;
+										auto& mats = had.vat_returns_form_box_map_candidate->at(box_no);
+										if (auto amount = to_amount(ast[1]);amount and mats.size()>0) {
+											auto mats_sum = BAS::mats_sum(mats);
+											auto sign = (mats_sum<0)?-1:1;
+											// mats_sum + diff = amount
+											auto diff = sign*(std::abs(*amount)) - mats_sum;
+											mats.push_back({
+												.defacto = {
+													.account_no = mats[0].defacto.account_no
+													,.transtext = "diff"
+													,.amount = diff
+												}
+											});
+											std::cout << "\n[" << box_no << "]";
+											for (auto const& mat : mats) {
+												std::cout << "\n\t" << mat;
+											}
+											std::cout << "\n\t--------------------";
+											std::cout << "\n\tsum " << BAS::mats_sum(mats);
+										}
+										else {
+											prompt << "\nPlease enter an entry index and a positive amount (will apply the sign required by the form)";
+										}
+									}
+									else {
+										prompt << "\nPlease enter a valid VAT Returns form entry index";
+										// provide the user with the ability to edit the propsed VAT Returns form
+									}
+									{
+										// Adjust the sum in box 49
+										had.vat_returns_form_box_map_candidate->at(49).clear();
+										had.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.vat_returns_form_box_map_candidate)));
+										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+											prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+										}
+										BAS::MetaEntry me{
+											.meta = {
+												.series = 'M'
+											}
+											,.defacto = {
+												.caption = had.heading
+												,.date = had.date
+											}
+										};
+										std::map<BASAccountNo,Amount> account_amounts{};
+										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+											for (auto const& mat : mats) {
+												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
+												std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+											}
+										}
+										for (auto const& [account_no,amount] : account_amounts) {
+											// account_amounts[0] = 4190.54
+											// account_amounts[2614] = -2364.4
+											// account_amounts[2640] = 2364.4
+											// account_amounts[2641] = 4190.54
+											// account_amounts[3308] = -888.1
+											// account_amounts[9021] = 11822
+											std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+											// ####
+											me.defacto.account_transactions.push_back({
+												.account_no = (account_no==0)?2650:account_no
+												,.amount = -amount // use the counter-amount ;)
+											});
+										}
+										had.current_candidate = me;
+
+										prompt << "\nCandidate: " << me;
+										model->prompt_state = PromptState::VATReturnsFormIndex;
+									}
 								}
 								else {
-									prompt << "\nPlease enter a valid VAT Returns form entry index";
-									// provide the user with the ability to edit the propsed VAT Returns form
-									auto ix{1};
-									for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
-										prompt << "\n" << ix++ << ": [" << box_no << "] = " << BAS::mats_sum(mats);
-									}
+									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid VAT Returns form candidate to process)";
 								}
 							}
 							else {
-								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid VAT Returns form candidate to process)";
+								prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
 							}
 						}
 						else {
-							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+							prompt << "\nPlease enter an entry index and a signed amount";
 						}
 					} break;
 					case PromptState::JEIndex: {
@@ -5807,7 +5919,10 @@ public:
 								auto at_end = model->at_candidates.end();
 								if (ix < std::distance(tme_iter,tme_end)) {
 									std::advance(tme_iter,ix);
-									switch (to_vat_type(*tme_iter)) {
+									auto tme = *tme_iter;
+									auto vat_type = to_vat_type(tme);
+									std::cout << "\nvat_type = " << vat_type;
+									switch (vat_type) {
 										case 0: {
 											// No VAT in candidate. 
 											// Continue with 
@@ -5919,7 +6034,44 @@ public:
 											prompt << "\nVAT Consolidate candidate " << me;
 											had.current_candidate = me;
 											model->prompt_state = PromptState::JEAggregateOptionIndex;
-										}
+										} break;
+										case 4: {
+											// 10  A2 "Utbetalning Moms från Skattekonto" 20210506
+											// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -802
+											// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Momsbeslut" 802
+											// transfer vat = sort_code: 0x16 : "Momsfordran":1650 "" -802
+											// transfer = sort_code: 0x1 : "PlusGiro":1920 "" 802
+											if (tme.defacto.account_transactions.size()>0) {
+												bool first{true};
+												Amount amount{};
+												if (std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[&amount,&first](auto const& entry){
+													if (first) {
+														amount = std::abs(entry.first.amount);
+														first = false;
+														return true;
+													}
+													return (std::abs(entry.first.amount) == amount);
+												})) {
+													BAS::MetaEntry me {
+														.defacto = {
+															.caption = had.heading
+															,.date = had.date
+														}
+													};
+													for (auto const& tat : tme.defacto.account_transactions) {
+														auto sign = (tat.first.amount < 0)?-1:+1;
+														me.defacto.account_transactions.push_back({
+															.account_no = tat.first.account_no
+															,.transtext = std::nullopt
+															,.amount = sign*std::abs(had.amount)
+														});
+													}
+													had.current_candidate = me;
+													prompt << "\nVAT Settlement candidate " << me;
+													model->prompt_state = PromptState::JEAggregateOptionIndex;
+												}
+											}
+										} break;
 									}
 								}
 								else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
@@ -7341,9 +7493,21 @@ public:
 	Cmd operator()(Nop const& nop) {
 		// std::cout << "\noperator(Nop)";
 		std::ostringstream prompt{};
-		auto help = options_list_of_prompt_state(model->prompt_state);
-		for (auto const& line : help) prompt << "\n" << line;
-		prompt << prompt_line(model->prompt_state);
+		if (model->prompt_state == PromptState::VATReturnsFormIndex) {
+			if (auto had_iter = model->selected_had()) {
+				auto& had = *(*had_iter);
+				if (had.current_candidate) {
+					had.vat_returns_form_box_map_candidate = std::nullopt;
+					prompt << "\nVAT Consilidation Candidate " << *had.current_candidate;
+					model->prompt_state = PromptState::JEAggregateOptionIndex;
+				}
+			}
+		}
+		else {
+			auto help = options_list_of_prompt_state(model->prompt_state);
+			for (auto const& line : help) prompt << "\n" << line;
+			prompt << prompt_line(model->prompt_state);
+		}
 		model->prompt = prompt.str();
 		return {};
 	}	
