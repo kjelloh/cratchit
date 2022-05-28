@@ -4321,7 +4321,7 @@ namespace SKV {
 					// NOTE: A VAT consolidation entry will have a detectable gross VAT entry if we have no income to declare.
 					if (period.contains(tme.defacto.date)) {
 // std::cout << "\nquarter_has_VAT_consilidation_entry, scanning " << tme.meta.series;
-						if (tme.meta.verno) std::cout << *tme.meta.verno;
+// if (tme.meta.verno) std::cout << *tme.meta.verno;
 // std::cout << " order_code:" << std::hex << order_code << std::dec;
 						result = result or  (order_code == 0x56) or (order_code == 0x367) or (order_code == 0x567);
 					}
@@ -5262,12 +5262,12 @@ namespace SKV {
 				for (auto const& [sru_code,bas_account_nos] : sru_to_bas_accounts) {
 // std::cout << "\nSRU:" << sru_code;
 					if (bas_account_nos) {
-						for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
+// for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
 						sru_value_map[sru_code] = to_ats_sum_string(model->sie,*bas_account_nos);
 // std::cout << "\n\t------------------";
 // std::cout << "\n\tSUM:" << sru_code << " = ";
-						if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
-						else std::cout << " null";
+// if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
+// else std::cout << " null";
 					}
 					else {
 // std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
@@ -5631,8 +5631,7 @@ class Updater {
 public:
 	Model model;
 	Cmd operator()(KeyPress const& key) {
-		std::cout << "\noperator('" << key.ch << "')";
-		if (model->user_input.size()==0) model->prompt = prompt_line(model->prompt_state);
+		// std::cout << "\noperator('" << key.ch << "')";
 		Cmd cmd{};
 		if (key.ch != '\n') {
 			// std::cout << "\nKeyPress:" << key.value;
@@ -5645,7 +5644,7 @@ public:
 		return cmd;
 	}
 	Cmd operator()(Command const& command) {
-		std::cout << "\noperator(command=" << std::quoted(command) << ")";
+		// std::cout << "\noperator(command=" << std::quoted(command) << ")";
 		std::ostringstream prompt{};
 		auto ast = quoted_tokens(command);
 		if (ast.size() == 0) {
@@ -7375,9 +7374,9 @@ public:
 				else if (model->prompt_state == PromptState::CounterAccountsEntry) {
 					if (auto nha = to_name_heading_amount(ast)) {
 						// List account candidates for the assumed "Name, Heading + Amount" entry by the user
-// std::cout << "\nAccount:" << std::quoted(nha->account_name);
-						if (nha->trans_text) std::cout << " text:" << std::quoted(*nha->trans_text);
-// std::cout << " amount:" << nha->amount;
+						prompt << "\nAccount:" << std::quoted(nha->account_name);
+						if (nha->trans_text) prompt << " text:" << std::quoted(*nha->trans_text);
+						prompt << " amount:" << nha->amount;
 					}
 					else {
 						prompt << "\nPlease enter an account, and optional transaction text and an amount";
@@ -7551,7 +7550,7 @@ public:
 		return {};
 	}
 	Cmd operator()(Quit const& quit) {
-		std::cout << "\noperator(Quit)";
+		// std::cout << "\noperator(Quit)";
 		std::ostringstream os{};
 		os << "\nBy for now :)";
 		model->prompt = os.str();
@@ -7559,24 +7558,7 @@ public:
 		return {};
 	}
 	Cmd operator()(Nop const& nop) {
-		std::cout << "\noperator(Nop)";
-		std::ostringstream prompt{};
-		if (model->prompt_state == PromptState::VATReturnsFormIndex) {
-			if (auto had_iter = model->selected_had()) {
-				auto& had = *(*had_iter);
-				if (had.current_candidate) {
-					had.vat_returns_form_box_map_candidate = std::nullopt;
-					prompt << "\nVAT Consilidation Candidate " << *had.current_candidate;
-					model->prompt_state = PromptState::JEAggregateOptionIndex;
-				}
-			}
-		}
-		else {
-			auto help = options_list_of_prompt_state(model->prompt_state);
-			for (auto const& line : help) prompt << "\n" << line;
-			prompt << prompt_line(model->prompt_state);
-		}
-		model->prompt = prompt.str();
+		// std::cout << "\noperator(Nop)";
 		return {};
 	}	
 private:
@@ -7632,7 +7614,7 @@ public:
 		return model;
 	}
 	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
-		std::cout << "\nupdate" << std::flush;
+		// std::cout << "\nupdate" << std::flush;
 		Cmd cmd{};
 		std::ostringstream prompt{};
 		{
@@ -7658,7 +7640,7 @@ public:
 		return {std::move(model),cmd};
 	}
 	Ux view(Model const& model) {
-		std::cout << "\nview" << std::flush;
+		// std::cout << "\nview" << std::flush;
 		Ux ux{};
 		ux.push_back(model->prompt);
 		return ux;
@@ -7862,13 +7844,9 @@ public:
 	}
 private:
     Cratchit cratchit;
-		Ux cached_ux{};
 		void render_ux(Ux const& ux) {
-			if (ux != cached_ux) {
-				cached_ux = ux;
-				for (auto const&  row : ux) {
-					if (row.size()>0) std::cout << row;
-				}
+			for (auto const&  row : ux) {
+				if (row.size()>0) std::cout << row;
 			}
 		}
     std::queue<Msg> in{};
