@@ -1,3 +1,6 @@
+
+float const VERSION = 0.5;
+
 #include <iostream>
 #include <locale>
 #include <string>
@@ -524,7 +527,7 @@ std::chrono::month to_quarter_end(Quarter const& quarter) {
 }
 
 DateRange to_quarter_range(Date const& a_period_date) {
-	std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
+// std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
 	auto quarter = to_quarter(a_period_date);
 	auto begin_month = to_quarter_begin(quarter);
 	auto end_month = to_quarter_end(quarter);
@@ -1459,9 +1462,9 @@ namespace CSV {
 				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::YES);
 				// LOG
 				if (false) {
-					std::cout << "\ncsv count: " << tokens.size(); // Expected 10
+// std::cout << "\ncsv count: " << tokens.size(); // Expected 10
 					for (int i=0;i<tokens.size();++i) {
-						std::cout << "\n\t" << i << " " << tokens[i];
+// std::cout << "\n\t" << i << " " << tokens[i];
 					}
 				}
 				if (tokens.size()==10) {
@@ -1501,7 +1504,7 @@ namespace CSV {
 		parse_TRANS(in); // skip first line with field names
 		while (auto had = parse_TRANS(in)) {
 			if (gross_bas_account_no) {
-				std::cout << "\nfrom_stream to gross_bas_account_no:" << *gross_bas_account_no;
+// std::cout << "\nfrom_stream to gross_bas_account_no:" << *gross_bas_account_no;
 				// Add a template with the gross amount transacted to provided bas account no
 				BAS::MetaEntry me{
 					.meta = {
@@ -2367,25 +2370,25 @@ BAS::MetaEntry swapped_ats_entry(BAS::MetaEntry const& me,BAS::anonymous::Accoun
 
 // #3
 BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
-	std::cout << "\nupdated_amounts_entry";
-	std::cout << "\nme:" << me;
-	std::cout << "\nat:" << at;
+// std::cout << "\nupdated_amounts_entry";
+// std::cout << "\nme:" << me;
+// std::cout << "\nat:" << at;
 	
 	BAS::MetaEntry result{me};
 	BAS::sort(result,BAS::has_greater_abs_amount);
-	std::cout << "\npre-result:" << result;
+// std::cout << "\npre-result:" << result;
 
 	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&at](auto const& entry){
 		return (entry.account_no == at.account_no);
 	});
 	auto at_index = std::distance(result.defacto.account_transactions.begin(),iter);
-	std::cout << "\nat_index = " << at_index;
+// std::cout << "\nat_index = " << at_index;
 	if (iter == result.defacto.account_transactions.end()) {
 		result.defacto.account_transactions.push_back(at);
 		result = updated_amounts_entry(result,at); // recurse with added entry
 	}
 	else if (me.defacto.account_transactions.size()==4) {
-		std::cout << "\n4 OK";
+// std::cout << "\n4 OK";
 		// Assume 0: Transaction Amount, 1: Amount no VAT, 3: VAT, 4: rounding amount
 		auto& trans_amount = result.defacto.account_transactions[0].amount;
 		auto& ex_vat_amount = result.defacto.account_transactions[1].amount;
@@ -2403,20 +2406,20 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 		auto at_sign = static_cast<int>(at.amount/abs_at_amount);
 
 		auto vat_rate = static_cast<int>(std::round(abs_vat_amount*100/abs_ex_vat_amount));
-		std::cout << "\nabs_vat_amount:" << abs_vat_amount << " abs_ex_vat_amount:" << abs_ex_vat_amount << " vat_rate:" << vat_rate;
+// std::cout << "\nabs_vat_amount:" << abs_vat_amount << " abs_ex_vat_amount:" << abs_ex_vat_amount << " vat_rate:" << vat_rate;
 		switch (vat_rate) {
 			case 25:
 			case 12:
 			case 6: {
-				std::cout << "\nVAT OK";
+// std::cout << "\nVAT OK";
 				switch (at_index) {
 					case 0: {
 						// Assume update gross transaction amount
-						std::cout << "\nUpdate Gross Transaction Amount";
+// std::cout << "\nUpdate Gross Transaction Amount";
 					} break;
 					case 1: {
 						// Assume update amount ex VAT
-						std::cout << "\n Update Net Amount Ex VAT";
+// std::cout << "\n Update Net Amount Ex VAT";
 						abs_ex_vat_amount = abs_at_amount;
 						abs_vat_amount = std::round(vat_rate*abs_ex_vat_amount)/100;
 
@@ -2426,11 +2429,11 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 					} break;
 					case 2: {
 						// Assume update VAT amount
-						std::cout << "\n Update VAT";
+// std::cout << "\n Update VAT";
 					} break;
 					case 3: {
 						// Assume update the rounding amount
-						std::cout << "\n Update Rounding";
+// std::cout << "\n Update Rounding";
 						if (at.amount < 1.0) {
 							// Assume a cent rounding amount
 							// Automate the following algorithm.
@@ -2453,7 +2456,7 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 				}
 			} break;
 			default: {
-				std::cout << "\nUnknown VAT rate ";
+// std::cout << "\nUnknown VAT rate ";
 				// Unknown VAT rate
 				// Do no adjustment
 				// Leave to user to deal with this update
@@ -2465,7 +2468,7 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 		// For now, handle as a simple "swap out" of the given amount
 		*iter = at;
 	}
-	std::cout << "\nresult:" << result;
+// std::cout << "\nresult:" << result;
 	return result;
 }
 
@@ -2864,7 +2867,7 @@ int to_vat_type(BAS::TypedMetaEntry const& tme) {
 	// LOG
 	if (log) {
 		for (auto const& [prop,count] : props_counter) {
-			std::cout << "\n" << std::quoted(prop) << " count:" << count; 
+// std::cout << "\n" << std::quoted(prop) << " count:" << count; 
 		}
 	}
 	// Calculate total number of properties (NOTE: Can be more that the transactions as e.g., vat and eu_vat overlaps)
@@ -3475,7 +3478,7 @@ namespace SKV {
 		}
 
 		std::string to_tag(std::string const& tag,SRUFileTagMap const& tag_map) {
-			std::cout << "\nto_tag" << std::flush;
+// std::cout << "\nto_tag" << std::flush;
 			std::ostringstream os{};
 			os << tag << " ";
 			if (tag_map.contains(tag)) os << tag_map.at(tag);
@@ -3485,7 +3488,7 @@ namespace SKV {
 
 		InfoOStream& operator<<(InfoOStream& os,FilesMapping const& fm) {
 
-			std::cout << "operator<<(InfoOStream& os" << std::flush;
+// std::cout << "operator<<(InfoOStream& os" << std::flush;
 			// See https://skatteverket.se/download/18.96cca41179bad4b1aad958/1636640681760/SKV269_27.pdf
 				// INFO.SRU/INFOSRU
 
@@ -4317,9 +4320,9 @@ namespace SKV {
 
 					// NOTE: A VAT consolidation entry will have a detectable gross VAT entry if we have no income to declare.
 					if (period.contains(tme.defacto.date)) {
-						std::cout << "\nquarter_has_VAT_consilidation_entry, scanning " << tme.meta.series;
+// std::cout << "\nquarter_has_VAT_consilidation_entry, scanning " << tme.meta.series;
 						if (tme.meta.verno) std::cout << *tme.meta.verno;
-						std::cout << " order_code:" << std::hex << order_code << std::dec;
+// std::cout << " order_code:" << std::hex << order_code << std::dec;
 						result = result or  (order_code == 0x56) or (order_code == 0x367) or (order_code == 0x567);
 					}
 				};
@@ -4340,7 +4343,7 @@ namespace SKV {
 					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
 
 					for (int i=0;i<3;++i) {
-						std::cout << "\nto_vat_returns_hads, checking vat_returns_range " << vat_returns_range;
+// std::cout << "\nto_vat_returns_hads, checking vat_returns_range " << vat_returns_range;
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_envs,quarter1) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
@@ -4357,7 +4360,7 @@ namespace SKV {
 								for (auto const& [box_no,mats] : *box_map)  {
 									for (auto const& mat : mats) {
 										account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-										std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
 									}
 								}
 
@@ -4752,7 +4755,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		//         <agd:ArbetsgivareHUGROUP>
 		p += "agd:ArbetsgivareHUGROUP";
 		//           <agd:AgRegistreradId faltkod="201">165560269986</agd:AgRegistreradId>
-		std::cout << "\nxml_map[" << p + R"(agd:AgRegistreradId faltkod="201")" << "] = " << SKV::XML::to_12_digit_orgno(employer_meta.org_no);
+// std::cout << "\nxml_map[" << p + R"(agd:AgRegistreradId faltkod="201")" << "] = " << SKV::XML::to_12_digit_orgno(employer_meta.org_no);
 		xml_map[p + R"(agd:AgRegistreradId faltkod="201")"] = SKV::XML::to_12_digit_orgno(employer_meta.org_no);
 		--p;
 		//         </agd:ArbetsgivareHUGROUP>
@@ -4831,7 +4834,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 	}
 	if (result) {
 		for (auto const& [tag,value] : *result) {
-			std::cout << "\nto_skv_xml_map: " << tag << " = " << std::quoted(value);
+// std::cout << "\nto_skv_xml_map: " << tag << " = " << std::quoted(value);
 		}
 	}
 	return result;
@@ -4884,8 +4887,8 @@ std::string to_skv_date_and_time(std::chrono::time_point<std::chrono::system_clo
 }
 
 std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
-	std::cout << "\ncratchit_to_skv" << std::flush;
-	std::cout << "\ncratchit_to_skv organisation_no.CIN=" << sie_env.organisation_no.CIN;
+// std::cout << "\ncratchit_to_skv" << std::flush;
+// std::cout << "\ncratchit_to_skv organisation_no.CIN=" << sie_env.organisation_no.CIN;
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
 		SKV::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
@@ -5051,12 +5054,12 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 
 std::optional<SRUEnvironments::value_type> to_sru_environments_entry(EnvironmentValue const& ev) {
 	try {
-		std::cout << "\nto_sru_environments_entry";
+// std::cout << "\nto_sru_environments_entry";
 		// "4531=360000;4532=360000;year_id=0"
 		SRUEnvironment sru_env{};
 		auto& year_id = ev.at("year_id");
 		for (auto const& [key,value] : ev) {
-			std::cout << "\nkey:" << key << " value:" << value;
+// std::cout << "\nkey:" << key << " value:" << value;
 			if (auto const& sru_code = SKV::SRU::to_account_no(key)) {
 				sru_env.set(*sru_code,value);
 			}
@@ -5222,55 +5225,55 @@ namespace SKV {
 		OptionalSRUValueMap to_sru_value_map(Model const& model,::CSV::FieldRows const& field_rows) {
 			OptionalSRUValueMap result{};
 			try {
-				std::cout << "\nto_sru_value_map";
+// std::cout << "\nto_sru_value_map";
 				std::map<SKV::SRU::AccountNo,OptionalBASAccountNos> sru_to_bas_accounts{};
 				for (int i=0;i<field_rows.size();++i) {
 					auto const& field_row = field_rows[i];
-					std::cout << "\n\t" << static_cast<std::string>(field_row);
+// std::cout << "\n\t" << static_cast<std::string>(field_row);
 					if (field_row.size() > 1) {
 						auto const& field_1 = field_row[1];
-						std::cout << "\n\t\t[1]=" << std::quoted(field_1);
+// std::cout << "\n\t\t[1]=" << std::quoted(field_1);
 						if (auto sru_code = to_account_no(field_1)) {
-							std::cout << " ok! ";
+// std::cout << " ok! ";
 							if (field_row.size() > 3) {
 								auto mandatory = (field_row[3].find("J") != std::string::npos);
 								if (mandatory) {
-									std::cout << " Mandatory.";
+// std::cout << " Mandatory.";
 								}
 								else {
-									std::cout << " optional ;)";
+// std::cout << " optional ;)";
 								}
 								sru_to_bas_accounts[*sru_code] = model->sie["current"].to_bas_accounts(*sru_code);
 							}
 							else {
-								std::cout << " NO [3]";
+// std::cout << " NO [3]";
 							}
 						}
 						else {
-							std::cout << " NOT SRU";
+// std::cout << " NOT SRU";
 						}
 					}
 					else {
-						std::cout << " null (does not exist)";
+// std::cout << " null (does not exist)";
 					}
 				}
 				// Now retreive the sru values from bas accounts as mapped
 				SRUValueMap sru_value_map{};
 				for (auto const& [sru_code,bas_account_nos] : sru_to_bas_accounts) {
-					std::cout << "\nSRU:" << sru_code;
+// std::cout << "\nSRU:" << sru_code;
 					if (bas_account_nos) {
 						for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
 						sru_value_map[sru_code] = to_ats_sum_string(model->sie,*bas_account_nos);
-						std::cout << "\n\t------------------";
-						std::cout << "\n\tSUM:" << sru_code << " = ";
+// std::cout << "\n\t------------------";
+// std::cout << "\n\tSUM:" << sru_code << " = ";
 						if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
 						else std::cout << " null";
 					}
 					else {
-						std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
+// std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
 						if (auto const& stored_value = model->sru["0"].at(sru_code)) {
 							sru_value_map[sru_code] = stored_value;
-							std::cout << "\n\tstored:" << *stored_value;
+// std::cout << "\n\tstored:" << *stored_value;
 
 						}
 						// // K10
@@ -5311,7 +5314,7 @@ namespace SKV {
 } // namespace SKV {
 
 
-struct KeyPress {char value;};
+struct KeyPress {char ch;};
 using Command = std::string;
 struct Quit {};
 struct Nop {};
@@ -5323,7 +5326,7 @@ using Ux = std::vector<std::string>;
 Cmd to_cmd(std::string const& user_input) {
 	Cmd result{Nop{}};
 	if (user_input == "quit" or user_input=="q") result.msg = Quit{};
-	else if (user_input.size()>0) result.msg = Command{user_input};
+	else result.msg = Command{user_input};
 	return result;
 }
 
@@ -5628,12 +5631,12 @@ class Updater {
 public:
 	Model model;
 	Cmd operator()(KeyPress const& key) {
-		// std::cout << "\noperator(Key)";
+		std::cout << "\noperator('" << key.ch << "')";
 		if (model->user_input.size()==0) model->prompt = prompt_line(model->prompt_state);
 		Cmd cmd{};
-		if (key.value != '\n') {
+		if (key.ch != '\n') {
 			// std::cout << "\nKeyPress:" << key.value;
-			model->user_input += key.value;
+			model->user_input += key.ch;
 		}
 		else {
 			cmd = to_cmd(model->user_input);
@@ -5642,10 +5645,30 @@ public:
 		return cmd;
 	}
 	Cmd operator()(Command const& command) {
-		std::cout << "\noperator(Command)";
+		std::cout << "\noperator(command=" << std::quoted(command) << ")";
 		std::ostringstream prompt{};
 		auto ast = quoted_tokens(command);
-		if (ast.size() > 0) {
+		if (ast.size() == 0) {
+			// User hit <Enter> with no input
+			if (model->prompt_state == PromptState::VATReturnsFormIndex) {
+				// Assume the user wants to accept current Journal Entry Candidate
+				if (auto had_iter = model->selected_had()) {
+					auto& had = *(*had_iter);
+					if (had.current_candidate) {
+						// We have a journal entry candidate - reset any VAT Returns form candidate for current had
+						had.vat_returns_form_box_map_candidate = std::nullopt;
+						prompt << "\nVAT Consilidation Candidate " << *had.current_candidate;
+						prompt << "\n" << prompt_line(model->prompt_state);
+						model->prompt_state = PromptState::JEAggregateOptionIndex;
+					}
+				}
+			}
+			else {
+				prompt << "\n" << prompt_line(model->prompt_state);
+			}
+		}
+		else {
+			// We have at least one token in user input
 			int signed_ix{};
 			std::istringstream is{ast[0]};
 			if (auto signed_ix = to_signed_ix(ast[0]); 
@@ -5653,7 +5676,7 @@ public:
 				   and model->prompt_state != PromptState::EditAT
 					 and model->prompt_state != PromptState::EnterIncome
 					 and model->prompt_state != PromptState::EnterDividend) {
-				std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
+// std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
 				size_t ix = std::abs(*signed_ix);
 				bool do_remove = (*signed_ix<0);
 				// Act on prompt state index input
@@ -5694,7 +5717,7 @@ public:
 										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
 											for (auto const& mat : mats) {
 												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-												std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
 											}
 										}
 										for (auto const& [account_no,amount] : account_amounts) {
@@ -5704,7 +5727,7 @@ public:
 											// account_amounts[2641] = 4190.54
 											// account_amounts[3308] = -888.1
 											// account_amounts[9021] = 11822
-											std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
 											// account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
 											// Book this on BAS 2650
 											// NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
@@ -5819,7 +5842,8 @@ public:
 						}
 					} break;
 					case PromptState::VATReturnsFormIndex: {
-						if (ast.size() > 1) {
+						if (ast.size() > 0) {
+							// Asume the user has selected an index for an entry on the proposed VAT Returns form to edit
 							if (auto had_iter = model->selected_had()) {
 								auto& had = *(*had_iter);
 								if (had.vat_returns_form_box_map_candidate) {
@@ -5838,12 +5862,12 @@ public:
 													,.amount = diff
 												}
 											});
-											std::cout << "\n[" << box_no << "]";
+// std::cout << "\n[" << box_no << "]";
 											for (auto const& mat : mats) {
-												std::cout << "\n\t" << mat;
+// std::cout << "\n\t" << mat;
 											}
-											std::cout << "\n\t--------------------";
-											std::cout << "\n\tsum " << BAS::mats_sum(mats);
+// std::cout << "\n\t--------------------";
+// std::cout << "\n\tsum " << BAS::mats_sum(mats);
 										}
 										else {
 											prompt << "\nPlease enter an entry index and a positive amount (will apply the sign required by the form)";
@@ -5873,7 +5897,7 @@ public:
 										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
 											for (auto const& mat : mats) {
 												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-												std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
 											}
 										}
 										for (auto const& [account_no,amount] : account_amounts) {
@@ -5883,7 +5907,7 @@ public:
 											// account_amounts[2641] = 4190.54
 											// account_amounts[3308] = -888.1
 											// account_amounts[9021] = 11822
-											std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
 											// account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
 											// Book this on BAS 2650
 											// NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
@@ -5934,16 +5958,13 @@ public:
 								prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
 							}
 						}
-						else {
-							prompt << "\nPlease enter an entry index and a signed amount";
-						}
 					} break;
 					case PromptState::JEIndex: {
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
 							if (auto account_no = BAS::to_account_no(command)) {
 								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
-								std::cout << "\nGross Account detected";
+// std::cout << "\nGross Account detected";
 								BAS::MetaEntry me{
 									.defacto = {
 										 .caption = had.heading
@@ -5965,7 +5986,7 @@ public:
 									std::advance(tme_iter,ix);
 									auto tme = *tme_iter;
 									auto vat_type = to_vat_type(tme);
-									std::cout << "\nvat_type = " << vat_type;
+// std::cout << "\nvat_type = " << vat_type;
 									switch (vat_type) {
 										case 0: {
 											// No VAT in candidate. 
@@ -6285,11 +6306,11 @@ public:
 					} break;
 					case PromptState::JEAggregateOptionIndex: {
 						// ":had:je:1or*";
-						std::cout << "\ncase PromptState::JEAggregateOptionIndex: {";
+// std::cout << "\ncase PromptState::JEAggregateOptionIndex: {";
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
 							if (had.current_candidate) {
-								std::cout << "\nif (had.current_candidate) {";
+// std::cout << "\nif (had.current_candidate) {";
 								// We need a typed entry to do some clever decisions
 								auto tme = to_typed_meta_entry(*had.current_candidate);
 								prompt << "\n" << tme;
@@ -6552,10 +6573,10 @@ public:
 						}
 						if (period_range) {
 							// Create VAT Returns form for selected period
-							std::cout << "\nperiod_range " << *period_range;
+// std::cout << "\nperiod_range " << *period_range;
 							prompt << "\nVAT Returns for " << *period_range;
 							if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
-								std::cout << "\nvat_returns_meta ";
+// std::cout << "\nvat_returns_meta ";
 								SKV::OrganisationMeta org_meta {
 									.org_no = model->sie["current"].organisation_no.CIN
 									,.contact_persons = model->organisation_contacts
@@ -6681,7 +6702,7 @@ public:
 												// #POSTNR 12345
 											if (postal_address_tokens.size() > 0) {
 												info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
-												std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[0];
+// std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[0];
 											}
 											else {
 												info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
@@ -6690,7 +6711,7 @@ public:
 												// #POSTORT SKATTSTAD
 											if (postal_address_tokens.size() > 1) {
 												info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
-												std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[1] << std::flush;
+// std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[1] << std::flush;
 											}
 											else {
 												info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
@@ -6744,14 +6765,14 @@ public:
 										auto info_std_os = std::ofstream{info_file_path};
 										SKV::SRU::OStream info_sru_os{info_std_os};
 										SKV::SRU::InfoOStream info_os{info_sru_os};
-										std::cout << "\n(3)" << std::flush;
+// std::cout << "\n(3)" << std::flush;
 
 										if (info_os << fm) {
-											std::cout << "\n(4)" << std::flush;
+// std::cout << "\n(4)" << std::flush;
 											prompt << "\nCreated " << info_file_path;
 										}
 										else {
-											std::cout << "\n(5)" << std::flush;
+// std::cout << "\n(5)" << std::flush;
 											prompt << "\nSorry, FAILED to create " << info_file_path;
 										}
 
@@ -6760,10 +6781,10 @@ public:
 										auto blanketter_std_os = std::ofstream{blanketter_file_path};
 										SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
 										SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
-										std::cout << "\n(6)" << std::flush;
+// std::cout << "\n(6)" << std::flush;
 
 										if (blanketter_os << fm) {
-											std::cout << "\n(7)" << std::flush;
+// std::cout << "\n(7)" << std::flush;
 											prompt << "\nCreated " << blanketter_file_path;
 										}
 										else {
@@ -6792,8 +6813,11 @@ public:
 						break;
 				}
 			}
+			else if (ast[0] == "-version" or ast[0] == "-v") {
+				prompt << "\nCratchit Version " << VERSION;
+			}
 			else if (ast[0] == "-bas") {
-				std::cout << " :)";
+// std::cout << " :)";
 				if (ast.size() == 2) {
 					// Import bas account plan csv file
 					if (ast[1] == "?") {
@@ -7158,17 +7182,17 @@ public:
 				*/
 				if ((ast.size()>2) and (ast[1] == "-had")) {
 					std::filesystem::path csv_file_path{ast[2]};
-					std::cout << "\ncsv file " << csv_file_path;
+// std::cout << "\ncsv file " << csv_file_path;
 					if (std::filesystem::exists(csv_file_path)) {
 						std::ifstream ifs{csv_file_path};
-						std::cout << "\ncsv file exists ok";
+// std::cout << "\ncsv file exists ok";
 						CSV::NORDEA::istream in{ifs};
 						OptionalBASAccountNo gross_bas_account_no{};
 						if (ast.size()>3) {
-							std::cout << "\n ast[3]:)" << ast[3];
+// std::cout << "\n ast[3]:)" << ast[3];
 							if (auto bas_account_no = BAS::to_account_no(ast[3])) {
 								gross_bas_account_no = *bas_account_no;
-								std::cout << "\n gross_bas_account_no:" << *gross_bas_account_no;
+// std::cout << "\n gross_bas_account_no:" << *gross_bas_account_no;
 							}
 							else {
 								prompt << "\nPlease enter a valid BAS account no for gross amount transaction. " << std::quoted(ast[3]) << " is not a valid BAS account no";
@@ -7185,10 +7209,10 @@ public:
 				}
 				else if ((ast.size()>2) and (ast[1] == "-sru")) {
 					std::filesystem::path csv_file_path{ast[2]};
-					std::cout << "\ncsv file " << csv_file_path;
+// std::cout << "\ncsv file " << csv_file_path;
 					if (std::filesystem::exists(csv_file_path)) {
 						std::ifstream ifs{csv_file_path};
-						std::cout << "\ncsv file exists ok";
+// std::cout << "\ncsv file exists ok";
 						if (auto field_rows = CSV::to_field_rows(ifs)) {
 							for (auto const& field_row : *field_rows) {
 								if (field_row.size()>0) prompt << "\n";
@@ -7219,7 +7243,7 @@ public:
 				model->prompt_state = PromptState::Root;
 			}
 			else {
-				std::cout << "\nAct on words";
+// std::cout << "\nAct on words";
 				// Assume word based input
 				if ((model->prompt_state == PromptState::NetVATAccountInput) or (model->prompt_state == PromptState::GrossAccountInput))  {
 					// Assume the user has enterd text to search for suitable accounts
@@ -7240,7 +7264,7 @@ public:
 							auto gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
 							auto gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
 							auto gross_amounts_diff = gross_positive_amount + gross_negative_amount;
-							std::cout << "\ngross_positive_amount:" << gross_positive_amount << " gross_negative_amount:" << gross_negative_amount << " gross_amounts_diff:" << gross_amounts_diff;
+// std::cout << "\ngross_positive_amount:" << gross_positive_amount << " gross_negative_amount:" << gross_negative_amount << " gross_amounts_diff:" << gross_amounts_diff;
 
 							switch (ast.size()) {
 								case 0: {
@@ -7351,9 +7375,9 @@ public:
 				else if (model->prompt_state == PromptState::CounterAccountsEntry) {
 					if (auto nha = to_name_heading_amount(ast)) {
 						// List account candidates for the assumed "Name, Heading + Amount" entry by the user
-						std::cout << "\nAccount:" << std::quoted(nha->account_name);
+// std::cout << "\nAccount:" << std::quoted(nha->account_name);
 						if (nha->trans_text) std::cout << " text:" << std::quoted(*nha->trans_text);
-						std::cout << " amount:" << nha->amount;
+// std::cout << " amount:" << nha->amount;
 					}
 					else {
 						prompt << "\nPlease enter an account, and optional transaction text and an amount";
@@ -7378,7 +7402,7 @@ public:
 				}
 				else if (model->prompt_state == PromptState::EditAT) {
 					// Handle user Edit of currently selected account transaction (at)
-					std::cout << "\nPromptState::EditAT " << std::quoted(command);
+// std::cout << "\nPromptState::EditAT " << std::quoted(command);
 					if (auto had_iter = model->selected_had()) {
 						if (auto account_no = BAS::to_account_no(command)) {
 							auto new_at = model->at;
@@ -7527,7 +7551,7 @@ public:
 		return {};
 	}
 	Cmd operator()(Quit const& quit) {
-		// std::cout << "\noperator(Quit)";
+		std::cout << "\noperator(Quit)";
 		std::ostringstream os{};
 		os << "\nBy for now :)";
 		model->prompt = os.str();
@@ -7535,7 +7559,7 @@ public:
 		return {};
 	}
 	Cmd operator()(Nop const& nop) {
-		// std::cout << "\noperator(Nop)";
+		std::cout << "\noperator(Nop)";
 		std::ostringstream prompt{};
 		if (model->prompt_state == PromptState::VATReturnsFormIndex) {
 			if (auto had_iter = model->selected_had()) {
@@ -7608,7 +7632,7 @@ public:
 		return model;
 	}
 	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
-		// std::cout << "\nCratchit::update entry" << std::flush;
+		std::cout << "\nupdate" << std::flush;
 		Cmd cmd{};
 		std::ostringstream prompt{};
 		{
@@ -7626,7 +7650,7 @@ public:
 			this->environment_to_file(cratchit_environment,cratchit_file_path);
 			unposted_to_sie_file(model->sie["current"],model->staged_sie_file_path);
 			// Update/create the skv xml-file (employer monthly tax declaration)
-			std::cout << R"(\nmodel->sie["current"].organisation_no.CIN=)" << model->sie["current"].organisation_no.CIN;
+// std::cout << R"(\nmodel->sie["current"].organisation_no.CIN=)" << model->sie["current"].organisation_no.CIN;
 		}
 		// std::cout << "\nCratchit::update before prompt update" << std::flush;
 		// std::cout << "\nCratchit::update before return" << std::flush;
@@ -7634,6 +7658,7 @@ public:
 		return {std::move(model),cmd};
 	}
 	Ux view(Model const& model) {
+		std::cout << "\nview" << std::flush;
 		Ux ux{};
 		ux.push_back(model->prompt);
 		return ux;
@@ -7856,16 +7881,16 @@ int main(int argc, char *argv[])
 		// TODO: Activate to adjust for cross platform handling 
 			std::wcout << "\nDeafult (current) locale setting is " << std::locale().name().c_str();
 			std::string sHello{"Hallå Åland! Ömsom ödmjuk. Ärligt äkta."}; // This source file expected to be in UTF-8
-			std::cout << "\ncout:" << sHello; // macOS handles UTF-8 ok (how about other platforms?)
+// std::cout << "\ncout:" << sHello; // macOS handles UTF-8 ok (how about other platforms?)
 			for (auto const& ch : sHello) {
-				std::cout << "\n" << ch << " " << std::hex << static_cast<int>(ch) << std::dec; // check stream and console encoding, std::locale behaviour
+// std::cout << "\n" << ch << " " << std::hex << static_cast<int>(ch) << std::dec; // check stream and console encoding, std::locale behaviour
 			}
 			std::ofstream os{"cp435_test.txt"};
 			SIE::OStream sieos{os};
 			sieos << sHello; // We expect SIE file encoding of CP435
 			return 0;
 			std::string sPATH{std::getenv("PATH")};
-			std::cout << "\nPATH=" << sPATH;
+// std::cout << "\nPATH=" << sPATH;
 	}
 	std::string command{};
 	for (int i=1;i < argc;i++) command+= std::string{argv[i]} + " ";
@@ -7874,7 +7899,7 @@ int main(int argc, char *argv[])
 	REPL repl{environment_file_path};
 	repl.run(command);
 	// std::cout << "\nBye for now :)";
-	std::cout << std::endl;
+// std::cout << std::endl;
 	return 0;
 }
 
