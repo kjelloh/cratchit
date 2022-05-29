@@ -411,8 +411,16 @@ std::optional<unsigned int> to_four_digit_positive_int(std::string const& s) {
 namespace SKV {
 	namespace SRU {
 
-		extern const char* ink1_csv_to_sru_template;
-		extern const char* k10_csv_to_sru_template;
+		namespace INK1 {
+			extern const char* ink1_csv_to_sru_template;
+			extern const char* k10_csv_to_sru_template;
+		}
+
+		namespace INK2 {
+			extern const char* INK2_csv_to_sru_template;
+			extern const char* INK2S_csv_to_sru_template;
+			extern const char* INK2R_csv_to_sru_template;
+		}
 
 		using AccountNo = unsigned int;
 		using OptionalAccountNo = std::optional<AccountNo>;
@@ -6648,12 +6656,12 @@ public:
 							case 2: {model->prompt_state = PromptState::EnterDividend;} break;
 							case 3: {
 								if (true) {
-									// TODO: Split to allow edit of Income and Dividend before entering teh actual generation phase/code
+									// TODO: Split to allow edit of Income and Dividend before entering the actual generation phase/code
 									// k10_csv_to_sru_template
 									SKV::SRU::OptionalSRUValueMap k10_sru_value_map{};
 									SKV::SRU::OptionalSRUValueMap ink1_sru_value_map{};
 
-									std::istringstream k10_is{SKV::SRU::k10_csv_to_sru_template};
+									std::istringstream k10_is{SKV::SRU::INK1::k10_csv_to_sru_template};
 									if (auto field_rows = CSV::to_field_rows(k10_is)) {
 										// LOG
 										for (auto const& field_row : *field_rows) {
@@ -6669,7 +6677,7 @@ public:
 										prompt << "\nSorry, failed to acquire a valid template for the K10 form";
 									}
 									// ink1_csv_to_sru_template
-									std::istringstream ink1_is{SKV::SRU::ink1_csv_to_sru_template};
+									std::istringstream ink1_is{SKV::SRU::INK1::ink1_csv_to_sru_template};
 									if (auto field_rows = CSV::to_field_rows(ink1_is)) {
 										for (auto const& field_row : *field_rows) {
 											if (field_row.size()>0) prompt << "\n";
@@ -7220,7 +7228,7 @@ public:
 								}
 							}
 							if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
-
+								prompt << "\nSorry, Reading an input csv-file as base for SRU-file creation is not yet implemented.";
 							}
 							else {
 								prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
@@ -8266,9 +8274,10 @@ namespace SKV {
 			,{R"(Skatteverket.agd:Blankett.agd:Blankettinnehall.agd:IU.agd:AvdrPrelSkatt faltkod="001")",R"(0)"}
 			};
 		} // namespace TAXReturns
-	}
+	} // namespace XML
 	namespace SRU {
-		const char* ink1_csv_to_sru_template = R"(Fältnamn på INK1_SKV2000-31-02-0021-01;;;;;
+		namespace INK1 {
+			const char* ink1_csv_to_sru_template = R"(Fältnamn på INK1_SKV2000-31-02-0021-01;;;;;
 ;;;;;
 ;;;;;
 Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
@@ -8348,7 +8357,7 @@ Kryssa här om du har haft inkomst från utlandet;8055;Str_X;N;;
 Kryssa här om du begär avräkning av utländsk skatt.;8056;Str_X;N;;
 Övrigt;8090;Str_1000;N;;
 Kanal;Kanal;Str_250;N;;)";
-		const char* k10_csv_to_sru_template = R"(Fältnamn på K10_SKV2110-34-04-21-02;;;;;
+			const char* k10_csv_to_sru_template = R"(Fältnamn på K10_SKV2110-34-04-21-02;;;;;
 ;;;;;
 ;;;;;
 Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
@@ -8437,9 +8446,214 @@ Utländskt dotterföretag;7060;Str_X;N;;
 6.8 Löneunderlag avseende den tid under 2020 andelarna ägts;4579;Numeriskt_B;N;*;
 6.9 Löneunderlag enligt p. 6.8 x 50 %;4580;Numeriskt_B;N;+;
 6.10 Ditt lönebaserade utrymme för andelar som anskaffats under 2020.;4583;Numeriskt_B;N;*;
-6.11 Totalt lönebaserat utrymme;4584;Numeriskt_B;N;*;)";		
-	}
-}
+6.11 Totalt lönebaserat utrymme;4584;Numeriskt_B;N;*;)";			
+		}
+
+		const char* INK2_csv_to_sru_template = R"(Fältnamn på INK2_SKV2002-30-01-20-02;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt organisationsnummer;PersOrgNr;Orgnr_Id_O;J;;
+Räkenskapsårets början;7011;Datum_D;N;;
+Räkenskapsårets slut;7012;Datum_D;N;;
+1.1 Överskott av näringsverksamhet;7104;Numeriskt_B;N;*;
+1.2 Underskott av näringsverksamhet;7114;Numeriskt_B;N;*;
+1.4 Underlag för särskild löneskatt på pensionskostnader;7132;Numeriskt_B;N;*;Får ej förekomma om 7133 finns med och den <> 0.
+1.5 Negativt underlag för särskild löneskatt på pensionskostnader;7133;Numeriskt_B;N;*;Får ej förekomma om 7132 finns med och den <> 0.
+1.6 a Underlag för avkastningsskatt 15% Försäkringsföretag m.fl. samt Avsatt till pensioner;7153;Numeriskt_B;N;*;
+1.6 b Underlag för avkastningsskatt 15 % Utländska pensionsförsäkringar;7154;Numeriskt_B;N;*;
+1.7 a Underlag för avkastningsskatt 30% Försäkringsföretag m.fl.;7155;Numeriskt_B;N;*;
+1.7 b Underlag för avkastningsskatt 30 % Utländska kapitalförsäkringar;7156;Numeriskt_B;N;*;
+1.8 Småhus/ägarlägenhet hel avgift;80;Numeriskt_B;N;*;
+1.8 Småhus/ägarlägenhet halv avgift;82;Numeriskt_B;N;*;
+1.9 Hyreshus, bostäder hel avgift;93;Numeriskt_B;N;*;
+1.9 Hyreshus, bostäder halv avgift;94;Numeriskt_B;N;*;
+1.10 Småhus/ägarlägenhet: tomtmark, byggnad under uppförande;84;Numeriskt_B;N;*;
+1.11 Hyreshus: tomtmark, bostäder under uppförande;86;Numeriskt_B;N;*;
+1.12 Hyreshus: lokaler;95;Numeriskt_B;N;*;
+1.13 Industri/elproduktionsenhet, värmekraftverk (utom vindkraftverk);96;Numeriskt_B;N;*;
+1.14 Elproduktionsenhet, vattenkraftverk;97;Numeriskt_B;N;*;
+1.15 Elproduktionsenhet, vindkraftverk;98;Numeriskt_B;N;*;
+Övriga upplysningar på bilaga;90;Str_X;N;;
+Kanal;Kanal;Str_250;N;;
+
+;;;;
+;Dokumenthistorik;;;
+;Datum;Version;Beskrivning;Signatur
+;;;;
+;;;;
+;;;;
+;;;;
+;;;;
+;Referenser;;;
+;"Definition av format återfinns i SKV 269 ""Teknisk beskrivning Näringsuppgifter(SRU) Anstånd Tjänst Kapital""";;;)";
+		const char* INK2S_csv_to_sru_template = R"(Fältnamn på INK2S_SKV2002-30-01-20-02;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt organisationsnummer;PersOrgNr;Orgnr_Id_O;J;;
+Uppgiftslämnarens namn;Namn;Str_250;N;;
+Räkenskapsårets början;7011;Datum_D;N;;
+Räkenskapsårets slut;7012;Datum_D;N;;
+4.1 Årets resultat, vinst;7650;Numeriskt_B;N;+;Får ej förekomma om 7750 finns med och den <> 0.
+4.2 Årets resultat, förlust;7750;Numeriskt_B;N;-;Får ej förekomma om 7650 finns med och den <> 0.
+4.3a. Bokförda kostnader som inte ska dras av: a. Skatt på årets resultat;7651;Numeriskt_A;N;+;
+b. Bokförda kostnader som inte ska dras av: b. Nedskrivning av finansiella tillgångar;7652;Numeriskt_A;N;+;
+c. Bokförda kostnader som inte ska dras av: c. Andra bokförda kostnader;7653;Numeriskt_A;N;+;
+4.4a. Kostnader som ska dras av men som inte ingår i det redovisade resultatet: a. Lämnade koncernbidrag;7751;Numeriskt_A;N;-;
+b. Kostnader som ska dras av men som inte ingår i det redovisade resultatet: b. Andra ej bokförda kostnader;7764;Numeriskt_A;N;-;
+4.5a. Bokförda intäkter som inte ska tas upp: a. Ackordsvinster;7752;Numeriskt_A;N;-;
+b. Bokförda intäkter som inte ska tas upp: b. Utdelning;7753;Numeriskt_A;N;-;
+c. Bokförda intäkter som inte ska tas upp: c. Andra bokförda intäkter;7754;Numeriskt_A;N;-;
+"4.6a. Intäkter som ska tas upp men som inte ingår i det redovisade resultatet:
+a. Beräknad schablonintäkt på kvarvarande periodiseringsfonder vid beskattningsårets ingång";7654;Numeriskt_B;N;+;
+b. Intäkter som ska tas upp men som inte ingår i det redovisade resultatet: b. Beräknad schablonintäkt på fondandelar ägda vid ingången av kalenderåret;7668;Numeriskt_A;N;+;
+c. Intäkter som ska tas upp men som inte ingår i det redovisade resultatet: c. Mottagna koncernbidrag;7655;Numeriskt_A;N;+;
+d. Intäkter som ska tas upp men som inte ingår i det redovisade resultatet: d. Uppräknat belopp vid återföring av periodiseringsfond;7673;Numeriskt_A;N;+;
+e. Intäkter som ska tas upp men som inte ingår i det redovisade resultatet: e. Andra ej bokförda intäkter;7665;Numeriskt_A;N;+;
+4.7a. Avyttring av delägarrätter: a. Bokförd vinst;7755;Numeriskt_B;N;-;
+b. Avyttring av delägarrätter: b. Bokförd förlust;7656;Numeriskt_B;N;+;
+c. Avyttring av delägarrätter: c. Uppskov med kapitalvinst enligt blankett N4;7756;Numeriskt_B;N;-;
+d. Avyttring av delägarrätter: d. Återfört uppskov med kapitalvinst enligt blankett N4;7657;Numeriskt_B;N;+;
+e. Avyttring av delägarrätter: e. Kapitalvinst för beskattningsåret;7658;Numeriskt_B;N;+;
+f. Avyttring av delägarrätter: f. Kapitalförlust som ska dras av;7757;Numeriskt_B;N;-;
+4.8a. Andel i handelsbolag (inkl. avyttring): a. Bokförd intäkt/vinst;7758;Numeriskt_B;N;-;
+b. Andel i handelsbolag (inkl. avyttring): b. Skattemässigt överskott enligt N3B;7659;Numeriskt_B;N;+;
+c. Andel i handelsbolag (inkl. avyttring): c. Bokförd kostnad/förlust;7660;Numeriskt_B;N;+;
+d. Andel i handelsbolag (inkl. avyttring): d. Skattemässigt underskott enligt N3B;7759;Numeriskt_B;N;-;
+4.9 Skattemässig justering av bokfört resultat för avskrivningar på byggnader och annan fast egendom samt restvärdesavskrivning på maskiner och inventarier (+);7666;Numeriskt_B;N;+;
+4.9 Skattemässig justering av bokfört resultat för avskrivningar på byggnader och annan fast egendom samt restvärdesavskrivning på maskiner och inventarier (-);7765;Numeriskt_B;N;-;
+4.10 Skattemässig korrigering av bokfört resultat vid avyttring av näringsfastighet och näringsbostadsrätt: +;7661;Numeriskt_B;N;+;
+4.10 Skattemässig korrigering av bokfört resultat vid avyttring av näringsfastighet och näringsbostadsrätt: -;7760;Numeriskt_B;N;-;
+4.11 Skogs-/substansminskningsavdrag (specificeras på blankett N8);7761;Numeriskt_B;N;-;
+4.12 Återföringar vid avyttring av fastighet t.ex. värdeminskningsavdrag, skogsavdrag och substansminskningsavdrag...;7662;Numeriskt_A;N;+;
+4.13 Andra skattemässiga justeringar av resultatet: +;7663;Numeriskt_B;N;+;
+4.13 Andra skattemässiga justeringar av resultatet: -;7762;Numeriskt_B;N;-;
+4.14a. Underskott: a. Outnyttjat underskott från föregående år;7763;Numeriskt_B;N;-;
+4.14b. Reduktion av outnyttjat underskott med hänsyn till beloppsspärr, ackord eller konkurs;7671;Numeriskt_A;N;+;
+4.14c. Reduktion av outnyttjat underskott med hänsyn till koncernbidragsspärr, fusionsspärr m.m.;7672;Numeriskt_A;N;+;
+4.15 Överskott (flyttas till p. 1.1 på sid. 1);7670;Numeriskt_B;N;+;Får ej förekomma om 7770 finns med och 7770 <> 0.
+4.16 Underskott (flyttas till p. 1.2 på sid. 1);7770;Numeriskt_B;N;-;Får ej förekomma om 7670 finns med och 7670 <> 0.
+4.17 Årets begärda och tidigare års medgivna värdeminskningsavdrag som finns vid beskattningsårets utgång avseende byggnader.;8020;Numeriskt_A;N;*;
+4.18 Årets begärda och tidigare års medgivna värdeminskningsavdrag  som finns vid beskattningsårets utgång avseende markanläggningar.;8021;Numeriskt_A;N;*;
+"4.19 Vid restvärdesavskrivning:
+återförda belopp för av- och nedskrivning,
+försäljning, utrangering";8023;Numeriskt_B;N;*;
+"4.20 Lån från aktieägare (fysisk person)
+vid räkenskapsårets utgång";8026;Numeriskt_B;N;*;
+4.21 Pensionskostnader (som ingår i p. 3.8);8022;Numeriskt_A;N;*;
+4.22 Koncernbidrags-, fusionsspärrat underskott m.m.;8028;Numeriskt_B;N;*;
+Uppdragstagare (t.ex. redovisningskonsult) har biträtt vid upprättandet av årsredovisningen: Ja;8040;Str_X;N;;Får ej förekomma om 8041 finns med.
+Uppdragstagare (t.ex. redovisningskonsult) har biträtt vid upprättandet av årsredovisningen: Nej;8041;Str_X;N;;Får ej förekomma om 8040 finns med.
+Årsredovisningen har varit föremål för revision: Ja;8044;Str_X;N;;Får ej förekomma om 8045 finns med.
+Årsredovisningen har varit föremål för revision: Nej;8045;Str_X;N;;Får ej förekomma om 8044 finns med.)";
+		const char* INK2R_csv_to_sru_template = R"(Fältnamn på INK2R_SKV2002-30-01-20-02;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt organisationsnummer;PersOrgNr;Orgnr_Id_O;J;;
+Uppgiftslämnarens namn;Namn;Str_250;N;;
+Räkenskapsårets början;7011;Datum_D;N;;
+Räkenskapsårets slut;7012;Datum_D;N;;
+2.1 Immateriella anläggningstillgångar Koncessioner, patent, licenser, varumärken, hyresrätter, goodwill och liknande rättigheter;7201;Numeriskt_A;N;*;
+2.2 Immateriella anläggningstillgångar Förskott avseende immateriella anläggningstillgångar;7202;Numeriskt_A;N;*;
+2.3 Materiella anläggningstillgångar Byggnader och mark;7214;Numeriskt_A;N;*;
+2.4 Materiella anläggningstillgångar Maskiner, inventarier och övriga materiella anläggningstillgångar;7215;Numeriskt_A;N;*;
+2.5 Materiella anläggningstillgångar Förbättringsutgifter på annans fastighet;7216;Numeriskt_A;N;*;
+2.6 Materiella anläggningstillgångar Pågående nyanläggningar och förskott avseende materiella anläggningstillgångar;7217;Numeriskt_A;N;*;
+2.7 Finansiella anläggningstillgångar Andelar i koncernföretag;7230;Numeriskt_A;N;*;
+2.8 Finansiella anläggningstillgångar Andelar i intresseföretag och gemensamt styrda företag;7231;Numeriskt_A;N;*;
+2.9 Finansiella anläggningstillgångar Ägarintressen i övriga företag och Andra långfristiga värdepappersinnehav;7233;Numeriskt_A;N;*;
+2.10 Finansiella anläggningstillgångar Fordringar hos koncern-, intresse- och  gemensamt styrda företag;7232;Numeriskt_A;N;*;
+2.11 Finansiella anläggningstillgångar Lån till delägare eller närstående;7234;Numeriskt_A;N;*;
+2.12 Finansiella anläggningstillgångar Fordringar hos övriga företag som det finns ett ägarintresse i och Andra långfristiga fordringar;7235;Numeriskt_A;N;*;
+2.13 Varulager Råvaror och förnödenheter;7241;Numeriskt_A;N;*;
+2.14 Varulager Varor under tillverkning;7242;Numeriskt_A;N;*;
+2.15 Varulager Färdiga varor och handelsvaror;7243;Numeriskt_A;N;*;
+2.16 Varulager Övriga lagertillgångar;7244;Numeriskt_A;N;*;
+2.17 Varulager Pågående arbeten för annans räkning;7245;Numeriskt_A;N;*;
+2.18 Varulager Förskott till leverantörer;7246;Numeriskt_A;N;*;
+2.19 Kortfristiga fordringar Kundfordringar;7251;Numeriskt_A;N;*;
+2.20 Kortfristiga fordringar Fordringar hos koncern-, intresse- och gemensamt styrda företag;7252;Numeriskt_A;N;*;
+2.21 Kortfristiga fordringar Fordringar hos övriga företag som det finns ett ägarintresse i och Övriga fordringar;7261;Numeriskt_A;N;*;
+2.22 Kortfristiga fordringar Upparbetad men ej fakturerad intäkt;7262;Numeriskt_A;N;*;
+2.23 Kortfristiga fordringar Förutbetalda kostnader och upplupna intäkter;7263;Numeriskt_A;N;*;
+2.24 Kortfristiga placeringar Andelar i koncernföretag;7270;Numeriskt_A;N;*;
+2.25 Kortfristiga placeringar Övriga kortfristiga placeringar;7271;Numeriskt_A;N;*;
+2.26 Kassa och bank Kassa, bank och redovisningsmedel;7281;Numeriskt_A;N;*;
+2.27 Eget kapital Bundet eget kapital;7301;Numeriskt_A;N;*;
+2.28 Eget kapital Fritt eget kapital;7302;Numeriskt_A;N;*;
+2.29 Obeskattade reserver Periodiseringsfonder;7321;Numeriskt_A;N;*;
+2.30 Obeskattade reserver Ackumulerade överavskrivningar;7322;Numeriskt_A;N;*;
+2.31 Obeskattade reserver Övriga obeskattade reserver;7323;Numeriskt_A;N;*;
+2.32 Avsättningar Avsättningar för pensioner och liknande förpliktelser enligt lag (1967:531)...;7331;Numeriskt_A;N;*;
+2.33 Avsättningar Övriga avsättningar för pensioner och liknande förpliktelser;7332;Numeriskt_A;N;*;
+2.34 Avsättningar Övriga avsättningar;7333;Numeriskt_A;N;*;
+2.35 Långfristiga skulder Obligationslån;7350;Numeriskt_A;N;*;
+2.36 Långfristiga skulder Checkräkningskredit;7351;Numeriskt_A;N;*;
+2.37 Långfristiga skulder Övriga skulder till kreditinstitut;7352;Numeriskt_A;N;*;
+2.38 Långfristiga skulder Skulder till koncern-, intresse- och gemensamt styrda företag;7353;Numeriskt_A;N;*;
+2.39 Långfristiga skulder Skulder till övriga företag som det finns ett ägarintresse i och Övriga skulder;7354;Numeriskt_A;N;*;
+2.40 Kortfristiga skulder Checkräkningskredit;7360;Numeriskt_A;N;*;
+2.41 Kortfristiga skulder Övriga skulder till kreditinstitut;7361;Numeriskt_A;N;*;
+2.42 Kortfristiga skulder Förskott från kunder;7362;Numeriskt_A;N;*;
+2.43 Kortfristiga skulder Pågående arbeten för annans räkning;7363;Numeriskt_A;N;*;
+2.44 Kortfristiga skulder Fakturerad men ej upparbetad intäkt;7364;Numeriskt_A;N;*;
+2.45 Kortfristiga skulder Leverantörsskulder;7365;Numeriskt_A;N;*;
+2.46 Kortfristiga skulder Växelskulder;7366;Numeriskt_A;N;*;
+2.47 Kortfristiga skulder Skulder till koncern-, intresse- och gemensamt styrda företag;7367;Numeriskt_A;N;*;
+2.48 Kortfristiga skulder Skulder till övriga företag som det finns ett ägarintresse i och Övriga skulder;7369;Numeriskt_A;N;*;
+2.49 Kortfristiga skulder Skattesskulder;7368;Numeriskt_A;N;*;
+2.50 Kortfristiga skulder Upplupna kostnader och förutbetalda intäkter;7370;Numeriskt_A;N;*;
+3.1 Nettoomsättning;7410;Numeriskt_A;N;+;
+3.2 Förändring av lager av produkter i arbete, färdiga varor och pågående arbete för annans räkning. +;7411;Numeriskt_A;N;+;
+3.2 Förändring av lager av produkter i arbete, färdiga varor och pågående arbete för annans räkning. -;7510;Numeriskt_A;N;-;
+3.3 Aktiverat arbete för egen räkning;7412;Numeriskt_A;N;+;
+3.4 Övriga rörelseintäkter;7413;Numeriskt_A;N;+;
+3.5 Råvaror och förnödenheter;7511;Numeriskt_A;N;-;
+3.6 Handelsvaror;7512;Numeriskt_A;N;-;
+3.7 Övriga externa kostnader;7513;Numeriskt_A;N;-;
+3.8 Personalkostnader;7514;Numeriskt_A;N;-;
+3.9 Av- och nedskrivningar av materiella och immateriella anläggningstillgångar;7515;Numeriskt_A;N;-;
+3.10 Nedskrivningar av omsättningstillgångar utöver normala nedskrivningar;7516;Numeriskt_A;N;-;
+3.11 Övriga rörelsekostnader;7517;Numeriskt_A;N;-;
+3.12 Resultat från andelar i koncernföretag +;7414;Numeriskt_A;N;+;
+3.12 Resultat från andelar i koncernföretag -;7518;Numeriskt_A;N;-;
+3.13 Resultat från andelar i intresseföretag och gemensamt styrda företag +;7415;Numeriskt_A;N;+;
+3.13 Resultat från andelar i intresseföretag och gemensamt styrda företag -;7519;Numeriskt_A;N;-;
+3.14 Resultat från övriga företag som det finns ett ägarintresse i +;7423;Numeriskt_A;N;+;
+3.14 Resultat från övriga företag som det finns ett ägarintresse i -;7530;Numeriskt_A;N;-;
+3.15 Resultat från övriga finansiella anläggningstillgångar +;7416;Numeriskt_A;N;+;
+3.15 Resultat från övriga finansiella anläggningstillgångar -;7520;Numeriskt_A;N;-;
+3.16 Övriga ränteintäkter och liknande resultatposter;7417;Numeriskt_A;N;+;
+3.17 Nedskrivning av finansiella anläggningstillgångar och kortfristiga placeringar;7521;Numeriskt_A;N;-;
+3.18 Räntekostnader och liknande resultatposter;7522;Numeriskt_A;N;-;
+3.19 Lämnade koncernbidrag;7524;Numeriskt_A;N;-;
+3.20 Mottagna koncernbidrag;7419;Numeriskt_A;N;+;
+3.21 Återföring av periodiseringsfond;7420;Numeriskt_B;N;+;
+3.22 Avsättning till periodiseringsfond;7525;Numeriskt_B;N;-;
+3.23 Förändring av överavskrivningar +;7421;Numeriskt_A;N;+;
+3.23 Förändring av överavskrivningar -;7526;Numeriskt_A;N;-;
+3.24 Övriga bokslutsdispositioner +;7422;Numeriskt_A;N;+;
+3.24 Övriga bokslutsdispositioner -;7527;Numeriskt_A;N;-;
+3.25 Skatt på årets resultat;7528;Numeriskt_A;N;-;
+3.26 Årets resultat, vinst (flyttas till p. 4.1);7450;Numeriskt_B;N;+;Får ej förekomma om 7550 finns med och 7550 <> 0.
+3.27 Årets resultat, förlust (flyttas till p. 4.2);7550;Numeriskt_B;N;-;Får ej förekomma om 7450 finns med och 7450 <> 0.)";
+
+	} // namespace SRU
+} // namespace SKV
 
 namespace BAS {
 	// The following string literal is the "raw" output of:
