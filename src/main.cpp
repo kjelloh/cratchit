@@ -5128,6 +5128,7 @@ enum class PromptState {
 	,QuarterOptionIndex
 	,SKVTaxReturnEntryIndex
 	,K10INK1EditOptions
+	,INK2AndAppendixEditOptions
 	,EnterIncome
   ,EnterDividend
 	,EnterContact
@@ -5322,12 +5323,11 @@ namespace SKV {
 } // namespace SKV {
 
 
-struct KeyPress {char ch;};
 using Command = std::string;
 struct Quit {};
 struct Nop {};
 
-using Msg = std::variant<Nop,KeyPress,Quit,Command>;
+using Msg = std::variant<Nop,Quit,Command>;
 struct Cmd {std::optional<Msg> msg{};};
 using Ux = std::vector<std::string>;
 
@@ -5396,6 +5396,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 		case PromptState::QuarterOptionIndex: {result.push_back("PromptState::QuarterOptionIndex");} break;
 		case PromptState::SKVTaxReturnEntryIndex: {result.push_back("PromptState::SKVTaxReturnEntryIndex");} break;
 		case PromptState::K10INK1EditOptions: {result.push_back("PromptState::K10INK1EditOptions");} break;
+		case PromptState::INK2AndAppendixEditOptions: {result.push_back("PromptState::INK2AndAppendixEditOptions");} break;
 		case PromptState::EnterIncome: {result.push_back("PromptState::EnterIncome");} break;
 		case PromptState::EnterDividend: {result.push_back("PromptState::EnterDividend");} break;
 		case PromptState::EnterContact: {result.push_back("PromptState::EnterContact");} break;
@@ -5547,8 +5548,8 @@ std::vector<std::string> quoted_tokens(std::string const& cli) {
 
 std::string prompt_line(PromptState const& prompt_state) {
 	std::ostringstream prompt{};
-	prompt << options_list_of_prompt_state(prompt_state);
-	prompt << "\ncratchit";
+	// prompt << options_list_of_prompt_state(prompt_state);
+	prompt << "cratchit";
 	switch (prompt_state) {
 		case PromptState::Root: {
 			prompt << ":";
@@ -5600,7 +5601,10 @@ std::string prompt_line(PromptState const& prompt_state) {
 		} break;
 		case PromptState::K10INK1EditOptions: {
 			prompt << ":skv:to_tax";
-		}
+		} break;
+		case PromptState::INK2AndAppendixEditOptions: {
+			prompt << ":skv:ink2";
+		} break;
 		case PromptState::EnterIncome: {
 			prompt << ":skv:income?";
 		} break;
@@ -5638,19 +5642,6 @@ std::optional<int> to_signed_ix(std::string const& s) {
 class Updater {
 public:
 	Model model;
-	Cmd operator()(KeyPress const& key) {
-		// std::cout << "\noperator('" << key.ch << "')";
-		Cmd cmd{};
-		if (key.ch != '\n') {
-			// std::cout << "\nKeyPress:" << key.value;
-			model->user_input += key.ch;
-		}
-		else {
-			cmd = to_cmd(model->user_input);
-			model->user_input.clear();
-		}
-		return cmd;
-	}
 	Cmd operator()(Command const& command) {
 		// std::cout << "\noperator(command=" << std::quoted(command) << ")";
 		std::ostringstream prompt{};
@@ -5664,14 +5655,13 @@ public:
 					if (had.current_candidate) {
 						// We have a journal entry candidate - reset any VAT Returns form candidate for current had
 						had.vat_returns_form_box_map_candidate = std::nullopt;
-						prompt << "\nVAT Consilidation Candidate " << *had.current_candidate;
-						prompt << "\n" << prompt_line(model->prompt_state);
+						prompt << "VAT Consilidation Candidate " << *had.current_candidate;
 						model->prompt_state = PromptState::JEAggregateOptionIndex;
 					}
 				}
 			}
 			else {
-				prompt << "\n" << prompt_line(model->prompt_state);
+				prompt << options_list_of_prompt_state(model->prompt_state);
 			}
 		}
 		else {
@@ -6540,11 +6530,17 @@ public:
 								// 1. The Total income to tax (SKV SRU Code 1000)
 								// 2. The dividend to Tax (SKV SRU Code 4504)
 								Amount income = get_INK1_Income(model);
-								prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
+								prompt << "\n1: INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
 								Amount dividend = get_K10_Dividend(model);
-								prompt << "\n2) K10 1.6 Utdelning = " << dividend;
-								prompt << "\n3) Continue (Create K10 and INK1)";
-								model->prompt_state = PromptState::K10INK1EditOptions;								
+								prompt << "\n2: K10 1.6 Utdelning = " << dividend;
+								prompt << "\n3: Continue (Create K10 and INK1)";
+								model->prompt_state = PromptState::K10INK1EditOptions;					
+							} break;
+							case 4: {
+								// "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
+								prompt << "\n1: INK2::meta_xx = ?? (TODO: Add edit of meta data for INK2 forms)";
+								prompt << "\n2: Generate INK2";
+								model->prompt_state = PromptState::INK2AndAppendixEditOptions;
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
@@ -6806,7 +6802,18 @@ public:
 							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
-					}
+					} break;
+
+					case PromptState::INK2AndAppendixEditOptions: {
+						switch (ix) {
+							case 1: {
+								prompt << "\nTODO: Add edit of INK2 meta data";
+							} break;
+							case 2: {
+								prompt << "\nTODO: Add generation of INK2 forms into SRU-file (See code for INK1 and K10)";
+							} break;
+						}
+					} break;
 
 					case PromptState::EnterIncome:
 					case PromptState::EnterDividend:
@@ -7146,6 +7153,7 @@ public:
 					prompt << "\n1: Momsrapport (VAT Returns)";
 					prompt << "\n2: K10 (TAX Declaration Appendix Form)";
 					prompt << "\n3: INK1 + K10 (Swedish Tax Agency private TAX Form + Dividend Form";
+					prompt << "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
 					model->prompt_state = PromptState::SKVEntryIndex;
 				}
 				else if (ast.size() == 2) {
@@ -7550,11 +7558,9 @@ public:
 				}
 			}
 		}
-		// std::cout << "\n*prompt=" << prompt.str();
+		if (prompt.str().size()>0) prompt << "\n"; 
 		prompt << prompt_line(model->prompt_state);
-		// std::cout << "\nprompt=" << prompt.str();
 		model->prompt = prompt.str();
-		// std::cout << "\nmodel->prompt=" << model->prompt;
 		return {};
 	}
 	Cmd operator()(Quit const& quit) {
@@ -7610,22 +7616,22 @@ public:
 	Cratchit(std::filesystem::path const& p) 
 		: cratchit_file_path{p} {}
 
-	Model init(Command const& command) {		
+	Model init(Command const& command) {
 		std::ostringstream prompt{};
 		prompt << "\nInit from ";
 		prompt << cratchit_file_path;
 		auto environment = environment_from_file(cratchit_file_path);
 		auto model = this->model_from_environment(environment);
 		model->prompt_state = PromptState::Root;
-		prompt << prompt_line(model->prompt_state);
+		prompt << "\n" << prompt_line(model->prompt_state);
 		model->prompt += prompt.str();
 		return model;
 	}
 	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
 		// std::cout << "\nupdate" << std::flush;
 		Cmd cmd{};
-		std::ostringstream prompt{};
 		{
+			model->prompt.clear();
 			// Scope to ensure correct move of model in and out of updater
 			Updater updater{std::move(model)};
 			// std::cout << "\nCratchit::update updater created" << std::flush;
@@ -7644,7 +7650,6 @@ public:
 		}
 		// std::cout << "\nCratchit::update before prompt update" << std::flush;
 		// std::cout << "\nCratchit::update before return" << std::flush;
-		model->prompt += prompt.str();
 		return {std::move(model),cmd};
 	}
 	Ux view(Model const& model) {
@@ -7813,13 +7818,10 @@ public:
 
 	void run(Command const& command) {
     auto model = cratchit.init(command);
+		auto ux = cratchit.view(model);
+		render_ux(ux);
 		while (true) {
 			try {
-				// std::cout << "\nREPL::run before view" << std::flush;
-				auto ux = cratchit.view(model);
-				// std::cout << "\nREPL::run before render" << std::flush;
-				render_ux(ux);
-				if (model->quit) break; // Done
 				// process events (user input)
 				if (in.size()>0) {
 					auto msg = in.front();
@@ -7832,16 +7834,18 @@ public:
 					model = std::move(updated_model);
 					// std::cout << "\nREPL::run model moved ok" << std::flush;
 					if (cmd.msg) in.push(*cmd.msg);
+					// std::cout << "\nREPL::run before view" << std::flush;
+					auto ux = cratchit.view(model);
+					// std::cout << "\nREPL::run before render" << std::flush;
+					render_ux(ux);
+					if (model->quit) break; // Done
 				}
 				else {
 					// Get more buffered user input
 					std::string user_input{};
 					std::getline(std::cin,user_input);
-					// for (auto ch : user_input) std::cout << " " << ch << ":" << static_cast<int>(ch); 
-					std::for_each(user_input.begin(),user_input.end(),[this](char ch){
-						this->in.push(KeyPress{ch});
-					});
-					this->in.push(KeyPress{'\n'});
+					auto cmd = to_cmd(user_input);
+					if (cmd.msg) this->in.push(*cmd.msg);
 				}
 			}
 			catch (std::exception& e) {
