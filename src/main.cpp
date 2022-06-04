@@ -317,6 +317,40 @@ namespace Key {
 		}
 } // namespace Key
 
+namespace doc {
+
+	struct Component {
+
+	};
+
+}
+
+namespace RTF {
+	// Rich Text Format namespace
+
+	struct OStream {
+		std::ostream& os;
+	};
+
+	OStream& operator<<(OStream& os,doc::Component const& component) {
+		return os;
+	}
+
+}
+
+namespace HTML {
+	// Rich Text Format namespace
+
+	struct OStream {
+		std::ostream& os;
+	};
+
+	OStream& operator<<(OStream& os,doc::Component const& component) {
+		return os;
+	}
+
+}
+
 namespace CSV {
 	using FieldRow = Key::Path;
 	using FieldRows = std::vector<FieldRow>;
@@ -619,6 +653,14 @@ private:
 };
 
 namespace BAS {
+
+	// See https://bolagsverket.se/en/foretag/aktiebolag/arsredovisningforaktiebolag/delarochbilagoriarsredovisningen/faststallelseintyg.763.html
+	// financial statements approval (fastställelseintyg)
+	// See https://bolagsverket.se/en/foretag/aktiebolag/arsredovisningforaktiebolag/delarochbilagoriarsredovisningen.761.html
+	// a directors’ report  (förvaltningsberättelse)
+	// a profit and loss statement (resultaträkning)
+	// a balance sheet (balansräkning)
+	// notes (noter).	
 
 	extern char const* bas_2022_account_plan_csv; // See bottom of this file
 
@@ -7257,8 +7299,51 @@ public:
 			else if (ast[0] == "-") {
 				model->prompt_state = PromptState::Root;
 			}
+			else if (ast[0] == "-ar") {
+				// Assume the user wants to generate an annual report
+				// ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
+				doc::Component annual_report_financial_statements_approval{};
+				// ==> The second document seems to be the 2) directors’ report  (förvaltningsberättelse)?
+				doc::Component annual_report_directors_report{};
+				// ==> The third document seems to be the 3)  profit and loss statement (resultaträkning)?
+				doc::Component annual_report_profit_and_loss_statement{};
+				// ==> The fourth document seems to be the 4) balance sheet (balansräkning)?
+				doc::Component annual_report_balance_sheet{};
+				// ==> The fifth document seems to be the 5) notes (noter)?			
+				doc::Component annual_report_annual_report_notes{};
+
+				std::filesystem::path annual_report_file_folder{"to_bolagsverket"};
+				{
+					auto annual_report_file_path = annual_report_file_folder / "annual_report.rtf";
+					std::filesystem::create_directories(annual_report_file_path.parent_path());
+					std::ofstream raw_annual_report_os{annual_report_file_path};
+					// Generate documents in RTF format
+					RTF::OStream annual_report_os{raw_annual_report_os};
+
+					annual_report_os << annual_report_financial_statements_approval;
+					annual_report_os << annual_report_directors_report;
+					annual_report_os << annual_report_profit_and_loss_statement;
+					annual_report_os << annual_report_balance_sheet;
+					annual_report_os << annual_report_annual_report_notes;
+				}
+
+				{
+					// Generate documents in HTML format
+					auto annual_report_file_path = annual_report_file_folder / "annual_report.html";
+					std::filesystem::create_directories(annual_report_file_path.parent_path());
+					std::ofstream raw_annual_report_os{annual_report_file_path};
+
+					HTML::OStream annual_report_os{raw_annual_report_os};
+
+					annual_report_os << annual_report_financial_statements_approval;
+					annual_report_os << annual_report_directors_report;
+					annual_report_os << annual_report_profit_and_loss_statement;
+					annual_report_os << annual_report_balance_sheet;
+					annual_report_os << annual_report_annual_report_notes;
+				}
+			}	
 			else {
-// std::cout << "\nAct on words";
+				// std::cout << "\nAct on words";
 				// Assume word based input
 				if ((model->prompt_state == PromptState::NetVATAccountInput) or (model->prompt_state == PromptState::GrossAccountInput))  {
 					// Assume the user has enterd text to search for suitable accounts
