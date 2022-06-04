@@ -319,9 +319,31 @@ namespace Key {
 
 namespace doc {
 
-	struct Component {
+	struct PageBreak {};
+	struct Text {std::string s;};
+	using Leaf = std::variant<PageBreak,Text>;
 
+	struct Meta {};
+	using LeafPtr = std::shared_ptr<Leaf>;
+
+	class Component;
+	using ComponentPtr = std::shared_ptr<Component>;
+	using ComponentPtrs = std::vector<ComponentPtr>;
+
+	using Defacto = std::variant<LeafPtr,ComponentPtrs>;
+	struct Component {
+		Meta meta{};
+		Defacto defacto{};
+		Component& operator<<(Component const& component) {
+			// TODO: Figure out how to check that defacto is ComponentPtrs and to add pComponent to the back of the vector
+			return *this;
+		}
 	};
+
+	Component const page_break{.defacto = std::make_shared<Leaf>(PageBreak{})};
+	Component plain_text(std::string const& s) {return Component {
+		.defacto = std::make_shared<Leaf>(Text{s})
+	};}
 
 }
 
@@ -332,7 +354,37 @@ namespace RTF {
 		std::ostream& os;
 	};
 
+	OStream& operator<<(OStream& os,doc::Component const& component); // Forward / future h-file
+
+	struct LeafStreamer {
+		OStream& os;
+		void operator()(doc::PageBreak const& leaf) {
+			os.os << "\nTODO: PAGE BREAK";
+		}
+		void operator()(doc::Text const& leaf) {
+			os.os << " text:" << leaf.s << ":text ";
+		}
+
+	};
+
+	struct DefactoStreamer {
+		OStream& os;
+		void operator()(doc::LeafPtr const& defacto_leaf_ptr) {
+			if (defacto_leaf_ptr) {
+				LeafStreamer streamer{os};
+				std::visit(streamer,*defacto_leaf_ptr);
+			}
+		}
+		void operator()(doc::ComponentPtrs const& defacto_component_ptrs) {
+			for (auto const& ptr : defacto_component_ptrs) {
+				if (ptr) os << *ptr;
+			}
+		}
+	};
+
 	OStream& operator<<(OStream& os,doc::Component const& component) {
+		DefactoStreamer streamer{os};
+		std::visit(streamer,component.defacto);
 		return os;
 	}
 
@@ -7302,16 +7354,19 @@ public:
 			else if (ast[0] == "-ar") {
 				// Assume the user wants to generate an annual report
 				// ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
-				doc::Component annual_report_financial_statements_approval{};
+				auto annual_report_financial_statements_approval = std::make_shared<doc::Component>();
+				{
+					*annual_report_financial_statements_approval << doc::plain_text("Fastställelseintyg");
+				}
 				// ==> The second document seems to be the 2) directors’ report  (förvaltningsberättelse)?
-				doc::Component annual_report_front_page{};
-				doc::Component annual_report_directors_report{};
+				auto annual_report_front_page = std::make_shared<doc::Component>();
+				auto annual_report_directors_report = std::make_shared<doc::Component>();
 				// ==> The third document seems to be the 3)  profit and loss statement (resultaträkning)?
-				doc::Component annual_report_profit_and_loss_statement{};
+				auto annual_report_profit_and_loss_statement = std::make_shared<doc::Component>();
 				// ==> The fourth document seems to be the 4) balance sheet (balansräkning)?
-				doc::Component annual_report_balance_sheet{};
+				auto annual_report_balance_sheet = std::make_shared<doc::Component>();
 				// ==> The fifth document seems to be the 5) notes (noter)?			
-				doc::Component annual_report_annual_report_notes{};
+				auto annual_report_annual_report_notes = std::make_shared<doc::Component>();
 
 				std::filesystem::path to_bolagsverket_file_folder{"to_bolagsverket"};
 
@@ -7327,7 +7382,7 @@ public:
 
 						RTF::OStream annual_report_os{raw_annual_report_os};
 
-						annual_report_os << annual_report_financial_statements_approval;
+						annual_report_os << *annual_report_financial_statements_approval;
 					}
 					// Create the annual report with all the other sections
 					{
@@ -7337,10 +7392,12 @@ public:
 
 						RTF::OStream annual_report_os{raw_annual_report_os};
 
-						annual_report_os << annual_report_directors_report;
-						annual_report_os << annual_report_profit_and_loss_statement;
-						annual_report_os << annual_report_balance_sheet;
-						annual_report_os << annual_report_annual_report_notes;
+
+						annual_report_os << *annual_report_front_page;
+						annual_report_os << doc::page_break << *annual_report_directors_report;
+						annual_report_os << doc::page_break << *annual_report_profit_and_loss_statement;
+						annual_report_os << doc::page_break << *annual_report_balance_sheet;
+						annual_report_os << doc::page_break << *annual_report_annual_report_notes;
 					}
 				}
 
@@ -7356,7 +7413,7 @@ public:
 
 						HTML::OStream annual_report_os{raw_annual_report_os};
 
-						annual_report_os << annual_report_financial_statements_approval;
+						annual_report_os << *annual_report_financial_statements_approval;
 					}
 					// Create the annual report with all the other sections
 					{
@@ -7366,10 +7423,11 @@ public:
 
 						HTML::OStream annual_report_os{raw_annual_report_os};
 
-						annual_report_os << annual_report_directors_report;
-						annual_report_os << annual_report_profit_and_loss_statement;
-						annual_report_os << annual_report_balance_sheet;
-						annual_report_os << annual_report_annual_report_notes;
+						annual_report_os << *annual_report_front_page;
+						annual_report_os << doc::page_break << *annual_report_directors_report;
+						annual_report_os << doc::page_break << *annual_report_profit_and_loss_statement;
+						annual_report_os << doc::page_break << *annual_report_balance_sheet;
+						annual_report_os << doc::page_break << *annual_report_annual_report_notes;
 					}
 				}
 			}	
