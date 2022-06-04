@@ -7304,6 +7304,7 @@ public:
 				// ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
 				doc::Component annual_report_financial_statements_approval{};
 				// ==> The second document seems to be the 2) directors’ report  (förvaltningsberättelse)?
+				doc::Component annual_report_front_page{};
 				doc::Component annual_report_directors_report{};
 				// ==> The third document seems to be the 3)  profit and loss statement (resultaträkning)?
 				doc::Component annual_report_profit_and_loss_statement{};
@@ -7312,34 +7313,64 @@ public:
 				// ==> The fifth document seems to be the 5) notes (noter)?			
 				doc::Component annual_report_annual_report_notes{};
 
-				std::filesystem::path annual_report_file_folder{"to_bolagsverket"};
-				{
-					auto annual_report_file_path = annual_report_file_folder / "annual_report.rtf";
-					std::filesystem::create_directories(annual_report_file_path.parent_path());
-					std::ofstream raw_annual_report_os{annual_report_file_path};
-					// Generate documents in RTF format
-					RTF::OStream annual_report_os{raw_annual_report_os};
+				std::filesystem::path to_bolagsverket_file_folder{"to_bolagsverket"};
 
-					annual_report_os << annual_report_financial_statements_approval;
-					annual_report_os << annual_report_directors_report;
-					annual_report_os << annual_report_profit_and_loss_statement;
-					annual_report_os << annual_report_balance_sheet;
-					annual_report_os << annual_report_annual_report_notes;
+				{
+					// Generate documents in RTF format
+					auto annual_report_file_folder = to_bolagsverket_file_folder / "rtf";
+
+					// Create one document for the financial statemnts approval (to accomodate the annual report copy sent to Swedish Bolagsverket)
+					{
+						auto annual_report_file_path = annual_report_file_folder / "financial_statement_approval.rtf";
+						std::filesystem::create_directories(annual_report_file_path.parent_path());
+						std::ofstream raw_annual_report_os{annual_report_file_path};
+
+						RTF::OStream annual_report_os{raw_annual_report_os};
+
+						annual_report_os << annual_report_financial_statements_approval;
+					}
+					// Create the annual report with all the other sections
+					{
+						auto annual_report_file_path = annual_report_file_folder / "annual_report.rtf";
+						std::filesystem::create_directories(annual_report_file_path.parent_path());
+						std::ofstream raw_annual_report_os{annual_report_file_path};
+
+						RTF::OStream annual_report_os{raw_annual_report_os};
+
+						annual_report_os << annual_report_directors_report;
+						annual_report_os << annual_report_profit_and_loss_statement;
+						annual_report_os << annual_report_balance_sheet;
+						annual_report_os << annual_report_annual_report_notes;
+					}
 				}
 
 				{
 					// Generate documents in HTML format
-					auto annual_report_file_path = annual_report_file_folder / "annual_report.html";
-					std::filesystem::create_directories(annual_report_file_path.parent_path());
-					std::ofstream raw_annual_report_os{annual_report_file_path};
+					auto annual_report_file_folder = to_bolagsverket_file_folder / "html";
 
-					HTML::OStream annual_report_os{raw_annual_report_os};
+					// Create one document for the financial statemnts approval (to accomodate the annual report copy sent to Swedish Bolagsverket)
+					{
+						auto annual_report_file_path = annual_report_file_folder / "financial_statement_approval.html";
+						std::filesystem::create_directories(annual_report_file_path.parent_path());
+						std::ofstream raw_annual_report_os{annual_report_file_path};
 
-					annual_report_os << annual_report_financial_statements_approval;
-					annual_report_os << annual_report_directors_report;
-					annual_report_os << annual_report_profit_and_loss_statement;
-					annual_report_os << annual_report_balance_sheet;
-					annual_report_os << annual_report_annual_report_notes;
+						HTML::OStream annual_report_os{raw_annual_report_os};
+
+						annual_report_os << annual_report_financial_statements_approval;
+					}
+					// Create the annual report with all the other sections
+					{
+						auto annual_report_file_path = annual_report_file_folder / "annual_report.html";
+						std::filesystem::create_directories(annual_report_file_path.parent_path());
+						std::ofstream raw_annual_report_os{annual_report_file_path};
+
+						HTML::OStream annual_report_os{raw_annual_report_os};
+
+						annual_report_os << annual_report_directors_report;
+						annual_report_os << annual_report_profit_and_loss_statement;
+						annual_report_os << annual_report_balance_sheet;
+						annual_report_os << annual_report_annual_report_notes;
+					}
 				}
 			}	
 			else {
