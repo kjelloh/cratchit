@@ -29,6 +29,7 @@ float const VERSION = 0.5;
 #include <numeric>
 #include <functional>
 #include <set>
+#include <source_location>
 
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
@@ -317,6 +318,18 @@ namespace Key {
 		}
 } // namespace Key
 
+void log(const std::string_view message,
+         const std::source_location location = 
+               std::source_location::current())
+{
+    std::cout << "file: "
+              << location.file_name() << "("
+              << location.line() << ":"
+              << location.column() << ") `"
+              << location.function_name() << "`: "
+              << message << '\n';
+}
+
 namespace doc {
 
 	struct PageBreak {};
@@ -330,12 +343,27 @@ namespace doc {
 	using ComponentPtr = std::shared_ptr<Component>;
 	using ComponentPtrs = std::vector<ComponentPtr>;
 
+	struct ComponentInserter {
+		ComponentPtr cp;
+		void operator()(doc::LeafPtr const& defacto_leaf_ptr) {
+			if (defacto_leaf_ptr) {
+				throw std::runtime_error("Cant insert into Leaf");
+			}
+		}
+		void operator()(doc::ComponentPtrs& defacto_component_ptrs) {
+			std::cout << "operator(doc::ComponentPtrs& defacto_component_ptrs)";
+			defacto_component_ptrs.push_back(cp);
+		}
+	};
+
 	using Defacto = std::variant<LeafPtr,ComponentPtrs>;
 	struct Component {
 		Meta meta{};
 		Defacto defacto{};
 		Component& operator<<(ComponentPtr const& cp) {
 			// TODO: Figure out how to check that defacto is ComponentPtrs and to add pComponent to the back of the vector
+			ComponentInserter inserter{cp};
+			std::visit(inserter,defacto);
 			return *this;
 		}
 	};
