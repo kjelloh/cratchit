@@ -29,7 +29,7 @@ float const VERSION = 0.5;
 #include <numeric>
 #include <functional>
 #include <set>
-#include <source_location>
+
 
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
@@ -317,18 +317,6 @@ namespace Key {
 			return os;
 		}
 } // namespace Key
-
-void log(const std::string_view message,
-         const std::source_location location = 
-               std::source_location::current())
-{
-    std::cout << "file: "
-              << location.file_name() << "("
-              << location.line() << ":"
-              << location.column() << ") `"
-              << location.function_name() << "`: "
-              << message << '\n';
-}
 
 namespace doc {
 
