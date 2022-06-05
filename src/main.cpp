@@ -339,7 +339,6 @@ namespace doc {
 			}
 		}
 		void operator()(doc::ComponentPtrs& defacto_component_ptrs) {
-			std::cout << "operator(doc::ComponentPtrs& defacto_component_ptrs)";
 			defacto_component_ptrs.push_back(cp);
 		}
 	};
@@ -350,7 +349,6 @@ namespace doc {
 		Defacto defacto{};
 		Component& operator<<(ComponentPtr const& cp) {
 			// TODO: Figure out how to check that defacto is ComponentPtrs and to add pComponent to the back of the vector
-			std::cout << "Component::operator<<(ComponentPtr const& cp)";
 			ComponentInserter inserter{cp};
 			std::visit(inserter,defacto);
 			return *this;
@@ -386,7 +384,6 @@ namespace RTF {
 			os.os << "\nTODO: PAGE BREAK";
 		}
 		void operator()(doc::Text const& leaf) {
-			std::cout << "LeafOStreamer::operator()(doc::Text const& leaf)";
 			os.os << " text:" << leaf.s << ":text ";
 		}
 
@@ -7386,14 +7383,29 @@ public:
 					*annual_report_financial_statements_approval << doc::plain_text("Fastställelseintyg");
 				}
 				// ==> The second document seems to be the 2) directors’ report  (förvaltningsberättelse)?
-				auto annual_report_front_page = std::make_shared<doc::Component>();
-				auto annual_report_directors_report = std::make_shared<doc::Component>();
+				auto annual_report_front_page = doc::plain_component();
+				{
+					*annual_report_front_page << doc::plain_text("Årsredovisning");
+				}
+				auto annual_report_directors_report = doc::plain_component();
+				{
+					*annual_report_directors_report << doc::plain_text("Förvaltningsberättelse");
+				}
 				// ==> The third document seems to be the 3)  profit and loss statement (resultaträkning)?
-				auto annual_report_profit_and_loss_statement = std::make_shared<doc::Component>();
+				auto annual_report_profit_and_loss_statement = doc::plain_component();
+				{
+					*annual_report_profit_and_loss_statement << doc::plain_text("Resultaträkning");
+				}
 				// ==> The fourth document seems to be the 4) balance sheet (balansräkning)?
-				auto annual_report_balance_sheet = std::make_shared<doc::Component>();
+				auto annual_report_balance_sheet = doc::plain_component();
+				{
+					*annual_report_balance_sheet << doc::plain_text("Balansräkning");
+				}
 				// ==> The fifth document seems to be the 5) notes (noter)?			
-				auto annual_report_annual_report_notes = std::make_shared<doc::Component>();
+				auto annual_report_annual_report_notes = doc::plain_component();
+				{
+					*annual_report_annual_report_notes << doc::plain_text("Noter");
+				}
 
 				std::filesystem::path to_bolagsverket_file_folder{"to_bolagsverket"};
 
