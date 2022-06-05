@@ -350,6 +350,7 @@ namespace doc {
 		Defacto defacto{};
 		Component& operator<<(ComponentPtr const& cp) {
 			// TODO: Figure out how to check that defacto is ComponentPtrs and to add pComponent to the back of the vector
+			std::cout << "Component::operator<<(ComponentPtr const& cp)";
 			ComponentInserter inserter{cp};
 			std::visit(inserter,defacto);
 			return *this;
@@ -357,9 +358,16 @@ namespace doc {
 	};
 
 	ComponentPtr const page_break = std::make_shared<Component>(Component{.defacto = std::make_shared<Leaf>(PageBreak{})});
-	ComponentPtr plain_text(std::string const& s) {return std::make_shared<Component>(Component {
-		.defacto = std::make_shared<Leaf>(Text{s})
-	});}
+	ComponentPtr plain_text(std::string const& s) {
+		return std::make_shared<Component>(Component {
+			.defacto = std::make_shared<Leaf>(Text{s})
+		});
+	}
+	ComponentPtr plain_component() {
+		return std::make_shared<Component>(Component {
+			.defacto = ComponentPtrs{}
+		});
+	}
 
 }
 
@@ -378,6 +386,7 @@ namespace RTF {
 			os.os << "\nTODO: PAGE BREAK";
 		}
 		void operator()(doc::Text const& leaf) {
+			std::cout << "LeafOStreamer::operator()(doc::Text const& leaf)";
 			os.os << " text:" << leaf.s << ":text ";
 		}
 
@@ -7372,7 +7381,7 @@ public:
 			else if (ast[0] == "-ar") {
 				// Assume the user wants to generate an annual report
 				// ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
-				auto annual_report_financial_statements_approval = std::make_shared<doc::Component>();
+				auto annual_report_financial_statements_approval = doc::plain_component();
 				{
 					*annual_report_financial_statements_approval << doc::plain_text("Fastställelseintyg");
 				}
