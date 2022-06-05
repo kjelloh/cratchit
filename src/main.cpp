@@ -334,16 +334,16 @@ namespace doc {
 	struct Component {
 		Meta meta{};
 		Defacto defacto{};
-		Component& operator<<(Component const& component) {
+		Component& operator<<(ComponentPtr const& cp) {
 			// TODO: Figure out how to check that defacto is ComponentPtrs and to add pComponent to the back of the vector
 			return *this;
 		}
 	};
 
-	Component const page_break{.defacto = std::make_shared<Leaf>(PageBreak{})};
-	Component plain_text(std::string const& s) {return Component {
+	ComponentPtr const page_break = std::make_shared<Component>(Component{.defacto = std::make_shared<Leaf>(PageBreak{})});
+	ComponentPtr plain_text(std::string const& s) {return std::make_shared<Component>(Component {
 		.defacto = std::make_shared<Leaf>(Text{s})
-	};}
+	});}
 
 }
 
@@ -354,9 +354,9 @@ namespace RTF {
 		std::ostream& os;
 	};
 
-	OStream& operator<<(OStream& os,doc::Component const& component); // Forward / future h-file
+	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp); // Forward / future h-file
 
-	struct LeafStreamer {
+	struct LeafOStreamer {
 		OStream& os;
 		void operator()(doc::PageBreak const& leaf) {
 			os.os << "\nTODO: PAGE BREAK";
@@ -371,20 +371,22 @@ namespace RTF {
 		OStream& os;
 		void operator()(doc::LeafPtr const& defacto_leaf_ptr) {
 			if (defacto_leaf_ptr) {
-				LeafStreamer streamer{os};
+				LeafOStreamer streamer{os};
 				std::visit(streamer,*defacto_leaf_ptr);
 			}
 		}
 		void operator()(doc::ComponentPtrs const& defacto_component_ptrs) {
 			for (auto const& ptr : defacto_component_ptrs) {
-				if (ptr) os << *ptr;
+				if (ptr) os << ptr;
 			}
 		}
 	};
 
-	OStream& operator<<(OStream& os,doc::Component const& component) {
-		DefactoStreamer streamer{os};
-		std::visit(streamer,component.defacto);
+	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp) {
+		if (cp) {
+			DefactoStreamer streamer{os};		
+			std::visit(streamer,cp->defacto);
+		}
 		return os;
 	}
 
@@ -397,7 +399,7 @@ namespace HTML {
 		std::ostream& os;
 	};
 
-	OStream& operator<<(OStream& os,doc::Component const& component) {
+	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp) {
 		return os;
 	}
 
@@ -7382,7 +7384,7 @@ public:
 
 						RTF::OStream annual_report_os{raw_annual_report_os};
 
-						annual_report_os << *annual_report_financial_statements_approval;
+						annual_report_os << annual_report_financial_statements_approval;
 					}
 					// Create the annual report with all the other sections
 					{
@@ -7393,11 +7395,11 @@ public:
 						RTF::OStream annual_report_os{raw_annual_report_os};
 
 
-						annual_report_os << *annual_report_front_page;
-						annual_report_os << doc::page_break << *annual_report_directors_report;
-						annual_report_os << doc::page_break << *annual_report_profit_and_loss_statement;
-						annual_report_os << doc::page_break << *annual_report_balance_sheet;
-						annual_report_os << doc::page_break << *annual_report_annual_report_notes;
+						annual_report_os << annual_report_front_page;
+						annual_report_os << doc::page_break << annual_report_directors_report;
+						annual_report_os << doc::page_break << annual_report_profit_and_loss_statement;
+						annual_report_os << doc::page_break << annual_report_balance_sheet;
+						annual_report_os << doc::page_break << annual_report_annual_report_notes;
 					}
 				}
 
@@ -7413,7 +7415,7 @@ public:
 
 						HTML::OStream annual_report_os{raw_annual_report_os};
 
-						annual_report_os << *annual_report_financial_statements_approval;
+						annual_report_os << annual_report_financial_statements_approval;
 					}
 					// Create the annual report with all the other sections
 					{
@@ -7423,11 +7425,11 @@ public:
 
 						HTML::OStream annual_report_os{raw_annual_report_os};
 
-						annual_report_os << *annual_report_front_page;
-						annual_report_os << doc::page_break << *annual_report_directors_report;
-						annual_report_os << doc::page_break << *annual_report_profit_and_loss_statement;
-						annual_report_os << doc::page_break << *annual_report_balance_sheet;
-						annual_report_os << doc::page_break << *annual_report_annual_report_notes;
+						annual_report_os << annual_report_front_page;
+						annual_report_os << doc::page_break << annual_report_directors_report;
+						annual_report_os << doc::page_break << annual_report_profit_and_loss_statement;
+						annual_report_os << doc::page_break << annual_report_balance_sheet;
+						annual_report_os << doc::page_break << annual_report_annual_report_notes;
 					}
 				}
 			}	
