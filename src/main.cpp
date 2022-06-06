@@ -7506,6 +7506,8 @@ public:
 						else {
 							prompt << "\nSorry, failed to create pdf-documents.";
 							prompt << "\n==> Please ensure you have installed command line tool 'pdflatex' on your system?";
+							prompt << "\nmacOS: brew install --cask mactex";
+							prompt << "\nLinux: 'sudo apt-get install texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra'";
 						}
 					}					
 
