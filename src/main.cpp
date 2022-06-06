@@ -7469,6 +7469,91 @@ public:
 						annual_report_os << doc::page_break << annual_report_annual_report_notes;
 					}
 				}
+
+				{
+					// Generate documents in LaTeX format and then transform them into pdf using OS installed pdflatex command
+					auto annual_report_file_folder = to_bolagsverket_file_folder / "tex";
+					std::filesystem::create_directories(annual_report_file_folder);
+
+					{
+						// Test code
+						char const* test_tex{R"(\documentclass[12pt]{article}
+\usepackage{lingmacros}
+\usepackage{tree-dvips}
+\begin{document}
+
+\section*{Notes for My Paper}
+
+Don't forget to include examples of topicalization.
+They look like this:
+
+{\small
+\enumsentence{Topicalization from sentential subject:\\ 
+\shortex{7}{a John$_i$ [a & kltukl & [el & 
+  {\bf l-}oltoir & er & ngii$_i$ & a Mary]]}
+{ & {\bf R-}clear & {\sc comp} & 
+  {\bf IR}.{\sc 3s}-love   & P & him & }
+{John, (it's) clear that Mary loves (him).}}
+}
+
+\subsection*{How to handle topicalization}
+
+I'll just assume a tree structure like (\ex{1}).
+
+{\small
+\enumsentence{Structure of A$'$ Projections:\\ [2ex]
+\begin{tabular}[t]{cccc}
+    & \node{i}{CP}\\ [2ex]
+    \node{ii}{Spec} &   &\node{iii}{C$'$}\\ [2ex]
+        &\node{iv}{C} & & \node{v}{SAgrP}
+\end{tabular}
+\nodeconnect{i}{ii}
+\nodeconnect{i}{iii}
+\nodeconnect{iii}{iv}
+\nodeconnect{iii}{v}
+}
+}
+
+\subsection*{Mood}
+
+Mood changes when there is a topic, as well as when
+there is WH-movement.  \emph{Irrealis} is the mood when
+there is a non-subject topic or WH-phrase in Comp.
+\emph{Realis} is the mood when there is a subject topic
+or WH-phrase.
+
+\end{document})"};
+						std::ofstream os{annual_report_file_folder / "test.tex"};
+						os << test_tex;
+						// std::filesystem::copy_file("test/test.tex",annual_report_file_folder / "test.tex",std::filesystem::copy_options::overwrite_existing);
+					}
+				}
+
+				{
+					// Transform LaTeX documents to pdf:s
+					auto annual_report_file_folder = to_bolagsverket_file_folder / "pdf";
+					std::filesystem::create_directories(annual_report_file_folder);
+
+					// pdflatex --output-directory to_bolagsverket/pdf test/test.tex
+
+					for (auto const& dir_entry : std::filesystem::directory_iterator{to_bolagsverket_file_folder / "tex"}) {
+						// Test for installed pdflatex
+						std::ostringstream command{};
+						command << "pdflatex";
+						command << " --output-directory " << annual_report_file_folder;
+						command << " " << dir_entry.path();
+						if (auto result = std::system(command.str().c_str());result == 0) {
+							prompt << "\nCreated pdf-document " << (annual_report_file_folder / dir_entry.path().stem()) << ".pdf" << " OK";
+						}
+						else {
+							prompt << "\nSorry, failed to create pdf-documents.";
+							prompt << "\n==> Please ensure you have installed command line tool 'pdflatex' on your system?";
+						}
+					}					
+
+
+				}
+
 			}	
 			else {
 				// std::cout << "\nAct on words";
