@@ -7478,8 +7478,39 @@ public:
 					{
 						// Test code
 						char const* test_tex{R"(\documentclass{article}
+
 \begin{document}
-  Hello World!
+
+\begin{center}
+The ITfied AB
+\par \vspace*{12pt} 556782-8172
+\par \vspace{12pt} Årsredovisning för räkenskapsåret
+\par \vspace{12pt} 2021-05-01 - 2022-04-40
+\par \vspace{12pt} Styrelsen avger följande årsredovisning
+\par \vspace{12pt} Samtliga belopp är angivna i hela kronor
+\end{center}
+
+\pagebreak
+\section*{Förvaltningsberättelse}
+
+\subsection*{Verksamheten}
+\subsubsection*{Allmänt om verksamheten}
+\subsection*{Flerårsöversikt}
+\subsection*{Förändring i eget kapital}
+\subsection*{Resultatdisposition}
+
+\pagebreak
+\section*{Resultaträkning}
+
+\pagebreak
+\section*{Balansräkning}
+
+\pagebreak
+\section*{Noter}
+
+\pagebreak
+\section*{Underskrifter}
+
 \end{document})"};
 						std::ofstream os{annual_report_file_folder / "test.tex"};
 						os << test_tex;
