@@ -9180,8 +9180,8 @@ namespace BAS {
 ;;196;Koncernkonto moderföretag;;1960;Koncernkonto moderföretag;;;
 ;;197;Särskilda bankkonton;;1970;Särskilda bankkonton;;;
 ;;;;;1972;Upphovsmannakonto;;;
-;;;;;1973;Skogskonto;;;
-;;;;;1974;Spärrade bankmedel;;;
+;;;;;1973;Skogskonto;;;)"
+R"(;;;;; 1974; Spärrade bankmedel;;;
 ;;;;;1979;Övriga särskilda bankkonton;;;
 ;;198;Valutakonton;;1980;Valutakonton;;;
 ;;199;Redovisningsmedel;;1990;Redovisningsmedel;;;
@@ -9469,8 +9469,8 @@ namespace BAS {
 ;;;;;2971;Förutbetalda hyresintäkter;;;
 ;;;;;2972;Förutbetalda medlemsavgifter;;;
 ;;;;;2979;Övriga förutbetalda intäkter;;;
-;;298;Upplupna avtalskostnader;;2980;Upplupna avtalskostnader;;;
-;■;299;Övriga upplupna kostnader och förutbetalda intäkter;■;2990;Övriga upplupna kostnader och förutbetalda intäkter;;;
+;;298;Upplupna avtalskostnader;;2980;Upplupna avtalskostnader;;;)"
+R"(; ■; 299; Övriga upplupna kostnader och förutbetalda intäkter; ■; 2990; Övriga upplupna kostnader och förutbetalda intäkter;;;
 ;;;;;2991;Beräknat arvode för bokslut;;;
 ;;;;;2992;Beräknat arvode för revision;;;
 ;;;;;2993;Ospecificerad skuld till leverantörer;;;
@@ -9727,8 +9727,8 @@ namespace BAS {
 ;;;;;5491;Övriga förbrukningsinventarier med en livslängd på mer än ett år;;;
 ;;;;;5492;Övriga förbrukningsinventarier med en livslängd på ett år eller mindre;;;
 ;;;;;5493;Övrigt förbrukningsmaterial;;;
-;;55;Reparation och underhåll;;;;;;
-;■;550;Reparation och underhåll (gruppkonto);■;5500;Reparation och underhåll (gruppkonto);;;
+;;55;Reparation och underhåll;;;;;;)"
+R"(; ■; 550; Reparation och underhåll(gruppkonto); ■; 5500; Reparation och underhåll(gruppkonto);;;
 ;;551;Reparation och underhåll av maskiner och andra tekniska anläggningar;;5510;Reparation och underhåll av maskiner och andra tekniska anläggningar;;;
 ;;552;Reparation och underhåll av inventarier, verktyg och datorer m.m.;;5520;Reparation och underhåll av inventarier, verktyg och datorer m.m.;;;
 ;;553;Reparation och underhåll av installationer;;5530;Reparation och underhåll av installationer;;;
@@ -9982,9 +9982,9 @@ namespace BAS {
 ;■;739;Övriga kostnadsersättningar och förmåner;■;7390;Övriga kostnadsersättningar och förmåner;;;
 ;;;;;7391;Kostnad för trängselskatteförmån;;;
 ;;;;;7392;Kostnad för förmån av hushållsnära tjänster;;;
-;;74;Pensionskostnader;;;;;;
-;;740;Pensionskostnader (gruppkonto);;7400;Pensionskostnader (gruppkonto);;;
-;■;741;Pensionsförsäkringspremier;■;7410;Pensionsförsäkringspremier;;;
+;;74;Pensionskostnader;;;;;;)"
+R"(;; 740; Pensionskostnader(gruppkonto);; 7400; Pensionskostnader(gruppkonto);;;
+; ■; 741; Pensionsförsäkringspremier; ■; 7410; Pensionsförsäkringspremier;;;
 ;;;;;7411;Premier för kollektiva pensionsförsäkringar;;;
 ;;;;;7412;Premier för individuella pensionsförsäkringar;;;
 ;;742;Förändring av pensionsskuld;;7420;Förändring av pensionsskuld;;;
@@ -10174,8 +10174,8 @@ namespace BAS {
 ;;;;[Ej K2];8321;Orealiserade värdeförändringar på omsättningstillgångar;;;
 ;;;;[Ej K2];8325;Orealiserade värdeförändringar på derivatinstrument (oms.-tillg.);;;
 ;■;833;Valutakursdifferenser på kortfristiga fordringar och placeringar;■;8330;Valutakursdifferenser på kortfristiga fordringar och placeringar;;;
-;;;;;8331;Valutakursvinster på kortfristiga fordringar och placeringar;;;
-;;;;;8336;Valutakursförluster på kortfristiga fordringar och placeringar;;;
+;;;;;8331;Valutakursvinster på kortfristiga fordringar och placeringar;;;)"
+R"(;;;;; 8336; Valutakursförluster på kortfristiga fordringar och placeringar;;;
 ;■;834;Utdelningar på kortfristiga placeringar;■;8340;Utdelningar på kortfristiga placeringar;;;
 ;■;835;Resultat vid försäljning av kortfristiga placeringar;■;8350;Resultat vid försäljning av kortfristiga placeringar;;;
 ;;836;Övriga ränteintäkter från koncernföretag;;8360;Övriga ränteintäkter från koncernföretag;;;
