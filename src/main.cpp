@@ -320,51 +320,73 @@ namespace Key {
 
 namespace doc {
 
-	struct PageBreak {};
-	struct Text {std::string s;};
-	using Leaf = std::variant<PageBreak,Text>;
+	namespace meta {
+		struct Orientation {};
+		struct Location {};
+		struct Colour {};
+		struct Font {};
+		struct Width {};
+		struct Height {};
+		struct Count {};
+	}
+	using Meta = std::variant<meta::Orientation,meta::Location,meta::Colour,meta::Font,meta::Width,meta::Height,meta::Count>;
+	using MetaPtr = std::shared_ptr<Meta>;
 
-	struct Meta {};
+	namespace leaf {
+		struct PageBreak {};
+		struct Text {std::string s;};
+	}
+
+	using Leaf = std::variant<leaf::PageBreak,leaf::Text>;
 	using LeafPtr = std::shared_ptr<Leaf>;
 
-	class Component;
+	struct Component; // Forward
 	using ComponentPtr = std::shared_ptr<Component>;
-	using ComponentPtrs = std::vector<ComponentPtr>;
+	namespace composite {
+		struct Base {
+			ComponentPtr parent;
+			std::vector<ComponentPtr> childs;
+		};
+		struct Vector : public Base {}; // A vector of components
+		struct Grid : public Base {}; // A Grid x,y of components
+		struct SeparatePage : public Base {}; // Ensure this component is on its own page
+	}
+	using Composite = std::variant<composite::Vector,composite::Grid,composite::SeparatePage>;
+	using CompositePtr = std::shared_ptr<Composite>;
 
-	struct ComponentInserter {
-		ComponentPtr cp;
-		void operator()(doc::LeafPtr const& defacto_leaf_ptr) {
-			if (defacto_leaf_ptr) {
-				throw std::runtime_error("Cant insert into Leaf");
-			}
-		}
-		void operator()(doc::ComponentPtrs& defacto_component_ptrs) {
-			defacto_component_ptrs.push_back(cp);
-		}
-	};
+	using Defacto = std::variant<LeafPtr,CompositePtr>;
+	using DefactoPtr = std::shared_ptr<Defacto>;
 
-	using Defacto = std::variant<LeafPtr,ComponentPtrs>;
 	struct Component {
-		Meta meta{};
-		Defacto defacto{};
-		Component& operator<<(ComponentPtr const& cp) {
-			// TODO: Figure out how to check that defacto is ComponentPtrs and to add pComponent to the back of the vector
-			ComponentInserter inserter{cp};
-			std::visit(inserter,defacto);
-			return *this;
-		}
+		MetaPtr pMeta;
+		DefactoPtr pDefacto;
+		friend Component& operator<<(Component& c,ComponentPtr const& p);
 	};
+	Component& operator<<(Component& c,ComponentPtr const& p) {
+		return c;
+	}
 
-	ComponentPtr const page_break = std::make_shared<Component>(Component{.defacto = std::make_shared<Leaf>(PageBreak{})});
 	ComponentPtr plain_text(std::string const& s) {
 		return std::make_shared<Component>(Component {
-			.defacto = std::make_shared<Leaf>(Text{s})
+			.pDefacto = std::make_shared<Defacto>(std::make_shared<Leaf>(leaf::Text{s}))
 		});
 	}
-	ComponentPtr plain_component() {
+
+	ComponentPtr separate_page() {
 		return std::make_shared<Component>(Component {
-			.defacto = ComponentPtrs{}
+			.pDefacto = std::make_shared<Defacto>(std::make_shared<Composite>(composite::SeparatePage{}))
 		});
+	}
+
+	class Document {
+	public:
+		friend Document& operator<<(Document& doc,ComponentPtr const& p);
+	private:
+		ComponentPtr root{separate_page()};
+	};
+
+	Document& operator<<(Document& doc,ComponentPtr const& p) {
+		return doc;
 	}
 
 }
@@ -372,56 +394,108 @@ namespace doc {
 namespace RTF {
 	// Rich Text Format namespace
 
+	struct MetaState {
+		void operator()(doc::meta::Orientation const& meta) {}
+		void operator()(doc::meta::Location const& meta) {}
+		void operator()(doc::meta::Colour const& meta) {}
+		void operator()(doc::meta::Font const& meta) {}
+		void operator()(doc::meta::Width const& meta) {}
+		void operator()(doc::meta::Height const& meta) {}
+		void operator()(doc::meta::Count const& meta) {}
+	};
+
 	struct OStream {
 		std::ostream& os;
+		MetaState meta_state{};
 	};
 
 	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp); // Forward / future h-file
+	OStream& operator<<(OStream& os,doc::Document const& doc); // Forward / future h-file
 
 	struct LeafOStreamer {
 		OStream& os;
-		void operator()(doc::PageBreak const& leaf) {
+		void operator()(doc::leaf::PageBreak const& leaf) {
 			os.os << "\nTODO: PAGE BREAK";
 		}
-		void operator()(doc::Text const& leaf) {
+		void operator()(doc::leaf::Text const& leaf) {
 			os.os << " text:" << leaf.s << ":text ";
 		}
+	};
 
+	struct CompositeOStreamer {
+		OStream& os;
+		void operator()(doc::composite::Vector const& v) {
+			os.os << "\nTODO: CompositeOStreamer Vector";
+		}
+		void operator()(doc::composite::Grid const& g) {
+			os.os << "\nTODO: CompositeOStreamer Grid";
+		}
+		void operator()(doc::composite::SeparatePage const& g) {
+			os.os << "\nTODO: CompositeOStreamer SeparatePage";
+		}
 	};
 
 	struct DefactoStreamer {
 		OStream& os;
-		void operator()(doc::LeafPtr const& defacto_leaf_ptr) {
-			if (defacto_leaf_ptr) {
+		void operator()(doc::LeafPtr const& p) {
+			if (p) {
 				LeafOStreamer streamer{os};
-				std::visit(streamer,*defacto_leaf_ptr);
+				std::visit(streamer,*p);
 			}
 		}
-		void operator()(doc::ComponentPtrs const& defacto_component_ptrs) {
-			for (auto const& ptr : defacto_component_ptrs) {
-				if (ptr) os << ptr;
+		void operator()(doc::CompositePtr const& p) {
+			if (p) {
+				CompositeOStreamer ostreamer{os};
+				std::visit(ostreamer,*p);
 			}
 		}
 	};
 
-	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp) {
-		if (cp) {
-			DefactoStreamer streamer{os};		
-			std::visit(streamer,cp->defacto);
+	OStream& operator<<(OStream& os,doc::ComponentPtr const& p) {
+		if (p) {
+			if (p->pMeta) std::visit(os.meta_state,*p->pMeta);
+			DefactoStreamer ostreamer{os};
+			if (p->pDefacto) std::visit(ostreamer,*p->pDefacto);
 		}
 		return os;
 	}
+
+	OStream& operator<<(OStream& os,doc::Document const& doc) {
+		os.os << "\nTODO: stream doc::Document";
+		return os;
+	}
+
 
 }
 
 namespace HTML {
 	// Rich Text Format namespace
 
-	struct OStream {
-		std::ostream& os;
+	struct MetaState {
+		void operator()(doc::meta::Orientation const& meta) {}
+		void operator()(doc::meta::Location const& meta) {}
+		void operator()(doc::meta::Colour const& meta) {}
+		void operator()(doc::meta::Font const& meta) {}
+		void operator()(doc::meta::Width const& meta) {}
+		void operator()(doc::meta::Height const& meta) {}
+		void operator()(doc::meta::Count const& meta) {}
 	};
 
+	struct OStream {
+		std::ostream& os;
+		MetaState meta_state{};
+	};
+
+	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp); // Forward / future h-file
+	OStream& operator<<(OStream& os,doc::Document const& doc); // Forward / future h-file
+
 	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp) {
+		os.os << "\nTODO: stream doc::ComponentPtr";
+		return os;
+	}
+
+	OStream& operator<<(OStream& os,doc::Document const& doc) {
+		os.os << "\nTODO: stream doc::Document";
 		return os;
 	}
 
@@ -7378,31 +7452,33 @@ public:
 			else if (ast[0] == "-ar") {
 				// Assume the user wants to generate an annual report
 				// ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
-				auto annual_report_financial_statements_approval = doc::plain_component();
+				doc::Document annual_report_financial_statements_approval{};
 				{
-					*annual_report_financial_statements_approval << doc::plain_text("Fastställelseintyg");
+					annual_report_financial_statements_approval << doc::plain_text("Fastställelseintyg");
 				}
+
+				doc::Document annual_report{};
 				// ==> The second document seems to be the 2) directors’ report  (förvaltningsberättelse)?
-				auto annual_report_front_page = doc::plain_component();
+				auto annual_report_front_page = doc::separate_page();
 				{
 					*annual_report_front_page << doc::plain_text("Årsredovisning");
 				}
-				auto annual_report_directors_report = doc::plain_component();
+				auto annual_report_directors_report = doc::separate_page();
 				{
 					*annual_report_directors_report << doc::plain_text("Förvaltningsberättelse");
 				}
 				// ==> The third document seems to be the 3)  profit and loss statement (resultaträkning)?
-				auto annual_report_profit_and_loss_statement = doc::plain_component();
+				auto annual_report_profit_and_loss_statement = doc::separate_page();
 				{
 					*annual_report_profit_and_loss_statement << doc::plain_text("Resultaträkning");
 				}
 				// ==> The fourth document seems to be the 4) balance sheet (balansräkning)?
-				auto annual_report_balance_sheet = doc::plain_component();
+				auto annual_report_balance_sheet = doc::separate_page();
 				{
 					*annual_report_balance_sheet << doc::plain_text("Balansräkning");
 				}
 				// ==> The fifth document seems to be the 5) notes (noter)?			
-				auto annual_report_annual_report_notes = doc::plain_component();
+				auto annual_report_annual_report_notes = doc::separate_page();
 				{
 					*annual_report_annual_report_notes << doc::plain_text("Noter");
 				}
@@ -7431,12 +7507,11 @@ public:
 
 						RTF::OStream annual_report_os{raw_annual_report_os};
 
-
 						annual_report_os << annual_report_front_page;
-						annual_report_os << doc::page_break << annual_report_directors_report;
-						annual_report_os << doc::page_break << annual_report_profit_and_loss_statement;
-						annual_report_os << doc::page_break << annual_report_balance_sheet;
-						annual_report_os << doc::page_break << annual_report_annual_report_notes;
+						annual_report_os << annual_report_directors_report;
+						annual_report_os << annual_report_profit_and_loss_statement;
+						annual_report_os << annual_report_balance_sheet;
+						annual_report_os << annual_report_annual_report_notes;
 					}
 				}
 
@@ -7463,10 +7538,10 @@ public:
 						HTML::OStream annual_report_os{raw_annual_report_os};
 
 						annual_report_os << annual_report_front_page;
-						annual_report_os << doc::page_break << annual_report_directors_report;
-						annual_report_os << doc::page_break << annual_report_profit_and_loss_statement;
-						annual_report_os << doc::page_break << annual_report_balance_sheet;
-						annual_report_os << doc::page_break << annual_report_annual_report_notes;
+						annual_report_os << annual_report_directors_report;
+						annual_report_os << annual_report_profit_and_loss_statement;
+						annual_report_os << annual_report_balance_sheet;
+						annual_report_os << annual_report_annual_report_notes;
 					}
 				}
 
