@@ -3907,7 +3907,7 @@ namespace SKV {
 		XMLMap::value_type to_entry(XMLMap const& xml_map,std::string tag) {
 			auto iter = xml_map.find(tag);
 			if (iter != xml_map.end()) {
-				std::cout << "\nto_entry[" << std::quoted(iter->first) << "] = " << std::quoted(iter->second);
+				// std::cout << "\nto_entry[" << std::quoted(iter->first) << "] = " << std::quoted(iter->second);
 				return *iter;
 			}
 			else throw std::runtime_error(std::string{"to_entry failed, tag:"} + tag + " not defined");
@@ -5035,7 +5035,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 	}
 	if (result) {
 		for (auto const& [tag,value] : *result) {
-			std::cout << "\nto_skv_xml_map: " << tag << " = " << std::quoted(value);
+			// std::cout << "\nto_skv_xml_map: " << tag << " = " << std::quoted(value);
 		}
 	}
 	return result;
@@ -6829,6 +6829,38 @@ public:
 						switch (ix) {
 							case 1: {model->prompt_state = PromptState::EnterContact;} break;
 							case 2: {model->prompt_state = PromptState::EnterEmployeeID;} break;
+							case 3: {
+								if (ast.size() == 2) {
+									// Assume Tax Returns form
+									// Assume second argument is period
+									if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
+										auto period_to_declare = ast[1];
+										// Brute force the period into the map (TODO: Inject this value in a better way into the production code above?)
+										(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Arendeinformation^agd:Period)"] = period_to_declare;
+										(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+										(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:IU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+										(*xml_map)[R"(Skatteverket^agd:Kontaktperson^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+										std::filesystem::path skv_files_folder{"to_skv"};
+										std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};						
+										std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+										std::filesystem::create_directories(skv_file_path.parent_path());
+										std::ofstream skv_file{skv_file_path};
+										if (SKV::XML::to_employee_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
+											prompt << "\nCreated " << skv_file_path;
+										}
+										else {
+											prompt << "\nSorry, failed to create " << skv_file_path;
+										}
+									}	
+									else {
+										prompt << "\nSorry, failed to acquire required data to generate xml-file to SKV";
+									}
+									model->prompt_state = PromptState::Root;
+								}
+								else {
+									prompt << "\nPlease provide second argument = period on the form YYYYMM (e.g., enter '3 202205' to generate Tax return form for May 2022)";
+								}
+							} break;
 							default: {prompt << "\nPlease enter a valid index";} break;
 						}
 					} break;
@@ -7342,33 +7374,6 @@ public:
 					prompt << "\n3: INK1 + K10 (Swedish Tax Agency private TAX Form + Dividend Form";
 					prompt << "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
 					model->prompt_state = PromptState::SKVEntryIndex;
-				}
-				else if (ast.size() == 2) {
-					// Assume Tax Returns form
-					// Assume second argument is period
-					if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
-						auto period_to_declare = ast[1];
-						// Brute force the period into the map (TODO: Inject this value in a better way into the production code above?)
-						(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Arendeinformation^agd:Period)"] = period_to_declare;
-						(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-						(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:IU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-						(*xml_map)[R"(Skatteverket^agd:Kontaktperson^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-						std::filesystem::path skv_files_folder{"to_skv"};
-						std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};						
-						std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
-						std::filesystem::create_directories(skv_file_path.parent_path());
-						std::ofstream skv_file{skv_file_path};
-						if (SKV::XML::to_employee_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
-							prompt << "\nCreated " << skv_file_path;
-						}
-						else {
-							prompt << "\nSorry, failed to create " << skv_file_path;
-						}
-					}	
-					else {
-						prompt << "\nSorry, failed to acquire required data to generate xml-file to SKV";
-					}
-					model->prompt_state = PromptState::Root;
 				}
 			}
 			else if (ast[0] == "-csv") {
@@ -7960,6 +7965,7 @@ private:
 			case PromptState::SKVTaxReturnEntryIndex: {
 				prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
 				prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
+				prompt << "\n3 <Period> Generate Tax Returns form (Period in form YYYYMM)";
 			} break;
 			default: {
 				prompt << "\nPlease mail developer that transition_prompt_state detected a potential design insufficiency";
