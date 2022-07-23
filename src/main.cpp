@@ -7408,6 +7408,45 @@ public:
 						auto hads = CSV::from_stream(in,gross_bas_account_no);
 						// #X Filter entries in the read csv-file against already existing hads and sie-entries
 						// #X match date and amount
+						// 1) Don't add a had that is already in our models hads list
+						std::erase_if(hads,[this](HeadingAmountDateTransEntry const& had) {
+							auto iter = std::find_if(this->model->heading_amount_date_entries.begin(),this->model->heading_amount_date_entries.end(),[&had](HeadingAmountDateTransEntry const& other){
+								auto result = (had.date == other.date) and (had.amount == other.amount) and (had.heading == other.heading);
+								if (result) {
+									std::cout << "\nHAD ALREADY AS HAD";
+									std::cout << "\n\t" << had;
+									std::cout << "\n\t" << other;
+								}
+								return result;
+							});
+							auto result = (iter != this->model->heading_amount_date_entries.end());
+							return result;
+						});
+						// 2) Don't add a had that is already accounted for as an sie entry
+						auto sie_hads_reducer = [&hads](BAS::MetaEntry const& me) {
+							// Remove the had if it matches me 
+							std::erase_if(hads,[&me](HeadingAmountDateTransEntry const& had) {
+								bool result{false};
+								if (me.defacto.date == had.date) {
+									if (had.amount > 0) {
+										auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
+										result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
+									}
+									else {
+										auto gross_amount = to_negative_gross_transaction_amount(me.defacto);
+										result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
+									}
+								}
+								if (result) {
+									std::cout << "\nHAD ALREADY AS SIE: ";
+									std::cout << "\n\t" << had;
+									std::cout << "\n\t" << me;
+								}
+								return result;
+							});
+						};
+						// ####
+						for_each_meta_entry(model->sie["current"],sie_hads_reducer);
 						std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
 					}
 					else {
