@@ -4565,15 +4565,19 @@ namespace SKV {
 									}
 								}
 
-								std::ostringstream heading{};
-								heading << "Momsrapport " << quarter1;
-								HeadingAmountDateTransEntry had{
-									.heading = heading.str()
-									,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
-									,.date = vat_returns_range.end()
-									,.vat_returns_form_box_map_candidate = box_map
-								};
-								result.push_back(had);
+								// Valid amount if > 1.0 SEK (takes care of rounding errors)
+								if (std::abs(account_amounts[0]) >= 1.0) {
+									std::ostringstream heading{};
+									heading << "Momsrapport " << quarter1;
+									HeadingAmountDateTransEntry had{
+										.heading = heading.str()
+										,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
+										,.date = vat_returns_range.end()
+										,.vat_returns_form_box_map_candidate = box_map
+									};
+									result.push_back(had);
+								}
+
 							}
 						}
 						quarter1 = to_three_months_earlier(quarter1);
@@ -7215,7 +7219,7 @@ public:
 					if (auto o_iter = model->find_had(vat_returns_had)) {
 						auto iter = *o_iter;
 						// TODO: When/if we actually save the state of iter->vat_returns_form_box_map_candidate, then remove the condition in following if-statement
-						if (!iter->vat_returns_form_box_map_candidate or iter->amount != vat_returns_had.amount) {
+						if (!iter->vat_returns_form_box_map_candidate or are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount)) {
 							// NOTE: iter->vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
 							*iter = vat_returns_had;
 							prompt << "\n*UPDATED* " << vat_returns_had;
@@ -7225,6 +7229,7 @@ public:
 						model->heading_amount_date_entries.push_back(vat_returns_had);
 						prompt << "\n*NEW* " << vat_returns_had;
 					}
+					// ####
 				}
 				std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 				if (ast.size()==1) {
