@@ -5378,7 +5378,7 @@ public:
 		auto end = this->heading_amount_date_entries.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
 		if (had_index < std::distance(had_iter,end)) {
-			std::advance(had_iter,this->had_index-1); // index 1...
+			std::advance(had_iter,this->had_index);
 			result = had_iter;
 		}
 		return result;
@@ -5892,7 +5892,7 @@ public:
 					 and model->prompt_state != PromptState::EnterDividend) {
 // std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
 				size_t ix = std::abs(*signed_ix);
-				bool do_remove = (*signed_ix<0);
+				bool do_remove = (ast[0][0] == '-');
 				// Act on prompt state index input
 				switch (model->prompt_state) {
 					case PromptState::Root: {
@@ -7261,7 +7261,7 @@ public:
 				if (ast.size()==1) {
 					// Expose current hads (Heading Amount Date transaction entries) to the user
 					auto& hads = model->heading_amount_date_entries;
-					unsigned int index{1};
+					unsigned int index{0};
 					std::vector<std::string> sHads{};
 					std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
 						std::stringstream os{};
