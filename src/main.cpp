@@ -181,15 +181,21 @@ namespace tokenize {
 	}
 
 	std::vector<std::string> splits(std::string const& s) {
-		std::vector<std::string> result;
+		std::vector<std::string> result{};
 		try {
 			std::istringstream is{s};
 			std::string token{};
-			while (is >> std::quoted(token)) result.push_back(token);
+			while (is >> std::quoted(token)) {
+				result.push_back(token);
+				token.clear();
+			}
 		}
 		catch (std::exception const& e) {
 			std::cerr << "\nDESIGN INSUFFICIENCY: splits(s) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
 		}
+		
+		// for (auto const& token : result) std::cout << "\n\tsplits token: " << std::quoted(token);
+
 		return result; 
 	}
 
@@ -208,14 +214,32 @@ namespace tokenize {
 		,Unknown
 	};
 
+	std::ostream& operator<<(std::ostream& os,TokenID const& id) {
+		switch (id) {
+			case TokenID::Undefined: os << "Undefined"; break;
+			case TokenID::Caption: os << "Caption"; break;
+			case TokenID::Amount: os << "Amount";  break;
+			case TokenID::Date: os << "Date";  break;
+			case TokenID::Unknown: os << "Unknown";  break;
+		}
+		return os;
+	}
+
 	TokenID token_id_of(std::string const& s) {
-		const std::regex date_regex("[2-9]\\d{3}([0]\\d|[1][0-2])([0-2]\\d|[3][0-1])"); // YYYYmmdd
-		if (std::regex_match(s,date_regex)) return TokenID::Date;
-		const std::regex amount_regex("^-?\\d+([.,]\\d\\d?)?$"); // 123 123,1 123.1 123,12 123.12
-		if (std::regex_match(s,amount_regex)) return TokenID::Amount;
-		const std::regex caption_regex("[ -~]+");
-		if (std::regex_match(s,caption_regex)) return TokenID::Caption;
-		return TokenID::Unknown; 
+		// NOTE: The order of matching below matters (matches from least permissive (date) to most permissive (any text))
+		// If you put the most permissive first the less permissive tokens will never be matched.
+		TokenID result{TokenID::Undefined};
+		// YYYYMMDD, YYYY-MM-DD
+		if (const std::regex date_regex("([2-9]\\d{3})-?([0]\\d|[1][0-2])-?([0-2]\\d|[3][0-1])"); std::regex_match(s,date_regex)) result = TokenID::Date;
+		// '+','-' or none followed by nnn... (any number of digits) followed by an optional ',' or '.' followed by ate least and max two digits
+		else if (const std::regex amount_regex("^[+-]?\\d+([.,]\\d\\d?)?$"); std::regex_match(s,amount_regex)) result = TokenID::Amount;
+		// any string of characters in range ' ' to '~'
+		else if (const std::regex caption_regex("[ -~]+"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
+		else result = TokenID::Unknown;
+
+		// std::cout << "\n\ttoken_id_of " << std::quoted(s) << " = " << result;
+
+		return result;
 	}
 
 	std::vector<std::string> splits(std::string const& s,SplitOn split_on) {
@@ -251,6 +275,9 @@ namespace tokenize {
 				std::cerr << "\nERROR - Unknown split_on value " << static_cast<int>(split_on);
 			} break;
 		}
+
+		// for (auto const& token : result) std::cout << "\n\tsplits token: " << std::quoted(token);
+
 		return result;
 	}
 } // namespace tokenize
@@ -4552,7 +4579,6 @@ namespace SKV {
 								return vat_returns_meta->period.contains(mat.meta.defacto.date);
 							};
 							if (auto box_map = to_form_box_map(sie_envs,is_vat_returns_range)) {
-								std::cerr << "\nTODO: In to_vat_returns_had, turn created box_map into a had for vat returns period " << vat_returns_meta->period;
 								// box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
 								// We need a per-account amount to counter (consolidate) into 1650 (VAT to get back) or 2650 (VAT to pay)
 								// 2650 "Redovisningskonto för moms" SRU:7369
@@ -4565,7 +4591,7 @@ namespace SKV {
 									}
 								}
 
-								// Valid amount if > 1.0 SEK (takes care of rounding errors)
+								// Valid amount if > 1.0 SEK (takes care of invalid entries caused by rounding errors)
 								if (std::abs(account_amounts[0]) >= 1.0) {
 									std::ostringstream heading{};
 									heading << "Momsrapport " << quarter1;
@@ -5352,7 +5378,7 @@ public:
 		auto end = this->heading_amount_date_entries.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
 		if (had_index < std::distance(had_iter,end)) {
-			std::advance(had_iter,this->had_index);
+			std::advance(had_iter,this->had_index-1); // index 1...
 			result = had_iter;
 		}
 		return result;
@@ -7219,7 +7245,7 @@ public:
 					if (auto o_iter = model->find_had(vat_returns_had)) {
 						auto iter = *o_iter;
 						// TODO: When/if we actually save the state of iter->vat_returns_form_box_map_candidate, then remove the condition in following if-statement
-						if (!iter->vat_returns_form_box_map_candidate or are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount)) {
+						if (!iter->vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
 							// NOTE: iter->vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
 							*iter = vat_returns_had;
 							prompt << "\n*UPDATED* " << vat_returns_had;
@@ -7235,14 +7261,14 @@ public:
 				if (ast.size()==1) {
 					// Expose current hads (Heading Amount Date transaction entries) to the user
 					auto& hads = model->heading_amount_date_entries;
-					unsigned int index{0};
+					unsigned int index{1};
 					std::vector<std::string> sHads{};
 					std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
 						std::stringstream os{};
 						os << index++ << " " << had;
 						return os.str();
 					});
-					prompt << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+					prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
 						acc += "\n  " + entry;
 						return acc;
 					});
@@ -7949,7 +7975,7 @@ The ITfied AB
 				}
 				else {
 					// Assume Caption + Amount + Date
-					auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);			
+					auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
 					if (tokens.size()==3) {
 						HeadingAmountDateTransEntry had {
 							.heading = tokens[0]
@@ -7962,6 +7988,12 @@ The ITfied AB
 					}
 					else {
 						prompt << "\nERROR - Expected Caption + Amount + Date";
+						prompt << "\nI Interpreted your input as,";
+						for (auto const& token : tokens) prompt << "\n\ttoken: \"" << token << "\"";
+						prompt << "\n\nPlease check that your input matches my expectations?";
+						prompt << "\n\tCaption = any text (\"...\" enclosure allowed)";
+						prompt << "\n\tAmount = any positive or negative amount with optional ',' or '.' decimal point with one or two decimal digits";
+						prompt << "\n\tDate = YYYYMMDD or YYYY-MM-DD";
 					}
 				}
 			}
