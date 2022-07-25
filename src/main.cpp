@@ -2907,6 +2907,40 @@ private:
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 using SIEEnvironments = std::map<std::string,SIEEnvironment>;
 
+BAS::AccountMetas matches_bas_or_sru_account_no(BASAccountNo const& to_match_account_no,SIEEnvironment const& sie_env) {
+	BAS::AccountMetas result{};
+	// Assume match to BAS account or SRU account 
+	// for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+	// 	if ((*to_match_account_no == account_no) or (am.sru_code and (*to_match_account_no == *am.sru_code))) {
+	// 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
+	// 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+	// 	}
+	// }
+	for (auto const& [account_no,am] : sie_env.account_metas()) {
+		if ((to_match_account_no == account_no) or (am.sru_code and (to_match_account_no == *am.sru_code))) {
+			result[account_no] = am;
+		}
+	}
+	return result;
+}
+
+BAS::AccountMetas matches_bas_account_name(std::string const& s,SIEEnvironment const& sie_env) {
+	BAS::AccountMetas result{};
+	// Assume match to account name
+	// for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+	// 	if (first_in_second_case_insensitive(ast[1],am.name)) {
+	// 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
+	// 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+	// 	}
+	// }
+	for (auto const& [account_no,am] : sie_env.account_metas()) {
+		if (first_in_second_case_insensitive(s,am.name)) {
+			result[account_no] = am;
+		}
+	}
+	return result;
+}
+
 void for_each_anonymous_journal_entry(SIEEnvironment const& sie_env,auto& f) {
 	for (auto const& [journal_id,journal] : sie_env.journals()) {
 		for (auto const& [verno,aje] : journal) {
@@ -5885,6 +5919,14 @@ public:
 			// We have at least one token in user input
 			int signed_ix{};
 			std::istringstream is{ast[0]};
+			bool do_assign = (command.find('=') != std::string::npos);
+			/* ======================================================
+
+
+								Act on on Index?
+
+
+			 ====================================================== */
 			if (auto signed_ix = to_signed_ix(ast[0]); 
 					     signed_ix 
 				   and model->prompt_state != PromptState::EditAT
@@ -5906,6 +5948,9 @@ public:
 								model->heading_amount_date_entries.erase(*had_iter);
 								prompt << " REMOVED";
 								model->prompt_state = PromptState::Root;
+							}
+							else if (do_assign) {
+								prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
 							}
 							else {
 								// selected HAD and list template options
@@ -7076,6 +7121,14 @@ public:
 						break;
 				}
 			}
+			/* ======================================================
+
+
+
+								Act on on Command?
+
+
+			 ====================================================== */
 			else if (ast[0] == "-version" or ast[0] == "-v") {
 				prompt << "\nCratchit Version " << VERSION;
 			}
@@ -7255,7 +7308,6 @@ public:
 						model->heading_amount_date_entries.push_back(vat_returns_had);
 						prompt << "\n*NEW* " << vat_returns_had;
 					}
-					// ####
 				}
 				std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 				if (ast.size()==1) {
@@ -7302,20 +7354,31 @@ public:
 				if (ast.size() > 1) {
 					// Assume filter on provided text
 					if (auto to_match_account_no = BAS::to_account_no(ast[1])) {
-						for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
-							if ((*to_match_account_no == account_no) or (am.sru_code and (*to_match_account_no == *am.sru_code))) {
-								prompt << "\n  " << account_no << " " << std::quoted(am.name);
-								if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-							}
+						// Assume match to BAS account or SRU account 
+						// for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+						// 	if ((*to_match_account_no == account_no) or (am.sru_code and (*to_match_account_no == *am.sru_code))) {
+						// 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
+						// 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+						// 	}
+						// }
+						auto ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
+						for (auto const& [account_no,am] : ams) {
+							prompt << "\n  " << account_no << " " << std::quoted(am.name);
+							if (am.sru_code) prompt << " SRU:" << *am.sru_code;
 						}
 					}
 					else {
 						// Assume match to account name
-						for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
-							if (first_in_second_case_insensitive(ast[1],am.name)) {
-								prompt << "\n  " << account_no << " " << std::quoted(am.name);
-								if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-							}
+						// for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+						// 	if (first_in_second_case_insensitive(ast[1],am.name)) {
+						// 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
+						// 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+						// 	}
+						// }
+						auto ams = matches_bas_account_name(ast[1],model->sie["current"]);
+						for (auto const& [account_no,am] : ams) {
+							prompt << "\n  " << account_no << " " << std::quoted(am.name);
+							if (am.sru_code) prompt << " SRU:" << *am.sru_code;
 						}
 					}
 				}
@@ -7476,7 +7539,6 @@ public:
 								return result;
 							});
 						};
-						// ####
 						for_each_meta_entry(model->sie["current"],sie_hads_reducer);
 						std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
 					}
@@ -7690,11 +7752,24 @@ The ITfied AB
 
 				}
 
-			}	
+			}
+			/* ======================================================
+
+
+
+								Act on on Words?
+
+
+			 ====================================================== */
 			else {
 				// std::cout << "\nAct on words";
 				// Assume word based input
-				if ((model->prompt_state == PromptState::NetVATAccountInput) or (model->prompt_state == PromptState::GrossAccountInput))  {
+				if (model->prompt_state == PromptState::HADIndex) {
+					if (do_assign) {
+						prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
+					}
+				}
+				else if ((model->prompt_state == PromptState::NetVATAccountInput) or (model->prompt_state == PromptState::GrossAccountInput))  {
 					// Assume the user has enterd text to search for suitable accounts
 					// Assume match to account name
 					for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
@@ -7797,28 +7872,61 @@ The ITfied AB
 
 				}
 				else if (model->prompt_state == PromptState::JEIndex) {
-					// Assume the user has entered a new search criteria for template candidates
-					model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& aje){
-						return strings_share_tokens(command,aje.caption);
-					});
-					int ix{0};
-					for (int i = 0; i < model->template_candidates.size(); ++i) {
-						prompt << "\n    " << ix++ << " " << model->template_candidates[i];
-					}
-					// Consider the user may have entered the name of a gross account to journal the transaction amount
-					auto gats = to_gross_account_transactions(model->sie);
-					model->at_candidates.clear();
-					std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
-						bool result{false};
-						if (at.transtext) result |= strings_share_tokens(command,*at.transtext);
-						if (model->sie["current"].account_metas().contains(at.account_no)) {
-							auto const& meta = model->sie["current"].account_metas().at(at.account_no);
-							result |= strings_share_tokens(command,meta.name);
+					if (do_assign) {
+						if (ast.size() == 3 and ast[1] == "=") {
+							// Assume <target> = <Amount>
+							if (auto amount = to_amount(ast[2])) {
+								if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
+									// target is a BAS account no (e.g., 1630 = 245,50)
+									auto ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
+									for (auto const& [account_no,am] : ams) {
+										prompt << "\nCandidate: " << account_no << " " << am.name;
+									}
+									prompt << "\nSorry, Applying a candidate of your choise not yet implemented";
+									// ####
+								}
+								else {
+									// Target is some text we may use to search for a BAS Account
+									auto ams = matches_bas_account_name(ast[0],model->sie["current"]);
+									for (auto const& [account_no,am] : ams) {
+											prompt << "\nCandidate: " << account_no << " " << am.name;
+									}
+									prompt << "\nSorry, Applying a candidate of your choise not yet implemented";
+									// ####
+								}
+							}
+							else {
+									prompt << "\nPlease provide a valid amount after '='. I failed to recognise your input " << std::quoted(ast[2]);
+							}
 						}
-						return result;
-					});
-					for (int i=0;i < model->at_candidates.size();++i) {
-						prompt << "\n    " << ix++<< " " << model->at_candidates[i];
+						else {
+							prompt << "Please provide a space on both sides of the '=' in your input " << std::quoted(command);
+						}
+					}
+					else {
+						// Assume the user has entered a new search criteria for template candidates
+						model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& aje){
+							return strings_share_tokens(command,aje.caption);
+						});
+						int ix{0};
+						for (int i = 0; i < model->template_candidates.size(); ++i) {
+							prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+						}
+						// Consider the user may have entered the name of a gross account to journal the transaction amount
+						auto gats = to_gross_account_transactions(model->sie);
+						model->at_candidates.clear();
+						std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
+							bool result{false};
+							if (at.transtext) result |= strings_share_tokens(command,*at.transtext);
+							if (model->sie["current"].account_metas().contains(at.account_no)) {
+								auto const& meta = model->sie["current"].account_metas().at(at.account_no);
+								result |= strings_share_tokens(command,meta.name);
+							}
+							return result;
+						});
+						for (int i=0;i < model->at_candidates.size();++i) {
+							prompt << "\n    " << ix++<< " " << model->at_candidates[i];
+						}
 					}
 				}
 				else if (model->prompt_state == PromptState::CounterAccountsEntry) {
