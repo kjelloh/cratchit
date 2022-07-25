@@ -7876,24 +7876,46 @@ The ITfied AB
 						if (ast.size() == 3 and ast[1] == "=") {
 							// Assume <target> = <Amount>
 							if (auto amount = to_amount(ast[2])) {
+								BAS::AccountMetas ams{};
 								if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
 									// target is a BAS account no (e.g., 1630 = 245,50)
-									auto ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
+									ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
 									for (auto const& [account_no,am] : ams) {
 										prompt << "\nCandidate: " << account_no << " " << am.name;
 									}
-									prompt << "\nSorry, Applying a candidate of your choise not yet implemented";
-									// ####
 								}
 								else {
 									// Target is some text we may use to search for a BAS Account
-									auto ams = matches_bas_account_name(ast[0],model->sie["current"]);
+									ams = matches_bas_account_name(ast[0],model->sie["current"]);
 									for (auto const& [account_no,am] : ams) {
 											prompt << "\nCandidate: " << account_no << " " << am.name;
 									}
-									prompt << "\nSorry, Applying a candidate of your choise not yet implemented";
-									// ####
 								}
+								if (ams.size() > 0) {
+									// TODO: Find some journal entries that accounts to the mathced BAS accounts
+									//       And provide them as candidates (using the amount as the gross amount)?
+									// ####									
+									model->template_candidates = this->all_years_template_candidates([&ams](BAS::anonymous::JournalEntry const& aje){
+										// Use as template candidate if it accounts on any of the BAS accounts in our account meta map
+										return std::any_of(aje.account_transactions.begin(),aje.account_transactions.end(),[&ams](BAS::anonymous::AccountTransaction const& at) {
+											return std::any_of(ams.begin(),ams.end(),[&at](auto const& am) {
+												return (at.account_no == am.first);
+											});
+										});
+									});
+									// List options
+									unsigned ix = 0;
+									for (int i=0; i < model->template_candidates.size(); ++i) {
+										prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+									}
+									model->prompt_state = PromptState::JEIndex;
+
+									prompt << "\nSorry, Applying a candidate of your choise not yet implemented";
+								}
+								else {
+									prompt << "\nSorry, Failed to match your target " << std::quoted(ast[0]) << " to any candidate.";
+								}
+								// ####
 							}
 							else {
 									prompt << "\nPlease provide a valid amount after '='. I failed to recognise your input " << std::quoted(ast[2]);
