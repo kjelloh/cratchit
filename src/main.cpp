@@ -5927,8 +5927,9 @@ public:
 
 
 			 ====================================================== */
-			if (auto signed_ix = to_signed_ix(ast[0]); 
-					     signed_ix 
+			if (auto signed_ix = to_signed_ix(ast[0]);
+							 do_assign == false
+					 and signed_ix 
 				   and model->prompt_state != PromptState::EditAT
 					 and model->prompt_state != PromptState::EnterIncome
 					 and model->prompt_state != PromptState::EnterDividend) {
@@ -7876,26 +7877,44 @@ The ITfied AB
 						if (ast.size() == 3 and ast[1] == "=") {
 							// Assume <target> = <Amount>
 							if (auto amount = to_amount(ast[2])) {
+								model->template_candidates.clear();
 								BAS::AccountMetas ams{};
 								if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
 									// target is a BAS account no (e.g., 1630 = 245,50)
-									ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
-									for (auto const& [account_no,am] : ams) {
-										prompt << "\nCandidate: " << account_no << " " << am.name;
+
+									// Create a candidate with this account transaction
+									if (auto had_iter = model->selected_had()) {
+										auto& had = *(*had_iter);
+										// Add a candidate with the entered account and amount
+										Amount gross_amount{*amount};
+										BAS::MetaEntry me{
+											.meta = {
+												.series = 'A'
+											}
+											,.defacto = {
+												.caption = had.heading
+												,.date = had.date
+											}
+										};
+										BAS::anonymous::AccountTransaction gross_at{
+											.account_no = *to_match_account_no
+											,.amount = *amount
+										};
+										me.defacto.account_transactions.push_back(gross_at);
+										model->template_candidates.push_back(to_typed_meta_entry(me));
 									}
+									else {
+										prompt << "\nNote, I failed to create a candidate with the account transaction and amount you entered (I seem to have lost track of what had you selected).";
+									}
+
+									ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
 								}
 								else {
 									// Target is some text we may use to search for a BAS Account
 									ams = matches_bas_account_name(ast[0],model->sie["current"]);
-									for (auto const& [account_no,am] : ams) {
-											prompt << "\nCandidate: " << account_no << " " << am.name;
-									}
 								}
 								if (ams.size() > 0) {
-									// TODO: Find some journal entries that accounts to the mathced BAS accounts
-									//       And provide them as candidates (using the amount as the gross amount)?
-									// ####									
-									model->template_candidates = this->all_years_template_candidates([&ams](BAS::anonymous::JournalEntry const& aje){
+									auto template_candidates = this->all_years_template_candidates([&ams](BAS::anonymous::JournalEntry const& aje){
 										// Use as template candidate if it accounts on any of the BAS accounts in our account meta map
 										return std::any_of(aje.account_transactions.begin(),aje.account_transactions.end(),[&ams](BAS::anonymous::AccountTransaction const& at) {
 											return std::any_of(ams.begin(),ams.end(),[&at](auto const& am) {
@@ -7904,6 +7923,7 @@ The ITfied AB
 										});
 									});
 									// List options
+									std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
 									unsigned ix = 0;
 									for (int i=0; i < model->template_candidates.size(); ++i) {
 										prompt << "\n    " << ix++ << " " << model->template_candidates[i];
