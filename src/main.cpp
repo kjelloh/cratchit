@@ -7874,75 +7874,84 @@ The ITfied AB
 				}
 				else if (model->prompt_state == PromptState::JEIndex) {
 					if (do_assign) {
-						if (ast.size() == 3 and ast[1] == "=") {
-							// Assume <target> = <Amount>
-							if (auto amount = to_amount(ast[2])) {
-								model->template_candidates.clear();
-								BAS::AccountMetas ams{};
-								if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
-									// target is a BAS account no (e.g., 1630 = 245,50)
-
-									// Create a candidate with this account transaction
-									if (auto had_iter = model->selected_had()) {
-										auto& had = *(*had_iter);
-										// Add a candidate with the entered account and amount
-										Amount gross_amount{*amount};
-										BAS::MetaEntry me{
-											.meta = {
-												.series = 'A'
-											}
-											,.defacto = {
-												.caption = had.heading
-												,.date = had.date
-											}
-										};
-										BAS::anonymous::AccountTransaction gross_at{
-											.account_no = *to_match_account_no
-											,.amount = *amount
-										};
-										me.defacto.account_transactions.push_back(gross_at);
-										model->template_candidates.push_back(to_typed_meta_entry(me));
+						// Assume ... = ...
+						if (auto had_iter = model->selected_had()) {
+							auto& had = *(*had_iter);
+							if (ast.size() == 3 and ast[1] == "=") {
+								// Assume three tokens 0:<token> 1:'=' 2:<Token>
+								if (auto amount = to_amount(ast[2])) {
+									BAS::AccountMetas ams{};
+									auto transaction_amount = (std::abs(*amount) <= 1)?(*amount * had.amount):(had.amount); // quote of amount or actual amount
+									if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
+										// The user entered <target> = a BAS Account or SRU account
+										ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
 									}
 									else {
-										prompt << "\nNote, I failed to create a candidate with the account transaction and amount you entered (I seem to have lost track of what had you selected).";
+										// The user entered a search criteria for a BAS account name
+										ams = matches_bas_account_name(ast[0],model->sie["current"]);										
 									}
-
-									ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
-								}
-								else {
-									// Target is some text we may use to search for a BAS Account
-									ams = matches_bas_account_name(ast[0],model->sie["current"]);
-								}
-								if (ams.size() > 0) {
-									auto template_candidates = this->all_years_template_candidates([&ams](BAS::anonymous::JournalEntry const& aje){
-										// Use as template candidate if it accounts on any of the BAS accounts in our account meta map
-										return std::any_of(aje.account_transactions.begin(),aje.account_transactions.end(),[&ams](BAS::anonymous::AccountTransaction const& at) {
-											return std::any_of(ams.begin(),ams.end(),[&at](auto const& am) {
-												return (at.account_no == am.first);
-											});
-										});
-									});
-									// List options
-									std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
-									unsigned ix = 0;
-									for (int i=0; i < model->template_candidates.size(); ++i) {
-										prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+									if (ams.size() == 0) {
+										prompt << "\nSorry, failed to match your input to any BAS or SRU account";
 									}
-									model->prompt_state = PromptState::JEIndex;
-
-									prompt << "\nSorry, Applying a candidate of your choise not yet implemented";
-								}
+									if (ams.size() == 1) {
+										// Go ahead and use this account for an account transaction
+										if (had.current_candidate) {
+											// extend current candidate
+											BAS::anonymous::AccountTransaction new_at{
+												.account_no = ams.begin()->first
+												,.amount = transaction_amount
+											};
+											had.current_candidate->defacto.account_transactions.push_back(new_at);
+											prompt << "\n" << *had.current_candidate;
+										}
+										else {
+											// Create options from scratch
+											BAS::TypedMetaEntries template_candidates{};
+											for (auto series : std::string{"ABCDEFGHIJKLMNOPQRSTUVWXYZ"}) {
+												BAS::MetaEntry me{
+													.meta = {
+														.series = series
+													}
+													,.defacto = {
+														.caption = had.heading
+														,.date = had.date
+													}
+												};
+												BAS::anonymous::AccountTransaction new_at{
+													.account_no = ams.begin()->first
+													,.amount = transaction_amount
+												};
+												me.defacto.account_transactions.push_back(new_at);
+												template_candidates.push_back(to_typed_meta_entry(me));
+											}
+											model->template_candidates.clear();
+											std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
+											unsigned ix = 0;
+											for (int i=0; i < model->template_candidates.size(); ++i) {
+												prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+											}
+										}
+									}
+									else {
+										// List the options to inform the user there are more than one BAS account that matches the input
+										prompt << "\nDid you mean...";
+										for (auto const& [account_no,am] : ams) {
+											prompt << "\n\t" << std::quoted(am.name) << " " << account_no << " = " << transaction_amount;
+										}
+										prompt << "\n==> Please try again <target> = <Quote or amount>";
+									}
+								} // to_amount
 								else {
-									prompt << "\nSorry, Failed to match your target " << std::quoted(ast[0]) << " to any candidate.";
+										prompt << "\nPlease provide a valid amount after '='. I failed to recognise your input " << std::quoted(ast[2]);
 								}
-								// ####
-							}
+							} // ast[1] == '='
 							else {
-									prompt << "\nPlease provide a valid amount after '='. I failed to recognise your input " << std::quoted(ast[2]);
-							}
+								prompt << "Please provide a space on both sides of the '=' in your input " << std::quoted(command);
+							}							
 						}
 						else {
-							prompt << "Please provide a space on both sides of the '=' in your input " << std::quoted(command);
+							prompt << "\nSorry, I seem to have lost track of what had you selected.";
+							prompt << "\nPlease try again with a new had.";														
 						}
 					}
 					else {
