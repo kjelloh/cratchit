@@ -1632,21 +1632,41 @@ private:
 };
 
 struct HeadingAmountDateTransEntry {
+	struct Optional {
+		std::optional<char> series{};
+		std::optional<BASAccountNo> gross_account_no{};
+		BAS::OptionalMetaEntry current_candidate{};
+		std::optional<ToNetVatAccountTransactions> counter_ats_producer{};
+		std::optional<SKV::XML::VATReturns::FormBoxMap> vat_returns_form_box_map_candidate{};
+	};
 	std::string heading{};
 	Amount amount;
 	Date date{};
-	BAS::OptionalMetaEntry current_candidate{};
-	std::optional<ToNetVatAccountTransactions> counter_ats_producer{};
-	std::optional<SKV::XML::VATReturns::FormBoxMap> vat_returns_form_box_map_candidate{};
+	Optional optional{};
 };
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
-	if (auto me = had.current_candidate) {
+	if (auto me = had.optional.current_candidate) {
 		os << '*';
 	}
 	else {
 		os << ' ';
 	}
+
+	if (auto me = had.optional.series) {
+		os << *had.optional.series;
+	}
+	else {
+		os << '-';
+	}
+
+	if (auto me = had.optional.gross_account_no) {
+		os << ' ' << *had.optional.gross_account_no << ' ';
+	}
+	else {
+		os << " nnnn ";
+	}
+
 	os << had.heading;
 	os << " " << had.amount;
 	os << " " << to_string(had.date);
@@ -1747,7 +1767,7 @@ namespace CSV {
 					,.amount = had->amount
 				};
 				me.defacto.account_transactions.push_back(gross_at);
-				had->current_candidate = me;
+				had->optional.current_candidate = me;
 			}
 			result.push_back(*had);
 		}
@@ -4633,7 +4653,9 @@ namespace SKV {
 										.heading = heading.str()
 										,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
 										,.date = vat_returns_range.end()
-										,.vat_returns_form_box_map_candidate = box_map
+										,.optional = {
+											.vat_returns_form_box_map_candidate = box_map
+										}
 									};
 									result.push_back(had);
 								}
@@ -5297,7 +5319,9 @@ OptionalHeadingAmountDateTransEntry to_had(BAS::MetaEntry const& me) {
 		.heading = me.defacto.caption
 		,.amount = gross_amount
 		,.date = me.defacto.date
-		,.current_candidate = me
+		,.optional = {
+			.current_candidate = me
+		}
 	};
 	result = had;
 	return result;
@@ -5425,9 +5449,9 @@ public:
 	BAS::anonymous::OptionalAccountTransaction selected_had_at(int at_index) {
 		BAS::anonymous::OptionalAccountTransaction result{};
 		if (auto had_iter = to_had_iter(this->had_index)) {
-			if ((*had_iter)->current_candidate) {
-				auto at_iter = (*had_iter)->current_candidate->defacto.account_transactions.begin();
-				auto end = (*had_iter)->current_candidate->defacto.account_transactions.end();
+			if ((*had_iter)->optional.current_candidate) {
+				auto at_iter = (*had_iter)->optional.current_candidate->defacto.account_transactions.begin();
+				auto end = (*had_iter)->optional.current_candidate->defacto.account_transactions.end();
 				if (at_index < std::distance(at_iter,end))
 				std::advance(at_iter,at_index);
 				result = *at_iter;
@@ -5903,10 +5927,10 @@ public:
 				// Assume the user wants to accept current Journal Entry Candidate
 				if (auto had_iter = model->selected_had()) {
 					auto& had = *(*had_iter);
-					if (had.current_candidate) {
+					if (had.optional.current_candidate) {
 						// We have a journal entry candidate - reset any VAT Returns form candidate for current had
-						had.vat_returns_form_box_map_candidate = std::nullopt;
-						prompt << "VAT Consilidation Candidate " << *had.current_candidate;
+						had.optional.vat_returns_form_box_map_candidate = std::nullopt;
+						prompt << "VAT Consilidation Candidate " << *had.optional.current_candidate;
 						model->prompt_state = PromptState::JEAggregateOptionIndex;
 					}
 				}
@@ -5955,13 +5979,13 @@ public:
 							}
 							else {
 								// selected HAD and list template options
-								if (had.vat_returns_form_box_map_candidate) {
+								if (had.optional.vat_returns_form_box_map_candidate) {
 									// provide the user with the ability to edit the propsed VAT Returns form
 									{
 										// Adjust the sum in box 49
-										had.vat_returns_form_box_map_candidate->at(49).clear();
-										had.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.vat_returns_form_box_map_candidate)));
-										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+										had.optional.vat_returns_form_box_map_candidate->at(49).clear();
+										had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
 											prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
 										}
 										BAS::MetaEntry me{
@@ -5974,7 +5998,7 @@ public:
 											}
 										};
 										std::map<BASAccountNo,Amount> account_amounts{};
-										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
 											for (auto const& mat : mats) {
 												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
 // std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
@@ -6024,15 +6048,15 @@ public:
 												});
 											}
 										}
-										had.current_candidate = me;
+										had.optional.current_candidate = me;
 
 										prompt << "\nCandidate: " << me;
 										model->prompt_state = PromptState::VATReturnsFormIndex;
 									}
 								}
-								else if (had.current_candidate) {
-									prompt << "\n\t" << *had.current_candidate;
-									if (had.counter_ats_producer) {
+								else if (had.optional.current_candidate) {
+									prompt << "\n\t" << *had.optional.current_candidate;
+									if (had.optional.counter_ats_producer) {
 										// We alreade have a "counter transactions" producer.
 										// Go directly to state for user to apply it to complete the candidate
 										model->prompt_state = PromptState::EnterHA;
@@ -6106,10 +6130,10 @@ public:
 							// Asume the user has selected an index for an entry on the proposed VAT Returns form to edit
 							if (auto had_iter = model->selected_had()) {
 								auto& had = *(*had_iter);
-								if (had.vat_returns_form_box_map_candidate) {
-									if (had.vat_returns_form_box_map_candidate->contains(ix)) {
+								if (had.optional.vat_returns_form_box_map_candidate) {
+									if (had.optional.vat_returns_form_box_map_candidate->contains(ix)) {
 										auto box_no = ix;
-										auto& mats = had.vat_returns_form_box_map_candidate->at(box_no);
+										auto& mats = had.optional.vat_returns_form_box_map_candidate->at(box_no);
 										if (auto amount = to_amount(ast[1]);amount and mats.size()>0) {
 											auto mats_sum = BAS::mats_sum(mats);
 											auto sign = (mats_sum<0)?-1:1;
@@ -6139,9 +6163,9 @@ public:
 									}
 									{
 										// Adjust the sum in box 49
-										had.vat_returns_form_box_map_candidate->at(49).clear();
-										had.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.vat_returns_form_box_map_candidate)));
-										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+										had.optional.vat_returns_form_box_map_candidate->at(49).clear();
+										had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
 											prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
 										}
 										BAS::MetaEntry me{
@@ -6154,7 +6178,7 @@ public:
 											}
 										};
 										std::map<BASAccountNo,Amount> account_amounts{};
-										for (auto const& [box_no,mats] : *had.vat_returns_form_box_map_candidate)  {
+										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
 											for (auto const& mat : mats) {
 												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
 // std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
@@ -6204,7 +6228,7 @@ public:
 												});
 											}
 										}
-										had.current_candidate = me;
+										had.optional.current_candidate = me;
 
 										prompt << "\nCandidate: " << me;
 										model->prompt_state = PromptState::VATReturnsFormIndex;
@@ -6232,7 +6256,7 @@ public:
 									}
 								};
 								me.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
-								had.current_candidate = me;
+								had.optional.current_candidate = me;
 								prompt << "\ncandidate:" << me;
 								model->prompt_state = PromptState::GrossDebitorCreditOption;
 							}
@@ -6257,7 +6281,7 @@ public:
 											if (tp) {
 												auto me = to_journal_entry(had,*tp);
 												prompt << "\nNo VAT candidate " << me;
-												had.current_candidate = me;
+												had.optional.current_candidate = me;
 												model->prompt_state = PromptState::JEAggregateOptionIndex;
 											}
 										} break;
@@ -6269,7 +6293,7 @@ public:
 											if (tp) {
 												auto me = to_journal_entry(had,*tp);
 												prompt << "\nSwedish VAT candidate " << me;
-												had.current_candidate = me;
+												had.optional.current_candidate = me;
 												model->prompt_state = PromptState::JEAggregateOptionIndex;
 											}
 										} break;
@@ -6306,7 +6330,7 @@ public:
 												}
 											}											
 											prompt << "\nEU VAT candidate " << me;
-											had.current_candidate = me;
+											had.optional.current_candidate = me;
 											model->prompt_state = PromptState::JEAggregateOptionIndex;
 										} break;
 										case 3: {
@@ -6357,7 +6381,7 @@ public:
 												,.amount = 0
 											});
 											prompt << "\nVAT Consolidate candidate " << me;
-											had.current_candidate = me;
+											had.optional.current_candidate = me;
 											model->prompt_state = PromptState::JEAggregateOptionIndex;
 										} break;
 										case 4: {
@@ -6391,7 +6415,7 @@ public:
 															,.amount = sign*std::abs(had.amount)
 														});
 													}
-													had.current_candidate = me;
+													had.optional.current_candidate = me;
 													prompt << "\nVAT Settlement candidate " << me;
 													model->prompt_state = PromptState::JEAggregateOptionIndex;
 												}
@@ -6414,8 +6438,8 @@ public:
 					case PromptState::GrossDebitorCreditOption: {
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (had.current_candidate) {
-								if (had.current_candidate->defacto.account_transactions.size()==1) {
+							if (had.optional.current_candidate) {
+								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
 									switch (ix) {
 										case 0: {
 											// As is
@@ -6423,12 +6447,12 @@ public:
 										} break;
 										case 1: {
 											// Force debit
-											had.current_candidate->defacto.account_transactions[0].amount = std::abs(had.current_candidate->defacto.account_transactions[0].amount);
+											had.optional.current_candidate->defacto.account_transactions[0].amount = std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
 											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
 										} break;
 										case 2: {
 												// Force credit
-											had.current_candidate->defacto.account_transactions[0].amount = -1.0f * std::abs(had.current_candidate->defacto.account_transactions[0].amount);
+											had.optional.current_candidate->defacto.account_transactions[0].amount = -1.0f * std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
 											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
 										} break;
 										default: {
@@ -6439,7 +6463,7 @@ public:
 								else {
 									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
 								}
-								prompt << "\ncandidate:" << *had.current_candidate;
+								prompt << "\ncandidate:" << *had.optional.current_candidate;
 							}
 							else {
 								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
@@ -6452,8 +6476,8 @@ public:
 					case PromptState::CounterTransactionsAggregateOption: {
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (had.current_candidate) {
-								if (had.current_candidate->defacto.account_transactions.size()==1) {
+							if (had.optional.current_candidate) {
+								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
 									switch (ix) {
 										case 0: {
 											// Gross counter transaction aggregate
@@ -6471,7 +6495,7 @@ public:
 								else {
 									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
 								}
-								prompt << "\ncandidate:" << *had.current_candidate;
+								prompt << "\ncandidate:" << *had.optional.current_candidate;
 							}
 							else {
 								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
@@ -6485,18 +6509,18 @@ public:
 						// Act on user gross account number input
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (had.current_candidate) {
-								if (had.current_candidate->defacto.account_transactions.size()==1) {
+							if (had.optional.current_candidate) {
+								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
 									if (ast.size() == 1) {
 										auto gross_counter_account_no = BAS::to_account_no(ast[0]);
 										if (gross_counter_account_no) {
-											Amount gross_transaction_amount = had.current_candidate->defacto.account_transactions[0].amount;
-											had.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+											Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
+											had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
 												.account_no = *gross_counter_account_no
 												,.amount = -1.0f * gross_transaction_amount
 											}
 											);
-											prompt << "\nmutated candidate:" << *had.current_candidate;
+											prompt << "\nmutated candidate:" << *had.optional.current_candidate;
 											model->prompt_state = PromptState::JEAggregateOptionIndex;											
 										}
 										else {
@@ -6510,7 +6534,7 @@ public:
 								else {
 									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
 								}
-								prompt << "\ncandidate:" << *had.current_candidate;
+								prompt << "\ncandidate:" << *had.optional.current_candidate;
 							}
 							else {
 								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
@@ -6523,19 +6547,19 @@ public:
 					case PromptState::NetVATAccountInput: {
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (had.current_candidate) {
-								if (had.current_candidate->defacto.account_transactions.size()==1) {
+							if (had.optional.current_candidate) {
+								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
 									if (ast.size() == 2) {
 										auto net_counter_account_no = BAS::to_account_no(ast[0]);
 										auto vat_counter_account_no = BAS::to_account_no(ast[1]);
 										if (net_counter_account_no and vat_counter_account_no) {
-											Amount gross_transaction_amount = had.current_candidate->defacto.account_transactions[0].amount;
-											had.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+											Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
+											had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
 												.account_no = *net_counter_account_no
 												,.amount = -0.8f * gross_transaction_amount
 											}
 											);
-											had.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+											had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
 												.account_no = *vat_counter_account_no
 												,.amount = -0.2f * gross_transaction_amount
 											}
@@ -6554,7 +6578,7 @@ public:
 								else {
 									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
 								}
-								prompt << "\ncandidate:" << *had.current_candidate;
+								prompt << "\ncandidate:" << *had.optional.current_candidate;
 							}
 							else {
 								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
@@ -6569,10 +6593,10 @@ public:
 // std::cout << "\ncase PromptState::JEAggregateOptionIndex: {";
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (had.current_candidate) {
-// std::cout << "\nif (had.current_candidate) {";
+							if (had.optional.current_candidate) {
+// std::cout << "\nif (had.optional.current_candidate) {";
 								// We need a typed entry to do some clever decisions
-								auto tme = to_typed_meta_entry(*had.current_candidate);
+								auto tme = to_typed_meta_entry(*had.optional.current_candidate);
 								prompt << "\n" << tme;
 								switch (to_vat_type(tme)) {
 									case 0: {
@@ -6632,19 +6656,19 @@ public:
 								switch (ix) {
 									case 0: {
 										// Try to stage gross + single counter transactions aggregate
-										if (std::any_of(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+										if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
 											return std::abs(at.amount) < 1.0;
 										})) {
 											// Assume the user need to specify rounding by editing proposed account transactions
 											unsigned int i{};
-											std::for_each(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+											std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
 												prompt << "\n  " << i++ << " " << at;
 											});
 											model->prompt_state = PromptState::ATIndex;
 										}
 										else {
 											// Stage as-is
-											if (auto staged_me = model->sie["current"].stage(*had.current_candidate)) {
+											if (auto staged_me = model->sie["current"].stage(*had.optional.current_candidate)) {
 												prompt << "\n" << *staged_me << " STAGED";
 												model->heading_amount_date_entries.erase(*had_iter);
 												model->prompt_state = PromptState::HADIndex;
@@ -6665,32 +6689,32 @@ public:
 										if (!net_at) std::cerr << "\nNo net_at";
 										if (!vat_at) std::cerr << "\nNo vat_at";
 										if (net_at and vat_at) {
-											had.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
+											had.optional.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
 											
 											BAS::anonymous::AccountTransactions ats_to_keep{};
 											std::remove_copy_if(
-												had.current_candidate->defacto.account_transactions.begin()
-												,had.current_candidate->defacto.account_transactions.end()
+												had.optional.current_candidate->defacto.account_transactions.begin()
+												,had.optional.current_candidate->defacto.account_transactions.end()
 												,std::back_inserter(ats_to_keep)
 												,[&net_at,&vat_at](auto const& at){
 													return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
 											});
-											had.current_candidate->defacto.account_transactions = ats_to_keep;
+											had.optional.current_candidate->defacto.account_transactions = ats_to_keep;
 										}
-										prompt << "\ncadidate: " << *had.current_candidate;
+										prompt << "\ncadidate: " << *had.optional.current_candidate;
 										model->prompt_state = PromptState::EnterHA;
 									} break;
 									case 2: {
 										// Allow the user to edit individual account transactions
 										unsigned int i{};
-										std::for_each(had.current_candidate->defacto.account_transactions.begin(),had.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+										std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
 											prompt << "\n  " << i++ << " " << at;
 										});
 										model->prompt_state = PromptState::ATIndex;
 									} break;
 									case 3: {
 										// Stage the candidate
-										if (auto staged_me = model->sie["current"].stage(*had.current_candidate)) {
+										if (auto staged_me = model->sie["current"].stage(*had.optional.current_candidate)) {
 											prompt << "\n" << *staged_me << " STAGED";
 											model->heading_amount_date_entries.erase(*had_iter);
 											model->prompt_state = PromptState::HADIndex;
@@ -7298,9 +7322,9 @@ public:
 				for (auto const& vat_returns_had : vat_returns_hads) {
 					if (auto o_iter = model->find_had(vat_returns_had)) {
 						auto iter = *o_iter;
-						// TODO: When/if we actually save the state of iter->vat_returns_form_box_map_candidate, then remove the condition in following if-statement
-						if (!iter->vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
-							// NOTE: iter->vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
+						// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
+						if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
+							// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
 							*iter = vat_returns_had;
 							prompt << "\n*UPDATED* " << vat_returns_had;
 						}
@@ -7783,11 +7807,11 @@ The ITfied AB
 				else if (model->prompt_state == PromptState::EnterHA) {
 					if (auto had_iter = model->selected_had()) {
 						auto& had = *(*had_iter);
-						if (!had.current_candidate) std::cerr << "\nNo had.current_candidate";
-						if (!had.counter_ats_producer) std::cerr << "\nNo had.counter_ats_producer";
-						if (had.current_candidate and had.counter_ats_producer) {
-							auto gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
-							auto gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
+						if (!had.optional.current_candidate) std::cerr << "\nNo had.optional.current_candidate";
+						if (!had.optional.counter_ats_producer) std::cerr << "\nNo had.optional.counter_ats_producer";
+						if (had.optional.current_candidate and had.optional.counter_ats_producer) {
+							auto gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
+							auto gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
 							auto gross_amounts_diff = gross_positive_amount + gross_negative_amount;
 // std::cout << "\ngross_positive_amount:" << gross_positive_amount << " gross_negative_amount:" << gross_negative_amount << " gross_amounts_diff:" << gross_amounts_diff;
 
@@ -7804,8 +7828,8 @@ The ITfied AB
 									}
 									else {
 										prompt << "\nHEADER " << ast[0];
-										auto ats = (*had.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0]);
-										std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+										auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0]);
+										std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
 										prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
 									}
 								} break;
@@ -7816,14 +7840,14 @@ The ITfied AB
 										prompt << "\nWe will create a {net,vat} using this this header and amount";
 										if (gross_amounts_diff > 0) {
 											// We need to balance up with negative account transaction aggregates
-											auto ats = (*had.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
-											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+											auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+											std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
 											prompt << "\nAdded negative transactions aggregate" << ats;
 										}
 										else if (gross_amounts_diff < 0) {
 											// We need to balance up with positive account transaction aggregates
-											auto ats = (*had.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
-											std::copy(ats.begin(),ats.end(),std::back_inserter(had.current_candidate->defacto.account_transactions));
+											auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+											std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
 											prompt << "\nAdded positive transaction aggregate";
 										}
 										else if (std::abs(gross_amounts_diff) < 1.0) {
@@ -7833,7 +7857,7 @@ The ITfied AB
 												.account_no = 3740
 												,.amount = -gross_amounts_diff
 											};
-											had.current_candidate->defacto.account_transactions.push_back(cents_rounding_at);
+											had.optional.current_candidate->defacto.account_transactions.push_back(cents_rounding_at);
 										}
 										else {
 											// The journal entry candidate balances. Consider to stage it
@@ -7842,15 +7866,15 @@ The ITfied AB
 									}
 								} break;
 							}
-							prompt << "\ncandidate:" << *had.current_candidate;
-							gross_positive_amount = to_positive_gross_transaction_amount(had.current_candidate->defacto);
-							gross_negative_amount = to_negative_gross_transaction_amount(had.current_candidate->defacto);
+							prompt << "\ncandidate:" << *had.optional.current_candidate;
+							gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
+							gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
 							gross_amounts_diff = gross_positive_amount + gross_negative_amount;
 							prompt << "\n-------------------------------";
 							prompt << "\ndiff:" << gross_amounts_diff;
 							if (gross_amounts_diff == 0) {
 								// Stage the journal entry
-								auto me = model->sie["current"].stage(*had.current_candidate);
+								auto me = model->sie["current"].stage(*had.optional.current_candidate);
 								if (me) {
 									prompt << "\n" << *me << " STAGED";
 									model->heading_amount_date_entries.erase(*had_iter);
@@ -7874,7 +7898,7 @@ The ITfied AB
 				}
 				else if (model->prompt_state == PromptState::JEIndex) {
 					if (do_assign) {
-						// Assume ... = ...
+						// Assume <text> = <text>
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
 							if (ast.size() == 3 and ast[1] == "=") {
@@ -7895,17 +7919,18 @@ The ITfied AB
 									}
 									if (ams.size() == 1) {
 										// Go ahead and use this account for an account transaction
-										if (had.current_candidate) {
+										if (had.optional.current_candidate) {
 											// extend current candidate
 											BAS::anonymous::AccountTransaction new_at{
 												.account_no = ams.begin()->first
 												,.amount = transaction_amount
 											};
-											had.current_candidate->defacto.account_transactions.push_back(new_at);
-											prompt << "\n" << *had.current_candidate;
+											had.optional.current_candidate->defacto.account_transactions.push_back(new_at);
+											prompt << "\n" << *had.optional.current_candidate;
 										}
 										else {
 											// Create options from scratch
+											had.optional.gross_account_no = ams.begin()->first;
 											BAS::TypedMetaEntries template_candidates{};
 											for (auto series : std::string{"ABCDEFGHIJKLMNOPQRSTUVWXYZ"}) {
 												BAS::MetaEntry me{
@@ -7992,10 +8017,10 @@ The ITfied AB
 					}
 					// List the new current options
 					if (auto had_iter = model->selected_had()) {
-						if ((*had_iter)->current_candidate) {
+						if ((*had_iter)->optional.current_candidate) {
 							unsigned int i{};
-							prompt << "\n" << (*had_iter)->current_candidate->defacto.caption << " " << (*had_iter)->current_candidate->defacto.date;
-							for (auto const& at : (*had_iter)->current_candidate->defacto.account_transactions) {
+							prompt << "\n" << (*had_iter)->optional.current_candidate->defacto.caption << " " << (*had_iter)->optional.current_candidate->defacto.date;
+							for (auto const& at : (*had_iter)->optional.current_candidate->defacto.account_transactions) {
 								prompt << "\n  " << i++ << " " << at;
 							}				
 						}
@@ -8016,9 +8041,9 @@ The ITfied AB
 							auto new_at = model->at;
 							new_at.account_no = *account_no;
 							prompt << "\nBAS Account: " << *account_no;
-							if ((*had_iter)->current_candidate) {
-								(*had_iter)->current_candidate = swapped_ats_entry(*(*had_iter)->current_candidate,model->at,new_at);
-								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
+							if ((*had_iter)->optional.current_candidate) {
+								(*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
+								prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
 								model->prompt_state = PromptState::JEAggregateOptionIndex;
 							}
 							else {
@@ -8028,9 +8053,9 @@ The ITfied AB
 						else if (auto amount = to_amount(command)) {
 							prompt << "\nAmount " << *amount;
 							model->at.amount = *amount;
-							if ((*had_iter)->current_candidate) {
-								(*had_iter)->current_candidate = updated_amounts_entry(*(*had_iter)->current_candidate,model->at);
-								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
+							if ((*had_iter)->optional.current_candidate) {
+								(*had_iter)->optional.current_candidate = updated_amounts_entry(*(*had_iter)->optional.current_candidate,model->at);
+								prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
 								model->prompt_state = PromptState::JEAggregateOptionIndex;
 							}
 							else {
@@ -8042,9 +8067,9 @@ The ITfied AB
 							prompt << "\nTranstext " << std::quoted(command);
 							auto new_at = model->at;
 							new_at.transtext = command;
-							if ((*had_iter)->current_candidate) {
-								(*had_iter)->current_candidate = swapped_ats_entry(*(*had_iter)->current_candidate,model->at,new_at);
-								prompt << "\nCandidate: " << *(*had_iter)->current_candidate;
+							if ((*had_iter)->optional.current_candidate) {
+								(*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
+								prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
 								model->prompt_state = PromptState::JEAggregateOptionIndex;
 							}
 							else {
@@ -8123,7 +8148,7 @@ The ITfied AB
 						model->heading_amount_date_entries.push_back(*had);
 						model->had_index = 0; // index zero is the "last" (newest) one
 						unsigned int i{};
-						std::for_each(had->current_candidate->defacto.account_transactions.begin(),had->current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+						std::for_each(had->optional.current_candidate->defacto.account_transactions.begin(),had->optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
 							prompt << "\n  " << i++ << " " << at;
 						});
 						model->prompt_state = PromptState::ATIndex;
