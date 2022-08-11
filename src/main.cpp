@@ -5411,6 +5411,10 @@ enum class PromptState {
 	,Unknown
 };
 
+auto falling_date = [](auto const& had1,auto const& had2){
+	return (had1.date > had2.date);
+};
+
 class ConcreteModel {
 public:
 	std::vector<SKV::ContactPersonMeta> organisation_contacts{};
@@ -5476,8 +5480,29 @@ public:
 		return result;
 	}
 
+	HeadingAmountDateTransEntries const& refreshed_hads(void) {
+		auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(this->sie);
+		for (auto const& vat_returns_had : vat_returns_hads) {
+			if (auto o_iter = this->find_had(vat_returns_had)) {
+				auto iter = *o_iter;
+				// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
+				if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
+					// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
+					*iter = vat_returns_had;
+					std::cout << "\n*UPDATED* " << vat_returns_had;
+				}
+			}
+			else {
+				this->heading_amount_date_entries.push_back(vat_returns_had);
+				std::cout << "\n*NEW* " << vat_returns_had;
+			}
+		}
+		std::sort(this->heading_amount_date_entries.begin(),this->heading_amount_date_entries.end(),falling_date);
+		return this->heading_amount_date_entries;
+	}
+
 private:
-};
+}; // ConcreteModel
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
 
@@ -5900,9 +5925,22 @@ std::string prompt_line(PromptState const& prompt_state) {
 	return prompt.str();
 }
 
-auto falling_date = [](auto const& had1,auto const& had2){
-	return (had1.date > had2.date);
-};
+std::string to_had_listing_prompt(HeadingAmountDateTransEntries const& hads) {
+		// Prepare to Expose hads (Heading Amount Date transaction entries) to the user
+		std::stringstream prompt{};
+		unsigned int index{0};
+		std::vector<std::string> sHads{};
+		std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
+			std::stringstream os{};
+			os << index++ << " " << had;
+			return os.str();
+		});
+		prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+			acc += "\n  " + entry;
+			return acc;
+		});
+		return prompt.str();
+}
 
 std::optional<int> to_signed_ix(std::string const& s) {
 	std::optional<int> result{};
@@ -5969,6 +6007,7 @@ public:
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
 							prompt << "\n" << had;
+							bool do_prepend = (ast.size() == 4) and (ast[1] == "<--");
 							if (do_remove) {
 								model->heading_amount_date_entries.erase(*had_iter);
 								prompt << " REMOVED";
@@ -5976,6 +6015,18 @@ public:
 							}
 							else if (do_assign) {
 								prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
+							}
+							else if (do_prepend) {
+								std::cout << "\nprepend with heading:" << std::quoted(ast[2]) << " Date:" << ast[3];
+								HeadingAmountDateTransEntry prepended_had {
+									.heading = ast[2]
+									,.amount = std::abs(had.amount) // always an unsigned amount for prepended had
+									,.date = *to_date(ast[3]) // Assume success
+								};
+								model->heading_amount_date_entries.push_back(prepended_had);
+								prompt << to_had_listing_prompt(model->refreshed_hads());
+								model->prompt_state = PromptState::HADIndex;
+								// ####
 							}
 							else {
 								// selected HAD and list template options
@@ -7318,38 +7369,43 @@ public:
 				}
 			}
 			else if (ast[0] == "-had") {
-				auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
-				for (auto const& vat_returns_had : vat_returns_hads) {
-					if (auto o_iter = model->find_had(vat_returns_had)) {
-						auto iter = *o_iter;
-						// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
-						if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
-							// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
-							*iter = vat_returns_had;
-							prompt << "\n*UPDATED* " << vat_returns_had;
-						}
-					}
-					else {
-						model->heading_amount_date_entries.push_back(vat_returns_had);
-						prompt << "\n*NEW* " << vat_returns_had;
-					}
-				}
-				std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
+				auto hads = model->refreshed_hads();
+
+				// auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
+				// for (auto const& vat_returns_had : vat_returns_hads) {
+				// 	if (auto o_iter = model->find_had(vat_returns_had)) {
+				// 		auto iter = *o_iter;
+				// 		// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
+				// 		if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
+				// 			// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
+				// 			*iter = vat_returns_had;
+				// 			prompt << "\n*UPDATED* " << vat_returns_had;
+				// 		}
+				// 	}
+				// 	else {
+				// 		model->heading_amount_date_entries.push_back(vat_returns_had);
+				// 		prompt << "\n*NEW* " << vat_returns_had;
+				// 	}
+				// }
+				// std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
 				if (ast.size()==1) {
-					// Expose current hads (Heading Amount Date transaction entries) to the user
-					auto& hads = model->heading_amount_date_entries;
-					unsigned int index{0};
-					std::vector<std::string> sHads{};
-					std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
-						std::stringstream os{};
-						os << index++ << " " << had;
-						return os.str();
-					});
-					prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
-						acc += "\n  " + entry;
-						return acc;
-					});
+					prompt << to_had_listing_prompt(hads);
 					model->prompt_state = PromptState::HADIndex;
+
+				// 	// Expose current hads (Heading Amount Date transaction entries) to the user
+				// 	auto& hads = model->heading_amount_date_entries;
+				// 	unsigned int index{0};
+				// 	std::vector<std::string> sHads{};
+				// 	std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
+				// 		std::stringstream os{};
+				// 		os << index++ << " " << had;
+				// 		return os.str();
+				// 	});
+				// 	prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+				// 		acc += "\n  " + entry;
+				// 		return acc;
+				// 	});
+				// 	model->prompt_state = PromptState::HADIndex;
 				}
 				else if (ast.size()==2) {
 					// Assume the user has entered text to macth against had Heading
