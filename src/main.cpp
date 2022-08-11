@@ -1598,6 +1598,7 @@ std::ostream& operator<<(std::ostream& os,BAS::TypedMetaEntry const& tme) {
 using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
 
+// A function object able to create Net+Vat BAS::anonymous::AccountTransactions
 class ToNetVatAccountTransactions {
 public:
 
@@ -2429,6 +2430,10 @@ Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& 
 	return result;
 }
 
+bool does_balance(BAS::anonymous::JournalEntry const& aje) {
+	return (to_positive_gross_transaction_amount(aje) + to_negative_gross_transaction_amount(aje) == 0);
+}
+
 BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountTransaction result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
@@ -2813,8 +2818,13 @@ public:
 	}
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& entry) {
 		std::optional<BAS::MetaEntry> result{};
-		if (this->already_in_posted(entry) == false) result = this->add(entry);
-		else result = this->update(entry);
+		if (does_balance(entry.defacto)) {
+			if (this->already_in_posted(entry) == false) result = this->add(entry);
+			else result = this->update(entry);
+		}
+		else {
+			std::cout << "\nSorry, Failed to stage. Entry Does not Balance"; 
+		}
 		return result;
 	}
 
@@ -6026,7 +6036,6 @@ public:
 								model->heading_amount_date_entries.push_back(prepended_had);
 								prompt << to_had_listing_prompt(model->refreshed_hads());
 								model->prompt_state = PromptState::HADIndex;
-								// ####
 							}
 							else {
 								// selected HAD and list template options
@@ -6707,7 +6716,11 @@ public:
 								switch (ix) {
 									case 0: {
 										// Try to stage gross + single counter transactions aggregate
-										if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+										if (does_balance(had.optional.current_candidate->defacto) == false) {
+											// list at candidates from found entries with account transaction that counter the gross account
+											std::cout << "\nCurrent candidate does not balance";
+										}
+										else if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
 											return std::abs(at.amount) < 1.0;
 										})) {
 											// Assume the user need to specify rounding by editing proposed account transactions
@@ -6731,6 +6744,7 @@ public:
 										}
 									} break;
 									case 1: {
+										// net + vat counter aggregate
 										BAS::anonymous::OptionalAccountTransaction net_at;
 										BAS::anonymous::OptionalAccountTransaction vat_at;
 										for (auto const& [at,props] : tme.defacto.account_transactions) {
@@ -7952,16 +7966,18 @@ The ITfied AB
 					}
 
 				}
-				else if (model->prompt_state == PromptState::JEIndex) {
+				else if (    (model->prompt_state == PromptState::JEIndex)
+				          or (model->prompt_state == PromptState::JEAggregateOptionIndex)) {
 					if (do_assign) {
 						// Assume <text> = <text>
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
-							if (ast.size() == 3 and ast[1] == "=") {
-								// Assume three tokens 0:<token> 1:'=' 2:<Token>
+							if (ast.size() >= 3 and ast[1] == "=") {
+								// Assume at least three tokens 0:<token> 1:'=' 2:<Token>
 								if (auto amount = to_amount(ast[2])) {
 									BAS::AccountMetas ams{};
 									auto transaction_amount = (std::abs(*amount) <= 1)?(*amount * had.amount):(had.amount); // quote of amount or actual amount
+
 									if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
 										// The user entered <target> = a BAS Account or SRU account
 										ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
@@ -7973,7 +7989,7 @@ The ITfied AB
 									if (ams.size() == 0) {
 										prompt << "\nSorry, failed to match your input to any BAS or SRU account";
 									}
-									if (ams.size() == 1) {
+									else if (ams.size() == 1) {
 										// Go ahead and use this account for an account transaction
 										if (had.optional.current_candidate) {
 											// extend current candidate
@@ -7988,7 +8004,8 @@ The ITfied AB
 											// Create options from scratch
 											had.optional.gross_account_no = ams.begin()->first;
 											BAS::TypedMetaEntries template_candidates{};
-											for (auto series : std::string{"ABCDEFGHIJKLMNOPQRSTUVWXYZ"}) {
+											std::string transtext = (ast.size() == 4)?ast[3]:"";
+											for (auto series : std::string{"ABCDEIM"}) {
 												BAS::MetaEntry me{
 													.meta = {
 														.series = series
@@ -8000,6 +8017,7 @@ The ITfied AB
 												};
 												BAS::anonymous::AccountTransaction new_at{
 													.account_no = ams.begin()->first
+													,.transtext = transtext
 													,.amount = transaction_amount
 												};
 												me.defacto.account_transactions.push_back(new_at);
@@ -8087,7 +8105,6 @@ The ITfied AB
 					else {
 						prompt << "\nPlease select a Heading Amount Date entry";
 					}
-
 				}
 				else if (model->prompt_state == PromptState::EditAT) {
 					// Handle user Edit of currently selected account transaction (at)
@@ -8214,7 +8231,7 @@ The ITfied AB
 					}
 				}
 				else {
-					// Assume Caption + Amount + Date
+					// Assume Heading + Amount + Date (had) input
 					auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
 					if (tokens.size()==3) {
 						HeadingAmountDateTransEntry had {
@@ -8227,11 +8244,11 @@ The ITfied AB
 						// Decided NOT to sort hads here to keep last listed had indexes intact (new -had command = sort and new indexes)
 					}
 					else {
-						prompt << "\nERROR - Expected Caption + Amount + Date";
+						prompt << "\nERROR - Expected Heading + Amount + Date";
 						prompt << "\nI Interpreted your input as,";
 						for (auto const& token : tokens) prompt << "\n\ttoken: \"" << token << "\"";
 						prompt << "\n\nPlease check that your input matches my expectations?";
-						prompt << "\n\tCaption = any text (\"...\" enclosure allowed)";
+						prompt << "\n\tHeading = any text (\"...\" enclosure allowed)";
 						prompt << "\n\tAmount = any positive or negative amount with optional ',' or '.' decimal point with one or two decimal digits";
 						prompt << "\n\tDate = YYYYMMDD or YYYY-MM-DD";
 					}
