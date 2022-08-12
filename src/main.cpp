@@ -4684,9 +4684,13 @@ namespace SKV {
 			}
 
 			Amount to_box_49_amount(FormBoxMap const& box_map) {
-				BoxNos vat_box_nos{10,11,12,30,31,32,50,61,62,48};
+				BoxNos vat_box_nos{10,11,12,30,31,32,60,61,62,48};
 				auto box_49_amount = std::accumulate(vat_box_nos.begin(),vat_box_nos.end(),Amount{},[&box_map](Amount acc,BoxNo box_no){
-					if (box_map.contains(box_no)) acc += BAS::mats_sum(box_map.at(box_no));
+					if (box_map.contains(box_no)) {
+						auto mats_sum = BAS::mats_sum(box_map.at(box_no));
+						acc += mats_sum;
+						std::cout << "\n\tto_box_49_amount += [" << box_no << "]:" << mats_sum << " = " << acc;
+					}
 					return acc;
 				});
 				return box_49_amount;
