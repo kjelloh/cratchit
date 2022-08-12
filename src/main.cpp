@@ -2478,9 +2478,36 @@ Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& 
 	});
 	return result;
 }
-
+ 
 bool does_balance(BAS::anonymous::JournalEntry const& aje) {
-	return (to_positive_gross_transaction_amount(aje) + to_negative_gross_transaction_amount(aje) == 0);
+	auto positive_gross_transaction_amount = to_positive_gross_transaction_amount(aje);
+	auto negative_gross_amount = to_negative_gross_transaction_amount(aje);
+	// std::cout << "\ndoes_balance: positive_gross_transaction_amount=" << positive_gross_transaction_amount << "  negative_gross_amount=" << negative_gross_amount;
+	// std::cout << "\n\tsum=" << positive_gross_transaction_amount + negative_gross_amount;
+	// TODO: FIX Ronding errors somewhere that makes the positive and negative sum to be some infinitesimal value NOT zero ...
+	return (BAS::to_cents_amount(positive_gross_transaction_amount + negative_gross_amount) == 0); // Fix for amounts not correct to the cents...
+}
+
+// Pick the negative or positive gross amount and return it without sign
+OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
+	// std::cout << "\nto_gross_transaction_amount: " << aje;
+	OptionalAmount result{};
+	if (does_balance(aje)) {
+		result = to_positive_gross_transaction_amount(aje); // Pick the positive alternative
+	}
+	else if (aje.account_transactions.size() == 1) {
+		result = std::abs(aje.account_transactions.front().amount);
+	}
+	else {
+		// Does NOT balance, and more than one account transaction.
+		// Define the gross amount as the largest account absolute transaction amount
+		auto max_at_iter = std::max_element(aje.account_transactions.begin(),aje.account_transactions.end(),[](auto const& at1,auto const& at2) {
+			return std::abs(at1.amount) < std::abs(at2.amount);
+		});
+		if (max_at_iter != aje.account_transactions.end()) result = std::abs(max_at_iter->amount);
+	}
+	// if (result) std::cout << "\n\t==> " << *result;
+	return result;	
 }
 
 BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
@@ -2562,15 +2589,20 @@ class JournalEntryTemplate {
 public:
 
 	JournalEntryTemplate(BAS::Series series,BAS::MetaEntry const& me) : m_series{series} {
-		auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
-		if (gross_amount >= 0.01) {
-			std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& at){
-				AccountTransactionTemplate result{gross_amount,at};
-				return result;
-			});
-			std::sort(this->templates.begin(),this->templates.end(),[](auto const& e1,auto const& e2){
-				return (std::abs(e1.percent()) > std::abs(e2.percent())); // greater to lesser
-			});
+		if (auto optional_gross_amount = to_gross_transaction_amount(me.defacto)) {
+			auto gross_amount = *optional_gross_amount;
+			if (gross_amount >= 0.01) {
+				std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& at){
+					AccountTransactionTemplate result{gross_amount,at};
+					return result;
+				});
+				std::sort(this->templates.begin(),this->templates.end(),[](auto const& e1,auto const& e2){
+					return (std::abs(e1.percent()) > std::abs(e2.percent())); // greater to lesser
+				});
+			}
+			else {
+				std::cerr << "DESIGN INSUFFICIENY - JournalEntryTemplate constructor failed to determine gross amount";
+			}
 		}
 	}
 
@@ -2872,7 +2904,7 @@ public:
 			else result = this->update(entry);
 		}
 		else {
-			std::cout << "\nSorry, Failed to stage. Entry Does not Balance"; 
+			std::cout << "\nSorry, Failed to stage. Entry Does not Balance";
 		}
 		return result;
 	}
@@ -3117,36 +3149,42 @@ std::optional<std::string> to_ats_sum_string(SIEEnvironments const& sie_envs,BAS
 }
 
 auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
+	// std::cout << "\nto_typed_meta_entry: " << me; 
 	BAS::anonymous::TypedAccountTransactions typed_ats{};
-	auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
 
-	// Direct type detection based on gross_amount and account meta data
-	for (auto const& at : me.defacto.account_transactions) {
-		if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
-		if (is_vat_account_at(at)) typed_ats[at].insert("vat");
-		if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
-		if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
-	}
+	if (auto optional_gross_amount = to_gross_transaction_amount(me.defacto)) {
+		auto gross_amount = *optional_gross_amount; 
+		// Direct type detection based on gross_amount and account meta data
+		for (auto const& at : me.defacto.account_transactions) {
+			if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
+			if (is_vat_account_at(at)) typed_ats[at].insert("vat");
+			if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
+			if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
+		}
 
-	// Ex vat amount Detection
-	Amount ex_vat_amount{},vat_amount{};
-	for (auto const& at : me.defacto.account_transactions) {
-		if (!typed_ats.contains(at)) {
-			// Not gross, Not VAT = candidate for ex VAT
-			ex_vat_amount += at.amount;
-		}
-		else if (typed_ats.at(at).contains("vat")) {
-			vat_amount += at.amount;
-		}
-	}
-	if (std::abs(std::round(std::abs(ex_vat_amount)) + std::round(std::abs(vat_amount)) - gross_amount) <= 1) {
-		// ex_vat + vat within cents of gross
-		// tag non typed ats as ex-vat
+		// Ex vat amount Detection
+		Amount ex_vat_amount{},vat_amount{};
 		for (auto const& at : me.defacto.account_transactions) {
 			if (!typed_ats.contains(at)) {
-				typed_ats[at].insert("net");
+				// Not gross, Not VAT (above) => candidate for ex VAT
+				ex_vat_amount += at.amount;
+			}
+			else if (typed_ats.at(at).contains("vat")) {
+				vat_amount += at.amount;
 			}
 		}
+		if (std::abs(std::round(std::abs(ex_vat_amount)) + std::round(std::abs(vat_amount)) - gross_amount) <= 1) {
+			// ex_vat + vat within cents of gross
+			// tag non typed ats as ex-vat
+			for (auto const& at : me.defacto.account_transactions) {
+				if (!typed_ats.contains(at)) {
+					typed_ats[at].insert("net");
+				}
+			}
+		}
+	}
+	else {
+		std::cerr << "\nDESIGN INSUFFICIENCY - to_typed_meta_entry failed to determine gross amount";
 	}
 	// Identify an EU Purchase journal entry
 	// Example:
@@ -3181,10 +3219,12 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 			typed_ats[at].insert("gross");
 		}
 	}
+
 	// Finally add any still untyped at with empty property set
 	for (auto const& at : me.defacto.account_transactions) {
 		if (!typed_ats.contains(at)) typed_ats.insert({at,{}});
 	}
+
 	BAS::TypedMetaEntry result{
 		.meta = me.meta
 		,.defacto = {
@@ -3196,9 +3236,55 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 	return result;
 };
 
-int to_vat_type(BAS::TypedMetaEntry const& tme) {
-	static bool const log{false};
-	int result{-1};
+// Journal Entry VAT Type
+enum class JournalEntryVATType {
+	Undefined = -1
+	,NoVAT = 0
+	,SwedishVAT = 1
+	,EUVAT = 2
+	,VATReturns = 3
+	,VATTransfer = 4
+	,Unknown
+// 	case 0: {
+		// No VAT in candidate. 
+// case 1: {
+// 	// Swedish VAT detcted in candidate.
+// case 2: {
+// 	// EU VAT detected in candidate.
+// case 3: {
+		//  M2 "Momsrapport 2021-07-01 - 2021-09-30" 20210930
+		// 	 vat = sort_code: 0x6 : "Utgående moms, 25 %":2610 "" 83300
+		// 	 eu_vat vat = sort_code: 0x56 : "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1654.23
+		// 	 vat = sort_code: 0x6 : "Ingående moms":2640 "" -1690.21
+		// 	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" -849.52
+		// 	 vat = sort_code: 0x6 : "Redovisningskonto för moms":2650 "" -82415
+		// 	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" 0.5
+// case 4: {
+	// 10  A2 "Utbetalning Moms från Skattekonto" 20210506
+	// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -802
+	// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Momsbeslut" 802
+	// transfer vat = sort_code: 0x16 : "Momsfordran":1650 "" -802
+	// transfer = sort_code: 0x1 : "PlusGiro":1920 "" 802
+};
+
+std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
+	switch (vat_type) {
+		case JournalEntryVATType::Undefined: {os << "Undefined";} break;
+		case JournalEntryVATType::NoVAT: {os << "No VAT";} break;
+		case JournalEntryVATType::SwedishVAT: {os << "Swedish VAT";} break;
+		case JournalEntryVATType::EUVAT: {os << "EU VAT";} break;
+		case JournalEntryVATType::VATReturns: {os << "VAT Returns";} break;
+		case JournalEntryVATType::VATTransfer: {os << "VAT Transfer";} break;
+		case JournalEntryVATType::Unknown: {os << "Unknown";} break;
+
+		default: os << "operator<< failed for vat_type with integer value " << static_cast<int>(vat_type);
+	}
+	return os;
+}
+
+JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
+	JournalEntryVATType result{JournalEntryVATType::Undefined};
+	static bool const log{true};
 	// Count each type of property (NOTE: Can be less than transaction count as they may overlap, e.g., two or more gross account transactions)
 	std::map<std::string,unsigned int> props_counter{};
 	for (auto const& [at,props] : tme.defacto.account_transactions) {
@@ -3207,7 +3293,7 @@ int to_vat_type(BAS::TypedMetaEntry const& tme) {
 	// LOG
 	if (log) {
 		for (auto const& [prop,count] : props_counter) {
-// std::cout << "\n" << std::quoted(prop) << " count:" << count; 
+std::cout << "\n" << std::quoted(prop) << " count:" << count; 
 		}
 	}
 	// Calculate total number of properties (NOTE: Can be more that the transactions as e.g., vat and eu_vat overlaps)
@@ -3217,33 +3303,33 @@ int to_vat_type(BAS::TypedMetaEntry const& tme) {
 	});
 	// Identify what type of VAT the candidate defines
 	if ((props_counter.size() == 1) and props_counter.contains("gross")) {
-		result = 0; // NO VAT (gross, counter gross)
+		result = JournalEntryVATType::NoVAT; // NO VAT (gross, counter gross)
 		if (log) std::cout << "\nTemplate is an NO VAT transaction :)"; // gross,gross
 	}
 	else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
 		if (props_sum == 3) {
 			if (log) std::cout << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
-			result = 1; // Swedish VAT
+			result = JournalEntryVATType::SwedishVAT; // Swedish VAT
 		}
 	}
 	else if ((props_counter.size() == 4) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and props_counter.contains("cents") and !props_counter.contains("eu_vat")) {
 		if (props_sum == 4) {
 			if (log) std::cout << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
-			result = 1; // Swedish VAT
+			result = JournalEntryVATType::SwedishVAT; // Swedish VAT
 		}
 	}
 	else if (
 		(     (props_counter.contains("gross"))
 			and (props_counter.contains("eu_purchase"))
 			and (props_counter.contains("eu_vat")))) {
-		result = 2; // EU VAT
+		result = JournalEntryVATType::EUVAT; // EU VAT
 		if (log) std::cout << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
 	}
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "vat") or (entry.first == "eu_vat") or  (entry.first == "cents");})) {
-		result = 3; // All VATS (probably a VAT report)
+		result = JournalEntryVATType::VATReturns; // All VATS (probably a VAT report)
 	}
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "transfer") or (entry.first == "vat");})) {
-		result = 4; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
+		result = JournalEntryVATType::VATTransfer; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
 	}
 	else {
 		if (log) std::cout << "\nFailed to recognise the VAT type";
@@ -6379,9 +6465,9 @@ public:
 									std::advance(tme_iter,ix);
 									auto tme = *tme_iter;
 									auto vat_type = to_vat_type(tme);
-// std::cout << "\nvat_type = " << vat_type;
+std::cout << "\nvat_type = " << vat_type;
 									switch (vat_type) {
-										case 0: {
+										case JournalEntryVATType::NoVAT: {
 											// No VAT in candidate. 
 											// Continue with 
 											// 1) Some propose gross account transactions
@@ -6394,7 +6480,7 @@ public:
 												model->prompt_state = PromptState::JEAggregateOptionIndex;
 											}
 										} break;
-										case 1: {
+										case JournalEntryVATType::SwedishVAT: {
 											// Swedish VAT detcted in candidate.
 											// Continue with 
 											// 2) a n x {net,vat} counter aggregate
@@ -6406,7 +6492,7 @@ public:
 												model->prompt_state = PromptState::JEAggregateOptionIndex;
 											}
 										} break;
-										case 2: {
+										case JournalEntryVATType::EUVAT: {
 											// EU VAT detected in candidate.
 											// Continue with a 
 											// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
@@ -6442,7 +6528,7 @@ public:
 											had.optional.current_candidate = me;
 											model->prompt_state = PromptState::JEAggregateOptionIndex;
 										} break;
-										case 3: {
+										case JournalEntryVATType::VATReturns: {
 											//  M2 "Momsrapport 2021-07-01 - 2021-09-30" 20210930
 											// 	 vat = sort_code: 0x6 : "Utgående moms, 25 %":2610 "" 83300
 											// 	 eu_vat vat = sort_code: 0x56 : "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1654.23
@@ -6493,7 +6579,7 @@ public:
 											had.optional.current_candidate = me;
 											model->prompt_state = PromptState::JEAggregateOptionIndex;
 										} break;
-										case 4: {
+										case JournalEntryVATType::VATTransfer: {
 											// 10  A2 "Utbetalning Moms från Skattekonto" 20210506
 											// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -802
 											// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Momsbeslut" 802
@@ -6707,26 +6793,31 @@ public:
 								// We need a typed entry to do some clever decisions
 								auto tme = to_typed_meta_entry(*had.optional.current_candidate);
 								prompt << "\n" << tme;
-								switch (to_vat_type(tme)) {
-									case 0: {
+								auto vat_type = to_vat_type(tme); 
+								switch (vat_type) {
+									case JournalEntryVATType::NoVAT: {
 										// No VAT in candidate. 
 										// Continue with 
 										// 1) Some propose gross account transactions
 										// 2) a n x gross Counter aggregate
 									} break;
-									case 1: {
+									case JournalEntryVATType::SwedishVAT: {
 										// Swedish VAT detcted in candidate.
 										// Continue with 
 										// 2) a n x {net,vat} counter aggregate
 									} break;
-									case 2: {
+									case JournalEntryVATType::EUVAT: {
 										// EU VAT detected in candidate.
 										// Continue with a 
 										// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
 									} break;
-									case 3: {
+									case JournalEntryVATType::VATReturns: {
 										// All VATS (VAT Report?)
-									}
+									} break;
+									case JournalEntryVATType::VATTransfer: {
+										// All VATS and one gross non-vat (assume bank transfer of VAT to/from tax agency?)
+									} break;
+									default: {std::cerr << "\nDESIGN INSUFFICIENCY - Unknown JournalEntryVATType " << vat_type;}
 								}
 								// std::map<std::string,unsigned int> props_counter{};
 								// for (auto const& [at,props] : tme.defacto.account_transactions) {
@@ -8015,7 +8106,7 @@ The ITfied AB
 								// Assume at least three tokens 0:<token> 1:'=' 2:<Token>
 								if (auto amount = to_amount(ast[2])) {
 									BAS::AccountMetas ams{};
-									auto transaction_amount = (std::abs(*amount) <= 1)?(*amount * had.amount):(had.amount); // quote of amount or actual amount
+									auto transaction_amount = (std::abs(*amount) <= 1)?(*amount * had.amount):(*amount); // quote of had amount or actual amount
 
 									if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
 										// The user entered <target> = a BAS Account or SRU account
