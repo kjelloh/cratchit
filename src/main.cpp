@@ -1700,11 +1700,40 @@ namespace CSV {
 			,unknown
 		};
 
+		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
+		/*
+		Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
+		2022/06/27;-720,00;51 86 87-9;5343-2795;LOOPIA AB (WEBSUPPORT);LOOPIA AB (WEBSUPPORT);378587992;Webhotell Q2;49537,22;SEK
+		2022/06/16;-880,00;51 86 87-9;824-3040;TELIA SVERIGE AB;TELIA SVERIGE AB;19990271223;Mobil Q2;50257,22;SEK
+		2022/06/13;-625,00;51 86 87-9;5050-1055;SKATTEVERKET;SKATTEVERKET;16556782817244;Förs Avg;51137,22;SEK
+		2022/06/13;-153,71;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
+		2022/06/10;-184,00;51 86 87-9;;KORT             POSTNORD SE     26;KORT             POSTNORD SE     26;POSTNORD SE     2656;;51915,93;SEK
+		2022/06/09;-399,90;51 86 87-9;;KORT             KJELL O CO 100  26;KORT             KJELL O CO 100  26;KJELL O CO 100  2656;;52099,93;SEK
+		2022/06/03;-1,70;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;52499,83;SEK
+		2022/05/31;-446,00;51 86 87-9;5020-7042;Fortnox Finans AB;Fortnox Finans AB;52804292974641;Bokf pr jun/jul/aug;52501,53;SEK
+		2022/05/24;786,99;;51 86 87-9;BG KONTOINS;BG KONTOINS;0817-9780 GOOGLE IRELA;;52947,53;SEK
+		2022/05/19;179,00;;51 86 87-9;BG KONTOINS;BG KONTOINS;5050-1030 SK5567828172;;52160,54;SEK
+		2022/05/18;-610,33;51 86 87-9;;KORT             PAYPAL *HKSITES 26;KORT             PAYPAL *HKSITES 26;PAYPAL *HKSITES 2656;;51981,54;SEK
+		2022/05/12;-154,91;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;52591,87;SEK
+		2022/05/04;-1,70;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;52746,78;SEK
+		2022/04/19;-186,25;51 86 87-9;5343-2795;LOOPIA AB (WEBSUPPORT);LOOPIA AB (WEBSUPPORT);375508199;sharedplanet se;52748,48;SEK
+		2022/04/12;-145,41;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;52934,73;SEK
+		2022/04/04;-6,80;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;53080,14;SEK
+		*/
 		CSV::NORDEA::istream& operator>>(CSV::NORDEA::istream& in,HeadingAmountDateTransEntry& had) {
 			//       0         1      2         3         4    5        6          7              8      9
 			// Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
 			//       0         1      2      3            4                             5                                 6                78 9
 			// 2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
+
+			// 
+			// Bokföringsdag	;Belopp		;Avsändare	;Mottagare	;Namn																	;Rubrik
+			// 2022/05/18			;-610,33	;51 86 87-9	;						;KORT             PAYPAL *HKSITES 26	;KORT             PAYPAL *HKSITES 26
+
+			// ;Meddelande						;Egna anteckningar	;Saldo			;Valuta
+			// ;PAYPAL *HKSITES 2656	;										;51981,54		;SEK
+
+			// 
 			std::string sEntry{};
 			if (std::getline(in.is,sEntry)) {
 				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::YES);
@@ -1716,12 +1745,32 @@ namespace CSV {
 					}
 				}
 				if (tokens.size()==10) {
+					std::string heading{};
+					std::optional<Amount> amount{};
+					std::optional<Amount> saldo{};
+					std::optional<Date> date{};
+					std::optional<std::string> valuta{};
+					for (int i=0;i<tokens.size();++i) {
+						auto const& token = tokens[i];
+						switch (i) {
+							case element::Bokforingsdag: {date = to_date(token);} break;
+							case element::Belopp: {amount = to_amount(token);} break;
+							case element::Avsandare: {heading += " Avsändare:" + token;} break;
+							case element::Mottagare: {heading += " Mottagare:" + token;} break;
+							case element::Namn: {heading += " Namn:" + token;} break;
+							case element::Rubrik: {heading += " Rubrik:" + token;} break;
+							case element::Meddelande: {heading += " Meddelande:" + token;} break;
+							case element::Egna_anteckningar: {heading += " Egna Anteckningar:" + token;} break;
+							case element::Saldo: {saldo = to_amount(token);} break;
+							case element::Valuta: {valuta = token;} break;
+						}
+					}
+
 					while (true) {
-						std::string heading{tokens[element::Rubrik]};
 						had.heading = heading;
-						if (auto amount = to_amount(tokens[element::Belopp])) had.amount = *amount;
+						if (amount and valuta == "SEK") had.amount = *amount;
 						else {in.is.setstate(std::istream::failbit);break;}
-						if (auto date = to_date(tokens[element::Bokforingsdag])) had.date = *date;
+						if (date) had.date = *date;
 						else {in.is.setstate(std::istream::failbit);break;}
 						break;
 					}
@@ -7566,16 +7615,6 @@ public:
 				}
 			}
 			else if (ast[0] == "-csv") {
-				// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
-				/*
-				Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
-				2021-12-15;-1394,00;51 86 87-9;824-3040;TELIA SVERIGE AB;TELIA SVERIGE AB;21457751218;Samtal Q4;56080,17;SEK
-				2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
-				2021-12-13;-139,88;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;57893,82;SEK
-				2021-12-10;-109,00;51 86 87-9;;KORT             APPLE COM BILL  26;KORT             APPLE COM BILL  26;APPLE COM BILL  2656;;58033,70;SEK
-				2021-12-09;-593,58;51 86 87-9;;KORT             PAYPAL *PADDLE  26;KORT             PAYPAL *PADDLE  26;PAYPAL *PADDLE  2656;;58142,70;SEK
-				2021-12-03;-3,40;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;58736,28;SEK
-				*/
 				if ((ast.size()>2) and (ast[1] == "-had")) {
 					std::filesystem::path csv_file_path{ast[2]};
 // std::cout << "\ncsv file " << csv_file_path;
