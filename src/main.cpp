@@ -2881,6 +2881,31 @@ OEnvironmentValueOStream& operator<<(OEnvironmentValueOStream& env_val_os,SRUEnv
 
 using SRUEnvironments = std::map<std::string,SRUEnvironment>;
 
+struct Balance {
+	BASAccountNo account_no;
+	Amount opening_balance;
+	Amount change;
+	Amount end_balance;
+};
+
+std::ostream& operator<<(std::ostream& os,Balance const& balance) {
+	os << balance.account_no << " ib:" << balance.opening_balance << " period:" << balance.change << " " << balance.end_balance;
+	return os;
+}
+
+using Balances = std::vector<Balance>;
+using BalancesMap = std::map<Date,Balances>;
+
+std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
+	for (auto const& [date,balances] : balances_map) {
+		os << date <<  " balances";
+		for (auto const& balance : balances) {
+			os << "\n\t" << balance;
+		}
+	}
+	return os;
+}
+
 class SIEEnvironment {
 public:
 	SIE::OrgNr organisation_no{};
@@ -3006,6 +3031,26 @@ public:
 		}
 	}
 
+	BalancesMap balances_at(Date date) {
+		BalancesMap result{};
+		for (auto const& ob : this->opening_balance) {
+			// struct Balance {
+			// 	BASAccountNo account_no;
+			// 	Amount opening_balance;
+			// 	Amount change;
+			// 	Date date;
+			// 	Amount end_balance;
+			// };				
+			result[date].push_back(Balance{
+				.account_no = ob.first
+				,.opening_balance = ob.second
+				,.change = -1
+				,.end_balance = -1
+			});
+		}
+		return result;
+	}
+	
 private:
 	BASJournals m_journals{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
@@ -7582,6 +7627,10 @@ std::cout << "\nvat_type = " << vat_type;
 						}
 					}
 				}
+			}
+			else if (ast[0] == "-balance") {
+				// The user has requested to have us list account balances
+				prompt << model->sie["current"].balances_at(to_today());
 			}
 			else if (ast[0] == "-had") {
 				auto hads = model->refreshed_hads();
