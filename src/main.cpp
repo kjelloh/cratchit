@@ -2997,9 +2997,19 @@ public:
 		BAS::detail::global_account_metas[bas_account_no].sru_code = sru_code; // Mutate global instance
 	}
 
+	void set_opening_balance(BASAccountNo bas_account_no,Amount opening_balance) {
+		if (this->opening_balance.contains(bas_account_no) == false) this->opening_balance[bas_account_no] = opening_balance;
+		else {
+			std::cerr << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
+			std::cerr << " is already registered as " << this->opening_balance[bas_account_no] << ".";
+			std::cerr << " Provided opening_balance:" << opening_balance << " IGNORED";
+		}
+	}
+
 private:
 	BASJournals m_journals{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
+	std::map<BASAccountNo,Amount> opening_balance{};
 	BAS::MetaEntry add(BAS::MetaEntry me) {
 		BAS::MetaEntry result{me};
 		// Ensure a valid series
@@ -3047,7 +3057,7 @@ private:
 		}
 		return result;
 	}
-};
+}; // class SIEEnvironment
 
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 using SIEEnvironments = std::map<std::string,SIEEnvironment>;
@@ -5989,6 +5999,12 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			else if (auto opt_entry = SIE::parse_IB(in,"#IB")) {
 				SIE::Ib ib = std::get<SIE::Ib>(*opt_entry);
 				std::cout << "\nIB " << ib.account_no << " = " << ib.opening_balance;
+				if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no,ib.opening_balance); // Only use "current" year opening balance
+				// NOTE: The SIE-file defines a "year 0" that is "current year" as seen from the data in the file
+				// See the #RAR tag that maps year_no 0,-1,... to actual date range (period / accounting year)
+				// Example:
+				// #RAR 0 20210501 20220430
+				// #RAR -1 20200501 20210430				
 			}
 			else if (auto opt_entry = SIE::parse_VER(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
