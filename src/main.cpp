@@ -4767,16 +4767,17 @@ namespace SKV {
 					// Create a had for last quarter if there is no journal entry in the M series for it
 					// Otherwise create a had for current quarter
 					auto today = to_today();
-					auto quarter1 = to_quarter_range(today);
-					auto previous_quarter = to_three_months_earlier(quarter1);
-					auto vat_returns_range = DateRange{previous_quarter.begin(),quarter1.end()}; // previous and "current" quarters
+					auto current_quarter = to_quarter_range(today);
+					auto previous_quarter = to_three_months_earlier(current_quarter);
+					auto vat_returns_range = DateRange{previous_quarter.begin(),current_quarter.end()}; // previous and "current" two quarters
 					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter aftre having created the VAT returns consolidation
 					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
 
+					// Loop through quarters 
 					for (int i=0;i<3;++i) {
 // std::cout << "\nto_vat_returns_hads, checking vat_returns_range " << vat_returns_range;
 						// Check three quartes back for missing VAT consilidation journal entry
-						if (quarter_has_VAT_consilidation_entry(sie_envs,quarter1) == false) {
+						if (quarter_has_VAT_consilidation_entry(sie_envs,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
 							auto is_vat_returns_range = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
 								return vat_returns_meta->period.contains(mat.meta.defacto.date);
@@ -4786,18 +4787,20 @@ namespace SKV {
 								// We need a per-account amount to counter (consolidate) into 1650 (VAT to get back) or 2650 (VAT to pay)
 								// 2650 "Redovisningskonto för moms" SRU:7369
 								// 1650 "Momsfordran" SRU:7261
+							std::cout << "\nPeriod:" << to_string(vat_returns_range.begin()) << "..." << to_string(vat_returns_range.end());
 								std::map<BASAccountNo,Amount> account_amounts{};
 								for (auto const& [box_no,mats] : *box_map)  {
+									std::cout << "\n\t[" << box_no << "]";
 									for (auto const& mat : mats) {
 										account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+std::cout << "\n\t\t" << to_string(mat.meta.defacto.date) << " account_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << account_amounts[mat.defacto.account_no];
 									}
 								}
 
 								// Valid amount if > 1.0 SEK (takes care of invalid entries caused by rounding errors)
 								if (std::abs(account_amounts[0]) >= 1.0) {
 									std::ostringstream heading{};
-									heading << "Momsrapport " << quarter1;
+									heading << "Momsrapport " << current_quarter;
 									HeadingAmountDateTransEntry had{
 										.heading = heading.str()
 										,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
@@ -4811,7 +4814,7 @@ namespace SKV {
 
 							}
 						}
-						quarter1 = to_three_months_earlier(quarter1);
+						current_quarter = to_three_months_earlier(current_quarter);
 						vat_returns_range = to_three_months_earlier(vat_returns_range);
 					}
 				}
@@ -5636,7 +5639,7 @@ public:
 				auto iter = *o_iter;
 				// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
 				if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
-					// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
+					// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to nor retreived from environment file)
 					*iter = vat_returns_had;
 					std::cout << "\n*UPDATED* " << vat_returns_had;
 				}
