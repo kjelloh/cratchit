@@ -2000,6 +2000,19 @@ namespace SIE {
 		std::string const expected;
 	};
 
+	// Opening balance for balance sheet
+	// #IB <year no> <account> <balance> <quantity>
+	// Year no is specified using 0 for the current year and -1 for the previous year
+	// Example:
+	// #IB 0 1930 23780.78
+	struct Ib {
+		std::string tag;
+		int year_no;
+		BASAccountNo account_no; 
+		Amount opening_balance;
+		std::optional<float> quantity{};
+	};
+
 	// #ORGNR CIN 
 	struct OrgNr {
 		std::string tag;
@@ -2063,7 +2076,7 @@ namespace SIE {
 		std::vector<Trans> transactions{};
 	};
 	struct AnonymousLine {};
-	using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Konto,Sru,Ver,Trans,AnonymousLine>;
+	using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Ib,Konto,Sru,Ver,Trans,AnonymousLine>;
 	using SIEParseResult = std::optional<SIEFileEntry>;
 	std::istream& operator>>(std::istream& in,Tag const& tag) {
 		if (in.good()) {
@@ -2150,6 +2163,27 @@ namespace SIE {
 			// std::cout << "\nscraps:" << scraps;
 		}
 		return in;		
+	}
+
+	SIEParseResult parse_IB(std::istream& in,std::string const& konto_tag) {
+		SIEParseResult result{};
+		Scraps scraps{};
+		// struct Ib {
+		// 	std::string tag;
+		// 	int year_no;
+		// 	BASAccountNo account_no; 
+		// 	Amount opening_balance;
+		// 	std::optional<float> quantity{};
+		// };
+		SIE::Ib ib{};
+		auto pos = in.tellg();
+		if (in >> Tag{konto_tag} >> ib.year_no >> ib.account_no >> ib.opening_balance >> scraps) {
+			result = ib;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;
 	}
 
 	SIEParseResult parse_ORGNR(std::istream& in,std::string const& konto_tag) {
@@ -5951,6 +5985,10 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			else if (auto opt_entry = SIE::parse_SRU(in,"#SRU")) {
 				SIE::Sru sru = std::get<SIE::Sru>(*opt_entry);
 				sie_environment.set_account_SRU(sru.bas_account_no,sru.sru_account_no);
+			}
+			else if (auto opt_entry = SIE::parse_IB(in,"#IB")) {
+				SIE::Ib ib = std::get<SIE::Ib>(*opt_entry);
+				std::cout << "\nIB " << ib.account_no << " = " << ib.opening_balance;
 			}
 			else if (auto opt_entry = SIE::parse_VER(in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
