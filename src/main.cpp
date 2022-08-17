@@ -2000,6 +2000,21 @@ namespace SIE {
 		std::string const expected;
 	};
 
+	struct YYYYMMDD {
+		std::array<char,4> yyyy;
+		std::array<char,2> mm;
+		std::array<char,2> dd;
+	};
+
+	// #RAR 0 20210501 20220430
+	// #RAR -1 20200501 20210430	
+	struct Rar {
+		std::string tag;
+		int year_no;
+		YYYYMMDD first_day_yyyymmdd;
+		YYYYMMDD last_day_yyyymmdd;
+	};
+
 	// Opening balance for balance sheet
 	// #IB <year no> <account> <balance> <quantity>
 	// Year no is specified using 0 for the current year and -1 for the previous year
