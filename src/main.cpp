@@ -2000,19 +2000,13 @@ namespace SIE {
 		std::string const expected;
 	};
 
-	struct YYYYMMDD {
-		std::array<char,4> yyyy;
-		std::array<char,2> mm;
-		std::array<char,2> dd;
-	};
-
 	// #RAR 0 20210501 20220430
 	// #RAR -1 20200501 20210430	
 	struct Rar {
 		std::string tag;
 		int year_no;
-		YYYYMMDD first_day_yyyymmdd;
-		YYYYMMDD last_day_yyyymmdd;
+		Date first_day_yyyymmdd;
+		Date last_day_yyyymmdd;
 	};
 
 	// Opening balance for balance sheet
@@ -2091,7 +2085,7 @@ namespace SIE {
 		std::vector<Trans> transactions{};
 	};
 	struct AnonymousLine {};
-	using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Ib,Konto,Sru,Ver,Trans,AnonymousLine>;
+	using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Rar,Ib,Konto,Sru,Ver,Trans,AnonymousLine>;
 	using SIEParseResult = std::optional<SIEFileEntry>;
 	std::istream& operator>>(std::istream& in,Tag const& tag) {
 		if (in.good()) {
@@ -2134,7 +2128,7 @@ namespace SIE {
 					pos = in.tellg(); // Accept this parse position (an actual date was parsed)
 				}
 			}
-			catch (std::exception const& e) { /* swallow all failuires silently for optional parse */}
+			catch (std::exception const& e) { /* swallow all failures silently for optional parse */}
 			in.seekg(pos); // Reset position in case of failed parse
 			in.clear(); // Reset failbit to allow try for other parse
 		}
@@ -2154,6 +2148,7 @@ namespace SIE {
 		}
 		return in;
 	}
+
 	struct optional_Text_parser {
 		std::optional<std::string>& text;
 	};
@@ -2180,7 +2175,30 @@ namespace SIE {
 		return in;		
 	}
 
-	SIEParseResult parse_IB(std::istream& in,std::string const& konto_tag) {
+	SIEParseResult parse_RAR(std::istream& in,std::string const& sie_field_tag) {
+		SIEParseResult result{};
+		// #RAR 0 20210501 20220430
+		// #RAR -1 20200501 20210430	
+		// struct Rar {
+		// 	std::string tag;
+		// 	int year_no;
+		// 	YYYYMMDD first_day_yyyymmdd;
+		// 	YYYYMMDD last_day_yyyymmdd;
+		// };
+		SIE::Rar rar{};
+		auto pos = in.tellg();
+		YYYYMMdd_parser first_day_parser{rar.first_day_yyyymmdd};
+		YYYYMMdd_parser last_day_parser{rar.last_day_yyyymmdd};
+		if (in >> Tag{sie_field_tag} >> rar.year_no >> first_day_parser >> last_day_parser) {
+			result = rar;
+			pos = in.tellg(); // accept new stream position
+		}
+		in.seekg(pos); // Reset position in case of failed parse
+		in.clear(); // Reset failbit to allow try for other parse
+		return result;
+	}
+
+	SIEParseResult parse_IB(std::istream& in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		Scraps scraps{};
 		// struct Ib {
@@ -2192,7 +2210,7 @@ namespace SIE {
 		// };
 		SIE::Ib ib{};
 		auto pos = in.tellg();
-		if (in >> Tag{konto_tag} >> ib.year_no >> ib.account_no >> ib.opening_balance >> scraps) {
+		if (in >> Tag{sie_field_tag} >> ib.year_no >> ib.account_no >> ib.opening_balance >> scraps) {
 			result = ib;
 			pos = in.tellg(); // accept new stream position
 		}
@@ -2201,7 +2219,7 @@ namespace SIE {
 		return result;
 	}
 
-	SIEParseResult parse_ORGNR(std::istream& in,std::string const& konto_tag) {
+	SIEParseResult parse_ORGNR(std::istream& in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		// #ORGNR CIN 
 		// struct OrgNr {
@@ -2212,7 +2230,7 @@ namespace SIE {
 		// };
 		SIE::OrgNr orgnr{};
 		auto pos = in.tellg();
-		if (in >> Tag{konto_tag} >> orgnr.CIN) {
+		if (in >> Tag{sie_field_tag} >> orgnr.CIN) {
 			result = orgnr;
 			pos = in.tellg(); // accept new stream position
 		}
@@ -2222,7 +2240,7 @@ namespace SIE {
 		return result;
 	}
 
-	SIEParseResult parse_FNAMN(std::istream& in,std::string const& konto_tag) {
+	SIEParseResult parse_FNAMN(std::istream& in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		// #FNAMN company name
 		// struct FNamn {
@@ -2231,7 +2249,7 @@ namespace SIE {
 		// };
 		SIE::FNamn fnamn{};
 		auto pos = in.tellg();
-		if (in >> Tag{konto_tag} >> std::quoted(fnamn.company_name)) {
+		if (in >> Tag{sie_field_tag} >> std::quoted(fnamn.company_name)) {
 			result = fnamn;
 			pos = in.tellg(); // accept new stream position
 		}
@@ -2240,7 +2258,7 @@ namespace SIE {
 		return result;
 	}
 
-	SIEParseResult parse_ADRESS(std::istream& in,std::string const& konto_tag) {
+	SIEParseResult parse_ADRESS(std::istream& in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		// #ADRESS contact distribution address postal address tel
 		// struct Adress {
@@ -2252,7 +2270,7 @@ namespace SIE {
 		// };
 		SIE::Adress adress{};
 		auto pos = in.tellg();
-		if (in >> Tag{konto_tag} >> std::quoted(adress.contact) >> std::quoted(adress.distribution_address) >> std::quoted(adress.postal_address) >> std::quoted(adress.tel)) {
+		if (in >> Tag{sie_field_tag} >> std::quoted(adress.contact) >> std::quoted(adress.distribution_address) >> std::quoted(adress.postal_address) >> std::quoted(adress.tel)) {
 			result = adress;
 			pos = in.tellg(); // accept new stream position
 		}
@@ -2261,7 +2279,7 @@ namespace SIE {
 		return result;
 	}
 
-	SIEParseResult parse_KONTO(std::istream& in,std::string const& konto_tag) {
+	SIEParseResult parse_KONTO(std::istream& in,std::string const& sie_field_tag) {
 	// // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
 	// struct Konto {
 	// 	std::string tag;
@@ -2271,7 +2289,7 @@ namespace SIE {
 		SIEParseResult result{};
 		SIE::Konto konto{};
 		auto pos = in.tellg();
-		if (in >> Tag{konto_tag} >> konto.account_no >> std::quoted(konto.name)) {
+		if (in >> Tag{sie_field_tag} >> konto.account_no >> std::quoted(konto.name)) {
 
 			// Convert from code point 437 to utf-8
 			auto s437 = konto.name;
@@ -3018,6 +3036,11 @@ public:
 
 	BAS::AccountMetas const & account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
 
+	void set_year_date_range(DateRange const& dr) {
+		this->year_date_range = dr;
+		std::cout << "\nset_year_date_range <== " << *this->year_date_range;
+	}
+
 	void set_account_name(BASAccountNo bas_account_no ,std::string const& name) {
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].name != name) {
@@ -3068,6 +3091,7 @@ public:
 	
 private:
 	BASJournals m_journals{};
+	OptionalDateRange year_date_range{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BASAccountNo,Amount> opening_balance{};
 	BAS::MetaEntry add(BAS::MetaEntry me) {
@@ -6047,6 +6071,13 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			else if (auto opt_entry = SIE::parse_ADRESS(in,"#ADRESS")) {
 				SIE::Adress adress = std::get<SIE::Adress>(*opt_entry);
 				sie_environment.organisation_address = adress;
+			}
+			else if (auto opt_entry = SIE::parse_RAR(in,"#RAR")) {
+				SIE::Rar rar = std::get<SIE::Rar>(*opt_entry);
+				if (rar.year_no == 0) {
+					// Process only "current" year in read sie file
+					sie_environment.set_year_date_range(DateRange{rar.first_day_yyyymmdd,rar.last_day_yyyymmdd});
+				}
 			}
 			else if (auto opt_entry = SIE::parse_KONTO(in,"#KONTO")) {
 				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
