@@ -647,9 +647,6 @@ namespace SKV {
 	} // namespace SRU
 }
 
-using Amount= float;
-using OptionalAmount = std::optional<Amount>;
-
 using Date = std::chrono::year_month_day;
 using OptionalDate = std::optional<Date>;
 
@@ -784,6 +781,60 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 	}
 	return result;
 }
+
+using CentsAmount = int;
+
+class TaggedAmount {
+public:
+	using Tags = std::map<std::string,std::string>;
+	TaggedAmount(Date const& date,CentsAmount const& cents_amount) : m_date{date},m_cents_amount{cents_amount} {}
+
+	Date const& date() const {return m_date;}
+	CentsAmount const& cents_amount() const {return m_cents_amount;}
+	Tags const& tags() const {return m_tags;}
+	Tags& tags() {return m_tags;}
+private:
+	Date m_date;
+	CentsAmount m_cents_amount;
+	Tags m_tags{};
+};
+
+std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
+	os << ta.date();
+	os << " " << ta.cents_amount() << " öre";
+	for (auto const& tag : ta.tags()) {
+		os << " " << tag.first << " = " << tag.second;
+	}
+	return os;
+}
+
+using TaggedAmounts = std::vector<TaggedAmount>;
+
+class DateOrderedTaggedAmounts {
+	public:
+		TaggedAmounts const& tagged_amounts() {return m_tagged_amounts;}
+		TaggedAmounts::iterator create(std::string sYYMMDD,CentsAmount cents_amount) {
+			std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYMMDD << "," << cents_amount << ")" << std::flush;
+			auto result = m_tagged_amounts.end();
+			if (auto date = to_date(sYYMMDD)) {
+				std::cout << "\ndat==" << *date  << std::flush;
+				auto iter = std::find_if(m_tagged_amounts.begin(),m_tagged_amounts.end(),[date](auto const& ta){
+					return ta.date() > *date;
+				});
+				result = m_tagged_amounts.insert(iter,TaggedAmount(*date,cents_amount));
+			}
+			else {
+				// FAILED to process the provided date
+				std::cout << "\nFailed to process date " << sYYMMDD  << std::flush;
+			}
+			return result;
+		}
+	private:
+		TaggedAmounts m_tagged_amounts{};
+};
+
+using Amount= float;
+using OptionalAmount = std::optional<Amount>;
 
 OptionalAmount to_amount(std::string const& sAmount) {
 	// std::cout << "\nto_amount " << std::quoted(sAmount);
@@ -1010,7 +1061,6 @@ namespace BAS {
 	struct JournalEntryMeta {
 		Series series;
 		OptionalVerNo verno;
-		SKV::SRU::OptionalAccountNo sru_code{};
 		std::optional<bool> unposted_flag{};
 		bool operator==(JournalEntryMeta const& other) const = default;
 	};
@@ -5712,6 +5762,7 @@ public:
 	SIEEnvironments sie{};
 	SRUEnvironments sru{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
+	DateOrderedTaggedAmounts date_ordered_tagged_amounts{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
 	std::optional<HeadingAmountDateTransEntries::iterator> to_had_iter(int had_index) {
@@ -6292,7 +6343,7 @@ public:
 				   and model->prompt_state != PromptState::EditAT
 					 and model->prompt_state != PromptState::EnterIncome
 					 and model->prompt_state != PromptState::EnterDividend) {
-// std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
+				// std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
 				size_t ix = std::abs(*signed_ix);
 				bool do_remove = (ast[0][0] == '-');
 				// Act on prompt state index input
@@ -6348,7 +6399,7 @@ public:
 										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
 											for (auto const& mat : mats) {
 												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+												// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
 											}
 										}
 										for (auto const& [account_no,amount] : account_amounts) {
@@ -6358,7 +6409,9 @@ public:
 											// account_amounts[2641] = 4190.54
 											// account_amounts[3308] = -888.1
 											// account_amounts[9021] = 11822
-// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+
+											// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+
 											// account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
 											// Book this on BAS 2650
 											// NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
@@ -6595,7 +6648,6 @@ public:
 							auto& had = *(*had_iter);
 							if (auto account_no = BAS::to_account_no(command)) {
 								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
-// std::cout << "\nGross Account detected";
 								BAS::MetaEntry me{
 									.defacto = {
 										 .caption = had.heading
@@ -6617,8 +6669,14 @@ public:
 									std::advance(tme_iter,ix);
 									auto tme = *tme_iter;
 									auto vat_type = to_vat_type(tme);
-std::cout << "\nvat_type = " << vat_type;
+									std::cout << "\nvat_type = " << vat_type;
 									switch (vat_type) {
+										case JournalEntryVATType::Undefined:
+											prompt << "\nSorry, I encountered Undefined VAT type for " << tme;
+											break; // *silent ignore*
+										case JournalEntryVATType::Unknown:
+											prompt << "\nSorry, I encountered Unknown VAT type for " << tme;
+											break; // *silent ignore*
 										case JournalEntryVATType::NoVAT: {
 											// No VAT in candidate. 
 											// Continue with 
@@ -6937,11 +6995,9 @@ std::cout << "\nvat_type = " << vat_type;
 					} break;
 					case PromptState::JEAggregateOptionIndex: {
 						// ":had:je:1or*";
-// std::cout << "\ncase PromptState::JEAggregateOptionIndex: {";
 						if (auto had_iter = model->selected_had()) {
 							auto& had = *(*had_iter);
 							if (had.optional.current_candidate) {
-// std::cout << "\nif (had.optional.current_candidate) {";
 								// We need a typed entry to do some clever decisions
 								auto tme = to_typed_meta_entry(*had.optional.current_candidate);
 								prompt << "\n" << tme;
@@ -7220,10 +7276,8 @@ std::cout << "\nvat_type = " << vat_type;
 						}
 						if (period_range) {
 							// Create VAT Returns form for selected period
-// std::cout << "\nperiod_range " << *period_range;
 							prompt << "\nVAT Returns for " << *period_range;
 							if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
-// std::cout << "\nvat_returns_meta ";
 								SKV::OrganisationMeta org_meta {
 									.org_no = model->sie["current"].organisation_no.CIN
 									,.contact_persons = model->organisation_contacts
@@ -7381,7 +7435,6 @@ std::cout << "\nvat_type = " << vat_type;
 												// #POSTNR 12345
 											if (postal_address_tokens.size() > 0) {
 												info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
-// std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[0];
 											}
 											else {
 												info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
@@ -7390,7 +7443,6 @@ std::cout << "\nvat_type = " << vat_type;
 												// #POSTORT SKATTSTAD
 											if (postal_address_tokens.size() > 1) {
 												info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
-// std::cout << "\npostal_address_tokens[0] = " << postal_address_tokens[1] << std::flush;
 											}
 											else {
 												info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
@@ -7444,14 +7496,11 @@ std::cout << "\nvat_type = " << vat_type;
 										auto info_std_os = std::ofstream{info_file_path};
 										SKV::SRU::OStream info_sru_os{info_std_os};
 										SKV::SRU::InfoOStream info_os{info_sru_os};
-// std::cout << "\n(3)" << std::flush;
 
 										if (info_os << fm) {
-// std::cout << "\n(4)" << std::flush;
 											prompt << "\nCreated " << info_file_path;
 										}
 										else {
-// std::cout << "\n(5)" << std::flush;
 											prompt << "\nSorry, FAILED to create " << info_file_path;
 										}
 
@@ -7460,10 +7509,8 @@ std::cout << "\nvat_type = " << vat_type;
 										auto blanketter_std_os = std::ofstream{blanketter_file_path};
 										SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
 										SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
-// std::cout << "\n(6)" << std::flush;
 
 										if (blanketter_os << fm) {
-// std::cout << "\n(7)" << std::flush;
 											prompt << "\nCreated " << blanketter_file_path;
 										}
 										else {
@@ -7513,6 +7560,18 @@ std::cout << "\nvat_type = " << vat_type;
 			 ====================================================== */
 			else if (ast[0] == "-version" or ast[0] == "-v") {
 				prompt << "\nCratchit Version " << VERSION;
+			}
+			else if (ast[0] == "-tagged") {
+				if (true) {
+					// TEST
+					auto iter = model->date_ordered_tagged_amounts.create("20221008",17350);
+					iter->tags()["BAS"] = "1920";
+				}
+				prompt << "\nTAGGED AMOUNTS";
+				for (auto const& ta : model->date_ordered_tagged_amounts.tagged_amounts()) {
+					prompt << "\n\t" << ta;
+				}				
+				prompt << "\n=== END TAGGED AMOUNTS ===";
 			}
 			else if (ast[0] == "-bas") {
 // std::cout << " :)";
