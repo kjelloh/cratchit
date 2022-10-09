@@ -813,11 +813,10 @@ using TaggedAmounts = std::vector<TaggedAmount>;
 class DateOrderedTaggedAmounts {
 	public:
 		TaggedAmounts const& tagged_amounts() {return m_tagged_amounts;}
-		TaggedAmounts::iterator create(std::string sYYMMDD,CentsAmount cents_amount) {
-			std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYMMDD << "," << cents_amount << ")" << std::flush;
+		TaggedAmounts::iterator create(std::string sYYYYMMDD,CentsAmount cents_amount) {
+			std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYYYMMDD << "," << cents_amount << ")" << std::flush;
 			auto result = m_tagged_amounts.end();
-			if (auto date = to_date(sYYMMDD)) {
-				std::cout << "\ndat==" << *date  << std::flush;
+			if (auto date = to_date(sYYYYMMDD)) {
 				auto iter = std::find_if(m_tagged_amounts.begin(),m_tagged_amounts.end(),[date](auto const& ta){
 					return ta.date() > *date;
 				});
@@ -825,7 +824,7 @@ class DateOrderedTaggedAmounts {
 			}
 			else {
 				// FAILED to process the provided date
-				std::cout << "\nFailed to process date " << sYYMMDD  << std::flush;
+				std::cerr << "\nFailed to process date " << sYYYYMMDD  << std::flush;
 			}
 			return result;
 		}
@@ -7562,11 +7561,6 @@ public:
 				prompt << "\nCratchit Version " << VERSION;
 			}
 			else if (ast[0] == "-tagged") {
-				if (true) {
-					// TEST
-					auto iter = model->date_ordered_tagged_amounts.create("20221008",17350);
-					iter->tags()["BAS"] = "1920";
-				}
 				prompt << "\nTAGGED AMOUNTS";
 				for (auto const& ta : model->date_ordered_tagged_amounts.tagged_amounts()) {
 					prompt << "\n\t" << ta;
@@ -7921,19 +7915,21 @@ public:
 				}
 			}
 			else if (ast[0] == "-csv") {
-				if ((ast.size()>2) and (ast[1] == "-had")) {
+				if (ast.size()==1) {
+					// Command "-csv" (and no more)
+					// ==> Process all *.csv in folder from_bank and *.skv in folder from_skv
+
+				}
+				else if ((ast.size()>2) and (ast[1] == "-had")) {
+					// Command "-csv -had <path>"
 					std::filesystem::path csv_file_path{ast[2]};
-// std::cout << "\ncsv file " << csv_file_path;
 					if (std::filesystem::exists(csv_file_path)) {
 						std::ifstream ifs{csv_file_path};
-// std::cout << "\ncsv file exists ok";
 						CSV::NORDEA::istream in{ifs};
 						OptionalBASAccountNo gross_bas_account_no{};
 						if (ast.size()>3) {
-// std::cout << "\n ast[3]:)" << ast[3];
 							if (auto bas_account_no = BAS::to_account_no(ast[3])) {
 								gross_bas_account_no = *bas_account_no;
-// std::cout << "\n gross_bas_account_no:" << *gross_bas_account_no;
 							}
 							else {
 								prompt << "\nPlease enter a valid BAS account no for gross amount transaction. " << std::quoted(ast[3]) << " is not a valid BAS account no";
@@ -7987,11 +7983,10 @@ public:
 					}
 				}
 				else if ((ast.size()>2) and (ast[1] == "-sru")) {
+					// Command "-csv -sru <path>"
 					std::filesystem::path csv_file_path{ast[2]};
-// std::cout << "\ncsv file " << csv_file_path;
 					if (std::filesystem::exists(csv_file_path)) {
 						std::ifstream ifs{csv_file_path};
-// std::cout << "\ncsv file exists ok";
 						if (auto field_rows = CSV::to_field_rows(ifs)) {
 							for (auto const& field_row : *field_rows) {
 								if (field_row.size()>0) prompt << "\n";
@@ -8722,6 +8717,26 @@ private:
 		return result;
 	}
 
+	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_environment(Environment const& environment) {
+		DateOrderedTaggedAmounts result{};
+		// #### create "from_bank_or_skv folder" if it does not exist
+		auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
+		if (std::filesystem::create_directories(from_bank_or_skv_path) == false) {
+			std::cerr << "\nSORRY, Expects folder " << from_bank_or_skv_path << " but FAILED to create it ('-csv' command will not be available)";	
+		}
+		if (std::filesystem::exists(from_bank_or_skv_path) == true) {
+			// Ok, a bit overkill. But just in case create_directories fails but the directory still /already exists (the documentation is not crystal clear if this is possible?).
+			// #### TODO: Parse all *.csv and *.skv files in the folder and generate tagged and dated amounts (tagged with appropriate BAS account or simmilar for later refinement?)
+			if (true) {
+				// TEST
+				auto iter = result.create("20221008",17350);
+				iter->tags()["BAS"] = "1920";
+			}
+		}
+		std::cout << "\ndate_ordered_tagged_amounts_from_environment ==> " << result.tagged_amounts().size() << " entries";
+		return result;
+	}
+
 	SRUEnvironments srus_from_environment(Environment const& environment) {
 		SRUEnvironments result{};
 		auto [begin,end] = environment.equal_range("SRU:S");
@@ -8755,12 +8770,15 @@ private:
 		});
 		return result;
 	}
+
 	bool is_value_line(std::string const& line) {
 		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
 	}
+
 	Model model_from_environment(Environment const& environment) {
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
+
 		if (auto val_iter = environment.find("sie_file");val_iter != environment.end()) {
 			for (auto const& [year_key,sie_file_name] : val_iter->second) {
 				std::filesystem::path sie_file_path{sie_file_name};
@@ -8785,6 +8803,7 @@ private:
 		model->organisation_contacts = this->contacts_from_environment(environment);
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
 		model->sru = this->srus_from_environment(environment);
+		model->date_ordered_tagged_amounts = this->date_ordered_tagged_amounts_from_environment(environment);
 		model->prompt = prompt.str();
 		return model;
 	}
