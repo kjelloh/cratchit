@@ -813,14 +813,24 @@ using TaggedAmounts = std::vector<TaggedAmount>;
 class DateOrderedTaggedAmounts {
 	public:
 		TaggedAmounts const& tagged_amounts() {return m_tagged_amounts;}
+		TaggedAmounts::const_iterator begin() const {return m_tagged_amounts.begin();}
+		TaggedAmounts::const_iterator end() const {return m_tagged_amounts.end();}
+
+		TaggedAmounts::iterator insert(TaggedAmount const& ta_to_insert) {
+			std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_to_insert)" <<  std::flush;
+			auto result = m_tagged_amounts.end();
+			auto iter = std::find_if(m_tagged_amounts.begin(),m_tagged_amounts.end(),[&ta_to_insert](auto const& ta){
+				return ta.date() > ta_to_insert.date();
+			});
+			result = m_tagged_amounts.insert(iter,ta_to_insert);
+			return result;
+		}
 		TaggedAmounts::iterator create(std::string sYYYYMMDD,CentsAmount cents_amount) {
 			std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYYYMMDD << "," << cents_amount << ")" << std::flush;
 			auto result = m_tagged_amounts.end();
 			if (auto date = to_date(sYYYYMMDD)) {
-				auto iter = std::find_if(m_tagged_amounts.begin(),m_tagged_amounts.end(),[date](auto const& ta){
-					return ta.date() > *date;
-				});
-				result = m_tagged_amounts.insert(iter,TaggedAmount(*date,cents_amount));
+				auto ta = TaggedAmount(*date,cents_amount);
+				result = this->insert(ta);
 			}
 			else {
 				// FAILED to process the provided date
@@ -828,9 +838,37 @@ class DateOrderedTaggedAmounts {
 			}
 			return result;
 		}
+		DateOrderedTaggedAmounts const& for_each(auto f) const {
+			for (auto const& ta : m_tagged_amounts) {
+				f(ta);
+			}
+			return *this;
+		}
+		DateOrderedTaggedAmounts& operator+=(DateOrderedTaggedAmounts const& other) {
+			other.for_each([this](TaggedAmount const& ta){
+				this->insert(ta);
+			});
+			return *this;
+		}
 	private:
 		TaggedAmounts m_tagged_amounts{};
 };
+
+using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmounts>;
+				
+OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
+	OptionalDateOrderedTaggedAmounts result{};
+	std::cout << "\nTODO: Parse Amounts in file " << path;
+	if (true) {
+		// TEST
+		DateOrderedTaggedAmounts dota{};
+		auto iter = dota.create("20221008",17350);
+		iter->tags()["BAS"] = "1920";
+		iter->tags()["source"] = path;
+		result = dota;
+	}
+	return result;
+}
 
 using Amount= float;
 using OptionalAmount = std::optional<Amount>;
@@ -8721,17 +8759,23 @@ private:
 		DateOrderedTaggedAmounts result{};
 		// #### create "from_bank_or_skv folder" if it does not exist
 		auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
-		if (std::filesystem::create_directories(from_bank_or_skv_path) == false) {
-			std::cerr << "\nSORRY, Expects folder " << from_bank_or_skv_path << " but FAILED to create it ('-csv' command will not be available)";	
-		}
+		// Ensure folder with files to process exists
+		std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
 		if (std::filesystem::exists(from_bank_or_skv_path) == true) {
-			// Ok, a bit overkill. But just in case create_directories fails but the directory still /already exists (the documentation is not crystal clear if this is possible?).
-			// #### TODO: Parse all *.csv and *.skv files in the folder and generate tagged and dated amounts (tagged with appropriate BAS account or simmilar for later refinement?)
-			if (true) {
-				// TEST
-				auto iter = result.create("20221008",17350);
-				iter->tags()["BAS"] = "1920";
+			// List all csv-files in from_bank_or_skv_path
+			std::cout << "\nProcessing files in " << from_bank_or_skv_path;
+			for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) {
+				std::cout << "\n\tFile: " << dir_entry.path();
+				if (auto tagged_amounts = to_tagged_amounts(dir_entry.path())) {
+					result += *tagged_amounts;
+				}
+				else {
+					std::cout << "\n\t*Ignored* (Failed to understand file content)";
+				}
+
 			}
+			std::cout << "\nEND: Files in " << from_bank_or_skv_path;
+
 		}
 		std::cout << "\ndate_ordered_tagged_amounts_from_environment ==> " << result.tagged_amounts().size() << " entries";
 		return result;
