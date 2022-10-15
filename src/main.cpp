@@ -338,7 +338,10 @@ namespace Key {
 			int key_count{0};
 			for (auto const& key : key_path) {
 				if (key_count++>0) os << key_path.m_delim;
-				os << key;
+				for (auto ch : key) {
+					if (std::isprint(ch)) os << ch; // Filter out non printable characters (AND characters in wrong encoding, e.g., charset::ISO_8859_1 from raw file input that erroneously end up here ...)
+					else os << "?";
+				}
 				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
 			}
 			return os;
@@ -854,7 +857,7 @@ class DateOrderedTaggedAmounts {
 		TaggedAmounts::const_iterator end() const {return m_tagged_amounts.end();}
 
 		TaggedAmounts::iterator insert(TaggedAmount const& ta_to_insert) {
-			std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_to_insert)" <<  std::flush;
+			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_to_insert)" <<  std::flush;
 			auto result = m_tagged_amounts.end();
 			auto iter = std::find_if(m_tagged_amounts.begin(),m_tagged_amounts.end(),[&ta_to_insert](auto const& ta){
 				return ta.date() > ta_to_insert.date();
@@ -863,7 +866,7 @@ class DateOrderedTaggedAmounts {
 			return result;
 		}
 		TaggedAmounts::iterator create(std::string sYYYYMMDD,CentsAmount cents_amount) {
-			std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYYYMMDD << "," << cents_amount << ")" << std::flush;
+			// std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYYYMMDD << "," << cents_amount << ")" << std::flush;
 			auto result = m_tagged_amounts.end();
 			if (auto date = to_date(sYYYYMMDD)) {
 				auto ta = TaggedAmount(*date,cents_amount);
@@ -907,11 +910,11 @@ namespace CSV {
 						result = ta;
 					}
 					else {
-						std::cerr << "\nNot a valid amount: " << sAmount; 
+						std::cerr << "\nNot a valid amount: " << std::quoted(sAmount); 
 					}
 				}
 				else {
-					std::cerr << "\nNot a valid date: " << sDate;
+					std::cerr << "\nNot a valid date: " << std::quoted(sDate);
 				}
 			}
 			return result;
@@ -928,14 +931,16 @@ namespace CSV {
 					if (auto amount = to_amount(sAmount)) {
 						TaggedAmount ta{*date,to_cents_amount(*amount)};
 						ta.tags()["Account"] = "SKV";
+						// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
+						// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
 						result = ta;
 					}
 					else {
-						std::cerr << "\nNot a valid amount: " << sAmount; 
+						std::cerr << "\nNot a valid amount: " << std::quoted(sAmount); 
 					}
 				}
 				else {
-					std::cerr << "\nNot a valid date: " << sDate;
+					std::cerr << "\nNot a valid date: " << std::quoted(sDate);
 				}
 			}
 			return result;
@@ -951,15 +956,13 @@ using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmounts>
  */
 OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
 	OptionalDateOrderedTaggedAmounts result{};
-	std::cout << "\nTODO: Parse Amounts in file " << path;
 	DateOrderedTaggedAmounts dota{};
-	if (true) {
+	if (false) {
 		// TEST
 		auto iter = dota.create("20221008",17350);
 		iter->tags()["BAS"] = "1920";
 		iter->tags()["source"] = path;
 	}
-	// ####
 	std::ifstream in{path};
 	if (auto field_rows = CSV::to_field_rows(in,';')) {
 		// The file is some form of 'comma separated value' file using ';' as separators
@@ -970,8 +973,9 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 			switch (row_value_count) {
 				case 5: {
 					for (auto const& field_row : *field_rows) {
-						if (auto tagged_amount = CSV::SKV::to_tagged_amount(field_row)) {
-							dota.insert(*tagged_amount);
+						if (auto ta = CSV::SKV::to_tagged_amount(field_row)) {
+							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta << "]";
+							dota.insert(*ta);
 						}
 						else {
 							std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
@@ -980,8 +984,9 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 				} break;
 				case 10: {
 					for (auto const& field_row : *field_rows) {
-						if (auto tagged_amount = CSV::NORDEA::to_tagged_amount(field_row)) {
-							dota.insert(*tagged_amount);
+						if (auto ta = CSV::NORDEA::to_tagged_amount(field_row)) {
+							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta << "]";
+							dota.insert(*ta);
 						}
 						else {
 							std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
@@ -993,7 +998,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 					std::cerr << "\n*Skipped file* " << path << "with row_value_count = " << row_value_count << " (unknown file content)"; 
 				}
 			}
-			if (true) {
+			if (false) {
 				// Log
 				for (auto const& field_row : *field_rows) {
 					// A Nordea csv-file will have 10 values per row
@@ -8873,22 +8878,23 @@ private:
 		std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
 		if (std::filesystem::exists(from_bank_or_skv_path) == true) {
 			// Process all files in from_bank_or_skv_path
-			std::cout << "\nProcessing files in " << from_bank_or_skv_path;
+			std::cout << "\nBEGIN: Processing files in " << from_bank_or_skv_path;
 			for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) {
-				std::cout << "\n\tFile: " << dir_entry.path();
+				auto path = dir_entry.path();
+				std::cout << "\n\nBEGIN File: " << path;
 				// Process file
-				if (auto tagged_amounts = to_tagged_amounts(dir_entry.path())) {
+				if (auto tagged_amounts = to_tagged_amounts(path)) {
 					result += *tagged_amounts;
 				}
 				else {
-					std::cout << "\n\t*Ignored* (Failed to understand file content)";
+					std::cout << "\n*Ignored* " << path << " (Failed to understand file content)";
 				}
+				std::cout << "\nEND File: " << path;
 
 			}
-			std::cout << "\nEND: Files in " << from_bank_or_skv_path;
-
+			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
 		}
-		std::cout << "\ndate_ordered_tagged_amounts_from_environment ==> " << result.tagged_amounts().size() << " entries";
+		std::cout << "\ndate_ordered_tagged_amounts_from_environment RETURNS " << result.tagged_amounts().size() << " entries";
 		return result;
 	}
 
