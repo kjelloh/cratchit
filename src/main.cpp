@@ -845,6 +845,10 @@ public:
 	CentsAmount const& cents_amount() const {return m_cents_amount;}
 	Tags const& tags() const {return m_tags;}
 	Tags& tags() {return m_tags;}
+
+	bool operator==(TaggedAmount const& other) const {
+		return (this->date() == other.date() and this->cents_amount() == other.cents_amount() and this->tags() == other.tags());
+	}
 private:
 	Date m_date;
 	CentsAmount m_cents_amount;
@@ -874,10 +878,16 @@ class DateOrderedTaggedAmounts {
 		TaggedAmounts::iterator insert(TaggedAmount const& ta_to_insert) {
 			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_to_insert)" <<  std::flush;
 			auto result = m_tagged_amounts.end();
-			auto iter = std::find_if(m_tagged_amounts.begin(),m_tagged_amounts.end(),[&ta_to_insert](auto const& ta){
-				return ta.date() > ta_to_insert.date();
+			// Get range [begin,end[ for which date is equal to ta_to_insert
+			auto [begin,end] = std::equal_range(m_tagged_amounts.begin(),m_tagged_amounts.end(),ta_to_insert,[](TaggedAmount const& ta1,TaggedAmount const& ta2){
+				return (ta1.date() < ta2.date());
 			});
-			result = m_tagged_amounts.insert(iter,ta_to_insert);
+			// insert ta_to_insert only if we can't find it in range of amounts with same date
+			auto iter = std::find_if(begin,end,[&ta_to_insert](TaggedAmount const& ta){
+				return (ta_to_insert == ta);
+			});
+			if (iter == end) result = m_tagged_amounts.insert(end,ta_to_insert);
+			else std::cout << "\n\tAlready in list " << ta_to_insert << " (" << *iter << ")";
 			return result;
 		}
 		TaggedAmounts::iterator create(std::string sYYYYMMDD,CentsAmount cents_amount) {
