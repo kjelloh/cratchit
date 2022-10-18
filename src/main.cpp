@@ -867,6 +867,22 @@ std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
 }
 
 using TaggedAmounts = std::vector<TaggedAmount>;
+using TaggedAmountAggregateId = std::string;
+class TaggedAmountAggregate {
+public:
+	TaggedAmountAggregate(TaggedAmountAggregateId const& id) : m_id{id} {}
+	TaggedAmountAggregateId id() const {return m_id;}
+	bool operator==(TaggedAmountAggregate const& other) {return m_id == other.m_id;}
+	TaggedAmounts const& tagged_amounts() const {return m_tagged_amounts;}
+	TaggedAmountAggregate& insert(TaggedAmount&& ta) {
+		ta.tags()["Agregate"] = m_id;
+		m_tagged_amounts.push_back(ta);
+		return *this;
+	}
+private:
+	TaggedAmountAggregateId m_id;
+	TaggedAmounts m_tagged_amounts{};
+};
 
 class DateOrderedTaggedAmounts {
 	public:
@@ -915,6 +931,11 @@ class DateOrderedTaggedAmounts {
 			});
 			return *this;
 		}
+		DateOrderedTaggedAmounts& operator+=(TaggedAmounts const& tas) {
+			for (auto const& ta : tas) this->insert(ta);
+			return *this;
+		}
+
 	private:
 		TaggedAmounts m_tagged_amounts{};
 };
@@ -1824,7 +1845,31 @@ std::ostream& operator<<(std::ostream& os,BAS::TypedMetaEntry const& tme) {
 // JOURNAL
 
 using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
-using BASJournals = std::map<char,BASJournal>; // Swedish BAS Journals named "Series" and labeled A,B,C,...
+using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
+using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
+
+TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransaction const& at) {
+	TaggedAmount result{date,to_cents_amount(at.amount)};
+	result.tags()["BAS"] = std::to_string(at.account_no);
+	if (at.transtext and at.transtext->size() > 0) result.tags()["TRANSTEXT"] = *at.transtext;
+	return result;
+}
+
+
+TaggedAmountAggregateId to_tagged_amount_aggregate_id(BASJournalId const& journal_id,BAS::VerNo const& verno,BAS::anonymous::JournalEntry const& aje) {
+	TaggedAmountAggregateId result = std::string{} + to_string(aje.date) + "_" + journal_id + std::to_string(verno);
+	return result;
+}
+
+TaggedAmountAggregate to_tagged_amount_aggregate(BASJournalId const& journal_id,BAS::VerNo const& verno,BAS::anonymous::JournalEntry const& aje) {
+	TaggedAmountAggregate result{to_tagged_amount_aggregate_id(journal_id,verno,aje)};
+	// ####
+	auto insert_as_tagged_amount = [date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
+		result.insert(to_tagged_amount(date,at));
+	};
+	for_each_anonymous_account_transaction(aje,insert_as_tagged_amount);
+	return result;
+}
 
 // A function object able to create Net+Vat BAS::anonymous::AccountTransactions
 class ToNetVatAccountTransactions {
@@ -8925,6 +8970,38 @@ private:
 		return result;
 	}
 
+	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
+		DateOrderedTaggedAmounts result{};
+		// ####
+		for (auto const& [journal_id,journal] : sie_env.journals()) {
+			for (auto const& [verno,aje] : journal) {
+				// Tag an amount to represent the aje (anonymous journal entry)
+
+				// template <typename T>
+				// struct JournalEntry_t {
+				// 	std::string caption{};
+				// 	Date date{};
+				// 	T account_transactions;
+				// };
+
+				// using JournalEntry = JournalEntry_t<AccountTransactions>;
+
+				// struct AccountTransaction {
+				// 	BASAccountNo account_no;
+				// 	std::optional<std::string> transtext{};
+				// 	Amount amount;
+				// 	...
+				// }
+
+				auto taa = to_tagged_amount_aggregate(journal_id,verno,aje);
+				result += taa.tagged_amounts();
+			}
+		}
+
+		return result;
+	}
+
+
 	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
 		DateOrderedTaggedAmounts result{};
 		// Ensure folder "from_bank_or_skv folder" exists
@@ -8948,7 +9025,7 @@ private:
 			}
 			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
 		}
-		std::cout << "\ndate_ordered_tagged_amounts_from_environment RETURNS " << result.tagged_amounts().size() << " entries";
+		std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
 		return result;
 	}
 
@@ -9036,7 +9113,10 @@ private:
 		model->organisation_contacts = this->contacts_from_environment(environment);
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
 		model->sru = this->srus_from_environment(environment);
-		model->date_ordered_tagged_amounts = this->date_ordered_tagged_amounts_from_environment(environment);
+		for (auto const& sie_environments_entry : model->sie) {
+			model->date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
+		}
+		model->date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
 		model->prompt = prompt.str();
 		return model;
 	}
