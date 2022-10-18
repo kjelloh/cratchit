@@ -816,6 +816,21 @@ OptionalAmount to_amount(std::string const& sAmount) {
 }
 
 using CentsAmount = int;
+using OptionalCentsAmount = std::optional<CentsAmount>;
+
+OptionalCentsAmount to_cents_amount(std::string const& s) {
+	OptionalCentsAmount result{};
+	CentsAmount ca{};
+	try {
+		ca = std::stoi(s);
+		result = ca;
+	}
+	catch (...) {
+		// Whine about input and failure
+		std::cerr << "\nThe string " << std::quoted(s) << " is not a valid cents amount (to_cents_amount returns nullopt)";
+	}
+	return result;
+}
 
 CentsAmount to_cents_amount(Amount amount) {
 	return std::round(amount*100);
@@ -5818,6 +5833,35 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	return ev;
 }
 
+EnvironmentValue to_environment_value(TaggedAmount const& ta) {
+	EnvironmentValue ev{};
+	ev["date"] = to_string(ta.date());
+	ev["amount"] = std::to_string(ta.cents_amount());
+	for (auto const& entry : ta.tags()) {
+		ev[entry.first] = entry.second;
+	}
+	return ev;
+}
+
+OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
+	OptionalTaggedAmount result{};
+	// ####
+	OptionalDate date{};
+	OptionalCentsAmount cents_amount{};
+	TaggedAmount::Tags tags{};
+	for (auto const& entry : ev) {
+		if (entry.first == "amount") cents_amount = to_cents_amount(entry.second);
+		else if (entry.first == "date") date = to_date(entry.second);
+		else tags[entry.first] = entry.second;
+	}
+	if (date and cents_amount) {
+		TaggedAmount ta{*date,*cents_amount};
+		ta.tags() = tags;
+		result = ta;
+	}
+	return result;
+}
+
 std::optional<SRUEnvironments::value_type> to_sru_environments_entry(EnvironmentValue const& ev) {
 	try {
 // std::cout << "\nto_sru_environments_entry";
@@ -8871,7 +8915,7 @@ private:
 		return result;
 	}
 
-	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_environment(Environment const& environment) {
+	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
 		DateOrderedTaggedAmounts result{};
 		// Ensure folder "from_bank_or_skv folder" exists
 		auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
@@ -8895,6 +8939,24 @@ private:
 			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
 		}
 		std::cout << "\ndate_ordered_tagged_amounts_from_environment RETURNS " << result.tagged_amounts().size() << " entries";
+		return result;
+	}
+
+
+	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_environment(Environment const& environment) {
+		DateOrderedTaggedAmounts result{};
+		auto [begin,end] = environment.equal_range("TaggedAmount");
+		std::for_each(begin,end,[&result](auto const& entry){
+			if (auto ta = to_tagged_amount(entry.second)) {
+				result.insert(*ta);
+			}
+			else {
+				std::cerr << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmount";
+			}
+		});
+
+		// Import any new account statements in dedicated "files from bank or skv" folder
+		result += date_ordered_tagged_amounts_from_account_statement_files(environment);
 		return result;
 	}
 
@@ -8970,6 +9032,10 @@ private:
 	}
 	Environment environment_from_model(Model const& model) {
 		Environment result{};
+		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
+			result.insert({"TaggedAmount",to_environment_value(ta)});
+		};
+		model->date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
 		for (auto const& entry :  model->heading_amount_date_entries) {
 			result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
 		}
