@@ -836,6 +836,20 @@ CentsAmount to_cents_amount(Amount amount) {
 	return std::round(amount*100);
 }
 
+using UnitsAmount = int;
+using UnitsAndCents = std::pair<UnitsAmount,CentsAmount>;
+
+UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
+	UnitsAndCents result{std::round(cents_amount / 100),cents_amount % 100};
+	return result;
+}
+
+std::string to_string(UnitsAndCents const& units_and_cents) {
+	std::ostringstream os{};
+	os << units_and_cents.first << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
+	return os.str();
+}
+
 class TaggedAmount {
 public:
 	using Tags = std::map<std::string,std::string>;
@@ -859,7 +873,7 @@ using OptionalTaggedAmount = std::optional<TaggedAmount>;
 
 std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
 	os << ta.date();
-	os << " " << ta.cents_amount() << " öre";
+	os << " " << to_string(to_units_and_cents(ta.cents_amount()));
 	for (auto const& tag : ta.tags()) {
 		os << " " << tag.first << " = " << tag.second;
 	}
@@ -1854,7 +1868,6 @@ TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransactio
 	if (at.transtext and at.transtext->size() > 0) result.tags()["TRANSTEXT"] = *at.transtext;
 	return result;
 }
-
 
 TaggedAmountAggregateId to_tagged_amount_aggregate_id(BASJournalId const& journal_id,BAS::VerNo const& verno,BAS::anonymous::JournalEntry const& aje) {
 	TaggedAmountAggregateId result = std::string{} + to_string(aje.date) + "_" + journal_id + std::to_string(verno);
@@ -5890,8 +5903,8 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 
 EnvironmentValue to_environment_value(TaggedAmount const& ta) {
 	EnvironmentValue ev{};
-	ev["date"] = to_string(ta.date());
-	ev["amount"] = std::to_string(ta.cents_amount());
+	ev["yyyymmdd_date"] = to_string(ta.date());
+	ev["cents_amount"] = std::to_string(ta.cents_amount());
 	for (auto const& entry : ta.tags()) {
 		ev[entry.first] = entry.second;
 	}
@@ -5905,8 +5918,8 @@ OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
 	OptionalCentsAmount cents_amount{};
 	TaggedAmount::Tags tags{};
 	for (auto const& entry : ev) {
-		if (entry.first == "amount") cents_amount = to_cents_amount(entry.second);
-		else if (entry.first == "date") date = to_date(entry.second);
+		if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
+		else if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
 		else tags[entry.first] = entry.second;
 	}
 	if (date and cents_amount) {
