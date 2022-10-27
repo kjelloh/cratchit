@@ -890,19 +890,37 @@ private:
 	Tags m_tags{};
 }; // class TaggedAmount
 
-// custom specialization of std::hash injected into namespace std
-template<>
-struct std::hash<TaggedAmount> {
-		// ####
-    std::size_t operator()(TaggedAmount const& ta) const noexcept {
-        auto result = std::hash<std::string>{}(::to_string(ta.date()));
-        result ^= std::hash<CentsAmount>{}(ta.cents_amount()) << 1;
-				if (auto iter = ta.tags().find("salt"); iter != ta.tags().end()) {
-					// Apply salt value (which is there to make each TaggedAmount have a unique hash (ID)) 
-					result ^= std::hash<std::string>{}(iter->second) << 1;
-				}
-        return result;
-    }
+class TaggedAmountGUID {
+public:
+	TaggedAmountGUID(TaggedAmount const& ta) : m_guid{this->to_guid(ta)} {}
+	std::string to_string() {
+		std::ostringstream os{};
+		os << std::hex << m_guid;
+		return os.str();
+	}
+	std::size_t to_hash() {
+		return m_guid;
+	} 
+private:
+	auto random_16_bit_salt() {
+		// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
+		std::random_device rd;  //Will be used to obtain a seed for the random number engine
+		std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+		std::uniform_int_distribution<> distrib(1, 0xFFFF); // Use a 16 bit random number		
+		return distrib(gen);
+	}
+	std::size_t to_guid(TaggedAmount const& ta) {
+		// Use a random salt to make a reasonable good effort to NOT generate the same guid twice.
+		// NOTE: Any aggregate of TaggedAmount where a unique GUID is required should administrate and check for uniqueness. 
+		std::size_t result{};
+		result ^= std::hash<std::string>{}(::to_string(ta.date())) << 1;
+		result ^= std::hash<CentsAmount>{}(ta.cents_amount()) << 1;
+		// At this stage result is the same for any tagged amount with same date and amount.
+		result = result ^ this->random_16_bit_salt(); // Salt the hash with a random number
+		return result;
+	}
+	std::size_t m_guid;
+
 };
 
 using OptionalTaggedAmount = std::optional<TaggedAmount>;
@@ -915,6 +933,23 @@ std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
 	}
 	return os;
 }
+
+// custom specialization of std::hash injected into namespace std
+template<>
+struct std::hash<TaggedAmount> {
+		// ####
+    std::size_t operator()(TaggedAmount const& ta) const noexcept {
+				std::size_t result{};
+				if (ta.tags().contains("GUID")) {
+					std::istringstream is{ta.tags().at("GUID")};
+					is >> std::hex >> result;
+				}
+				else {
+					std::cerr << "\nDESIGN INSUFFICIENCY - std::hash<TaggedAmount>::operator(TaggedAmount const& ta) failed to find tag 'GUID' in tagged amount = " << ta;
+				}
+        return result;
+    }
+};
 
 using TaggedAmounts = std::vector<TaggedAmount>;
 using TaggedAmountAggregateId = std::string;
@@ -963,7 +998,13 @@ class DateOrderedTaggedAmounts {
 					std::cout << "\nSalted " << ta_to_insert << " to make it different from " << *douplicate_id_iter;
 					result = this->insert(ta_to_insert); // Recurse to check that new salt is not used...
 				}
-				else result = m_tagged_amounts.insert(end,ta_to_insert);
+				else {
+					// Tag it with a GUID if it does not yet have one
+					if (ta_to_insert.tags().contains("GUID") == false) {
+						ta_to_insert.tags()["GUID"] = TaggedAmountGUID{ta_to_insert}.to_string();
+					}
+					result = m_tagged_amounts.insert(end,ta_to_insert);
+				}
 			}
 			else std::cout << "\n\tAlready in list " << ta_to_insert << " (" << *iter << ")";
 			return result;
