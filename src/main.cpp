@@ -871,19 +871,6 @@ public:
 	bool operator==(TaggedAmount const& other) const {
 		return (this->date() == other.date() and this->cents_amount() == other.cents_amount() and this->tags() == other.tags());
 	}
-	OptionalTagValue salt() const { return this->tag_value("salt");}
-	TaggedAmount& salt(std::string const& salt) {m_tags["salt"] = salt; return *this;}
-
-	std::string next_salt() {
-		std::string result{"1"}; // default "first" salt value 
-		if (auto existing_salt = this->salt()) {
-			// Use "next" salt value
-			auto next_salt_int = std::stoi(*existing_salt) + 1;
-			result = std::to_string(next_salt_int);
-		}
-		return result;
-	}
-
 private:
 	Date m_date;
 	CentsAmount m_cents_amount;
@@ -989,22 +976,11 @@ class DateOrderedTaggedAmounts {
 			});
 			if (iter == end) {
 				// Ensure it has a unique hash before inserting
-				// NOTE: This code relies there are no duplicates already inserted (we can use any match to determine what new salt to use to become unique)
-				auto is_same_id = [id = std::hash<TaggedAmount>{}(ta_to_insert)](TaggedAmount const& ta) {
-					return id == std::hash<TaggedAmount>{}(ta);
-				};
-				if (auto douplicate_id_iter = std::find_if(begin,end,is_same_id);douplicate_id_iter != end) {
-					ta_to_insert.salt(douplicate_id_iter->next_salt()); // Add with a different salt to become unique
-					std::cout << "\nSalted " << ta_to_insert << " to make it different from " << *douplicate_id_iter;
-					result = this->insert(ta_to_insert); // Recurse to check that new salt is not used...
+				// Tag it with a GUID if it does not yet have one
+				if (ta_to_insert.tags().contains("GUID") == false) {
+					ta_to_insert.tags()["GUID"] = TaggedAmountGUID{ta_to_insert}.to_string();
 				}
-				else {
-					// Tag it with a GUID if it does not yet have one
-					if (ta_to_insert.tags().contains("GUID") == false) {
-						ta_to_insert.tags()["GUID"] = TaggedAmountGUID{ta_to_insert}.to_string();
-					}
-					result = m_tagged_amounts.insert(end,ta_to_insert);
-				}
+				result = m_tagged_amounts.insert(end,ta_to_insert);
 			}
 			else std::cout << "\n\tAlready in list " << ta_to_insert << " (" << *iter << ")";
 			return result;
