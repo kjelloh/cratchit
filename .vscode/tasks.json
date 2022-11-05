@@ -25,7 +25,51 @@
       },
       {
         "type": "cppbuild",
-        "label": "macOS C/C++: clang-13 build cratchit",
+        "label": "macOS C/C++: Brew installed g++-12 build cratchit",
+        "command": "/usr/local/Cellar/gcc/12.2.0/bin/g++-12",
+        "args": [
+          "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+          "-fdiagnostics-color=always",
+          "-std=c++20",
+          "-g",
+          "${file}",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+          "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ],
+        "group": "build",
+        "detail": "compiler: /usr/local/Cellar/gcc/12.2.0/bin/g++-12"
+      },
+      {
+        "type": "cppbuild",
+        "label": "macOS C/C++: macPorts installed g++-12 build cratchit",
+        "command": "/opt/local/bin/g++-mp-12",
+        "args": [
+          "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+          "-fdiagnostics-color=always",
+          "-std=c++20",
+          "-g",
+          "${file}",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+          "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ],
+        "group": "build",
+        "detail": "compiler: /opt/local/bin/g++-mp-12"
+      },      
+      {
+        "type": "cppbuild",
+        "label": "macOS C/C++: Brew installed clang-13 build cratchit",
         "command": "/usr/local/Cellar/llvm/13.0.1_1/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
@@ -44,6 +88,49 @@
         "group": "build",
         "detail": "compiler: /usr/local/Cellar/llvm/13.0.1_1/bin/clang++"
       },
+      {
+        "type": "cppbuild",
+        "label": "macOS C/C++: Brew installed clang-15 build cratchit",
+        "command": "/usr/local/Cellar/llvm/15.0.3/bin/clang++",
+        "args": [
+          "-fdiagnostics-color=always",
+          "-std=c++20",
+          "-g",
+          "${file}",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+          "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ],
+        "group": "build",
+        "detail": "compiler: /usr/local/Cellar/llvm/15.0.3/bin/clang++"
+      },
+      {
+        "type": "cppbuild",
+        "label": "macOS C/C++: macPorts installed clang-15 build cratchit",
+        "command": "/opt/local/libexec/llvm-15/bin/clang++",
+        "args": [
+          "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+          "-fdiagnostics-color=always",
+          "-std=c++20",
+          "-g",
+          "${file}",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+          "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ],
+        "group": "build",
+        "detail": "compiler: /opt/local/libexec/llvm-15/bin/clang++"
+      },      
       {
         "type": "cppbuild",
         "label": "Linux C/C++: clang-14 build cratchit",
