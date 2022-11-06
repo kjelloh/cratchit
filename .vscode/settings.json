@@ -72,6 +72,7 @@
     "compare": "cpp",
     "concepts": "cpp",
     "numbers": "cpp",
-    "set": "cpp"
+    "set": "cpp",
+    "ranges": "cpp"
   }
 }

@@ -94,6 +94,8 @@
         "command": "/usr/local/Cellar/llvm/15.0.3/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
+          "-fexperimental-library",
+          "-L/usr/local/Cellar/llvm/15.0.3/lib/c++/",
           "-std=c++20",
           "-g",
           "${file}",
@@ -115,6 +117,8 @@
         "command": "/opt/local/libexec/llvm-15/bin/clang++",
         "args": [
           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+          "-fexperimental-library",
+          "-L/opt/local/libexec/llvm-15/lib/",
           "-fdiagnostics-color=always",
           "-std=c++20",
           "-g",
