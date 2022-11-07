@@ -911,40 +911,6 @@ private:
 	Tags m_tags;
 }; // class TaggedAmount
 
-// 2) TaggedAmountGUID is unique only within a company book keeping environment (spanning all book keeping years)
-class TaggedAmountGUID {
-public:
-	TaggedAmountGUID(TaggedAmount const& ta) : m_guid{this->to_guid(ta)} {}
-	std::string to_string() {
-		std::ostringstream os{};
-		os << std::hex << m_guid;
-		return os.str();
-	}
-	std::size_t to_hash() {
-		return m_guid;
-	} 
-private:
-	auto random_16_bit_salt() {
-		// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
-		std::random_device rd;  //Will be used to obtain a seed for the random number engine
-		std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-		std::uniform_int_distribution<> distrib(1, 0xFFFF); // Use a 16 bit random number		
-		return distrib(gen);
-	}
-	std::size_t to_guid(TaggedAmount const& ta) {
-		// Use a random salt to make a reasonable good effort to NOT generate the same guid twice.
-		// NOTE: Any aggregate of TaggedAmount where a unique GUID is required should administrate and check for uniqueness. 
-		std::size_t result{};
-		result ^= std::hash<std::string>{}(::to_string(ta.date())) << 1;
-		result ^= std::hash<CentsAmount>{}(ta.cents_amount()) << 1;
-		// At this stage result is the same for any tagged amount with same date and amount.
-		result = result ^ this->random_16_bit_salt(); // Salt the hash with a random number
-		return result;
-	}
-	std::size_t m_guid;
-};
-
-
 auto random_16_bit_salt() {
 	// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
 	std::random_device rd;  //Will be used to obtain a seed for the random number engine
@@ -994,8 +960,8 @@ struct std::hash<TaggedAmount> {
 		// ####
     std::size_t operator()(TaggedAmount const& ta) const noexcept {
 				std::size_t result{};
-				if (ta.tags().contains("GUID")) {
-					std::istringstream is{ta.tags().at("GUID")};
+				if (ta.tags().contains("instance_id")) {
+					std::istringstream is{ta.tags().at("instance_id")};
 					is >> std::hex >> result;
 				}
 				else {
@@ -1038,16 +1004,12 @@ class DateOrderedTaggedAmounts {
 			auto [begin,end] = std::equal_range(m_tagged_amounts.begin(),m_tagged_amounts.end(),ta_to_insert,[](TaggedAmount const& ta1,TaggedAmount const& ta2){
 				return (ta1.date() < ta2.date());
 			});
-			// insert ta_to_insert only if we can't find it in range of amounts with same date
+			// insert ta_to_insert only if we can't find an instance with the same value in range of amounts with same date
 			auto iter = std::find_if(begin,end,[&ta_to_insert](TaggedAmount const& ta){
 				return (ta_to_insert == ta);
 			});
 			if (iter == end) {
-				// Ensure it has a unique hash before inserting
-				// Tag it with a GUID if it does not yet have one
-				if (ta_to_insert.tags().contains("GUID") == false) {
-					ta_to_insert.tags()["GUID"] = TaggedAmountGUID{ta_to_insert}.to_string();
-				}
+				// It has a unique value so go ahead and insert
 				result = m_tagged_amounts.insert(end,ta_to_insert);
 			}
 			else std::cout << "\n\tAlready in list " << ta_to_insert << " (" << *iter << ")";
@@ -6040,6 +6002,7 @@ EnvironmentValue to_environment_value(TaggedAmount const& ta) {
 	EnvironmentValue ev{};
 	ev["yyyymmdd_date"] = to_string(ta.date());
 	ev["cents_amount"] = std::to_string(ta.cents_amount());
+	ev["instance_id"] = to_string(ta.instance_id());
 	for (auto const& entry : ta.tags()) {
 		ev[entry.first] = entry.second;
 	}
@@ -6054,16 +6017,18 @@ OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
 	TaggedAmount::OptionalInstanceId instance_id{};
 	TaggedAmount::Tags tags{};
 	for (auto const& entry : ev) {
-		if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
+		if (entry.first == "instance_id") instance_id = to_instance_id(entry.second);
 		else if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
-		else if (entry.first == "GUID") instance_id = to_instance_id(entry.second);
+		else if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
 		else tags[entry.first] = entry.second;
 	}
 	if (date and cents_amount) {
 		if (instance_id) {
+			// Normal execution path (stored tagged amounts should all have an instance id that lives in persistent environment storage (Environment value))
 			result = TaggedAmount{*instance_id,*date,*cents_amount,std::move(tags)}; 			
 		}
 		else {
+			// For development purposes (to create from environment NOT using instance ids)
 			result = TaggedAmount{to_instance_id(*date,*cents_amount),*date,*cents_amount,std::move(tags)};
 		}
 	}
