@@ -27,6 +27,19 @@
             "intelliSenseMode": "macos-gcc-x64"
         },        
         {
+            "name": "Mac clang++-15",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/local/Cellar/llvm/15.0.3/bin/clang++",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "macos-gcc-x64"
+        },        
+        {
             "name": "Linux clang++-14",
             "includePath": [
                 "${workspaceFolder}/**",
