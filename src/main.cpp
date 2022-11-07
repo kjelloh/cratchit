@@ -871,12 +871,21 @@ std::string to_string(UnitsAndCents const& units_and_cents) {
 	return os.str();
 }
 
+// 1) TaggedAmount instance is restricted to the Heap and accessible only through std::shared_ptr
 class TaggedAmount {
 public:
 	using OptionalTagValue = std::optional<std::string>;
 	using Tags = std::map<std::string,std::string>;
+	using InstanceId = std::size_t;
+	TaggedAmount(InstanceId instance_id, Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
+		: m_instance_id{instance_id}
+		 ,m_date{date}
+		 ,m_cents_amount{cents_amount}
+		 ,m_tags{tags} {} 
+
 	TaggedAmount(Date const& date,CentsAmount const& cents_amount) : m_date{date},m_cents_amount{cents_amount} {}
 
+	InstanceId instance_id() const {return m_instance_id;}
 	Date const& date() const {return m_date;}
 	CentsAmount const& cents_amount() const {return m_cents_amount;}
 	Tags const& tags() const {return m_tags;}	
@@ -889,15 +898,19 @@ public:
 		return result;
 	}
 
+	// Pure "same value" operator i.e., same date, amount and all tags equal (different id is ignores. Still "same value")
+	// This allows x1 == x2 to detect two instances that are in fact the same value. "And there can be only one" paradigm can be applied.
 	bool operator==(TaggedAmount const& other) const {
 		return (this->date() == other.date() and this->cents_amount() == other.cents_amount() and this->tags() == other.tags());
 	}
 private:
+	InstanceId m_instance_id;
 	Date m_date;
 	CentsAmount m_cents_amount;
-	Tags m_tags{};
+	Tags m_tags;
 }; // class TaggedAmount
 
+// 2) TaggedAmountGUID is unique only within a company book keeping environment (spanning all book keeping years)
 class TaggedAmountGUID {
 public:
 	TaggedAmountGUID(TaggedAmount const& ta) : m_guid{this->to_guid(ta)} {}
@@ -928,7 +941,6 @@ private:
 		return result;
 	}
 	std::size_t m_guid;
-
 };
 
 using OptionalTaggedAmount = std::optional<TaggedAmount>;
@@ -977,6 +989,7 @@ private:
 	TaggedAmounts m_tagged_amounts{};
 };
 
+// 3) DateOrderedTaggedAmounts aggregate TaggedAmount in date order
 class DateOrderedTaggedAmounts {
 	public:
 		TaggedAmounts const& tagged_amounts() {return m_tagged_amounts;}
