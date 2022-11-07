@@ -877,13 +877,14 @@ public:
 	using OptionalTagValue = std::optional<std::string>;
 	using Tags = std::map<std::string,std::string>;
 	using InstanceId = std::size_t;
+	using OptionalInstanceId = std::optional<InstanceId>;
 	TaggedAmount(InstanceId instance_id, Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
 		: m_instance_id{instance_id}
 		 ,m_date{date}
 		 ,m_cents_amount{cents_amount}
 		 ,m_tags{tags} {} 
 
-	TaggedAmount(Date const& date,CentsAmount const& cents_amount) : m_date{date},m_cents_amount{cents_amount} {}
+	// TaggedAmount(Date const& date,CentsAmount const& cents_amount) : m_date{date},m_cents_amount{cents_amount} {}
 
 	InstanceId instance_id() const {return m_instance_id;}
 	Date const& date() const {return m_date;}
@@ -942,6 +943,39 @@ private:
 	}
 	std::size_t m_guid;
 };
+
+
+auto random_16_bit_salt() {
+	// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
+	std::random_device rd;  //Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+	std::uniform_int_distribution<> distrib(1, 0xFFFF); // Use a 16 bit random number		
+	return distrib(gen);
+}
+
+std::string to_string(TaggedAmount::InstanceId instace_id) {
+	std::ostringstream os{};
+	os << std::hex << instace_id;
+	return os.str();
+}
+
+TaggedAmount::InstanceId to_instance_id(std::string const& s) {
+	TaggedAmount::InstanceId result{};
+	std::istringstream is{s};
+	is >> std::hex >> result;
+	return result;
+}
+
+TaggedAmount::InstanceId to_instance_id(Date const& date,CentsAmount const& cents_amount) {
+		// Use a random salt to make a reasonable good effort to NOT generate the same guid twice.
+		// NOTE: Any aggregate of TaggedAmount where a unique GUID is required should administrate and check for uniqueness. 
+		std::size_t result{};
+		result ^= std::hash<std::string>{}(to_string(date)) << 1;
+		result ^= std::hash<CentsAmount>{}(cents_amount) << 1;
+		// At this stage result is the same for any tagged amount with same date and amount.
+		result = result ^ random_16_bit_salt(); // Salt the hash with a random number
+		return result;
+}
 
 using OptionalTaggedAmount = std::optional<TaggedAmount>;
 
@@ -1023,7 +1057,7 @@ class DateOrderedTaggedAmounts {
 			// std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYYYMMDD << "," << cents_amount << ")" << std::flush;
 			auto result = m_tagged_amounts.end();
 			if (auto date = to_date(sYYYYMMDD)) {
-				auto ta = TaggedAmount(*date,cents_amount);
+				auto ta = TaggedAmount(to_instance_id(*date,cents_amount),*date,cents_amount);
 				result = this->insert(ta);
 			}
 			else {
@@ -1062,7 +1096,8 @@ namespace CSV {
 				if (auto date = to_date(sDate)) {
 					auto sAmount = field_row[1];
 					if (auto amount = to_amount(sAmount)) {
-						TaggedAmount ta{*date,to_cents_amount(*amount)};
+						auto cents_amount = to_cents_amount(*amount);
+						TaggedAmount ta{to_instance_id(*date,cents_amount), *date,cents_amount};
 						ta.tags()["Account"] = "NORDEA";
 						ta.tags()["From"] = field_row[2];
 						ta.tags()["To"] = field_row[3];
@@ -1088,7 +1123,8 @@ namespace CSV {
 				if (auto date = to_date(sDate)) {
 					auto sAmount = field_row[2];
 					if (auto amount = to_amount(sAmount)) {
-						TaggedAmount ta{*date,to_cents_amount(*amount)};
+						auto cents_amount = to_cents_amount(*amount);
+						TaggedAmount ta{to_instance_id(*date,cents_amount), *date,cents_amount};
 						ta.tags()["Account"] = "SKV";
 						// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
 						// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
@@ -1962,7 +1998,8 @@ using BASJournalId = char; // The Id of a single BAS journal is a series charact
 using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
 
 TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransaction const& at) {
-	TaggedAmount result{date,to_cents_amount(at.amount)};
+	auto cents_amount = to_cents_amount(at.amount);
+	TaggedAmount result{to_instance_id(date,cents_amount), date,cents_amount};
 	result.tags()["BAS"] = std::to_string(at.account_no);
 	if (at.transtext and at.transtext->size() > 0) result.tags()["TRANSTEXT"] = *at.transtext;
 	return result;
@@ -6014,16 +6051,21 @@ OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
 	// ####
 	OptionalDate date{};
 	OptionalCentsAmount cents_amount{};
+	TaggedAmount::OptionalInstanceId instance_id{};
 	TaggedAmount::Tags tags{};
 	for (auto const& entry : ev) {
 		if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
 		else if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
+		else if (entry.first == "GUID") instance_id = to_instance_id(entry.second);
 		else tags[entry.first] = entry.second;
 	}
 	if (date and cents_amount) {
-		TaggedAmount ta{*date,*cents_amount};
-		ta.tags() = tags;
-		result = ta;
+		if (instance_id) {
+			result = TaggedAmount{*instance_id,*date,*cents_amount,std::move(tags)}; 			
+		}
+		else {
+			result = TaggedAmount{to_instance_id(*date,*cents_amount),*date,*cents_amount,std::move(tags)};
+		}
 	}
 	return result;
 }
