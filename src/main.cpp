@@ -1004,6 +1004,15 @@ class DateOrderedTaggedAmountsContainer {
 		std::size_t size() const { return m_date_ordered_amount_ptrs.size();}
 		TaggedAmountPtrs::const_iterator begin() const {return m_date_ordered_amount_ptrs.begin();}
 		TaggedAmountPtrs::const_iterator end() const {return m_date_ordered_amount_ptrs.end();}
+		auto from_date_to_date(DateRange const& date_period) {
+			auto first = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta_ptr){
+				return (ta_ptr->date() >= date_period.begin());
+			});
+			auto last = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta_ptr){
+				return (ta_ptr->date() > date_period.end());
+			});
+			return std::ranges::subrange(first,last);
+		}
 
 		TaggedAmountPtrs::iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
 			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_ptr_to_insert)" <<  std::flush;
@@ -7925,7 +7934,8 @@ public:
 			}
 			else if (ast[0] == "-tagged") {
 				prompt << "\nTAGGED AMOUNTS";
-				for (auto const& ta_ptr : model->date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+				// for (auto const& ta_ptr : model->date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+				for (auto const& ta_ptr : model->date_ordered_tagged_amounts.from_date_to_date({"20210501","20220430"})) {	
 					prompt << "\n\t" << ta_ptr;
 				}				
 				prompt << "\n=== END TAGGED AMOUNTS ===";
