@@ -873,20 +873,20 @@ std::string to_string(UnitsAndCents const& units_and_cents) {
 
 namespace detail {
 
-	// 1) TaggedAmount instance is restricted to the Heap and accessible only through std::shared_ptr
-	class TaggedAmount {
+	// 1) TaggedAmountPtr instance is restricted to the Heap and accessible only through std::shared_ptr
+	class TaggedAmountClass {
 	public:
 		using OptionalTagValue = std::optional<std::string>;
 		using Tags = std::map<std::string,std::string>;
 		using InstanceId = std::size_t;
 		using OptionalInstanceId = std::optional<InstanceId>;
-		TaggedAmount(InstanceId instance_id, Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
+		TaggedAmountClass(InstanceId instance_id, Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
 			: m_instance_id{instance_id}
 			,m_date{date}
 			,m_cents_amount{cents_amount}
 			,m_tags{tags} {} 
 
-		// std::make_shared<detail::TaggedAmount>(Date const& date,CentsAmount const& cents_amount) : m_date{date},m_cents_amount{cents_amount) {}
+		// std::make_shared<detail::TaggedAmountClass>(Date const& date,CentsAmount const& cents_amount) : m_date{date},m_cents_amount{cents_amount) {}
 
 		InstanceId instance_id() const {return m_instance_id;}
 		Date const& date() const {return m_date;}
@@ -903,7 +903,7 @@ namespace detail {
 
 		// Pure "same value" operator i.e., same date, amount and all tags equal (different id is ignores. Still "same value")
 		// This allows x1 == x2 to detect two instances that are in fact the same value. "And there can be only one" paradigm can be applied.
-		bool operator==(TaggedAmount const& other) const {
+		bool operator==(TaggedAmountClass const& other) const {
 			return (this->date() == other.date() and this->cents_amount() == other.cents_amount() and this->tags() == other.tags());
 		}
 	private:
@@ -911,11 +911,11 @@ namespace detail {
 		Date m_date;
 		CentsAmount m_cents_amount;
 		Tags m_tags;
-	}; // class TaggedAmount
+	}; // class TaggedAmountClass
 
 }
 
-using TaggedAmount = std::shared_ptr<detail::TaggedAmount>;
+using TaggedAmountPtr = std::shared_ptr<detail::TaggedAmountClass>;
 
 auto random_16_bit_salt() {
 	// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
@@ -925,22 +925,22 @@ auto random_16_bit_salt() {
 	return distrib(gen);
 }
 
-std::string to_string(detail::TaggedAmount::InstanceId instace_id) {
+std::string to_string(detail::TaggedAmountClass::InstanceId instace_id) {
 	std::ostringstream os{};
 	os << std::hex << instace_id;
 	return os.str();
 }
 
-detail::TaggedAmount::InstanceId to_instance_id(std::string const& s) {
-	detail::TaggedAmount::InstanceId result{};
+detail::TaggedAmountClass::InstanceId to_instance_id(std::string const& s) {
+	detail::TaggedAmountClass::InstanceId result{};
 	std::istringstream is{s};
 	is >> std::hex >> result;
 	return result;
 }
 
-detail::TaggedAmount::InstanceId to_instance_id(Date const& date,CentsAmount const& cents_amount) {
+detail::TaggedAmountClass::InstanceId to_instance_id(Date const& date,CentsAmount const& cents_amount) {
 		// Use a random salt to make a reasonable good effort to NOT generate the same guid twice.
-		// NOTE: Any aggregate of TaggedAmount where a unique GUID is required should administrate and check for uniqueness. 
+		// NOTE: Any aggregate of TaggedAmountPtr where a unique GUID is required should administrate and check for uniqueness. 
 		std::size_t result{};
 		result ^= std::hash<std::string>{}(to_string(date)) << 1;
 		result ^= std::hash<CentsAmount>{}(cents_amount) << 1;
@@ -949,12 +949,12 @@ detail::TaggedAmount::InstanceId to_instance_id(Date const& date,CentsAmount con
 		return result;
 }
 
-using OptionalTaggedAmount = std::optional<TaggedAmount>;
+using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
 
-std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
-	os << ta->date();
-	os << " " << to_string(to_units_and_cents(ta->cents_amount()));
-	for (auto const& tag : ta->tags()) {
+std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
+	os << ta_ptr->date();
+	os << " " << to_string(to_units_and_cents(ta_ptr->cents_amount()));
+	for (auto const& tag : ta_ptr->tags()) {
 		os << " " << tag.first << " = " << tag.second;
 	}
 	return os;
@@ -962,114 +962,105 @@ std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
 
 // custom specialization of std::hash injected into namespace std
 template<>
-struct std::hash<TaggedAmount> {
+struct std::hash<TaggedAmountPtr> {
 		// ####
-    std::size_t operator()(TaggedAmount const& ta) const noexcept {
+    std::size_t operator()(TaggedAmountPtr const& ta_ptr) const noexcept {
 				std::size_t result{};
-				if (ta->tags().contains("instance_id")) {
-					std::istringstream is{ta->tags().at("instance_id")};
+				if (ta_ptr->tags().contains("instance_id")) {
+					std::istringstream is{ta_ptr->tags().at("instance_id")};
 					is >> std::hex >> result;
 				}
 				else {
-					std::cerr << "\nDESIGN INSUFFICIENCY - std::hash<TaggedAmount>::operator(TaggedAmount const& ta) failed to find tag 'GUID' in tagged amount = " << ta;
+					std::cerr << "\nDESIGN INSUFFICIENCY - std::hash<TaggedAmountPtr>::operator(TaggedAmountPtr const& ta_ptr) failed to find tag 'GUID' in tagged amount = " << ta_ptr;
 				}
         return result;
     }
 };
 
-using TaggedAmounts = std::vector<TaggedAmount>;
+using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
+using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>;
 using TaggedAmountAggregateId = std::string;
 class TaggedAmountAggregate {
 public:
 	TaggedAmountAggregate(TaggedAmountAggregateId const& id) : m_id{id} {}
 	TaggedAmountAggregateId id() const {return m_id;}
 	bool operator==(TaggedAmountAggregate const& other) {return m_id == other.m_id;}
-	TaggedAmounts const& tagged_amounts() const {return m_tagged_amounts;}
-	TaggedAmountAggregate& insert(TaggedAmount&& ta) {
-		ta->tags()["Agregate"] = m_id;
-		m_tagged_amounts.push_back(ta);
+	TaggedAmountPtrs const& tagged_amount_ptrs() const {return m_tagged_amount_ptrs;}
+	TaggedAmountAggregate& push_back(TaggedAmountPtr ta_ptr) {
+		// std::cout << "\nTaggedAmountAggregate::insert" << std::flush;
+		ta_ptr->tags()["Agregate"] = m_id;
+		m_tagged_amount_ptrs.push_back(ta_ptr);
 		return *this;
 	}
 private:
 	TaggedAmountAggregateId m_id;
-	TaggedAmounts m_tagged_amounts{};
+	TaggedAmountPtrs m_tagged_amount_ptrs{};
 };
 
-// 3) DateOrderedTaggedAmounts aggregate TaggedAmount in date order
-class DateOrderedTaggedAmounts {
+// 3) DateOrderedTaggedAmountsContainer aggregate TaggedAmountPtr in date order
+class DateOrderedTaggedAmountsContainer {
 	public:
-		TaggedAmounts const& tagged_amounts() {return m_tagged_amounts;}
-		std::size_t size() const { return m_tagged_amounts.size();}
-		TaggedAmounts::const_iterator begin() const {return m_tagged_amounts.begin();}
-		TaggedAmounts::const_iterator end() const {return m_tagged_amounts.end();}
+		TaggedAmountPtrs const& tagged_amount_ptrs() {return m_date_ordered_amount_ptrs;}
+		std::size_t size() const { return m_date_ordered_amount_ptrs.size();}
+		TaggedAmountPtrs::const_iterator begin() const {return m_date_ordered_amount_ptrs.begin();}
+		TaggedAmountPtrs::const_iterator end() const {return m_date_ordered_amount_ptrs.end();}
 
-		TaggedAmounts::iterator insert(TaggedAmount ta_to_insert) {
-			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_to_insert)" <<  std::flush;
-			auto result = m_tagged_amounts.end();
-			// Get range [begin,end[ for which date is equal to ta_to_insert
-			auto [begin,end] = std::equal_range(m_tagged_amounts.begin(),m_tagged_amounts.end(),ta_to_insert,[](TaggedAmount const& ta1,TaggedAmount const& ta2){
+		TaggedAmountPtrs::iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
+			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_ptr_to_insert)" <<  std::flush;
+			auto result = m_date_ordered_amount_ptrs.end();
+			// Get range [begin,end[ for which date is equal to ta_ptr_to_insert
+			auto [begin,end] = std::equal_range(m_date_ordered_amount_ptrs.begin(),m_date_ordered_amount_ptrs.end(),ta_ptr_to_insert,[](TaggedAmountPtr const& ta1,TaggedAmountPtr const& ta2){
 				return (ta1->date() < ta2->date());
 			});
-			// insert ta_to_insert only if we can't find an instance with the same value in range of amounts with same date
-			auto iter = std::find_if(begin,end,[&ta_to_insert](TaggedAmount const& ta){
-				return (ta_to_insert == ta);
+			// insert ta_ptr_to_insert only if we can't find an instance with the same value in range of amounts with same date
+			auto iter = std::find_if(begin,end,[&ta_ptr_to_insert](TaggedAmountPtr const& ta_ptr){
+				return (*ta_ptr_to_insert == *ta_ptr);
 			});
 			if (iter == end) {
 				// It has a unique value so go ahead and insert
-				result = m_tagged_amounts.insert(end,ta_to_insert);
+				m_tagged_amount_ptrs_map[ta_ptr_to_insert->instance_id()] = ta_ptr_to_insert; // mapped on id
+				result = m_date_ordered_amount_ptrs.insert(end,ta_ptr_to_insert); // sorted on date
 			}
-			else std::cout << "\n\tAlready in list " << ta_to_insert << " (" << *iter << ")";
+			else std::cout << "\n\tAlready in list " << ta_ptr_to_insert << " (" << *iter << ")";
 			return result;
 		}
-		TaggedAmounts::iterator create(std::string sYYYYMMDD,CentsAmount cents_amount) {
-			// std::cout << "\nDateOrderedTaggedAmounts::create(" << sYYYYMMDD << "," << cents_amount << ")" << std::flush;
-			auto result = m_tagged_amounts.end();
-			if (auto date = to_date(sYYYYMMDD)) {
-				auto ta = std::make_shared<detail::TaggedAmount>(to_instance_id(*date,cents_amount),*date,cents_amount);
-				result = this->insert(ta);
-			}
-			else {
-				// FAILED to process the provided date
-				std::cerr << "\nFailed to process date " << sYYYYMMDD  << std::flush;
-			}
-			return result;
-		}
-		DateOrderedTaggedAmounts const& for_each(auto f) const {
-			for (auto const& ta : m_tagged_amounts) {
-				f(ta);
+		DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
+			for (auto const& ta_ptr : m_date_ordered_amount_ptrs) {
+				f(ta_ptr);
 			}
 			return *this;
 		}
-		DateOrderedTaggedAmounts& operator+=(DateOrderedTaggedAmounts const& other) {
-			other.for_each([this](TaggedAmount const& ta){
-				this->insert(ta);
+		DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const& other) {
+			other.for_each([this](TaggedAmountPtr const& ta_ptr){
+				this->insert(ta_ptr);
 			});
 			return *this;
 		}
-		DateOrderedTaggedAmounts& operator+=(TaggedAmounts const& tas) {
-			for (auto const& ta : tas) this->insert(ta);
+		DateOrderedTaggedAmountsContainer& operator+=(TaggedAmountPtrs const& tas) {
+			for (auto const& ta_ptr : tas) this->insert(ta_ptr);
 			return *this;
 		}
 
 	private:
-		TaggedAmounts m_tagged_amounts{};
+		TaggedAmountPtrsMap m_tagged_amount_ptrs_map{};
+		TaggedAmountPtrs m_date_ordered_amount_ptrs{};
 };
 
 namespace CSV {
 	namespace NORDEA {
-		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row) {
-			OptionalTaggedAmount result{};
+		OptionalTaggedAmountPtr to_tagged_amount(FieldRow const& field_row) {
+			OptionalTaggedAmountPtr result{};
 			if (field_row.size() == 10) {
 				auto sDate = field_row[0];
 				if (auto date = to_date(sDate)) {
 					auto sAmount = field_row[1];
 					if (auto amount = to_amount(sAmount)) {
 						auto cents_amount = to_cents_amount(*amount);
-						auto ta = std::make_shared<detail::TaggedAmount>(to_instance_id(*date,cents_amount), *date,cents_amount);
-						ta->tags()["Account"] = "NORDEA";
-						ta->tags()["From"] = field_row[2];
-						ta->tags()["To"] = field_row[3];
-						result = ta;
+						auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*date,cents_amount), *date,cents_amount);
+						ta_ptr->tags()["Account"] = "NORDEA";
+						ta_ptr->tags()["From"] = field_row[2];
+						ta_ptr->tags()["To"] = field_row[3];
+						result = ta_ptr;
 					}
 					else {
 						std::cerr << "\nNot a valid amount: " << std::quoted(sAmount); 
@@ -1084,19 +1075,19 @@ namespace CSV {
 	}
 
 	namespace SKV {
-		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row) {
-			OptionalTaggedAmount result{};
+		OptionalTaggedAmountPtr to_tagged_amount(FieldRow const& field_row) {
+			OptionalTaggedAmountPtr result{};
 			if (field_row.size() == 5) {
 				auto sDate = field_row[0];
 				if (auto date = to_date(sDate)) {
 					auto sAmount = field_row[2];
 					if (auto amount = to_amount(sAmount)) {
 						auto cents_amount = to_cents_amount(*amount);
-						auto ta = std::make_shared<detail::TaggedAmount>(to_instance_id(*date,cents_amount), *date,cents_amount);
-						ta->tags()["Account"] = "SKV";
+						auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*date,cents_amount), *date,cents_amount);
+						ta_ptr->tags()["Account"] = "SKV";
 						// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
 						// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
-						result = ta;
+						result = ta_ptr;
 					}
 					else {
 						std::cerr << "\nNot a valid amount: " << std::quoted(sAmount); 
@@ -1112,20 +1103,14 @@ namespace CSV {
 }
 
 
-using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmounts>;
+using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsContainer>;
 				
 /**
  * Return a list of tagged amounts if provided path is to a file with amount values (e.g., a bank account csv statements file)
  */
 OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
 	OptionalDateOrderedTaggedAmounts result{};
-	DateOrderedTaggedAmounts dota{};
-	if (false) {
-		// TEST
-		auto iter = dota.create("20221008",17350);
-		(*iter)->tags()["BAS"] = "1920";
-		(*iter)->tags()["source"] = path;
-	}
+	DateOrderedTaggedAmountsContainer dota{};
 	std::ifstream in{path};
 	if (auto field_rows = CSV::to_field_rows(in,';')) {
 		// The file is some form of 'comma separated value' file using ';' as separators
@@ -1136,9 +1121,9 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 			switch (row_value_count) {
 				case 5: {
 					for (auto const& field_row : *field_rows) {
-						if (auto ta = CSV::SKV::to_tagged_amount(field_row)) {
-							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta << "]";
-							dota.insert(*ta);
+						if (auto ta_ptr = CSV::SKV::to_tagged_amount(field_row)) {
+							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
+							dota.insert(*ta_ptr);
 						}
 						else {
 							std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
@@ -1147,9 +1132,9 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 				} break;
 				case 10: {
 					for (auto const& field_row : *field_rows) {
-						if (auto ta = CSV::NORDEA::to_tagged_amount(field_row)) {
-							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta << "]";
-							dota.insert(*ta);
+						if (auto ta_ptr = CSV::NORDEA::to_tagged_amount(field_row)) {
+							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
+							dota.insert(*ta_ptr);
 						}
 						else {
 							std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
@@ -1965,9 +1950,9 @@ using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
 using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
 
-TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransaction const& at) {
+TaggedAmountPtr to_tagged_amount(Date const& date,BAS::anonymous::AccountTransaction const& at) {
 	auto cents_amount = to_cents_amount(at.amount);
-	auto result = std::make_shared<detail::TaggedAmount>(to_instance_id(date,cents_amount), date,cents_amount);
+	auto result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,cents_amount), date,cents_amount);
 	result->tags()["BAS"] = std::to_string(at.account_no);
 	if (at.transtext and at.transtext->size() > 0) result->tags()["TRANSTEXT"] = *at.transtext;
 	return result;
@@ -1979,11 +1964,12 @@ TaggedAmountAggregateId to_tagged_amount_aggregate_id(BASJournalId const& journa
 }
 
 TaggedAmountAggregate to_tagged_amount_aggregate(BASJournalId const& journal_id,BAS::VerNo const& verno,BAS::anonymous::JournalEntry const& aje) {
+	// std::cout << "\nto_tagged_amount_aggregate" << std::flush;
 	TaggedAmountAggregate result{to_tagged_amount_aggregate_id(journal_id,verno,aje)};
-	auto insert_as_tagged_amount = [date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
-		result.insert(to_tagged_amount(date,at));
+	auto push_back_as_tagged_amount = [date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
+		result.push_back(to_tagged_amount(date,at));
 	};
-	for_each_anonymous_account_transaction(aje,insert_as_tagged_amount);
+	for_each_anonymous_account_transaction(aje,push_back_as_tagged_amount);
 	return result;
 }
 
@@ -3810,7 +3796,7 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	// LOG
 	if (log) {
 		for (auto const& [prop,count] : props_counter) {
-std::cout << "\n" << std::quoted(prop) << " count:" << count; 
+			std::cout << "\n" << std::quoted(prop) << " count:" << count; 
 		}
 	}
 	// Calculate total number of properties (NOTE: Can be more that the transactions as e.g., vat and eu_vat overlaps)
@@ -5310,7 +5296,7 @@ namespace SKV {
 									std::cout << "\n\t[" << box_no << "]";
 									for (auto const& mat : mats) {
 										account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-std::cout << "\n\t\t" << to_string(mat.meta.defacto.date) << " account_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << account_amounts[mat.defacto.account_no];
+										std::cout << "\n\t\t" << to_string(mat.meta.defacto.date) << " account_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << account_amounts[mat.defacto.account_no];
 									}
 								}
 
@@ -6004,24 +5990,24 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	return ev;
 }
 
-EnvironmentValue to_environment_value(TaggedAmount const& ta) {
+EnvironmentValue to_environment_value(TaggedAmountPtr const& ta_ptr) {
 	EnvironmentValue ev{};
-	ev["yyyymmdd_date"] = to_string(ta->date());
-	ev["cents_amount"] = std::to_string(ta->cents_amount());
-	ev["instance_id"] = to_string(ta->instance_id());
-	for (auto const& entry : ta->tags()) {
+	ev["yyyymmdd_date"] = to_string(ta_ptr->date());
+	ev["cents_amount"] = std::to_string(ta_ptr->cents_amount());
+	ev["instance_id"] = to_string(ta_ptr->instance_id());
+	for (auto const& entry : ta_ptr->tags()) {
 		ev[entry.first] = entry.second;
 	}
 	return ev;
 }
 
-OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
-	OptionalTaggedAmount result{};
+OptionalTaggedAmountPtr to_tagged_amount(EnvironmentValue const& ev) {
+	OptionalTaggedAmountPtr result{};
 	// ####
 	OptionalDate date{};
 	OptionalCentsAmount cents_amount{};
-	detail::TaggedAmount::OptionalInstanceId instance_id{};
-	detail::TaggedAmount::Tags tags{};
+	detail::TaggedAmountClass::OptionalInstanceId instance_id{};
+	detail::TaggedAmountClass::Tags tags{};
 	for (auto const& entry : ev) {
 		if (entry.first == "instance_id") instance_id = to_instance_id(entry.second);
 		else if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
@@ -6031,11 +6017,11 @@ OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
 	if (date and cents_amount) {
 		if (instance_id) {
 			// Normal execution path (stored tagged amounts should all have an instance id that lives in persistent environment storage (Environment value))
-			result = std::make_shared<detail::TaggedAmount>(*instance_id,*date,*cents_amount,std::move(tags)); 			
+			result = std::make_shared<detail::TaggedAmountClass>(*instance_id,*date,*cents_amount,std::move(tags)); 			
 		}
 		else {
 			// For development purposes (to create from environment NOT using instance ids)
-			result = std::make_shared<detail::TaggedAmount>(to_instance_id(*date,*cents_amount),*date,*cents_amount,std::move(tags));
+			result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*date,*cents_amount),*date,*cents_amount,std::move(tags));
 		}
 	}
 	return result;
@@ -6138,7 +6124,7 @@ public:
 	SIEEnvironments sie{};
 	SRUEnvironments sru{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
-	DateOrderedTaggedAmounts date_ordered_tagged_amounts{};
+	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
 	std::optional<HeadingAmountDateTransEntries::iterator> to_had_iter(int had_index) {
@@ -7939,8 +7925,8 @@ public:
 			}
 			else if (ast[0] == "-tagged") {
 				prompt << "\nTAGGED AMOUNTS";
-				for (auto const& ta : model->date_ordered_tagged_amounts.tagged_amounts()) {
-					prompt << "\n\t" << ta;
+				for (auto const& ta_ptr : model->date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+					prompt << "\n\t" << ta_ptr;
 				}				
 				prompt << "\n=== END TAGGED AMOUNTS ===";
 			}
@@ -9094,8 +9080,9 @@ private:
 		return result;
 	}
 
-	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
-		DateOrderedTaggedAmounts result{};
+	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
+		// std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
+		DateOrderedTaggedAmountsContainer result{};
 		// ####
 		for (auto const& [journal_id,journal] : sie_env.journals()) {
 			for (auto const& [verno,aje] : journal) {
@@ -9118,7 +9105,7 @@ private:
 				// }
 
 				auto taa = to_tagged_amount_aggregate(journal_id,verno,aje);
-				result += taa.tagged_amounts();
+				result += taa.tagged_amount_ptrs();
 			}
 		}
 
@@ -9126,8 +9113,8 @@ private:
 	}
 
 
-	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
-		DateOrderedTaggedAmounts result{};
+	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
+		DateOrderedTaggedAmountsContainer result{};
 		// Ensure folder "from_bank_or_skv folder" exists
 		auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
 		std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
@@ -9149,20 +9136,21 @@ private:
 			}
 			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
 		}
-		std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
+		std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amount_ptrs().size() << " entries";
 		return result;
 	}
 
 
-	DateOrderedTaggedAmounts date_ordered_tagged_amounts_from_environment(Environment const& environment) {
-		DateOrderedTaggedAmounts result{};
-		auto [begin,end] = environment.equal_range("TaggedAmount");
+	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
+		std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
+		DateOrderedTaggedAmountsContainer result{};
+		auto [begin,end] = environment.equal_range("TaggedAmountPtr");
 		std::for_each(begin,end,[&result](auto const& entry){
-			if (auto ta = to_tagged_amount(entry.second)) {
-				result.insert(*ta);
+			if (auto ta_ptr = to_tagged_amount(entry.second)) {
+				result.insert(*ta_ptr);
 			}
 			else {
-				std::cerr << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmount";
+				std::cerr << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmountPtr";
 			}
 		});
 
@@ -9246,8 +9234,8 @@ private:
 	}
 	Environment environment_from_model(Model const& model) {
 		Environment result{};
-		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
-			result.insert({"TaggedAmount",to_environment_value(ta)});
+		auto tagged_amount_to_environment = [&result](TaggedAmountPtr const& ta_ptr) {
+			result.insert({"TaggedAmountPtr",to_environment_value(ta_ptr)});
 		};
 		model->date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
 		for (auto const& entry :  model->heading_amount_date_entries) {
