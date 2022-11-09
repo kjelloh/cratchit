@@ -1000,11 +1000,15 @@ private:
 // 3) DateOrderedTaggedAmountsContainer aggregate TaggedAmountPtr in date order
 class DateOrderedTaggedAmountsContainer {
 	public:
+		using iterator = TaggedAmountPtrs::iterator;
+		using const_iterator = TaggedAmountPtrs::const_iterator;
 		TaggedAmountPtrs const& tagged_amount_ptrs() {return m_date_ordered_amount_ptrs;}
 		std::size_t size() const { return m_date_ordered_amount_ptrs.size();}
-		TaggedAmountPtrs::const_iterator begin() const {return m_date_ordered_amount_ptrs.begin();}
-		TaggedAmountPtrs::const_iterator end() const {return m_date_ordered_amount_ptrs.end();}
-		auto from_date_to_date(DateRange const& date_period) {
+		iterator begin() {return m_date_ordered_amount_ptrs.begin();}
+		iterator end() {return m_date_ordered_amount_ptrs.end();}
+		const_iterator begin() const {return m_date_ordered_amount_ptrs.begin();}
+		const_iterator end() const {return m_date_ordered_amount_ptrs.end();}
+		auto in_date_range(DateRange const& date_period) {
 			auto first = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta_ptr){
 				return (ta_ptr->date() >= date_period.begin());
 			});
@@ -1014,7 +1018,13 @@ class DateOrderedTaggedAmountsContainer {
 			return std::ranges::subrange(first,last);
 		}
 
-		TaggedAmountPtrs::iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
+		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
+			this->m_date_ordered_amount_ptrs = other.m_date_ordered_amount_ptrs;
+			this->m_tagged_amount_ptrs_map = other.m_tagged_amount_ptrs_map;
+			return *this;
+		}
+
+		iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
 			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_ptr_to_insert)" <<  std::flush;
 			auto result = m_date_ordered_amount_ptrs.end();
 			// Get range [begin,end[ for which date is equal to ta_ptr_to_insert
@@ -1047,6 +1057,12 @@ class DateOrderedTaggedAmountsContainer {
 		}
 		DateOrderedTaggedAmountsContainer& operator+=(TaggedAmountPtrs const& tas) {
 			for (auto const& ta_ptr : tas) this->insert(ta_ptr);
+			return *this;
+		}
+
+		DateOrderedTaggedAmountsContainer& clear() {
+			m_tagged_amount_ptrs_map.clear();
+			m_date_ordered_amount_ptrs.clear();
 			return *this;
 		}
 
@@ -6087,6 +6103,7 @@ std::optional<std::string> to_employee(EnvironmentValue const& ev) {
 enum class PromptState {
 	Undefined
 	,Root
+	,TAIndex
 	,HADIndex
 	,VATReturnsFormIndex
 	,JEIndex
@@ -6133,19 +6150,36 @@ public:
 	SIEEnvironments sie{};
 	SRUEnvironments sru{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
-	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts{};
+	DateOrderedTaggedAmountsContainer all_date_ordered_tagged_amounts{};
+	DateOrderedTaggedAmountsContainer selected_date_ordered_tagged_amounts{};
+	size_t ta_index{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
-	std::optional<HeadingAmountDateTransEntries::iterator> to_had_iter(int had_index) {
+	std::optional<DateOrderedTaggedAmountsContainer::iterator> to_ta_iter(std::size_t ix) {
+		std::optional<DateOrderedTaggedAmountsContainer::iterator> result{};
+		auto ta_iter = this->selected_date_ordered_tagged_amounts.begin();
+		auto end = this->selected_date_ordered_tagged_amounts.end();
+		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
+		if (ix < std::distance(ta_iter,end)) {
+			std::advance(ta_iter,ix);
+			result = ta_iter;
+		}
+		return result;
+	}
+	std::optional<HeadingAmountDateTransEntries::iterator> to_had_iter(std::size_t ix) {
 		std::optional<HeadingAmountDateTransEntries::iterator> result{};
 		auto had_iter = this->heading_amount_date_entries.begin();
 		auto end = this->heading_amount_date_entries.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
-		if (had_index < std::distance(had_iter,end)) {
-			std::advance(had_iter,this->had_index);
+		if (ix < std::distance(had_iter,end)) {
+			std::advance(had_iter,ix);
 			result = had_iter;
 		}
 		return result;
+	}
+
+	std::optional<DateOrderedTaggedAmountsContainer::iterator> selected_ta() {
+		return to_ta_iter(this->ta_index);
 	}
 
 	std::optional<HeadingAmountDateTransEntries::iterator> selected_had() {
@@ -6364,6 +6398,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");			
 			result.push_back("'q' or 'Quit'");
 		} break;
+		case PromptState::TAIndex: {result.push_back("PromptState::TAIndex");} break;
 		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
 		case PromptState::VATReturnsFormIndex: {result.push_back("PromptState::VATReturnsFormIndex");} break;
 		case PromptState::JEIndex: {result.push_back("PromptState::JEIndex");} break;
@@ -6573,6 +6608,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::Root: {
 			prompt << ":";
 		} break;
+		case PromptState::TAIndex: {
+			prompt << ":tas";
+		} break;
 		case PromptState::HADIndex: {
 			prompt << ":had";
 		} break;
@@ -6721,6 +6759,13 @@ public:
 				switch (model->prompt_state) {
 					case PromptState::Root: {
 					} break;
+					case PromptState::TAIndex: {
+						model->ta_index = ix;
+						if (auto ta_ptr_iter = model->selected_ta()) {
+							auto& ta_ptr = *(*ta_ptr_iter);
+							std::cout << "\nTODO: Prompt the selected ta index:" << ix;
+						}
+					}
 					case PromptState::HADIndex: {
 						model->had_index = ix;
 						if (auto had_iter = model->selected_had()) {
@@ -7932,10 +7977,58 @@ public:
 			else if (ast[0] == "-version" or ast[0] == "-v") {
 				prompt << "\nCratchit Version " << VERSION;
 			}
+			else if (ast[0] == "-select") {
+				if (ast.size() == 1) {
+					if (model->selected_date_ordered_tagged_amounts.size() == 0) {
+						// Select all available tagged amounts
+						for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts) {	
+							model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
+						}				
+					}
+					prompt << "\n<SELECTED>";
+					// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+					for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
+						prompt << "\n\t" << ta_ptr;
+					}				
+				}
+				else if (ast[1] == "-period") {
+					if (ast.size() >= 4) {
+						auto begin = to_date(ast[2]);
+						auto end = to_date(ast[3]);
+						if (begin and end) {
+							DateOrderedTaggedAmountsContainer reduced{};
+							for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {
+								reduced.insert(ta_ptr);
+							}
+							model->selected_date_ordered_tagged_amounts = reduced;
+							prompt << "\n<SELECTED>";
+							// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+							for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
+								prompt << "\n\t" << ta_ptr;
+							}				
+						}
+						else {
+							prompt << "\nPlease enter each date on the form yyyymmdd";
+						}
+					}
+					else {
+						prompt << "\nSorry, It seems I do not understand what period you are interested in?";
+						prompt << "\nPlease select a period on the form '-select -period yyyymmdd yyyymmdd'";
+					}
+				}
+				else if (ast[1] == "-reset") {
+						model->selected_date_ordered_tagged_amounts.clear();
+				}
+				else {
+					prompt << "\nSorry, It seems I do not understand what you want to do?";
+					prompt << "\nTry e.g., '-select -period yyyymmdd yyyymmdd'";
+				}
+				model->prompt_state = PromptState::TAIndex;
+			}
 			else if (ast[0] == "-tagged") {
 				prompt << "\nTAGGED AMOUNTS";
-				// for (auto const& ta_ptr : model->date_ordered_tagged_amounts.tagged_amount_ptrs()) {
-				for (auto const& ta_ptr : model->date_ordered_tagged_amounts.from_date_to_date({"20210501","20220430"})) {	
+				// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+				for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({"20210501","20220430"})) {	
 					prompt << "\n\t" << ta_ptr;
 				}				
 				prompt << "\n=== END TAGGED AMOUNTS ===";
@@ -9236,9 +9329,9 @@ private:
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
 		model->sru = this->srus_from_environment(environment);
 		for (auto const& sie_environments_entry : model->sie) {
-			model->date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
+			model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
 		}
-		model->date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+		model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
 		model->prompt = prompt.str();
 		return model;
 	}
@@ -9247,7 +9340,7 @@ private:
 		auto tagged_amount_to_environment = [&result](TaggedAmountPtr const& ta_ptr) {
 			result.insert({"TaggedAmountPtr",to_environment_value(ta_ptr)});
 		};
-		model->date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
+		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
 		for (auto const& entry :  model->heading_amount_date_entries) {
 			result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
 		}
