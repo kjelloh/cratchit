@@ -963,7 +963,6 @@ std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
 // custom specialization of std::hash injected into namespace std
 template<>
 struct std::hash<TaggedAmountPtr> {
-		// ####
     std::size_t operator()(TaggedAmountPtr const& ta_ptr) const noexcept {
 				std::size_t result{};
 				if (ta_ptr->tags().contains("instance_id")) {
@@ -6028,7 +6027,6 @@ EnvironmentValue to_environment_value(TaggedAmountPtr const& ta_ptr) {
 
 OptionalTaggedAmountPtr to_tagged_amount(EnvironmentValue const& ev) {
 	OptionalTaggedAmountPtr result{};
-	// ####
 	OptionalDate date{};
 	OptionalCentsAmount cents_amount{};
 	detail::TaggedAmountClass::OptionalInstanceId instance_id{};
@@ -6161,7 +6159,7 @@ public:
 		auto end = this->selected_date_ordered_tagged_amounts.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
 		if (ix < std::distance(ta_iter,end)) {
-			std::advance(ta_iter,ix);
+			std::advance(ta_iter,ix); // zero based index
 			result = ta_iter;
 		}
 		return result;
@@ -6172,7 +6170,7 @@ public:
 		auto end = this->heading_amount_date_entries.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
 		if (ix < std::distance(had_iter,end)) {
-			std::advance(had_iter,ix);
+			std::advance(had_iter,ix); // zero based index
 			result = had_iter;
 		}
 		return result;
@@ -6718,7 +6716,16 @@ public:
 		auto ast = quoted_tokens(command);
 		if (ast.size() == 0) {
 			// User hit <Enter> with no input
-			if (model->prompt_state == PromptState::VATReturnsFormIndex) {
+			if (model->prompt_state == PromptState::TAIndex) {
+				// List current selection
+				prompt << "\n<SELECTED>";
+				// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+				int index = 0;
+				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
+					prompt << "\n\t" << index++ << ". " << ta_ptr;
+				}				
+			}
+			else if (model->prompt_state == PromptState::VATReturnsFormIndex) {
 				// Assume the user wants to accept current Journal Entry Candidate
 				if (auto had_iter = model->selected_had()) {
 					auto& had = *(*had_iter);
@@ -6763,7 +6770,7 @@ public:
 						model->ta_index = ix;
 						if (auto ta_ptr_iter = model->selected_ta()) {
 							auto& ta_ptr = *(*ta_ptr_iter);
-							std::cout << "\nTODO: Prompt the selected ta index:" << ix;
+							prompt << "\n" << ta_ptr;
 						}
 					}
 					case PromptState::HADIndex: {
@@ -7977,61 +7984,47 @@ public:
 			else if (ast[0] == "-version" or ast[0] == "-v") {
 				prompt << "\nCratchit Version " << VERSION;
 			}
-			else if (ast[0] == "-select") {
-				if (ast.size() == 1) {
-					if (model->selected_date_ordered_tagged_amounts.size() == 0) {
-						// Select all available tagged amounts
-						for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts) {	
-							model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
-						}				
-					}
+			else if (ast[0] == "-tas") {
+				// Enter tagged Amounts mode for specified period
+				if (ast.size() == 1 and model->selected_date_ordered_tagged_amounts.size() > 0) {
+					// Enter into current selection
+					model->prompt_state = PromptState::TAIndex;
+				// List current selection
 					prompt << "\n<SELECTED>";
 					// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+					int index = 0;
 					for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-						prompt << "\n\t" << ta_ptr;
+						prompt << "\n\t" << index++ << ". " << ta_ptr;
 					}				
 				}
-				else if (ast[1] == "-period") {
-					if (ast.size() >= 4) {
-						auto begin = to_date(ast[2]);
-						auto end = to_date(ast[3]);
-						if (begin and end) {
-							DateOrderedTaggedAmountsContainer reduced{};
-							for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {
-								reduced.insert(ta_ptr);
-							}
-							model->selected_date_ordered_tagged_amounts = reduced;
-							prompt << "\n<SELECTED>";
-							// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
-							for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-								prompt << "\n\t" << ta_ptr;
-							}				
-						}
-						else {
-							prompt << "\nPlease enter each date on the form yyyymmdd";
-						}
+				else {
+					// Period required
+					OptionalDate begin{}, end{};
+					if (ast.size() == 3) {
+							begin = to_date(ast[1]);
+							end = to_date(ast[2]);					
+					}
+					if (begin and end) {
+						model->selected_date_ordered_tagged_amounts.clear();
+						for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {	
+							model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
+						}				
+						model->prompt_state = PromptState::TAIndex;
+						prompt << "\n<SELECTED>";
+						// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+						int index = 0;
+						for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
+							prompt << "\n\t" << index++ << ". " << ta_ptr;
+						}				
+
 					}
 					else {
-						prompt << "\nSorry, It seems I do not understand what period you are interested in?";
-						prompt << "\nPlease select a period on the form '-select -period yyyymmdd yyyymmdd'";
+						prompt << "\nPlease enter the tagged amounts state on the form '-tas yyyymmdd yyyymmdd'";
 					}
 				}
-				else if (ast[1] == "-reset") {
-						model->selected_date_ordered_tagged_amounts.clear();
-				}
-				else {
-					prompt << "\nSorry, It seems I do not understand what you want to do?";
-					prompt << "\nTry e.g., '-select -period yyyymmdd yyyymmdd'";
-				}
-				model->prompt_state = PromptState::TAIndex;
 			}
-			else if (ast[0] == "-tagged") {
-				prompt << "\nTAGGED AMOUNTS";
-				// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
-				for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({"20210501","20220430"})) {	
-					prompt << "\n\t" << ta_ptr;
-				}				
-				prompt << "\n=== END TAGGED AMOUNTS ===";
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
+				prompt << "\nSorry, Identifying todos on tagged amounts not yet implemented";
 			}
 			else if (ast[0] == "-bas") {
 // std::cout << " :)";
@@ -9186,7 +9179,6 @@ private:
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
 		// std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
 		DateOrderedTaggedAmountsContainer result{};
-		// ####
 		for (auto const& [journal_id,journal] : sie_env.journals()) {
 			for (auto const& [verno,aje] : journal) {
 				// Tag an amount to represent the aje (anonymous journal entry)
