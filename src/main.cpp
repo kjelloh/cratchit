@@ -339,15 +339,11 @@ namespace Key {
 			std::string back() const {return m_path.back();}
 			std::string operator[](std::size_t pos) const {return m_path[pos];}
 			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
-			// bool operator==(Path const& other) const {
-			// 	bool result = (this->m_path == other.m_path);
-			// 	std::cout << "\n1:" << *this << " size:" << this->size();
-			// 	std::cout << "\n2:" << other << " size:" << other.size();
-			// 	std::cout << "\n============";
-			// 	if (result) std::cout << "IS EQUEAL";
-			// 	else std::cout << "differs";
-			// 	return result;
-			// }
+			std::string to_string() const {
+				std::ostringstream os{};
+				os << *this;
+				return os.str();
+			}
 		private:
 			std::vector<std::string> m_path{};
 			char m_delim{'^'};
@@ -1043,6 +1039,12 @@ class DateOrderedTaggedAmountsContainer {
 			return std::ranges::subrange(first,last);
 		}
 
+		DateOrderedTaggedAmountsContainer& clear() {
+			m_tagged_amount_ptrs_map.clear();
+			m_date_ordered_amount_ptrs.clear();
+			return *this;
+		}
+
 		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
 			this->m_date_ordered_amount_ptrs = other.m_date_ordered_amount_ptrs;
 			this->m_tagged_amount_ptrs_map = other.m_tagged_amount_ptrs_map;
@@ -1074,6 +1076,7 @@ class DateOrderedTaggedAmountsContainer {
 			}
 			return *this;
 		}
+
 		DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const& other) {
 			other.for_each([this](TaggedAmountPtr const& ta_ptr){
 				this->insert(ta_ptr);
@@ -1085,9 +1088,9 @@ class DateOrderedTaggedAmountsContainer {
 			return *this;
 		}
 
-		DateOrderedTaggedAmountsContainer& clear() {
-			m_tagged_amount_ptrs_map.clear();
-			m_date_ordered_amount_ptrs.clear();
+		DateOrderedTaggedAmountsContainer& operator=(TaggedAmountPtrs const& tas) {
+			this->clear();
+			*this += tas;
 			return *this;
 		}
 
@@ -2021,14 +2024,16 @@ TaggedAmountAggregate to_tagged_amount_aggregate(BASJournalId const& journal_id,
 	tags["type"] = "aggregate";
 	tags["caption"] = result.id();
 	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(aje.date,gross_cents_amount),aje.date,gross_cents_amount,std::move(tags));
-	auto push_back_as_tagged_amount = [&aggregate_ta_ptr,date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
+	Key::Path instance_ids{};
+	auto push_back_as_tagged_amount = [&instance_ids,date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta_ptr = to_tagged_amount(date,at);
 		result.push_back(ta_ptr);
-		aggregate_ta_ptr->tags()["members"] += to_string(ta_ptr->instance_id()) + ';';
+		instance_ids += to_string(ta_ptr->instance_id());
 	};
 	for_each_anonymous_account_transaction(aje,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
+	aggregate_ta_ptr->tags()["members"] = instance_ids.to_string();
 	result.push_back(aggregate_ta_ptr);
 	return result;
 }
@@ -8058,6 +8063,15 @@ public:
 						prompt << "\nPlease enter the tagged amounts state on the form '-tas yyyymmdd yyyymmdd'";
 					}
 				}
+			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
+				// Reduce to aggregates
+				auto is_aggregate = [](TaggedAmountPtr const& ta_ptr) {
+					return (ta_ptr->tags().contains("type") and ta_ptr->tags().at("type") == "aggregate");
+				};
+				TaggedAmountPtrs reduced{};
+				std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_aggregate),std::back_inserter(reduced));				
+				model->selected_date_ordered_tagged_amounts = reduced;
 			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
 				prompt << "\nSorry, Identifying todos on tagged amounts not yet implemented";
