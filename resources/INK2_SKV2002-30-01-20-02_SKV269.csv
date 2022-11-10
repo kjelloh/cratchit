@@ -1,0 +1,42 @@
+Fältnamn på INK2_SKV2002-30-01-20-02;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt organisationsnummer;PersOrgNr;Orgnr_Id_O;J;;
+Räkenskapsårets början;7011;Datum_D;N;;
+Räkenskapsårets slut;7012;Datum_D;N;;
+1.1 Överskott av näringsverksamhet;7104;Numeriskt_B;N;*;
+1.2 Underskott av näringsverksamhet;7114;Numeriskt_B;N;*;
+1.4 Underlag för särskild löneskatt på pensionskostnader;7132;Numeriskt_B;N;*;Får ej förekomma om 7133 finns med och den <> 0.
+1.5 Negativt underlag för särskild löneskatt på pensionskostnader;7133;Numeriskt_B;N;*;Får ej förekomma om 7132 finns med och den <> 0.
+1.6 a Underlag för avkastningsskatt 15% Försäkringsföretag m.fl. samt Avsatt till pensioner;7153;Numeriskt_B;N;*;
+1.6 b Underlag för avkastningsskatt 15 % Utländska pensionsförsäkringar;7154;Numeriskt_B;N;*;
+1.7 a Underlag för avkastningsskatt 30% Försäkringsföretag m.fl.;7155;Numeriskt_B;N;*;
+1.7 b Underlag för avkastningsskatt 30 % Utländska kapitalförsäkringar;7156;Numeriskt_B;N;*;
+1.8 Småhus/ägarlägenhet hel avgift;80;Numeriskt_B;N;*;
+1.8 Småhus/ägarlägenhet halv avgift;82;Numeriskt_B;N;*;
+1.9 Hyreshus, bostäder hel avgift;93;Numeriskt_B;N;*;
+1.9 Hyreshus, bostäder halv avgift;94;Numeriskt_B;N;*;
+1.10 Småhus/ägarlägenhet: tomtmark, byggnad under uppförande;84;Numeriskt_B;N;*;
+1.11 Hyreshus: tomtmark, bostäder under uppförande;86;Numeriskt_B;N;*;
+1.12 Hyreshus: lokaler;95;Numeriskt_B;N;*;
+1.13 Industri/elproduktionsenhet, värmekraftverk (utom vindkraftverk);96;Numeriskt_B;N;*;
+1.14 Elproduktionsenhet, vattenkraftverk;97;Numeriskt_B;N;*;
+1.15 Elproduktionsenhet, vindkraftverk;98;Numeriskt_B;N;*;
+Övriga upplysningar på bilaga;90;Str_X;N;;
+Kanal;Kanal;Str_250;N;;
+
+;;;;
+;Dokumenthistorik;;;
+;Datum;Version;Beskrivning;Signatur
+;;;;
+;;;;
+;;;;
+;;;;
+;;;;
+;Referenser;;;
+;"Definition av format återfinns i SKV 269 ""Teknisk beskrivning Näringsuppgifter(SRU) Anstånd Tjänst Kapital""";;;

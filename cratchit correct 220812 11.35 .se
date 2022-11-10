@@ -1,0 +1,82 @@
+#GEN 20220811
+#VER A 65 20220404 "PRIS ENL SPEC"
+{
+#TRANS 1920 {} -6.8 "" ""
+#TRANS 6570 {} 6.8 "" ""
+}
+#VER A 66 20220412 "KORT             BEANSTALK APP   26"
+{
+#TRANS 1920 {} -145.41 "" "Beanstalk"
+#TRANS 6230 {} 145.41 "" "Beanstalk"
+}
+#VER E 39 20220419 "LOOPIA AB (WEBSUPPORT)"
+{
+#TRANS 1920 {} -186.25 "" ""
+#TRANS 2440 {} 186.25 "" ""
+}
+#VER A 67 20220503 "Beslut om forseningsavgift"
+{
+#TRANS 2510 {} -625 "" ""
+#TRANS 6992 {} 625 "" ""
+}
+#VER A 68 20220504 "PRIS ENL SPEC"
+{
+#TRANS 1920 {} -1.7 "" ""
+#TRANS 6570 {} 1.7 "" ""
+}
+#VER D 22 20220511 "Fortnox Faktura"
+{
+#TRANS 2440 {} -446 "" ""
+#TRANS 5420 {} 356.8 "" ""
+#TRANS 2641 {} 89.2 "" ""
+}
+#VER A 69 20220512 "KORT             BEANSTALK APP   26"
+{
+#TRANS 1920 {} -154.91 "" "Beanstalk"
+#TRANS 6230 {} 154.91 "" "Beanstalk"
+}
+#VER A 70 20220516 "BestÑllning Tinyfab Heated Bed"
+{
+#TRANS 1226 {} 610.33 "" "Tinyfab Heated Bed"
+#TRANS 2440 {} -610.33 "" ""
+}
+#VER D 23 20220517 "Telia Faktura"
+{
+#TRANS 2440 {} -880 "" ""
+#TRANS 6212 {} 704.29 "" ""
+#TRANS 2641 {} 176.07 "" ""
+#TRANS 3740 {} -0.36 "" ""
+}
+#VER A 71 20220518 "KORT             PAYPAL *HKSITES 26"
+{
+#TRANS 2440 {} 610.33 "" "Paypal TinyFab"
+#TRANS 1920 {} -610.33 "" ""
+}
+#VER A 72 20220519 "BG KONTOINS"
+{
+#TRANS 1630 {} -179 "" ""
+#TRANS 1630 {} 179 "" ""
+#TRANS 1920 {} 179 "" ""
+#TRANS 2650 {} -179 "" ""
+}
+#VER A 73 20220524 "BG KONTOINS"
+{
+#TRANS 1920 {} 786.99 "" ""
+#TRANS 3308 {} -786.99 "" "IE6388047V"
+}
+#VER D 24 20220528 "Loopia Faktura"
+{
+#TRANS 2440 {} -720 "" ""
+#TRANS 6210 {} 576 "" ""
+#TRANS 2641 {} 144 "" ""
+}
+#VER E 40 20220531 "Fortnox Finans AB"
+{
+#TRANS 1920 {} -446 "" ""
+#TRANS 2440 {} 446 "" ""
+}
+#VER A 74 20220603 "PRIS ENL SPEC"
+{
+#TRANS 1920 {} -1.7 "" ""
+#TRANS 6570 {} 1.7 "" ""
+}

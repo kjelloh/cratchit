@@ -952,7 +952,8 @@ detail::TaggedAmountClass::InstanceId to_instance_id(Date const& date,CentsAmoun
 using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
 
 std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
-	os << ta_ptr->date();
+	os << to_string(ta_ptr->instance_id());
+	os << " " << ta_ptr->date();
 	os << " " << to_string(to_units_and_cents(ta_ptr->cents_amount()));
 	for (auto const& tag : ta_ptr->tags()) {
 		os << " " << tag.first << " = " << tag.second;
@@ -979,6 +980,9 @@ struct std::hash<TaggedAmountPtr> {
 using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
 using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>;
 using TaggedAmountAggregateId = std::string;
+
+// TaggedAmountAggregate uses instance_id to determine individual tagged amounts
+// Does not allow multiple tagged amounts with the same id
 class TaggedAmountAggregate {
 public:
 	TaggedAmountAggregate(TaggedAmountAggregateId const& id) : m_id{id} {}
@@ -986,17 +990,39 @@ public:
 	bool operator==(TaggedAmountAggregate const& other) {return m_id == other.m_id;}
 	TaggedAmountPtrs const& tagged_amount_ptrs() const {return m_tagged_amount_ptrs;}
 	TaggedAmountAggregate& push_back(TaggedAmountPtr ta_ptr) {
-		// std::cout << "\nTaggedAmountAggregate::insert" << std::flush;
-		ta_ptr->tags()["Agregate"] = m_id;
-		m_tagged_amount_ptrs.push_back(ta_ptr);
+		if (this->contains(ta_ptr) == false) {
+			m_tagged_amount_ptrs.push_back(ta_ptr);
+		}
+		else {
+			std::cout << "\nAggregate already contains " << ta_ptr;
+		}
 		return *this;
+	}
+	bool contains(TaggedAmountPtr const& source_ta_ptr) {
+		// Return true if we contain a tagged amount with the same instance id
+		return (std::ranges::find_if(m_tagged_amount_ptrs,[&source_ta_ptr](TaggedAmountPtr const& ta_ptr){
+			return (source_ta_ptr->instance_id() == ta_ptr->instance_id());
+		}) != m_tagged_amount_ptrs.end());
 	}
 private:
 	TaggedAmountAggregateId m_id;
 	TaggedAmountPtrs m_tagged_amount_ptrs{};
 };
 
-// 3) DateOrderedTaggedAmountsContainer aggregate TaggedAmountPtr in date order
+// DateOrderedTaggedAmountsContainer operates on tagged amount "values"
+// Does not allow multiple tagged amounts with the same "value" (determined by operator== of detail::TaggedAmountClass)
+/*
+	NOTE: The processing of tagged amount is still a bit convoluted. 
+	
+	For one we need a way to refer between tagged amounts that survives persistent storage in cratchit environment. 
+	This is accomplished with the instance_id based on date, amount and a random salt.
+
+	But secondly we also need to to distinguish different instanaces with "the same" value.
+	This is accomplished with the operator== of the detail::TaggedAmountClass. It is defined as a tagged amount with all members BUT the instance_id equal!
+	In this way we can instantiate a tagged amount and later discover that we already have that tagged amount "value" recorded. This takes care of the cases
+	where we create tagged amounts from bank account statements or tax agency account statements. The user may provide statement files that overlap and we have
+	to use "same value" to filter out such overlaps between statement files as well as between statement files and tagged amounts we already had in persistent storage!
+*/
 class DateOrderedTaggedAmountsContainer {
 	public:
 		using iterator = TaggedAmountPtrs::iterator;
@@ -1993,6 +2019,7 @@ TaggedAmountAggregate to_tagged_amount_aggregate(BASJournalId const& journal_id,
 	auto gross_cents_amount = to_cents_amount(to_positive_gross_transaction_amount(aje));
 	detail::TaggedAmountClass::Tags tags{};
 	tags["type"] = "aggregate";
+	tags["caption"] = result.id();
 	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(aje.date,gross_cents_amount),aje.date,gross_cents_amount,std::move(tags));
 	auto push_back_as_tagged_amount = [&aggregate_ta_ptr,date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta_ptr = to_tagged_amount(date,at);
