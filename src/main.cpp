@@ -1990,10 +1990,19 @@ TaggedAmountAggregateId to_tagged_amount_aggregate_id(BASJournalId const& journa
 TaggedAmountAggregate to_tagged_amount_aggregate(BASJournalId const& journal_id,BAS::VerNo const& verno,BAS::anonymous::JournalEntry const& aje) {
 	// std::cout << "\nto_tagged_amount_aggregate" << std::flush;
 	TaggedAmountAggregate result{to_tagged_amount_aggregate_id(journal_id,verno,aje)};
-	auto push_back_as_tagged_amount = [date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
-		result.push_back(to_tagged_amount(date,at));
+	auto gross_cents_amount = to_cents_amount(to_positive_gross_transaction_amount(aje));
+	detail::TaggedAmountClass::Tags tags{};
+	tags["type"] = "aggregate";
+	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(aje.date,gross_cents_amount),aje.date,gross_cents_amount,std::move(tags));
+	auto push_back_as_tagged_amount = [&aggregate_ta_ptr,date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
+		auto ta_ptr = to_tagged_amount(date,at);
+		result.push_back(ta_ptr);
+		aggregate_ta_ptr->tags()["members"] += to_string(ta_ptr->instance_id()) + ';';
 	};
 	for_each_anonymous_account_transaction(aje,push_back_as_tagged_amount);
+	// TODO: Create the aggregate amount that refers to all account transaction amounts
+	// type=aggregate members=<id>&<id>&<id>...
+	result.push_back(aggregate_ta_ptr);
 	return result;
 }
 
