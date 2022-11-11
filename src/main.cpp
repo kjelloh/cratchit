@@ -979,35 +979,6 @@ struct std::hash<TaggedAmountPtr> {
 
 using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
 using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>;
-using TaggedAmountAggregateId = std::string;
-
-// TaggedAmountAggregate uses instance_id to determine individual tagged amounts
-// Does not allow multiple tagged amounts with the same id
-class TaggedAmountAggregate {
-public:
-	TaggedAmountAggregate(TaggedAmountAggregateId const& id) : m_id{id} {}
-	TaggedAmountAggregateId id() const {return m_id;}
-	bool operator==(TaggedAmountAggregate const& other) {return m_id == other.m_id;}
-	TaggedAmountPtrs const& tagged_amount_ptrs() const {return m_tagged_amount_ptrs;}
-	TaggedAmountAggregate& push_back(TaggedAmountPtr ta_ptr) {
-		if (this->contains(ta_ptr) == false) {
-			m_tagged_amount_ptrs.push_back(ta_ptr);
-		}
-		else {
-			std::cout << "\nAggregate already contains " << ta_ptr;
-		}
-		return *this;
-	}
-	bool contains(TaggedAmountPtr const& source_ta_ptr) {
-		// Return true if we contain a tagged amount with the same instance id
-		return (std::ranges::find_if(m_tagged_amount_ptrs,[&source_ta_ptr](TaggedAmountPtr const& ta_ptr){
-			return (source_ta_ptr->instance_id() == ta_ptr->instance_id());
-		}) != m_tagged_amount_ptrs.end());
-	}
-private:
-	TaggedAmountAggregateId m_id;
-	TaggedAmountPtrs m_tagged_amount_ptrs{};
-};
 
 // DateOrderedTaggedAmountsContainer operates on tagged amount "values"
 // Does not allow multiple tagged amounts with the same "value" (determined by operator== of detail::TaggedAmountClass)
@@ -2123,26 +2094,23 @@ TaggedAmountPtr to_tagged_amount(Date const& date,BAS::anonymous::AccountTransac
 	return result;
 }
 
-TaggedAmountAggregateId to_tagged_amount_aggregate_id(BASJournalId const& journal_id,BAS::VerNo const& verno,BAS::anonymous::JournalEntry const& aje) {
-	TaggedAmountAggregateId result = std::string{} + to_string(aje.date) + "_" + journal_id + std::to_string(verno);
-	return result;
-}
-
-TaggedAmountAggregate to_tagged_amount_aggregate(BASJournalId const& journal_id,BAS::VerNo const& verno,BAS::anonymous::JournalEntry const& aje) {
-	// std::cout << "\nto_tagged_amount_aggregate" << std::flush;
-	TaggedAmountAggregate result{to_tagged_amount_aggregate_id(journal_id,verno,aje)};
-	auto gross_cents_amount = to_cents_amount(to_positive_gross_transaction_amount(aje));
+TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
+	TaggedAmountPtrs result{};
+	auto journal_id = me.meta.series;
+	auto verno = me.meta.verno;
+	auto date = me.defacto.date;
+	auto gross_cents_amount = to_cents_amount(to_positive_gross_transaction_amount(me.defacto));
 	detail::TaggedAmountClass::Tags tags{};
 	tags["type"] = "aggregate";
-	tags["caption"] = result.id();
-	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(aje.date,gross_cents_amount),aje.date,gross_cents_amount,std::move(tags));
+	if (verno) tags["SIE"] = journal_id+std::to_string(*verno);
+	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,gross_cents_amount),date,gross_cents_amount,std::move(tags));
 	Key::Path instance_ids{};
-	auto push_back_as_tagged_amount = [&instance_ids,date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
+	auto push_back_as_tagged_amount = [&instance_ids,&date,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta_ptr = to_tagged_amount(date,at);
 		result.push_back(ta_ptr);
 		instance_ids += tagged_amount::to_string(ta_ptr->instance_id());
 	};
-	for_each_anonymous_account_transaction(aje,push_back_as_tagged_amount);
+	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
 	aggregate_ta_ptr->tags()["members"] = instance_ids.to_string();
@@ -9530,31 +9498,11 @@ private:
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
 		// std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
 		DateOrderedTaggedAmountsContainer result{};
-		for (auto const& [journal_id,journal] : sie_env.journals()) {
-			for (auto const& [verno,aje] : journal) {
-				// Tag an amount to represent the aje (anonymous journal entry)
-
-				// template <typename T>
-				// struct JournalEntry_t {
-				// 	std::string caption{};
-				// 	Date date{};
-				// 	T account_transactions;
-				// };
-
-				// using JournalEntry = JournalEntry_t<AccountTransactions>;
-
-				// struct AccountTransaction {
-				// 	BASAccountNo account_no;
-				// 	std::optional<std::string> transtext{};
-				// 	Amount amount;
-				// 	...
-				// }
-
-				auto taa = to_tagged_amount_aggregate(journal_id,verno,aje);
-				result += taa.tagged_amount_ptrs();
-			}
-		}
-
+		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
+			auto tagged_amount_ptrs = to_tagged_amounts(me);
+			result += tagged_amount_ptrs;
+		};
+		for_each_meta_entry(sie_env,create_tagged_amounts_to_result);
 		return result;
 	}
 
