@@ -568,7 +568,6 @@ namespace CSV {
 		}
 		return result;
 	}
-
 } // namespace CSV
 
 namespace parse {
@@ -1100,19 +1099,74 @@ class DateOrderedTaggedAmountsContainer {
 };
 
 namespace CSV {
+	// For CSV-files
 	namespace NORDEA {
+		// For NORDEA CSV-files (bank account statements)
+
+		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
+		/*
+		Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
+		2022/06/27;-720,00;51 86 87-9;5343-2795;LOOPIA AB (WEBSUPPORT);LOOPIA AB (WEBSUPPORT);378587992;Webhotell Q2;49537,22;SEK
+		2022/06/16;-880,00;51 86 87-9;824-3040;TELIA SVERIGE AB;TELIA SVERIGE AB;19990271223;Mobil Q2;50257,22;SEK
+		2022/06/13;-625,00;51 86 87-9;5050-1055;SKATTEVERKET;SKATTEVERKET;16556782817244;Förs Avg;51137,22;SEK
+		2022/06/13;-153,71;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
+		2022/06/10;-184,00;51 86 87-9;;KORT             POSTNORD SE     26;KORT             POSTNORD SE     26;POSTNORD SE     2656;;51915,93;SEK
+		2022/06/09;-399,90;51 86 87-9;;KORT             KJELL O CO 100  26;KORT             KJELL O CO 100  26;KJELL O CO 100  2656;;52099,93;SEK
+		2022/06/03;-1,70;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;52499,83;SEK
+		2022/05/31;-446,00;51 86 87-9;5020-7042;Fortnox Finans AB;Fortnox Finans AB;52804292974641;Bokf pr jun/jul/aug;52501,53;SEK
+		2022/05/24;786,99;;51 86 87-9;BG KONTOINS;BG KONTOINS;0817-9780 GOOGLE IRELA;;52947,53;SEK
+		2022/05/19;179,00;;51 86 87-9;BG KONTOINS;BG KONTOINS;5050-1030 SK5567828172;;52160,54;SEK
+		2022/05/18;-610,33;51 86 87-9;;KORT             PAYPAL *HKSITES 26;KORT             PAYPAL *HKSITES 26;PAYPAL *HKSITES 2656;;51981,54;SEK
+		2022/05/12;-154,91;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;52591,87;SEK
+		2022/05/04;-1,70;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;52746,78;SEK
+		2022/04/19;-186,25;51 86 87-9;5343-2795;LOOPIA AB (WEBSUPPORT);LOOPIA AB (WEBSUPPORT);375508199;sharedplanet se;52748,48;SEK
+		2022/04/12;-145,41;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;52934,73;SEK
+		2022/04/04;-6,80;51 86 87-9;;PRIS ENL SPEC;PRIS ENL SPEC;;;53080,14;SEK
+		*/
+
+		enum element: std::size_t {
+			undefined
+			,Bokforingsdag = 0
+			,Belopp = 1
+			,Avsandare = 2
+			,Mottagare = 3
+			,Namn = 4
+			,Rubrik = 5
+			,Meddelande = 6
+			,Egna_anteckningar = 7
+			,Saldo = 8
+			,Valuta = 9
+			,unknown
+		};
+
 		OptionalTaggedAmountPtr to_tagged_amount(FieldRow const& field_row) {
 			OptionalTaggedAmountPtr result{};
 			if (field_row.size() == 10) {
-				auto sDate = field_row[0];
+				auto sDate = field_row[element::Bokforingsdag];
 				if (auto date = to_date(sDate)) {
-					auto sAmount = field_row[1];
+					auto sAmount = field_row[element::Belopp];
 					if (auto amount = to_amount(sAmount)) {
 						auto cents_amount = to_cents_amount(*amount);
 						auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*date,cents_amount), *date,cents_amount);
 						ta_ptr->tags()["Account"] = "NORDEA";
-						ta_ptr->tags()["From"] = field_row[2];
-						ta_ptr->tags()["To"] = field_row[3];
+						if (field_row[element::Namn].size() > 0) {
+							ta_ptr->tags()["Text"] = field_row[element::Namn];
+						}
+						if (field_row[element::Avsandare].size() > 0) {
+							ta_ptr->tags()["From"] = field_row[element::Avsandare];
+						}
+						if (field_row[element::Mottagare].size() > 0) {
+							ta_ptr->tags()["To"] = field_row[element::Mottagare];
+						}
+						if (auto saldo = to_amount(field_row[element::Saldo])) {
+							ta_ptr->tags()["Saldo"] = to_string(to_cents_amount(*saldo));
+						}
+						if (field_row[element::Meddelande].size() > 0) {
+							ta_ptr->tags()["Message"] = field_row[element::Meddelande];
+						}
+						if (field_row[element::Egna_anteckningar].size() > 0) {
+							ta_ptr->tags()["Notes"] = field_row[element::Egna_anteckningar];
+						}
 						result = ta_ptr;
 					}
 					else {
@@ -1124,20 +1178,41 @@ namespace CSV {
 				}
 			}
 			return result;
-		}
+		} // namespace NORDEA 
 	}
 
 	namespace SKV {
+		// For SKV CSV-files (so called skv-files with tax account statements)
+
+		/*
+			;Ing�ende saldo 2022-06-05;625;0;
+			2022-06-13;F�rs.avgift moms/arbetsgivardeklaration 220314;-625;;
+			2022-06-20;Inbetalning bokf�rd 220613;625;;
+			;Utg�ende saldo 2022-07-02;625;0;
+		*/
+		enum element: std::size_t {
+			undefined
+			,OptionalDate=0
+			,Text=1
+			,Belopp=2
+			,Saldo=2
+			,OptionalZero=3
+			,unknown
+		};
+
 		OptionalTaggedAmountPtr to_tagged_amount(FieldRow const& field_row) {
 			OptionalTaggedAmountPtr result{};
 			if (field_row.size() == 5) {
-				auto sDate = field_row[0];
+				// NOTE: The SKV comma separated file is in fact a end-with-';' field file (so we get five separations where the file only contains four fields...)
+				//       I.e., field index 0..3 contains values
+				auto sDate = field_row[element::OptionalDate];
 				if (auto date = to_date(sDate)) {
-					auto sAmount = field_row[2];
+					auto sAmount = field_row[element::Belopp];
 					if (auto amount = to_amount(sAmount)) {
 						auto cents_amount = to_cents_amount(*amount);
 						auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*date,cents_amount), *date,cents_amount);
 						ta_ptr->tags()["Account"] = "SKV";
+						ta_ptr->tags()["Text"] = field_row[element::Text];
 						// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
 						// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
 						result = ta_ptr;
@@ -1147,13 +1222,45 @@ namespace CSV {
 					}
 				}
 				else {
+					// It may be a saldo entry
+					/*
+							skv-file entry	";Ing�ende saldo 2022-06-05;625;0;"
+							field_row				""  "Ing�ende saldo 2022-06-05" "625" "0" ""
+							index:           0                           1     2   3   4
+					*/
+					auto sOptionalZero = field_row[element::OptionalZero]; // index 3
+					if (auto zero_amount = to_amount(sOptionalZero)) {
+						// No date and the optional zero is present ==> Assume a Saldo entry
+						// Pick the date from Text
+						auto words = tokenize::splits(field_row[element::Text],' ');
+						if (auto saldo_date = to_date(words.back())) {
+							// Success
+							auto sSaldo = field_row[element::Saldo];
+							if (auto saldo = to_amount(sSaldo)) {
+								auto cents_saldo = to_cents_amount(*saldo);
+								auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*saldo_date,cents_saldo), *saldo_date,cents_saldo);
+								ta_ptr->tags()["Account"] = "SKV";
+								ta_ptr->tags()["Text"] = field_row[element::Text];
+								ta_ptr->tags()["type"] = "saldo";
+								// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
+								// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
+								result = ta_ptr;
+							}
+							else {
+								std::cerr << "\nNot a valid SKV Saldo: " << std::quoted(sSaldo); 
+							}
+						}
+						else {
+								std::cerr << "\nNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
+						}
+					}
 					std::cerr << "\nNot a valid date: " << std::quoted(sDate);
 				}
 			}
 			return result;
 		}
-	}
-}
+	} // namespace SKV
+} // namespace CSV
 
 
 using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsContainer>;
@@ -2119,25 +2226,11 @@ using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTrans
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
 namespace CSV {
+
 	namespace NORDEA {
 		struct istream {
 			std::istream& is;
 			operator bool() {return static_cast<bool>(is);}
-		};
-
-		enum element: std::size_t {
-			undefined
-			,Bokforingsdag = 0
-			,Belopp = 1
-			,Avsandare = 2
-			,Mottagare = 3
-			,Namn = 4
-			,Rubrik = 5
-			,Meddelande = 6
-			,Egna_anteckningar = 7
-			,Saldo = 8
-			,Valuta = 9
-			,unknown
 		};
 
 		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
@@ -8032,6 +8125,74 @@ public:
 			}
 			else if (ast[0] == "-tas") {
 				// Enter tagged Amounts mode for specified period
+/*
+
+	Consider the process to turn account statements into SIE Jpurnal entries?
+
+	####
+
+	1) Turn the account statement
+
+	0. 7297cc24f838c039 20220704 -5,10 "Account=NORDEA" "From=51 86 87-9" "To="
+
+
+	1. c5eb4b1ff7ebb281 20220712 -162,62 "Account=NORDEA" "From=51 86 87-9" "To="
+	2. 792052fc6a0039de 20220725 -6643,14 "Account=NORDEA" "From=51 86 87-9" "To="
+	3. 792052fc6a14e708 20220725 -277,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	4. f2aa5fd6cd6cae8f 20220727 -165,25 "Account=NORDEA" "From=51 86 87-9" "To="
+	5. 7c1a83a729f44e5a 20220801 -1149,55 "Account=NORDEA" "From=51 86 87-9" "To="
+	6. 7c1a83a729f66cb3 20220801 -438,90 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
+	7. e5bd98fed4eb6552 20220802 -372,30 "Account=NORDEA" "From=51 86 87-9" "To=DE93600501010008573182"
+	8. 7f9334ab567a6a37 20220804 -135,70 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
+	9. c77d560c408290a5 20220805 -1884,37 "Account=NORDEA" "From=51 86 87-9" "To="
+	10. a30fe7f13729868 20220808 -4197,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	11. a30fe7f1375bbd1 20220808 -3829,41 "Account=NORDEA" "From=51 86 87-9" "To="
+	12. a30fe7f137458c3 20220808 -3290,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	13. a30fe7f137874b4 20220808 -2129,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	14. a30fe7f137c0678 20220808 -699,90 "Account=NORDEA" "From=51 86 87-9" "To="
+	15. 5169c9dc321572b4 20220809 -1917,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	16. d2d7ae5ec16d36f4 20220812 -155,94 "Account=NORDEA" "From=51 86 87-9" "To="
+	17. b4b369c168af076 20220815 -1419,40 "Account=NORDEA" "From=51 86 87-9" "To="
+	18. b0a082d4a3c65661 20220822 -1599,00 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
+	19. 4f5f7d2b5c45dd3e 20220822 39550,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
+	20. 8ea9957fbdb480fa 20220823 -39565,04 "Account=NORDEA" "From=51 86 87-9" "To=DE42620500000013602749"
+	21. 71566a804232a107 20220823 504,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+	22. 71566a80424b2932 20220823 39550,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+	23. 6ad264805a693cad 20220824 -399,75 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
+	24. 481ac3653cd9dfaa 20220825 -39550,00 "Account=NORDEA" "From=51 86 87-9" "To=32592317244"
+	25. 1e7760188d0449c6 20220826 -890,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	26. 4a4a7f482f5b07c 20220905 -4190,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	27. 4a4a7f482fdba4e 20220905 -1499,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	28. 4a4a7f482fb4a9c 20220905 -799,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	29. 4a4a7f482f905ca 20220905 -10,50 "Account=NORDEA" "From=51 86 87-9" "To="
+	30. 68ba6148c41fc469 20220908 -446,00 "Account=NORDEA" "From=51 86 87-9" "To=5020-7042"
+	31. f1afd7fc7fd9ff48 20220909 -2936,96 "Account=NORDEA" "From=51 86 87-9" "To="
+	32. 9acabb4d626d9230 20220912 -149,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	33. 653544b29d901828 20220912 799,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+	34. 653544b29d9611d0 20220912 1499,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+	35. acb727b0ab8ce0ee 20220913 -2963,94 "Account=NORDEA" "From=51 86 87-9" "To=5579-0372"
+	36. acb727b0ab82725b 20220913 -2398,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	37. acb727b0ab85b882 20220913 -164,37 "Account=NORDEA" "From=51 86 87-9" "To="
+	38. 5348d84f544709f3 20220913 20000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
+	39. acb727b0abb83d58 20220913 -20000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
+	40. ab17c38434cc1f54 20220914 -665,88 "Account=NORDEA" "From=51 86 87-9" "To="
+	41. ab17c38434cf46dd 20220914 -384,80 "Account=NORDEA" "From=51 86 87-9" "To=SE4412000000012200137117"
+	42. ab17c38434cecbfd 20220914 -182,38 "Account=NORDEA" "From=51 86 87-9" "To=5562-5735"
+	43. 1fe7fcd9ce2219e6 20220915 -904,00 "Account=NORDEA" "From=51 86 87-9" "To=824-3040"
+	44. 1fe7fcd9ce202ef2 20220915 -227,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	45. 1fe7fcd9ce207632 20220915 -191,00 "Account=NORDEA" "From=51 86 87-9" "To=412 20 00-5"
+	46. 1fe7fcd9ce200a00 20220915 -118,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	47. 1f73f30e22a3e837 20220919 -13578,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	48. 1f73f30e2288d290 20220919 -694,00 "Account=NORDEA" "From=51 86 87-9" "To="
+	49. baac6f0d83899487 20220920 -4765,00 "Account=NORDEA" "From=51 86 87-9" "To=5307-1676"
+	50. ca3b0334ceead9de 20220921 25000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
+	51. 35c4fccb311520cf 20220921 -25000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
+	52. f69942115b49b996 20220922 -2855,00 "Account=NORDEA" "From=51 86 87-9" "To=417 74 04-3"
+	53. 966bdeea4bcd8c8 20220922 739,69 "Account=NORDEA" "From=" "To=51 86 87-9"
+	54. 4301b16f2a993e63 20220926 -1031,00 "Account=NORDEA" "From=51 86 87-9" "To=5211-5664"
+	55. c987951e9f67ff84 20220927 -783,75 "Account=NORDEA" "From=51 86 87-9" "To=5343-2795"
+	56. d264d03b2b65eea7 20220929 -368,00 "Account=NORDEA" "From=51 86 87-9" "To=5249-4309"
+*/				
 				if (ast.size() == 1 and model->selected_date_ordered_tagged_amounts.size() > 0) {
 					// Enter into current selection
 					model->prompt_state = PromptState::TAIndex;
