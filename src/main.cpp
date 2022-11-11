@@ -952,7 +952,7 @@ std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
 	os << " " << ta_ptr->date();
 	os << " " << to_string(to_units_and_cents(ta_ptr->cents_amount()));
 	for (auto const& tag : ta_ptr->tags()) {
-		os << " " << tag.first << " = " << tag.second;
+		os << " \"" << tag.first << "=" << tag.second << "\"";
 	}
 	return os;
 }
@@ -8082,6 +8082,19 @@ public:
 					prompt << "\nPlease provide the tag name you want to filter on";
 				}
 			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_not_tag") {
+				if (ast.size() == 2) {
+					auto has_not_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
+						return !ta_ptr->tags().contains(tag);
+					};
+					TaggedAmountPtrs reduced{};
+					std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_not_tag),std::back_inserter(reduced));				
+					model->selected_date_ordered_tagged_amounts = reduced;
+				}
+				else {
+					prompt << "\nPlease provide the tag name you want to filter on";
+				}
+			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_tagged") {
 				if (ast.size() == 2) {
 					auto [tag,pattern] = tokenize::split(ast[1],'=');
@@ -8095,11 +8108,31 @@ public:
 						model->selected_date_ordered_tagged_amounts = reduced;
 					}
 					else {
-						prompt << "\nPlease provide '<tag name>=<tag_value>' to filter on";
+						prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
 					}
 				}
 				else {
-					prompt << "\nPlease provide '<tag name>=<tag_value>' to filter on";
+					prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
+				}
+			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_not_tagged") {
+				if (ast.size() == 2) {
+					auto [tag,pattern] = tokenize::split(ast[1],'=');
+					if (tag.size()>0) {
+						auto is_not_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
+							const std::regex pattern_regex(pattern); 
+							return (ta_ptr->tags().contains(tag)==false or std::regex_match(ta_ptr->tags().at(tag),pattern_regex)==false);
+						};
+						TaggedAmountPtrs reduced{};
+						std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_not_tagged),std::back_inserter(reduced));				
+						model->selected_date_ordered_tagged_amounts = reduced;
+					}
+					else {
+						prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
+					}
+				}
+				else {
+					prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
 				}
 			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
