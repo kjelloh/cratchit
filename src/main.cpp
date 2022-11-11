@@ -8064,6 +8064,38 @@ public:
 					}
 				}
 			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_tag") {
+				if (ast.size() == 2) {
+					auto has_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
+						return ta_ptr->tags().contains(tag);
+					};
+					TaggedAmountPtrs reduced{};
+					std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_tag),std::back_inserter(reduced));				
+					model->selected_date_ordered_tagged_amounts = reduced;
+				}
+				else {
+					prompt << "\nPlease provide the tag name you want to filter on";
+				}
+			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_tagged") {
+				if (ast.size() == 2) {
+					auto [tag,value] = tokenize::split(ast[1],'=');
+					if (tag.size()>0) {
+						auto is_tagged = [tag=tag,value=value](TaggedAmountPtr const& ta_ptr) {
+							return (ta_ptr->tags().contains(tag) and ta_ptr->tags().at(tag) == value);
+						};
+						TaggedAmountPtrs reduced{};
+						std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_tagged),std::back_inserter(reduced));				
+						model->selected_date_ordered_tagged_amounts = reduced;
+					}
+					else {
+						prompt << "\nPlease provide '<tag name>=<tag_value>' to filter on";
+					}
+				}
+				else {
+					prompt << "\nPlease provide '<tag name>=<tag_value>' to filter on";
+				}
+			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
 				// Reduce to aggregates
 				auto is_aggregate = [](TaggedAmountPtr const& ta_ptr) {
