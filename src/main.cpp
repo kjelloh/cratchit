@@ -860,9 +860,14 @@ UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
 	return result;
 }
 
+std::ostream& operator<<(std::ostream& os,UnitsAndCents const& units_and_cents) {
+	os << units_and_cents.first << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
+	return os;
+}
+
 std::string to_string(UnitsAndCents const& units_and_cents) {
 	std::ostringstream os{};
-	os << units_and_cents.first << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
+	os << units_and_cents;
 	return os.str();
 }
 
@@ -8333,6 +8338,26 @@ public:
 					prompt << "\nPlease enter the BAS account you want to book selected tagged amounts to (E.g., '-to_bas 1920'";
 				}
 			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
+				using AmountTrailsMap = std::map<CentsAmount,TaggedAmountPtrs>;
+				AmountTrailsMap amount_trails_map{};
+				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
+					amount_trails_map[std::abs(ta_ptr->cents_amount())].push_back(ta_ptr);
+				}
+				std::vector<std::pair<CentsAmount,TaggedAmountPtrs>> date_ordered_amount_trails_map{};
+				std::ranges::copy(amount_trails_map,std::back_inserter(date_ordered_amount_trails_map));
+				std::ranges::sort(date_ordered_amount_trails_map,[](auto const& e1,auto const& e2){
+					if (e1.second.front()->date() == e2.second.front()->date()) return e1.first < e2.first;
+					else return e1.second.front()->date() < e2.second.front()->date();
+				});
+				for (auto const& [cents_amount,ta_ptrs] : date_ordered_amount_trails_map) {
+					auto units_and_cents_amount = to_units_and_cents(cents_amount);
+					prompt << "\n" << units_and_cents_amount;
+					for (auto const& ta_ptr : ta_ptrs) {
+						prompt << "\n\t" << ta_ptr;
+					}
+				}
+			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
 				// Reduce to aggregates
 				auto is_aggregate = [](TaggedAmountPtr const& ta_ptr) {
@@ -9505,7 +9530,6 @@ private:
 		for_each_meta_entry(sie_env,create_tagged_amounts_to_result);
 		return result;
 	}
-
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
 		DateOrderedTaggedAmountsContainer result{};
