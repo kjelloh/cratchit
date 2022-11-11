@@ -920,10 +920,15 @@ auto random_16_bit_salt() {
 	return distrib(gen);
 }
 
-std::string to_string(detail::TaggedAmountClass::InstanceId instace_id) {
-	std::ostringstream os{};
-	os << std::hex << instace_id;
-	return os.str();
+namespace tagged_amount {
+	// TODO: Move all tagged amount code into this namespace
+
+	// tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
+	std::string to_string(detail::TaggedAmountClass::InstanceId instace_id) {
+		std::ostringstream os{};
+		os << std::hex << instace_id;
+		return os.str();
+	}
 }
 
 detail::TaggedAmountClass::InstanceId to_instance_id(std::string const& s) {
@@ -947,7 +952,7 @@ detail::TaggedAmountClass::InstanceId to_instance_id(Date const& date,CentsAmoun
 using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
 
 std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
-	os << to_string(ta_ptr->instance_id());
+	os << tagged_amount::to_string(ta_ptr->instance_id());
 	os << " " << ta_ptr->date();
 	os << " " << to_string(to_units_and_cents(ta_ptr->cents_amount()));
 	for (auto const& tag : ta_ptr->tags()) {
@@ -1159,7 +1164,7 @@ namespace CSV {
 							ta_ptr->tags()["To"] = field_row[element::Mottagare];
 						}
 						if (auto saldo = to_amount(field_row[element::Saldo])) {
-							ta_ptr->tags()["Saldo"] = to_string(to_cents_amount(*saldo));
+							ta_ptr->tags()["Saldo"] = std::to_string(to_cents_amount(*saldo));
 						}
 						if (field_row[element::Meddelande].size() > 0) {
 							ta_ptr->tags()["Message"] = field_row[element::Meddelande];
@@ -2135,7 +2140,7 @@ TaggedAmountAggregate to_tagged_amount_aggregate(BASJournalId const& journal_id,
 	auto push_back_as_tagged_amount = [&instance_ids,date = aje.date,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta_ptr = to_tagged_amount(date,at);
 		result.push_back(ta_ptr);
-		instance_ids += to_string(ta_ptr->instance_id());
+		instance_ids += tagged_amount::to_string(ta_ptr->instance_id());
 	};
 	for_each_anonymous_account_transaction(aje,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
@@ -6152,7 +6157,7 @@ EnvironmentValue to_environment_value(TaggedAmountPtr const& ta_ptr) {
 	EnvironmentValue ev{};
 	ev["yyyymmdd_date"] = to_string(ta_ptr->date());
 	ev["cents_amount"] = std::to_string(ta_ptr->cents_amount());
-	ev["instance_id"] = to_string(ta_ptr->instance_id());
+	ev["instance_id"] = tagged_amount::to_string(ta_ptr->instance_id());
 	for (auto const& entry : ta_ptr->tags()) {
 		ev[entry.first] = entry.second;
 	}
@@ -6236,6 +6241,7 @@ enum class PromptState {
 	Undefined
 	,Root
 	,TAIndex
+	,AcceptNewTAs
 	,HADIndex
 	,VATReturnsFormIndex
 	,JEIndex
@@ -6284,6 +6290,7 @@ public:
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
 	DateOrderedTaggedAmountsContainer all_date_ordered_tagged_amounts{};
 	DateOrderedTaggedAmountsContainer selected_date_ordered_tagged_amounts{};
+	DateOrderedTaggedAmountsContainer new_date_ordered_tagged_amounts{};
 	size_t ta_index{};
 	std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
@@ -6531,6 +6538,10 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("'q' or 'Quit'");
 		} break;
 		case PromptState::TAIndex: {result.push_back("PromptState::TAIndex");} break;
+		case PromptState::AcceptNewTAs: {
+			result.push_back("1:YES");
+			result.push_back("<Enter>:No");
+		} break;
 		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
 		case PromptState::VATReturnsFormIndex: {result.push_back("PromptState::VATReturnsFormIndex");} break;
 		case PromptState::JEIndex: {result.push_back("PromptState::JEIndex");} break;
@@ -6743,6 +6754,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::TAIndex: {
 			prompt << ":tas";
 		} break;
+		case PromptState::AcceptNewTAs: {
+			prompt << ":tas:accept";
+		} break;
 		case PromptState::HADIndex: {
 			prompt << ":had";
 		} break;
@@ -6864,6 +6878,11 @@ public:
 					prompt << "\n\t" << index++ << ". " << ta_ptr;
 				}				
 			}
+			else if (model->prompt_state == PromptState::AcceptNewTAs) {
+				// Reject new tagged amounts
+				model->prompt_state = PromptState::TAIndex;
+				prompt << "\n*Rejected*";
+			}
 			else if (model->prompt_state == PromptState::VATReturnsFormIndex) {
 				// Assume the user wants to accept current Journal Entry Candidate
 				if (auto had_iter = model->selected_had()) {
@@ -6911,7 +6930,23 @@ public:
 							auto& ta_ptr = *(*ta_ptr_iter);
 							prompt << "\n" << ta_ptr;
 						}
-					}
+					} break;
+					case PromptState::AcceptNewTAs: {
+						switch (ix) {
+							case 1: {
+								// Accept the new tagged amounts created
+								model->all_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
+								model->selected_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
+								model->prompt_state = PromptState::TAIndex;
+								prompt << "\n*Accepted*";
+								prompt << "\n\n" << options_list_of_prompt_state(model->prompt_state);
+							} break;
+							default: {
+								prompt << "\nPlease enter a valid option";
+								prompt << "\n\n" << options_list_of_prompt_state(model->prompt_state);
+							}
+						}
+					} break;
 					case PromptState::HADIndex: {
 						model->had_index = ix;
 						if (auto had_iter = model->selected_had()) {
@@ -8124,7 +8159,7 @@ public:
 				prompt << "\nCratchit Version " << VERSION;
 			}
 			else if (ast[0] == "-tas") {
-				// Enter tagged Amounts mode for specified period
+				// Enter tagged Amounts mode for specified period (from any state)
 /*
 
 	Consider the process to turn account statements into SIE Jpurnal entries?
@@ -8294,6 +8329,40 @@ public:
 				}
 				else {
 					prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
+				}
+			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_bas_account") {
+				// -to_bas <BAS account no | Bas Account Name>
+				if (ast.size() == 2) {
+					if (auto bas_account = BAS::to_account_no(ast[1])) {
+						TaggedAmountPtrs created{};
+						auto new_ta = [bas_account = *bas_account](TaggedAmountPtr const& ta_ptr){
+							auto date = ta_ptr->date();
+							auto cents_amount = ta_ptr->cents_amount();
+							auto source_tags = ta_ptr->tags();
+							detail::TaggedAmountClass::Tags tags{};
+							tags["BAS"]=std::to_string(bas_account);
+							tags["Source"]=tagged_amount::to_string(ta_ptr->instance_id());
+							auto result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,cents_amount),date,cents_amount,std::move(tags));
+							return result;
+						};
+						std::ranges::transform(model->selected_date_ordered_tagged_amounts,std::back_inserter(created),new_ta);
+						model->new_date_ordered_tagged_amounts = created;
+						prompt << "\n<CREATED>";
+						// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+						int index = 0;
+						for (auto const& ta_ptr : model->new_date_ordered_tagged_amounts) {	
+							prompt << "\n\t" << index++ << ". " << ta_ptr;
+						}				
+						model->prompt_state = PromptState::AcceptNewTAs;
+						prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
+					}
+					else {
+						prompt << "\nPlease enter a valid BAS account no";
+					}
+				}
+				else {
+					prompt << "\nPlease enter the BAS account you want to book selected tagged amounts to (E.g., '-to_bas 1920'";
 				}
 			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
