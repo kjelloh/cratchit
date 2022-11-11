@@ -6755,6 +6755,11 @@ public:
 		// std::cout << "\noperator(command=" << std::quoted(command) << ")";
 		std::ostringstream prompt{};
 		auto ast = quoted_tokens(command);
+		if (true) {
+			// DEBUG, Trace tokens
+			std::cout << "\ntokens:";
+			std::ranges::copy(ast,std::ostream_iterator<std::string>(std::cout, ";"));
+		}
 		if (ast.size() == 0) {
 			// User hit <Enter> with no input
 			if (model->prompt_state == PromptState::TAIndex) {
@@ -8079,10 +8084,11 @@ public:
 			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_tagged") {
 				if (ast.size() == 2) {
-					auto [tag,value] = tokenize::split(ast[1],'=');
+					auto [tag,pattern] = tokenize::split(ast[1],'=');
 					if (tag.size()>0) {
-						auto is_tagged = [tag=tag,value=value](TaggedAmountPtr const& ta_ptr) {
-							return (ta_ptr->tags().contains(tag) and ta_ptr->tags().at(tag) == value);
+						auto is_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
+							const std::regex pattern_regex(pattern); 
+							return (ta_ptr->tags().contains(tag) and std::regex_match(ta_ptr->tags().at(tag),pattern_regex));
 						};
 						TaggedAmountPtrs reduced{};
 						std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_tagged),std::back_inserter(reduced));				
