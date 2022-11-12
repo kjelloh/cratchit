@@ -880,6 +880,8 @@ namespace detail {
 		using Tags = std::map<std::string,std::string>;
 		using InstanceId = std::size_t;
 		using OptionalInstanceId = std::optional<InstanceId>;
+		using InstanceIds = std::vector<InstanceId>;
+		using OptionalInstanceIds = std::optional<InstanceIds>;
 		TaggedAmountClass(InstanceId instance_id, Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
 			: m_instance_id{instance_id}
 			,m_date{date}
@@ -929,17 +931,47 @@ namespace tagged_amount {
 	// TODO: Move all tagged amount code into this namespace
 
 	// tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
-	std::string to_string(detail::TaggedAmountClass::InstanceId instace_id) {
+	std::string to_string(detail::TaggedAmountClass::InstanceId instance_id) {
 		std::ostringstream os{};
-		os << std::hex << instace_id;
+		os << std::hex << instance_id;
 		return os.str();
 	}
 }
 
-detail::TaggedAmountClass::InstanceId to_instance_id(std::string const& s) {
-	detail::TaggedAmountClass::InstanceId result{};
+detail::TaggedAmountClass::OptionalInstanceId to_instance_id(std::string const& s) {
+	std::cout << "\nto_instance_id()" << std::flush;
+	detail::TaggedAmountClass::OptionalInstanceId result{};
+	detail::TaggedAmountClass::InstanceId instance_id{};
 	std::istringstream is{s};
-	is >> std::hex >> result;
+	try {
+		is >> std::hex >> instance_id;
+		result = instance_id;
+	}
+	catch (...) {
+		std::cerr << "\nto_instance_id(" << std::quoted(s) << ") failed. General Exception caught." << std::flush;
+	}
+	return result;
+}
+
+detail::TaggedAmountClass::OptionalInstanceIds to_instance_ids(Key::Path const& sids) {
+	std::cout << "\nto_instance_ids()" << std::flush;
+	detail::TaggedAmountClass::OptionalInstanceIds result{};
+	detail::TaggedAmountClass::InstanceIds instance_ids{};
+	for (auto const& sid : sids) {
+		if (auto instance_id = to_instance_id(sid)) {
+			std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
+			instance_ids.push_back(*instance_id);
+		}
+		else {
+			std::cerr << "\nto_instance_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
+		}
+	}
+	if (instance_ids.size() == sids.size()) {
+		result = instance_ids;
+	}
+	else {
+		std::cerr << "\nto_instance_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << instance_ids.size() << " out of " << sids.size() << " possible.";
+	}
 	return result;
 }
 
@@ -983,6 +1015,7 @@ struct std::hash<TaggedAmountPtr> {
 };
 
 using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
+using OptionalTaggedAmountPtrs = std::optional<TaggedAmountPtrs>;
 using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>;
 
 // DateOrderedTaggedAmountsContainer operates on tagged amount "values"
@@ -1001,6 +1034,13 @@ using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,Tagge
 */
 class DateOrderedTaggedAmountsContainer {
 	public:
+		using OptionalTagValue = detail::TaggedAmountClass::OptionalTagValue;
+		using Tags = detail::TaggedAmountClass::Tags;
+		using InstanceId = detail::TaggedAmountClass::InstanceId;
+		using OptionalInstanceId = detail::TaggedAmountClass::OptionalInstanceId;
+		using InstanceIds = detail::TaggedAmountClass::InstanceIds;
+		using OptionalInstanceIds = detail::TaggedAmountClass::OptionalInstanceIds;
+
 		using iterator = TaggedAmountPtrs::iterator;
 		using const_iterator = TaggedAmountPtrs::const_iterator;
 		TaggedAmountPtrs const& tagged_amount_ptrs() {return m_date_ordered_amount_ptrs;}
@@ -1017,6 +1057,39 @@ class DateOrderedTaggedAmountsContainer {
 				return (ta_ptr->date() > date_period.end());
 			});
 			return std::ranges::subrange(first,last);
+		}
+
+		OptionalTaggedAmountPtr operator[](InstanceId const& instance_id) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << tagged_amount::to_string(instance_id) << ")" << std::flush;
+			OptionalTaggedAmountPtr result{};
+			if (m_tagged_amount_ptrs_map.contains(instance_id)) {
+				result = m_tagged_amount_ptrs_map.at(instance_id);
+			}
+			else {
+				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to instance_id=" << tagged_amount::to_string(instance_id) << std::flush;
+			}
+			return result;
+		}
+
+		OptionalTaggedAmountPtrs to_ta_ptrs(InstanceIds const& instance_ids) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs()" << std::flush;
+			OptionalTaggedAmountPtrs result{};
+			TaggedAmountPtrs ta_ptrs{};
+			for (auto const& instance_id : instance_ids) {
+				if (auto ta_ptr = (*this)[instance_id]) {
+					ta_ptrs.push_back(*ta_ptr);
+				}
+				else {
+					std::cerr << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for instance_id=" << tagged_amount::to_string(instance_id) << std::flush;
+				}
+			}
+			if (ta_ptrs.size() == instance_ids.size()) {
+				result = ta_ptrs;
+			}
+			else {
+				std::cerr << "\nto_ta_ptrs() Failed. ta_ptrs.size() = " << ta_ptrs.size() << " IS NOT provided instance_ids.size() = " << instance_ids.size() << std::flush;
+			}
+			return result;
 		}
 
 		DateOrderedTaggedAmountsContainer& clear() {
@@ -8366,6 +8439,46 @@ public:
 				TaggedAmountPtrs reduced{};
 				std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_aggregate),std::back_inserter(reduced));				
 				model->selected_date_ordered_tagged_amounts = reduced;
+				// List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
+				std::cout << "\n<AGGREGATES>" << std::flush;
+				prompt << "\n<AGGREGATES>";
+				TaggedAmountPtrs not_aggregated_ta_ptrs{model->selected_date_ordered_tagged_amounts.begin(),model->selected_date_ordered_tagged_amounts.end()};
+				int count{};
+				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
+					std::cout << "\n" << ta_ptr << std::flush;
+					prompt << "\n" << ta_ptr;
+					if (auto members_value = ta_ptr->tag_value("members")) {
+						auto members = Key::Path{*members_value};
+						if (auto instance_ids = to_instance_ids(members)) {
+							std::cout << "\n\t<members>" << std::flush;
+							prompt << "\n\t<members>";
+							if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
+								std::cout << "\n" << count++ << std::flush;
+								for (auto const& ta_ptr : *ta_ptrs) {
+									std::cout << "\n" << count++ << std::flush;
+									prompt << "\n\t" << ta_ptr;
+									std::cout << "\n" << count++ << std::flush;
+									auto iter = std::ranges::find_if(
+										not_aggregated_ta_ptrs
+										,[&count,ta_ptr1 = ta_ptr](auto const& ta_ptr2) {
+											return false;
+											std::cout << "\nlambda " << count++ << std::flush;
+											if (ta_ptr2) return (ta_ptr1->instance_id() == ta_ptr2->instance_id());
+											std::cout << "\nlambda detected null pointer! " << count++ << std::flush;
+											return false;
+										}
+									);
+									if (iter != not_aggregated_ta_ptrs.end()) not_aggregated_ta_ptrs.erase(iter);
+								}
+								std::cout << "\nB" << count++ << std::flush;
+							}
+							std::cout << "\nB" << count++ << std::flush;
+						}
+						std::cout << "\nB" << count++ << std::flush;
+					}
+					std::cout << "\nB" << count++ << std::flush;
+				}
+				std::cout << "\nB" << count++ << std::flush;
 			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
 				prompt << "\nSorry, Identifying todos on tagged amounts not yet implemented";
