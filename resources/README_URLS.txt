@@ -27,3 +27,14 @@ file: resources/Kontoplan-2022.xlsx
 	URL: https://www.bas.se/kontoplaner/
 	These are BAS account plan 2022 in excel
 	The CSV-file was created in macOS by exporting from Numbers
+
+file: resources/INK2_19-P1-exkl-version-2.csv
+file: resources/INK2_19-P1-exkl-version-2.xls
+file: resources/INK2_19_P1-intervall-vers-2.csv
+file: resources/INK2_19_P1-intervall-vers-2.xls
+	URL: https://www.bas.se/kontoplaner/sru/
+	These are mapping between SKV SRU-codes and BAS accounts
+	for INK2 Income TAX Return.
+	The csv-files are exported from macOS Numbers from correspodning xls-file.
+	File resources/INK2_19_P1-intervall-vers-2.csv us easier to parse for an algorithm
+	as BAS accounts are givven in explicit intervals.
