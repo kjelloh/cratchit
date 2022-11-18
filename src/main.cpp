@@ -8932,7 +8932,10 @@ public:
 			else if (ast[0] == "-") {
 				model->prompt_state = PromptState::Root;
 			}
-			else if (ast[0] == "-ar") {
+			else if (ast[0] == "-plain_ar") {
+				
+			}
+			else if (ast[0] == "-doc_ar") {
 				// Assume the user wants to generate an annual report
 				// ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
 				doc::Document annual_report_financial_statements_approval{};
