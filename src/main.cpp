@@ -189,6 +189,15 @@ std::string filtered(std::string const& s,auto filter) {
 }
 
 namespace tokenize {
+
+	bool contains(std::string const& key,std::string const& s) {
+		return (s.find(key) != std::string::npos);
+	}
+
+	bool starts_with(std::string const& key,std::string const& s) {
+		return s.starts_with(key);
+	}
+
 	// returns s split into first,second on provided delimiter delim.
 	// split fail returns first = "" and second = s
 	std::pair<std::string,std::string> split(std::string s,char delim) {
@@ -11252,6 +11261,43 @@ Fält: Upplupna kostnader och förutbetalda intäkter)"}; // bas_2022_mapping_to
 			// A test function to parse the bas_2022_mapping_to_k2_ar_text
 			void parse(char const* bas_2022_mapping_to_k2_ar_text) {
 				std::cout << "\nTODO: Implement BAS::K2::AR";
+				/*				
+				R"(Resultaträkning
+				Konto 3000-3799
+
+				Fält: Nettoomsättning
+				Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter.
+				Konto 3800-3899
+
+				Fält: Aktiverat arbete för egen räkning
+				Beskrivning: Kostnader för eget arbete där resultatet av arbetet tas upp som en tillgång i balansräkningen.
+				Konto 3900-3999
+
+				Fält: Övriga rörelseintäkter
+				Beskrivning: Intäkter genererade utanför företagets ordinarie verksamhet, t.ex. valutakursvinster eller realisationsvinster.
+				Konto 4000-4799 eller 4910-4931
+				*/
+
+				std::istringstream in{bas_2022_mapping_to_k2_ar_text};
+				std::string word{};		
+				std::optional<std::string> account{};
+				std::optional<std::string> field{};
+				std::optional<std::string> description{};
+				while (in >> word) {
+					if (word=="Konto") {
+						std::cout << "\n=====================";
+						std::cout << "\n" << std::quoted(word);
+					}
+					else if (word=="Fält:") {
+						std::cout << "\n" << std::quoted(word);
+					}
+					else if (word=="Beskrivning:") {
+						std::cout << "\n" << std::quoted(word);
+					}
+					else {
+						std::cout << "\n\t" << std::quoted(word);
+					}
+				}
 			}
 
 		} // namespace BAS::K2::AR
