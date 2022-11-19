@@ -10893,6 +10893,16 @@ Blad3: Table 1
 
 			void parse(char const* INK2_19_P1_intervall_vers_2_csv) {
 				std::cout << "\nTODO: Implement BAS::SRU::INK2::parse";
+				std::istringstream in{INK2_19_P1_intervall_vers_2_csv};
+				std::string row{};		
+				while (std::getline(in,row)) {
+					Key::Path tokens{row,';'};
+					std::cout << "\n------------------";
+					int index{};
+					for (auto const& token : tokens) {
+						std::cout << "\n\t" << index++ << ":" << std::quoted(token);
+					}
+				}
 			}
 
 
