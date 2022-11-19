@@ -31,6 +31,42 @@ float const VERSION = 0.5;
 #include <set>
 
 #include <ranges>
+
+// Forward declaration of data and members of namespaces
+namespace SKV::SRU::INK1 {
+	extern const char* ink1_csv_to_sru_template;
+	extern const char* k10_csv_to_sru_template;
+}
+namespace SKV::SRU::INK2 {
+	extern const char* INK2_csv_to_sru_template;
+	extern const char* INK2S_csv_to_sru_template;
+	extern const char* INK2R_csv_to_sru_template;
+}
+
+namespace BAS::SRU::INK2 {
+	extern char const* INK2_19_P1_intervall_vers_2_csv;
+	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
+}
+
+namespace BAS::SRU {
+}
+namespace BAS::K2::AR {
+	extern char const* bas_2022_mapping_to_k2_ar_text;
+	void parse(char const* bas_2022_mapping_to_k2_ar_text);
+}
+namespace BAS {
+	extern char const* bas_2022_account_plan_csv;
+}
+namespace SKV::XML {
+	using XMLMap = std::map<std::string,std::string>;
+}
+namespace SKV::XML::TAXReturns {
+	extern SKV::XML::XMLMap tax_returns_template; // See bottom of this file
+}
+namespace SKV::XML::VATReturns {
+	extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
+}
+
  
 void test_ranges_support()
 {
@@ -640,17 +676,6 @@ std::optional<unsigned int> to_four_digit_positive_int(std::string const& s) {
 
 namespace SKV {
 	namespace SRU {
-
-		namespace INK1 {
-			extern const char* ink1_csv_to_sru_template;
-			extern const char* k10_csv_to_sru_template;
-		}
-
-		namespace INK2 {
-			extern const char* INK2_csv_to_sru_template;
-			extern const char* INK2S_csv_to_sru_template;
-			extern const char* INK2R_csv_to_sru_template;
-		}
 
 		using AccountNo = unsigned int;
 		using OptionalAccountNo = std::optional<AccountNo>;
@@ -1404,8 +1429,6 @@ namespace BAS {
 	// a profit and loss statement (resultaträkning)
 	// a balance sheet (balansräkning)
 	// notes (noter).	
-
-	extern char const* bas_2022_account_plan_csv; // See bottom of this file
 
 	namespace detail {
 		// "hidden" poor mans singleton instance creation
@@ -4485,7 +4508,7 @@ BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vecto
 
 // SKV Electronic API (file formats for upload)
 
-namespace SKV {
+namespace SKV { // SKV
 
 	int to_tax(Amount amount) {return std::trunc(amount);} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
 	int to_fee(Amount amount) {return std::trunc(amount);} 
@@ -4533,7 +4556,7 @@ namespace SKV {
 	};
 	using OptionalOrganisationMeta = std::optional<OrganisationMeta>;
 
-	namespace SRU {
+	namespace SRU { // SKV::SRU
 
 		struct OStream {
 			std::ostream& os;
@@ -4772,7 +4795,7 @@ namespace SKV {
 			return os;
 		}
 
-		namespace K10 {
+		namespace K10 { // SKV::SRU::K10
 
 			OptionalFilesMapping to_files_mapping() {
 				OptionalFilesMapping result{};
@@ -4791,10 +4814,10 @@ namespace SKV {
 				return result;
 			}
 
-		}
-	} // namespace SRU
+		} // namespace // SKV::SRU::K10
+	} // namespace // SKV::SRU
 
-	namespace XML {
+	namespace XML { // SKV::XML
 
 		struct DeclarationMeta {
 			std::string creation_date_and_time{}; // e.g.,2021-01-30T07:42:25
@@ -4807,14 +4830,7 @@ namespace SKV {
 			Amount paid_employer_fee{};
 			Amount paid_tax{};
 		};
-
 		using TaxDeclarations = std::vector<TaxDeclaration>;
-
-		using XMLMap = std::map<std::string,std::string>;
-
-		namespace TAXReturns {
-			extern SKV::XML::XMLMap tax_returns_template; // See bottom of this file
-		}
 
 		std::string to_12_digit_orgno(std::string generic_org_no) {
 			std::string result{};
@@ -4996,9 +5012,7 @@ namespace SKV {
 			return static_cast<bool>(os);
 		}
 
-		namespace VATReturns {
-
-			extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
+		namespace VATReturns { // SKV::XML::VATReturns
 
 			// An example provided by Swedish Tax Agency at https://www.skatteverket.se/download/18.3f4496fd14864cc5ac99cb2/1415022111801/momsexempel_v6.txt
 			auto eskd_template_0 = R"(<?xml version="1.0" encoding="ISO-8859-1"?>
@@ -8938,44 +8952,25 @@ public:
 				// So BAS::K2::bas_2022_mapping_to_k2_ar_text maps AR <--> BAS
 				// So we can use it to accumulate saldos for AR fields from the specified BAS accounts over the fiscal year
 
-				struct ARField {
-					std::string heading;
-					std::string description;
-				};
 
-				struct BASRange {
-					BASAccountNo begin,end;
-				};
+				// Create tagged amounts that aggregates BAS Accounts to a saldo and AR=<AR Field ID> ARTEXT=<AR Field Heading> ARCOMMENT=<AR Field Description>
+				// and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
 
-				using BASRanges = std::vector<BASRange>;
-
-				using ARFieldToBASRangesMap = std::map<ARField,BASRanges>;
-
-				ARFieldToBASRangesMap ar_field_to_bas_ranges_map{};
+				BAS::K2::AR::parse(BAS::K2::AR::bas_2022_mapping_to_k2_ar_text);
 
 			}
-			else if (ast[0] == "-plain_tax_return") {
+			else if (ast[0] == "-plain_ink2") {
 				// SKV Tax return according to K2 rules (plain text)
 				// 
 
-				// Parse SRU::SKV::INK2_19_P1_intervall_vers_2_csv to get a mapping between SRU Codes and field designations on SKV TAX Return and BAS Account ranges
+				// Parse BAS::SRU::INK2_19_P1_intervall_vers_2_csv to get a mapping between SRU Codes and field designations on SKV TAX Return and BAS Account ranges
 				// From https://www.bas.se/kontoplaner/sru/
 				// Also in resources/INK2_19_P1-intervall-vers-2.csv
 
-				struct TaxReturnField {
-					SKV::SRU::AccountNo sru;
-					std::string designation; // E.g. "2.1"..
-				};
+				// Create tagged amounts that aggregates BAS Accounts to a saldo and SRU=<SRU code> TAX_RETURN_ID=<SKV Tax Return form box id>
+				// and the aggregates BAS accounts to accumulate for this Tax Return Field Saldo - members=id;id;id;... 
 
-				struct BASRange {
-					BASAccountNo begin,end;
-				};
-
-				using BASRanges = std::vector<BASRange>;
-
-				using TaxReturnFieldToBASRangesMap = std::map<TaxReturnField,BASRanges>;
-
-				TaxReturnFieldToBASRangesMap tax_return_field_to_bas_ranges_map{};
+				BAS::SRU::INK2::parse(BAS::SRU::INK2::INK2_19_P1_intervall_vers_2_csv);
 
 			}
 			else if (ast[0] == "-doc_ar") {
@@ -9964,9 +9959,9 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-namespace SKV {
-	namespace XML {
-		namespace VATReturns {
+namespace SKV { // SKV
+	namespace XML { // SKV::XML
+		namespace VATReturns { // SKV::XML::VATReturns
 // Mapping between BAS Account numbers and VAT Returns form designation codes (SRU Codes as "bonus")
 char const* ACCOUNT_VAT_CSV = R"(KONTO;BENÄMNING;MOMSKOD (MOMSRUTA);SRU
 3305;Försäljning tjänster till land utanför EU;ÖTEU (40);7410
@@ -10350,6 +10345,7 @@ namespace SKV {
 			};
 		} // namespace TAXReturns
 	} // namespace XML
+
 	namespace SRU {
 		namespace INK1 {
 			const char* ink1_csv_to_sru_template = R"(Fältnamn på INK1_SKV2000-31-02-0021-01;;;;;
@@ -10733,9 +10729,9 @@ Räkenskapsårets slut;7012;Datum_D;N;;
 	} // namespace SRU
 } // namespace SKV
 
-namespace BAS {
+namespace BAS { // BAS
 
-	namespace SRU {
+	namespace SRU { // BAS::SRU
 
 		//  From file resources/INK2_19_P1-intervall-vers-2.csv
 		// 	URL: https://www.bas.se/kontoplaner/sru/
@@ -10745,7 +10741,8 @@ namespace BAS {
 		// 	File resources/INK2_19_P1-intervall-vers-2.csv us easier to parse for an algorithm
 		// 	as BAS accounts are givven in explicit intervals.
 
-		char const* INK2_19_P1_intervall_vers_2_csv{R"(Blad1: Table 1
+		namespace INK2 { // BAS::SRU::INK2
+			char const* INK2_19_P1_intervall_vers_2_csv{R"(Blad1: Table 1
 2018;;Inkomstdeklaration 2;2019 P1;;;;;
 ;;  ;;;;;;
 ;;;;;;;;
@@ -10885,12 +10882,23 @@ Blad3: Table 1
 ;;;;
 )"}; // char const* INK2_19_P1_intervall_vers_2_csv
 
-	} // namespace SRU
+			void parse(char const* INK2_19_P1_intervall_vers_2_csv) {
+				std::cout << "\nTODO: Implement BAS::SRU::INK2::parse";
+			}
 
-	namespace K2 {
-		// From https://www.arsredovisning-online.se/bas_kontoplan as of 221118
-		// This text defines mapping between fields on the Swedish TAX Return form and ranges of BAS Accounts 
-		char const* bas_2022_mapping_to_k2_ar_text{R"(Resultaträkning
+
+		} // BAS::SRU::INK2
+
+	} // BAS::SRU
+
+	namespace K2 { // BAS::K2
+
+		namespace AR { // BAS::K2::AR
+			// A namespace for Swedish Bolagsverket "Årsredovisning" according to K2 rules
+
+			// From https://www.arsredovisning-online.se/bas_kontoplan as of 221118
+			// This text defines mapping between fields on the Swedish TAX Return form and ranges of BAS Accounts 
+			char const* bas_2022_mapping_to_k2_ar_text{R"(Resultaträkning
 Konto 3000-3799
 
 Fält: Nettoomsättning
@@ -11239,8 +11247,15 @@ Konto 2500-2599
 Fält: Skatteskulder
 Konto 2900-2999
 
-Fält: Upplupna kostnader och förutbetalda intäkter)"};
-	}
+Fält: Upplupna kostnader och förutbetalda intäkter)"}; // bas_2022_mapping_to_k2_ar_text
+
+			// A test function to parse the bas_2022_mapping_to_k2_ar_text
+			void parse(char const* bas_2022_mapping_to_k2_ar_text) {
+				std::cout << "\nTODO: Implement BAS::K2::AR";
+			}
+
+		} // namespace BAS::K2::AR
+	} // namespace BAS::K2
 
 	// The following string literal is the "raw" output of:
 	// 1) In macOS Numbers opening excel file downloaded from https://www.bas.se/kontoplaner/
