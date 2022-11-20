@@ -380,9 +380,29 @@ namespace BAS::SRU {
 namespace BAS::K2::AR {
 	extern char const* bas_2022_mapping_to_k2_ar_text;
 	// A test function to parse the bas_2022_mapping_to_k2_ar_text
-	void parse(char const* bas_2022_mapping_to_k2_ar_text) {
-		std::cout << "\nTODO: Implement BAS::K2::AR";
 
+	using BASAccountNo = int; // To make compile at this location in source (TODO: remove when placed at final location = use actual BasAccountNo declaration)
+
+	struct AREntry {
+		AREntry( std::string const& bas_accounts_text
+						,std::string const& field_heading_text
+						,std::optional<std::string> field_description = std::nullopt)
+			:  m_bas_accounts_text{bas_accounts_text}
+				,m_field_heading_text{field_heading_text}
+				,m_field_description{field_description} {}
+		std::string m_bas_accounts_text;
+		std::string m_field_heading_text;
+		std::optional<std::string> m_field_description;
+		bool accumulate_this_bas_account(BASAccountNo account_no) {
+			// Return true if provided BAS account number matches the semantics of m_bas_accounts_text.
+			std::cerr << "\nTODO: Implement AREntry::accumulate_this_bas_account (match account_no:" << account_no << " to m_bas_accounts_text:" << std::quoted(m_bas_accounts_text);
+			return false;
+		}
+	};
+	using AREntries = std::vector<AREntry>;
+
+	AREntries parse(char const* bas_2022_mapping_to_k2_ar_text) {
+		AREntries result{};
 		// Snippet from the text file to parse
 		/*				
 		R"(Resultaträkning
@@ -445,31 +465,9 @@ namespace BAS::K2::AR {
 
 		};
 
-		using BASAccountNo = int; // To make compile at test location in source (TODO: remove when placed at final location)
-
-		struct AREntry {
-			AREntry( std::string const& bas_accounts_text
-			        ,std::string const& field_heading_text
-							,std::optional<std::string> field_description = std::nullopt)
-				:  m_bas_accounts_text{bas_accounts_text}
-				  ,m_field_heading_text{field_heading_text}
-					,m_field_description{field_description} {}
-			std::string m_bas_accounts_text;
-			std::string m_field_heading_text;
-			std::optional<std::string> m_field_description;
-			bool accumulate_this_bas_account(BASAccountNo account_no) {
-				// Return true if provided BAS account number matches the semantics of m_bas_accounts_text.
-				std::cerr << "\nTODO: Implement AREntry::accumulate_this_bas_account (match account_no:" << account_no << " to m_bas_accounts_text:" << std::quoted(m_bas_accounts_text);
-				return false;
-			}
-		};
-		using AREntries = std::vector<AREntry>;
-
-
 		CashedEntry cached_entry{};
 
 		// Parse using plain c++ stream
-		AREntries result{};
 		std::istringstream in{bas_2022_mapping_to_k2_ar_text};
 		std::string line{};
 		while (std::getline(in,line)) {
@@ -538,7 +536,7 @@ namespace BAS::K2::AR {
 		std::cerr << "\nWARNING: If I have failed to parse bas_2022_mapping_to_k2_ar_text, I may generate an incorrect Annual Financial Statement (Swedish Årsredovisning)";
 		std::cerr << "\nNOTE: I parse bas_2022_mapping_to_k2_ar_text to create a mapping between BAS accounts and fields on the Annual Financial Statement (Swedish Årsredovisning)";
 #endif
-		
+		return result;
 	}
 }
 
@@ -3927,6 +3925,10 @@ public:
 			});
 		}
 		return result;
+	}
+
+	OptionalDateRange fiscal_year_date_range() {
+		return this->year_date_range;
 	}
 	
 private:
@@ -9189,7 +9191,31 @@ public:
 				// Create tagged amounts that aggregates BAS Accounts to a saldo and AR=<AR Field ID> ARTEXT=<AR Field Heading> ARCOMMENT=<AR Field Description>
 				// and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
 
-				BAS::K2::AR::parse(BAS::K2::AR::bas_2022_mapping_to_k2_ar_text);
+				auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::bas_2022_mapping_to_k2_ar_text);
+				auto fiscal_year_date_range = model->sie["-1"].fiscal_year_date_range();
+
+				if (fiscal_year_date_range) {
+					for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range)) {	
+						for (auto& ar_entry : ar_entries) {
+							if (ta_ptr->tags().contains("BAS")) {
+								if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
+									ar_entry.accumulate_this_bas_account(*bas_account_no);
+								}
+								else {
+									std::cerr << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta_ptr->tags().at("BAS");
+								}
+							}
+							else {
+								// skip, this tagged amount  is NOT a transaction to a BAS account
+							}
+						}
+					}				
+				}
+				else {
+					prompt << "\nSORRY, I seem to have lost track of last fiscal year first and last dates?";
+					prompt << "\nCheck that you have used the '-sie' command to import an sie file with that years data from another application?";
+				}
+
 
 			}
 			else if (ast[0] == "-plain_ink2") {
