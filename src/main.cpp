@@ -189,139 +189,6 @@ namespace parsers {
 // See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
 using parsers::operator<<;
 
-// Forward declaration of data and members of namespaces
-namespace SKV::SRU::INK1 {
-	extern const char* ink1_csv_to_sru_template;
-	extern const char* k10_csv_to_sru_template;
-}
-namespace SKV::SRU::INK2 {
-	extern const char* INK2_csv_to_sru_template;
-	extern const char* INK2S_csv_to_sru_template;
-	extern const char* INK2R_csv_to_sru_template;
-}
-
-namespace BAS::SRU::INK2 {
-	extern char const* INK2_19_P1_intervall_vers_2_csv;
-	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
-}
-
-namespace BAS::SRU {
-}
-namespace BAS::K2::AR {
-	extern char const* bas_2022_mapping_to_k2_ar_text;
-	// A test function to parse the bas_2022_mapping_to_k2_ar_text
-	void parse(char const* bas_2022_mapping_to_k2_ar_text) {
-		std::cout << "\nTODO: Implement BAS::K2::AR";
-
-		// Snippet from the text file to parse
-		/*				
-		R"(Resultaträkning
-		Konto 3000-3799
-
-		Fält: Nettoomsättning
-		Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter.
-		Konto 3800-3899
-
-		Fält: Aktiverat arbete för egen räkning
-		Beskrivning: Kostnader för eget arbete där resultatet av arbetet tas upp som en tillgång i balansräkningen.
-		Konto 3900-3999
-
-		Fält: Övriga rörelseintäkter
-		Beskrivning: Intäkter genererade utanför företagets ordinarie verksamhet, t.ex. valutakursvinster eller realisationsvinster.
-		Konto 4000-4799 eller 4910-4931
-		*/
-
-		// We are to parse:
-		// 1) First a line beginning with "Konto" into a string with the text that remains
-		//    E.g., "Konto 3000-3799" ==> OK "3000-3799"
-		// 2) Then a line beginning with "Fält:" into a string with the text that remains
-		//    E.g., "Fält: Nettoomsättning" ==> OK "Nettoomsättning"
-		// 3) Then an optional line beginning with "Beskrivning:" into a string with the text that remains
-		//    E.g., "Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter."
-		//          ==> OK "Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter."
-		// While doing this we shall:
-		// a) Skip any empty lines
-		// b) Transform remaining text in (1) into a list of BAS accounts
-		// c) Transform remaining text in (2) into a ARField = a Pair <ARFieldId,String> (a pair of an enumeration of the field with the field heading)
-		// d) Transform remaining text in optional (3) into a text <description>
-
-
-		// Can we do this with some seed to a parser combinator framework?
-		auto parse_line = parsers::parse_line{};
-		if (auto parse_result = parsers::parse(parse_line,bas_2022_mapping_to_k2_ar_text); parsers::is_success(parse_result)) {
-			std::cout << "\nParse OK " << parse_result;
-		}
-		else {
-			std::cout << "\nParse Failed " << parse_result;
-		}
-
-		std::istringstream in{bas_2022_mapping_to_k2_ar_text};
-		std::string word{};		
-		while (in >> word) {
-			if (word=="Konto") {
-				std::cout << "\n=====================";
-				std::cout << "\n" << std::quoted(word);
-			}
-			else if (word=="Fält:") {
-				std::cout << "\n" << std::quoted(word);
-			}
-			else if (word=="Beskrivning:") {
-				std::cout << "\n" << std::quoted(word);
-			}
-			else {
-				std::cout << "\n\t" << std::quoted(word);
-			}
-		}
-	}
-}
-
-namespace BAS {
-	extern char const* bas_2022_account_plan_csv;
-}
-namespace SKV::XML {
-	using XMLMap = std::map<std::string,std::string>;
-}
-namespace SKV::XML::TAXReturns {
-	extern SKV::XML::XMLMap tax_returns_template; // See bottom of this file
-}
-namespace SKV::XML::VATReturns {
-	extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
-}
-
-template <typename I>
-std::vector<std::pair<I,I>> to_ranges(std::vector<I> line_nos) {
-	std::vector<std::pair<I,I>> result{};
-	if (line_nos.size()>0) {
-		I begin{line_nos[0]}; 
-		I previous{begin};
-		for (auto line_ix : line_nos) {
-			if (line_ix > previous+1) {
-				// Broken sequence - push previous one
-				result.push_back({begin,previous});
-				begin = line_ix;
-			}
-			previous = line_ix;
-		}
-		if (previous > begin) result.push_back({begin,previous});
-	}
-	return result;
-}
-
-template <typename I>
-std::ostream& operator<<(std::ostream& os,std::vector<std::pair<I,I>> const& rr) {
-	for (auto const& r : rr) {
-		if (r.first == r.second) os << " " << r.first;
-		else os << " [" << r.first << ".." << r.second << "]";
-	}
-	return os;
-}
-
-std::string filtered(std::string const& s,auto filter) {
-	std::string result{};;
-	std::copy_if(s.begin(),s.end(),std::back_inserter(result),filter);
-	return result;
-}
-
 namespace tokenize {
 
 	bool contains(std::string const& key,std::string const& s) {
@@ -330,6 +197,16 @@ namespace tokenize {
 
 	bool starts_with(std::string const& key,std::string const& s) {
 		return s.starts_with(key);
+	}
+
+	std::string without_front_word(std::string const& s) {
+		std::string result{s};
+		std::istringstream in{s};
+		std::string word{};
+		if (in >> word) {
+			std::getline(in,result);
+		}
+		return result;
 	}
 
 	// returns s split into first,second on provided delimiter delim.
@@ -481,6 +358,237 @@ namespace tokenize {
 		return result;
 	}
 } // namespace tokenize
+
+// Forward declaration of data and members of namespaces
+namespace SKV::SRU::INK1 {
+	extern const char* ink1_csv_to_sru_template;
+	extern const char* k10_csv_to_sru_template;
+}
+namespace SKV::SRU::INK2 {
+	extern const char* INK2_csv_to_sru_template;
+	extern const char* INK2S_csv_to_sru_template;
+	extern const char* INK2R_csv_to_sru_template;
+}
+
+namespace BAS::SRU::INK2 {
+	extern char const* INK2_19_P1_intervall_vers_2_csv;
+	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
+}
+
+namespace BAS::SRU {
+}
+namespace BAS::K2::AR {
+	extern char const* bas_2022_mapping_to_k2_ar_text;
+	// A test function to parse the bas_2022_mapping_to_k2_ar_text
+	void parse(char const* bas_2022_mapping_to_k2_ar_text) {
+		std::cout << "\nTODO: Implement BAS::K2::AR";
+
+		// Snippet from the text file to parse
+		/*				
+		R"(Resultaträkning
+		Konto 3000-3799
+
+		Fält: Nettoomsättning
+		Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter.
+		Konto 3800-3899
+
+		Fält: Aktiverat arbete för egen räkning
+		Beskrivning: Kostnader för eget arbete där resultatet av arbetet tas upp som en tillgång i balansräkningen.
+		Konto 3900-3999
+
+		Fält: Övriga rörelseintäkter
+		Beskrivning: Intäkter genererade utanför företagets ordinarie verksamhet, t.ex. valutakursvinster eller realisationsvinster.
+		Konto 4000-4799 eller 4910-4931
+		*/
+
+		// We are to parse:
+		// 1) First a line beginning with "Konto" into a string with the text that remains
+		//    E.g., "Konto 3000-3799" ==> OK "3000-3799"
+		// 2) Then a line beginning with "Fält:" into a string with the text that remains
+		//    E.g., "Fält: Nettoomsättning" ==> OK "Nettoomsättning"
+		// 3) Then an optional line beginning with "Beskrivning:" into a string with the text that remains
+		//    E.g., "Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter."
+		//          ==> OK "Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter."
+		// While doing this we shall:
+		// a) Skip any empty lines
+		// b) Transform remaining text in (1) into a list of BAS accounts
+		// c) Transform remaining text in (2) into a ARField = a Pair <ARFieldId,String> (a pair of an enumeration of the field with the field heading)
+		// d) Transform remaining text in optional (3) into a text <description>
+
+
+		// Can we do this with some seed to a parser combinator framework?
+		// auto parse_line = parsers::parse_line{};
+		// if (auto parse_result = parsers::parse(parse_line,bas_2022_mapping_to_k2_ar_text); parsers::is_success(parse_result)) {
+		// 	std::cout << "\nParse OK " << parse_result;
+		// }
+		// else {
+		// 	std::cout << "\nParse Failed " << parse_result;
+		// }
+
+		struct CashedEntry {
+			std::optional<std::string> bas_accounts{};
+			std::optional<std::string> field_heading{};
+			std::optional<std::string> field_description{};
+			std::string to_string() const {
+				std::ostringstream out{};
+				out << "\n\tbas_accounts:";
+				if (bas_accounts) out << std::quoted(*bas_accounts);
+				else out << "null";
+				out << "\n\tfield_heading:";
+				if (field_heading) out << std::quoted(*field_heading);
+				else out << "null";
+				out << "\n\tfield_description:";
+				if (field_description) out << std::quoted(*field_description);
+				else out << "null";
+				return out.str();
+			}
+
+		};
+
+		using BASAccountNo = int; // To make compile at test location in source (TODO: remove when placed at final location)
+
+		struct AREntry {
+			AREntry( std::string const& bas_accounts_text
+			        ,std::string const& field_heading_text
+							,std::optional<std::string> field_description = std::nullopt)
+				:  m_bas_accounts_text{bas_accounts_text}
+				  ,m_field_heading_text{field_heading_text}
+					,m_field_description{field_description} {}
+			std::string m_bas_accounts_text;
+			std::string m_field_heading_text;
+			std::optional<std::string> m_field_description;
+			bool accumulate_this_bas_account(BASAccountNo account_no) {
+				// Return true if provided BAS account number matches the semantics of m_bas_accounts_text.
+				std::cerr << "\nTODO: Implement AREntry::accumulate_this_bas_account (match account_no:" << account_no << " to m_bas_accounts_text:" << std::quoted(m_bas_accounts_text);
+				return false;
+			}
+		};
+		using AREntries = std::vector<AREntry>;
+
+
+		CashedEntry cached_entry{};
+
+		// Parse using plain c++ stream
+		AREntries result{};
+		std::istringstream in{bas_2022_mapping_to_k2_ar_text};
+		std::string line{};
+		while (std::getline(in,line)) {
+			if (tokenize::starts_with("Konto",line)) {
+				// std::cout << "\n=====================";
+				// std::cout << "\n\t" << std::quoted(line);
+				{
+					// Check the cache
+					std::cout << cached_entry.to_string();
+					if (cached_entry.bas_accounts and cached_entry.field_heading) {
+						std::cout << " ==> OK!";
+						result.push_back(AREntry{*cached_entry.bas_accounts,*cached_entry.field_heading,cached_entry.field_description});
+					}
+					else {
+						std::cout << "// Skipped ";
+					}
+				}
+				cached_entry = CashedEntry{}; // new entry / reset
+				cached_entry.bas_accounts = tokenize::without_front_word(line);
+			}
+			else if (tokenize::starts_with("Fält:",line)) {
+				// std::cout << "\n\t" << std::quoted(line);
+				cached_entry.field_heading = tokenize::without_front_word(line);
+			}
+			else if (tokenize::starts_with("Beskrivning:",line)) {
+				// std::cout << "\n\t" << std::quoted(line);
+				cached_entry.field_description = tokenize::without_front_word(line);
+			}
+			else {
+				std::cout << "\n// " << std::quoted(line);
+			}
+		}
+		// Ensure we capture also the last one (NOT triggered by a new lint with "Konto" in it) ;)
+		if (cached_entry.bas_accounts and cached_entry.field_heading) {
+			std::cout << " ==> OK!";
+			result.push_back(AREntry{*cached_entry.bas_accounts,*cached_entry.field_heading,cached_entry.field_description});
+		}
+		else {
+			std::cout << "// Skipped ";
+		}
+		if (true) {
+			std::cout << "\nParsed Entries {";
+			std::cout << "\n  From listing at URL:https://www.arsredovisning-online.se/bas_kontoplan as of 221118";
+			int index{};
+			for (auto const& entry : result) {
+				std::cout << "\n  [" << index++ << "]"; 
+				std::cout << " m_bas_accounts_text:" << std::quoted(entry.m_bas_accounts_text);
+				std::cout << "\n        m_field_heading_text:" << std::quoted(entry.m_field_heading_text);
+				std::cout << "\n        m_field_description:";
+				if (entry.m_field_description) std::cout << std::quoted(*entry.m_field_description);
+				else std::cout << " - ";
+			}
+			std::cout << "\n} // Parsed Entries";
+		}
+
+	#if (__cpp_lib_ranges >= 201911L) // clang libstdc++ (experimental in clang15) does not support std::ranges::istream_view
+		// Check that we parsed all entries correct
+		std::istringstream words{bas_2022_mapping_to_k2_ar_text};
+		auto count = std::ranges::count_if(std::ranges::istream_view<std::string>(words), [](std::string const& word) {return word == "Konto";});
+		std::cout << "\nCount of 'Konto' in source text:" << count << " and parsed entry count is:" << result.size();
+		if (count == result.size()) std::cout << " ==> OK!";
+		else std::cout << " ** ERROR (must be equal = all must be parsed) **";
+#else
+		// Warn that we have no code to check the input / parsed result correctness
+		std::cerr << "\nWARNING: I Failed to check parse result of input bas_2022_mapping_to_k2_ar_text (Because this code is compiled with a compiler that does not support std::ranges)";
+		std::cerr << "\nWARNING: If I have failed to parse bas_2022_mapping_to_k2_ar_text, I may generate an incorrect Annual Financial Statement (Swedish Årsredovisning)";
+		std::cerr << "\nNOTE: I parse bas_2022_mapping_to_k2_ar_text to create a mapping between BAS accounts and fields on the Annual Financial Statement (Swedish Årsredovisning)";
+#endif
+		
+	}
+}
+
+namespace BAS {
+	extern char const* bas_2022_account_plan_csv;
+}
+namespace SKV::XML {
+	using XMLMap = std::map<std::string,std::string>;
+}
+namespace SKV::XML::TAXReturns {
+	extern SKV::XML::XMLMap tax_returns_template; // See bottom of this file
+}
+namespace SKV::XML::VATReturns {
+	extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
+}
+
+template <typename I>
+std::vector<std::pair<I,I>> to_ranges(std::vector<I> line_nos) {
+	std::vector<std::pair<I,I>> result{};
+	if (line_nos.size()>0) {
+		I begin{line_nos[0]}; 
+		I previous{begin};
+		for (auto line_ix : line_nos) {
+			if (line_ix > previous+1) {
+				// Broken sequence - push previous one
+				result.push_back({begin,previous});
+				begin = line_ix;
+			}
+			previous = line_ix;
+		}
+		if (previous > begin) result.push_back({begin,previous});
+	}
+	return result;
+}
+
+template <typename I>
+std::ostream& operator<<(std::ostream& os,std::vector<std::pair<I,I>> const& rr) {
+	for (auto const& r : rr) {
+		if (r.first == r.second) os << " " << r.first;
+		else os << " [" << r.first << ".." << r.second << "]";
+	}
+	return os;
+}
+
+std::string filtered(std::string const& s,auto filter) {
+	std::string result{};;
+	std::copy_if(s.begin(),s.end(),std::back_inserter(result),filter);
+	return result;
+}
+
 
 namespace Key {
 		class Path {
