@@ -10,14 +10,7 @@ float const VERSION = 0.5;
 #include <vector>
 #include <optional>
 #include <string_view>
-
-#if __has_include(<filesystem>)
 #	include <filesystem>
-#elif __has_include(<experimental/filesystem>)
-#  include <experimental/filesystem>
-#  error DESIGN INSUFFICIENCY <experimental/filesystem>
-#endif
-
 #include <fstream>
 #include <algorithm>
 #include <random>
@@ -29,45 +22,8 @@ float const VERSION = 0.5;
 #include <numeric>
 #include <functional>
 #include <set>
+#include <ranges> // requires c++ compiler with c++20 support
 
-#include <ranges>
-
-// Forward declaration of data and members of namespaces
-namespace SKV::SRU::INK1 {
-	extern const char* ink1_csv_to_sru_template;
-	extern const char* k10_csv_to_sru_template;
-}
-namespace SKV::SRU::INK2 {
-	extern const char* INK2_csv_to_sru_template;
-	extern const char* INK2S_csv_to_sru_template;
-	extern const char* INK2R_csv_to_sru_template;
-}
-
-namespace BAS::SRU::INK2 {
-	extern char const* INK2_19_P1_intervall_vers_2_csv;
-	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
-}
-
-namespace BAS::SRU {
-}
-namespace BAS::K2::AR {
-	extern char const* bas_2022_mapping_to_k2_ar_text;
-	void parse(char const* bas_2022_mapping_to_k2_ar_text);
-}
-namespace BAS {
-	extern char const* bas_2022_account_plan_csv;
-}
-namespace SKV::XML {
-	using XMLMap = std::map<std::string,std::string>;
-}
-namespace SKV::XML::TAXReturns {
-	extern SKV::XML::XMLMap tax_returns_template; // See bottom of this file
-}
-namespace SKV::XML::VATReturns {
-	extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
-}
-
- 
 void test_ranges_support()
 {
     auto const ints = {0,1,2,3,4,5};
@@ -153,6 +109,184 @@ void test_ranges_support()
     //         "intelliSenseMode": "macos-gcc-x64"
     //     }
     // ],
+
+
+namespace parsers {
+	
+	enum class ResultEnumeration {
+		Undefined
+		,OK
+		,Failed
+		,Unknown
+	};
+
+	using StringToParse = std::string_view;
+
+	struct single_parse_result {
+		ResultEnumeration enumeration;
+		StringToParse unparsed;
+	};
+
+	using ParseResult = std::vector<single_parse_result>;
+
+	struct Parser {
+		virtual ParseResult operator()(StringToParse const& string_to_parse) const = 0;
+	};
+
+	struct parse_line : public Parser {
+		ParseResult operator()(StringToParse const& string_to_parse) const {
+			ParseResult result{1,single_parse_result{ResultEnumeration::Failed,string_to_parse}};
+			return result;
+		}
+	};
+
+	static ParseResult parse(Parser const& parser,StringToParse const& string_to_parse) {
+		return parser(string_to_parse);
+	}
+
+	static bool is_success(ParseResult const& parse_result) {
+		return std::ranges::any_of(parse_result,[](single_parse_result const& pr){
+			return pr.enumeration == ResultEnumeration::OK;
+		});
+	}
+
+	std::ostream& operator<<(std::ostream& os, ResultEnumeration re) {
+		switch (re) {
+			case ResultEnumeration::Undefined: os << "Undefined"; break;
+			case ResultEnumeration::OK: os << "OK"; break;
+			case ResultEnumeration::Failed: os << "Failed"; break;
+			case ResultEnumeration::Unknown: os << "Unknown"; break;
+		}
+		return os;
+	}
+
+	std::ostream& operator<<(std::ostream& os, single_parse_result const& single_result) {
+		const int INDEX_LIMIT = 8; // output index 0 .. INDEX_LIMIT-1
+		os << "\n\t" << single_result.enumeration;
+		os << " unparsed:'";
+		for (int i=0;i<INDEX_LIMIT;i++) {
+			if (i+1<single_result.unparsed.size()) {
+				os << single_result.unparsed[i];
+			}
+			else os << '.';
+		}
+		if (single_result.unparsed.size() >= INDEX_LIMIT) {
+			os << "...";
+		}
+		os << "'";
+		return os;
+	}
+
+	std::ostream& operator<<(std::ostream& os, ParseResult const& parse_result) {
+		for (auto const& single_result : parse_result) {
+			os << "\n\t" << single_result;
+		}
+		return os;
+	}
+
+} // namespace parsers
+// expose operator<< for type alias ParseResult, which being an std::vector template is causing compiler to consider all std::operator<< in std and not in the one in namespace parsers
+// See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
+using parsers::operator<<;
+
+// Forward declaration of data and members of namespaces
+namespace SKV::SRU::INK1 {
+	extern const char* ink1_csv_to_sru_template;
+	extern const char* k10_csv_to_sru_template;
+}
+namespace SKV::SRU::INK2 {
+	extern const char* INK2_csv_to_sru_template;
+	extern const char* INK2S_csv_to_sru_template;
+	extern const char* INK2R_csv_to_sru_template;
+}
+
+namespace BAS::SRU::INK2 {
+	extern char const* INK2_19_P1_intervall_vers_2_csv;
+	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
+}
+
+namespace BAS::SRU {
+}
+namespace BAS::K2::AR {
+	extern char const* bas_2022_mapping_to_k2_ar_text;
+	// A test function to parse the bas_2022_mapping_to_k2_ar_text
+	void parse(char const* bas_2022_mapping_to_k2_ar_text) {
+		std::cout << "\nTODO: Implement BAS::K2::AR";
+
+		// Snippet from the text file to parse
+		/*				
+		R"(Resultaträkning
+		Konto 3000-3799
+
+		Fält: Nettoomsättning
+		Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter.
+		Konto 3800-3899
+
+		Fält: Aktiverat arbete för egen räkning
+		Beskrivning: Kostnader för eget arbete där resultatet av arbetet tas upp som en tillgång i balansräkningen.
+		Konto 3900-3999
+
+		Fält: Övriga rörelseintäkter
+		Beskrivning: Intäkter genererade utanför företagets ordinarie verksamhet, t.ex. valutakursvinster eller realisationsvinster.
+		Konto 4000-4799 eller 4910-4931
+		*/
+
+		// We are to parse:
+		// 1) First a line beginning with "Konto" into a string with the text that remains
+		//    E.g., "Konto 3000-3799" ==> OK "3000-3799"
+		// 2) Then a line beginning with "Fält:" into a string with the text that remains
+		//    E.g., "Fält: Nettoomsättning" ==> OK "Nettoomsättning"
+		// 3) Then an optional line beginning with "Beskrivning:" into a string with the text that remains
+		//    E.g., "Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter."
+		//          ==> OK "Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter."
+		// While doing this we shall:
+		// a) Skip any empty lines
+		// b) Transform remaining text in (1) into a list of BAS accounts
+		// c) Transform remaining text in (2) into a ARField = a Pair <ARFieldId,String> (a pair of an enumeration of the field with the field heading)
+		// d) Transform remaining text in optional (3) into a text <description>
+
+
+		// Can we do this with some seed to a parser combinator framework?
+		auto parse_line = parsers::parse_line{};
+		if (auto parse_result = parsers::parse(parse_line,bas_2022_mapping_to_k2_ar_text); parsers::is_success(parse_result)) {
+			std::cout << "\nParse OK " << parse_result;
+		}
+		else {
+			std::cout << "\nParse Failed " << parse_result;
+		}
+
+		std::istringstream in{bas_2022_mapping_to_k2_ar_text};
+		std::string word{};		
+		while (in >> word) {
+			if (word=="Konto") {
+				std::cout << "\n=====================";
+				std::cout << "\n" << std::quoted(word);
+			}
+			else if (word=="Fält:") {
+				std::cout << "\n" << std::quoted(word);
+			}
+			else if (word=="Beskrivning:") {
+				std::cout << "\n" << std::quoted(word);
+			}
+			else {
+				std::cout << "\n\t" << std::quoted(word);
+			}
+		}
+	}
+}
+
+namespace BAS {
+	extern char const* bas_2022_account_plan_csv;
+}
+namespace SKV::XML {
+	using XMLMap = std::map<std::string,std::string>;
+}
+namespace SKV::XML::TAXReturns {
+	extern SKV::XML::XMLMap tax_returns_template; // See bottom of this file
+}
+namespace SKV::XML::VATReturns {
+	extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
+}
 
 template <typename I>
 std::vector<std::pair<I,I>> to_ranges(std::vector<I> line_nos) {
@@ -614,24 +748,6 @@ namespace CSV {
 		return result;
 	}
 } // namespace CSV
-
-namespace parse {
-    using In = std::string_view;
-
-    template <typename P>
-    using ParseResult = std::optional<std::pair<P,In>>;
-
-    template <typename P>
-    class Parse {
-    public:
-        virtual ParseResult<P> operator()(In const& in) const = 0;
-    };
-
-    template <typename T>
-    auto parse(T const& p,In const& in) {
-        return p(in);
-    }
-} // namespace parse
 
 auto utf_ignore_to_upper_f = [](char ch) {
 	if (ch <= 0x7F) return static_cast<char>(std::toupper(ch));
@@ -11267,48 +11383,6 @@ Fält: Skatteskulder
 Konto 2900-2999
 
 Fält: Upplupna kostnader och förutbetalda intäkter)"}; // bas_2022_mapping_to_k2_ar_text
-
-			// A test function to parse the bas_2022_mapping_to_k2_ar_text
-			void parse(char const* bas_2022_mapping_to_k2_ar_text) {
-				std::cout << "\nTODO: Implement BAS::K2::AR";
-				/*				
-				R"(Resultaträkning
-				Konto 3000-3799
-
-				Fält: Nettoomsättning
-				Beskrivning: Intäkter som genererats av företagets ordinarie verksamhet, t.ex. varuförsäljning och tjänsteintäkter.
-				Konto 3800-3899
-
-				Fält: Aktiverat arbete för egen räkning
-				Beskrivning: Kostnader för eget arbete där resultatet av arbetet tas upp som en tillgång i balansräkningen.
-				Konto 3900-3999
-
-				Fält: Övriga rörelseintäkter
-				Beskrivning: Intäkter genererade utanför företagets ordinarie verksamhet, t.ex. valutakursvinster eller realisationsvinster.
-				Konto 4000-4799 eller 4910-4931
-				*/
-
-				std::istringstream in{bas_2022_mapping_to_k2_ar_text};
-				std::string word{};		
-				std::optional<std::string> account{};
-				std::optional<std::string> field{};
-				std::optional<std::string> description{};
-				while (in >> word) {
-					if (word=="Konto") {
-						std::cout << "\n=====================";
-						std::cout << "\n" << std::quoted(word);
-					}
-					else if (word=="Fält:") {
-						std::cout << "\n" << std::quoted(word);
-					}
-					else if (word=="Beskrivning:") {
-						std::cout << "\n" << std::quoted(word);
-					}
-					else {
-						std::cout << "\n\t" << std::quoted(word);
-					}
-				}
-			}
 
 		} // namespace BAS::K2::AR
 	} // namespace BAS::K2
