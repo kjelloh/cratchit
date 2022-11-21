@@ -360,6 +360,14 @@ namespace tokenize {
 } // namespace tokenize
 
 // Forward declaration of data and members of namespaces
+namespace BAS {
+	using AccountNo = unsigned int;
+	using OptionalAccountNo = std::optional<AccountNo>;
+	using AccountNos = std::vector<AccountNo>;
+	using OptionalAccountNos = std::optional<AccountNos>;
+
+	OptionalAccountNo to_account_no(std::string const& s);
+}
 namespace SKV::SRU::INK1 {
 	extern const char* ink1_csv_to_sru_template;
 	extern const char* k10_csv_to_sru_template;
@@ -374,14 +382,9 @@ namespace BAS::SRU::INK2 {
 	extern char const* INK2_19_P1_intervall_vers_2_csv;
 	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
 }
-
-namespace BAS::SRU {
-}
 namespace BAS::K2::AR {
 	extern char const* bas_2022_mapping_to_k2_ar_text;
 	// A test function to parse the bas_2022_mapping_to_k2_ar_text
-
-	using BASAccountNo = int; // To make compile at this location in source (TODO: remove when placed at final location = use actual BasAccountNo declaration)
 
 	struct AREntry {
 		AREntry( std::string const& bas_accounts_text
@@ -393,7 +396,7 @@ namespace BAS::K2::AR {
 		std::string m_bas_accounts_text;
 		std::string m_field_heading_text;
 		std::optional<std::string> m_field_description;
-		bool accumulate_this_bas_account(BASAccountNo account_no) {
+		bool accumulate_this_bas_account(BAS::AccountNo account_no) {
 			// Return true if provided BAS account number matches the semantics of m_bas_accounts_text.
 			std::cerr << "\nTODO: Implement AREntry::accumulate_this_bas_account (match account_no:" << account_no << " to m_bas_accounts_text:" << std::quoted(m_bas_accounts_text);
 			return false;
@@ -1127,6 +1130,8 @@ std::string to_string(UnitsAndCents const& units_and_cents) {
 	return os.str();
 }
 
+// This namespace is just for being able to refactor cratchit to use TaggedAmountClass instances as heap-instances processed through chared pointers!
+// TODO: Refactor into some cleaner disposition of code when appropriate.
 namespace detail {
 
 	// 1) TaggedAmountPtr instance is restricted to the Heap and accessible only through std::shared_ptr
@@ -1274,6 +1279,52 @@ using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
 using OptionalTaggedAmountPtrs = std::optional<TaggedAmountPtrs>;
 using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>;
 
+namespace tas {
+	// 221121 Tagged amounts namespace
+	//        A seed for structuring tagged amounts into name space structure
+	//        TODO: Refactor external tagged amount code into this namespace if / when appropriate
+
+	// namespace for processing that produces tagged amounts and tagged amounts
+
+	// Generic for parsing a range or container of tagged amount pointers into a vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas account)
+	TaggedAmountPtrs to_bas_saldos(auto const& ta_ptrs) {
+		TaggedAmountPtrs result{};
+		using BASBuckets = std::map<BAS::AccountNo,TaggedAmountPtrs>;
+		BASBuckets bas_buckets{};
+		auto is_valid_bas_account_transaction = [](TaggedAmountPtr const& ta_ptr){
+			if (ta_ptr->tags().contains("BAS") and !(BAS::to_account_no(ta_ptr->tags().at("BAS")))) {
+				// Whine about invalid tagging of 'BAS' tag!
+				// It is vital we do NOT have any badly tagged BAS account transactions as this will screw up the saldo calculation!
+				std::cerr << "\nDESIGN_INSUFFICIENCY: tas::to_bas_saldos failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta_ptr->tags().at("BAS"));
+				return false;
+			}
+			else return (     (ta_ptr->tags().contains("BAS"))
+			         and (    (ta_ptr->tags().contains("type") == false)
+							       or (     (ta_ptr->tags().contains("type") == true)
+										      and (ta_ptr->tags().at("type") != "saldo")))
+							 and (    (BAS::to_account_no(ta_ptr->tags().at("BAS")))));
+		};
+		for (auto const& ta_ptr : ta_ptrs) {
+			if (is_valid_bas_account_transaction(ta_ptr)) {
+				bas_buckets[*BAS::to_account_no(ta_ptr->tags().at("BAS"))].push_back(ta_ptr);
+			}
+		}
+		for (auto const& [bas_account_no,ta_ptrs] : bas_buckets) {
+			Date saldo_date{};
+			auto cents_saldo = std::accumulate(ta_ptrs.begin(),ta_ptrs.end(),std::size_t{0},[&saldo_date](auto acc, auto const& ta_ptr){
+				saldo_date = std::max(saldo_date,ta_ptr->date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
+				return acc += ta_ptr->cents_amount();
+			});
+
+			auto saldo_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(saldo_date,cents_saldo),saldo_date,cents_saldo);
+			saldo_ta_ptr->tags()["BAS"] = std::to_string(bas_account_no);
+			saldo_ta_ptr->tags()["type"] = "saldo";
+			result.push_back(saldo_ta_ptr);
+		}
+		return result;
+	}
+}
+
 // DateOrderedTaggedAmountsContainer operates on tagged amount "values"
 // Does not allow multiple tagged amounts with the same "value" (determined by operator== of detail::TaggedAmountClass)
 /*
@@ -1282,7 +1333,7 @@ using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,Tagge
 	For one we need a way to refer between tagged amounts that survives persistent storage in cratchit environment. 
 	This is accomplished with the instance_id based on date, amount and a random salt.
 
-	But secondly we also need to to distinguish different instanaces with "the same" value.
+	But secondly we also need to to distinguish different instances with "the same" value.
 	This is accomplished with the operator== of the detail::TaggedAmountClass. It is defined as a tagged amount with all members BUT the instance_id equal!
 	In this way we can instantiate a tagged amount and later discover that we already have that tagged amount "value" recorded. This takes care of the cases
 	where we create tagged amounts from bank account statements or tax agency account statements. The user may provide statement files that overlap and we have
@@ -1634,14 +1685,11 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 	return result;
 }
 
-using BASAccountNo = unsigned int;
-using BASAccountNos = std::vector<BASAccountNo>;
 
-unsigned first_digit(BASAccountNo account_no) {
+unsigned first_digit(BAS::AccountNo account_no) {
 	return account_no / 1000;
 }
-using OptionalBASAccountNo = std::optional<BASAccountNo>;
-using OptionalBASAccountNos = std::optional<BASAccountNos>;
+
 
 template <typename Meta,typename Defacto>
 class MetaDefacto {
@@ -1750,7 +1798,7 @@ namespace BAS {
 	};
 	using OptionalAccountKind = std::optional<AccountKind>;
 
-	OptionalAccountKind to_account_kind(BASAccountNo const& bas_account_no) {
+	OptionalAccountKind to_account_kind(BAS::AccountNo const& bas_account_no) {
 		OptionalAccountKind result{};
 		auto s_account_no = std::to_string(bas_account_no);
 		if (s_account_no.size() == 4) {
@@ -1770,7 +1818,7 @@ namespace BAS {
 	}
 
 	using BASAccountNumberPath = Key::Path;
-	BASAccountNumberPath to_bas__account_number_path(BASAccountNo const& bas_account_no) {
+	BASAccountNumberPath to_bas__account_number_path(BAS::AccountNo const& bas_account_no) {
 		BASAccountNumberPath result{};
 		// TODO: Search 
 		return result;
@@ -1781,7 +1829,7 @@ namespace BAS {
 		OptionalAccountKind account_kind{};
 		SKV::SRU::OptionalAccountNo sru_code{};
 	};
-	using AccountMetas = std::map<BASAccountNo,BAS::AccountMeta>;
+	using AccountMetas = std::map<BAS::AccountNo,BAS::AccountMeta>;
 
 	namespace detail {
 		// "Hidden" Global mapping between BAS account no and its registered meta data like name, SRU code etc (from SIE file(s) imported)
@@ -1794,7 +1842,7 @@ namespace BAS {
 	namespace anonymous {
 
 		struct AccountTransaction {
-			BASAccountNo account_no;
+			BAS::AccountNo account_no;
 			std::optional<std::string> transtext{};
 			Amount amount;
 			bool operator<(AccountTransaction const& other) const {
@@ -1860,7 +1908,7 @@ namespace BAS {
 
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
-	OptionalBASAccountNo to_account_no(std::string const& s) {
+	BAS::OptionalAccountNo to_account_no(std::string const& s) {
 		return to_four_digit_positive_int(s);
 	}
 
@@ -1914,14 +1962,14 @@ namespace BAS {
 
 		class HasTransactionToAccount {
 		public:
-			HasTransactionToAccount(BASAccountNo bas_account_no) : m_bas_account_no(bas_account_no) {}
+			HasTransactionToAccount(BAS::AccountNo bas_account_no) : m_bas_account_no(bas_account_no) {}
 			bool operator()(BAS::MetaEntry const& me) {
 				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](BAS::anonymous::AccountTransaction const& at){
 					return (at.account_no == this->m_bas_account_no);
 				});
 			}
 		private:
-			BASAccountNo m_bas_account_no;
+			BAS::AccountNo m_bas_account_no;
 		};
 
 		struct is_flagged_unposted {
@@ -1931,7 +1979,7 @@ namespace BAS {
 		};
 
 		struct contains_account {
-			BASAccountNo account_no;
+			BAS::AccountNo account_no;
 			bool operator()(MetaEntry const& me) {
 				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](auto const& at){
 					return (this->account_no == at.account_no);
@@ -2012,7 +2060,7 @@ namespace BAS {
 
 	namespace kind {
 
-		using BASAccountTopology = std::set<BASAccountNo>;
+		using BASAccountTopology = std::set<BAS::AccountNo>;
 		using AccountTransactionTypeTopology = std::set<std::string>;
 
 		enum class ATType {
@@ -2078,7 +2126,7 @@ namespace BAS {
 				std::size_t operator()(BASAccountTopology const& bat) {
 					std::size_t result{};
 					for (auto const& account_no : bat) {
-						auto h = std::hash<BASAccountNo>{}(account_no);
+						auto h = std::hash<BAS::AccountNo>{}(account_no);
 						result = result ^ (h << 1);
 					}
 					return result;
@@ -2142,7 +2190,7 @@ namespace BAS {
 	}
 } // namespace BAS
 
-using Sru2BasMap = std::map<SKV::SRU::AccountNo,BASAccountNos>;
+using Sru2BasMap = std::map<SKV::SRU::AccountNo,BAS::AccountNos>;
 
 Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
 	Sru2BasMap result{};
@@ -2170,11 +2218,11 @@ namespace SKV {
 	} // namespace XML 
 } // namespace SKV 
 
-std::set<BASAccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos); // Forward (future header)
-std::set<BASAccountNo> const& to_vat_accounts(); // Forward (future header)
+std::set<BAS::AccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos); // Forward (future header)
+std::set<BAS::AccountNo> const& to_vat_accounts(); // Forward (future header)
 
 
-auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BASAccountNos const& account_nos) {
+auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BAS::AccountNos const& account_nos) {
 	return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
 		return other == mat.defacto.account_no;
 	});
@@ -2487,7 +2535,7 @@ private:
 struct HeadingAmountDateTransEntry {
 	struct Optional {
 		std::optional<char> series{};
-		std::optional<BASAccountNo> gross_account_no{};
+		std::optional<BAS::AccountNo> gross_account_no{};
 		BAS::OptionalMetaEntry current_candidate{};
 		std::optional<ToNetVatAccountTransactions> counter_ats_producer{};
 		std::optional<SKV::XML::VATReturns::FormBoxMap> vat_returns_form_box_map_candidate{};
@@ -2634,7 +2682,7 @@ namespace CSV {
 		return result;		
 	}
 
-	HeadingAmountDateTransEntries from_stream(auto& in,OptionalBASAccountNo gross_bas_account_no = std::nullopt) {
+	HeadingAmountDateTransEntries from_stream(auto& in,BAS::OptionalAccountNo gross_bas_account_no = std::nullopt) {
 		HeadingAmountDateTransEntries result{};
 		parse_TRANS(in); // skip first line with field names
 		while (auto had = parse_TRANS(in)) {
@@ -2855,7 +2903,7 @@ namespace SIE {
 	struct Ib {
 		std::string tag;
 		int year_no;
-		BASAccountNo account_no; 
+		BAS::AccountNo account_no; 
 		Amount opening_balance;
 		std::optional<float> quantity{};
 	};
@@ -2888,13 +2936,13 @@ namespace SIE {
 	// #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
 	struct Konto {
 		std::string tag;
-		BASAccountNo account_no;
+		BAS::AccountNo account_no;
 		std::string name;
 	};
 
 	struct Sru {
 		std::string tag;
-		BASAccountNo bas_account_no;
+		BAS::AccountNo bas_account_no;
 		SKV::SRU::AccountNo sru_account_no;
 	};
 
@@ -2902,7 +2950,7 @@ namespace SIE {
 		// Spec: #TRANS account no {object list} amount transdate transtext quantity sign
 		// Ex:   #TRANS 1920 {} 802 "" "" 0
 		std::string tag;
-		BASAccountNo account_no;
+		BAS::AccountNo account_no;
 		std::string object_list{};
 		float amount;
 		std::optional<Date> transdate{};
@@ -3042,7 +3090,7 @@ namespace SIE {
 		// struct Ib {
 		// 	std::string tag;
 		// 	int year_no;
-		// 	BASAccountNo account_no; 
+		// 	BAS::AccountNo account_no; 
 		// 	Amount opening_balance;
 		// 	std::optional<float> quantity{};
 		// };
@@ -3121,7 +3169,7 @@ namespace SIE {
 	// // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
 	// struct Konto {
 	// 	std::string tag;
-	// 	BASAccountNo account_no;
+	// 	BAS::AccountNo account_no;
 	// 	std::string name;
 	// };
 		SIEParseResult result{};
@@ -3359,7 +3407,7 @@ bool is_vat_returns_form_at(std::vector<SKV::XML::VATReturns::BoxNo> const& box_
 	return bas_account_nos.contains(at.account_no);
 }
 
-bool is_vat_account(BASAccountNo account_no) {
+bool is_vat_account(BAS::AccountNo account_no) {
 	auto const& vat_accounts = to_vat_accounts();
 	return vat_accounts.contains(account_no);
 }
@@ -3753,7 +3801,7 @@ OEnvironmentValueOStream& operator<<(OEnvironmentValueOStream& env_val_os,SRUEnv
 using SRUEnvironments = std::map<std::string,SRUEnvironment>;
 
 struct Balance {
-	BASAccountNo account_no;
+	BAS::AccountNo account_no;
 	Amount opening_balance;
 	Amount change;
 	Amount end_balance;
@@ -3790,7 +3838,7 @@ public:
 		if (verno_of_last_posted_to.contains(series)) result = verno > this->verno_of_last_posted_to.at(series);
 		return result;
 	}
-	SKV::SRU::OptionalAccountNo sru_code(BASAccountNo const& bas_account_no) {
+	SKV::SRU::OptionalAccountNo sru_code(BAS::AccountNo const& bas_account_no) {
 		SKV::SRU::OptionalAccountNo result{};
 		try {
 			auto iter = std::find_if(account_metas().begin(),account_metas().end(),[&bas_account_no](auto const& entry){
@@ -3803,10 +3851,10 @@ public:
 		catch (std::exception const& e) {} // Ignore/silence
 		return result;
 	}
-	OptionalBASAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) {
-		OptionalBASAccountNos result{};
+	BAS::OptionalAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) {
+		BAS::OptionalAccountNos result{};
 		try {
-			BASAccountNos bas_account_nos{};
+			BAS::AccountNos bas_account_nos{};
 			std::for_each(account_metas().begin(),account_metas().end(),[&sru_code,&bas_account_nos](auto const& entry){
 				if (entry.second.sru_code == sru_code) bas_account_nos.push_back(entry.first);
 			});
@@ -3879,7 +3927,7 @@ public:
 		std::cout << "\nset_year_date_range <== " << *this->year_date_range;
 	}
 
-	void set_account_name(BASAccountNo bas_account_no ,std::string const& name) {
+	void set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].name != name) {
 				std::cerr << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
@@ -3887,7 +3935,7 @@ public:
 		}
 		BAS::detail::global_account_metas[bas_account_no].name = name; // Mutate global instance
 	}
-	void set_account_SRU(BASAccountNo bas_account_no, SKV::SRU::AccountNo sru_code) {
+	void set_account_SRU(BAS::AccountNo bas_account_no, SKV::SRU::AccountNo sru_code) {
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].sru_code) {
 				if (*BAS::detail::global_account_metas[bas_account_no].sru_code != sru_code) {
@@ -3898,7 +3946,7 @@ public:
 		BAS::detail::global_account_metas[bas_account_no].sru_code = sru_code; // Mutate global instance
 	}
 
-	void set_opening_balance(BASAccountNo bas_account_no,Amount opening_balance) {
+	void set_opening_balance(BAS::AccountNo bas_account_no,Amount opening_balance) {
 		if (this->opening_balance.contains(bas_account_no) == false) this->opening_balance[bas_account_no] = opening_balance;
 		else {
 			std::cerr << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
@@ -3911,7 +3959,7 @@ public:
 		BalancesMap result{};
 		for (auto const& ob : this->opening_balance) {
 			// struct Balance {
-			// 	BASAccountNo account_no;
+			// 	BAS::AccountNo account_no;
 			// 	Amount opening_balance;
 			// 	Amount change;
 			// 	Date date;
@@ -3935,7 +3983,7 @@ private:
 	BASJournals m_journals{};
 	OptionalDateRange year_date_range{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
-	std::map<BASAccountNo,Amount> opening_balance{};
+	std::map<BAS::AccountNo,Amount> opening_balance{};
 	BAS::MetaEntry add(BAS::MetaEntry me) {
 		BAS::MetaEntry result{me};
 		// Ensure a valid series
@@ -3988,7 +4036,7 @@ private:
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 using SIEEnvironments = std::map<std::string,SIEEnvironment>;
 
-BAS::AccountMetas matches_bas_or_sru_account_no(BASAccountNo const& to_match_account_no,SIEEnvironment const& sie_env) {
+BAS::AccountMetas matches_bas_or_sru_account_no(BAS::AccountNo const& to_match_account_no,SIEEnvironment const& sie_env) {
 	BAS::AccountMetas result{};
 	// Assume match to BAS account or SRU account 
 	// for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
@@ -4082,7 +4130,7 @@ void for_each_meta_account_transaction(SIEEnvironments const& sie_envs,auto& f) 
 	}
 }
 
-OptionalAmount account_sum(SIEEnvironment const& sie_env,BASAccountNo account_no) {
+OptionalAmount account_sum(SIEEnvironment const& sie_env,BAS::AccountNo account_no) {
 	OptionalAmount result{};
 	auto f = [&account_no,&result](BAS::anonymous::AccountTransaction const& at) {
 		if (at.account_no == account_no) {
@@ -4094,7 +4142,7 @@ OptionalAmount account_sum(SIEEnvironment const& sie_env,BASAccountNo account_no
 	return result;
 }
 
-OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
+OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BAS::AccountNos const& bas_account_nos) {
 	OptionalAmount result{};
 	try {
 		Amount amount{};
@@ -4112,7 +4160,7 @@ OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BASAccountNos const& b
 	return result;
 }
 
-std::optional<std::string> to_ats_sum_string(SIEEnvironments const& sie_envs,BASAccountNos const& bas_account_nos) {
+std::optional<std::string> to_ats_sum_string(SIEEnvironments const& sie_envs,BAS::AccountNos const& bas_account_nos) {
 	std::optional<std::string> result{};
 	if (auto const& ats_sum = to_ats_sum(sie_envs,bas_account_nos)) result = std::to_string(*ats_sum);
 	return result;
@@ -4653,7 +4701,7 @@ BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironments 
 struct T2 {
 	BAS::MetaEntry me;
 	struct CounterTrans {
-		BASAccountNo linking_account;
+		BAS::AccountNo linking_account;
 		BAS::MetaEntry me;
 	};
 	std::optional<CounterTrans> counter_trans{};
@@ -5526,10 +5574,10 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			BASAccountNos to_accounts(BoxNo box_no) {
+			BAS::AccountNos to_accounts(BoxNo box_no) {
 				static auto const ps = account_vat_form_mapping();
-				BASAccountNos result{};
-				return std::accumulate(ps.begin(),ps.end(),BASAccountNos{},[&box_no](auto acc,Key::Path const& p){
+				BAS::AccountNos result{};
+				return std::accumulate(ps.begin(),ps.end(),BAS::AccountNos{},[&box_no](auto acc,Key::Path const& p){
 					try {
 						std::ostringstream os{};
 						os << std::setfill('0') << std::setw(2) << box_no;
@@ -5542,8 +5590,8 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			std::set<BASAccountNo> to_accounts(BoxNos const& box_nos) {
-				std::set<BASAccountNo> result{};
+			std::set<BAS::AccountNo> to_accounts(BoxNos const& box_nos) {
+				std::set<BAS::AccountNo> result{};
 				for (auto const& box_no : box_nos) {
 					auto vat_account_nos = to_accounts(box_no);
 					std::copy(vat_account_nos.begin(),vat_account_nos.end(),std::inserter(result,result.end()));
@@ -5551,7 +5599,7 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			std::set<BASAccountNo> to_vat_accounts() {
+			std::set<BAS::AccountNo> to_vat_accounts() {
 				return to_accounts({10,11,12,30,31,32,60,61,62,48,49});
 			}			
 
@@ -5749,7 +5797,7 @@ namespace SKV { // SKV
 								// 2650 "Redovisningskonto för moms" SRU:7369
 								// 1650 "Momsfordran" SRU:7261
 							std::cout << "\nPeriod:" << to_string(vat_returns_range.begin()) << "..." << to_string(vat_returns_range.end());
-								std::map<BASAccountNo,Amount> account_amounts{};
+								std::map<BAS::AccountNo,Amount> account_amounts{};
 								for (auto const& [box_no,mats] : *box_map)  {
 									std::cout << "\n\t[" << box_no << "]";
 									for (auto const& mat : mats) {
@@ -6067,11 +6115,11 @@ using SKV::SRU::operator<<;
 // See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
 using SKV::XML::VATReturns::operator<<;
 
-std::set<BASAccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos) {
+std::set<BAS::AccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos) {
 	return SKV::XML::VATReturns::to_accounts(box_nos);
 }
 
-std::set<BASAccountNo> const& to_vat_accounts() {
+std::set<BAS::AccountNo> const& to_vat_accounts() {
 	static auto const vat_accounts = SKV::XML::VATReturns::to_vat_accounts(); // cache
 	// Define in terms of how SKV VAT returns form defines linking to BAS Accounts for correct content
 	return vat_accounts;
@@ -6705,7 +6753,7 @@ namespace SKV {
 			OptionalSRUValueMap result{};
 			try {
 // std::cout << "\nto_sru_value_map";
-				std::map<SKV::SRU::AccountNo,OptionalBASAccountNos> sru_to_bas_accounts{};
+				std::map<SKV::SRU::AccountNo,BAS::OptionalAccountNos> sru_to_bas_accounts{};
 				for (int i=0;i<field_rows.size();++i) {
 					auto const& field_row = field_rows[i];
 // std::cout << "\n\t" << static_cast<std::string>(field_row);
@@ -7287,7 +7335,7 @@ public:
 												,.date = had.date
 											}
 										};
-										std::map<BASAccountNo,Amount> account_amounts{};
+										std::map<BAS::AccountNo,Amount> account_amounts{};
 										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
 											for (auto const& mat : mats) {
 												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
@@ -7469,7 +7517,7 @@ public:
 												,.date = had.date
 											}
 										};
-										std::map<BASAccountNo,Amount> account_amounts{};
+										std::map<BAS::AccountNo,Amount> account_amounts{};
 										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
 											for (auto const& mat : mats) {
 												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
@@ -9089,7 +9137,7 @@ public:
 					if (std::filesystem::exists(csv_file_path)) {
 						std::ifstream ifs{csv_file_path};
 						CSV::NORDEA::istream in{ifs};
-						OptionalBASAccountNo gross_bas_account_no{};
+						BAS::OptionalAccountNo gross_bas_account_no{};
 						if (ast.size()>3) {
 							if (auto bas_account_no = BAS::to_account_no(ast[3])) {
 								gross_bas_account_no = *bas_account_no;
@@ -9195,7 +9243,19 @@ public:
 				auto fiscal_year_date_range = model->sie["-1"].fiscal_year_date_range();
 
 				if (fiscal_year_date_range) {
-					for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range)) {	
+					auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
+					auto bas_account_saldos = tas::to_bas_saldos(fiscal_year_tagged_amounts_range);
+
+					if (true) {
+						// Log saldos
+						std::cout << "\nOmslutning {";
+						for (auto const& ta_ptr : bas_account_saldos) {	
+							std::cout << "\n\tkonto:" << ta_ptr->tags().at("BAS") << " saldo:" << to_string(to_units_and_cents(ta_ptr->cents_amount()));  
+						}
+						std::cout << "\n} // Omslutning";
+					}
+
+					for (auto const& ta_ptr : bas_account_saldos) {	
 						for (auto& ar_entry : ar_entries) {
 							if (ta_ptr->tags().contains("BAS")) {
 								if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
@@ -9215,8 +9275,6 @@ public:
 					prompt << "\nSORRY, I seem to have lost track of last fiscal year first and last dates?";
 					prompt << "\nCheck that you have used the '-sie' command to import an sie file with that years data from another application?";
 				}
-
-
 			}
 			else if (ast[0] == "-plain_ink2") {
 				// SKV Tax return according to K2 rules (plain text)
