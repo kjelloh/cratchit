@@ -1311,9 +1311,12 @@ namespace tas {
 		}
 		for (auto const& [bas_account_no,ta_ptrs] : bas_buckets) {
 			Date saldo_date{};
-			auto cents_saldo = std::accumulate(ta_ptrs.begin(),ta_ptrs.end(),std::size_t{0},[&saldo_date](auto acc, auto const& ta_ptr){
+			std::cout << "\n" << bas_account_no;
+			auto cents_saldo = std::accumulate(ta_ptrs.begin(),ta_ptrs.end(),CentsAmount{0},[&saldo_date](auto acc, auto const& ta_ptr){
 				saldo_date = std::max(saldo_date,ta_ptr->date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
-				return acc += ta_ptr->cents_amount();
+				acc += ta_ptr->cents_amount();
+				std::cout << "\n\t" << saldo_date << " " << to_string(to_units_and_cents(ta_ptr->cents_amount())) << " saldo:" << to_string(to_units_and_cents(acc));
+				return acc;
 			});
 
 			auto saldo_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(saldo_date,cents_saldo),saldo_date,cents_saldo);
