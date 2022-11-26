@@ -404,6 +404,10 @@ namespace BAS::K2::AR {
 				std::cout << " ** RANGE **";
 			}
 		}
+		{
+			// Parse text on the form "2370-2379 (förutom 2373)"
+			// ...
+		}
 		return [bas_account_ranges,bas_accounts_text](BAS::AccountNo bas_account_no){
 			return std::any_of(bas_account_ranges.begin(),bas_account_ranges.end(),[bas_account_no,bas_accounts_text](auto const& r) {
 				auto result = (r.first<=bas_account_no) and (bas_account_no<=r.second); 
@@ -9310,7 +9314,9 @@ public:
 							if (ta_ptr->tags().contains("BAS")) {
 								if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
 									if (ar_entry.accumulate_this_bas_account(*bas_account_no,ta_ptr->cents_amount())) {
-										not_accumulated.erase(std::find(not_accumulated.begin(),not_accumulated.end(),ta_ptr));
+										if (auto iter = std::find(not_accumulated.begin(),not_accumulated.end(),ta_ptr); iter != not_accumulated.end()) {
+											not_accumulated.erase(iter);
+										}
 									}
 								}
 								else {
