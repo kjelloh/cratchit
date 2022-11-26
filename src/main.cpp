@@ -199,14 +199,11 @@ namespace tokenize {
 		return s.starts_with(key);
 	}
 
-	std::string without_front_word(std::string const& s) {
-		std::string result{s};
-		std::istringstream in{s};
-		std::string word{};
-		if (in >> word) {
-			std::getline(in,result);
-		}
-		return result;
+	std::string without_front_word(std::string_view sv) {
+    sv.remove_prefix(std::min(sv.find_first_not_of(" "), sv.size()));
+    sv.remove_prefix(std::min(sv.find_first_of(" "), sv.size()));
+    sv.remove_prefix(std::min(sv.find_first_not_of(" "), sv.size()));
+		return std::string{sv};
 	}
 
 	// returns s split into first,second on provided delimiter delim.
@@ -383,8 +380,42 @@ namespace BAS::SRU::INK2 {
 	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
 }
 namespace BAS::K2::AR {
+
+	auto to_predicate(std::string const& bas_accounts_text) {
+		using BASAccountRanges = std::vector<std::pair<BAS::AccountNo,BAS::AccountNo>>;
+		BASAccountRanges bas_account_ranges{};
+		std::cout << "\n BAS::K2::AR::to_predicate("  << std::quoted(bas_accounts_text) << ")";
+		// Parse AREntry::m_bas_accounts_text
+		std::string reg_ex_text{};
+		auto const& [first,second] = tokenize::split(bas_accounts_text,'-');
+		auto ban1 = BAS::to_account_no(first);
+		auto ban2 = BAS::to_account_no(second);
+		if (ban1 and ban2) {
+			// We have an input on the form "2900-2999"
+			bas_account_ranges.push_back({*ban1,*ban2});
+			std::cout << " ** RANGE **";
+		}
+		return [bas_account_ranges,bas_accounts_text](BAS::AccountNo bas_account_no){
+			return std::any_of(bas_account_ranges.begin(),bas_account_ranges.end(),[bas_account_no,bas_accounts_text](auto const& r) {
+				auto result = (r.first<=bas_account_no) and (bas_account_no<=r.second); 
+				if (true) {
+					// Log
+					std::cout << "\n\tto_predicate(" << std::quoted(bas_accounts_text) << ") on " << bas_account_no;
+					if (result) {
+						std::cout << " ** MATCH ** ";
+					}
+					else {
+						std::cout << " no match ";
+					}
+				}
+				return result;
+			});
+		};
+	}
+
 	extern char const* bas_2022_mapping_to_k2_ar_text;
-	// A test function to parse the bas_2022_mapping_to_k2_ar_text
+
+	using CentsAmount = int; // Forward
 
 	struct AREntry {
 		AREntry( std::string const& bas_accounts_text
@@ -396,14 +427,16 @@ namespace BAS::K2::AR {
 		std::string m_bas_accounts_text;
 		std::string m_field_heading_text;
 		std::optional<std::string> m_field_description;
-		bool accumulate_this_bas_account(BAS::AccountNo account_no) {
-			// Return true if provided BAS account number matches the semantics of m_bas_accounts_text.
-			std::cerr << "\nTODO: Implement AREntry::accumulate_this_bas_account (match account_no:" << account_no << " to m_bas_accounts_text:" << std::quoted(m_bas_accounts_text);
-			return false;
+		bool accumulate_this_bas_account(BAS::AccountNo bas_account_no,CentsAmount amount) {
+			auto result = to_predicate(m_bas_accounts_text)(bas_account_no); 
+			if (result) m_amount += amount;
+			return result;
 		}
+		CentsAmount m_amount{};
 	};
 	using AREntries = std::vector<AREntry>;
 
+	// A test function to parse the bas_2022_mapping_to_k2_ar_text into AREntries
 	AREntries parse(char const* bas_2022_mapping_to_k2_ar_text) {
 		AREntries result{};
 		// Snippet from the text file to parse
@@ -9258,11 +9291,14 @@ public:
 						std::cout << "\n} // Omslutning";
 					}
 
+					auto not_accumulated = bas_account_saldos;
 					for (auto const& ta_ptr : bas_account_saldos) {	
 						for (auto& ar_entry : ar_entries) {
 							if (ta_ptr->tags().contains("BAS")) {
 								if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
-									ar_entry.accumulate_this_bas_account(*bas_account_no);
+									if (ar_entry.accumulate_this_bas_account(*bas_account_no,ta_ptr->cents_amount())) {
+										not_accumulated.erase(std::find(not_accumulated.begin(),not_accumulated.end(),ta_ptr));
+									}
 								}
 								else {
 									std::cerr << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta_ptr->tags().at("BAS");
@@ -9272,7 +9308,20 @@ public:
 								// skip, this tagged amount  is NOT a transaction to a BAS account
 							}
 						}
-					}				
+					}
+					prompt << "\nÅrsredovisning {";
+					for (auto& ar_entry : ar_entries) {
+						if (ar_entry.m_amount != 0) {
+							prompt << "\n\tfält:" << ar_entry.m_field_heading_text << " belopp:" << ar_entry.m_amount;  
+						}
+					}
+					prompt << "\n} // Årsredovisning";
+
+					prompt << "\nNOT Accumulated {";
+					for (auto const& ta_ptr : not_accumulated) {	
+						prompt << "\n\t" << ta_ptr;
+					}
+					prompt << "\n} // NOT Accumulated";
 				}
 				else {
 					prompt << "\nSORRY, I seem to have lost track of last fiscal year first and last dates?";
