@@ -386,14 +386,23 @@ namespace BAS::K2::AR {
 		BASAccountRanges bas_account_ranges{};
 		std::cout << "\n BAS::K2::AR::to_predicate("  << std::quoted(bas_accounts_text) << ")";
 		// Parse AREntry::m_bas_accounts_text
-		std::string reg_ex_text{};
-		auto const& [first,second] = tokenize::split(bas_accounts_text,'-');
-		auto ban1 = BAS::to_account_no(first);
-		auto ban2 = BAS::to_account_no(second);
-		if (ban1 and ban2) {
-			// We have an input on the form "2900-2999"
-			bas_account_ranges.push_back({*ban1,*ban2});
-			std::cout << " ** RANGE **";
+		{
+			// Parse single bas account no
+			auto ban = BAS::to_account_no(bas_accounts_text);
+			if (ban) {
+				bas_account_ranges.push_back({*ban,*ban});
+				std::cout << " ** SINGLE **";
+			}
+		}
+		{
+			// Parse text on the form "2900-2999"
+			auto const& [first,second] = tokenize::split(bas_accounts_text,'-');
+			auto ban1 = BAS::to_account_no(first);
+			auto ban2 = BAS::to_account_no(second);
+			if (ban1 and ban2) {
+				bas_account_ranges.push_back({*ban1,*ban2});
+				std::cout << " ** RANGE **";
+			}
 		}
 		return [bas_account_ranges,bas_accounts_text](BAS::AccountNo bas_account_no){
 			return std::any_of(bas_account_ranges.begin(),bas_account_ranges.end(),[bas_account_no,bas_accounts_text](auto const& r) {
@@ -429,10 +438,14 @@ namespace BAS::K2::AR {
 		std::optional<std::string> m_field_description;
 		bool accumulate_this_bas_account(BAS::AccountNo bas_account_no,CentsAmount amount) {
 			auto result = to_predicate(m_bas_accounts_text)(bas_account_no); 
-			if (result) m_amount += amount;
+			if (result) {
+				m_bas_account_nos.insert(bas_account_no);
+				m_amount += amount;
+			}
 			return result;
 		}
 		CentsAmount m_amount{};
+		std::set<BAS::AccountNo> m_bas_account_nos{};
 	};
 	using AREntries = std::vector<AREntry>;
 
@@ -9312,7 +9325,11 @@ public:
 					prompt << "\nÅrsredovisning {";
 					for (auto& ar_entry : ar_entries) {
 						if (ar_entry.m_amount != 0) {
-							prompt << "\n\tfält:" << ar_entry.m_field_heading_text << " belopp:" << ar_entry.m_amount;  
+							prompt << "\n\tfält:" << ar_entry.m_field_heading_text << " belopp:" << to_string(to_units_and_cents(ar_entry.m_amount));
+							prompt << " " << std::quoted(ar_entry.m_bas_accounts_text) << " matched:";
+							for (auto const& bas_account_no : ar_entry.m_bas_account_nos) {
+								prompt << " " << bas_account_no;
+							}
 						}
 					}
 					prompt << "\n} // Årsredovisning";
