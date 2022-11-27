@@ -384,42 +384,146 @@ namespace parse {
 
 	class String {
 	public:
-		String(char const* sz) : s{sz} {} 
+		String() = default;
+		String(char const* sz) : m_s{sz} {}
+		String(String const& s) : m_s{s.m_s} {}
+		String(std::string const& s) : m_s{s} {}
+		String head(std::size_t end) const {return m_s.substr(0,end);} // end is count ok
+		String tail(std::size_t begin) const {return m_s.substr(begin);} // begin is index ok
+		operator bool() {return m_s.size()>0;}
 	private:
-		std::string s;
+		friend std::ostream& operator<<(std::ostream& os,String const& s);
+		std::string m_s;
+	};
+	using Strings = std::vector<String>;
+
+	std::ostream& operator<<(std::ostream& os,String const& s) {
+		os << s.m_s;
+		return os;
+	}
+
+	namespace on_heap {
+
+		class Node {
+		public:
+			using shared_ptr = std::shared_ptr<Node>;
+			using shared_ptrs = std::vector<shared_ptr>;
+			Node(String s) : m_childs{},m_s{s} {}
+			Node(shared_ptrs childs) : m_childs{childs},m_s{} {}
+			String value() const {return m_s;}
+			shared_ptrs childs() const {return m_childs;}
+			bool has_childs() const {return m_childs.size() > 0;}
+			std::vector<String> to_strings() {
+				Strings result{};
+				if (m_s) {
+					result.push_back(m_s); // Leaf
+				}
+				else {
+					result.push_back("*"); // Childs
+					std::vector<Strings> strings_v{};
+					for (auto const& child : m_childs) {
+						strings_v.push_back(child->to_strings());
+					}
+					auto s{std::string{"TODO: Expand childs. child count="} + std::to_string(strings_v.size())};
+				}
+				return result;
+			}
+		private:
+			shared_ptrs m_childs;
+			String m_s;
+		};
+		using Tree = Node::shared_ptr;
+
+		Tree make_tree(String const& s) {return std::make_shared<Node>(s);}
+
+		class TreeAndString {
+		public:
+			TreeAndString(Tree tree,String s) : m_tree{tree},m_s{s} {}
+			Strings to_strings() const {
+				if (m_tree) return m_tree->to_strings();
+				else return {};
+			}
+		private:
+			Tree m_tree;
+			String m_s;
+		};
+
+		class ParseResult {
+		public:
+			ParseResult(TreeAndString tas) : m_result{1,tas} {}
+			operator bool() {return m_result.size()>0;}
+			Strings to_strings() {
+				std::vector<String> result{};
+				for (auto const& entry : m_result) {
+					for (auto const& s : entry.to_strings()) {
+						result.push_back(s);
+					}
+				}
+				return result;
+			}
+		private:
+			std::vector<TreeAndString> m_result;
+		};
+
+		class Parser {
+		public:
+			using shared_ptr = std::shared_ptr<Parser>;
+			virtual ParseResult parse(String const& s) const = 0;
+		private:
+		};
+
+		class CharParser : public Parser {
+		public:
+			virtual ParseResult parse(String const& s) const {
+				return ParseResult{TreeAndString{make_tree(s.head(1)),s.tail(1)}};
+			}
+		private:
+		};
+
+		Parser::shared_ptr char_parser() {return std::make_shared<CharParser>();}
+	} // namespace on_heap
+
+	class Tree {
+	public:
+		Tree(on_heap::Tree instance) : m_instance{instance} {} 
+	private:
+		on_heap::Tree m_instance;
 	};
 
-	class Thing {
+	class TreeAndString {
 	public:
 	private:
+		Tree m_thing;
+		String m_s;
 	};
 
-	class ThingAndString {
-	public:
-	private:
-	};
+	using ParseResult = on_heap::ParseResult;
 
-	class ParseResult {
-	public:
-		operator bool() {return false;}
-	private:
-	};
-
+	// Polymorphic parser wrapper
 	class Parser {
 	public:
-		ParseResult operator()(String s) {
-			return ParseResult{};
+		Parser(on_heap::Parser::shared_ptr const& instance) : m_instance{instance} {}
+		ParseResult operator()(String const& s) {
+			return m_instance->parse(s);
 		}
-	private:		
+	private:
+		on_heap::Parser::shared_ptr m_instance; // polymorphic parser
 	};
 
-	Parser char_parser() {return Parser{};}
+	Parser char_parser() {return Parser{on_heap::char_parser()};}
 
 	ParseResult parse(Parser p,String s) {
 		return p(s);
 	}
 
 	std::ostream& operator<<(std::ostream& os,ParseResult result){
+		if (result) {
+			for (auto const& row : result.to_strings()) {
+				os << "\n" << row;
+			}
+			os << "SUCCESS";
+		}
+		else os << "FAILED";
 		return os;
 	}
 
@@ -1328,7 +1432,7 @@ namespace tagged_amount {
 }
 
 detail::TaggedAmountClass::OptionalInstanceId to_instance_id(std::string const& s) {
-	std::cout << "\nto_instance_id()" << std::flush;
+	// std::cout << "\nto_instance_id()" << std::flush;
 	detail::TaggedAmountClass::OptionalInstanceId result{};
 	detail::TaggedAmountClass::InstanceId instance_id{};
 	std::istringstream is{s};
@@ -1558,7 +1662,9 @@ class DateOrderedTaggedAmountsContainer {
 				m_tagged_amount_ptrs_map[ta_ptr_to_insert->instance_id()] = ta_ptr_to_insert; // mapped on id
 				result = m_date_ordered_amount_ptrs.insert(end,ta_ptr_to_insert); // sorted on date
 			}
-			else std::cout << "\n\tAlready in list " << ta_ptr_to_insert << " (" << *iter << ")";
+			else {
+				// std::cout << "\n\tAlready in list " << ta_ptr_to_insert << " (" << *iter << ")";
+			}
 			return result;
 		}
 		DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
@@ -1666,7 +1772,7 @@ namespace CSV {
 					}
 				}
 				else {
-					std::cerr << "\nNot a valid date: " << std::quoted(sDate);
+					if (sDate.size() > 0) std::cerr << "\nNot a valid date: " << std::quoted(sDate);
 				}
 			}
 			return result;
@@ -1774,7 +1880,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 				case 5: {
 					for (auto const& field_row : *field_rows) {
 						if (auto ta_ptr = CSV::SKV::to_tagged_amount(field_row)) {
-							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
+							// std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
 							dota.insert(*ta_ptr);
 						}
 						else {
@@ -1785,7 +1891,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 				case 10: {
 					for (auto const& field_row : *field_rows) {
 						if (auto ta_ptr = CSV::NORDEA::to_tagged_amount(field_row)) {
-							std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
+							// std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
 							dota.insert(*ta_ptr);
 						}
 						else {
@@ -7163,7 +7269,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			}
 			else if (auto opt_entry = SIE::parse_IB(in,"#IB")) {
 				SIE::Ib ib = std::get<SIE::Ib>(*opt_entry);
-				std::cout << "\nIB " << ib.account_no << " = " << ib.opening_balance;
+				// std::cout << "\nIB " << ib.account_no << " = " << ib.opening_balance;
 				if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no,ib.opening_balance); // Only use "current" year opening balance
 				// NOTE: The SIE-file defines a "year 0" that is "current year" as seen from the data in the file
 				// See the #RAR tag that maps year_no 0,-1,... to actual date range (period / accounting year)
@@ -10169,12 +10275,12 @@ private:
 				// Process file
 				if (auto tagged_amounts = to_tagged_amounts(path)) {
 					result += *tagged_amounts;
+					std::cout << "\n\tValid entries count:" << tagged_amounts->size();
 				}
 				else {
 					std::cout << "\n*Ignored* " << path << " (Failed to understand file content)";
 				}
 				std::cout << "\nEND File: " << path;
-
 			}
 			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
 		}
