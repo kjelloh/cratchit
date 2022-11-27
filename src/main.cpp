@@ -24,26 +24,6 @@ float const VERSION = 0.5;
 #include <set>
 #include <ranges> // requires c++ compiler with c++20 support
 
-void test_ranges_support()
-{
-    auto const ints = {0,1,2,3,4,5};
-    auto even = [](int i) { return 0 == i % 2; };
-    auto square = [](int i) { return i * i; };
- 
-    // "pipe" syntax of composing the views:
-    for (int i : ints | std::views::filter(even) | std::ranges::views::transform(square)) {
-        std::cout << i << ' ';
-    }
- 
-    std::cout << '\n';
- 
-    // a traditional "functional" composing syntax:
-    for (int i : std::views::transform(std::views::filter(ints, even), square)) {
-        std::cout << i << ' ';
-    }
-}
-
-
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
 // tasks.json/"tasks"/label:"macOS..."/args: ... "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" 
@@ -111,83 +91,6 @@ void test_ranges_support()
     // ],
 
 
-namespace parsers {
-	
-	enum class ResultEnumeration {
-		Undefined
-		,OK
-		,Failed
-		,Unknown
-	};
-
-	using StringToParse = std::string_view;
-
-	struct single_parse_result {
-		ResultEnumeration enumeration;
-		StringToParse unparsed;
-	};
-
-	using ParseResult = std::vector<single_parse_result>;
-
-	struct Parser {
-		virtual ParseResult operator()(StringToParse const& string_to_parse) const = 0;
-	};
-
-	struct parse_line : public Parser {
-		ParseResult operator()(StringToParse const& string_to_parse) const {
-			ParseResult result{1,single_parse_result{ResultEnumeration::Failed,string_to_parse}};
-			return result;
-		}
-	};
-
-	static ParseResult parse(Parser const& parser,StringToParse const& string_to_parse) {
-		return parser(string_to_parse);
-	}
-
-	static bool is_success(ParseResult const& parse_result) {
-		return std::ranges::any_of(parse_result,[](single_parse_result const& pr){
-			return pr.enumeration == ResultEnumeration::OK;
-		});
-	}
-
-	std::ostream& operator<<(std::ostream& os, ResultEnumeration re) {
-		switch (re) {
-			case ResultEnumeration::Undefined: os << "Undefined"; break;
-			case ResultEnumeration::OK: os << "OK"; break;
-			case ResultEnumeration::Failed: os << "Failed"; break;
-			case ResultEnumeration::Unknown: os << "Unknown"; break;
-		}
-		return os;
-	}
-
-	std::ostream& operator<<(std::ostream& os, single_parse_result const& single_result) {
-		const int INDEX_LIMIT = 8; // output index 0 .. INDEX_LIMIT-1
-		os << "\n\t" << single_result.enumeration;
-		os << " unparsed:'";
-		for (int i=0;i<INDEX_LIMIT;i++) {
-			if (i+1<single_result.unparsed.size()) {
-				os << single_result.unparsed[i];
-			}
-			else os << '.';
-		}
-		if (single_result.unparsed.size() >= INDEX_LIMIT) {
-			os << "...";
-		}
-		os << "'";
-		return os;
-	}
-
-	std::ostream& operator<<(std::ostream& os, ParseResult const& parse_result) {
-		for (auto const& single_result : parse_result) {
-			os << "\n\t" << single_result;
-		}
-		return os;
-	}
-
-} // namespace parsers
-// expose operator<< for type alias ParseResult, which being an std::vector template is causing compiler to consider all std::operator<< in std and not in the one in namespace parsers
-// See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
-using parsers::operator<<;
 
 namespace tokenize {
 
@@ -378,187 +281,6 @@ namespace SKV::SRU::INK2 {
 namespace BAS::SRU::INK2 {
 	extern char const* INK2_19_P1_intervall_vers_2_csv;
 	void parse(char const* INK2_19_P1_intervall_vers_2_csv);
-}
-
-namespace parse {
-
-	class String {
-	public:
-		String() = default;
-		String(char const* sz) : m_s{sz} {}
-		String(String const& s) : m_s{s.m_s} {}
-		String(std::string const& s) : m_s{s} {}
-		String head(std::size_t end) const {return m_s.substr(0,end);} // end is count ok
-		String tail(std::size_t begin) const {return m_s.substr(begin);} // begin is index ok
-		operator bool() {return m_s.size()>0;}
-	private:
-		friend std::ostream& operator<<(std::ostream& os,String const& s);
-		std::string m_s;
-	};
-	using Strings = std::vector<String>;
-
-	std::ostream& operator<<(std::ostream& os,String const& s) {
-		os << s.m_s;
-		return os;
-	}
-
-	namespace on_heap {
-
-		class Node {
-		public:
-			using shared_ptr = std::shared_ptr<Node>;
-			using shared_ptrs = std::vector<shared_ptr>;
-			Node(String s) : m_childs{},m_s{s} {}
-			Node(shared_ptrs childs) : m_childs{childs},m_s{} {}
-			String value() const {return m_s;}
-			shared_ptrs childs() const {return m_childs;}
-			bool has_childs() const {return m_childs.size() > 0;}
-			std::vector<String> to_strings() {
-				Strings result{};
-				if (m_s) {
-					result.push_back(m_s); // Leaf
-				}
-				else {
-					result.push_back("*"); // Childs
-					std::vector<Strings> strings_v{};
-					for (auto const& child : m_childs) {
-						strings_v.push_back(child->to_strings());
-					}
-					auto s{std::string{"TODO: Expand childs. child count="} + std::to_string(strings_v.size())};
-				}
-				return result;
-			}
-		private:
-			shared_ptrs m_childs;
-			String m_s;
-		};
-		using Tree = Node::shared_ptr;
-
-		Tree make_tree(String const& s) {return std::make_shared<Node>(s);}
-
-		class TreeAndString {
-		public:
-			TreeAndString(Tree tree,String s) : m_tree{tree},m_s{s} {}
-			Strings to_strings() const {
-				if (m_tree) return m_tree->to_strings();
-				else return {};
-			}
-		private:
-			Tree m_tree;
-			String m_s;
-		};
-
-		class ParseResult {
-		public:
-			ParseResult(TreeAndString tas) : m_result{1,tas} {}
-			operator bool() {return m_result.size()>0;}
-			Strings to_strings() {
-				std::vector<String> result{};
-				for (auto const& entry : m_result) {
-					for (auto const& s : entry.to_strings()) {
-						result.push_back(s);
-					}
-				}
-				return result;
-			}
-		private:
-			std::vector<TreeAndString> m_result;
-		};
-
-		class Parser {
-		public:
-			using shared_ptr = std::shared_ptr<Parser>;
-			virtual ParseResult parse(String const& s) const = 0;
-		private:
-		};
-
-		class CharParser : public Parser {
-		public:
-			virtual ParseResult parse(String const& s) const {
-				return ParseResult{TreeAndString{make_tree(s.head(1)),s.tail(1)}};
-			}
-		private:
-		};
-
-		Parser::shared_ptr char_parser() {return std::make_shared<CharParser>();}
-	} // namespace on_heap
-
-	class Tree {
-	public:
-		Tree(on_heap::Tree instance) : m_instance{instance} {} 
-	private:
-		on_heap::Tree m_instance;
-	};
-
-	class TreeAndString {
-	public:
-	private:
-		Tree m_thing;
-		String m_s;
-	};
-
-	using ParseResult = on_heap::ParseResult;
-
-	// Polymorphic parser wrapper
-	class Parser {
-	public:
-		Parser(on_heap::Parser::shared_ptr const& instance) : m_instance{instance} {}
-		ParseResult operator()(String const& s) {
-			return m_instance->parse(s);
-		}
-	private:
-		on_heap::Parser::shared_ptr m_instance; // polymorphic parser
-	};
-
-	Parser char_parser() {return Parser{on_heap::char_parser()};}
-
-	ParseResult parse(Parser p,String s) {
-		return p(s);
-	}
-
-	std::ostream& operator<<(std::ostream& os,ParseResult result){
-		if (result) {
-			for (auto const& row : result.to_strings()) {
-				os << "\n" << row;
-			}
-			os << "SUCCESS";
-		}
-		else os << "FAILED";
-		return os;
-	}
-
-	void test() {
-		/*
-		8710
-		3800-3899
-		4000-4799 eller 4910-4931
-		4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)
-		7700-7899 (förutom 7740-7749 och 7790-7799)
-		8070-8089, 8170-8189, 8270-8289 eller 8370-8389
-		1020-1059 eller 1080-1089 (förutom 1088)
-		2370-2379 (förutom 2373)
-		*/
-		char const* s = R"(8710
-		3800-3899
-		4000-4799 eller 4910-4931
-		4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)
-		7700-7899 (förutom 7740-7749 och 7790-7799)
-		8070-8089, 8170-8189, 8270-8289 eller 8370-8389
-		1020-1059 eller 1080-1089 (förutom 1088)
-		2370-2379 (förutom 2373)
-)";
-
-		auto p = char_parser();
-
-		auto result = parse(p,s);
-
-		if (result) {
-			std::cout << "\nParse success" << result;	
-		}
-		else {
-			std::cout << "\nParse failed";	
-		}
-	}
 }
 
 namespace BAS::K2::AR {
@@ -1369,6 +1091,7 @@ namespace detail {
 	// 1) TaggedAmountPtr instance is restricted to the Heap and accessible only through std::shared_ptr
 	class TaggedAmountClass {
 	public:
+	  friend std::ostream& operator<<(std::ostream& os, TaggedAmountClass const& tac);
 		using OptionalTagValue = std::optional<std::string>;
 		using Tags = std::map<std::string,std::string>;
 		using InstanceId = std::size_t;
@@ -1395,11 +1118,32 @@ namespace detail {
 			}
 			return result;
 		}
-
 		// Pure "same value" operator i.e., same date, amount and all tags equal (different id is ignores. Still "same value")
 		// This allows x1 == x2 to detect two instances that are in fact the same value. "And there can be only one" paradigm can be applied.
 		bool operator==(TaggedAmountClass const& other) const {
-			return (this->date() == other.date() and this->cents_amount() == other.cents_amount() and this->tags() == other.tags());
+			bool should_match{other.tags().contains("SIE") and this->tags().contains("SIE") and other.tags().at("SIE") == this->tags().at("SIE")};
+			auto result =     this->date() == other.date() 
+										and this->cents_amount() == other.cents_amount()
+										and std::all_of(
+											 m_tags.begin()
+											,m_tags.end()
+											,[&other](Tags::value_type const& entry) {
+												return (     (entry.first.starts_with("_"))
+																	or (     other.tags().contains(entry.first) 
+																				and other.tags().at(entry.first) == entry.second));
+											});
+			if (should_match and !result) {
+				std::cout << "\nShould Match but Does NOT {";
+				std::cout << "\n\tthis:" << *this;
+				std::cout << "\n\tother:" << other;
+				for (auto const& entry : m_tags) {
+					std::cout << "\nentry.second = " << entry.second << " entry.second.starts_with(\"_\") = " << entry.second.starts_with("_");
+					std::cout << "\nentry.first = " << entry.first << " other.tags().contains(entry.first) = " << other.tags().contains(entry.first);
+					std::cout << "\nother.tags().at(entry.first) = " << other.tags().at(entry.first) << " other.tags().at(entry.first) == entry.second) = " << (other.tags().at(entry.first) == entry.second);
+				}
+				std::cout << "\n}";
+			}
+			return result;
 		}
 	private:
 		InstanceId m_instance_id;
@@ -1407,6 +1151,23 @@ namespace detail {
 		CentsAmount m_cents_amount;
 		Tags m_tags;
 	}; // class TaggedAmountClass
+
+	// tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
+	std::string to_string(TaggedAmountClass::InstanceId instance_id) {
+		std::ostringstream os{};
+		os << std::hex << instance_id;
+		return os.str();
+	}
+
+	std::ostream& operator<<(std::ostream& os, detail::TaggedAmountClass const& tac) {
+		os << to_string(tac.instance_id());
+		os << " " << ::to_string(tac.date());
+		os << " " << ::to_string(to_units_and_cents(tac.cents_amount()));
+		for (auto const& tag : tac.tags()) {
+			os << " \"" << tag.first << "=" << tag.second << "\"";
+		}
+		return os;
+	}
 
 }
 
@@ -1418,17 +1179,6 @@ auto random_16_bit_salt() {
 	std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 	std::uniform_int_distribution<> distrib(1, 0xFFFF); // Use a 16 bit random number		
 	return distrib(gen);
-}
-
-namespace tagged_amount {
-	// TODO: Move all tagged amount code into this namespace
-
-	// tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
-	std::string to_string(detail::TaggedAmountClass::InstanceId instance_id) {
-		std::ostringstream os{};
-		os << std::hex << instance_id;
-		return os.str();
-	}
 }
 
 detail::TaggedAmountClass::OptionalInstanceId to_instance_id(std::string const& s) {
@@ -1482,12 +1232,7 @@ detail::TaggedAmountClass::InstanceId to_instance_id(Date const& date,CentsAmoun
 using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
 
 std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
-	os << tagged_amount::to_string(ta_ptr->instance_id());
-	os << " " << ta_ptr->date();
-	os << " " << to_string(to_units_and_cents(ta_ptr->cents_amount()));
-	for (auto const& tag : ta_ptr->tags()) {
-		os << " \"" << tag.first << "=" << tag.second << "\"";
-	}
+	if (ta_ptr) os << *ta_ptr;
 	return os;
 }
 
@@ -1496,8 +1241,8 @@ template<>
 struct std::hash<TaggedAmountPtr> {
     std::size_t operator()(TaggedAmountPtr const& ta_ptr) const noexcept {
 				std::size_t result{};
-				if (ta_ptr->tags().contains("instance_id")) {
-					std::istringstream is{ta_ptr->tags().at("instance_id")};
+				if (ta_ptr->tags().contains("_instance_id")) {
+					std::istringstream is{ta_ptr->tags().at("_instance_id")};
 					is >> std::hex >> result;
 				}
 				else {
@@ -1531,10 +1276,10 @@ namespace tas {
 				return false;
 			}
 			else return (     (ta_ptr->tags().contains("BAS"))
-			         and (    (ta_ptr->tags().contains("type") == false)
-							       or (     (ta_ptr->tags().contains("type") == true)
-										      and (ta_ptr->tags().at("type") != "saldo")))
-							 and (    (BAS::to_account_no(ta_ptr->tags().at("BAS")))));
+										and (BAS::to_account_no(ta_ptr->tags().at("BAS")))
+										and (    (     (ta_ptr->tags().contains("type") == false))
+													or (     (ta_ptr->tags().contains("type") == true)
+															 and (ta_ptr->tags().at("type") != "saldo"))));
 		};
 		for (auto const& ta_ptr : ta_ptrs) {
 			if (is_valid_bas_account_transaction(ta_ptr)) {
@@ -1602,13 +1347,13 @@ class DateOrderedTaggedAmountsContainer {
 		}
 
 		OptionalTaggedAmountPtr operator[](InstanceId const& instance_id) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << tagged_amount::to_string(instance_id) << ")" << std::flush;
+			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(instance_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
 			if (m_tagged_amount_ptrs_map.contains(instance_id)) {
 				result = m_tagged_amount_ptrs_map.at(instance_id);
 			}
 			else {
-				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to instance_id=" << tagged_amount::to_string(instance_id) << std::flush;
+				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to instance_id=" << detail::to_string(instance_id) << std::flush;
 			}
 			return result;
 		}
@@ -1622,7 +1367,7 @@ class DateOrderedTaggedAmountsContainer {
 					ta_ptrs.push_back(*ta_ptr);
 				}
 				else {
-					std::cerr << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for instance_id=" << tagged_amount::to_string(instance_id) << std::flush;
+					std::cerr << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for instance_id=" << detail::to_string(instance_id) << std::flush;
 				}
 			}
 			if (ta_ptrs.size() == instance_ids.size()) {
@@ -1852,7 +1597,7 @@ namespace CSV {
 								std::cerr << "\nNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
 						}
 					}
-					std::cerr << "\nNot a valid date: " << std::quoted(sDate);
+					if (sDate.size() > 0) std::cerr << "\nNot a valid date: " << std::quoted(sDate);
 				}
 			}
 			return result;
@@ -2720,17 +2465,18 @@ TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
 	detail::TaggedAmountClass::Tags tags{};
 	tags["type"] = "aggregate";
 	if (verno) tags["SIE"] = journal_id+std::to_string(*verno);
+	tags["vertext"] = me.defacto.caption;
 	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,gross_cents_amount),date,gross_cents_amount,std::move(tags));
 	Key::Path instance_ids{};
 	auto push_back_as_tagged_amount = [&instance_ids,&date,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta_ptr = to_tagged_amount(date,at);
 		result.push_back(ta_ptr);
-		instance_ids += tagged_amount::to_string(ta_ptr->instance_id());
+		instance_ids += detail::to_string(ta_ptr->instance_id());
 	};
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
-	aggregate_ta_ptr->tags()["members"] = instance_ids.to_string();
+	aggregate_ta_ptr->tags()["_members"] = instance_ids.to_string();
 	result.push_back(aggregate_ta_ptr);
 	return result;
 }
@@ -6737,7 +6483,7 @@ EnvironmentValue to_environment_value(TaggedAmountPtr const& ta_ptr) {
 	EnvironmentValue ev{};
 	ev["yyyymmdd_date"] = to_string(ta_ptr->date());
 	ev["cents_amount"] = std::to_string(ta_ptr->cents_amount());
-	ev["instance_id"] = tagged_amount::to_string(ta_ptr->instance_id());
+	ev["_instance_id"] = detail::to_string(ta_ptr->instance_id());
 	for (auto const& entry : ta_ptr->tags()) {
 		ev[entry.first] = entry.second;
 	}
@@ -6751,7 +6497,7 @@ OptionalTaggedAmountPtr to_tagged_amount(EnvironmentValue const& ev) {
 	detail::TaggedAmountClass::OptionalInstanceId instance_id{};
 	detail::TaggedAmountClass::Tags tags{};
 	for (auto const& entry : ev) {
-		if (entry.first == "instance_id") instance_id = to_instance_id(entry.second);
+		if (entry.first == "_instance_id") instance_id = to_instance_id(entry.second);
 		else if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
 		else if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
 		else tags[entry.first] = entry.second;
@@ -8920,7 +8666,7 @@ public:
 							auto source_tags = ta_ptr->tags();
 							detail::TaggedAmountClass::Tags tags{};
 							tags["BAS"]=std::to_string(bas_account);
-							tags["Source"]=tagged_amount::to_string(ta_ptr->instance_id());
+							tags["Source"]=detail::to_string(ta_ptr->instance_id());
 							auto result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,cents_amount),date,cents_amount,std::move(tags));
 							return result;
 						};
@@ -8979,7 +8725,7 @@ public:
 				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
 					std::cout << "\n" << ta_ptr << std::flush;
 					prompt << "\n" << ta_ptr;
-					if (auto members_value = ta_ptr->tag_value("members")) {
+					if (auto members_value = ta_ptr->tag_value("_members")) {
 						auto members = Key::Path{*members_value};
 						if (auto instance_ids = to_instance_ids(members)) {
 							std::cout << "\n\t<members>" << std::flush;
@@ -10505,10 +10251,6 @@ private:
 
 int main(int argc, char *argv[])
 {
-	if (true) {
-		// test_ranges_support();
-		parse::test();
-	}
 	if (false) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
