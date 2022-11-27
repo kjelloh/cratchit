@@ -382,127 +382,44 @@ namespace BAS::SRU::INK2 {
 
 namespace parse {
 
-	using String = std::string_view;
-
-	namespace on_heap {
-		class BinaryNode; // Forward
-		class Parser; // Forward
-
-		using BinaryNodePtr = std::shared_ptr<BinaryNode>;
-		using ParserPtr = std::shared_ptr<Parser>;
-		using ParseResult = std::pair<BinaryNodePtr,String>;
-		using ParseResults = std::vector<ParseResult>;
-
-		class BinaryNode {
-		public:
-			BinaryNode(String s,BinaryNodePtr left={},BinaryNodePtr right={})
-				:  m_value{s}
-				  ,m_pLeft{left}
-					,m_pRight{right} {}
-
-		String value() const {return m_value;}
-		BinaryNodePtr left() const {return m_pLeft;}
-		BinaryNodePtr right() const {return m_pRight;}
-
-		std::string to_string(std::string const& parent_string) const {
-			std::string result{};
-			if (left()) {
-				result += left()->to_string(parent_string);
-			}
-			if (right()) {
-				result += right()->to_string(parent_string);
-			}
-			// Center parent string at the center of result string
-			auto length_diff = std::max(result.size()-parent_string.size(),std::size_t{0});
-			std::string margin{" ",length_diff/2};
-			result += margin + parent_string + margin;
-			return result;
-		}
-
-		private:
-			String m_value{};
-			BinaryNodePtr m_pLeft{};
-			BinaryNodePtr m_pRight{};
-		};
-
-		BinaryNodePtr make_tree(String const& s) {return std::make_shared<BinaryNode>(s);}
-		BinaryNodePtr make_tree(BinaryNodePtr left,BinaryNodePtr right) {return std::make_shared<BinaryNode>("",left,right);};
-
-		class Parser {
-		public:
-			virtual ParseResults parse(String s) = 0;
-		private:
-		};
-
-		class CharParser : public Parser {
-			virtual ParseResults parse(String s) {
-				ParseResults result{};
-				if (s.size() > 0) {
-					result.push_back(ParseResult{make_tree(s.substr(0,1)),s.substr(1)});					
-				}
-				return result;
-			}
-		};
-
-		ParserPtr new_char_parser() {return std::make_shared<CharParser>();}
-	}
-	
-	class Tree {
+	class String {
 	public:
-		Tree(on_heap::BinaryNodePtr p) : m_root{p} {}
-
-		std::string to_string() const {
-			return m_root->to_string("");
-		}
+		String(char const* sz) : s{sz} {} 
 	private:
-		on_heap::BinaryNodePtr m_root{};
+		std::string s;
 	};
 
-	using ParseResult = std::pair<Tree,String>;
-	using ParseResults = std::vector<ParseResult>;
+	class Thing {
+	public:
+	private:
+	};
 
-	// Bridge on_heap instances to value wrapped stack instances
-	ParseResults to_parse_results(on_heap::ParseResults on_heap_parse_results) {
-		ParseResults result{};
-		std::transform(on_heap_parse_results.begin(),on_heap_parse_results.end(),std::back_inserter(result),[](on_heap::ParseResult on_heap_parse_result){
-			return ParseResult(on_heap_parse_result.first,on_heap_parse_result.second);
-		});
-		return result;
-	}
+	class ThingAndString {
+	public:
+	private:
+	};
 
-	// On stack value wrapper of on_heap instance
+	class ParseResult {
+	public:
+		operator bool() {return false;}
+	private:
+	};
+
 	class Parser {
 	public:
-		Parser(on_heap::ParserPtr p) : m_pParser{p} {}
-		ParseResults operator()(String s) {
-			return to_parse_results(m_pParser->parse(s));
+		ParseResult operator()(String s) {
+			return ParseResult{};
 		}
-	private:
-		on_heap::ParserPtr m_pParser;
+	private:		
 	};
 
-	Parser char_parser() {return Parser{on_heap::new_char_parser()};}
+	Parser char_parser() {return Parser{};}
 
-	bool is_success(ParseResults parse_results) {return parse_results.size()>0;}
-
-	std::ostream& operator<<(std::ostream& os,Tree const&  tree) {
-		os << tree.to_string();
-		return os;
+	ParseResult parse(Parser p,String s) {
+		return p(s);
 	}
 
-	std::ostream& operator<<(std::ostream& os,ParseResult const&  parse_result) {
-		os << parse_result.first;
-		return os;
-	}
-
-	std::ostream& operator<<(std::ostream& os,ParseResults const&  parse_results) {
-		if (is_success(parse_results)) {
-			os << "SUCCESS";
-			for (auto const& parse_result: parse_results) {
-				os << "\n\t" << parse_result;
-			}
-		}
-		else os << "FAILED"; 
+	std::ostream& operator<<(std::ostream& os,ParseResult result){
 		return os;
 	}
 
@@ -517,7 +434,7 @@ namespace parse {
 		1020-1059 eller 1080-1089 (förutom 1088)
 		2370-2379 (förutom 2373)
 		*/
-		char const* text_to_parse = R"(		8710
+		char const* s = R"(8710
 		3800-3899
 		4000-4799 eller 4910-4931
 		4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)
@@ -527,8 +444,12 @@ namespace parse {
 		2370-2379 (förutom 2373)
 )";
 
-		if (auto parse_result = char_parser()(text_to_parse);is_success(parse_result)) {
-			std::cout << "\nparse_result=" << parse_result;	
+		auto p = char_parser();
+
+		auto result = parse(p,s);
+
+		if (result) {
+			std::cout << "\nParse success" << result;	
 		}
 		else {
 			std::cout << "\nParse failed";	
@@ -10479,7 +10400,7 @@ private:
 int main(int argc, char *argv[])
 {
 	if (true) {
-		test_ranges_support();
+		// test_ranges_support();
 		parse::test();
 	}
 	if (false) {
