@@ -1899,7 +1899,7 @@ namespace BAS {
 		try {
 			const std::regex meta_regex("[A-Z]\\d+"); // series followed by verification number
 			if (std::regex_match(s,meta_regex)) result = JournalEntryMeta{
-				.series = s[0]
+				 .series = s[0]
 				,.verno = static_cast<VerNo>(std::stoi(s.substr(1)))};
 		}
 		catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_journal_meta(" << s << ") failed. Exception=" << std::quoted(e.what());}
@@ -2061,7 +2061,7 @@ namespace BAS {
 		ATType to_at_type(std::string const& prop) {
 			ATType result{ATType::undefined};
 			static const std::map<std::string,ATType> AT_TYPE_TO_ID_MAP{
-				{"",ATType::undefined}
+				 {"",ATType::undefined}
 				,{"transfer",ATType::transfer}
 				,{"eu_purchase",ATType::eu_purchase}
 				,{"gross",ATType::gross}
@@ -8281,6 +8281,12 @@ public:
 										std::ofstream skv_file{skv_file_path};
 										if (SKV::XML::to_employee_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
 											prompt << "\nCreated " << skv_file_path;
+                      prompt << "\nUpload file to Swedish Skatteverket";
+                      prompt << "\n1. Browse to https://skatteverket.se/foretag";
+                      prompt << "\n2. Click on 'Lämna arbetsgivardeklaration'";
+                      prompt << "\n3. Log in";
+                      prompt << "\n4. Choose to represent your company";
+                      prompt << "\n5. Click on 'Deklarera via fil' and follow the instructions to upload the file " << skv_file_path;
 										}
 										else {
 											prompt << "\nSorry, failed to create " << skv_file_path;
