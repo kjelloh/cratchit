@@ -6859,11 +6859,25 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("-sie <sie file path> : imports a new input sie file");
 			result.push_back("-sie : lists transactions in input sie-file");
 			result.push_back("-env : lists cratchit environment");
+			result.push_back("-tas <first date> <last date> : Selects tagged amounts in the period first date .. last date");
+			result.push_back("-tas : Selects last selected tagged amounts");
 			result.push_back("-csv <csv file path> : Imports Comma Seperated Value file of Web bank account transactions");
 			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");			
 			result.push_back("'q' or 'Quit'");
 		} break;
-		case PromptState::TAIndex: {result.push_back("PromptState::TAIndex");} break;
+		case PromptState::TAIndex: {
+      result.push_back("The following options are available for Tagged Amounts selection.");
+      result.push_back("<Enter> : Lists the currently selected tagged amounts");
+      result.push_back("<index> - Selects tagged amount with provided index");
+      result.push_back("-has_tag <regular expression> - Keep tagged amounts with tag matching regular expression");
+      result.push_back("-has_not_tag <regular expression> - Keep tagged amounts with tag NOT matching regular expression");
+      result.push_back("-is_tagged <tag name>=<regular expression> - Keep tagged amounts with named tag value matching regular expression");
+      result.push_back("-is_not_tagged <tag name>=<regular expression> - Keep tagged amounts with named tag value NOT matching regular expression");
+      result.push_back("-to_bas_account <bas account number> - Tag current selection of tagged amounts with provided BAS account number.");
+      result.push_back("-amount_trails - Groups tagged amounts on transaction amount and lists them");
+      result.push_back("-aggregates - Reduces tagged amounts to only aggregates (E.g., SIE entries referring to single account tagged amounts)");
+      result.push_back("-todo - Lists tagged amounts subject to 'TODO' actions.");
+    } break;
 		case PromptState::AcceptNewTAs: {
 			result.push_back("1:YES");
 			result.push_back("<Enter>:No");
@@ -7196,6 +7210,7 @@ public:
 		if (ast.size() == 0) {
 			// User hit <Enter> with no input
 			if (model->prompt_state == PromptState::TAIndex) {
+        prompt << options_list_of_prompt_state(model->prompt_state);
 				// List current selection
 				prompt << "\n<SELECTED>";
 				// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
