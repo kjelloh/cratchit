@@ -6503,16 +6503,20 @@ OptionalHeadingAmountDateTransEntry to_had(BAS::MetaEntry const& me) {
 
 OptionalHeadingAmountDateTransEntry to_had(TaggedAmountPtr const& ta_ptr) {
   OptionalHeadingAmountDateTransEntry result{};
-  // ####
-	// HeadingAmountDateTransEntry had{
-	// 	.heading = me.defacto.caption
-	// 	,.amount = gross_amount
-	// 	,.date = me.defacto.date
-	// 	,.optional = {
-	// 		.current_candidate = me
-	// 	}
-	// };
-	// result = had;
+  std::string heading{};
+
+  if (auto o_value = ta_ptr->tag_value("Account")) heading += std::string{"Account:"} + *o_value;
+  if (auto o_value = ta_ptr->tag_value("Text")) heading += std::string{" Text:"} + *o_value;
+  if (auto o_value = ta_ptr->tag_value("Message")) heading += std::string{" Message:"} + *o_value;
+  if (auto o_value = ta_ptr->tag_value("From")) heading += std::string{" From:"} + *o_value;
+  if (auto o_value = ta_ptr->tag_value("To")) heading += std::string{" To:"} + *o_value;
+
+  HeadingAmountDateTransEntry had{
+    .heading = heading
+    ,.amount = static_cast<Amount>(ta_ptr->cents_amount())
+    ,.date = ta_ptr->date()
+  };
+  result = had;
   return result;
 }
 
@@ -8824,10 +8828,10 @@ public:
         // ####
 				for (auto const& ta_ptr : had_candidate_ta_ptrs) {
           if (auto o_had = to_had(ta_ptr)) {
-
+						model->heading_amount_date_entries.push_back(*o_had);
           }
           else {
-            prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry";
+            prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry" << ta_ptr;
           }
         }
       }
