@@ -6471,6 +6471,21 @@ OptionalHeadingAmountDateTransEntry to_had(BAS::MetaEntry const& me) {
 	return result;
 }
 
+OptionalHeadingAmountDateTransEntry to_had(TaggedAmountPtr const& ta_ptr) {
+  OptionalHeadingAmountDateTransEntry result{};
+  // ####
+	// HeadingAmountDateTransEntry had{
+	// 	.heading = me.defacto.caption
+	// 	,.amount = gross_amount
+	// 	,.date = me.defacto.date
+	// 	,.optional = {
+	// 		.current_candidate = me
+	// 	}
+	// };
+	// result = had;
+  return result;
+}
+
 EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	EnvironmentValue ev{};
 	ev["name"] = cpm.name;
@@ -8779,6 +8794,18 @@ public:
 				}
 				std::cout << "\nB" << count++ << std::flush;
 			}
+			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_had") {
+        prompt << "\nCreating Heading Amount Date entries from selected Tagged Amounts";
+        // ####
+				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
+          if (auto o_had = to_had(ta_ptr)) {
+
+          }
+          else {
+            prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry";
+          }
+        }
+      }
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
 				prompt << "\nSorry, Identifying todos on tagged amounts not yet implemented";
 			}
