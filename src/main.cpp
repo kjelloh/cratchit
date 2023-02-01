@@ -1346,11 +1346,23 @@ class DateOrderedTaggedAmountsContainer {
 			return std::ranges::subrange(first,last);
 		}
 
-		OptionalTaggedAmountPtr operator[](InstanceId const& instance_id) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(instance_id) << ")" << std::flush;
+    OptionalTaggedAmountPtr at(InstanceId const& instance_id) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << detail::to_string(instance_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
 			if (m_tagged_amount_ptrs_map.contains(instance_id)) {
 				result = m_tagged_amount_ptrs_map.at(instance_id);
+			}
+			else {
+				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to instance_id=" << detail::to_string(instance_id) << std::flush;
+			}
+			return result;
+    }
+
+		OptionalTaggedAmountPtr operator[](InstanceId const& instance_id) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(instance_id) << ")" << std::flush;
+			OptionalTaggedAmountPtr result{};
+			if (auto o_ptr = this->at(instance_id)) {
+				result = o_ptr;
 			}
 			else {
 				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to instance_id=" << detail::to_string(instance_id) << std::flush;
@@ -1412,6 +1424,24 @@ class DateOrderedTaggedAmountsContainer {
 			}
 			return result;
 		}
+
+    DateOrderedTaggedAmountsContainer erase(InstanceId const& instance_id) {
+      if (auto o_ptr = this->at(instance_id)) {
+        m_tagged_amount_ptrs_map.erase(instance_id);
+        auto iter = std::ranges::find(m_date_ordered_amount_ptrs,*o_ptr);
+        if (iter != m_date_ordered_amount_ptrs.end()) {
+          m_date_ordered_amount_ptrs.erase(iter);
+        }
+        else {
+          std::cerr << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, instance_id " << instance_id;
+        }
+      }
+      else {
+        std::cerr << "nDateOrderedTaggedAmountsContainer::at failed to find instance_id " << instance_id;
+      }
+      return *this;
+    }
+
 		DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
 			for (auto const& ta_ptr : m_date_ordered_amount_ptrs) {
 				f(ta_ptr);
@@ -8756,48 +8786,43 @@ public:
 				// List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
 				std::cout << "\n<AGGREGATES>" << std::flush;
 				prompt << "\n<AGGREGATES>";
-				TaggedAmountPtrs not_aggregated_ta_ptrs{model->selected_date_ordered_tagged_amounts.begin(),model->selected_date_ordered_tagged_amounts.end()};
-				int count{};
 				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
-					std::cout << "\n" << ta_ptr << std::flush;
 					prompt << "\n" << ta_ptr;
 					if (auto members_value = ta_ptr->tag_value("_members")) {
 						auto members = Key::Path{*members_value};
 						if (auto instance_ids = to_instance_ids(members)) {
-							std::cout << "\n\t<members>" << std::flush;
 							prompt << "\n\t<members>";
 							if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
-								std::cout << "\n" << count++ << std::flush;
 								for (auto const& ta_ptr : *ta_ptrs) {
-									std::cout << "\n" << count++ << std::flush;
 									prompt << "\n\t" << ta_ptr;
-									std::cout << "\n" << count++ << std::flush;
-									auto iter = std::ranges::find_if(
-										not_aggregated_ta_ptrs
-										,[&count,ta_ptr1 = ta_ptr](auto const& ta_ptr2) {
-											return false;
-											std::cout << "\nlambda " << count++ << std::flush;
-											if (ta_ptr2) return (ta_ptr1->instance_id() == ta_ptr2->instance_id());
-											std::cout << "\nlambda detected null pointer! " << count++ << std::flush;
-											return false;
-										}
-									);
-									if (iter != not_aggregated_ta_ptrs.end()) not_aggregated_ta_ptrs.erase(iter);
 								}
-								std::cout << "\nB" << count++ << std::flush;
 							}
-							std::cout << "\nB" << count++ << std::flush;
 						}
-						std::cout << "\nB" << count++ << std::flush;
 					}
-					std::cout << "\nB" << count++ << std::flush;
 				}
-				std::cout << "\nB" << count++ << std::flush;
 			}
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_had") {
         prompt << "\nCreating Heading Amount Date entries from selected Tagged Amounts";
-        // ####
+				auto had_candidate_ta_ptrs = model->selected_date_ordered_tagged_amounts;
+        // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
 				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
+          bool has_SIE_tag = ta_ptr->tag_value("SIE").has_value();
+					if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) {
+            prompt << "\nDisregarded SIE aggregate " << ta_ptr;
+            had_candidate_ta_ptrs.erase(ta_ptr->instance_id());
+						auto members = Key::Path{*members_value};
+						if (auto instance_ids = to_instance_ids(members)) {
+							if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
+								for (auto const& ta_ptr : *ta_ptrs) {
+                  prompt << "\nDisregarded SIE aggregate member " << ta_ptr;
+                  had_candidate_ta_ptrs.erase(ta_ptr->instance_id());            
+								}
+							}
+						}
+					}
+				}
+        // ####
+				for (auto const& ta_ptr : had_candidate_ta_ptrs) {
           if (auto o_had = to_had(ta_ptr)) {
 
           }
@@ -8807,6 +8832,7 @@ public:
         }
       }
 			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
+        // Filter out tagged amounts that are already in the books as an SIE entry / aggregate?
 				prompt << "\nSorry, Identifying todos on tagged amounts not yet implemented";
 			}
 			else if (ast[0] == "-bas") {
