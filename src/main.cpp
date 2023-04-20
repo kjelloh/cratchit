@@ -10100,14 +10100,22 @@ private:
 			// Process all files in skv_specs_path
 			std::cout << "\nBEGIN: Processing files in " << skv_specs_path;
 			for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_path}) {
-				auto path = dir_entry.path();
-        if (std::filesystem::is_directory(path)) {
-          std::cout << "\n\nBEGIN Folder: " << path;
-          std::cout << "\n\tNO PROCESSING OF THIS FOLDER IMPLEMENTED YET";
-          std::cout << "\nEND Folder: " << path;
+				auto skv_specs_member_path = dir_entry.path();
+        if (std::filesystem::is_directory(skv_specs_member_path)) {
+          std::cout << "\n\nBEGIN Folder: " << skv_specs_member_path;
+    			for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_member_path}) {
+    				auto fiscal_year_member_path = dir_entry.path();
+            if (std::filesystem::is_regular_file(fiscal_year_member_path) and (fiscal_year_member_path.extension() == ".csv")) {
+              std::cout << "\n\tPROCESSING OF CSV-FILE NOT YET IMPLEMENTED" <<  fiscal_year_member_path;
+            }
+            else {
+              std::cout << "\n\tSKIPPED UNUSED FILE" <<  fiscal_year_member_path;
+            }
+          }
+          std::cout << "\nEND Folder: " << skv_specs_member_path;
         }
         else {
-          std::cout << "\n\tSKIPPED NON FOLDER PATH " << path;
+          std::cout << "\n\tSKIPPED NON FOLDER PATH " << skv_specs_member_path;
         }
       }
 			std::cout << "\nEND: Processing files in " << skv_specs_path;
