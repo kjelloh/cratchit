@@ -10105,12 +10105,31 @@ private:
           std::cout << "\n\nBEGIN Folder: " << skv_specs_member_path;
     			for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_member_path}) {
     				auto fiscal_year_member_path = dir_entry.path();
+            std::cout << "\n\tBEGIN " <<  fiscal_year_member_path;
             if (std::filesystem::is_regular_file(fiscal_year_member_path) and (fiscal_year_member_path.extension() == ".csv")) {
-              std::cout << "\n\tPROCESSING OF CSV-FILE NOT YET IMPLEMENTED" <<  fiscal_year_member_path;
+              auto in = std::ifstream{fiscal_year_member_path};
+              if (auto field_rows = CSV::to_field_rows(in,';')) {
+                std::cout << "\n\t<Entries>";
+                for (int i=0;i<field_rows->size();++i) {
+                  auto field_row = field_rows->at(i);
+                  std::cout << "\n\t\t[" << i << "] : ";
+                  for (int j=0;j<field_row.size();++j) {
+                    // [14] :  [0]1.1 Årets gränsbelopp enligt förenklingsregeln [1]4511 [2]Numeriskt_B [3]N [4]+ [5]Regel_E
+                    // index 1 = SRU Code
+                    // Index 0 = Readable field name on actual human readable form
+                    // The other fields defines representation and "rules"
+                    std::cout << " [" << j << "]" << field_row[j];
+                  }
+                }
+              }
+              else {
+                std::cout << "\n\tFAILED PARSING FILE " <<  fiscal_year_member_path;
+              }
             }
             else {
               std::cout << "\n\tSKIPPED UNUSED FILE" <<  fiscal_year_member_path;
             }
+            std::cout << "\n\tEND " <<  fiscal_year_member_path;
           }
           std::cout << "\nEND Folder: " << skv_specs_member_path;
         }
