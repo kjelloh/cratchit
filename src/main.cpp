@@ -7094,7 +7094,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			}
 			else if (auto opt_entry = SIE::parse_any_line(in)) {
 				SIE::AnonymousLine al = std::get<SIE::AnonymousLine>(*opt_entry);
-				std::cout << "\n\tANY=" << al.str;
+				// std::cout << "\n\tANY=" << al.str;
 			}
 			else break;
 		}
