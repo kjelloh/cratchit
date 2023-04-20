@@ -2983,7 +2983,7 @@ namespace SIE {
 		std::optional<std::string> sign{};
 		std::vector<Trans> transactions{};
 	};
-	struct AnonymousLine {};
+	struct AnonymousLine {std::string str{};};
 	using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Rar,Ib,Konto,Sru,Ver,Trans,AnonymousLine>;
 	using SIEParseResult = std::optional<SIEFileEntry>;
 	std::istream& operator>>(std::istream& in,Tag const& tag) {
@@ -3308,7 +3308,7 @@ namespace SIE {
 		std::string line{};
 		if (std::getline(in,line)) {
 			// std::cout << "\n\tany=" << line;
-			return AnonymousLine{};
+			return AnonymousLine{.str=line};
 		}
 		else {
 			// std::cout << "\n\tany null";
@@ -7093,7 +7093,8 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 				sie_environment.post(me);
 			}
 			else if (auto opt_entry = SIE::parse_any_line(in)) {
-				// std::cout << "\n\tANY";
+				SIE::AnonymousLine al = std::get<SIE::AnonymousLine>(*opt_entry);
+				std::cout << "\n\tANY=" << al.str;
 			}
 			else break;
 		}
@@ -8444,7 +8445,8 @@ public:
 										SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
 										{
 											// #BLANKETT N7-2013P1
-											k10_sru_file_tag_map["#BLANKETT"] = "K10-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+											// k10_sru_file_tag_map["#BLANKETT"] = "K10-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+											k10_sru_file_tag_map["#BLANKETT"] = "K10-2022P4"; // See table 1, entry K10 column "blankett-block" in file "_Nyheter_from_beskattningsperiod_2022P4-3.pdf" (https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip)
 											// #IDENTITET 193510250100 20130426 174557
 											std::ostringstream os{};
 											if (model->employee_birth_ids[0].size()>0) {
@@ -8461,7 +8463,8 @@ public:
 										SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
 										{
 											// #BLANKETT N7-2013P1
-											ink1_sru_file_tag_map["#BLANKETT"] = "INK1-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+											// ink1_sru_file_tag_map["#BLANKETT"] = "INK1-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+											ink1_sru_file_tag_map["#BLANKETT"] = " INK1-2022P4"; // See entry INK1 column "blankett-block" in file "_Nyheter_from_beskattningsperiod_2022P4-3.pdf" (https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip)
 											// #IDENTITET 193510250100 20130426 174557
 											std::ostringstream os{};
 											if (model->employee_birth_ids[0].size()>0) {
@@ -10745,7 +10748,9 @@ namespace SKV {
 
 	namespace SRU {
 		namespace INK1 {
-			const char* ink1_csv_to_sru_template = R"(Fältnamn på INK1_SKV2000-31-02-0021-01;;;;;
+      // csv-format of file "INK1_SKV2000-32-02-0022-02_SKV269.xls" in zip file "_Nyheter_from_beskattningsperiod_2022P4-3.zip" from web-location https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip
+      // Also see project folder "cratchit/skv_specs".
+			const char* ink1_csv_to_sru_template = R"(Fältnamn på INK1_SKV2000-32-02-0022-02;;;;;
 ;;;;;
 ;;;;;
 Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
@@ -10771,8 +10776,7 @@ Korrekt person-/samordningsnummer eller organisationsnummer som inleds med 161 (
 4.3 Förnybar el;1582;Numeriskt_10;N;*;
 4.4 Gåva;1581;Numeriskt_10;N;*;
 4.5 Installation av grön teknik;1585;Numeriskt_10;N;*;
-5.1 Småhus/ägarlägenhet hel avgift, 0,75 %;80;Numeriskt_B;N;*;
-5.2 Småhus/ägarlägenhet halv avgift, 0,375 %;82;Numeriskt_B;N;*;
+5.1 Småhus/ägarlägenhet  0,75 %;80;Numeriskt_B;N;*;
 6.1 Småhus/ägarlägenhet: tomtmark, byggnad under uppförande 1,0 %;84;Numeriskt_B;N;*;
 7.1 Schablonintäkter;1106;Numeriskt_10;N;*;
 7.2 Ränteinkomster, utdelningar m.m. Vinst enligt bilaga K4 avsnitt C m.m.;1100;Numeriskt_10;N;*;
@@ -10812,20 +10816,32 @@ K12 avsnitt Coch K15A/B.";1173;Numeriskt_10;N;*;
 13.1 Regionalt nedsättningsbelopp, endast näringsverksamhet i stödområde;1411;Numeriskt_10;N;*;
 14.1 Allmänna avdrag underskott näringsverksamhet;1510;Numeriskt_10;N;*;
 15.1 Hyreshus: bostäder 0,3 %;93;Numeriskt_B;N;*;
-15.2 Hyreshus: bostäder 0,15 %;94;Numeriskt_B;N;*;
 16.1 Hyreshus: tomtmark, bostäder under uppförande 0,4 %;86;Numeriskt_B;N;*;
 16.2 Hyreshus: lokaler 1,0 %;95;Numeriskt_B;N;*;
 16.3 Industri och elproduktionsenhet, värmekraftverk 0,5 %;96;Numeriskt_B;N;*;
 16.4 Elproduktionsenhet: vattenkraftverk 0,5 %;97;Numeriskt_B;N;*;
 16.5 Elproduktionsenhet: vindkraftverk 0,2 %;98;Numeriskt_B;N;*;
+17.1 Inventarieinköp under 2021;1586;Numeriskt_B;N;*;
 Kryssa här om din näringsverksamhet har upphört;92;Str_X;N;;
 Kryssa här om du begär omfördelning av skattereduktion för rot/-rutavdrag eller installation av grön teknik.;8052;Str_X;N;;
 Kryssa här om någon inkomstuppgift är felaktig/saknas;8051;Str_X;N;;
 Kryssa här om du har haft inkomst från utlandet;8055;Str_X;N;;
 Kryssa här om du begär avräkning av utländsk skatt.;8056;Str_X;N;;
 Övrigt;8090;Str_1000;N;;
-Kanal;Kanal;Str_250;N;;)";
-			const char* k10_csv_to_sru_template = R"(Fältnamn på K10_SKV2110-34-04-21-02;;;;;
+
+;;;;
+;Dokumenthistorik;;;
+;Datum;Version;Beskrivning;Signatur
+;;;;
+;;;;
+;;;;
+;;;;
+;;;;
+;Referenser;;;
+;"Definition av format återfinns i SKV 269 ""Teknisk beskrivning Näringsuppgifter(SRU) Anstånd Tjänst Kapital""";;;)";
+      // csv-format of file "K10_SKV2110-35-04-22-01.xls" in zip file "_Nyheter_from_beskattningsperiod_2022P4-3.zip" from web-location https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip
+      // Also see project folder "cratchit/skv_specs".
+			const char* k10_csv_to_sru_template = R"(Fältnamn på K10_SKV2110-35-04-22-01;;;;;
 ;;;;;
 ;;;;;
 Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
@@ -10840,7 +10856,7 @@ Antal ägda andelar vid årets ingång;4531;Numeriskt_B;N;;
 Totala antalet andelar i hela företaget vid årets ingång;4532;Numeriskt_B;N;;
 Bolaget är ett utländskt bolag;7050;Str_X;N;;
 1.1 Årets gränsbelopp enligt förenklingsregeln;4511;Numeriskt_B;N;+;Regel_E
-1.2 Sparat utdelningsutrymme från föregående år x 103 %;4501;Numeriskt_B;N;+;Regel_E
+1.2 Sparat utdelningsutrymme från föregående år x 103,23 %;4501;Numeriskt_B;N;+;Regel_E
 1.3 Gränsbelopp enligt förenklingsregeln;4502;Numeriskt_B;N;*;Regel_E
 1.4 Vid avyttring eller gåva innan utdelningstillfället...;4720;Numeriskt_B;N;-;Regel_E
 1.5 Gränsbelopp att ytnyttja vid  p. 1.7 nedan;4503;Numeriskt_B;N;*;Regel_E
@@ -10856,9 +10872,9 @@ Bolaget är ett utländskt bolag;7050;Str_X;N;;
 1.15 Beloppet i p. 1.5 x 2/3;4508;Numeriskt_B;N;+;Regel_E
 1.16 Resterande utdelning;4509;Numeriskt_B;N;+;Regel_E
 1.17 Utdelning som ska tas upp i kapital;4515;Numeriskt_B;N;*;Regel_E
-2.1 Omkostnadsbelopp vid årets ingång (alternativt omräknat omkostnadsbelopp) x 9 %;4520;Numeriskt_B;N;+;Regel_F
+2.1 Omkostnadsbelopp vid årets ingång (alternativt omräknat omkostnadsbelopp) x 9,23 %;4520;Numeriskt_B;N;+;Regel_F
 2.2 Lönebaserat utrymme enligt avsnitt D p. 6.11;4521;Numeriskt_B;N;+;Regel_F
-2.3 Sparat utdelningsutrymme från föregående år x 103 %;4522;Numeriskt_B;N;+;Regel_F
+2.3 Sparat utdelningsutrymme från föregående år x 103,23 %;4522;Numeriskt_B;N;+;Regel_F
 2.4 Gränsbelopp enligt huvudregeln;4523;Numeriskt_B;N;*;Regel_F
 2.5 Vid avyttring eller gåva..innanutdelningstillfället...;4730;Numeriskt_B;N;-;Regel_F
 2.6 Gränsbelopp att utnyttja vid punkt 2.8 nedan;4524;Numeriskt_B;N;*;Regel_F
@@ -10885,9 +10901,9 @@ Försäljningsdatum;4544;Datum_D;N;;
 3.6 Omkostnadsbelopp (alternativt omräknat omkostnadsbelopp);4743;Numeriskt_B;N;-;
 3.7a. Om utdelning erhållits under året...;4744;Numeriskt_B;N;-;
 3.7b. Om utdelning erhållits efter delavyttring...;4745;Numeriskt_B;N;-;
-3.8 Skattepliktig vinst som ska beskattas i tjänst. (Max 6 820 000 kr);4548;Numeriskt_B;N;*;
+3.8 Skattepliktig vinst som ska beskattas i tjänst. (Max 7 100 000 kr);4548;Numeriskt_B;N;*;
 3.9 Vinst enligt p. 3.3 ovan;4549;Numeriskt_B;N;+;
-3.10 Belopp som beskattas i tjänst enligt p. 3.8 (max 6 820 000 kr;4746;Numeriskt_B;N;-;
+3.10 Belopp som beskattas i tjänst enligt p. 3.8 (max 7 100 000 kr;4746;Numeriskt_B;N;-;
 3.11 Vinst i inkomstslaget kapital;4550;Numeriskt_B;N;*;
 3.12. Belopp antingen enligt p. 3.7a x 2/3 eller 3.7b x 2/3. Om beloppet i p. 3.7a eller 3.7b är större än vinsten i p. 3.11 tas istället 2/3 av vinsten i p. 3.11 upp.;4551;Numeriskt_B;N;+;
 "3.13 Resterande vinst (p. 3.11 minus antingen p. 3.7a eller
@@ -10897,23 +10913,23 @@ Den i avsnitt B redovisade överlåtelsen avser avyttring (ej efterföljande byt
 4.1 Det omräknade omkostnadsbeloppet har beräknats enligt Indexregeln (andelar anskaffade före 1990);4556;Str_X;N;;
 4.2 Det omräknade omkostnadsbeloppet har beräknats enligt Kapitalunderlagsregeln (andelar anskaffade före 1992);4557;Str_X;N;;
 Lönekravet uppfylls av närstående. Personnummer;4560;Orgnr_Id_PD;N;;
-5.1 Din kontanta ersättning från företaget och dess dotterföretag under 2020;4561;Numeriskt_B;N;*;
-5.2 Sammanlagd kontant ersättning i företaget och dess dotterföretag under 2020;4562;Numeriskt_B;N;*;
-5.3 (Punkt 5.2 x 5%) + 400 800 kr;4563;Numeriskt_B;N;*;
+5.1 Din kontanta ersättning från företaget och dess dotterföretag under 2021;4561;Numeriskt_B;N;*;
+5.2 Sammanlagd kontant ersättning i företaget och dess dotterföretag under 2021;4562;Numeriskt_B;N;*;
+5.3 (Punkt 5.2 x 5%) + 409 200 kr;4563;Numeriskt_B;N;*;
 Om löneuttag enligt ovan gjorts i dotterföretag. Organisationsnummer;4564;Orgnr_Id_O;N;;Ingen kontroll av värdet sker om 7060 är ifyllt
 Om löneuttag enligt ovan gjorts i dotterföretag. Organisationsnummer;4565;Orgnr_Id_O;N;;Ingen kontroll av värdet sker om 7060 är ifyllt
 Om löneuttag enligt ovan gjorts i dotterföretag. Organisationsnummer;4566;Orgnr_Id_O;N;;Ingen kontroll av värdet sker om 7060 är ifyllt
 Utländskt dotterföretag;7060;Str_X;N;;
-6.1 Kontant ersättning till arbetstagare under 2020...;4570;Numeriskt_B;N;+;
-6.2 Kontant ersättning under 2020...;4571;Numeriskt_B;N;+;
+6.1 Kontant ersättning till arbetstagare under 2021...;4570;Numeriskt_B;N;+;
+6.2 Kontant ersättning under 2021...;4571;Numeriskt_B;N;+;
 6.3 Löneunderlag;4572;Numeriskt_B;N;*;
 6.4 Löneunderlag enligt p. 6.3 x 50 %;4573;Numeriskt_B;N;*;
-6.5 Ditt lönebaserade utrymme för andelar ägda under hela 2020...;4576;Numeriskt_B;N;*;
+6.5 Ditt lönebaserade utrymme för andelar ägda under hela 2021...;4576;Numeriskt_B;N;*;
 6.6 Kontant ersättning till arbetstagare under...;4577;Numeriskt_B;N;+;
 6.7 Kontant ersättning under...;4578;Numeriskt_B;N;+;
-6.8 Löneunderlag avseende den tid under 2020 andelarna ägts;4579;Numeriskt_B;N;*;
+6.8 Löneunderlag avseende den tid under 2021 andelarna ägts;4579;Numeriskt_B;N;*;
 6.9 Löneunderlag enligt p. 6.8 x 50 %;4580;Numeriskt_B;N;+;
-6.10 Ditt lönebaserade utrymme för andelar som anskaffats under 2020.;4583;Numeriskt_B;N;*;
+6.10 Ditt lönebaserade utrymme för andelar som anskaffats under 2021.;4583;Numeriskt_B;N;*;
 6.11 Totalt lönebaserat utrymme;4584;Numeriskt_B;N;*;)";			
 		}
 
