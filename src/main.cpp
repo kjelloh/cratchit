@@ -10088,6 +10088,33 @@ private:
 		return result;
 	}
 
+  struct SKVSpecsDummy {}; 
+
+  SKVSpecsDummy skv_specs_mapping_from_csv_files(Environment const& environment) {
+    // TODO 230420: Implement actual storage i model for these mappings
+    // ####
+    SKVSpecsDummy result{};
+		auto skv_specs_path = this->cratchit_file_path.parent_path() /  "skv_specs";
+		std::filesystem::create_directories(skv_specs_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+		if (std::filesystem::exists(skv_specs_path) == true) {
+			// Process all files in skv_specs_path
+			std::cout << "\nBEGIN: Processing files in " << skv_specs_path;
+			for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_path}) {
+				auto path = dir_entry.path();
+        if (std::filesystem::is_directory(path)) {
+          std::cout << "\n\nBEGIN Folder: " << path;
+          std::cout << "\n\tNO PROCESSING OF THIS FOLDER IMPLEMENTED YET";
+          std::cout << "\nEND Folder: " << path;
+        }
+        else {
+          std::cout << "\n\tSKIPPED NON FOLDER PATH " << path;
+        }
+      }
+			std::cout << "\nEND: Processing files in " << skv_specs_path;
+    }
+    return result;
+  }
+
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
 		DateOrderedTaggedAmountsContainer result{};
 		// Ensure folder "from_bank_or_skv folder" exists
@@ -10204,6 +10231,8 @@ private:
 			model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
 		}
 		model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+    auto dummy = this->skv_specs_mapping_from_csv_files(environment);
+
 		model->prompt = prompt.str();
 		return model;
 	}
