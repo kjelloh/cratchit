@@ -43,33 +43,127 @@ float const VERSION = 0.5;
 // c_cpp_properties.json/"configurations":/"includePath": ... "/Library/Developer/CommandLineTools/usr/include/c++/v1"
 //                                               to have Intellisense find actual OS specific c++ library headers (required by macro "include_next" in c++ library headers).
 
-    // "tasks": [
-    // {
-    //     "type": "cppbuild",
-    //     "label": "macOS C/C++: g++-11 build active file",
-    //     "command": "/usr/local/bin/g++-11",
-    //     "args": [
-    //         "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-    //         "-fdiagnostics-color=always",
-    //         "-std=c++20",
-    //         "-g",
-    //         "${file}",
-    //         "-o",
-    //         "${workspaceFolder}/cratchit.out"
-    //     ],
-    //     "options": {
-    //         "cwd": "${fileDirname}"
-    //     },
-    //     "problemMatcher": [
-    //         "$gcc"
-    //     ],
-    //     "group": {
-    //         "kind": "build",
-    //         "isDefault": true
-    //     },
-    //     "detail": "compiler: /usr/local/bin/g++-11"
-    // }
-    // ]
+// {
+//     "version": "2.0.0",
+//     "tasks": [
+//       {
+//         "type": "cppbuild",
+//         "label": "macOS C/C++: Brew installed g++-12 build cratchit",
+//         "command": "/usr/local/Cellar/gcc/12.2.0/bin/g++-12",
+//         "args": [
+//           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+//           "-fdiagnostics-color=always",
+//           "-std=c++20",
+//           "-g",
+//           "${file}",
+//           "-o",
+//           "${workspaceFolder}/cratchit.out"
+//         ],
+//         "options": {
+//           "cwd": "${fileDirname}"
+//         },
+//         "problemMatcher": [
+//           "$gcc"
+//         ],
+//         "group": "build",
+//         "detail": "compiler: /usr/local/Cellar/gcc/12.2.0/bin/g++-12"
+//       },
+//       {
+//         "type": "cppbuild",
+//         "label": "macOS C/C++: macPorts installed g++-12 build cratchit",
+//         "command": "/opt/local/bin/g++-mp-12",
+//         "args": [
+//           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+//           "-fdiagnostics-color=always",
+//           "-std=c++20",
+//           "-g",
+//           "${file}",
+//           "-o",
+//           "${workspaceFolder}/cratchit.out"
+//         ],
+//         "options": {
+//           "cwd": "${fileDirname}"
+//         },
+//         "problemMatcher": [
+//           "$gcc"
+//         ],
+//         "group": "build",
+//         "detail": "compiler: /opt/local/bin/g++-mp-12"
+//       },      
+
+//       {
+//         "type": "cppbuild",
+//         "label": "macOS C/C++: Brew installed clang-16 build cratchit",
+//         "command": "/usr/local/Cellar/llvm/16.0.2/bin/clang++",
+//         "args": [
+//           "-fdiagnostics-color=always",
+//           "-L/usr/local/Cellar/llvm/16.0.2/lib/c++/",
+//           "-Wl,-rpath,/usr/local/Cellar/llvm/16.0.2/lib/c++",
+//           "-std=c++20",
+//           "-g",
+//           "${file}",
+//           "-o",
+//           "${workspaceFolder}/cratchit.out"
+//         ],
+//         "options": {
+//           "cwd": "${fileDirname}"
+//         },
+//         "problemMatcher": [
+//           "$gcc"
+//         ],
+//         "group": "build",
+//         "detail": "compiler: /usr/local/Cellar/llvm/16.0.2/bin/clang++"
+//       },
+
+//       {
+//         "type": "cppbuild",
+//         "label": "macOS C/C++: macPorts installed clang-15 build cratchit",
+//         "command": "/opt/local/libexec/llvm-15/bin/clang++",
+//         "args": [
+//           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+//           "-fexperimental-library",
+//           "-L/opt/local/libexec/llvm-15/lib/",
+//           "-fdiagnostics-color=always",
+//           "-std=c++20",
+//           "-g",
+//           "${file}",
+//           "-o",
+//           "${workspaceFolder}/cratchit.out"
+//         ],
+//         "options": {
+//           "cwd": "${fileDirname}"
+//         },
+//         "problemMatcher": [
+//           "$gcc"
+//         ],
+//         "group": "build",
+//         "detail": "compiler: /opt/local/libexec/llvm-15/bin/clang++"
+//       },      
+
+//       {
+//         "type": "cppbuild",
+//         "label": "Linux C/C++: clang-14 build cratchit",
+//         "command": "/usr/lib/llvm-14/bin/clang++",
+//         "args": [
+//           "-fdiagnostics-color=always",
+//           "-std=c++20",
+//           "-stdlib=libc++",
+//           "${file}",
+//           "-o",
+//           "${workspaceFolder}/cratchit.out"
+//         ],
+//         "options": {
+//           "cwd": "${fileDirname}"
+//         },
+//         "problemMatcher": [
+//           "$gcc"
+//         ],
+//         "group": "build",
+//         "detail": "compiler: /usr/lib/llvm-14/bin/clang++"
+//       }
+     
+//     ]
+// }
 
     // "configurations": [
     //     {
@@ -8375,7 +8469,28 @@ public:
 							case 1: {model->prompt_state = PromptState::EnterIncome;} break;
 							case 2: {model->prompt_state = PromptState::EnterDividend;} break;
 							case 3: {
-								if (true) {
+                if (false) {
+                  // 230420 - began hard coding generation of corrected K10 for last year + K10 and INK1 for this year
+                  // PAUS for now (I ended up sending in a manually edited INFO.SRU and BLANKETTER.SRU)
+                  // TODO: Consider to:
+                  // 1. Use CSV-files as read by skv_specs_mapping_from_csv_files()
+                  //    Get rid of hard coded SKV::SRU::INK1::k10_csv_to_sru_template and SKV::SRU::INK1::ink1_csv_to_sru_template?
+                  //    NOTE: They both use the same csv-files as input (2 at compile time and 1 at run-time)
+                  //    Actually - Decide if these csv-files should be hard coded or read at run-time?
+                  // 2. Consider to expose these csv-file as actual forms for the user to edit?
+                  //    I imagine we can generate indexed entries to each field and have the user select end edit its value?
+                  //    Question is how to implemented computation as defined by SKV for these forms (rates and values gets redefined each year!)
+                  // ...
+                  /*
+										SKV::SRU::FilesMapping fm {
+											.info = to_info_sru_file_tag_map(model);
+										};
+                    fm.blanketter.push_back(to_k10_blankett(2021));
+                    fm.blanketter.push_back(to_k10_blankett(2022));
+                    fm.blanketter.push_back(to_ink1_blankett(2022));
+                  */
+                }
+								else {
 									// TODO: Split to allow edit of Income and Dividend before entering the actual generation phase/code
 									// k10_csv_to_sru_template
 									SKV::SRU::OptionalSRUValueMap k10_sru_value_map{};
@@ -10091,7 +10206,7 @@ private:
   struct SKVSpecsDummy {}; 
 
   SKVSpecsDummy skv_specs_mapping_from_csv_files(Environment const& environment) {
-    // TODO 230420: Implement actual storage i model for these mappings
+    // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
     // ####
     SKVSpecsDummy result{};
 		auto skv_specs_path = this->cratchit_file_path.parent_path() /  "skv_specs";

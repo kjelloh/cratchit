@@ -47,12 +47,12 @@
       },      
       {
         "type": "cppbuild",
-        "label": "macOS C/C++: Brew installed clang-15 build cratchit",
-        "command": "/usr/local/Cellar/llvm/15.0.3/bin/clang++",
+        "label": "macOS C/C++: Brew installed clang-16 build cratchit",
+        "command": "/usr/local/Cellar/llvm/16.0.2/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
-          "-fexperimental-library",
-          "-L/usr/local/Cellar/llvm/15.0.3/lib/c++/",
+          "-L/usr/local/Cellar/llvm/16.0.2/lib/c++/",
+          "-Wl,-rpath,/usr/local/Cellar/llvm/16.0.2/lib/c++",
           "-std=c++20",
           "-g",
           "${file}",
@@ -66,7 +66,7 @@
           "$gcc"
         ],
         "group": "build",
-        "detail": "compiler: /usr/local/Cellar/llvm/15.0.3/bin/clang++"
+        "detail": "compiler: /usr/local/Cellar/llvm/16.0.2/bin/clang++"
       },
       {
         "type": "cppbuild",
