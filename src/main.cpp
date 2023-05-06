@@ -1358,7 +1358,7 @@ namespace tas {
 	// namespace for processing that produces tagged amounts and tagged amounts
 
 	// Generic for parsing a range or container of tagged amount pointers into a vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas account)
-	TaggedAmountPtrs to_bas_saldos(auto const& ta_ptrs) {
+	TaggedAmountPtrs to_bas_omslutning(auto const& ta_ptrs) {
 		TaggedAmountPtrs result{};
 		using BASBuckets = std::map<BAS::AccountNo,TaggedAmountPtrs>;
 		BASBuckets bas_buckets{};
@@ -1366,7 +1366,7 @@ namespace tas {
 			if (ta_ptr->tags().contains("BAS") and !(BAS::to_account_no(ta_ptr->tags().at("BAS")))) {
 				// Whine about invalid tagging of 'BAS' tag!
 				// It is vital we do NOT have any badly tagged BAS account transactions as this will screw up the saldo calculation!
-				std::cerr << "\nDESIGN_INSUFFICIENCY: tas::to_bas_saldos failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta_ptr->tags().at("BAS"));
+				std::cerr << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta_ptr->tags().at("BAS"));
 				return false;
 			}
 			else return (     (ta_ptr->tags().contains("BAS"))
@@ -1381,16 +1381,16 @@ namespace tas {
 			}
 		}
 		for (auto const& [bas_account_no,ta_ptrs] : bas_buckets) {
-			Date saldo_date{};
+			Date period_end_date{};
 			std::cout << "\n" << bas_account_no;
-			auto cents_saldo = std::accumulate(ta_ptrs.begin(),ta_ptrs.end(),CentsAmount{0},[&saldo_date](auto acc, auto const& ta_ptr){
-				saldo_date = std::max(saldo_date,ta_ptr->date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
+			auto cents_saldo = std::accumulate(ta_ptrs.begin(),ta_ptrs.end(),CentsAmount{0},[&period_end_date](auto acc, auto const& ta_ptr){
+				period_end_date = std::max(period_end_date,ta_ptr->date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
 				acc += ta_ptr->cents_amount();
-				std::cout << "\n\t" << saldo_date << " " << to_string(to_units_and_cents(ta_ptr->cents_amount())) << " saldo:" << to_string(to_units_and_cents(acc));
+				std::cout << "\n\t" << period_end_date << " " << to_string(to_units_and_cents(ta_ptr->cents_amount())) << " ackumulerat:" << to_string(to_units_and_cents(acc));
 				return acc;
 			});
 
-			auto saldo_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(saldo_date,cents_saldo),saldo_date,cents_saldo);
+			auto saldo_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(period_end_date,cents_saldo),period_end_date,cents_saldo);
 			saldo_ta_ptr->tags()["BAS"] = std::to_string(bas_account_no);
 			saldo_ta_ptr->tags()["type"] = "saldo";
 			result.push_back(saldo_ta_ptr);
@@ -4085,6 +4085,15 @@ public:
 	OptionalDateRange fiscal_year_date_range() {
 		return this->year_date_range;
 	}
+
+  OptionalAmount opening_balance_of(BAS::AccountNo bas_account_no) {
+    OptionalAmount result{};
+    if (this->opening_balance.contains(bas_account_no)) {
+      result = this->opening_balance.at(bas_account_no);
+
+    }
+    return result;
+  }
 	
 private:
 	BASJournals m_journals{};
@@ -8943,7 +8952,6 @@ public:
 						}
 					}
 				}
-        // ####
 				for (auto const& ta_ptr : had_candidate_ta_ptrs) {
           if (auto o_had = to_had(ta_ptr)) {
 						model->heading_amount_date_entries.push_back(*o_had);
@@ -9423,19 +9431,32 @@ public:
 
 				if (fiscal_year_date_range) {
 					auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
-					auto bas_account_saldos = tas::to_bas_saldos(fiscal_year_tagged_amounts_range);
+					auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
 
 					if (true) {
-						// Log saldos
+						// Log Omslutning
 						std::cout << "\nOmslutning {";
-						for (auto const& ta_ptr : bas_account_saldos) {	
-							std::cout << "\n\tkonto:" << ta_ptr->tags().at("BAS") << " saldo:" << to_string(to_units_and_cents(ta_ptr->cents_amount()));  
+						for (auto const& ta_ptr : bas_account_accs) {
+              auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
+              std::string bas_account_string = ta_ptr->tags().at("BAS"); 
+							std::cout << "\n\tkonto:" << bas_account_string;
+              // ####
+              auto ib = model->sie["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
+              if (ib) {
+                auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
+                std::cout << " IB:" << to_string(ib_units_and_cents);
+                std::cout << " omslutning:" << to_string(omslutning);
+                std::cout << " UB:" << to_string(to_units_and_cents(to_cents_amount(*ib) + ta_ptr->cents_amount()));
+              }
+              else {
+                std::cout << " omslutning:" << to_string(omslutning);
+              }
 						}
 						std::cout << "\n} // Omslutning";
 					}
 
-					auto not_accumulated = bas_account_saldos;
-					for (auto const& ta_ptr : bas_account_saldos) {	
+					auto not_accumulated = bas_account_accs;
+					for (auto const& ta_ptr : bas_account_accs) {	
 						for (auto& ar_entry : ar_entries) {
 							if (ta_ptr->tags().contains("BAS")) {
 								if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
@@ -10207,7 +10228,6 @@ private:
 
   SKVSpecsDummy skv_specs_mapping_from_csv_files(Environment const& environment) {
     // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
-    // ####
     SKVSpecsDummy result{};
 		auto skv_specs_path = this->cratchit_file_path.parent_path() /  "skv_specs";
 		std::filesystem::create_directories(skv_specs_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
@@ -10353,6 +10373,9 @@ private:
 					model->sie_file_path[year_key] = {sie_file_name};
 					prompt << "\nsie[" << year_key << "] from " << sie_file_path;
 				}
+        else {
+					prompt << "\nsie[" << year_key << "] from " << sie_file_path << " - *FAILED*";
+        }
 			}
 		}
 		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
