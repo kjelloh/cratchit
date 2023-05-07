@@ -6855,6 +6855,14 @@ public:
 		return this->heading_amount_date_entries;
 	}
 
+  OptionalDateRange to_fiscal_year_date_range(std::string const& year_id) {
+    OptionalDateRange result{};
+		if (this->sie.contains(year_id)) {
+      result = this->sie[year_id].fiscal_year_date_range();
+    }
+    return result;
+  }
+
 private:
 }; // ConcreteModel
 
@@ -9415,6 +9423,72 @@ public:
 			else if (ast[0] == "-") {
 				model->prompt_state = PromptState::Root;
 			}
+			else if (ast[0] == "-omslutning") {
+        // Report yearly change for each BAS account
+        std::string year_id = "current"; // default
+        if (ast.size()>1) {
+					if (model->sie.contains(ast[1])) {
+            year_id = ast[1];
+          }
+          else {
+            prompt << "\nSorry, I find no record of year " << std::quoted(ast[1]);
+          }
+        }
+
+				// auto fiscal_year_date_range = model->sie[year_id].fiscal_year_date_range();
+				auto fiscal_year_date_range = model->to_fiscal_year_date_range(year_id);
+
+				if (fiscal_year_date_range) {
+					auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
+					auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
+
+          // Output Omslutning
+          /*
+          Omslutning 20230501...20240430 {
+            <Konto>      <IN>  <period>     <OUT>
+                1920  36147,89  -7420,27  28727,62
+                1999    156,75   -156,75      0,00
+                2098      0,00  84192,50  84192,50
+                2099  84192,50 -84192,50      0,00
+                2440  -5459,55      0,00  -5459,55
+                2641   1331,46    156,75   1488,21
+                2893  -2601,86   2420,27   -181,59
+                2898  -5000,00   5000,00      0,00
+                9000                0,00      0,00
+          } // Omslutning
+          */
+          prompt << "\nOmslutning " << *fiscal_year_date_range << " {";
+          prompt << "\n" << std::setfill(' ');
+          auto w = 12;
+          prompt << std::setw(w) << "<Konto>";
+          prompt << "\t" << std::setw(w) << "<IN>";
+          prompt << "\t" << std::setw(w) << "<period>";
+          prompt << "\t" << std::setw(w) <<  "<OUT>";
+          for (auto const& ta_ptr : bas_account_accs) {
+            auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
+            std::string bas_account_string = ta_ptr->tags().at("BAS"); 
+            prompt << "\n";
+            prompt << std::setw(w) << std::string("") + bas_account_string;
+            // ####
+            auto ib = model->sie[year_id].opening_balance_of(*BAS::to_account_no(bas_account_string));
+            if (ib) {
+              auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
+              prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
+              prompt << "\t" << std::setw(w) << to_string(omslutning);
+              prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(*ib) + ta_ptr->cents_amount()));
+            }
+            else {
+              prompt << "\t" << std::setw(w) << "";
+              prompt << "\t" << std::setw(w) << to_string(omslutning);
+              prompt << "\t" << std::setw(w) << to_string(omslutning);
+            }
+          }
+          prompt << "\n} // Omslutning";
+        }
+        else {
+          prompt << "\nTry '-omslutning' with no argument for current year or enter a valid fiscal year id 'current','-1','-2',...";
+        }
+      }
 			else if (ast[0] == "-plain_ar") {
 				// Brute force an Annual Financial Statement as defined by Swedish Bolagsverket
 				// Parse BAS::K2::bas_2022_mapping_to_k2_ar_text to get mapping of BAS account saldos
