@@ -1169,7 +1169,9 @@ UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
 }
 
 std::ostream& operator<<(std::ostream& os,UnitsAndCents const& units_and_cents) {
-	os << units_and_cents.first << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
+  bool is_negative = (units_and_cents.first<0) or (units_and_cents.second < 0);
+  if (is_negative) os << "-";
+	os << std::abs(units_and_cents.first) << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
 	return os;
 }
 
