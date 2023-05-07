@@ -4172,9 +4172,12 @@ public:
     OptionalAmount result{};
     if (this->opening_balance.contains(bas_account_no)) {
       result = this->opening_balance.at(bas_account_no);
-
     }
     return result;
+  }
+
+  std::map<BAS::AccountNo,Amount> const& opening_balances() const {
+    return this->opening_balance;
   }
 	
 private:
@@ -9523,6 +9526,7 @@ public:
 					auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
 					auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
 
+          std::map<BAS::AccountNo,Amount> opening_balances = model->sie[year_id].opening_balances();
           // Output Omslutning
           /*
           Omslutning 20230501...20240430 {
@@ -9551,18 +9555,30 @@ public:
             prompt << "\n";
             prompt << std::setw(w) << std::string("") + bas_account_string;
             // ####
-            auto ib = model->sie[year_id].opening_balance_of(*BAS::to_account_no(bas_account_string));
-            if (ib) {
-              auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
+            auto bas_account_no = *BAS::to_account_no(bas_account_string);
+            if (opening_balances.contains(bas_account_no)) {
+              auto ib = opening_balances.at(bas_account_no);
+              auto ib_units_and_cents = to_units_and_cents(to_cents_amount(ib)); 
               prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
               prompt << "\t" << std::setw(w) << to_string(omslutning);
-              prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(*ib) + ta_ptr->cents_amount()));
+              prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(ib) + ta_ptr->cents_amount()));
+              opening_balances.erase(bas_account_no); // reported
             }
             else {
               prompt << "\t" << std::setw(w) << "";
               prompt << "\t" << std::setw(w) << to_string(omslutning);
               prompt << "\t" << std::setw(w) << to_string(omslutning);
             }
+          }
+          // Add on BAS accounts that has an IB but not reported above (no omslutning / transactions)
+          for (auto const& [bas_account_no,opening_balance] : opening_balances) {
+            std::string bas_account_string = std::to_string(bas_account_no); 
+            prompt << "\n";
+            prompt << std::setw(w) << std::string("") + bas_account_string;
+            auto ib_units_and_cents = to_units_and_cents(to_cents_amount(opening_balance)); 
+            prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
+            prompt << "\t" << std::setw(w) << "0,00";
+            prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
           }
           prompt << "\n} // Omslutning";
         }
