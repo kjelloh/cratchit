@@ -1218,6 +1218,67 @@ namespace detail {
 		// Pure "same value" operator i.e., same date, amount and all tags equal (different id is ignores. Still "same value")
 		// This allows x1 == x2 to detect two instances that are in fact the same value. "And there can be only one" paradigm can be applied.
 		bool operator==(TaggedAmountClass const& other) const {
+      // TODO: Fix error that same amount and date on SIE transactions are considered "same" although in this case they ARE different
+      //       See how 2614 transaction in A18 is ignored in transaction listing on account
+      /*
+      A16 "Beställning Sorotec - Mafell FM1000 CNC-fräsmotor" 20220715
+        "Leverantörsskulder":2440 "" -6643.14
+        "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 CNC-fräsmotor" 6643.14
+        "Utgående moms omvänd skattskyldighet, 25 %":2614 "" -1661
+        "Beräknad ingående moms på förvärv från utlandet":2645 "" 1661
+        
+      A18 "Ändringsverifikation A16 - ersatt med D8" 20220715
+        "Leverantörsskulder":2440 "" 6643.14
+        "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 CNC-fräsmotor" -6643.14
+        "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1661
+        "Beräknad ingående moms på förvärv från utlandet":2645 "" -1661
+        
+      D8 "Sorotec Beställning A22-200974" 20220715
+        "Leverantörsskulder":2440 "Beställning A22-200974" -6643.14
+        "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 PV-WS CNC fräsmotor" 6643.14
+        "Utgående moms omvänd skattskyldighet, 25 %":2614 "" -1661
+        "Beräknad ingående moms på förvärv från utlandet":2645 "" 1661
+        "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Varuvärde EU-inköp (Momsrapport ruta 20)" 6643.14
+        "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6643.14
+
+      2614
+        20220715 -1661,00 ackumulerat:-1661,00
+        20220715 1661,00 ackumulerat:0,00
+        20220722 -69,00 ackumulerat:-69,00
+        20220802 -93,00 ackumulerat:-162,00
+        20220803 -471,00 ackumulerat:-633,00
+        20220914 -96,20 ackumulerat:-729,20
+        20220930 2390,20 ackumulerat:1661,00
+        20221031 -259,80 ackumulerat:1401,20
+        20221231 259,80 ackumulerat:1661,00
+        
+        */ 
+
+      /*
+      TaggedAmountPtr "SIE=A16;_instance_id=3a9c0aaa14d91c90;_members=
+        c563f555eb2b9c03 
+        ^3a9c0aaa14d46e65 
+        ^c563f555eb3a7fc1 // TaggedAmountPtr "BAS=2614;_instance_id=c563f555eb3a7fc1;cents_amount=-166100;yyyymmdd_date=20220715"
+        ^3a9c0aaa14c5cc37 
+      ;cents_amount=830414;type=aggregate;vertext=Beställning Sorotec - Mafell FM1000 CNC-fräsmotor;yyyymmdd_date=20220715"
+
+      TaggedAmountPtr "SIE=A18;_instance_id=3a9c0aaa14d9fa95;_members=
+        3a9c0aaa14d4e6b6
+        ^c563f555eb2bcac1
+        ^3a9c0aaa14c5d01e // TaggedAmountPtr "BAS=2614;_instance_id=3a9c0aaa14c5d01e;cents_amount=166100;yyyymmdd_date=20220715"
+        ^c563f555eb3a17ec
+      ;cents_amount=830414;type=aggregate;vertext=Ändringsverifikation A16 - ersatt med D8;yyyymmdd_date=20220715"
+
+      TaggedAmountPtr "SIE=D8;_instance_id=3a9c0aaa14edd2f0;_members=
+        c563f555eb2bb3c9
+        ^3a9c0aaa14d4d2e0
+        ^c563f555eb3aabc4 // FINNS INTE!! (Borde varit TaggedAmountPtr "BAS=2614;_instance_id=c563f555eb3aabc4;cents_amount=166100;yyyymmdd_date=20220715")
+        ^3a9c0aaa14c5e81c
+        ^3a9c0aaa14d4d6b0
+        ^c563f555eb2b1bb1
+      ;cents_amount=1494728;type=aggregate;vertext=Sorotec Beställning A22-200974;yyyymmdd_date=20220715"
+      */
+
 			bool should_match{other.tags().contains("SIE") and this->tags().contains("SIE") and other.tags().at("SIE") == this->tags().at("SIE")};
 			auto result =     this->date() == other.date() 
 										and this->cents_amount() == other.cents_amount()
@@ -2584,6 +2645,21 @@ TaggedAmountPtr to_tagged_amount(Date const& date,BAS::anonymous::AccountTransac
 }
 
 TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
+  // NOTE! Identifying unique tagged amounts from SIE verifications is t r i c k y!
+  //       Current implementation tags member BAS account transactions with both parent_SIE and ix (index in parent SIE)
+
+  // E.g., TaggedAmountPtr "BAS=2614;Ix=2;_instance_id=c563f555eb3aa596;cents_amount=-166100;parent_SIE=A16;yyyymmdd_date=20220715"
+  //       TaggedAmountPtr "BAS=2614;Ix=2;_instance_id=3a9c0aaa14c54efa;cents_amount=166100;parent_SIE=A18;yyyymmdd_date=20220715"
+  //       TaggedAmountPtr "BAS=2614;Ix=2;_instance_id=c563f555eb3ac9b0;cents_amount=-166100;parent_SIE=D8;yyyymmdd_date=20220715"
+
+  // The parent_SIE tag ensures same BAS account, date and amount can exist as different trasnactions in different SIE verifications (as in the example above)
+  // And the Ix tag ensures the several BAS account, date and amount can exist in the same SIE verification as different trasnactions.
+
+  // But reading the same SIE file again (e.g., after a restart) will NOT add the same transactions again (Now clones will have same parent_SIE and Ix)
+
+  // NOTE: This algorithm will NOT detect if an SIE verificationhas been edited with the same trasnactions but in a new order!
+  // TODO: Try to find a better way to identify "same" tagged amounts (also in reading from bank statement csv files)...
+
 	TaggedAmountPtrs result{};
 	auto journal_id = me.meta.series;
 	auto verno = me.meta.verno;
@@ -2593,10 +2669,13 @@ TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
 	tags["type"] = "aggregate";
 	if (verno) tags["SIE"] = journal_id+std::to_string(*verno);
 	tags["vertext"] = me.defacto.caption;
-	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,gross_cents_amount),date,gross_cents_amount,std::move(tags));
+  auto aggregate_instance_id = to_instance_id(date,gross_cents_amount);
+	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(aggregate_instance_id,date,gross_cents_amount,std::move(tags));
 	Key::Path instance_ids{};
-	auto push_back_as_tagged_amount = [&instance_ids,&date,&result](BAS::anonymous::AccountTransaction const& at){
+	auto push_back_as_tagged_amount = [&instance_ids,&date,&journal_id,&verno,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta_ptr = to_tagged_amount(date,at);
+    if (verno) ta_ptr->tags()["parent_SIE"] = journal_id+std::to_string(*verno);
+    ta_ptr->tags()["Ix"]=std::to_string(result.size()); // index 0,1,2...
 		result.push_back(ta_ptr);
 		instance_ids += detail::to_string(ta_ptr->instance_id());
 	};
