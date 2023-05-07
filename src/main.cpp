@@ -1108,7 +1108,8 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 	return result;
 }
 
-using Amount= float;
+// using Amount= float;
+using Amount= double;
 using OptionalAmount = std::optional<Amount>;
 
 OptionalAmount to_amount(std::string const& sAmount) {
@@ -2635,8 +2636,8 @@ public:
 private:
 	BAS::anonymous::AccountTransaction m_net_at;
 	BAS::anonymous::AccountTransaction m_vat_at;
-	float m_gross_vat_rate;
-	float m_sign;
+	Amount m_gross_vat_rate;
+	Amount m_sign;
 };
 
 struct HeadingAmountDateTransEntry {
@@ -3059,7 +3060,7 @@ namespace SIE {
 		std::string tag;
 		BAS::AccountNo account_no;
 		std::string object_list{};
-		float amount;
+		Amount amount;
 		std::optional<Date> transdate{};
 		std::optional<std::string> transtext{};
 		std::optional<float> quantity{};
