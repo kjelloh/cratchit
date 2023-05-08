@@ -379,67 +379,172 @@ namespace BAS::SRU::INK2 {
 
 namespace BAS::K2::AR {
 
-	auto to_predicate(std::string const& bas_accounts_text) {
-		using BASAccountRanges = std::vector<std::pair<BAS::AccountNo,BAS::AccountNo>>;
-		BASAccountRanges bas_account_ranges{};
-		std::cout << "\n BAS::K2::AR::to_predicate("  << std::quoted(bas_accounts_text) << ")";
-		// Parse AREntry::m_bas_accounts_text
-		{
-			// Parse single bas account no
-			auto ban = BAS::to_account_no(bas_accounts_text);
-			if (ban) {
-				bas_account_ranges.push_back({*ban,*ban});
-				std::cout << " ** SINGLE **";
-			}
-		}
-		{
-			// Parse text on the form "2900-2999"
-			auto const& [first,second] = tokenize::split(bas_accounts_text,'-');
-			auto ban1 = BAS::to_account_no(first);
-			auto ban2 = BAS::to_account_no(second);
-			if (ban1 and ban2) {
-				bas_account_ranges.push_back({*ban1,*ban2});
-				std::cout << " ** RANGE **";
-			}
-		}
-		{
-			// Parse text on the form "2370-2379 (förutom 2373)"
-			// ...
-		}
-		return [bas_account_ranges,bas_accounts_text](BAS::AccountNo bas_account_no){
-			return std::any_of(bas_account_ranges.begin(),bas_account_ranges.end(),[bas_account_no,bas_accounts_text](auto const& r) {
-				auto result = (r.first<=bas_account_no) and (bas_account_no<=r.second); 
-				if (true) {
-					// Log
-					std::cout << "\n\tto_predicate(" << std::quoted(bas_accounts_text) << ") on " << bas_account_no;
-					if (result) {
-						std::cout << " ** MATCH ** ";
-					}
-					else {
-						std::cout << " no match ";
-					}
-				}
-				return result;
-			});
-		};
-	}
-
 	extern char const* bas_2022_mapping_to_k2_ar_text;
 
 	using CentsAmount = int; // Forward
 
+  using Tokens = std::vector<std::string>;
+  Tokens tokenize(std::string const& bas_accounts_text) {
+    Tokens result{};
+    auto begin = bas_accounts_text.begin();
+    auto current = begin;
+    auto end = bas_accounts_text.end();
+    std::string token{};
+    while (current != end) {
+      if (*current!=' ') {
+        if (*current=='(' or *current==')' or *current==',' or *current=='-') {
+          if (token.size()>0) result.push_back(token);
+          token.clear();
+          result.push_back(""); result.back() += *current;
+        }
+        else token += *current;
+      }
+      else {
+        // split + consume white space
+        if (token.size()>0) result.push_back(token);
+        token.clear();
+      }
+      ++current;
+    }
+    if (token.size()>0) result.push_back(token);
+
+    return result;
+  }
+
 	struct AREntry {
+
+    class GoesIntoThisEntry {
+    public:
+      GoesIntoThisEntry(std::string const& bas_accounts_text)
+        : m_bas_accounts_text{bas_accounts_text} {
+        std::cout << "\nGoesIntoThisEntry(" << std::quoted(bas_accounts_text) << ")"; 
+        // Parse AREntry::m_bas_accounts_text
+        if (!m_parsed_ok) {
+          // Parse single bas account no
+          auto ban = BAS::to_account_no(bas_accounts_text);
+          if (ban) {
+            m_bas_account_ranges.push_back({*ban,*ban});
+            std::cout << "\n\tPARSED OK = ** SINGLE **";
+            m_parsed_ok = true;
+          }
+        }
+        if (!m_parsed_ok) {
+          // Parse text on the form "2900-2999"
+          auto const& [first,second] = tokenize::split(bas_accounts_text,'-');
+          auto ban1 = BAS::to_account_no(first);
+          auto ban2 = BAS::to_account_no(second);
+          if (ban1 and ban2) {
+            m_bas_account_ranges.push_back({*ban1,*ban2});
+            std::cout << "\n\tPARSED OK = ** RANGE **";
+            m_parsed_ok = true;
+          }
+        }
+        if (!m_parsed_ok) {
+          // "4000-4799 eller 4910-4931"
+          auto tokens = tokenize::splits(bas_accounts_text,' ');
+          if (tokens.size()==3 and tokens[1] == "eller") {
+            bool sub_parse_ok{true};
+            if (sub_parse_ok) {
+              // Parse token 0 on the form "2900-2999"
+              auto const& [first,second] = tokenize::split(tokens[0],'-');
+              auto ban1 = BAS::to_account_no(first);
+              auto ban2 = BAS::to_account_no(second);
+              sub_parse_ok = ban1 and ban2;
+              if (sub_parse_ok) {
+                m_bas_account_ranges.push_back({*ban1,*ban2});
+                std::cout << "\n\tPARSED OK = ** RANGE **";
+              }
+            }
+            if (sub_parse_ok) {
+              // Parse token 2 on the form "2900-2999"
+              auto const& [first,second] = tokenize::split(tokens[2],'-');
+              auto ban1 = BAS::to_account_no(first);
+              auto ban2 = BAS::to_account_no(second);
+              sub_parse_ok = ban1 and ban2;
+              if (sub_parse_ok) {
+                m_bas_account_ranges.push_back({*ban1,*ban2});
+                std::cout << "\n\tPARSED OK = ** RANGE **";
+                sub_parse_ok = true;
+              }
+
+            }
+            m_parsed_ok = sub_parse_ok;
+          }
+        }
+        if (!m_parsed_ok) {
+          // "4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)"
+          //  is_range(4900,4999) AND NOT(is_range(4910,4931) OR is_range(4960-4969) OR is_range(4980,4989))
+
+
+          // "7700-7899 (förutom 7740-7749 och 7790-7799)"
+          //   (7700-7899) AND !(7740-7749 | 7790-7799)"
+          // "8000-8099 (förutom 8070-8089)"
+          // "8070-8089, 8170-8189, 8270-8289 eller 8370-8389"
+          // "8100-8199 (förutom 8113, 8118, 8123, 8133 och 8170-8189)"
+          // "8113, 8118, 8123 eller 8133"
+          // "8200-8299 (förutom 8270-8289)"
+          // "1020-1059 eller 1080-1089 (förutom 1088)"
+          // "1330-1339 (förutom 1336-1337)"
+          // "1340-1349 (förutom 1346-1347)"
+          // "1410-1429, 1430, 1431 eller 1438"
+          // "1570-1579 (förutom 1573) eller 1670-1679 (förutom 1673)"
+          // "1573 eller 1673"
+          // "1590-1619, 1630-1659 eller 1680-1689"
+          // "1800-1899 (förutom 1860-1869)"
+          // "2081, 2083 eller 2084"
+          // "2090, 2091, 2093-2095 eller 2098"
+          // "2370-2379 (förutom 2373)"
+          // "2470-2479 (förutom 2473) eller 2870-2879 (förutom 2873)"
+          // "2473 eller 2873"
+          
+        }
+        if (!m_parsed_ok) {
+          std::cerr << "\n\tFAILED TO PARSE";
+        }
+      }
+      bool operator()(BAS::AccountNo bas_account_no) {
+        bool result{false};
+        std::cout << "\nGoesIntoThisEntry(" << std::quoted(this->m_bas_accounts_text) << ") on " << bas_account_no;
+        if (m_parsed_ok) {
+          result = m_parsed_ok and std::any_of(m_bas_account_ranges.begin(),m_bas_account_ranges.end(),[bas_account_no,this](auto const& r) {
+            auto result = (r.first<=bas_account_no) and (bas_account_no<=r.second); 
+            if (true) {
+              // Log
+              if (result) {
+                std::cout << " ** MATCH ** ";
+              }
+              else {
+                std::cout << " no match ";
+              }
+            }
+            return result;
+          });
+        }
+        else {
+          std::cerr << "\n - NOT PARSED OK (can't use for match)";
+        }
+        return result;
+      }
+      bool is_parsed_ok() const {return m_parsed_ok;}
+    private:
+      std::string m_bas_accounts_text;
+      using BASAccountRanges = std::vector<std::pair<BAS::AccountNo,BAS::AccountNo>>;
+      BASAccountRanges m_bas_account_ranges{};
+      bool m_parsed_ok{false};
+    }; // class GoesIntoThisEntry
+
 		AREntry( std::string const& bas_accounts_text
 						,std::string const& field_heading_text
 						,std::optional<std::string> field_description = std::nullopt)
 			:  m_bas_accounts_text{bas_accounts_text}
 				,m_field_heading_text{field_heading_text}
-				,m_field_description{field_description} {}
+				,m_field_description{field_description}
+        ,m_goes_into_this_entry{bas_accounts_text} {}
 		std::string m_bas_accounts_text;
 		std::string m_field_heading_text;
 		std::optional<std::string> m_field_description;
 		bool accumulate_this_bas_account(BAS::AccountNo bas_account_no,CentsAmount amount) {
-			auto result = to_predicate(m_bas_accounts_text)(bas_account_no); 
+			auto result = m_goes_into_this_entry(bas_account_no);
 			if (result) {
 				m_bas_account_nos.insert(bas_account_no);
 				m_amount += amount;
@@ -448,6 +553,7 @@ namespace BAS::K2::AR {
 		}
 		CentsAmount m_amount{};
 		std::set<BAS::AccountNo> m_bas_account_nos{};
+    GoesIntoThisEntry m_goes_into_this_entry;
 	};
 	using AREntries = std::vector<AREntry>;
 
@@ -563,13 +669,18 @@ namespace BAS::K2::AR {
 			std::cout << "\nParsed Entries {";
 			std::cout << "\n  From listing at URL:https://www.arsredovisning-online.se/bas_kontoplan as of 221118";
 			int index{};
+      bool all_are_parsed_ok{true};
 			for (auto const& entry : result) {
+        all_are_parsed_ok = all_are_parsed_ok and entry.m_goes_into_this_entry.is_parsed_ok();
 				std::cout << "\n  [" << index++ << "]"; 
 				std::cout << " m_bas_accounts_text:" << std::quoted(entry.m_bas_accounts_text);
 				std::cout << "\n        m_field_heading_text:" << std::quoted(entry.m_field_heading_text);
 				std::cout << "\n        m_field_description:";
 				if (entry.m_field_description) std::cout << std::quoted(*entry.m_field_description);
 				else std::cout << " - ";
+        if (!entry.m_goes_into_this_entry.is_parsed_ok()) {
+  				std::cout << "\n        ** NOT PARSED OK **";
+        }
 			}
 			std::cout << "\n} // Parsed Entries";
 		}
@@ -9601,7 +9712,7 @@ public:
 				auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::bas_2022_mapping_to_k2_ar_text);
 				auto fiscal_year_date_range = model->sie["-1"].fiscal_year_date_range();
 
-				if (fiscal_year_date_range) {
+				if (false and fiscal_year_date_range) {
 					auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
 					auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
 
