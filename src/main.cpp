@@ -515,10 +515,12 @@ namespace BAS::K2::AR {
         void push_back(Parser* parser) {parsers.push_back(parser);}
         virtual State run(State const& state) {
           State result{state};
-          auto success = std::all_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
-            result = parser->run(result);
-            return result.success;
-          });
+          if (state.success) {
+            auto success = std::all_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
+              result = parser->run(result);
+              return result.success;
+            });
+          }
           return result;
         }
       };
@@ -530,12 +532,11 @@ namespace BAS::K2::AR {
         virtual State run(State const& state) {
           State result{state};
           if (state.success) {
-            auto success = std::any_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
-              result.success = true; // try next parser even if previous failed
-              result = parser->run(result);
+            auto success = std::any_of(parsers.begin(),parsers.end(),[&state,&result](Parser* parser){
+              result = parser->run(state); // try each parser on initial state
               return result.success;
             });
-          }
+          }          
           return result;
         }
       };
@@ -544,7 +545,6 @@ namespace BAS::K2::AR {
         Parser* parser;
         Not(Parser* parser) : parser{parser} {}
         virtual State run(State const& state) {
-          State cached{state};
           State result{state};
           if (state.success) {
             if (state.index >= state.s.size()) {
@@ -559,7 +559,7 @@ namespace BAS::K2::AR {
                 result.success=true;
               }
               else {          
-                result = cached; // revert successful parse      
+                result = state; // revert successful parse      
                 result.success=false;
                 result.msg = "Not parser expected to fail but succeeded";
               }
@@ -810,6 +810,13 @@ namespace BAS::K2::AR {
       // state = range_and_optional_eller_range->run(state);
 
       // 15698735858152199622 "4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)"
+      // 2341312253238452919 "4960-4969 eller 4980-4989"
+      // 15983828328320588867 "5000-6999"
+      // 3368048551155823778 "7000-7699"
+      // 17719833423615943326 "7700-7899 (förutom 7740-7749 och 7790-7799)"
+      // 7490942823118381164 "7740-7749 eller 7790-7799"
+      // 8905285061947701061 "7900-7999"
+      // 997745970729285789 "8000-8099 (förutom 8070-8089)"
       auto left_bracket = new detail::Char{'('};
       auto forutom = new detail::Word{"förutom"};
       auto comma = new detail::Char{','};
@@ -821,26 +828,37 @@ namespace BAS::K2::AR {
       auto not_right_bracket = new detail::Not{right_bracket};
       auto space_and_not_right_bracket = new detail::Or{space,not_right_bracket};
       auto many_space_and_not_right_bracket = new detail::Many{space_and_not_right_bracket};
-      auto bracketed = new detail::And{spaces,left_bracket,forutom,many_space_and_not_right_bracket,right_bracket};
-      auto optional_eller_range_or_bracketed = new detail::Or{end,eller_range,bracketed};
-      auto range_and_optional_eller_range_or_bracketed = new detail::And{range,optional_eller_range_or_bracketed,end};
-      state = range_and_optional_eller_range_or_bracketed->run(state);
-      std::cout << "\n\t" << state;
+      auto comma_och_or_space = new detail::Or{comma,och,space};
+      auto exclude_list_separation = new detail::Many{comma_och_or_space};
+      auto list_entry = new detail::And{exclude_list_separation,range};
+      auto list = new detail::Many{list_entry};
+      auto exclude_list = new detail::And{space,left_bracket,forutom,list,right_bracket};
+      auto optional_eller_range_or_exclude_list = new detail::Or{eller_range,exclude_list,end};
+      auto range_and_optional_eller_range_or_exclude_list = new detail::And{range,optional_eller_range_or_exclude_list,end};
+      // state = range_and_optional_eller_range_or_exclude_list->run(state);
 
-      // 2341312253238452919 "4960-4969 eller 4980-4989"
-      // 15983828328320588867 "5000-6999"
-      // 3368048551155823778 "7000-7699"
-
-
-      // 17719833423615943326 "7700-7899 (förutom 7740-7749 och 7790-7799)"
-
-
-
-      // 7490942823118381164 "7740-7749 eller 7790-7799"
-      // 8905285061947701061 "7900-7999"
-      // 997745970729285789 "8000-8099 (förutom 8070-8089)"
       // 5126772769069083656 "8070-8089, 8170-8189, 8270-8289 eller 8370-8389"
+      auto comma_space = new detail::And{comma,space};
+      auto space_eller_space = new detail::And{space,eller,space};
+      auto include_list_separation = new detail::Or{comma_space,space_eller_space};
+      auto include_list_entry = new detail::And{include_list_separation,range};
+      auto include_list = new detail::Many{include_list_entry};
+      auto optional_range_exclude_list_or_include_list = new detail::Or{exclude_list,end,include_list};
+      auto range_and_optional_range_exclude_list_or_include_list = new detail::And{range,optional_range_exclude_list_or_include_list,end};
+      // state = range_and_optional_range_exclude_list_or_include_list->run(state);
+
       // 6676188007026535397 "8100-8199 (förutom 8113, 8118, 8123, 8133 och 8170-8189)"
+      auto number = new detail::And{digit,digit,digit,digit};
+      auto leaf = new detail::Or{range,number};
+      auto exclude_leaf_entry = new detail::And{exclude_list_separation,leaf};
+      auto exclude_leaf_entries = new detail::Many{exclude_leaf_entry};
+      auto exclude_leaf_list = new detail::And{space,left_bracket,forutom,exclude_leaf_entries,right_bracket,end};
+      auto include_leaf_entry = new detail::And{include_list_separation,leaf};
+      auto include_leaf_list = new detail::Many{include_leaf_entry};
+      auto optional_list = new detail::Or{exclude_leaf_list,end,include_leaf_list};
+      auto leaf_and_optional_list = new detail::And{leaf,optional_list,end};
+      state = leaf_and_optional_list->run(state);
+      std::cout << "\n\t" << state;
       // 6557357244805449310 "8113, 8118, 8123 eller 8133"
       // 13398399727449445833 "8200-8299 (förutom 8270-8289)"
       // 4710157810919164622 "8300-8399 (förutom 8370-8389)"
