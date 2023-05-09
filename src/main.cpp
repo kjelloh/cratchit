@@ -379,7 +379,423 @@ namespace BAS::SRU::INK2 {
 
 namespace BAS::K2::AR {
 
-	extern char const* bas_2022_mapping_to_k2_ar_text;
+  namespace ar_online {
+    // Code to operate on open data from URL:https://www.arsredovisning-online.se/bas_kontoplan
+  	extern char const* bas_2022_mapping_to_k2_ar_text;
+
+    namespace detail {
+
+      struct State {
+        bool success{};
+        std::string parsed{};
+        std::string msg{};
+        std::size_t index{};
+        std::string s;
+      };
+
+      std::ostream& operator<<(std::ostream& os,State const& state) {
+        if (state.success) os << "OK:" << std::quoted(state.parsed);
+        else os << "ERROR:" << state.msg;
+        os << " next:" << state.index;
+        return os;
+      }
+
+      struct Parser {
+          virtual State run(State const& state) = 0;
+      };
+
+      struct Char : public Parser {
+        char key;
+        Char(char key) : key{key} {}
+        virtual State run(State const& state) {
+          State result{state};
+          if (state.success) {
+            if (state.index >= state.s.size()) {
+              result.success = false;
+              result.msg = "Expected Character but encountered end of string";
+            }
+            else {
+              auto ch = state.s[state.index];
+              if (ch == key) {
+                result.parsed += ch;
+                ++result.index;
+              } 
+            }
+          }
+          return result;
+        }
+      };
+
+      struct Digit : public Parser {
+        virtual State run(State const& state) {
+          State result{state};
+          if (state.success) {
+            if (state.index >= state.s.size()) {
+              result.success = false;
+              result.msg = "Expected Character but encountered end of string";
+            }
+            else {
+              auto ch = state.s[state.index];
+              if (std::isdigit(ch)) {
+                result.parsed += ch;
+                ++result.index;
+              }
+              else {
+                result.success = false;
+                result.msg = std::string{"Expected Character but encountered '"} + ch + '\'';
+              }
+            }
+          }
+          return result;
+        }
+      };
+
+      struct Many : public Parser {
+        Parser* parser;
+        Many(Parser* parser) : parser{parser} {};
+        virtual State run(State const& state) {
+          State result{state};
+          while (result.success) {
+            result = parser->run(result);
+          }
+          result.success = true; // always succeeds
+          return result;
+        }
+      };
+
+      struct And : public Parser {
+        std::vector<Parser*> parsers;
+        And(std::initializer_list<Parser*> parsers) : parsers{parsers} {}
+        virtual State run(State const& state) {
+          State result{state};
+          auto success = std::all_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
+            result = parser->run(result);
+            return result.success;
+          });
+          return result;
+        }
+      };
+    }
+
+    class Predicate {};
+
+    Predicate to_predicate(std::string const& field_heading_text, std::string const& bas_accounts_text) {
+      Predicate result{};
+      // std::cout << "\nto_predicate(" << std::quoted(field_heading_text) << ")";
+      auto entry_id = std::hash<std::string>{}(field_heading_text);
+      std::cout << "\n\t" << std::to_string(entry_id) << " "  << std::quoted(bas_accounts_text);
+      /*
+      to_predicate("Nettoomsättning")
+        15814542743395917030 "3000-3799"
+      to_predicate("Aktiverat arbete för egen räkning")
+        5013889680660623303 "3800-3899"
+      to_predicate("Övriga rörelseintäkter")
+        18287096853477482975 "3900-3999"
+      to_predicate("Råvaror och förnödenheter")
+        14247317458687115239 "4000-4799 eller 4910-4931"
+      to_predicate("Förändring av lager av produkter i arbete, färdiga varor och pågående arbete för annans räkning")
+        15698735858152199622 "4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)"
+      to_predicate("Handelsvaror")
+        2341312253238452919 "4960-4969 eller 4980-4989"
+      to_predicate("Övriga externa kostnader")
+        15983828328320588867 "5000-6999"
+      to_predicate("Personalkostnader")
+        3368048551155823778 "7000-7699"
+      to_predicate("Av- och nedskrivningar av materiella och immateriella anläggningstillgångar")
+        17719833423615943326 "7700-7899 (förutom 7740-7749 och 7790-7799)"
+      to_predicate("Nedskrivningar av omsättningstillgångar utöver normala nedskrivningar")
+        7490942823118381164 "7740-7749 eller 7790-7799"
+      to_predicate("Övriga rörelsekostnader")
+        8905285061947701061 "7900-7999"
+      to_predicate("Resultat från andelar i koncernföretag")
+        997745970729285789 "8000-8099 (förutom 8070-8089)"
+      to_predicate("Nedskrivningar av finansiella anläggningstillgångar och kortfristiga placeringar")
+        5126772769069083656 "8070-8089, 8170-8189, 8270-8289 eller 8370-8389"
+      to_predicate("Resultat från andelar i intresseföretag och gemensamt styrda företag")
+        6676188007026535397 "8100-8199 (förutom 8113, 8118, 8123, 8133 och 8170-8189)"
+      to_predicate("Resultat från övriga företag som det finns ett ägarintresse i")
+        6557357244805449310 "8113, 8118, 8123 eller 8133"
+      to_predicate("Resultat från övriga finansiella anläggningstillgångar")
+        13398399727449445833 "8200-8299 (förutom 8270-8289)"
+      to_predicate("Övriga ränteintäkter och liknande resultatposter")
+        4710157810919164622 "8300-8399 (förutom 8370-8389)"
+      to_predicate("Räntekostnader och liknande resultatposter")
+        17654632129722699895 "8400-8499"
+      to_predicate("Extraordinära intäkter")
+        1259188922580541696 "8710"
+      to_predicate("Extraordinära kostnader")
+        16389752887058689117 "8750"
+      to_predicate("Förändring av periodiseringsfonder")
+        17296971319485525067 "8810-8819"
+      to_predicate("Erhållna koncernbidrag")
+        89297138602359847 "8820-8829"
+      to_predicate("Lämnade koncernbidrag")
+        7531591489750836154 "8830-8839"
+      to_predicate("Övriga bokslutsdispositioner")
+        2734042456554829261 "8840-8849 eller 8860-8899"
+      to_predicate("Förändring av överavskrivningar")
+        15315753260330591485 "8850-8859"
+      to_predicate("Skatt på årets resultat")
+        12726941330968082302 "8900-8979"
+      to_predicate("Övriga skatter")
+        5233002284073233210 "8980-8989"
+      to_predicate("Koncessioner, patent, licenser, varumärken samt liknande rättigheter")
+        14313880560123324485 "1020-1059 eller 1080-1089 (förutom 1088)"
+      to_predicate("Hyresrätter och liknande rättigheter")
+        13280259054684945024 "1060-1069"
+      to_predicate("Goodwill")
+        4706826405193251993 "1070-1079"
+      to_predicate("Förskott avseende immateriella anläggningstillgångar")
+        8435059871618616320 "1088"
+      to_predicate("Byggnader och mark")
+        17992054989063316172 "1100-1199 (förutom 1120-1129 och 1180-1189)"
+      to_predicate("Förbättringsutgifter på annans fastighet")
+        12246822043065181435 "1120-1129"
+      to_predicate("Pågående nyanläggningar och förskott avseende materiella anläggningstillgångar")
+        7304838879679020677 "1180-1189 eller 1280-1289"
+      to_predicate("Maskiner och andra tekniska anläggningar")
+        15695145767277007193 "1210-1219"
+      to_predicate("Inventarier, verktyg och installationer")
+        2988580034553160662 "1220-1279 (förutom 1260)"
+      to_predicate("Övriga materiella anläggningstillgångar")
+        3522836639895033252 "1290-1299"
+      to_predicate("Andelar i koncernföretag")
+        6072736618874988835 "1310-1319"
+      to_predicate("Fordringar hos koncernföretag")
+        15259969052810058218 "1320-1329"
+      to_predicate("Andelar i intresseföretag och gemensamt styrda företag")
+        7828517953880225822 "1330-1339 (förutom 1336-1337)"
+      to_predicate("Ägarintressen i övriga företag")
+        15344672548621634930 "1336-1337"
+      to_predicate("Fordringar hos intresseföretag och gemensamt styrda företag")
+        8544230840928436188 "1340-1349 (förutom 1346-1347)"
+      to_predicate("Fordringar hos övriga företag som det finns ett ägarintresse i")
+        13850917336143100446 "1346-1347"
+      to_predicate("Andra långfristiga värdepappersinnehav")
+        4601341298284676885 "1350-1359"
+      to_predicate("Lån till delägare eller närstående")
+        2725614420353494065 "1360-1369"
+      to_predicate("Andra långfristiga fordringar")
+        2746984126913941224 "1380-1389"
+      to_predicate("Råvaror och förnödenheter")
+        14247317458687115239 "1410-1429, 1430, 1431 eller 1438"
+      to_predicate("Varor under tillverkning")
+        3433350423138479992 "1432-1449 (förutom 1438)"
+      to_predicate("Färdiga varor och handelsvaror")
+        2346049323362567707 "1450-1469"
+      to_predicate("Pågående arbete för annans räkning")
+        16122789554500341138 "1470-1479"
+      to_predicate("Förskott till leverantörer")
+        4976455952353268623 "1480-1489"
+      to_predicate("Övriga lagertillgångar")
+        4802107533869083065 "1490-1499"
+      to_predicate("Kundfordringar")
+        2995199977553315731 "1500-1559 eller 1580-1589"
+      to_predicate("Fordringar hos koncernföretag")
+        15259969052810058218 "1560-1569 eller 1660-1669"
+      to_predicate("Fordringar hos intresseföretag och gemensamt styrda företag")
+        8544230840928436188 "1570-1579 (förutom 1573) eller 1670-1679 (förutom 1673)"
+      to_predicate("Fordringar hos övriga företag som det finns ett ägarintresse i")
+        13850917336143100446 "1573 eller 1673"
+      to_predicate("Övriga fordringar")
+        14712306452208124913 "1590-1619, 1630-1659 eller 1680-1689"
+      to_predicate("Upparbetad men ej fakturerad intäkt")
+        8272007022483877119 "1620-1629"
+      to_predicate("Tecknat men ej inbetalat kapital")
+        5683943810747285519 "1690-1699"
+      to_predicate("Förutbetalda kostnader och upplupna intäkter")
+        13922947895874900402 "1700-1799"
+      to_predicate("Övriga kortfristiga placeringar")
+        9749819421879779127 "1800-1899 (förutom 1860-1869)"
+      to_predicate("Andelar i koncernföretag")
+        6072736618874988835 "1860-1869"
+      to_predicate("Kassa och bank")
+        6559204722697948293 "1900-1989"
+      to_predicate("Redovisningsmedel")
+        315113652544154573 "1990-1999"
+      to_predicate("Aktiekapital")
+        7437289880448287687 "2081, 2083 eller 2084"
+      to_predicate("Ej registrerat aktiekapital")
+        3871176652399195503 "2082"
+      to_predicate("Uppskrivningsfond")
+        14990993219723958545 "2085"
+      to_predicate("Reservfond")
+        17443004639063377112 "2086"
+      to_predicate("Bunden överkursfond")
+        3993155805231017139 "2087"
+      to_predicate("Balanserat resultat")
+        16424774790432980181 "2090, 2091, 2093-2095 eller 2098"
+      to_predicate("Fri överkursfond")
+        16360101710131019435 "2097"
+      to_predicate("Periodiseringsfonder")
+        6306324468725266592 "2110-2149"
+      to_predicate("Ackumulerade överavskrivningar")
+        1229599413901569056 "2150-2159"
+      to_predicate("Övriga obeskattade reserver")
+        5217832914740960127 "2160-2199"
+      to_predicate("Avsättningar för pensioner och liknande förpliktelser enligt lagen (1967:531) om tryggande av pensionsutfästelse m.m.")
+        16217660281104500162 "2210-2219"
+      to_predicate("Övriga avsättningar")
+        15081677615273795926 "2220-2229 eller 2250-2299"
+      to_predicate("Övriga avsättningar för pensioner och liknande förpliktelser")
+        109226735215221737 "2230-2239"
+      to_predicate("Obligationslån")
+        14215819343704291797 "2310-2329"
+      to_predicate("Checkräkningskredit")
+        8122810737165346528 "2330-2339"
+      to_predicate("Övriga skulder till kreditinstitut")
+        8642848485431095587 "2340-2359"
+      to_predicate("Skulder till koncernföretag")
+        18427459488302637597 "2360-2369"
+      to_predicate("Skulder till intresseföretag och gemensamt styrda företag")
+        8703083173403804557 "2370-2379 (förutom 2373)"
+      to_predicate("Skulder till övriga företag som det finns ett ägarintresse i")
+        7947902124699524542 "2373"
+      to_predicate("Övriga skulder")
+        15255530962611194028 "2390-2399"
+      to_predicate("Övriga skulder till kreditinstitut")
+        8642848485431095587 "2410-2419"
+      to_predicate("Förskott från kunder")
+        9376625536673363084 "2420-2429"
+      to_predicate("Pågående arbete för annans räkning")
+        16122789554500341138 "2430-2439"
+      to_predicate("Leverantörsskulder")
+        16403934149583209484 "2440-2449"
+      to_predicate("Fakturerad men ej upparbetad intäkt")
+        13695742501450611223 "2450-2459"
+      to_predicate("Skulder till koncernföretag")
+        18427459488302637597 "2460-2469 eller 2860-2869"
+      to_predicate("Skulder till intresseföretag och gemensamt styrda företag")
+        8703083173403804557 "2470-2479 (förutom 2473) eller 2870-2879 (förutom 2873)"
+      to_predicate("Skulder till övriga företag som det finns ett ägarintresse i")
+        7947902124699524542 "2473 eller 2873"
+      to_predicate("Checkräkningskredit")
+        8122810737165346528 "2480-2489"
+      to_predicate("Övriga skulder")
+        15255530962611194028 "2490-2499 (förutom 2492), 2600-2799, 2810-2859 eller 2880-2899"
+      to_predicate("Växelskulder")
+        16891141477899543375 "2492"
+      to_predicate("Skatteskulder")
+        5841233692153537502 "2500-2599"
+      to_predicate("Upplupna kostnader och förutbetalda intäkter")
+        7191926069038742969 "2900-2999"
+      */
+
+      // 15814542743395917030 "3000-3799"
+      detail::State state{.success=true, .s=bas_accounts_text};
+      auto digit = new detail::Digit{};
+      auto digits = new detail::Many(digit);
+      auto hyphen = new detail::Char{'-'};
+      auto range = new detail::And{digits,hyphen,digits};
+      state = range->run(state);
+      std::cout << "\n\t" << state;
+      //  AST = (range 3000 3799) 
+      // 5013889680660623303 "3800-3899"
+      // 18287096853477482975 "3900-3999"
+
+      // 14247317458687115239 "4000-4799 eller 4910-4931"
+      //  AST = (or (range 4000 4799) (range 4910 4931))
+
+      // 15698735858152199622 "4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)"
+      //  AST = (and (range 4900 4999) (not (or (range 4910 4931) (range 4960 4969) (range 4980 4989))))
+
+      // 2341312253238452919 "4960-4969 eller 4980-4989"
+      // 15983828328320588867 "5000-6999"
+      // 3368048551155823778 "7000-7699"
+      // 17719833423615943326 "7700-7899 (förutom 7740-7749 och 7790-7799)"
+      // 7490942823118381164 "7740-7749 eller 7790-7799"
+      // 8905285061947701061 "7900-7999"
+      // 997745970729285789 "8000-8099 (förutom 8070-8089)"
+      // 5126772769069083656 "8070-8089, 8170-8189, 8270-8289 eller 8370-8389"
+      // 6676188007026535397 "8100-8199 (förutom 8113, 8118, 8123, 8133 och 8170-8189)"
+      // 6557357244805449310 "8113, 8118, 8123 eller 8133"
+      // 13398399727449445833 "8200-8299 (förutom 8270-8289)"
+      // 4710157810919164622 "8300-8399 (förutom 8370-8389)"
+      // 17654632129722699895 "8400-8499"
+      // 1259188922580541696 "8710"
+      // 16389752887058689117 "8750"
+      // 17296971319485525067 "8810-8819"
+      // 89297138602359847 "8820-8829"
+      // 7531591489750836154 "8830-8839"
+      // 2734042456554829261 "8840-8849 eller 8860-8899"
+      // 15315753260330591485 "8850-8859"
+      // 12726941330968082302 "8900-8979"
+      // 5233002284073233210 "8980-8989"
+      // 14313880560123324485 "1020-1059 eller 1080-1089 (förutom 1088)"
+      // 13280259054684945024 "1060-1069"
+      // 4706826405193251993 "1070-1079"
+      // 8435059871618616320 "1088"
+      // 17992054989063316172 "1100-1199 (förutom 1120-1129 och 1180-1189)"
+      // 12246822043065181435 "1120-1129"
+      // 7304838879679020677 "1180-1189 eller 1280-1289"
+      // 15695145767277007193 "1210-1219"
+      // 2988580034553160662 "1220-1279 (förutom 1260)"
+      // 3522836639895033252 "1290-1299"
+      // 6072736618874988835 "1310-1319"
+      // 15259969052810058218 "1320-1329"
+      // 7828517953880225822 "1330-1339 (förutom 1336-1337)"
+      // 15344672548621634930 "1336-1337"
+      // 8544230840928436188 "1340-1349 (förutom 1346-1347)"
+      // 13850917336143100446 "1346-1347"
+      // 4601341298284676885 "1350-1359"
+      // 2725614420353494065 "1360-1369"
+      // 2746984126913941224 "1380-1389"
+      // 14247317458687115239 "1410-1429, 1430, 1431 eller 1438"
+      // 3433350423138479992 "1432-1449 (förutom 1438)"
+      // 2346049323362567707 "1450-1469"
+      // 16122789554500341138 "1470-1479"
+      // 4976455952353268623 "1480-1489"
+      // 4802107533869083065 "1490-1499"
+      // 2995199977553315731 "1500-1559 eller 1580-1589"
+      // 15259969052810058218 "1560-1569 eller 1660-1669"
+      // 8544230840928436188 "1570-1579 (förutom 1573) eller 1670-1679 (förutom 1673)"
+      // 13850917336143100446 "1573 eller 1673"
+      // 14712306452208124913 "1590-1619, 1630-1659 eller 1680-1689"
+      // 8272007022483877119 "1620-1629"
+      // 5683943810747285519 "1690-1699"
+      // 13922947895874900402 "1700-1799"
+      // 9749819421879779127 "1800-1899 (förutom 1860-1869)"
+      // 6072736618874988835 "1860-1869"
+      // 6559204722697948293 "1900-1989"
+      // 315113652544154573 "1990-1999"
+      // 7437289880448287687 "2081, 2083 eller 2084"
+      // 3871176652399195503 "2082"
+      // 14990993219723958545 "2085"
+      // 17443004639063377112 "2086"
+      // 3993155805231017139 "2087"
+      // 16424774790432980181 "2090, 2091, 2093-2095 eller 2098"
+      // 16360101710131019435 "2097"
+      // 6306324468725266592 "2110-2149"
+      // 1229599413901569056 "2150-2159"
+      // 5217832914740960127 "2160-2199"
+      // 16217660281104500162 "2210-2219"
+      // 15081677615273795926 "2220-2229 eller 2250-2299"
+      // 109226735215221737 "2230-2239"
+      // 14215819343704291797 "2310-2329"
+      // 8122810737165346528 "2330-2339"
+      // 8642848485431095587 "2340-2359"
+      // 18427459488302637597 "2360-2369"
+      // 8703083173403804557 "2370-2379 (förutom 2373)"
+      // 7947902124699524542 "2373"
+      // 15255530962611194028 "2390-2399"
+      // 8642848485431095587 "2410-2419"
+      // 9376625536673363084 "2420-2429"
+      // 16122789554500341138 "2430-2439"
+      // 16403934149583209484 "2440-2449"
+      // 13695742501450611223 "2450-2459"
+      // 18427459488302637597 "2460-2469 eller 2860-2869"
+      // 8703083173403804557 "2470-2479 (förutom 2473) eller 2870-2879 (förutom 2873)"
+      // 7947902124699524542 "2473 eller 2873"
+      // 8122810737165346528 "2480-2489"
+      // 15255530962611194028 "2490-2499 (förutom 2492), 2600-2799, 2810-2859 eller 2880-2899"
+      // 16891141477899543375 "2492"
+      // 5841233692153537502 "2500-2599"
+      // 7191926069038742969 "2900-2999"
+
+      return result;
+    }
+
+  }
 
 	using CentsAmount = int; // Forward
 
@@ -473,11 +889,7 @@ namespace BAS::K2::AR {
         }
         if (!m_parsed_ok) {
           // "4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)"
-          //  is_range(4900,4999) AND NOT(is_range(4910,4931) OR is_range(4960-4969) OR is_range(4980,4989))
-
-
           // "7700-7899 (förutom 7740-7749 och 7790-7799)"
-          //   (7700-7899) AND !(7740-7749 | 7790-7799)"
           // "8000-8099 (förutom 8070-8089)"
           // "8070-8089, 8170-8189, 8270-8289 eller 8370-8389"
           // "8100-8199 (förutom 8113, 8118, 8123, 8133 och 8170-8189)"
@@ -592,16 +1004,6 @@ namespace BAS::K2::AR {
 		// c) Transform remaining text in (2) into a ARField = a Pair <ARFieldId,String> (a pair of an enumeration of the field with the field heading)
 		// d) Transform remaining text in optional (3) into a text <description>
 
-
-		// Can we do this with some seed to a parser combinator framework?
-		// auto parse_line = parsers::parse_line{};
-		// if (auto parse_result = parsers::parse(parse_line,bas_2022_mapping_to_k2_ar_text); parsers::is_success(parse_result)) {
-		// 	std::cout << "\nParse OK " << parse_result;
-		// }
-		// else {
-		// 	std::cout << "\nParse Failed " << parse_result;
-		// }
-
 		struct CashedEntry {
 			std::optional<std::string> bas_accounts{};
 			std::optional<std::string> field_heading{};
@@ -665,9 +1067,14 @@ namespace BAS::K2::AR {
 		else {
 			std::cout << "// Skipped ";
 		}
+    if (true) {
+			for (auto const& entry : result) {
+        auto predicate = ar_online::to_predicate(entry.m_field_heading_text,entry.m_bas_accounts_text);
+      }
+    }
 		if (true) {
 			std::cout << "\nParsed Entries {";
-			std::cout << "\n  From listing at URL:https://www.arsredovisning-online.se/bas_kontoplan as of 221118";
+			std::cout << "\n  From listing at URL https://www.arsredovisning-online.se/bas_kontoplan as of 221118";
 			int index{};
       bool all_are_parsed_ok{true};
 			for (auto const& entry : result) {
@@ -9709,7 +10116,7 @@ public:
 				// Create tagged amounts that aggregates BAS Accounts to a saldo and AR=<AR Field ID> ARTEXT=<AR Field Heading> ARCOMMENT=<AR Field Description>
 				// and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
 
-				auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::bas_2022_mapping_to_k2_ar_text);
+				auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2022_mapping_to_k2_ar_text);
 				auto fiscal_year_date_range = model->sie["-1"].fiscal_year_date_range();
 
 				if (false and fiscal_year_date_range) {
@@ -11796,9 +12203,11 @@ Blad3: Table 1
 		namespace AR { // BAS::K2::AR
 			// A namespace for Swedish Bolagsverket "Årsredovisning" according to K2 rules
 
-			// From https://www.arsredovisning-online.se/bas_kontoplan as of 221118
-			// This text defines mapping between fields on the Swedish TAX Return form and ranges of BAS Accounts 
-			char const* bas_2022_mapping_to_k2_ar_text{R"(Resultaträkning
+      namespace ar_online {
+
+        // From https://www.arsredovisning-online.se/bas_kontoplan as of 221118
+        // This text defines mapping between fields on the Swedish TAX Return form and ranges of BAS Accounts 
+        char const* bas_2022_mapping_to_k2_ar_text{R"(Resultaträkning
 Konto 3000-3799
 
 Fält: Nettoomsättning
@@ -12148,7 +12557,7 @@ Fält: Skatteskulder
 Konto 2900-2999
 
 Fält: Upplupna kostnader och förutbetalda intäkter)"}; // bas_2022_mapping_to_k2_ar_text
-
+      } // namespace ar_online
 		} // namespace BAS::K2::AR
 	} // namespace BAS::K2
 
