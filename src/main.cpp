@@ -396,12 +396,11 @@ namespace BAS::K2::AR {
       };
 
       std::ostream& operator<<(std::ostream& os,State const& state) {
-        os << "parsed:" << std::quoted(state.parsed);
         if (state.success) {
-          os << " - OK";
+          os << "parsed:" << std::quoted(state.parsed);
         }
-        else os << " - ERROR:" << state.msg;
-        os << " next:" << state.index;
+        else os << "*ERROR* "  << "parsed:" << std::quoted(state.parsed) << " ==> " << state.msg;
+        os << ", stopped at index " << state.index;
         return os;
       }
 
@@ -422,6 +421,54 @@ namespace BAS::K2::AR {
         }
       };
 
+      struct AnyAlpha : public Parser {
+        virtual State run(State const& state) {
+          State result{state};
+          if (state.success) {
+            if (state.index >= state.s.size()) {
+              result.success = false;
+              result.msg = "Expected AnyAlpha but encountered end of string";
+            }
+            else {
+              auto ch = state.s[state.index];
+              if (std::isalpha(ch)) {
+                result.parsed += ch;
+                ++result.index;
+              }
+              else {
+                result.success = false;
+                result.msg = std::string{"Expected alpha but encountered '"} + ch + '\'';
+              }
+            }
+          }
+          return result;
+        }
+      };
+
+      struct AnyDigit : public Parser {
+        virtual State run(State const& state) {
+          State result{state};
+          if (state.success) {
+            if (state.index >= state.s.size()) {
+              result.success = false;
+              result.msg = "Expected AnyDigit but encountered end of string";
+            }
+            else {
+              auto ch = state.s[state.index];
+              if (std::isdigit(ch)) {
+                result.parsed += ch;
+                ++result.index;
+              }
+              else {
+                result.success = false;
+                result.msg = std::string{"Expected digit but encountered '"} + ch + '\'';
+              }
+            }
+          }
+          return result;
+        }
+      };
+
       struct Char : public Parser {
         char key;
         Char(char key) : key{key} {}
@@ -430,7 +477,7 @@ namespace BAS::K2::AR {
           if (state.success) {
             if (state.index >= state.s.size()) {
               result.success = false;
-              result.msg = "Expected Character but encountered end of string";
+              result.msg = std::string{"Expected Character '"} + key + "' but encountered end";
             }
             else {
               auto ch = state.s[state.index];
@@ -441,30 +488,6 @@ namespace BAS::K2::AR {
               else {
                 result.success = false;
                 result.msg = std::string{"Expected Character '"} + key + "' but encountered '" + ch + "'";
-              }
-            }
-          }
-          return result;
-        }
-      };
-
-      struct Digit : public Parser {
-        virtual State run(State const& state) {
-          State result{state};
-          if (state.success) {
-            if (state.index >= state.s.size()) {
-              result.success = false;
-              result.msg = "Expected Character but encountered end of string";
-            }
-            else {
-              auto ch = state.s[state.index];
-              if (std::isdigit(ch)) {
-                result.parsed += ch;
-                ++result.index;
-              }
-              else {
-                result.success = false;
-                result.msg = std::string{"Expected Character but encountered '"} + ch + '\'';
               }
             }
           }
@@ -503,13 +526,45 @@ namespace BAS::K2::AR {
       struct Or : public Parser {
         std::vector<Parser*> parsers;
         Or(std::initializer_list<Parser*> parsers) : parsers{parsers} {}
+        void push_back(Parser* parser) {parsers.push_back(parser);}
         virtual State run(State const& state) {
           State result{state};
-          auto success = std::any_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
-            result.success = true; // try next parser even if previous failed
-            result = parser->run(result);
-            return result.success;
-          });
+          if (state.success) {
+            auto success = std::any_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
+              result.success = true; // try next parser even if previous failed
+              result = parser->run(result);
+              return result.success;
+            });
+          }
+          return result;
+        }
+      };
+
+      struct Not : public Parser {
+        Parser* parser;
+        Not(Parser* parser) : parser{parser} {}
+        virtual State run(State const& state) {
+          State cached{state};
+          State result{state};
+          if (state.success) {
+            if (state.index >= state.s.size()) {
+              result.success=false;
+              result.msg = "Not parser expected to fail but encountered end of input";            
+            }
+            else {
+              result = parser->run(state);
+              if (result.success==false) {
+                result.parsed += state.s[state.index];
+                ++result.index; // accept and advance on failure :)
+                result.success=true;
+              }
+              else {          
+                result = cached; // revert successful parse      
+                result.success=false;
+                result.msg = "Not parser expected to fail but succeeded";
+              }
+            }
+          }
           return result;
         }
       };
@@ -736,40 +791,51 @@ namespace BAS::K2::AR {
         7191926069038742969 "2900-2999"
       */
 
-      // 15814542743395917030 "3000-3799"
       detail::State state{.success=true, .s=bas_accounts_text};
-      auto digit = new detail::Digit{};
+      // 15814542743395917030 "3000-3799"
+      // 5013889680660623303 "3800-3899"
+      // 18287096853477482975 "3900-3999"
+      auto digit = new detail::AnyDigit{};
       auto digits = new detail::Many(digit);
       auto hyphen = new detail::Char{'-'};
       auto end = new detail::End{};
       auto range = new detail::And{digits,hyphen,digits};
-      auto eller = new detail::Word{"eller"};
-
+      // 14247317458687115239 "4000-4799 eller 4910-4931"
       auto space = new detail::Char{' '};
       auto spaces = new detail::Many{space};
-
+      auto eller = new detail::Word{"eller"};
       auto eller_range = new detail::And{spaces,eller,spaces,range};
-
       auto optional_eller_range = new detail::Or{end,eller_range};
-
       auto range_and_optional_eller_range = new detail::And{range,optional_eller_range};
-
-      state = range_and_optional_eller_range->run(state);
-      std::cout << "\n\t" << state;
-      //  AST = (range 3000 3799) 
-      // 5013889680660623303 "3800-3899"
-      // 18287096853477482975 "3900-3999"
-
-      // 14247317458687115239 "4000-4799 eller 4910-4931"
-      //  AST = (or (range 4000 4799) (range 4910 4931))
+      // state = range_and_optional_eller_range->run(state);
 
       // 15698735858152199622 "4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)"
-      //  AST = (and (range 4900 4999) (not (or (range 4910 4931) (range 4960 4969) (range 4980 4989))))
+      auto left_bracket = new detail::Char{'('};
+      auto forutom = new detail::Word{"förutom"};
+      auto comma = new detail::Char{','};
+      auto och = new detail::Word{"och"};
+      auto alpha = new detail::AnyAlpha{};
+      auto alphanumericandspace = new detail::Or{alpha,digit,space};
+      auto alphanumericandspaces = new detail::Many{alphanumericandspace};
+      auto right_bracket = new detail::Char{')'};
+      auto not_right_bracket = new detail::Not{right_bracket};
+      auto space_and_not_right_bracket = new detail::Or{space,not_right_bracket};
+      auto many_space_and_not_right_bracket = new detail::Many{space_and_not_right_bracket};
+      auto bracketed = new detail::And{spaces,left_bracket,forutom,many_space_and_not_right_bracket,right_bracket};
+      auto optional_eller_range_or_bracketed = new detail::Or{end,eller_range,bracketed};
+      auto range_and_optional_eller_range_or_bracketed = new detail::And{range,optional_eller_range_or_bracketed,end};
+      state = range_and_optional_eller_range_or_bracketed->run(state);
+      std::cout << "\n\t" << state;
 
       // 2341312253238452919 "4960-4969 eller 4980-4989"
       // 15983828328320588867 "5000-6999"
       // 3368048551155823778 "7000-7699"
+
+
       // 17719833423615943326 "7700-7899 (förutom 7740-7749 och 7790-7799)"
+
+
+
       // 7490942823118381164 "7740-7749 eller 7790-7799"
       // 8905285061947701061 "7900-7999"
       // 997745970729285789 "8000-8099 (förutom 8070-8089)"
