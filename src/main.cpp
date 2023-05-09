@@ -385,6 +385,8 @@ namespace BAS::K2::AR {
 
     namespace detail {
 
+      using Lisp = std::string;
+
       struct State {
         bool success{};
         std::string parsed{};
@@ -394,14 +396,30 @@ namespace BAS::K2::AR {
       };
 
       std::ostream& operator<<(std::ostream& os,State const& state) {
-        if (state.success) os << "OK:" << std::quoted(state.parsed);
-        else os << "ERROR:" << state.msg;
+        os << "parsed:" << std::quoted(state.parsed);
+        if (state.success) {
+          os << " - OK";
+        }
+        else os << " - ERROR:" << state.msg;
         os << " next:" << state.index;
         return os;
       }
 
       struct Parser {
           virtual State run(State const& state) = 0;
+      };
+
+      struct End : public Parser {
+        virtual State run(State const& state) {
+          State result{state};
+          if (result.success) {
+            if (result.index != state.s.size()) {
+              result.success = false;
+              result.msg = std::string{"Expected end of input. Got index="} + std::to_string(result.index);
+            }
+          }
+          return result;
+        }
       };
 
       struct Char : public Parser {
@@ -419,7 +437,11 @@ namespace BAS::K2::AR {
               if (ch == key) {
                 result.parsed += ch;
                 ++result.index;
-              } 
+              }
+              else {
+                result.success = false;
+                result.msg = std::string{"Expected Character '"} + key + "' but encountered '" + ch + "'";
+              }
             }
           }
           return result;
@@ -466,6 +488,8 @@ namespace BAS::K2::AR {
       struct And : public Parser {
         std::vector<Parser*> parsers;
         And(std::initializer_list<Parser*> parsers) : parsers{parsers} {}
+        And() : parsers{} {}
+        void push_back(Parser* parser) {parsers.push_back(parser);}
         virtual State run(State const& state) {
           State result{state};
           auto success = std::all_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
@@ -475,7 +499,38 @@ namespace BAS::K2::AR {
           return result;
         }
       };
-    }
+
+      struct Or : public Parser {
+        std::vector<Parser*> parsers;
+        Or(std::initializer_list<Parser*> parsers) : parsers{parsers} {}
+        virtual State run(State const& state) {
+          State result{state};
+          auto success = std::any_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
+            result.success = true; // try next parser even if previous failed
+            result = parser->run(result);
+            return result.success;
+          });
+          return result;
+        }
+      };
+
+      struct Word : public Parser {
+        std::string key;
+        Word(std::string const& key) : key{key} {}
+        virtual State run(State const& state) {
+          State result{state};
+          if (state.success) {
+            auto word = new detail::And{};
+            for (auto ch : key) {
+              word->push_back(new detail::Char{ch});
+            }
+            result = word->run(state);
+          }
+          return result;
+        }
+      };
+
+    } // namespace detail
 
     class Predicate {};
 
@@ -686,8 +741,20 @@ namespace BAS::K2::AR {
       auto digit = new detail::Digit{};
       auto digits = new detail::Many(digit);
       auto hyphen = new detail::Char{'-'};
+      auto end = new detail::End{};
       auto range = new detail::And{digits,hyphen,digits};
-      state = range->run(state);
+      auto eller = new detail::Word{"eller"};
+
+      auto space = new detail::Char{' '};
+      auto spaces = new detail::Many{space};
+
+      auto eller_range = new detail::And{spaces,eller,spaces,range};
+
+      auto optional_eller_range = new detail::Or{end,eller_range};
+
+      auto range_and_optional_eller_range = new detail::And{range,optional_eller_range};
+
+      state = range_and_optional_eller_range->run(state);
       std::cout << "\n\t" << state;
       //  AST = (range 3000 3799) 
       // 5013889680660623303 "3800-3899"
