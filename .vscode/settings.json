@@ -74,5 +74,6 @@
     "numbers": "cpp",
     "set": "cpp",
     "ranges": "cpp"
-  }
+  },
+  "cmake.configureOnOpen": true
 }
