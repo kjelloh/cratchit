@@ -4692,8 +4692,8 @@ public:
 	BASJournals& journals() {return m_journals;}
 	BASJournals const& journals() const {return m_journals;}
 	bool is_unposted(BAS::Series series, BAS::VerNo verno) const {
-		bool result{true};
-		if (verno_of_last_posted_to.contains(series)) result = verno > this->verno_of_last_posted_to.at(series);
+		bool result{true}; // deafult unposted
+		if (verno_of_last_posted_to.contains(series)) result = (verno > this->verno_of_last_posted_to.at(series));
 		return result;
 	}
 	SKV::SRU::OptionalAccountNo sru_code(BAS::AccountNo const& bas_account_no) {
@@ -4736,7 +4736,9 @@ public:
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& entry) {
 		std::optional<BAS::MetaEntry> result{};
 		if (does_balance(entry.defacto)) {
-			if (this->already_in_posted(entry) == false) result = this->add(entry);
+			if (this->already_in_posted(entry) == false) {
+        result = this->add(entry);
+      }
 			else result = this->update(entry);
 		}
 		else {
@@ -4758,23 +4760,22 @@ public:
 		return result;
 	}
 	BAS::MetaEntries unposted() const {
-		// std::cout << "\nunposted()";
+		std::cout << "\nunposted()";
 		BAS::MetaEntries result{};
-		for (auto const& [series,verno] : this->verno_of_last_posted_to) {
-			// std::cout << "\n\tseries:" << series << " verno:" << verno;
-			auto last = m_journals.at(series).find(verno);
-			for (auto iter = ++last;iter!=m_journals.at(series).end();++iter) {
-				// std::cout << "\n\tunposted:" << iter->first;
-				BAS::MetaEntry bjer{
-					.meta = {
-						.series = series
-						,.verno = iter->first
-					}
-					,.defacto = iter->second
-				};
-				result.push_back(bjer);
-			}
-		}
+    for (auto const& [series,journal] : this->m_journals) {
+      for (auto const& [verno,je] : journal) {
+        if (this->is_unposted(series,verno)) {
+          BAS::MetaEntry bjer{
+            .meta = {
+              .series = series
+              ,.verno = verno
+            }
+            ,.defacto = je
+          };
+          result.push_back(bjer);
+        }        
+      }
+    }
 		return result;
 	}
 
@@ -7978,7 +7979,7 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now_local = localtime(&now_timet);
 	sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	for (auto const& entry : sie.unposted()) {
-		// std::cout << entry; 
+		std::cout << "\nUnposted:" << entry; 
 		sieos << to_sie_t(entry);
 	}
 }
