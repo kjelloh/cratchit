@@ -8110,2354 +8110,2367 @@ std::optional<int> to_signed_ix(std::string const& s) {
 	catch (...) {}
 	return result;
 }
-
+// ==================================================
+// *** class Updater declaration ***
+// ==================================================
 class Updater {
 public:
 	Model model;
-	Cmd operator()(Command const& command) {
-		// std::cout << "\noperator(command=" << std::quoted(command) << ")";
-		std::ostringstream prompt{};
-		auto ast = quoted_tokens(command);
-		if (true) {
-			// DEBUG, Trace tokens
-			std::cout << "\ntokens:";
-			std::ranges::copy(ast,std::ostream_iterator<std::string>(std::cout, ";"));
-		}
-		if (ast.size() == 0) {
-			// User hit <Enter> with no input
-			if (model->prompt_state == PromptState::TAIndex) {
-        prompt << options_list_of_prompt_state(model->prompt_state);
-				// List current selection
-				prompt << "\n<SELECTED>";
-				// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
-				int index = 0;
-				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-					prompt << "\n\t" << index++ << ". " << ta_ptr;
-				}				
-			}
-			else if (model->prompt_state == PromptState::AcceptNewTAs) {
-				// Reject new tagged amounts
-				model->prompt_state = PromptState::TAIndex;
-				prompt << "\n*Rejected*";
-			}
-			else if (model->prompt_state == PromptState::VATReturnsFormIndex) {
-				// Assume the user wants to accept current Journal Entry Candidate
-				if (auto had_iter = model->selected_had()) {
-					auto& had = *(*had_iter);
-					if (had.optional.current_candidate) {
-						// We have a journal entry candidate - reset any VAT Returns form candidate for current had
-						had.optional.vat_returns_form_box_map_candidate = std::nullopt;
-						prompt << "VAT Consilidation Candidate " << *had.optional.current_candidate;
-						model->prompt_state = PromptState::JEAggregateOptionIndex;
-					}
-				}
-			}
-			else {
-				prompt << options_list_of_prompt_state(model->prompt_state);
-			}
-		}
-		else {
-			// We have at least one token in user input
-			int signed_ix{};
-			std::istringstream is{ast[0]};
-			bool do_assign = (command.find('=') != std::string::npos);
-			/* ======================================================
+	Cmd operator()(Command const& command);
+	Cmd operator()(Quit const& quit);
+  Cmd operator()(Nop const& nop);
+private:
+	BAS::TypedMetaEntries all_years_template_candidates(auto const& matches);
+  std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state);
+};
+
+// ==================================================
+// *** class Updater Definition ***
+// ==================================================
+Cmd Updater::operator()(Command const& command) {
+  // std::cout << "\noperator(command=" << std::quoted(command) << ")";
+  std::ostringstream prompt{};
+  auto ast = quoted_tokens(command);
+  if (false) {
+    // DEBUG, Trace tokens
+    std::cout << "\ntokens:";
+    std::ranges::copy(ast,std::ostream_iterator<std::string>(std::cout, ";"));
+  }
+  if (ast.size() == 0) {
+    // User hit <Enter> with no input
+    if (model->prompt_state == PromptState::TAIndex) {
+      prompt << options_list_of_prompt_state(model->prompt_state);
+      // List current selection
+      prompt << "\n<SELECTED>";
+      // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+      int index = 0;
+      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
+        prompt << "\n\t" << index++ << ". " << ta_ptr;
+      }				
+    }
+    else if (model->prompt_state == PromptState::AcceptNewTAs) {
+      // Reject new tagged amounts
+      model->prompt_state = PromptState::TAIndex;
+      prompt << "\n*Rejected*";
+    }
+    else if (model->prompt_state == PromptState::VATReturnsFormIndex) {
+      // Assume the user wants to accept current Journal Entry Candidate
+      if (auto had_iter = model->selected_had()) {
+        auto& had = *(*had_iter);
+        if (had.optional.current_candidate) {
+          // We have a journal entry candidate - reset any VAT Returns form candidate for current had
+          had.optional.vat_returns_form_box_map_candidate = std::nullopt;
+          prompt << "VAT Consilidation Candidate " << *had.optional.current_candidate;
+          model->prompt_state = PromptState::JEAggregateOptionIndex;
+        }
+      }
+    }
+    else {
+      prompt << options_list_of_prompt_state(model->prompt_state);
+    }
+  }
+  else {
+    // We have at least one token in user input
+    int signed_ix{};
+    std::istringstream is{ast[0]};
+    bool do_assign = (command.find('=') != std::string::npos);
+    /* ======================================================
 
 
-								Act on on Index?
+              Act on on Index?
 
 
-			 ====================================================== */
-			if (auto signed_ix = to_signed_ix(ast[0]);
-							 do_assign == false
-					 and signed_ix 
-				   and model->prompt_state != PromptState::EditAT
-					 and model->prompt_state != PromptState::EnterIncome
-					 and model->prompt_state != PromptState::EnterDividend) {
-				// std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
-				size_t ix = std::abs(*signed_ix);
-				bool do_remove = (ast[0][0] == '-');
-				// Act on prompt state index input
-				switch (model->prompt_state) {
-					case PromptState::Root: {
-					} break;
-					case PromptState::TAIndex: {
-						model->ta_index = ix;
-						if (auto ta_ptr_iter = model->selected_ta()) {
-							auto& ta_ptr = *(*ta_ptr_iter);
-							prompt << "\n" << ta_ptr;
-						}
-					} break;
-					case PromptState::AcceptNewTAs: {
-						switch (ix) {
-							case 1: {
-								// Accept the new tagged amounts created
-								model->all_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
-								model->selected_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
-								model->prompt_state = PromptState::TAIndex;
-								prompt << "\n*Accepted*";
-								prompt << "\n\n" << options_list_of_prompt_state(model->prompt_state);
-							} break;
-							default: {
-								prompt << "\nPlease enter a valid option";
-								prompt << "\n\n" << options_list_of_prompt_state(model->prompt_state);
-							}
-						}
-					} break;
-					case PromptState::HADIndex: {
-						model->had_index = ix;
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							prompt << "\n" << had;
-							bool do_prepend = (ast.size() == 4) and (ast[1] == "<--");
-							if (do_remove) {
-								model->heading_amount_date_entries.erase(*had_iter);
-								prompt << " REMOVED";
-								model->prompt_state = PromptState::Root;
-							}
-							else if (do_assign) {
-								prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
-							}
-							else if (do_prepend) {
-								std::cout << "\nprepend with heading:" << std::quoted(ast[2]) << " Date:" << ast[3];
-								HeadingAmountDateTransEntry prepended_had {
-									.heading = ast[2]
-									,.amount = std::abs(had.amount) // always an unsigned amount for prepended had
-									,.date = *to_date(ast[3]) // Assume success
-								};
-								model->heading_amount_date_entries.push_back(prepended_had);
-								prompt << to_had_listing_prompt(model->refreshed_hads());
-								model->prompt_state = PromptState::HADIndex;
-							}
-							else {
-								// selected HAD and list template options
-								if (had.optional.vat_returns_form_box_map_candidate) {
-									// provide the user with the ability to edit the propsed VAT Returns form
-									{
-										// Adjust the sum in box 49
-										had.optional.vat_returns_form_box_map_candidate->at(49).clear();
-										had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
-										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-											prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
-										}
-										BAS::MetaEntry me{
-											.meta = {
-												.series = 'M'
-											}
-											,.defacto = {
-												.caption = had.heading
-												,.date = had.date
-											}
-										};
-										std::map<BAS::AccountNo,Amount> account_amounts{};
-										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-											for (auto const& mat : mats) {
-												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-												// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
-											}
-										}
-										for (auto const& [account_no,amount] : account_amounts) {
-											// account_amounts[0] = 4190.54
-											// account_amounts[2614] = -2364.4
-											// account_amounts[2640] = 2364.4
-											// account_amounts[2641] = 4190.54
-											// account_amounts[3308] = -888.1
-											// account_amounts[9021] = 11822
+      ====================================================== */
+    if (auto signed_ix = to_signed_ix(ast[0]);
+              do_assign == false
+          and signed_ix 
+          and model->prompt_state != PromptState::EditAT
+          and model->prompt_state != PromptState::EnterIncome
+          and model->prompt_state != PromptState::EnterDividend) {
+      // std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
+      size_t ix = std::abs(*signed_ix);
+      bool do_remove = (ast[0][0] == '-');
+      // Act on prompt state index input
+      switch (model->prompt_state) {
+        case PromptState::Root: {
+        } break;
+        case PromptState::TAIndex: {
+          model->ta_index = ix;
+          if (auto ta_ptr_iter = model->selected_ta()) {
+            auto& ta_ptr = *(*ta_ptr_iter);
+            prompt << "\n" << ta_ptr;
+          }
+        } break;
+        case PromptState::AcceptNewTAs: {
+          switch (ix) {
+            case 1: {
+              // Accept the new tagged amounts created
+              model->all_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
+              model->selected_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
+              model->prompt_state = PromptState::TAIndex;
+              prompt << "\n*Accepted*";
+              prompt << "\n\n" << options_list_of_prompt_state(model->prompt_state);
+            } break;
+            default: {
+              prompt << "\nPlease enter a valid option";
+              prompt << "\n\n" << options_list_of_prompt_state(model->prompt_state);
+            }
+          }
+        } break;
+        case PromptState::HADIndex: {
+          model->had_index = ix;
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            prompt << "\n" << had;
+            bool do_prepend = (ast.size() == 4) and (ast[1] == "<--");
+            if (do_remove) {
+              model->heading_amount_date_entries.erase(*had_iter);
+              prompt << " REMOVED";
+              model->prompt_state = PromptState::Root;
+            }
+            else if (do_assign) {
+              prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
+            }
+            else if (do_prepend) {
+              std::cout << "\nprepend with heading:" << std::quoted(ast[2]) << " Date:" << ast[3];
+              HeadingAmountDateTransEntry prepended_had {
+                .heading = ast[2]
+                ,.amount = std::abs(had.amount) // always an unsigned amount for prepended had
+                ,.date = *to_date(ast[3]) // Assume success
+              };
+              model->heading_amount_date_entries.push_back(prepended_had);
+              prompt << to_had_listing_prompt(model->refreshed_hads());
+              model->prompt_state = PromptState::HADIndex;
+            }
+            else {
+              // selected HAD and list template options
+              if (had.optional.vat_returns_form_box_map_candidate) {
+                // provide the user with the ability to edit the propsed VAT Returns form
+                {
+                  // Adjust the sum in box 49
+                  had.optional.vat_returns_form_box_map_candidate->at(49).clear();
+                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+                  for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
+                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+                  }
+                  BAS::MetaEntry me{
+                    .meta = {
+                      .series = 'M'
+                    }
+                    ,.defacto = {
+                      .caption = had.heading
+                      ,.date = had.date
+                    }
+                  };
+                  std::map<BAS::AccountNo,Amount> account_amounts{};
+                  for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
+                    for (auto const& mat : mats) {
+                      account_amounts[mat.defacto.account_no] += mat.defacto.amount;
+                      // std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+                    }
+                  }
+                  for (auto const& [account_no,amount] : account_amounts) {
+                    // account_amounts[0] = 4190.54
+                    // account_amounts[2614] = -2364.4
+                    // account_amounts[2640] = 2364.4
+                    // account_amounts[2641] = 4190.54
+                    // account_amounts[3308] = -888.1
+                    // account_amounts[9021] = 11822
 
-											// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+                    // std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
 
-											// account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
-											// Book this on BAS 2650
-											// NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
-											if (account_no==0) {
-												me.defacto.account_transactions.push_back({
-													.account_no = 2650
-													,.amount = std::trunc(-amount)
-												});
-												me.defacto.account_transactions.push_back({
-													.account_no = 3740
-													,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
-												});
-											}
-											else {
-												me.defacto.account_transactions.push_back({
-													.account_no = account_no
-													,.amount = BAS::to_cents_amount(-amount)
-												});
-											}
-											// Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
-											if (account_no == 9021) {
-												me.defacto.account_transactions.push_back({
-													.account_no = 9099
-													,.transtext = "Avbokning (20) 9021"
-													,.amount = BAS::to_cents_amount(amount)
-												});
-											}
-											// Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
-											if (account_no == 3308) {
-												me.defacto.account_transactions.push_back({
-													.account_no = 9099
-													,.transtext = "Avbokning (39) 3308"
-													,.amount = BAS::to_cents_amount(amount)
-												});
-											}
-										}
-										had.optional.current_candidate = me;
+                    // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
+                    // Book this on BAS 2650
+                    // NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
+                    if (account_no==0) {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 2650
+                        ,.amount = std::trunc(-amount)
+                      });
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 3740
+                        ,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+                      });
+                    }
+                    else {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = account_no
+                        ,.amount = BAS::to_cents_amount(-amount)
+                      });
+                    }
+                    // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
+                    if (account_no == 9021) {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 9099
+                        ,.transtext = "Avbokning (20) 9021"
+                        ,.amount = BAS::to_cents_amount(amount)
+                      });
+                    }
+                    // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
+                    if (account_no == 3308) {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 9099
+                        ,.transtext = "Avbokning (39) 3308"
+                        ,.amount = BAS::to_cents_amount(amount)
+                      });
+                    }
+                  }
+                  had.optional.current_candidate = me;
 
-										prompt << "\nCandidate: " << me;
-										model->prompt_state = PromptState::VATReturnsFormIndex;
-									}
-								}
-								else if (had.optional.current_candidate) {
-									prompt << "\n\t" << *had.optional.current_candidate;
-									if (had.optional.counter_ats_producer) {
-										// We alreade have a "counter transactions" producer.
-										// Go directly to state for user to apply it to complete the candidate
-										model->prompt_state = PromptState::EnterHA;
-									}
-									else {
-										// The user has already selected a candidate
-										// But have not yet gone through assigning a "counter transaction" producer
-										model->prompt_state = PromptState::JEAggregateOptionIndex;
-									}
-								}
-								else {
-									model->had_index = ix;
-									model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
-										return had_matches_trans(had,aje);
-									});
-									{
-										// hard code a template for Inventory gross + n x (ex_vat + vat) journal entry
-										// 0  *** "Amazon" 20210924
-										// 	"Leverantörsskuld":2440 "" -1489.66
-										// 	"Invenmtarier":1221 "Garmin Edge 130" 1185.93
-										// 	"Debiterad ingående moms":2641 "Garmin Edge 130" 303.73
-
-										// struct JournalEntry {
-										// 	std::string caption{};
-										// 	Date date{};
-										// 	AccountTransactions account_transactions;
-										// };
-
-										Amount amount{1000};
-										BAS::MetaEntry me{
-											.meta = {
-												.series = 'A'
-											}
-											,.defacto = {
-												.caption = "Bestallning Inventarie"
-												,.date = had.date
-											}
-										};
-										BAS::anonymous::AccountTransaction gross_at{
-											.account_no = 2440
-											,.amount = -amount
-										};
-										BAS::anonymous::AccountTransaction net_at{
-											.account_no = 1221
-											,.amount = static_cast<Amount>(amount*0.8f)
-										};
-										BAS::anonymous::AccountTransaction vat_at{
-											.account_no = 2641
-											,.amount = static_cast<Amount>(amount*0.2f)
-										};
-										me.defacto.account_transactions.push_back(gross_at);
-										me.defacto.account_transactions.push_back(net_at);
-										me.defacto.account_transactions.push_back(vat_at);
-										model->template_candidates.push_back(to_typed_meta_entry(me));
-									}
-									// List options
-									unsigned ix = 0;
-									for (int i=0; i < model->template_candidates.size(); ++i) {
-										prompt << "\n    " << ix++ << " " << model->template_candidates[i];
-									}
-									model->prompt_state = PromptState::JEIndex;
-								}
-							}
-						}
-						else {
-							prompt << "\nplease enter a valid index";
-						}
-					} break;
-					case PromptState::VATReturnsFormIndex: {
-						if (ast.size() > 0) {
-							// Asume the user has selected an index for an entry on the proposed VAT Returns form to edit
-							if (auto had_iter = model->selected_had()) {
-								auto& had = *(*had_iter);
-								if (had.optional.vat_returns_form_box_map_candidate) {
-									if (had.optional.vat_returns_form_box_map_candidate->contains(ix)) {
-										auto box_no = ix;
-										auto& mats = had.optional.vat_returns_form_box_map_candidate->at(box_no);
-										if (auto amount = to_amount(ast[1]);amount and mats.size()>0) {
-											auto mats_sum = BAS::mats_sum(mats);
-											auto sign = (mats_sum<0)?-1:1;
-											// mats_sum + diff = amount
-											auto diff = sign*(std::abs(*amount)) - mats_sum;
-											mats.push_back({
-												.defacto = {
-													.account_no = mats[0].defacto.account_no
-													,.transtext = "diff"
-													,.amount = diff
-												}
-											});
-// std::cout << "\n[" << box_no << "]";
-											for (auto const& mat : mats) {
-// std::cout << "\n\t" << mat;
-											}
-// std::cout << "\n\t--------------------";
-// std::cout << "\n\tsum " << BAS::mats_sum(mats);
-										}
-										else {
-											prompt << "\nPlease enter an entry index and a positive amount (will apply the sign required by the form)";
-										}
-									}
-									else {
-										prompt << "\nPlease enter a valid VAT Returns form entry index";
-										// provide the user with the ability to edit the propsed VAT Returns form
-									}
-									{
-										// Adjust the sum in box 49
-										had.optional.vat_returns_form_box_map_candidate->at(49).clear();
-										had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
-										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-											prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
-										}
-										BAS::MetaEntry me{
-											.meta = {
-												.series = 'M'
-											}
-											,.defacto = {
-												.caption = had.heading
-												,.date = had.date
-											}
-										};
-										std::map<BAS::AccountNo,Amount> account_amounts{};
-										for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-											for (auto const& mat : mats) {
-												account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
-											}
-										}
-										for (auto const& [account_no,amount] : account_amounts) {
-											// account_amounts[0] = 4190.54
-											// account_amounts[2614] = -2364.4
-											// account_amounts[2640] = 2364.4
-											// account_amounts[2641] = 4190.54
-											// account_amounts[3308] = -888.1
-											// account_amounts[9021] = 11822
-// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
-											// account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
-											// Book this on BAS 2650
-											// NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
-											if (account_no==0) {
-												me.defacto.account_transactions.push_back({
-													.account_no = 2650
-													,.amount = std::trunc(-amount)
-												});
-												me.defacto.account_transactions.push_back({
-													.account_no = 3740
-													,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
-												});
-											}
-											else {
-												me.defacto.account_transactions.push_back({
-													.account_no = account_no
-													,.amount = BAS::to_cents_amount(-amount)
-												});
-											}
-											// Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
-											if (account_no == 9021) {
-												me.defacto.account_transactions.push_back({
-													.account_no = 9099
-													,.transtext = "Avbokning (20) 9021"
-													,.amount = BAS::to_cents_amount(amount)
-												});
-											}
-											// Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
-											if (account_no == 3308) {
-												me.defacto.account_transactions.push_back({
-													.account_no = 9099
-													,.transtext = "Avbokning (39) 3308"
-													,.amount = BAS::to_cents_amount(amount)
-												});
-											}
-										}
-										had.optional.current_candidate = me;
-
-										prompt << "\nCandidate: " << me;
-										model->prompt_state = PromptState::VATReturnsFormIndex;
-									}
-								}
-								else {
-									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid VAT Returns form candidate to process)";
-								}
-							}
-							else {
-								prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
-							}
-						}
-					} break;
-					case PromptState::JEIndex: {
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (auto account_no = BAS::to_account_no(command)) {
-								// Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
-								BAS::MetaEntry me{
-									.defacto = {
-										 .caption = had.heading
-									  ,.date = had.date
-									}
-								};
-								me.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
-								had.optional.current_candidate = me;
-								prompt << "\ncandidate:" << me;
-								model->prompt_state = PromptState::GrossDebitorCreditOption;
-							}
-							else {
-								// Assume user selected an entry as base for a template
-								auto tme_iter = model->template_candidates.begin();
-								auto tme_end = model->template_candidates.end();
-								auto at_iter = model->at_candidates.begin();
-								auto at_end = model->at_candidates.end();
-								if (ix < std::distance(tme_iter,tme_end)) {
-									std::advance(tme_iter,ix);
-									auto tme = *tme_iter;
-									auto vat_type = to_vat_type(tme);
-									std::cout << "\nvat_type = " << vat_type;
-									switch (vat_type) {
-										case JournalEntryVATType::Undefined:
-											prompt << "\nSorry, I encountered Undefined VAT type for " << tme;
-											break; // *silent ignore*
-										case JournalEntryVATType::Unknown:
-											prompt << "\nSorry, I encountered Unknown VAT type for " << tme;
-											break; // *silent ignore*
-										case JournalEntryVATType::NoVAT: {
-											// No VAT in candidate. 
-											// Continue with 
-											// 1) Some propose gross account transactions
-											// 2) a n x gross Counter aggregate
-											auto tp = to_template(*tme_iter);
-											if (tp) {
-												auto me = to_journal_entry(had,*tp);
-												prompt << "\nNo VAT candidate " << me;
-												had.optional.current_candidate = me;
-												model->prompt_state = PromptState::JEAggregateOptionIndex;
-											}
-										} break;
-										case JournalEntryVATType::SwedishVAT: {
-											// Swedish VAT detcted in candidate.
-											// Continue with 
-											// 2) a n x {net,vat} counter aggregate
-											auto tp = to_template(*tme_iter);
-											if (tp) {
-												auto me = to_journal_entry(had,*tp);
-												prompt << "\nSwedish VAT candidate " << me;
-												had.optional.current_candidate = me;
-												model->prompt_state = PromptState::JEAggregateOptionIndex;
-											}
-										} break;
-										case JournalEntryVATType::EUVAT: {
-											// EU VAT detected in candidate.
-											// Continue with a 
-											// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
-											// #1 hard code for EU VAT Candidate
-											BAS::MetaEntry me {
-												.defacto = {
-													.caption = had.heading
-													,.date = had.date
-												}
-											};
-											for (auto const& [at,props] : tme_iter->defacto.account_transactions) {
-												if (props.contains("gross") or props.contains("eu_purchase")) {
-													Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
-													BAS::anonymous::AccountTransaction new_at{
-														.account_no = at.account_no
-														,.transtext = std::nullopt
-														,.amount = sign*std::abs(had.amount)
-													};
-													me.defacto.account_transactions.push_back(new_at);
-												}
-												else if (props.contains("vat")) {
-													Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
-													BAS::anonymous::AccountTransaction new_at{
-														.account_no = at.account_no
-														,.transtext = std::nullopt
-														,.amount = sign*std::abs(had.amount*0.2f)
-													};
-													me.defacto.account_transactions.push_back(new_at);
-													prompt << "\nNOTE: Assumed 25% VAT for " << new_at;
-												}
-											}											
-											prompt << "\nEU VAT candidate " << me;
-											had.optional.current_candidate = me;
-											model->prompt_state = PromptState::JEAggregateOptionIndex;
-										} break;
-										case JournalEntryVATType::VATReturns: {
-											//  M2 "Momsrapport 2021-07-01 - 2021-09-30" 20210930
-											// 	 vat = sort_code: 0x6 : "Utgående moms, 25 %":2610 "" 83300
-											// 	 eu_vat vat = sort_code: 0x56 : "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1654.23
-											// 	 vat = sort_code: 0x6 : "Ingående moms":2640 "" -1690.21
-											// 	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" -849.52
-											// 	 vat = sort_code: 0x6 : "Redovisningskonto för moms":2650 "" -82415
-											// 	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" 0.5
-
-											// TODO: Consider to iterate over all bas accounts defined for VAT Return form
-											//       and create a candidate that will zero out these for period given by date (end of VAT period)
-											BAS::MetaEntry me {
-												.defacto = {
-													.caption = had.heading
-													,.date = had.date
-												}
-											};
-											me.defacto.account_transactions.push_back({
-												.account_no = 2610 // "Utgående moms, 25 %"
-												,.transtext = std::nullopt
-												,.amount = 0
-											});
-											me.defacto.account_transactions.push_back({
-												.account_no = 2614 // "Utgående moms omvänd skattskyldighet, 25 %"
-												,.transtext = std::nullopt
-												,.amount = 0
-											});
-											me.defacto.account_transactions.push_back({
-												.account_no = 2640 // "Ingående moms"
-												,.transtext = std::nullopt
-												,.amount = 0
-											});
-											me.defacto.account_transactions.push_back({
-												.account_no = 2641 // "Debiterad ingående moms"
-												,.transtext = std::nullopt
-												,.amount = 0
-											});
-											me.defacto.account_transactions.push_back({
-												.account_no = 2650 // "Redovisningskonto för moms"
-												,.transtext = std::nullopt
-												,.amount = had.amount
-											});
-											me.defacto.account_transactions.push_back({
-												.account_no = 3740 // "Öres- och kronutjämning"
-												,.transtext = std::nullopt
-												,.amount = 0
-											});
-											prompt << "\nVAT Consolidate candidate " << me;
-											had.optional.current_candidate = me;
-											model->prompt_state = PromptState::JEAggregateOptionIndex;
-										} break;
-										case JournalEntryVATType::VATTransfer: {
-											// 10  A2 "Utbetalning Moms från Skattekonto" 20210506
-											// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -802
-											// transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Momsbeslut" 802
-											// transfer vat = sort_code: 0x16 : "Momsfordran":1650 "" -802
-											// transfer = sort_code: 0x1 : "PlusGiro":1920 "" 802
-											if (tme.defacto.account_transactions.size()>0) {
-												bool first{true};
-												Amount amount{};
-												if (std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[&amount,&first](auto const& entry){
-													if (first) {
-														amount = std::abs(entry.first.amount);
-														first = false;
-														return true;
-													}
-													return (std::abs(entry.first.amount) == amount);
-												})) {
-													BAS::MetaEntry me {
-														.defacto = {
-															.caption = had.heading
-															,.date = had.date
-														}
-													};
-													for (auto const& tat : tme.defacto.account_transactions) {
-														auto sign = (tat.first.amount < 0)?-1:+1;
-														me.defacto.account_transactions.push_back({
-															.account_no = tat.first.account_no
-															,.transtext = std::nullopt
-															,.amount = sign*std::abs(had.amount)
-														});
-													}
-													had.optional.current_candidate = me;
-													prompt << "\nVAT Settlement candidate " << me;
-													model->prompt_state = PromptState::JEAggregateOptionIndex;
-												}
-											}
-										} break;
-									}
-								}
-								else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
-									prompt << "\nTODO: Implement acting on selected gross account transaction " << model->at_candidates[at_ix];
-								}
-								else {
-									prompt << "\nPlease enter a valid index";
-								}
-							}
-						}
-						else {
-							prompt << "\nPlease re-enter a valid HAD index (It seems I have no record of a selected HAD at the moment)";
-						}
-					} break;
-					case PromptState::GrossDebitorCreditOption: {
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (had.optional.current_candidate) {
-								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
-									switch (ix) {
-										case 0: {
-											// As is
-											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
-										} break;
-										case 1: {
-											// Force debit
-											had.optional.current_candidate->defacto.account_transactions[0].amount = std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
-											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
-										} break;
-										case 2: {
-												// Force credit
-											had.optional.current_candidate->defacto.account_transactions[0].amount = -1.0f * std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
-											model->prompt_state = PromptState::CounterTransactionsAggregateOption;
-										} break;
-										default: {
-											prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
-										}
-									}
-								}
-								else {
-									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
-								}
-								prompt << "\ncandidate:" << *had.optional.current_candidate;
-							}
-							else {
-								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
-							}
-						}
-						else {
-							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
-						}
-					} break;
-					case PromptState::CounterTransactionsAggregateOption: {
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (had.optional.current_candidate) {
-								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
-									switch (ix) {
-										case 0: {
-											// Gross counter transaction aggregate
-											model->prompt_state = PromptState::GrossAccountInput;
-										} break;
-										case 1: {
-											// {net,VAT} counter transactions aggregate
-											model->prompt_state = PromptState::NetVATAccountInput;
-										} break;										
-										default: {
-											prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
-										}
-									}
-								}
-								else {
-									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
-								}
-								prompt << "\ncandidate:" << *had.optional.current_candidate;
-							}
-							else {
-								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
-							}
-						}
-						else {
-							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
-						}
-					} break;
-					case PromptState::GrossAccountInput: {
-						// Act on user gross account number input
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (had.optional.current_candidate) {
-								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
-									if (ast.size() == 1) {
-										auto gross_counter_account_no = BAS::to_account_no(ast[0]);
-										if (gross_counter_account_no) {
-											Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
-											had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
-												.account_no = *gross_counter_account_no
-												,.amount = -1.0f * gross_transaction_amount
-											}
-											);
-											prompt << "\nmutated candidate:" << *had.optional.current_candidate;
-											model->prompt_state = PromptState::JEAggregateOptionIndex;											
-										}
-										else {
-											prompt << "\nPlease enter a a valid single gross counter amount account number (it seems I don't understand your input " << std::quoted(command) << ")";
-										}
-									}
-									else {
-										prompt << "\nPlease enter two single gross counter amount account number (it seems I interpret " << std::quoted(command) << " the wrong number of arguments";
-									}
-								}
-								else {
-									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
-								}
-								prompt << "\ncandidate:" << *had.optional.current_candidate;
-							}
-							else {
-								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
-							}
-						}
-						else {
-							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
-						}
-					} break;
-					case PromptState::NetVATAccountInput: {
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (had.optional.current_candidate) {
-								if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
-									if (ast.size() == 2) {
-										auto net_counter_account_no = BAS::to_account_no(ast[0]);
-										auto vat_counter_account_no = BAS::to_account_no(ast[1]);
-										if (net_counter_account_no and vat_counter_account_no) {
-											Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
-											had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
-												.account_no = *net_counter_account_no
-												,.amount = -0.8f * gross_transaction_amount
-											}
-											);
-											had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
-												.account_no = *vat_counter_account_no
-												,.amount = -0.2f * gross_transaction_amount
-											}
-											);
-											prompt << "\nNOTE: Cratchit currently assumes 25% VAT";
-											model->prompt_state = PromptState::JEAggregateOptionIndex;
-										}
-										else {
-											prompt << "\nPlease enter a a valid single gross counter amount account number (it seems I don't understand your input " << std::quoted(command) << ")";
-										}
-									}
-									else {
-										prompt << "\nPlease enter two single gross counter amount account number (it seems I interpret " << std::quoted(command) << " the wrong number of arguments";
-									}
-								}
-								else {
-									prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
-								}
-								prompt << "\ncandidate:" << *had.optional.current_candidate;
-							}
-							else {
-								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
-							}
-						}
-						else {
-							prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
-						}
-					} break;
-					case PromptState::JEAggregateOptionIndex: {
-						// ":had:je:1or*";
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (had.optional.current_candidate) {
-								// We need a typed entry to do some clever decisions
-								auto tme = to_typed_meta_entry(*had.optional.current_candidate);
-								prompt << "\n" << tme;
-								auto vat_type = to_vat_type(tme); 
-								switch (vat_type) {
-									case JournalEntryVATType::NoVAT: {
-										// No VAT in candidate. 
-										// Continue with 
-										// 1) Some propose gross account transactions
-										// 2) a n x gross Counter aggregate
-									} break;
-									case JournalEntryVATType::SwedishVAT: {
-										// Swedish VAT detcted in candidate.
-										// Continue with 
-										// 2) a n x {net,vat} counter aggregate
-									} break;
-									case JournalEntryVATType::EUVAT: {
-										// EU VAT detected in candidate.
-										// Continue with a 
-										// 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
-									} break;
-									case JournalEntryVATType::VATReturns: {
-										// All VATS (VAT Report?)
-									} break;
-									case JournalEntryVATType::VATTransfer: {
-										// All VATS and one gross non-vat (assume bank transfer of VAT to/from tax agency?)
-									} break;
-									default: {std::cerr << "\nDESIGN INSUFFICIENCY - Unknown JournalEntryVATType " << vat_type;}
-								}
-								// std::map<std::string,unsigned int> props_counter{};
-								// for (auto const& [at,props] : tme.defacto.account_transactions) {
-								// 	for (auto const& prop : props) props_counter[prop]++;
-								// }
-								// for (auto const& [prop,count] : props_counter) {
-								// 	prompt << "\n" << std::quoted(prop) << " count:" << count; 
-								// }
-								// auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
-								// 	acc += entry.second;
-								// 	return acc;
-								// });
-								// int vat_type{-1}; // unidentified VAT
-								// // Identify what type of VAT the candidate defines
-								// if ((props_counter.size() == 1) and props_counter.contains("gross")) {
-								// 	vat_type = 0; // NO VAT (gross, counter gross)
-								// 	prompt << "\nTemplate is an NO VAT transaction :)"; // gross,gross
-								// }
-								// else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
-								// 	if (props_sum == 3) {
-								// 		prompt << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
-								// 		vat_type = 1; // Swedish VAT
-								// 	}
-								// }
-								// else if (
-								// 	(     (props_counter.contains("gross"))
-								// 		and (props_counter.contains("eu_purchase"))
-								// 		and (props_counter.contains("eu_vat")))) {
-								// 	vat_type = 2; // EU VAT
-								// 	prompt << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
-								// }
-								// else {
-								// 	prompt << "\nFailed to recognise the VAT type";
-								// }
-
-								switch (ix) {
-									case 0: {
-										// Try to stage gross + single counter transactions aggregate
-										if (does_balance(had.optional.current_candidate->defacto) == false) {
-											// list at candidates from found entries with account transaction that counter the gross account
-											std::cout << "\nCurrent candidate does not balance";
-										}
-										else if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
-											return std::abs(at.amount) < 1.0;
-										})) {
-											// Assume the user need to specify rounding by editing proposed account transactions
-											unsigned int i{};
-											std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
-												prompt << "\n  " << i++ << " " << at;
-											});
-											model->prompt_state = PromptState::ATIndex;
-										}
-										else {
-											// Stage as-is
-											if (auto staged_me = model->sie["current"].stage(*had.optional.current_candidate)) {
-												prompt << "\n" << *staged_me << " STAGED";
-												model->heading_amount_date_entries.erase(*had_iter);
-												model->prompt_state = PromptState::HADIndex;
-											}
-											else {
-												prompt << "\nSORRY - Failed to stage entry";
-												model->prompt_state = PromptState::Root;
-											}
-										}
-									} break;
-									case 1: {
-										// net + vat counter aggregate
-										BAS::anonymous::OptionalAccountTransaction net_at;
-										BAS::anonymous::OptionalAccountTransaction vat_at;
-										for (auto const& [at,props] : tme.defacto.account_transactions) {
-											if (props.contains("net")) net_at = at;
-											if (props.contains("vat")) vat_at = at;
-										}
-										if (!net_at) std::cerr << "\nNo net_at";
-										if (!vat_at) std::cerr << "\nNo vat_at";
-										if (net_at and vat_at) {
-											had.optional.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
-											
-											BAS::anonymous::AccountTransactions ats_to_keep{};
-											std::remove_copy_if(
-												had.optional.current_candidate->defacto.account_transactions.begin()
-												,had.optional.current_candidate->defacto.account_transactions.end()
-												,std::back_inserter(ats_to_keep)
-												,[&net_at,&vat_at](auto const& at){
-													return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
-											});
-											had.optional.current_candidate->defacto.account_transactions = ats_to_keep;
-										}
-										prompt << "\ncadidate: " << *had.optional.current_candidate;
-										model->prompt_state = PromptState::EnterHA;
-									} break;
-									case 2: {
-										// Allow the user to edit individual account transactions
-										unsigned int i{};
-										std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
-											prompt << "\n  " << i++ << " " << at;
-										});
-										model->prompt_state = PromptState::ATIndex;
-									} break;
-									case 3: {
-										// Stage the candidate
-										if (auto staged_me = model->sie["current"].stage(*had.optional.current_candidate)) {
-											prompt << "\n" << *staged_me << " STAGED";
-											model->heading_amount_date_entries.erase(*had_iter);
-											model->prompt_state = PromptState::HADIndex;
-										}
-										else {
-											prompt << "\nSORRY - Failed to stage entry";
-											model->prompt_state = PromptState::Root;
-										}
-									}
-									default: {
-										prompt << "\nPlease enter a valid had index";
-									} break;			
-								}
-							}
-							else {
-								prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
-							}
-						}
-						else {
-							prompt << "\nPlease re-enter a valid had index";
-						}
-
-					} break;
-					case PromptState::ATIndex: {
-						if (auto at = model->selected_had_at(ix)) {
-							model->at = *at;
-							prompt << "\nAccount Transaction:" << model->at;
-							model->prompt_state = PromptState::EditAT;
-						}
-						else {
-							prompt << "\nEntered index does not refer to an Account Trasnaction Entry in current Heading Amount Date entry";
-						}
-					} break;
-
-					case PromptState::CounterAccountsEntry: {
-						prompt << "\nThe Counter Account Entry state is not yet active in this version of cratchit";
-					} break;
-
-					case PromptState::SKVEntryIndex: {
-						// prompt << "\n1: Arbetsgivardeklaration (Employer’s contributions and PAYE tax return form)";
-						// prompt << "\n2: Periodisk Sammanställning (EU sales list)"
-						switch (ix) {
-							case 0: {
-								// Assume Employer’s contributions and PAYE tax return form
-
-								// List Tax Return Form skv options (user data edit)
-								auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
-								prompt << delta_prompt;
-								model->prompt_state = prompt_state;
-							} break;
-							case 1: {
-								// Create current quarter, previous quarter or two previous quarters option
-								auto today = to_today();
-								auto current_qr = to_quarter_range(today);
-								auto previous_qr = to_three_months_earlier(current_qr);
-								auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
-								auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
-
-								prompt << "\n0: Track Current Quarter " << current_qr;
-								prompt << "\n1: Report Previous Quarter " << previous_qr;
-								prompt << "\n2: Check Quarter before previous " << quarter_before_previous_qr;
-								prompt << "\n3: Check Previous two Quarters " << two_previous_quarters;
-								model->prompt_state = PromptState::QuarterOptionIndex;								
-							} break;
-							case 2: {
-								// Create K10 form files
-								if (auto fm = SKV::SRU::K10::to_files_mapping()) {
-									std::filesystem::path info_file_path{"to_skv/K10/INFO.SRU"};
-									std::filesystem::create_directories(info_file_path.parent_path());
-									auto info_std_os = std::ofstream{info_file_path};
-									SKV::SRU::OStream info_sru_os{info_std_os};
-									SKV::SRU::InfoOStream info_os{info_sru_os};
-									if (info_os << *fm) {
-										prompt << "\nCreated " << info_file_path;
-									}
-									else {
-										prompt << "\nSorry, FAILED to create " << info_file_path;
-									}
-
-									std::filesystem::path blanketter_file_path{"to_skv/K10/BLANKETTER.SRU"};
-									std::filesystem::create_directories(blanketter_file_path.parent_path());
-									auto blanketter_std_os = std::ofstream{blanketter_file_path};
-									SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
-									SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
-									if (blanketter_os << *fm) {
-										prompt << "\nCreated " << blanketter_file_path;
-									}
-									else {
-										prompt << "\nSorry, FAILED to create " << blanketter_file_path;
-									}
-								}
-								else {
-									prompt << "\nSorry, failed to create data for input to K10 SRU-files";
-								}
-							} break;
-							case 3: {
-								// Generate the K10 and INK1 forms as SRU-files
-
-								// We need two input values verified by the user
-								// 1. The Total income to tax (SKV SRU Code 1000)
-								// 2. The dividend to Tax (SKV SRU Code 4504)
-								Amount income = get_INK1_Income(model);
-								prompt << "\n1: INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
-								Amount dividend = get_K10_Dividend(model);
-								prompt << "\n2: K10 1.6 Utdelning = " << dividend;
-								prompt << "\n3: Continue (Create K10 and INK1)";
-								model->prompt_state = PromptState::K10INK1EditOptions;					
-							} break;
-							case 4: {
-								// "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
-								prompt << "\n1: INK2::meta_xx = ?? (TODO: Add edit of meta data for INK2 forms)";
-								prompt << "\n2: Generate INK2";
-								model->prompt_state = PromptState::INK2AndAppendixEditOptions;
-							} break;
-							default: {prompt << "\nPlease enter a valid index";} break;
-						}
-					} break;
-
-					case PromptState::QuarterOptionIndex: {
-						auto today = to_today();
-						auto current_qr = to_quarter_range(today);
-						auto previous_qr = to_three_months_earlier(current_qr);
-						auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
-						auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
-						OptionalDateRange period_range{};
-						switch (ix) {
-							case 0: {
-								prompt << "\nCurrent Quarter " << current_qr << " (to track)";
-								period_range = current_qr;
-							} break;
-							case 1: {
-								prompt << "\nPrevious Quarter " << previous_qr << " (to report)";
-								period_range = previous_qr;
-							} break;
-							case 2: {
-								prompt << "\nQuarter before previous " << quarter_before_previous_qr << " (to check)";
-								period_range = quarter_before_previous_qr;
-							} break;
-							case 3: {
-								prompt << "\nPrevious two Quarters " << two_previous_quarters << " (to check)";
-								period_range = two_previous_quarters;
-							}
-							default: {
-								prompt << "\nPlease select a valid option (it seems option " << ix << " is unknown to me";
-							} break;
-						}
-						if (period_range) {
-							// Create VAT Returns form for selected period
-							prompt << "\nVAT Returns for " << *period_range;
-							if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
-								SKV::OrganisationMeta org_meta {
-									.org_no = model->sie["current"].organisation_no.CIN
-									,.contact_persons = model->organisation_contacts
-								};
-								SKV::XML::DeclarationMeta form_meta {
-									.declaration_period_id = vat_returns_meta->period_to_declare
-								};
-								auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
-									return vat_returns_meta->period.contains(mat.meta.defacto.date);
-								};
-								auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
-								if (box_map) {
-									prompt << *box_map;
-									auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
-									if (xml_map) {
-										std::filesystem::path skv_files_folder{"to_skv"};
-										std::filesystem::path skv_file_name{std::string{"moms_"} + vat_returns_meta->period_to_declare + ".eskd"};
-										std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
-										std::filesystem::create_directories(skv_file_path.parent_path());
-										std::ofstream skv_file{skv_file_path};
-										SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
-										if (vat_returns_os << *xml_map) {
-											prompt << "\nCreated " << skv_file_path;
-											SKV::XML::VATReturns::OStream vat_returns_prompt{prompt};
-											vat_returns_prompt << "\n" << *xml_map;
-										}
-										else prompt << "\nSorry, failed to create the file " << skv_file_path;
-									}
-									else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
-									// Generate an EU Sales List form for the VAt Returns form
-									if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(*box_map,org_meta,*period_range)) {
-										auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range->end());
-										std::filesystem::path skv_files_folder{"to_skv"};						
-										std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + "_" + to_string(today) + ".csv"};						
-										std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
-										std::filesystem::create_directories(eu_list_form_file_path.parent_path());
-										std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
-										SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
-										if (os << *eu_list_form) {
-											prompt << "\nCreated file " << eu_list_form_file_path << " OK";
-											SKV::CSV::EUSalesList::OStream eu_sales_list_prompt{prompt};
-											eu_sales_list_prompt << "\n" <<  *eu_list_form;
-										}
-										else {
-											prompt << "\nSorry, failed to write " << eu_list_form_file_path;
-										}
-									}
-									else {
-										prompt << "\nSorry, failed to acquire required data for the EU List form file";
-									}
-								}
-								else prompt << "\nSorry, failed to gather form data required for the VAT Returns form";
-							}
-							else {
-								prompt << "\nSorry, failed to gather meta-data for the VAT returns form for period " << *period_range;
-							}									
-						}
-					} break;
-					case PromptState::SKVTaxReturnEntryIndex: {
-						switch (ix) {
-							case 1: {model->prompt_state = PromptState::EnterContact;} break;
-							case 2: {model->prompt_state = PromptState::EnterEmployeeID;} break;
-							case 3: {
-								if (ast.size() == 2) {
-									// Assume Tax Returns form
-									// Assume second argument is period
-									if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
-										auto period_to_declare = ast[1];
-										// Brute force the period into the map (TODO: Inject this value in a better way into the production code above?)
-										(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Arendeinformation^agd:Period)"] = period_to_declare;
-										(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-										(*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:IU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-										(*xml_map)[R"(Skatteverket^agd:Kontaktperson^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
-										std::filesystem::path skv_files_folder{"to_skv"};
-										std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};						
-										std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
-										std::filesystem::create_directories(skv_file_path.parent_path());
-										std::ofstream skv_file{skv_file_path};
-										if (SKV::XML::to_employee_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
-											prompt << "\nCreated " << skv_file_path;
-                      prompt << "\nUpload file to Swedish Skatteverket";
-                      prompt << "\n1. Browse to https://skatteverket.se/foretag";
-                      prompt << "\n2. Click on 'Lämna arbetsgivardeklaration'";
-                      prompt << "\n3. Log in";
-                      prompt << "\n4. Choose to represent your company";
-                      prompt << "\n5. Click on 'Deklarera via fil' and follow the instructions to upload the file " << skv_file_path;
-										}
-										else {
-											prompt << "\nSorry, failed to create " << skv_file_path;
-										}
-									}	
-									else {
-										prompt << "\nSorry, failed to acquire required data to generate xml-file to SKV";
-									}
-									model->prompt_state = PromptState::Root;
-								}
-								else {
-									prompt << "\nPlease provide second argument = period on the form YYYYMM (e.g., enter '3 202205' to generate Tax return form for May 2022)";
-								}
-							} break;
-							default: {prompt << "\nPlease enter a valid index";} break;
-						}
-					} break;
-
-					case PromptState::K10INK1EditOptions: {
-						switch (ix) {
-							case 1: {model->prompt_state = PromptState::EnterIncome;} break;
-							case 2: {model->prompt_state = PromptState::EnterDividend;} break;
-							case 3: {
-                if (false) {
-                  // 230420 - began hard coding generation of corrected K10 for last year + K10 and INK1 for this year
-                  // PAUS for now (I ended up sending in a manually edited INFO.SRU and BLANKETTER.SRU)
-                  // TODO: Consider to:
-                  // 1. Use CSV-files as read by skv_specs_mapping_from_csv_files()
-                  //    Get rid of hard coded SKV::SRU::INK1::k10_csv_to_sru_template and SKV::SRU::INK1::ink1_csv_to_sru_template?
-                  //    NOTE: They both use the same csv-files as input (2 at compile time and 1 at run-time)
-                  //    Actually - Decide if these csv-files should be hard coded or read at run-time?
-                  // 2. Consider to expose these csv-file as actual forms for the user to edit?
-                  //    I imagine we can generate indexed entries to each field and have the user select end edit its value?
-                  //    Question is how to implemented computation as defined by SKV for these forms (rates and values gets redefined each year!)
-                  // ...
-                  /*
-										SKV::SRU::FilesMapping fm {
-											.info = to_info_sru_file_tag_map(model);
-										};
-                    fm.blanketter.push_back(to_k10_blankett(2021));
-                    fm.blanketter.push_back(to_k10_blankett(2022));
-                    fm.blanketter.push_back(to_ink1_blankett(2022));
-                  */
+                  prompt << "\nCandidate: " << me;
+                  model->prompt_state = PromptState::VATReturnsFormIndex;
                 }
-								else {
-									// TODO: Split to allow edit of Income and Dividend before entering the actual generation phase/code
-									// k10_csv_to_sru_template
-									SKV::SRU::OptionalSRUValueMap k10_sru_value_map{};
-									SKV::SRU::OptionalSRUValueMap ink1_sru_value_map{};
+              }
+              else if (had.optional.current_candidate) {
+                prompt << "\n\t" << *had.optional.current_candidate;
+                if (had.optional.counter_ats_producer) {
+                  // We alreade have a "counter transactions" producer.
+                  // Go directly to state for user to apply it to complete the candidate
+                  model->prompt_state = PromptState::EnterHA;
+                }
+                else {
+                  // The user has already selected a candidate
+                  // But have not yet gone through assigning a "counter transaction" producer
+                  model->prompt_state = PromptState::JEAggregateOptionIndex;
+                }
+              }
+              else {
+                model->had_index = ix;
+                model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
+                  return had_matches_trans(had,aje);
+                });
+                {
+                  // hard code a template for Inventory gross + n x (ex_vat + vat) journal entry
+                  // 0  *** "Amazon" 20210924
+                  // 	"Leverantörsskuld":2440 "" -1489.66
+                  // 	"Invenmtarier":1221 "Garmin Edge 130" 1185.93
+                  // 	"Debiterad ingående moms":2641 "Garmin Edge 130" 303.73
 
-									std::istringstream k10_is{SKV::SRU::INK1::k10_csv_to_sru_template};
-									if (auto field_rows = CSV::to_field_rows(k10_is)) {
-										// LOG
-										for (auto const& field_row : *field_rows) {
-											if (field_row.size()>0) prompt << "\n";
-											for (int i=0;i<field_row.size();++i) {
-												prompt << " [" << i << "]" << field_row[i];
-											}
-										}
-										// Acquire the SRU Values required for the K10 Form
-										k10_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
-									}
-									else {
-										prompt << "\nSorry, failed to acquire a valid template for the K10 form";
-									}
-									// ink1_csv_to_sru_template
-									std::istringstream ink1_is{SKV::SRU::INK1::ink1_csv_to_sru_template};
-									if (auto field_rows = CSV::to_field_rows(ink1_is)) {
-										for (auto const& field_row : *field_rows) {
-											if (field_row.size()>0) prompt << "\n";
-											for (int i=0;i<field_row.size();++i) {
-												prompt << " [" << i << "]" << field_row[i];
-											}
-										}
-										// Acquire the SRU Values required for the INK1 Form
-										ink1_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
-									}
-									else {
-										prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
-									}
-									if (k10_sru_value_map and ink1_sru_value_map) {
-										SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
-										{
-											// Assume we are to send in with sender being this company?
-											// 9. #ORGNR
-												// #ORGNR 191111111111
-											info_sru_file_tag_map["#ORGNR"] = model->sie["current"].organisation_no.CIN;		
-											// 10. #NAMN
-												// #NAMN Databokföraren
-											info_sru_file_tag_map["#NAMN"] = model->sie["current"].organisation_name.company_name;
+                  // struct JournalEntry {
+                  // 	std::string caption{};
+                  // 	Date date{};
+                  // 	AccountTransactions account_transactions;
+                  // };
 
-											auto postal_address = model->sie["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
-											auto postal_address_tokens = tokenize::splits(postal_address,' ');
-
-											// 12. #POSTNR
-												// #POSTNR 12345
-											if (postal_address_tokens.size() > 0) {
-												info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
-											}
-											else {
-												info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
-											}
-											// 13. #POSTORT
-												// #POSTORT SKATTSTAD
-											if (postal_address_tokens.size() > 1) {
-												info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
-											}
-											else {
-												info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
-											}
-										}
-										SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
-										{
-											// #BLANKETT N7-2013P1
-											// k10_sru_file_tag_map["#BLANKETT"] = "K10-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
-											k10_sru_file_tag_map["#BLANKETT"] = "K10-2022P4"; // See table 1, entry K10 column "blankett-block" in file "_Nyheter_from_beskattningsperiod_2022P4-3.pdf" (https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip)
-											// #IDENTITET 193510250100 20130426 174557
-											std::ostringstream os{};
-											if (model->employee_birth_ids[0].size()>0) {
-												os << " " << model->employee_birth_ids[0];
-											}
-											else {
-												os << " " << "?PERSONNR?";											
-											}
-											auto today = to_today();
-											os << " " << today;
-											os << " " << "120000";
-											k10_sru_file_tag_map["#IDENTITET"] = os.str();
-										}
-										SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
-										{
-											// #BLANKETT N7-2013P1
-											// ink1_sru_file_tag_map["#BLANKETT"] = "INK1-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
-											ink1_sru_file_tag_map["#BLANKETT"] = " INK1-2022P4"; // See entry INK1 column "blankett-block" in file "_Nyheter_from_beskattningsperiod_2022P4-3.pdf" (https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip)
-											// #IDENTITET 193510250100 20130426 174557
-											std::ostringstream os{};
-											if (model->employee_birth_ids[0].size()>0) {
-												os << " " << model->employee_birth_ids[0];
-											}
-											else {
-												os << " " << "?PERSONNR?";											
-											}
-											auto today = to_today();
-											os << " " << today;
-											os << " " << "120000";
-
-											ink1_sru_file_tag_map["#IDENTITET"] = os.str();
-										}
-										SKV::SRU::FilesMapping fm {
-											.info = info_sru_file_tag_map
-										};
-										SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map}; 
-										fm.blanketter.push_back(k10_blankett);
-										SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map}; 
-										fm.blanketter.push_back(ink1_blankett);
-
-										std::filesystem::path info_file_path{"to_skv/SRU/INFO.SRU"};
-										std::filesystem::create_directories(info_file_path.parent_path());
-										auto info_std_os = std::ofstream{info_file_path};
-										SKV::SRU::OStream info_sru_os{info_std_os};
-										SKV::SRU::InfoOStream info_os{info_sru_os};
-
-										if (info_os << fm) {
-											prompt << "\nCreated " << info_file_path;
-										}
-										else {
-											prompt << "\nSorry, FAILED to create " << info_file_path;
-										}
-
-										std::filesystem::path blanketter_file_path{"to_skv/SRU/BLANKETTER.SRU"};
-										std::filesystem::create_directories(blanketter_file_path.parent_path());
-										auto blanketter_std_os = std::ofstream{blanketter_file_path};
-										SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
-										SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
-
-										if (blanketter_os << fm) {
-											prompt << "\nCreated " << blanketter_file_path;
-										}
-										else {
-											prompt << "\nSorry, FAILED to create " << blanketter_file_path;
-										}
-
-									}
-									else {
-										prompt << "\nSorry, Failed to acquirer the data for the K10 and INK1 forms";									
-									}
-								} // if false
-							} break;
-							default: {prompt << "\nPlease enter a valid index";} break;
-						}
-					} break;
-
-					case PromptState::INK2AndAppendixEditOptions: {
-						switch (ix) {
-							case 1: {
-								prompt << "\nTODO: Add edit of INK2 meta data";
-							} break;
-							case 2: {
-								prompt << "\nTODO: Add generation of INK2 forms into SRU-file (See code for INK1 and K10)";
-							} break;
-						}
-					} break;
-
-					case PromptState::EnterIncome:
-					case PromptState::EnterDividend:
-					case PromptState::EnterHA:
-					case PromptState::EnterContact:
-					case PromptState::EnterEmployeeID:
-					case PromptState::EditAT:
-					case PromptState::Undefined:
-					case PromptState::Unknown:
-						prompt << "\nPlease enter \"word\" like text (index option not available in this state)";
-						break;
-				}
-			}
-			/* ======================================================
-
-
-
-								Act on on Command?
-
-
-			 ====================================================== */
-			else if (ast[0] == "-version" or ast[0] == "-v") {
-				prompt << "\nCratchit Version " << VERSION;
-			}
-			else if (ast[0] == "-tas") {
-				// Enter tagged Amounts mode for specified period (from any state)
-/*
-
-	Consider the process to turn account statements into SIE Journal entries?
-
-	1) Turn the account statement
-
-	0. 7297cc24f838c039 20220704 -5,10 "Account=NORDEA" "From=51 86 87-9" "To="
-
-
-	1. c5eb4b1ff7ebb281 20220712 -162,62 "Account=NORDEA" "From=51 86 87-9" "To="
-	2. 792052fc6a0039de 20220725 -6643,14 "Account=NORDEA" "From=51 86 87-9" "To="
-	3. 792052fc6a14e708 20220725 -277,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	4. f2aa5fd6cd6cae8f 20220727 -165,25 "Account=NORDEA" "From=51 86 87-9" "To="
-	5. 7c1a83a729f44e5a 20220801 -1149,55 "Account=NORDEA" "From=51 86 87-9" "To="
-	6. 7c1a83a729f66cb3 20220801 -438,90 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
-	7. e5bd98fed4eb6552 20220802 -372,30 "Account=NORDEA" "From=51 86 87-9" "To=DE93600501010008573182"
-	8. 7f9334ab567a6a37 20220804 -135,70 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
-	9. c77d560c408290a5 20220805 -1884,37 "Account=NORDEA" "From=51 86 87-9" "To="
-	10. a30fe7f13729868 20220808 -4197,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	11. a30fe7f1375bbd1 20220808 -3829,41 "Account=NORDEA" "From=51 86 87-9" "To="
-	12. a30fe7f137458c3 20220808 -3290,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	13. a30fe7f137874b4 20220808 -2129,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	14. a30fe7f137c0678 20220808 -699,90 "Account=NORDEA" "From=51 86 87-9" "To="
-	15. 5169c9dc321572b4 20220809 -1917,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	16. d2d7ae5ec16d36f4 20220812 -155,94 "Account=NORDEA" "From=51 86 87-9" "To="
-	17. b4b369c168af076 20220815 -1419,40 "Account=NORDEA" "From=51 86 87-9" "To="
-	18. b0a082d4a3c65661 20220822 -1599,00 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
-	19. 4f5f7d2b5c45dd3e 20220822 39550,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
-	20. 8ea9957fbdb480fa 20220823 -39565,04 "Account=NORDEA" "From=51 86 87-9" "To=DE42620500000013602749"
-	21. 71566a804232a107 20220823 504,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-	22. 71566a80424b2932 20220823 39550,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-	23. 6ad264805a693cad 20220824 -399,75 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
-	24. 481ac3653cd9dfaa 20220825 -39550,00 "Account=NORDEA" "From=51 86 87-9" "To=32592317244"
-	25. 1e7760188d0449c6 20220826 -890,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	26. 4a4a7f482f5b07c 20220905 -4190,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	27. 4a4a7f482fdba4e 20220905 -1499,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	28. 4a4a7f482fb4a9c 20220905 -799,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	29. 4a4a7f482f905ca 20220905 -10,50 "Account=NORDEA" "From=51 86 87-9" "To="
-	30. 68ba6148c41fc469 20220908 -446,00 "Account=NORDEA" "From=51 86 87-9" "To=5020-7042"
-	31. f1afd7fc7fd9ff48 20220909 -2936,96 "Account=NORDEA" "From=51 86 87-9" "To="
-	32. 9acabb4d626d9230 20220912 -149,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	33. 653544b29d901828 20220912 799,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-	34. 653544b29d9611d0 20220912 1499,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-	35. acb727b0ab8ce0ee 20220913 -2963,94 "Account=NORDEA" "From=51 86 87-9" "To=5579-0372"
-	36. acb727b0ab82725b 20220913 -2398,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	37. acb727b0ab85b882 20220913 -164,37 "Account=NORDEA" "From=51 86 87-9" "To="
-	38. 5348d84f544709f3 20220913 20000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
-	39. acb727b0abb83d58 20220913 -20000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
-	40. ab17c38434cc1f54 20220914 -665,88 "Account=NORDEA" "From=51 86 87-9" "To="
-	41. ab17c38434cf46dd 20220914 -384,80 "Account=NORDEA" "From=51 86 87-9" "To=SE4412000000012200137117"
-	42. ab17c38434cecbfd 20220914 -182,38 "Account=NORDEA" "From=51 86 87-9" "To=5562-5735"
-	43. 1fe7fcd9ce2219e6 20220915 -904,00 "Account=NORDEA" "From=51 86 87-9" "To=824-3040"
-	44. 1fe7fcd9ce202ef2 20220915 -227,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	45. 1fe7fcd9ce207632 20220915 -191,00 "Account=NORDEA" "From=51 86 87-9" "To=412 20 00-5"
-	46. 1fe7fcd9ce200a00 20220915 -118,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	47. 1f73f30e22a3e837 20220919 -13578,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	48. 1f73f30e2288d290 20220919 -694,00 "Account=NORDEA" "From=51 86 87-9" "To="
-	49. baac6f0d83899487 20220920 -4765,00 "Account=NORDEA" "From=51 86 87-9" "To=5307-1676"
-	50. ca3b0334ceead9de 20220921 25000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
-	51. 35c4fccb311520cf 20220921 -25000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
-	52. f69942115b49b996 20220922 -2855,00 "Account=NORDEA" "From=51 86 87-9" "To=417 74 04-3"
-	53. 966bdeea4bcd8c8 20220922 739,69 "Account=NORDEA" "From=" "To=51 86 87-9"
-	54. 4301b16f2a993e63 20220926 -1031,00 "Account=NORDEA" "From=51 86 87-9" "To=5211-5664"
-	55. c987951e9f67ff84 20220927 -783,75 "Account=NORDEA" "From=51 86 87-9" "To=5343-2795"
-	56. d264d03b2b65eea7 20220929 -368,00 "Account=NORDEA" "From=51 86 87-9" "To=5249-4309"
-*/				
-				if (ast.size() == 1 and model->selected_date_ordered_tagged_amounts.size() > 0) {
-					// Enter into current selection
-					model->prompt_state = PromptState::TAIndex;
-				// List current selection
-					prompt << "\n<SELECTED>";
-					// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
-					int index = 0;
-					for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-						prompt << "\n\t" << index++ << ". " << ta_ptr;
-					}				
-				}
-				else {
-					// Period required
-					OptionalDate begin{}, end{};
-					if (ast.size() == 3) {
-							begin = to_date(ast[1]);
-							end = to_date(ast[2]);					
-					}
-					if (begin and end) {
-						model->selected_date_ordered_tagged_amounts.clear();
-						for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {	
-							model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
-						}				
-						model->prompt_state = PromptState::TAIndex;
-						prompt << "\n<SELECTED>";
-						// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
-						int index = 0;
-						for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-							prompt << "\n\t" << index++ << ". " << ta_ptr;
-						}				
-
-					}
-					else {
-						prompt << "\nPlease enter the tagged amounts state on the form '-tas yyyymmdd yyyymmdd'";
-					}
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_tag") {
-				if (ast.size() == 2) {
-					auto has_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
-						return ta_ptr->tags().contains(tag);
-					};
-					TaggedAmountPtrs reduced{};
-					std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_tag),std::back_inserter(reduced));				
-					model->selected_date_ordered_tagged_amounts = reduced;
-				}
-				else {
-					prompt << "\nPlease provide the tag name you want to filter on";
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_not_tag") {
-				if (ast.size() == 2) {
-					auto has_not_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
-						return !ta_ptr->tags().contains(tag);
-					};
-					TaggedAmountPtrs reduced{};
-					std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_not_tag),std::back_inserter(reduced));				
-					model->selected_date_ordered_tagged_amounts = reduced;
-				}
-				else {
-					prompt << "\nPlease provide the tag name you want to filter on";
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_tagged") {
-				if (ast.size() == 2) {
-					auto [tag,pattern] = tokenize::split(ast[1],'=');
-					if (tag.size()>0) {
-						auto is_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
-							const std::regex pattern_regex(pattern); 
-							return (ta_ptr->tags().contains(tag) and std::regex_match(ta_ptr->tags().at(tag),pattern_regex));
-						};
-						TaggedAmountPtrs reduced{};
-						std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_tagged),std::back_inserter(reduced));				
-						model->selected_date_ordered_tagged_amounts = reduced;
-					}
-					else {
-						prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
-					}
-				}
-				else {
-					prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_not_tagged") {
-				if (ast.size() == 2) {
-					auto [tag,pattern] = tokenize::split(ast[1],'=');
-					if (tag.size()>0) {
-						auto is_not_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
-							const std::regex pattern_regex(pattern); 
-							return (ta_ptr->tags().contains(tag)==false or std::regex_match(ta_ptr->tags().at(tag),pattern_regex)==false);
-						};
-						TaggedAmountPtrs reduced{};
-						std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_not_tagged),std::back_inserter(reduced));				
-						model->selected_date_ordered_tagged_amounts = reduced;
-					}
-					else {
-						prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
-					}
-				}
-				else {
-					prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_bas_account") {
-				// -to_bas <BAS account no | Bas Account Name>
-				if (ast.size() == 2) {
-					if (auto bas_account = BAS::to_account_no(ast[1])) {
-						TaggedAmountPtrs created{};
-						auto new_ta = [bas_account = *bas_account](TaggedAmountPtr const& ta_ptr){
-							auto date = ta_ptr->date();
-							auto cents_amount = ta_ptr->cents_amount();
-							auto source_tags = ta_ptr->tags();
-							detail::TaggedAmountClass::Tags tags{};
-							tags["BAS"]=std::to_string(bas_account);
-							tags["Source"]=detail::to_string(ta_ptr->instance_id());
-							auto result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,cents_amount),date,cents_amount,std::move(tags));
-							return result;
-						};
-						std::ranges::transform(model->selected_date_ordered_tagged_amounts,std::back_inserter(created),new_ta);
-						model->new_date_ordered_tagged_amounts = created;
-						prompt << "\n<CREATED>";
-						// for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
-						int index = 0;
-						for (auto const& ta_ptr : model->new_date_ordered_tagged_amounts) {	
-							prompt << "\n\t" << index++ << ". " << ta_ptr;
-						}				
-						model->prompt_state = PromptState::AcceptNewTAs;
-						prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
-					}
-					else {
-						prompt << "\nPlease enter a valid BAS account no";
-					}
-				}
-				else {
-					prompt << "\nPlease enter the BAS account you want to book selected tagged amounts to (E.g., '-to_bas 1920'";
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
-				using AmountTrailsMap = std::map<CentsAmount,TaggedAmountPtrs>;
-				AmountTrailsMap amount_trails_map{};
-				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
-					amount_trails_map[std::abs(ta_ptr->cents_amount())].push_back(ta_ptr);
-				}
-				std::vector<std::pair<CentsAmount,TaggedAmountPtrs>> date_ordered_amount_trails_map{};
-				std::ranges::copy(amount_trails_map,std::back_inserter(date_ordered_amount_trails_map));
-				std::ranges::sort(date_ordered_amount_trails_map,[](auto const& e1,auto const& e2){
-					if (e1.second.front()->date() == e2.second.front()->date()) return e1.first < e2.first;
-					else return e1.second.front()->date() < e2.second.front()->date();
-				});
-				for (auto const& [cents_amount,ta_ptrs] : date_ordered_amount_trails_map) {
-					auto units_and_cents_amount = to_units_and_cents(cents_amount);
-					prompt << "\n" << units_and_cents_amount;
-					for (auto const& ta_ptr : ta_ptrs) {
-						prompt << "\n\t" << ta_ptr;
-					}
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
-				// Reduce to aggregates
-				auto is_aggregate = [](TaggedAmountPtr const& ta_ptr) {
-					return (ta_ptr->tags().contains("type") and ta_ptr->tags().at("type") == "aggregate");
-				};
-				TaggedAmountPtrs reduced{};
-				std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_aggregate),std::back_inserter(reduced));				
-				model->selected_date_ordered_tagged_amounts = reduced;
-				// List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
-				std::cout << "\n<AGGREGATES>" << std::flush;
-				prompt << "\n<AGGREGATES>";
-				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
-					prompt << "\n" << ta_ptr;
-					if (auto members_value = ta_ptr->tag_value("_members")) {
-						auto members = Key::Path{*members_value};
-						if (auto instance_ids = to_instance_ids(members)) {
-							prompt << "\n\t<members>";
-							if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
-								for (auto const& ta_ptr : *ta_ptrs) {
-									prompt << "\n\t" << ta_ptr;
-								}
-							}
-						}
-					}
-				}
-			}
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_had") {
-        prompt << "\nCreating Heading Amount Date entries from selected Tagged Amounts";
-				auto had_candidate_ta_ptrs = model->selected_date_ordered_tagged_amounts;
-        // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
-				for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
-          bool has_SIE_tag = ta_ptr->tag_value("SIE").has_value();
-					if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) {
-            prompt << "\nDisregarded SIE aggregate " << ta_ptr;
-            had_candidate_ta_ptrs.erase(ta_ptr->instance_id());
-						auto members = Key::Path{*members_value};
-						if (auto instance_ids = to_instance_ids(members)) {
-							if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
-								for (auto const& ta_ptr : *ta_ptrs) {
-                  prompt << "\nDisregarded SIE aggregate member " << ta_ptr;
-                  had_candidate_ta_ptrs.erase(ta_ptr->instance_id());            
-								}
-							}
-						}
-					}
-				}
-				for (auto const& ta_ptr : had_candidate_ta_ptrs) {
-          if (auto o_had = to_had(ta_ptr)) {
-						model->heading_amount_date_entries.push_back(*o_had);
+                  Amount amount{1000};
+                  BAS::MetaEntry me{
+                    .meta = {
+                      .series = 'A'
+                    }
+                    ,.defacto = {
+                      .caption = "Bestallning Inventarie"
+                      ,.date = had.date
+                    }
+                  };
+                  BAS::anonymous::AccountTransaction gross_at{
+                    .account_no = 2440
+                    ,.amount = -amount
+                  };
+                  BAS::anonymous::AccountTransaction net_at{
+                    .account_no = 1221
+                    ,.amount = static_cast<Amount>(amount*0.8f)
+                  };
+                  BAS::anonymous::AccountTransaction vat_at{
+                    .account_no = 2641
+                    ,.amount = static_cast<Amount>(amount*0.2f)
+                  };
+                  me.defacto.account_transactions.push_back(gross_at);
+                  me.defacto.account_transactions.push_back(net_at);
+                  me.defacto.account_transactions.push_back(vat_at);
+                  model->template_candidates.push_back(to_typed_meta_entry(me));
+                }
+                // List options
+                unsigned ix = 0;
+                for (int i=0; i < model->template_candidates.size(); ++i) {
+                  prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+                }
+                model->prompt_state = PromptState::JEIndex;
+              }
+            }
           }
           else {
-            prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry" << ta_ptr;
+            prompt << "\nplease enter a valid index";
+          }
+        } break;
+        case PromptState::VATReturnsFormIndex: {
+          if (ast.size() > 0) {
+            // Asume the user has selected an index for an entry on the proposed VAT Returns form to edit
+            if (auto had_iter = model->selected_had()) {
+              auto& had = *(*had_iter);
+              if (had.optional.vat_returns_form_box_map_candidate) {
+                if (had.optional.vat_returns_form_box_map_candidate->contains(ix)) {
+                  auto box_no = ix;
+                  auto& mats = had.optional.vat_returns_form_box_map_candidate->at(box_no);
+                  if (auto amount = to_amount(ast[1]);amount and mats.size()>0) {
+                    auto mats_sum = BAS::mats_sum(mats);
+                    auto sign = (mats_sum<0)?-1:1;
+                    // mats_sum + diff = amount
+                    auto diff = sign*(std::abs(*amount)) - mats_sum;
+                    mats.push_back({
+                      .defacto = {
+                        .account_no = mats[0].defacto.account_no
+                        ,.transtext = "diff"
+                        ,.amount = diff
+                      }
+                    });
+// std::cout << "\n[" << box_no << "]";
+                    for (auto const& mat : mats) {
+// std::cout << "\n\t" << mat;
+                    }
+// std::cout << "\n\t--------------------";
+// std::cout << "\n\tsum " << BAS::mats_sum(mats);
+                  }
+                  else {
+                    prompt << "\nPlease enter an entry index and a positive amount (will apply the sign required by the form)";
+                  }
+                }
+                else {
+                  prompt << "\nPlease enter a valid VAT Returns form entry index";
+                  // provide the user with the ability to edit the propsed VAT Returns form
+                }
+                {
+                  // Adjust the sum in box 49
+                  had.optional.vat_returns_form_box_map_candidate->at(49).clear();
+                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+                  for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
+                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+                  }
+                  BAS::MetaEntry me{
+                    .meta = {
+                      .series = 'M'
+                    }
+                    ,.defacto = {
+                      .caption = had.heading
+                      ,.date = had.date
+                    }
+                  };
+                  std::map<BAS::AccountNo,Amount> account_amounts{};
+                  for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
+                    for (auto const& mat : mats) {
+                      account_amounts[mat.defacto.account_no] += mat.defacto.amount;
+// std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
+                    }
+                  }
+                  for (auto const& [account_no,amount] : account_amounts) {
+                    // account_amounts[0] = 4190.54
+                    // account_amounts[2614] = -2364.4
+                    // account_amounts[2640] = 2364.4
+                    // account_amounts[2641] = 4190.54
+                    // account_amounts[3308] = -888.1
+                    // account_amounts[9021] = 11822
+// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
+                    // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
+                    // Book this on BAS 2650
+                    // NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
+                    if (account_no==0) {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 2650
+                        ,.amount = std::trunc(-amount)
+                      });
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 3740
+                        ,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+                      });
+                    }
+                    else {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = account_no
+                        ,.amount = BAS::to_cents_amount(-amount)
+                      });
+                    }
+                    // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
+                    if (account_no == 9021) {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 9099
+                        ,.transtext = "Avbokning (20) 9021"
+                        ,.amount = BAS::to_cents_amount(amount)
+                      });
+                    }
+                    // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
+                    if (account_no == 3308) {
+                      me.defacto.account_transactions.push_back({
+                        .account_no = 9099
+                        ,.transtext = "Avbokning (39) 3308"
+                        ,.amount = BAS::to_cents_amount(amount)
+                      });
+                    }
+                  }
+                  had.optional.current_candidate = me;
+
+                  prompt << "\nCandidate: " << me;
+                  model->prompt_state = PromptState::VATReturnsFormIndex;
+                }
+              }
+              else {
+                prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid VAT Returns form candidate to process)";
+              }
+            }
+            else {
+              prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+            }
+          }
+        } break;
+        case PromptState::JEIndex: {
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            if (auto account_no = BAS::to_account_no(command)) {
+              // Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
+              BAS::MetaEntry me{
+                .defacto = {
+                    .caption = had.heading
+                  ,.date = had.date
+                }
+              };
+              me.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
+              had.optional.current_candidate = me;
+              prompt << "\ncandidate:" << me;
+              model->prompt_state = PromptState::GrossDebitorCreditOption;
+            }
+            else {
+              // Assume user selected an entry as base for a template
+              auto tme_iter = model->template_candidates.begin();
+              auto tme_end = model->template_candidates.end();
+              auto at_iter = model->at_candidates.begin();
+              auto at_end = model->at_candidates.end();
+              if (ix < std::distance(tme_iter,tme_end)) {
+                std::advance(tme_iter,ix);
+                auto tme = *tme_iter;
+                auto vat_type = to_vat_type(tme);
+                std::cout << "\nvat_type = " << vat_type;
+                switch (vat_type) {
+                  case JournalEntryVATType::Undefined:
+                    prompt << "\nSorry, I encountered Undefined VAT type for " << tme;
+                    break; // *silent ignore*
+                  case JournalEntryVATType::Unknown:
+                    prompt << "\nSorry, I encountered Unknown VAT type for " << tme;
+                    break; // *silent ignore*
+                  case JournalEntryVATType::NoVAT: {
+                    // No VAT in candidate. 
+                    // Continue with 
+                    // 1) Some propose gross account transactions
+                    // 2) a n x gross Counter aggregate
+                    auto tp = to_template(*tme_iter);
+                    if (tp) {
+                      auto me = to_journal_entry(had,*tp);
+                      prompt << "\nNo VAT candidate " << me;
+                      had.optional.current_candidate = me;
+                      model->prompt_state = PromptState::JEAggregateOptionIndex;
+                    }
+                  } break;
+                  case JournalEntryVATType::SwedishVAT: {
+                    // Swedish VAT detcted in candidate.
+                    // Continue with 
+                    // 2) a n x {net,vat} counter aggregate
+                    auto tp = to_template(*tme_iter);
+                    if (tp) {
+                      auto me = to_journal_entry(had,*tp);
+                      prompt << "\nSwedish VAT candidate " << me;
+                      had.optional.current_candidate = me;
+                      model->prompt_state = PromptState::JEAggregateOptionIndex;
+                    }
+                  } break;
+                  case JournalEntryVATType::EUVAT: {
+                    // EU VAT detected in candidate.
+                    // Continue with a 
+                    // 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
+                    // #1 hard code for EU VAT Candidate
+                    BAS::MetaEntry me {
+                      .defacto = {
+                        .caption = had.heading
+                        ,.date = had.date
+                      }
+                    };
+                    for (auto const& [at,props] : tme_iter->defacto.account_transactions) {
+                      if (props.contains("gross") or props.contains("eu_purchase")) {
+                        Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        BAS::anonymous::AccountTransaction new_at{
+                          .account_no = at.account_no
+                          ,.transtext = std::nullopt
+                          ,.amount = sign*std::abs(had.amount)
+                        };
+                        me.defacto.account_transactions.push_back(new_at);
+                      }
+                      else if (props.contains("vat")) {
+                        Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        BAS::anonymous::AccountTransaction new_at{
+                          .account_no = at.account_no
+                          ,.transtext = std::nullopt
+                          ,.amount = sign*std::abs(had.amount*0.2f)
+                        };
+                        me.defacto.account_transactions.push_back(new_at);
+                        prompt << "\nNOTE: Assumed 25% VAT for " << new_at;
+                      }
+                    }											
+                    prompt << "\nEU VAT candidate " << me;
+                    had.optional.current_candidate = me;
+                    model->prompt_state = PromptState::JEAggregateOptionIndex;
+                  } break;
+                  case JournalEntryVATType::VATReturns: {
+                    //  M2 "Momsrapport 2021-07-01 - 2021-09-30" 20210930
+                    // 	 vat = sort_code: 0x6 : "Utgående moms, 25 %":2610 "" 83300
+                    // 	 eu_vat vat = sort_code: 0x56 : "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1654.23
+                    // 	 vat = sort_code: 0x6 : "Ingående moms":2640 "" -1690.21
+                    // 	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" -849.52
+                    // 	 vat = sort_code: 0x6 : "Redovisningskonto för moms":2650 "" -82415
+                    // 	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" 0.5
+
+                    // TODO: Consider to iterate over all bas accounts defined for VAT Return form
+                    //       and create a candidate that will zero out these for period given by date (end of VAT period)
+                    BAS::MetaEntry me {
+                      .defacto = {
+                        .caption = had.heading
+                        ,.date = had.date
+                      }
+                    };
+                    me.defacto.account_transactions.push_back({
+                      .account_no = 2610 // "Utgående moms, 25 %"
+                      ,.transtext = std::nullopt
+                      ,.amount = 0
+                    });
+                    me.defacto.account_transactions.push_back({
+                      .account_no = 2614 // "Utgående moms omvänd skattskyldighet, 25 %"
+                      ,.transtext = std::nullopt
+                      ,.amount = 0
+                    });
+                    me.defacto.account_transactions.push_back({
+                      .account_no = 2640 // "Ingående moms"
+                      ,.transtext = std::nullopt
+                      ,.amount = 0
+                    });
+                    me.defacto.account_transactions.push_back({
+                      .account_no = 2641 // "Debiterad ingående moms"
+                      ,.transtext = std::nullopt
+                      ,.amount = 0
+                    });
+                    me.defacto.account_transactions.push_back({
+                      .account_no = 2650 // "Redovisningskonto för moms"
+                      ,.transtext = std::nullopt
+                      ,.amount = had.amount
+                    });
+                    me.defacto.account_transactions.push_back({
+                      .account_no = 3740 // "Öres- och kronutjämning"
+                      ,.transtext = std::nullopt
+                      ,.amount = 0
+                    });
+                    prompt << "\nVAT Consolidate candidate " << me;
+                    had.optional.current_candidate = me;
+                    model->prompt_state = PromptState::JEAggregateOptionIndex;
+                  } break;
+                  case JournalEntryVATType::VATTransfer: {
+                    // 10  A2 "Utbetalning Moms från Skattekonto" 20210506
+                    // transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -802
+                    // transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Momsbeslut" 802
+                    // transfer vat = sort_code: 0x16 : "Momsfordran":1650 "" -802
+                    // transfer = sort_code: 0x1 : "PlusGiro":1920 "" 802
+                    if (tme.defacto.account_transactions.size()>0) {
+                      bool first{true};
+                      Amount amount{};
+                      if (std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[&amount,&first](auto const& entry){
+                        if (first) {
+                          amount = std::abs(entry.first.amount);
+                          first = false;
+                          return true;
+                        }
+                        return (std::abs(entry.first.amount) == amount);
+                      })) {
+                        BAS::MetaEntry me {
+                          .defacto = {
+                            .caption = had.heading
+                            ,.date = had.date
+                          }
+                        };
+                        for (auto const& tat : tme.defacto.account_transactions) {
+                          auto sign = (tat.first.amount < 0)?-1:+1;
+                          me.defacto.account_transactions.push_back({
+                            .account_no = tat.first.account_no
+                            ,.transtext = std::nullopt
+                            ,.amount = sign*std::abs(had.amount)
+                          });
+                        }
+                        had.optional.current_candidate = me;
+                        prompt << "\nVAT Settlement candidate " << me;
+                        model->prompt_state = PromptState::JEAggregateOptionIndex;
+                      }
+                    }
+                  } break;
+                }
+              }
+              else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
+                prompt << "\nTODO: Implement acting on selected gross account transaction " << model->at_candidates[at_ix];
+              }
+              else {
+                prompt << "\nPlease enter a valid index";
+              }
+            }
+          }
+          else {
+            prompt << "\nPlease re-enter a valid HAD index (It seems I have no record of a selected HAD at the moment)";
+          }
+        } break;
+        case PromptState::GrossDebitorCreditOption: {
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            if (had.optional.current_candidate) {
+              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+                switch (ix) {
+                  case 0: {
+                    // As is
+                    model->prompt_state = PromptState::CounterTransactionsAggregateOption;
+                  } break;
+                  case 1: {
+                    // Force debit
+                    had.optional.current_candidate->defacto.account_transactions[0].amount = std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
+                    model->prompt_state = PromptState::CounterTransactionsAggregateOption;
+                  } break;
+                  case 2: {
+                      // Force credit
+                    had.optional.current_candidate->defacto.account_transactions[0].amount = -1.0f * std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
+                    model->prompt_state = PromptState::CounterTransactionsAggregateOption;
+                  } break;
+                  default: {
+                    prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
+                  }
+                }
+              }
+              else {
+                prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+              }
+              prompt << "\ncandidate:" << *had.optional.current_candidate;
+            }
+            else {
+              prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+            }
+          }
+          else {
+            prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+          }
+        } break;
+        case PromptState::CounterTransactionsAggregateOption: {
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            if (had.optional.current_candidate) {
+              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+                switch (ix) {
+                  case 0: {
+                    // Gross counter transaction aggregate
+                    model->prompt_state = PromptState::GrossAccountInput;
+                  } break;
+                  case 1: {
+                    // {net,VAT} counter transactions aggregate
+                    model->prompt_state = PromptState::NetVATAccountInput;
+                  } break;										
+                  default: {
+                    prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
+                  }
+                }
+              }
+              else {
+                prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+              }
+              prompt << "\ncandidate:" << *had.optional.current_candidate;
+            }
+            else {
+              prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+            }
+          }
+          else {
+            prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+          }
+        } break;
+        case PromptState::GrossAccountInput: {
+          // Act on user gross account number input
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            if (had.optional.current_candidate) {
+              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+                if (ast.size() == 1) {
+                  auto gross_counter_account_no = BAS::to_account_no(ast[0]);
+                  if (gross_counter_account_no) {
+                    Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
+                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                      .account_no = *gross_counter_account_no
+                      ,.amount = -1.0f * gross_transaction_amount
+                    }
+                    );
+                    prompt << "\nmutated candidate:" << *had.optional.current_candidate;
+                    model->prompt_state = PromptState::JEAggregateOptionIndex;											
+                  }
+                  else {
+                    prompt << "\nPlease enter a a valid single gross counter amount account number (it seems I don't understand your input " << std::quoted(command) << ")";
+                  }
+                }
+                else {
+                  prompt << "\nPlease enter two single gross counter amount account number (it seems I interpret " << std::quoted(command) << " the wrong number of arguments";
+                }
+              }
+              else {
+                prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+              }
+              prompt << "\ncandidate:" << *had.optional.current_candidate;
+            }
+            else {
+              prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+            }
+          }
+          else {
+            prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+          }
+        } break;
+        case PromptState::NetVATAccountInput: {
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            if (had.optional.current_candidate) {
+              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+                if (ast.size() == 2) {
+                  auto net_counter_account_no = BAS::to_account_no(ast[0]);
+                  auto vat_counter_account_no = BAS::to_account_no(ast[1]);
+                  if (net_counter_account_no and vat_counter_account_no) {
+                    Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
+                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                      .account_no = *net_counter_account_no
+                      ,.amount = -0.8f * gross_transaction_amount
+                    }
+                    );
+                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                      .account_no = *vat_counter_account_no
+                      ,.amount = -0.2f * gross_transaction_amount
+                    }
+                    );
+                    prompt << "\nNOTE: Cratchit currently assumes 25% VAT";
+                    model->prompt_state = PromptState::JEAggregateOptionIndex;
+                  }
+                  else {
+                    prompt << "\nPlease enter a a valid single gross counter amount account number (it seems I don't understand your input " << std::quoted(command) << ")";
+                  }
+                }
+                else {
+                  prompt << "\nPlease enter two single gross counter amount account number (it seems I interpret " << std::quoted(command) << " the wrong number of arguments";
+                }
+              }
+              else {
+                prompt << "\nPlease re-enter a valid HAD and journal entry candidate (It seems current candidate have more than one transaction defined which confuses me)";
+              }
+              prompt << "\ncandidate:" << *had.optional.current_candidate;
+            }
+            else {
+              prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+            }
+          }
+          else {
+            prompt << "\nPlease re-enter a valid HAD index (It seems I have no recoprd of a selected HAD at the moment)";
+          }
+        } break;
+        case PromptState::JEAggregateOptionIndex: {
+          // ":had:je:1or*";
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            if (had.optional.current_candidate) {
+              // We need a typed entry to do some clever decisions
+              auto tme = to_typed_meta_entry(*had.optional.current_candidate);
+              prompt << "\n" << tme;
+              auto vat_type = to_vat_type(tme); 
+              switch (vat_type) {
+                case JournalEntryVATType::NoVAT: {
+                  // No VAT in candidate. 
+                  // Continue with 
+                  // 1) Some propose gross account transactions
+                  // 2) a n x gross Counter aggregate
+                } break;
+                case JournalEntryVATType::SwedishVAT: {
+                  // Swedish VAT detcted in candidate.
+                  // Continue with 
+                  // 2) a n x {net,vat} counter aggregate
+                } break;
+                case JournalEntryVATType::EUVAT: {
+                  // EU VAT detected in candidate.
+                  // Continue with a 
+                  // 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
+                } break;
+                case JournalEntryVATType::VATReturns: {
+                  // All VATS (VAT Report?)
+                } break;
+                case JournalEntryVATType::VATTransfer: {
+                  // All VATS and one gross non-vat (assume bank transfer of VAT to/from tax agency?)
+                } break;
+                default: {std::cerr << "\nDESIGN INSUFFICIENCY - Unknown JournalEntryVATType " << vat_type;}
+              }
+              // std::map<std::string,unsigned int> props_counter{};
+              // for (auto const& [at,props] : tme.defacto.account_transactions) {
+              // 	for (auto const& prop : props) props_counter[prop]++;
+              // }
+              // for (auto const& [prop,count] : props_counter) {
+              // 	prompt << "\n" << std::quoted(prop) << " count:" << count; 
+              // }
+              // auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
+              // 	acc += entry.second;
+              // 	return acc;
+              // });
+              // int vat_type{-1}; // unidentified VAT
+              // // Identify what type of VAT the candidate defines
+              // if ((props_counter.size() == 1) and props_counter.contains("gross")) {
+              // 	vat_type = 0; // NO VAT (gross, counter gross)
+              // 	prompt << "\nTemplate is an NO VAT transaction :)"; // gross,gross
+              // }
+              // else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
+              // 	if (props_sum == 3) {
+              // 		prompt << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
+              // 		vat_type = 1; // Swedish VAT
+              // 	}
+              // }
+              // else if (
+              // 	(     (props_counter.contains("gross"))
+              // 		and (props_counter.contains("eu_purchase"))
+              // 		and (props_counter.contains("eu_vat")))) {
+              // 	vat_type = 2; // EU VAT
+              // 	prompt << "\nTemplate is an EU PURCHASE :)"; // gross,gross,eu_vat,eu_vat,eu_purchase,eu_purchase
+              // }
+              // else {
+              // 	prompt << "\nFailed to recognise the VAT type";
+              // }
+
+              switch (ix) {
+                case 0: {
+                  // Try to stage gross + single counter transactions aggregate
+                  if (does_balance(had.optional.current_candidate->defacto) == false) {
+                    // list at candidates from found entries with account transaction that counter the gross account
+                    std::cout << "\nCurrent candidate does not balance";
+                  }
+                  else if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+                    return std::abs(at.amount) < 1.0;
+                  })) {
+                    // Assume the user need to specify rounding by editing proposed account transactions
+                    unsigned int i{};
+                    std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+                      prompt << "\n  " << i++ << " " << at;
+                    });
+                    model->prompt_state = PromptState::ATIndex;
+                  }
+                  else {
+                    // Stage as-is
+                    if (auto staged_me = model->sie["current"].stage(*had.optional.current_candidate)) {
+                      prompt << "\n" << *staged_me << " STAGED";
+                      model->heading_amount_date_entries.erase(*had_iter);
+                      model->prompt_state = PromptState::HADIndex;
+                    }
+                    else {
+                      prompt << "\nSORRY - Failed to stage entry";
+                      model->prompt_state = PromptState::Root;
+                    }
+                  }
+                } break;
+                case 1: {
+                  // net + vat counter aggregate
+                  BAS::anonymous::OptionalAccountTransaction net_at;
+                  BAS::anonymous::OptionalAccountTransaction vat_at;
+                  for (auto const& [at,props] : tme.defacto.account_transactions) {
+                    if (props.contains("net")) net_at = at;
+                    if (props.contains("vat")) vat_at = at;
+                  }
+                  if (!net_at) std::cerr << "\nNo net_at";
+                  if (!vat_at) std::cerr << "\nNo vat_at";
+                  if (net_at and vat_at) {
+                    had.optional.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
+                    
+                    BAS::anonymous::AccountTransactions ats_to_keep{};
+                    std::remove_copy_if(
+                      had.optional.current_candidate->defacto.account_transactions.begin()
+                      ,had.optional.current_candidate->defacto.account_transactions.end()
+                      ,std::back_inserter(ats_to_keep)
+                      ,[&net_at,&vat_at](auto const& at){
+                        return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
+                    });
+                    had.optional.current_candidate->defacto.account_transactions = ats_to_keep;
+                  }
+                  prompt << "\ncadidate: " << *had.optional.current_candidate;
+                  model->prompt_state = PromptState::EnterHA;
+                } break;
+                case 2: {
+                  // Allow the user to edit individual account transactions
+                  unsigned int i{};
+                  std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+                    prompt << "\n  " << i++ << " " << at;
+                  });
+                  model->prompt_state = PromptState::ATIndex;
+                } break;
+                case 3: {
+                  // Stage the candidate
+                  if (auto staged_me = model->sie["current"].stage(*had.optional.current_candidate)) {
+                    prompt << "\n" << *staged_me << " STAGED";
+                    model->heading_amount_date_entries.erase(*had_iter);
+                    model->prompt_state = PromptState::HADIndex;
+                  }
+                  else {
+                    prompt << "\nSORRY - Failed to stage entry";
+                    model->prompt_state = PromptState::Root;
+                  }
+                }
+                default: {
+                  prompt << "\nPlease enter a valid had index";
+                } break;			
+              }
+            }
+            else {
+              prompt << "\nPlease re-enter a valid HAD and journal entry candidate (I seem to no longer have a valid journal entry candidate for current HAD to process)";
+            }
+          }
+          else {
+            prompt << "\nPlease re-enter a valid had index";
+          }
+
+        } break;
+        case PromptState::ATIndex: {
+          if (auto at = model->selected_had_at(ix)) {
+            model->at = *at;
+            prompt << "\nAccount Transaction:" << model->at;
+            model->prompt_state = PromptState::EditAT;
+          }
+          else {
+            prompt << "\nEntered index does not refer to an Account Trasnaction Entry in current Heading Amount Date entry";
+          }
+        } break;
+
+        case PromptState::CounterAccountsEntry: {
+          prompt << "\nThe Counter Account Entry state is not yet active in this version of cratchit";
+        } break;
+
+        case PromptState::SKVEntryIndex: {
+          // prompt << "\n1: Arbetsgivardeklaration (Employer’s contributions and PAYE tax return form)";
+          // prompt << "\n2: Periodisk Sammanställning (EU sales list)"
+          switch (ix) {
+            case 0: {
+              // Assume Employer’s contributions and PAYE tax return form
+
+              // List Tax Return Form skv options (user data edit)
+              auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
+              prompt << delta_prompt;
+              model->prompt_state = prompt_state;
+            } break;
+            case 1: {
+              // Create current quarter, previous quarter or two previous quarters option
+              auto today = to_today();
+              auto current_qr = to_quarter_range(today);
+              auto previous_qr = to_three_months_earlier(current_qr);
+              auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
+              auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
+
+              prompt << "\n0: Track Current Quarter " << current_qr;
+              prompt << "\n1: Report Previous Quarter " << previous_qr;
+              prompt << "\n2: Check Quarter before previous " << quarter_before_previous_qr;
+              prompt << "\n3: Check Previous two Quarters " << two_previous_quarters;
+              model->prompt_state = PromptState::QuarterOptionIndex;								
+            } break;
+            case 2: {
+              // Create K10 form files
+              if (auto fm = SKV::SRU::K10::to_files_mapping()) {
+                std::filesystem::path info_file_path{"to_skv/K10/INFO.SRU"};
+                std::filesystem::create_directories(info_file_path.parent_path());
+                auto info_std_os = std::ofstream{info_file_path};
+                SKV::SRU::OStream info_sru_os{info_std_os};
+                SKV::SRU::InfoOStream info_os{info_sru_os};
+                if (info_os << *fm) {
+                  prompt << "\nCreated " << info_file_path;
+                }
+                else {
+                  prompt << "\nSorry, FAILED to create " << info_file_path;
+                }
+
+                std::filesystem::path blanketter_file_path{"to_skv/K10/BLANKETTER.SRU"};
+                std::filesystem::create_directories(blanketter_file_path.parent_path());
+                auto blanketter_std_os = std::ofstream{blanketter_file_path};
+                SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
+                SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
+                if (blanketter_os << *fm) {
+                  prompt << "\nCreated " << blanketter_file_path;
+                }
+                else {
+                  prompt << "\nSorry, FAILED to create " << blanketter_file_path;
+                }
+              }
+              else {
+                prompt << "\nSorry, failed to create data for input to K10 SRU-files";
+              }
+            } break;
+            case 3: {
+              // Generate the K10 and INK1 forms as SRU-files
+
+              // We need two input values verified by the user
+              // 1. The Total income to tax (SKV SRU Code 1000)
+              // 2. The dividend to Tax (SKV SRU Code 4504)
+              Amount income = get_INK1_Income(model);
+              prompt << "\n1: INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
+              Amount dividend = get_K10_Dividend(model);
+              prompt << "\n2: K10 1.6 Utdelning = " << dividend;
+              prompt << "\n3: Continue (Create K10 and INK1)";
+              model->prompt_state = PromptState::K10INK1EditOptions;					
+            } break;
+            case 4: {
+              // "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
+              prompt << "\n1: INK2::meta_xx = ?? (TODO: Add edit of meta data for INK2 forms)";
+              prompt << "\n2: Generate INK2";
+              model->prompt_state = PromptState::INK2AndAppendixEditOptions;
+            } break;
+            default: {prompt << "\nPlease enter a valid index";} break;
+          }
+        } break;
+
+        case PromptState::QuarterOptionIndex: {
+          auto today = to_today();
+          auto current_qr = to_quarter_range(today);
+          auto previous_qr = to_three_months_earlier(current_qr);
+          auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
+          auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
+          OptionalDateRange period_range{};
+          switch (ix) {
+            case 0: {
+              prompt << "\nCurrent Quarter " << current_qr << " (to track)";
+              period_range = current_qr;
+            } break;
+            case 1: {
+              prompt << "\nPrevious Quarter " << previous_qr << " (to report)";
+              period_range = previous_qr;
+            } break;
+            case 2: {
+              prompt << "\nQuarter before previous " << quarter_before_previous_qr << " (to check)";
+              period_range = quarter_before_previous_qr;
+            } break;
+            case 3: {
+              prompt << "\nPrevious two Quarters " << two_previous_quarters << " (to check)";
+              period_range = two_previous_quarters;
+            }
+            default: {
+              prompt << "\nPlease select a valid option (it seems option " << ix << " is unknown to me";
+            } break;
+          }
+          if (period_range) {
+            // Create VAT Returns form for selected period
+            prompt << "\nVAT Returns for " << *period_range;
+            if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
+              SKV::OrganisationMeta org_meta {
+                .org_no = model->sie["current"].organisation_no.CIN
+                ,.contact_persons = model->organisation_contacts
+              };
+              SKV::XML::DeclarationMeta form_meta {
+                .declaration_period_id = vat_returns_meta->period_to_declare
+              };
+              auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+                return vat_returns_meta->period.contains(mat.meta.defacto.date);
+              };
+              auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie,is_quarter);
+              if (box_map) {
+                prompt << *box_map;
+                auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
+                if (xml_map) {
+                  std::filesystem::path skv_files_folder{"to_skv"};
+                  std::filesystem::path skv_file_name{std::string{"moms_"} + vat_returns_meta->period_to_declare + ".eskd"};
+                  std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+                  std::filesystem::create_directories(skv_file_path.parent_path());
+                  std::ofstream skv_file{skv_file_path};
+                  SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
+                  if (vat_returns_os << *xml_map) {
+                    prompt << "\nCreated " << skv_file_path;
+                    SKV::XML::VATReturns::OStream vat_returns_prompt{prompt};
+                    vat_returns_prompt << "\n" << *xml_map;
+                  }
+                  else prompt << "\nSorry, failed to create the file " << skv_file_path;
+                }
+                else prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
+                // Generate an EU Sales List form for the VAt Returns form
+                if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(*box_map,org_meta,*period_range)) {
+                  auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range->end());
+                  std::filesystem::path skv_files_folder{"to_skv"};						
+                  std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + "_" + to_string(today) + ".csv"};						
+                  std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
+                  std::filesystem::create_directories(eu_list_form_file_path.parent_path());
+                  std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
+                  SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
+                  if (os << *eu_list_form) {
+                    prompt << "\nCreated file " << eu_list_form_file_path << " OK";
+                    SKV::CSV::EUSalesList::OStream eu_sales_list_prompt{prompt};
+                    eu_sales_list_prompt << "\n" <<  *eu_list_form;
+                  }
+                  else {
+                    prompt << "\nSorry, failed to write " << eu_list_form_file_path;
+                  }
+                }
+                else {
+                  prompt << "\nSorry, failed to acquire required data for the EU List form file";
+                }
+              }
+              else prompt << "\nSorry, failed to gather form data required for the VAT Returns form";
+            }
+            else {
+              prompt << "\nSorry, failed to gather meta-data for the VAT returns form for period " << *period_range;
+            }									
+          }
+        } break;
+        case PromptState::SKVTaxReturnEntryIndex: {
+          switch (ix) {
+            case 1: {model->prompt_state = PromptState::EnterContact;} break;
+            case 2: {model->prompt_state = PromptState::EnterEmployeeID;} break;
+            case 3: {
+              if (ast.size() == 2) {
+                // Assume Tax Returns form
+                // Assume second argument is period
+                if (auto xml_map = cratchit_to_skv(model->sie["current"],model->organisation_contacts,model->employee_birth_ids)) {
+                  auto period_to_declare = ast[1];
+                  // Brute force the period into the map (TODO: Inject this value in a better way into the production code above?)
+                  (*xml_map)[R"(Skatteverket^agd:Blankett^agd:Arendeinformation^agd:Period)"] = period_to_declare;
+                  (*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+                  (*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:IU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+                  (*xml_map)[R"(Skatteverket^agd:Kontaktperson^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
+                  std::filesystem::path skv_files_folder{"to_skv"};
+                  std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};						
+                  std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+                  std::filesystem::create_directories(skv_file_path.parent_path());
+                  std::ofstream skv_file{skv_file_path};
+                  if (SKV::XML::to_employee_contributions_and_PAYE_tax_return_file(skv_file,*xml_map)) {
+                    prompt << "\nCreated " << skv_file_path;
+                    prompt << "\nUpload file to Swedish Skatteverket";
+                    prompt << "\n1. Browse to https://skatteverket.se/foretag";
+                    prompt << "\n2. Click on 'Lämna arbetsgivardeklaration'";
+                    prompt << "\n3. Log in";
+                    prompt << "\n4. Choose to represent your company";
+                    prompt << "\n5. Click on 'Deklarera via fil' and follow the instructions to upload the file " << skv_file_path;
+                  }
+                  else {
+                    prompt << "\nSorry, failed to create " << skv_file_path;
+                  }
+                }	
+                else {
+                  prompt << "\nSorry, failed to acquire required data to generate xml-file to SKV";
+                }
+                model->prompt_state = PromptState::Root;
+              }
+              else {
+                prompt << "\nPlease provide second argument = period on the form YYYYMM (e.g., enter '3 202205' to generate Tax return form for May 2022)";
+              }
+            } break;
+            default: {prompt << "\nPlease enter a valid index";} break;
+          }
+        } break;
+
+        case PromptState::K10INK1EditOptions: {
+          switch (ix) {
+            case 1: {model->prompt_state = PromptState::EnterIncome;} break;
+            case 2: {model->prompt_state = PromptState::EnterDividend;} break;
+            case 3: {
+              if (false) {
+                // 230420 - began hard coding generation of corrected K10 for last year + K10 and INK1 for this year
+                // PAUS for now (I ended up sending in a manually edited INFO.SRU and BLANKETTER.SRU)
+                // TODO: Consider to:
+                // 1. Use CSV-files as read by skv_specs_mapping_from_csv_files()
+                //    Get rid of hard coded SKV::SRU::INK1::k10_csv_to_sru_template and SKV::SRU::INK1::ink1_csv_to_sru_template?
+                //    NOTE: They both use the same csv-files as input (2 at compile time and 1 at run-time)
+                //    Actually - Decide if these csv-files should be hard coded or read at run-time?
+                // 2. Consider to expose these csv-file as actual forms for the user to edit?
+                //    I imagine we can generate indexed entries to each field and have the user select end edit its value?
+                //    Question is how to implemented computation as defined by SKV for these forms (rates and values gets redefined each year!)
+                // ...
+                /*
+                  SKV::SRU::FilesMapping fm {
+                    .info = to_info_sru_file_tag_map(model);
+                  };
+                  fm.blanketter.push_back(to_k10_blankett(2021));
+                  fm.blanketter.push_back(to_k10_blankett(2022));
+                  fm.blanketter.push_back(to_ink1_blankett(2022));
+                */
+              }
+              else {
+                // TODO: Split to allow edit of Income and Dividend before entering the actual generation phase/code
+                // k10_csv_to_sru_template
+                SKV::SRU::OptionalSRUValueMap k10_sru_value_map{};
+                SKV::SRU::OptionalSRUValueMap ink1_sru_value_map{};
+
+                std::istringstream k10_is{SKV::SRU::INK1::k10_csv_to_sru_template};
+                if (auto field_rows = CSV::to_field_rows(k10_is)) {
+                  // LOG
+                  for (auto const& field_row : *field_rows) {
+                    if (field_row.size()>0) prompt << "\n";
+                    for (int i=0;i<field_row.size();++i) {
+                      prompt << " [" << i << "]" << field_row[i];
+                    }
+                  }
+                  // Acquire the SRU Values required for the K10 Form
+                  k10_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                }
+                else {
+                  prompt << "\nSorry, failed to acquire a valid template for the K10 form";
+                }
+                // ink1_csv_to_sru_template
+                std::istringstream ink1_is{SKV::SRU::INK1::ink1_csv_to_sru_template};
+                if (auto field_rows = CSV::to_field_rows(ink1_is)) {
+                  for (auto const& field_row : *field_rows) {
+                    if (field_row.size()>0) prompt << "\n";
+                    for (int i=0;i<field_row.size();++i) {
+                      prompt << " [" << i << "]" << field_row[i];
+                    }
+                  }
+                  // Acquire the SRU Values required for the INK1 Form
+                  ink1_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                }
+                else {
+                  prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                }
+                if (k10_sru_value_map and ink1_sru_value_map) {
+                  SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
+                  {
+                    // Assume we are to send in with sender being this company?
+                    // 9. #ORGNR
+                      // #ORGNR 191111111111
+                    info_sru_file_tag_map["#ORGNR"] = model->sie["current"].organisation_no.CIN;		
+                    // 10. #NAMN
+                      // #NAMN Databokföraren
+                    info_sru_file_tag_map["#NAMN"] = model->sie["current"].organisation_name.company_name;
+
+                    auto postal_address = model->sie["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
+                    auto postal_address_tokens = tokenize::splits(postal_address,' ');
+
+                    // 12. #POSTNR
+                      // #POSTNR 12345
+                    if (postal_address_tokens.size() > 0) {
+                      info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
+                    }
+                    else {
+                      info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
+                    }
+                    // 13. #POSTORT
+                      // #POSTORT SKATTSTAD
+                    if (postal_address_tokens.size() > 1) {
+                      info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
+                    }
+                    else {
+                      info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
+                    }
+                  }
+                  SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
+                  {
+                    // #BLANKETT N7-2013P1
+                    // k10_sru_file_tag_map["#BLANKETT"] = "K10-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+                    k10_sru_file_tag_map["#BLANKETT"] = "K10-2022P4"; // See table 1, entry K10 column "blankett-block" in file "_Nyheter_from_beskattningsperiod_2022P4-3.pdf" (https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip)
+                    // #IDENTITET 193510250100 20130426 174557
+                    std::ostringstream os{};
+                    if (model->employee_birth_ids[0].size()>0) {
+                      os << " " << model->employee_birth_ids[0];
+                    }
+                    else {
+                      os << " " << "?PERSONNR?";											
+                    }
+                    auto today = to_today();
+                    os << " " << today;
+                    os << " " << "120000";
+                    k10_sru_file_tag_map["#IDENTITET"] = os.str();
+                  }
+                  SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
+                  {
+                    // #BLANKETT N7-2013P1
+                    // ink1_sru_file_tag_map["#BLANKETT"] = "INK1-2021P4"; // See file "_Nyheter_from_beskattningsperiod_2021P4_.pdf" (https://skatteverket.se/download/18.96cca41179bad4b1aac351/1642600897155/Nyheter_from_beskattningsperiod_2021P4.zip)
+                    ink1_sru_file_tag_map["#BLANKETT"] = " INK1-2022P4"; // See entry INK1 column "blankett-block" in file "_Nyheter_from_beskattningsperiod_2022P4-3.pdf" (https://skatteverket.se/download/18.48cfd212185efbb440b65a8/1679495970044/_Nyheter_from_beskattningsperiod_2022P4-3.zip)
+                    // #IDENTITET 193510250100 20130426 174557
+                    std::ostringstream os{};
+                    if (model->employee_birth_ids[0].size()>0) {
+                      os << " " << model->employee_birth_ids[0];
+                    }
+                    else {
+                      os << " " << "?PERSONNR?";											
+                    }
+                    auto today = to_today();
+                    os << " " << today;
+                    os << " " << "120000";
+
+                    ink1_sru_file_tag_map["#IDENTITET"] = os.str();
+                  }
+                  SKV::SRU::FilesMapping fm {
+                    .info = info_sru_file_tag_map
+                  };
+                  SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map}; 
+                  fm.blanketter.push_back(k10_blankett);
+                  SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map}; 
+                  fm.blanketter.push_back(ink1_blankett);
+
+                  std::filesystem::path info_file_path{"to_skv/SRU/INFO.SRU"};
+                  std::filesystem::create_directories(info_file_path.parent_path());
+                  auto info_std_os = std::ofstream{info_file_path};
+                  SKV::SRU::OStream info_sru_os{info_std_os};
+                  SKV::SRU::InfoOStream info_os{info_sru_os};
+
+                  if (info_os << fm) {
+                    prompt << "\nCreated " << info_file_path;
+                  }
+                  else {
+                    prompt << "\nSorry, FAILED to create " << info_file_path;
+                  }
+
+                  std::filesystem::path blanketter_file_path{"to_skv/SRU/BLANKETTER.SRU"};
+                  std::filesystem::create_directories(blanketter_file_path.parent_path());
+                  auto blanketter_std_os = std::ofstream{blanketter_file_path};
+                  SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
+                  SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
+
+                  if (blanketter_os << fm) {
+                    prompt << "\nCreated " << blanketter_file_path;
+                  }
+                  else {
+                    prompt << "\nSorry, FAILED to create " << blanketter_file_path;
+                  }
+
+                }
+                else {
+                  prompt << "\nSorry, Failed to acquirer the data for the K10 and INK1 forms";									
+                }
+              } // if false
+            } break;
+            default: {prompt << "\nPlease enter a valid index";} break;
+          }
+        } break;
+
+        case PromptState::INK2AndAppendixEditOptions: {
+          switch (ix) {
+            case 1: {
+              prompt << "\nTODO: Add edit of INK2 meta data";
+            } break;
+            case 2: {
+              prompt << "\nTODO: Add generation of INK2 forms into SRU-file (See code for INK1 and K10)";
+            } break;
+          }
+        } break;
+
+        case PromptState::EnterIncome:
+        case PromptState::EnterDividend:
+        case PromptState::EnterHA:
+        case PromptState::EnterContact:
+        case PromptState::EnterEmployeeID:
+        case PromptState::EditAT:
+        case PromptState::Undefined:
+        case PromptState::Unknown:
+          prompt << "\nPlease enter \"word\" like text (index option not available in this state)";
+          break;
+      }
+    }
+    /* ======================================================
+
+
+
+              Act on on Command?
+
+
+      ====================================================== */
+    else if (ast[0] == "-version" or ast[0] == "-v") {
+      prompt << "\nCratchit Version " << VERSION;
+    }
+    else if (ast[0] == "-tas") {
+      // Enter tagged Amounts mode for specified period (from any state)
+/*
+
+Consider the process to turn account statements into SIE Journal entries?
+
+1) Turn the account statement
+
+0. 7297cc24f838c039 20220704 -5,10 "Account=NORDEA" "From=51 86 87-9" "To="
+
+
+1. c5eb4b1ff7ebb281 20220712 -162,62 "Account=NORDEA" "From=51 86 87-9" "To="
+2. 792052fc6a0039de 20220725 -6643,14 "Account=NORDEA" "From=51 86 87-9" "To="
+3. 792052fc6a14e708 20220725 -277,00 "Account=NORDEA" "From=51 86 87-9" "To="
+4. f2aa5fd6cd6cae8f 20220727 -165,25 "Account=NORDEA" "From=51 86 87-9" "To="
+5. 7c1a83a729f44e5a 20220801 -1149,55 "Account=NORDEA" "From=51 86 87-9" "To="
+6. 7c1a83a729f66cb3 20220801 -438,90 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
+7. e5bd98fed4eb6552 20220802 -372,30 "Account=NORDEA" "From=51 86 87-9" "To=DE93600501010008573182"
+8. 7f9334ab567a6a37 20220804 -135,70 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
+9. c77d560c408290a5 20220805 -1884,37 "Account=NORDEA" "From=51 86 87-9" "To="
+10. a30fe7f13729868 20220808 -4197,00 "Account=NORDEA" "From=51 86 87-9" "To="
+11. a30fe7f1375bbd1 20220808 -3829,41 "Account=NORDEA" "From=51 86 87-9" "To="
+12. a30fe7f137458c3 20220808 -3290,00 "Account=NORDEA" "From=51 86 87-9" "To="
+13. a30fe7f137874b4 20220808 -2129,00 "Account=NORDEA" "From=51 86 87-9" "To="
+14. a30fe7f137c0678 20220808 -699,90 "Account=NORDEA" "From=51 86 87-9" "To="
+15. 5169c9dc321572b4 20220809 -1917,00 "Account=NORDEA" "From=51 86 87-9" "To="
+16. d2d7ae5ec16d36f4 20220812 -155,94 "Account=NORDEA" "From=51 86 87-9" "To="
+17. b4b369c168af076 20220815 -1419,40 "Account=NORDEA" "From=51 86 87-9" "To="
+18. b0a082d4a3c65661 20220822 -1599,00 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
+19. 4f5f7d2b5c45dd3e 20220822 39550,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
+20. 8ea9957fbdb480fa 20220823 -39565,04 "Account=NORDEA" "From=51 86 87-9" "To=DE42620500000013602749"
+21. 71566a804232a107 20220823 504,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+22. 71566a80424b2932 20220823 39550,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+23. 6ad264805a693cad 20220824 -399,75 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
+24. 481ac3653cd9dfaa 20220825 -39550,00 "Account=NORDEA" "From=51 86 87-9" "To=32592317244"
+25. 1e7760188d0449c6 20220826 -890,00 "Account=NORDEA" "From=51 86 87-9" "To="
+26. 4a4a7f482f5b07c 20220905 -4190,00 "Account=NORDEA" "From=51 86 87-9" "To="
+27. 4a4a7f482fdba4e 20220905 -1499,00 "Account=NORDEA" "From=51 86 87-9" "To="
+28. 4a4a7f482fb4a9c 20220905 -799,00 "Account=NORDEA" "From=51 86 87-9" "To="
+29. 4a4a7f482f905ca 20220905 -10,50 "Account=NORDEA" "From=51 86 87-9" "To="
+30. 68ba6148c41fc469 20220908 -446,00 "Account=NORDEA" "From=51 86 87-9" "To=5020-7042"
+31. f1afd7fc7fd9ff48 20220909 -2936,96 "Account=NORDEA" "From=51 86 87-9" "To="
+32. 9acabb4d626d9230 20220912 -149,00 "Account=NORDEA" "From=51 86 87-9" "To="
+33. 653544b29d901828 20220912 799,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+34. 653544b29d9611d0 20220912 1499,00 "Account=NORDEA" "From=" "To=51 86 87-9"
+35. acb727b0ab8ce0ee 20220913 -2963,94 "Account=NORDEA" "From=51 86 87-9" "To=5579-0372"
+36. acb727b0ab82725b 20220913 -2398,00 "Account=NORDEA" "From=51 86 87-9" "To="
+37. acb727b0ab85b882 20220913 -164,37 "Account=NORDEA" "From=51 86 87-9" "To="
+38. 5348d84f544709f3 20220913 20000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
+39. acb727b0abb83d58 20220913 -20000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
+40. ab17c38434cc1f54 20220914 -665,88 "Account=NORDEA" "From=51 86 87-9" "To="
+41. ab17c38434cf46dd 20220914 -384,80 "Account=NORDEA" "From=51 86 87-9" "To=SE4412000000012200137117"
+42. ab17c38434cecbfd 20220914 -182,38 "Account=NORDEA" "From=51 86 87-9" "To=5562-5735"
+43. 1fe7fcd9ce2219e6 20220915 -904,00 "Account=NORDEA" "From=51 86 87-9" "To=824-3040"
+44. 1fe7fcd9ce202ef2 20220915 -227,00 "Account=NORDEA" "From=51 86 87-9" "To="
+45. 1fe7fcd9ce207632 20220915 -191,00 "Account=NORDEA" "From=51 86 87-9" "To=412 20 00-5"
+46. 1fe7fcd9ce200a00 20220915 -118,00 "Account=NORDEA" "From=51 86 87-9" "To="
+47. 1f73f30e22a3e837 20220919 -13578,00 "Account=NORDEA" "From=51 86 87-9" "To="
+48. 1f73f30e2288d290 20220919 -694,00 "Account=NORDEA" "From=51 86 87-9" "To="
+49. baac6f0d83899487 20220920 -4765,00 "Account=NORDEA" "From=51 86 87-9" "To=5307-1676"
+50. ca3b0334ceead9de 20220921 25000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
+51. 35c4fccb311520cf 20220921 -25000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
+52. f69942115b49b996 20220922 -2855,00 "Account=NORDEA" "From=51 86 87-9" "To=417 74 04-3"
+53. 966bdeea4bcd8c8 20220922 739,69 "Account=NORDEA" "From=" "To=51 86 87-9"
+54. 4301b16f2a993e63 20220926 -1031,00 "Account=NORDEA" "From=51 86 87-9" "To=5211-5664"
+55. c987951e9f67ff84 20220927 -783,75 "Account=NORDEA" "From=51 86 87-9" "To=5343-2795"
+56. d264d03b2b65eea7 20220929 -368,00 "Account=NORDEA" "From=51 86 87-9" "To=5249-4309"
+*/				
+      if (ast.size() == 1 and model->selected_date_ordered_tagged_amounts.size() > 0) {
+        // Enter into current selection
+        model->prompt_state = PromptState::TAIndex;
+      // List current selection
+        prompt << "\n<SELECTED>";
+        // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+        int index = 0;
+        for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
+          prompt << "\n\t" << index++ << ". " << ta_ptr;
+        }				
+      }
+      else {
+        // Period required
+        OptionalDate begin{}, end{};
+        if (ast.size() == 3) {
+            begin = to_date(ast[1]);
+            end = to_date(ast[2]);					
+        }
+        if (begin and end) {
+          model->selected_date_ordered_tagged_amounts.clear();
+          for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {	
+            model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
+          }				
+          model->prompt_state = PromptState::TAIndex;
+          prompt << "\n<SELECTED>";
+          // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+          int index = 0;
+          for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
+            prompt << "\n\t" << index++ << ". " << ta_ptr;
+          }				
+
+        }
+        else {
+          prompt << "\nPlease enter the tagged amounts state on the form '-tas yyyymmdd yyyymmdd'";
+        }
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_tag") {
+      if (ast.size() == 2) {
+        auto has_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
+          return ta_ptr->tags().contains(tag);
+        };
+        TaggedAmountPtrs reduced{};
+        std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_tag),std::back_inserter(reduced));				
+        model->selected_date_ordered_tagged_amounts = reduced;
+      }
+      else {
+        prompt << "\nPlease provide the tag name you want to filter on";
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_not_tag") {
+      if (ast.size() == 2) {
+        auto has_not_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
+          return !ta_ptr->tags().contains(tag);
+        };
+        TaggedAmountPtrs reduced{};
+        std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_not_tag),std::back_inserter(reduced));				
+        model->selected_date_ordered_tagged_amounts = reduced;
+      }
+      else {
+        prompt << "\nPlease provide the tag name you want to filter on";
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_tagged") {
+      if (ast.size() == 2) {
+        auto [tag,pattern] = tokenize::split(ast[1],'=');
+        if (tag.size()>0) {
+          auto is_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
+            const std::regex pattern_regex(pattern); 
+            return (ta_ptr->tags().contains(tag) and std::regex_match(ta_ptr->tags().at(tag),pattern_regex));
+          };
+          TaggedAmountPtrs reduced{};
+          std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_tagged),std::back_inserter(reduced));				
+          model->selected_date_ordered_tagged_amounts = reduced;
+        }
+        else {
+          prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
+        }
+      }
+      else {
+        prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_not_tagged") {
+      if (ast.size() == 2) {
+        auto [tag,pattern] = tokenize::split(ast[1],'=');
+        if (tag.size()>0) {
+          auto is_not_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
+            const std::regex pattern_regex(pattern); 
+            return (ta_ptr->tags().contains(tag)==false or std::regex_match(ta_ptr->tags().at(tag),pattern_regex)==false);
+          };
+          TaggedAmountPtrs reduced{};
+          std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_not_tagged),std::back_inserter(reduced));				
+          model->selected_date_ordered_tagged_amounts = reduced;
+        }
+        else {
+          prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
+        }
+      }
+      else {
+        prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_bas_account") {
+      // -to_bas <BAS account no | Bas Account Name>
+      if (ast.size() == 2) {
+        if (auto bas_account = BAS::to_account_no(ast[1])) {
+          TaggedAmountPtrs created{};
+          auto new_ta = [bas_account = *bas_account](TaggedAmountPtr const& ta_ptr){
+            auto date = ta_ptr->date();
+            auto cents_amount = ta_ptr->cents_amount();
+            auto source_tags = ta_ptr->tags();
+            detail::TaggedAmountClass::Tags tags{};
+            tags["BAS"]=std::to_string(bas_account);
+            tags["Source"]=detail::to_string(ta_ptr->instance_id());
+            auto result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(date,cents_amount),date,cents_amount,std::move(tags));
+            return result;
+          };
+          std::ranges::transform(model->selected_date_ordered_tagged_amounts,std::back_inserter(created),new_ta);
+          model->new_date_ordered_tagged_amounts = created;
+          prompt << "\n<CREATED>";
+          // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+          int index = 0;
+          for (auto const& ta_ptr : model->new_date_ordered_tagged_amounts) {	
+            prompt << "\n\t" << index++ << ". " << ta_ptr;
+          }				
+          model->prompt_state = PromptState::AcceptNewTAs;
+          prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
+        }
+        else {
+          prompt << "\nPlease enter a valid BAS account no";
+        }
+      }
+      else {
+        prompt << "\nPlease enter the BAS account you want to book selected tagged amounts to (E.g., '-to_bas 1920'";
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
+      using AmountTrailsMap = std::map<CentsAmount,TaggedAmountPtrs>;
+      AmountTrailsMap amount_trails_map{};
+      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
+        amount_trails_map[std::abs(ta_ptr->cents_amount())].push_back(ta_ptr);
+      }
+      std::vector<std::pair<CentsAmount,TaggedAmountPtrs>> date_ordered_amount_trails_map{};
+      std::ranges::copy(amount_trails_map,std::back_inserter(date_ordered_amount_trails_map));
+      std::ranges::sort(date_ordered_amount_trails_map,[](auto const& e1,auto const& e2){
+        if (e1.second.front()->date() == e2.second.front()->date()) return e1.first < e2.first;
+        else return e1.second.front()->date() < e2.second.front()->date();
+      });
+      for (auto const& [cents_amount,ta_ptrs] : date_ordered_amount_trails_map) {
+        auto units_and_cents_amount = to_units_and_cents(cents_amount);
+        prompt << "\n" << units_and_cents_amount;
+        for (auto const& ta_ptr : ta_ptrs) {
+          prompt << "\n\t" << ta_ptr;
+        }
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
+      // Reduce to aggregates
+      auto is_aggregate = [](TaggedAmountPtr const& ta_ptr) {
+        return (ta_ptr->tags().contains("type") and ta_ptr->tags().at("type") == "aggregate");
+      };
+      TaggedAmountPtrs reduced{};
+      std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_aggregate),std::back_inserter(reduced));				
+      model->selected_date_ordered_tagged_amounts = reduced;
+      // List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
+      std::cout << "\n<AGGREGATES>" << std::flush;
+      prompt << "\n<AGGREGATES>";
+      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
+        prompt << "\n" << ta_ptr;
+        if (auto members_value = ta_ptr->tag_value("_members")) {
+          auto members = Key::Path{*members_value};
+          if (auto instance_ids = to_instance_ids(members)) {
+            prompt << "\n\t<members>";
+            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
+              for (auto const& ta_ptr : *ta_ptrs) {
+                prompt << "\n\t" << ta_ptr;
+              }
+            }
           }
         }
       }
-			else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
-        // Filter out tagged amounts that are already in the books as an SIE entry / aggregate?
-				prompt << "\nSorry, Identifying todos on tagged amounts not yet implemented";
-			}
-			else if (ast[0] == "-bas") {
-// std::cout << " :)";
-				if (ast.size() == 2) {
-					// Import bas account plan csv file
-					if (ast[1] == "?") {
-						// List csv-files in the resources sub-folder
-						std::filesystem::path resources_folder{"./resources"};
-						std::filesystem::directory_iterator dir_iter{resources_folder};
-						for (auto const& dir_entry : std::filesystem::directory_iterator{resources_folder}) {
-							prompt << "\n" << dir_entry.path(); // TODO: Remove .path() when stdc++ library supports streaming of std::filesystem::directory_entry 
-						}
-					}
-					else {
-						// Import and parse file at provided file path
-						std::filesystem::path csv_file_path{ast[1]};
-						if (std::filesystem::exists(csv_file_path)) {
-							std::ifstream in{csv_file_path};
-							BAS::parse_bas_account_plan_csv(in,prompt);
-						}
-						else {
-							prompt << "\nUse '-bas' to list available files to import (It seems I can't find the file " << csv_file_path;
-						}
-					}
-				}
-				else {
-					// Use string literal with csv data
-					std::istringstream in{BAS::bas_2022_account_plan_csv};
-					BAS::parse_bas_account_plan_csv(in,prompt);
-				}
-			}
-			else if (ast[0] == "-sie") {
-				// Import sie and add as base of our environment
-				if (ast.size()==1) {
-					// List current sie environment
-					prompt << model->sie["current"];				
-					// std::cout << model->sie["current"];
-				}
-				else if (ast.size()==2) {
-					if (ast[1]=="*") {
-						// List unposted (staged) sie entries
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_flagged_unposted{}};
-						prompt << filtered_sie;
-					}
-					else if (model->sie.contains(ast[1])) {
-						// List journal entries of a year index
-						prompt << model->sie[ast[1]];
-					}
-					else if (auto bas_account_no = BAS::to_account_no(ast[1])) {
-						// List journal entries filtered on an bas account number
-						prompt << "\nFilter journal entries that has a transaction to account no " << *bas_account_no;
-						prompt << "\nTIP: If you meant filter on amount please re-enter using '.00' to distinguish it from an account no.";
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
-						prompt << filtered_sie;
-					}
-					else if (auto gross_amount = to_amount(ast[1])) {
-						// List journal entries filtered on given amount
-						prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasGrossAmount{*gross_amount}};
-						prompt << filtered_sie;
-					}
-					else if (auto sie_file_path = path_to_existing_file(ast[1])) {
-						if (auto sie_env = from_sie_file(*sie_file_path)) {
-							model->sie_file_path["current"] = *sie_file_path;
-							model->sie["current"] = std::move(*sie_env);
-							// Update the list of staged entries
-							if (auto sse = from_sie_file(model->staged_sie_file_path)) {
-								auto unstaged = model->sie["current"].stage(*sse);
-								for (auto const& je : unstaged) {
-									prompt << "\nnow posted " << je; 
-								}
-							}							
-						}
-						else {
-							// failed to parse sie-file into an SIE Environment 
-							prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
-						}
-					}
-					else if (ast[1] == "-types") {
-						// Group on Type Topology
-						// using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>;
-						// using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>;
-						// MetaEntryTopologyMap meta_entry_topology_map{};
-						// auto h = [&meta_entry_topology_map](BAS::TypedMetaEntry const& tme){
-						// 	auto types_topology = BAS::kind::to_types_topology(tme);
-						// 	auto signature = BAS::kind::to_signature(types_topology);
-						// 	meta_entry_topology_map[signature][types_topology].push_back(tme);							
-						// };
-						// for_each_typed_meta_entry(model->sie,h);
-						auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
-						// Prepare to record journal entries we could not use as template for new entries
-						std::vector<BAS::TypedMetaEntry> failed_tmes{};
-						std::set<BAS::kind::AccountTransactionTypeTopology> detected_topologies{};
-						// List grouped on type topology
-						for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-							for (auto const& [type_topology,tmes] : tme_map) {
-								prompt << "\n[" << type_topology << "] ";
-								detected_topologies.insert(type_topology);
-								// Group tmes on BAS Accounts topology
-								auto accounts_topology_map = to_accounts_topology_map(tmes);
-								// List grouped BAS Accounts topology
-								for (auto const& [signature,bat_map] : accounts_topology_map) {
-									for (auto const& [type_topology,tmes] : bat_map) {
-										prompt << "\n    [" << type_topology << "] ";
-										for (auto const& tme : tmes) {
-											prompt << "\n       VAT Type:" << to_vat_type(tme);
-											prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
-											prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
-											// TEST that we are able to operate on journal entries with this topology? 
-											auto test_result = test_typed_meta_entry(model->sie,tme);
-											prompt << "\n       TEST: " << test_result;
-											if (test_result.failed) failed_tmes.push_back(tme);											
-										}
-									}
-								}
-							}
-						}
-						// LOG detected journal entry type topologies
-						prompt << "\n<DETECTED TOPOLOGIES>";
-						for (auto const& topology : detected_topologies) {
-							prompt << "\n\t" << topology;
-						}
-						// LOG tmes we failed to identify as templates for new journal entries
-						prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
-						for (auto const& tme : failed_tmes) {
-							auto types_topology = BAS::kind::to_types_topology(tme);
-							prompt << "\n" << types_topology << " " << tme.meta << " " << tme.defacto.caption << " " << tme.defacto.date;
-						}
-					}
-					else {
-						// assume user search criteria on transaction heading and comments
-						FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
-						prompt << "\nNot '*', existing year id or existing file: " << std::quoted(ast[1]);
-						prompt << "\nFilter current sie for " << std::quoted(ast[1]); 
-						prompt << filtered_sie;
-					}
-				}
-				else if (ast.size()==3) {
-					auto year_key = ast[1];
-					if (auto sie_file_path = path_to_existing_file(ast[2])) {
-						if (auto sie_env = from_sie_file(*sie_file_path)) {
-							model->sie_file_path[year_key] = *sie_file_path;
-							model->sie[year_key] = std::move(*sie_env);
-						}
-						else {
-							// failed to parse sie-file into an SIE Environment 
-							prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
-						}
-					}
-					else {
-						// assume user search criteria on transaction heading and comments
-						if (model->sie.contains(year_key)) {
-							FilteredSIEEnvironment filtered_sie{model->sie[year_key],BAS::filter::matches_user_search_criteria{ast[2]}};
-							prompt << filtered_sie;
-						}
-						else {
-							prompt << "\nYear identifier " << year_key << " is not associated with any data";
-						}
-					}
-				}
-			}
-			else if (ast[0] == "-balance") {
-				// The user has requested to have us list account balances
-				prompt << model->sie["current"].balances_at(to_today());
-			}
-			else if (ast[0] == "-had") {
-				auto hads = model->refreshed_hads();
-
-				// auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
-				// for (auto const& vat_returns_had : vat_returns_hads) {
-				// 	if (auto o_iter = model->find_had(vat_returns_had)) {
-				// 		auto iter = *o_iter;
-				// 		// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
-				// 		if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
-				// 			// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
-				// 			*iter = vat_returns_had;
-				// 			prompt << "\n*UPDATED* " << vat_returns_had;
-				// 		}
-				// 	}
-				// 	else {
-				// 		model->heading_amount_date_entries.push_back(vat_returns_had);
-				// 		prompt << "\n*NEW* " << vat_returns_had;
-				// 	}
-				// }
-				// std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
-				if (ast.size()==1) {
-					prompt << to_had_listing_prompt(hads);
-					model->prompt_state = PromptState::HADIndex;
-
-				// 	// Expose current hads (Heading Amount Date transaction entries) to the user
-				// 	auto& hads = model->heading_amount_date_entries;
-				// 	unsigned int index{0};
-				// 	std::vector<std::string> sHads{};
-				// 	std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
-				// 		std::stringstream os{};
-				// 		os << index++ << " " << had;
-				// 		return os.str();
-				// 	});
-				// 	prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
-				// 		acc += "\n  " + entry;
-				// 		return acc;
-				// 	});
-				// 	model->prompt_state = PromptState::HADIndex;
-				}
-				else if (ast.size()==2) {
-					// Assume the user has entered text to macth against had Heading
-					// Expose the hads (Heading Amount Date transaction entries) that matches user input
-					// NOTE: Keep correct index for later retreiving any had selected by the user
-					auto& hads = model->heading_amount_date_entries;
-					unsigned int index{0};
-					std::vector<std::string> sHads{};
-					auto text = ast[1];
-					std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index,&text](auto const& had){
-						std::stringstream os{};
-						if (strings_share_tokens(text,had.heading)) os << index << " " << had;
-						++index; // count even if not listed
-						return os.str();
-					});
-					prompt << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
-						if (entry.size()>0) acc += "\n  " + entry;
-						return acc;
-					});
-					model->prompt_state = PromptState::HADIndex;
-				}
-				else {
-					prompt << "\nPlease re-enter a valid input (It seems you entered to many arguments for me to understand)";
-				}
-			}
-			else if (ast[0] == "-meta") {
-				if (ast.size() > 1) {
-					// Assume filter on provided text
-					if (auto to_match_account_no = BAS::to_account_no(ast[1])) {
-						// Assume match to BAS account or SRU account 
-						// for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
-						// 	if ((*to_match_account_no == account_no) or (am.sru_code and (*to_match_account_no == *am.sru_code))) {
-						// 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
-						// 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-						// 	}
-						// }
-						auto ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
-						for (auto const& [account_no,am] : ams) {
-							prompt << "\n  " << account_no << " " << std::quoted(am.name);
-							if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-						}
-					}
-					else {
-						// Assume match to account name
-						// for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
-						// 	if (first_in_second_case_insensitive(ast[1],am.name)) {
-						// 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
-						// 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-						// 	}
-						// }
-						auto ams = matches_bas_account_name(ast[1],model->sie["current"]);
-						for (auto const& [account_no,am] : ams) {
-							prompt << "\n  " << account_no << " " << std::quoted(am.name);
-							if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-						}
-					}
-				}
-				else {
-					// list all metas
-					for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
-						prompt << "\n  " << account_no << " " << std::quoted(am.name);
-						if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-					}
-				}
-			}
-			else if (ast[0] == "-sru") {
-				if (ast.size() > 1) {
-					if (ast[1] == "-bas") {
-						// List SRU Accounts mapped to BAS Accounts
-						auto const& account_metas = model->sie["current"].account_metas();
-						auto sru_map = sru_to_bas_map(account_metas);
-						for (auto const& [sru_account,bas_accounts] : sru_map) {
-							prompt << "\nSRU:" << sru_account;
-							for (auto const& bas_account_no : bas_accounts) {
-								prompt << "\n  BAS:" << bas_account_no << " " << std::quoted(account_metas.at(bas_account_no).name);
-							}
-						}
-					}
-					else if (ast.size() > 2) {
-						// Assume the user has provided a year-id and a path to a csv-file with SRU values for that year?
-						auto year_id = ast[1];
-						std::filesystem::path csv_file_path{ast[2]};
-						if (std::filesystem::exists(csv_file_path)) {
-							std::ifstream ifs{csv_file_path};
-							if (auto const& field_rows = CSV::to_field_rows(ifs,';')) {
-								for (auto const& field_row : *field_rows) {
-									if (field_row.size()==2) {
-										if (auto const& sru_code = SKV::SRU::to_account_no(field_row[0])) {
-											model->sru[year_id].set(*sru_code,field_row[1]);
-										}
-									}
-								}
-							}
-							else {
-								prompt << "\nSorry, seems to be unable to parse for SRU values in csv-file " << csv_file_path;
-							}
-						}
-						else {
-							prompt << "\nSorry, I seem to fail to find file " << csv_file_path;
-						}
-					}
-					else {
-						prompt << "\nPlease provide no arguments, argument '-bas' or arguments <year-id> <csv-file-path>";
-					}
-				}
-				else {
-					for (auto const& [year_id,sru_env] : model->sru) {
-						prompt << "\nyear:id:" << year_id;
-						prompt << "\n" << sru_env;
-					}
-				}
-			}
-			else if (ast[0] == "-gross") {
-				auto ats = to_gross_account_transactions(model->sie);
-				for (auto const& at : ats) {
-					prompt << "\n" << at;
-				}				
-			}
-			else if (ast[0] == "-net") {
-				auto ats = to_net_account_transactions(model->sie);
-				for (auto const& at : ats) {
-					prompt << "\n" << at;
-				}				
-			}
-			else if (ast[0] == "-vat") {
-				auto vats = to_vat_account_transactions(model->sie);
-				for (auto const& vat : vats) {
-					prompt << "\n" << vat;
-				}				
-			}
-			else if (ast[0] == "-t2") {
-				auto t2s = t2_entries(model->sie);
-				prompt << t2s;
-			}
-			else if (ast[0] == "-skv") {
-				if (ast.size() == 1) {
-					// List skv options
-					prompt << "\n0: Arbetsgivardeklaration (TAX Returns)";
-					prompt << "\n1: Momsrapport (VAT Returns)";
-					prompt << "\n2: K10 (TAX Declaration Appendix Form)";
-					prompt << "\n3: INK1 + K10 (Swedish Tax Agency private TAX Form + Dividend Form";
-					prompt << "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
-					model->prompt_state = PromptState::SKVEntryIndex;
-				}
-			}
-			else if (ast[0] == "-csv") {
-				if (ast.size()==1) {
-					// Command "-csv" (and no more)
-					// ==> Process all *.csv in folder from_bank and *.skv in folder from_skv
-
-				}
-				else if ((ast.size()>2) and (ast[1] == "-had")) {
-					// Command "-csv -had <path>"
-					std::filesystem::path csv_file_path{ast[2]};
-					if (std::filesystem::exists(csv_file_path)) {
-						std::ifstream ifs{csv_file_path};
-						CSV::NORDEA::istream in{ifs};
-						BAS::OptionalAccountNo gross_bas_account_no{};
-						if (ast.size()>3) {
-							if (auto bas_account_no = BAS::to_account_no(ast[3])) {
-								gross_bas_account_no = *bas_account_no;
-							}
-							else {
-								prompt << "\nPlease enter a valid BAS account no for gross amount transaction. " << std::quoted(ast[3]) << " is not a valid BAS account no";
-							}
-						}
-						auto hads = CSV::from_stream(in,gross_bas_account_no);
-						// #X Filter entries in the read csv-file against already existing hads and sie-entries
-						// #X match date and amount
-						// 1) Don't add a had that is already in our models hads list
-						std::erase_if(hads,[this](HeadingAmountDateTransEntry const& had) {
-							auto iter = std::find_if(this->model->heading_amount_date_entries.begin(),this->model->heading_amount_date_entries.end(),[&had](HeadingAmountDateTransEntry const& other){
-								auto result = (had.date == other.date) and (had.amount == other.amount) and (had.heading == other.heading);
-								if (result) {
-									std::cout << "\nHAD ALREADY AS HAD";
-									std::cout << "\n\t" << had;
-									std::cout << "\n\t" << other;
-								}
-								return result;
-							});
-							auto result = (iter != this->model->heading_amount_date_entries.end());
-							return result;
-						});
-						// 2) Don't add a had that is already accounted for as an sie entry
-						auto sie_hads_reducer = [&hads](BAS::MetaEntry const& me) {
-							// Remove the had if it matches me 
-							std::erase_if(hads,[&me](HeadingAmountDateTransEntry const& had) {
-								bool result{false};
-								if (me.defacto.date == had.date) {
-									if (had.amount > 0) {
-										auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
-										result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
-									}
-									else {
-										auto gross_amount = to_negative_gross_transaction_amount(me.defacto);
-										result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
-									}
-								}
-								if (result) {
-									std::cout << "\nHAD ALREADY AS SIE: ";
-									std::cout << "\n\t" << had;
-									std::cout << "\n\t" << me;
-								}
-								return result;
-							});
-						};
-						for_each_meta_entry(model->sie["current"],sie_hads_reducer);
-						std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
-					}
-					else {
-						prompt << "\nPlease provide a path to an existing file. Can't find " << csv_file_path;
-					}
-				}
-				else if ((ast.size()>2) and (ast[1] == "-sru")) {
-					// Command "-csv -sru <path>"
-					std::filesystem::path csv_file_path{ast[2]};
-					if (std::filesystem::exists(csv_file_path)) {
-						std::ifstream ifs{csv_file_path};
-						if (auto field_rows = CSV::to_field_rows(ifs)) {
-							for (auto const& field_row : *field_rows) {
-								if (field_row.size()>0) prompt << "\n";
-								for (int i=0;i<field_row.size();++i) {
-									prompt << " [" << i << "]" << field_row[i];
-								}
-							}
-							if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
-								prompt << "\nSorry, Reading an input csv-file as base for SRU-file creation is not yet implemented.";
-							}
-							else {
-								prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
-							}
-						}
-						else {
-							prompt << "\nSorry, failed to parse as csv the file " << csv_file_path;
-						}
-					}
-					else {
-						prompt << "\nPlease provide a path to an existing file. Can't find " << csv_file_path;
-					}
-				}
-				else {
-					prompt << "\nPlease provide '-had' or '-sru' followed by a path to a csv-file";
-				}
-			}
-			else if (ast[0] == "-") {
-				model->prompt_state = PromptState::Root;
-			}
-			else if (ast[0] == "-omslutning") {
-        // Report yearly change for each BAS account
-        std::string year_id = "current"; // default
-        if (ast.size()>1) {
-					if (model->sie.contains(ast[1])) {
-            year_id = ast[1];
-          }
-          else {
-            prompt << "\nSorry, I find no record of year " << std::quoted(ast[1]);
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_had") {
+      prompt << "\nCreating Heading Amount Date entries from selected Tagged Amounts";
+      auto had_candidate_ta_ptrs = model->selected_date_ordered_tagged_amounts;
+      // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
+      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
+        bool has_SIE_tag = ta_ptr->tag_value("SIE").has_value();
+        if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) {
+          prompt << "\nDisregarded SIE aggregate " << ta_ptr;
+          had_candidate_ta_ptrs.erase(ta_ptr->instance_id());
+          auto members = Key::Path{*members_value};
+          if (auto instance_ids = to_instance_ids(members)) {
+            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
+              for (auto const& ta_ptr : *ta_ptrs) {
+                prompt << "\nDisregarded SIE aggregate member " << ta_ptr;
+                had_candidate_ta_ptrs.erase(ta_ptr->instance_id());            
+              }
+            }
           }
         }
+      }
+      for (auto const& ta_ptr : had_candidate_ta_ptrs) {
+        if (auto o_had = to_had(ta_ptr)) {
+          model->heading_amount_date_entries.push_back(*o_had);
+        }
+        else {
+          prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry" << ta_ptr;
+        }
+      }
+    }
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
+      // Filter out tagged amounts that are already in the books as an SIE entry / aggregate?
+      prompt << "\nSorry, Identifying todos on tagged amounts not yet implemented";
+    }
+    else if (ast[0] == "-bas") {
+// std::cout << " :)";
+      if (ast.size() == 2) {
+        // Import bas account plan csv file
+        if (ast[1] == "?") {
+          // List csv-files in the resources sub-folder
+          std::filesystem::path resources_folder{"./resources"};
+          std::filesystem::directory_iterator dir_iter{resources_folder};
+          for (auto const& dir_entry : std::filesystem::directory_iterator{resources_folder}) {
+            prompt << "\n" << dir_entry.path(); // TODO: Remove .path() when stdc++ library supports streaming of std::filesystem::directory_entry 
+          }
+        }
+        else {
+          // Import and parse file at provided file path
+          std::filesystem::path csv_file_path{ast[1]};
+          if (std::filesystem::exists(csv_file_path)) {
+            std::ifstream in{csv_file_path};
+            BAS::parse_bas_account_plan_csv(in,prompt);
+          }
+          else {
+            prompt << "\nUse '-bas' to list available files to import (It seems I can't find the file " << csv_file_path;
+          }
+        }
+      }
+      else {
+        // Use string literal with csv data
+        std::istringstream in{BAS::bas_2022_account_plan_csv};
+        BAS::parse_bas_account_plan_csv(in,prompt);
+      }
+    }
+    else if (ast[0] == "-sie") {
+      // Import sie and add as base of our environment
+      if (ast.size()==1) {
+        // List current sie environment
+        prompt << model->sie["current"];				
+        // std::cout << model->sie["current"];
+      }
+      else if (ast.size()==2) {
+        if (ast[1]=="*") {
+          // List unposted (staged) sie entries
+          FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::is_flagged_unposted{}};
+          prompt << filtered_sie;
+        }
+        else if (model->sie.contains(ast[1])) {
+          // List journal entries of a year index
+          prompt << model->sie[ast[1]];
+        }
+        else if (auto bas_account_no = BAS::to_account_no(ast[1])) {
+          // List journal entries filtered on an bas account number
+          prompt << "\nFilter journal entries that has a transaction to account no " << *bas_account_no;
+          prompt << "\nTIP: If you meant filter on amount please re-enter using '.00' to distinguish it from an account no.";
+          FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
+          prompt << filtered_sie;
+        }
+        else if (auto gross_amount = to_amount(ast[1])) {
+          // List journal entries filtered on given amount
+          prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
+          FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasGrossAmount{*gross_amount}};
+          prompt << filtered_sie;
+        }
+        else if (auto sie_file_path = path_to_existing_file(ast[1])) {
+          if (auto sie_env = from_sie_file(*sie_file_path)) {
+            model->sie_file_path["current"] = *sie_file_path;
+            model->sie["current"] = std::move(*sie_env);
+            // Update the list of staged entries
+            if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+              auto unstaged = model->sie["current"].stage(*sse);
+              for (auto const& je : unstaged) {
+                prompt << "\nnow posted " << je; 
+              }
+            }							
+          }
+          else {
+            // failed to parse sie-file into an SIE Environment 
+            prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
+          }
+        }
+        else if (ast[1] == "-types") {
+          // Group on Type Topology
+          // using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>;
+          // using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>;
+          // MetaEntryTopologyMap meta_entry_topology_map{};
+          // auto h = [&meta_entry_topology_map](BAS::TypedMetaEntry const& tme){
+          // 	auto types_topology = BAS::kind::to_types_topology(tme);
+          // 	auto signature = BAS::kind::to_signature(types_topology);
+          // 	meta_entry_topology_map[signature][types_topology].push_back(tme);							
+          // };
+          // for_each_typed_meta_entry(model->sie,h);
+          auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
+          // Prepare to record journal entries we could not use as template for new entries
+          std::vector<BAS::TypedMetaEntry> failed_tmes{};
+          std::set<BAS::kind::AccountTransactionTypeTopology> detected_topologies{};
+          // List grouped on type topology
+          for (auto const& [signature,tme_map] : meta_entry_topology_map) {
+            for (auto const& [type_topology,tmes] : tme_map) {
+              prompt << "\n[" << type_topology << "] ";
+              detected_topologies.insert(type_topology);
+              // Group tmes on BAS Accounts topology
+              auto accounts_topology_map = to_accounts_topology_map(tmes);
+              // List grouped BAS Accounts topology
+              for (auto const& [signature,bat_map] : accounts_topology_map) {
+                for (auto const& [type_topology,tmes] : bat_map) {
+                  prompt << "\n    [" << type_topology << "] ";
+                  for (auto const& tme : tmes) {
+                    prompt << "\n       VAT Type:" << to_vat_type(tme);
+                    prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
+                    prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
+                    // TEST that we are able to operate on journal entries with this topology? 
+                    auto test_result = test_typed_meta_entry(model->sie,tme);
+                    prompt << "\n       TEST: " << test_result;
+                    if (test_result.failed) failed_tmes.push_back(tme);											
+                  }
+                }
+              }
+            }
+          }
+          // LOG detected journal entry type topologies
+          prompt << "\n<DETECTED TOPOLOGIES>";
+          for (auto const& topology : detected_topologies) {
+            prompt << "\n\t" << topology;
+          }
+          // LOG tmes we failed to identify as templates for new journal entries
+          prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
+          for (auto const& tme : failed_tmes) {
+            auto types_topology = BAS::kind::to_types_topology(tme);
+            prompt << "\n" << types_topology << " " << tme.meta << " " << tme.defacto.caption << " " << tme.defacto.date;
+          }
+        }
+        else {
+          // assume user search criteria on transaction heading and comments
+          FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
+          prompt << "\nNot '*', existing year id or existing file: " << std::quoted(ast[1]);
+          prompt << "\nFilter current sie for " << std::quoted(ast[1]); 
+          prompt << filtered_sie;
+        }
+      }
+      else if (ast.size()==3) {
+        auto year_key = ast[1];
+        if (auto sie_file_path = path_to_existing_file(ast[2])) {
+          if (auto sie_env = from_sie_file(*sie_file_path)) {
+            model->sie_file_path[year_key] = *sie_file_path;
+            model->sie[year_key] = std::move(*sie_env);
+          }
+          else {
+            // failed to parse sie-file into an SIE Environment 
+            prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
+          }
+        }
+        else {
+          // assume user search criteria on transaction heading and comments
+          if (model->sie.contains(year_key)) {
+            FilteredSIEEnvironment filtered_sie{model->sie[year_key],BAS::filter::matches_user_search_criteria{ast[2]}};
+            prompt << filtered_sie;
+          }
+          else {
+            prompt << "\nYear identifier " << year_key << " is not associated with any data";
+          }
+        }
+      }
+    }
+    else if (ast[0] == "-balance") {
+      // The user has requested to have us list account balances
+      prompt << model->sie["current"].balances_at(to_today());
+    }
+    else if (ast[0] == "-had") {
+      auto hads = model->refreshed_hads();
 
-				// auto fiscal_year_date_range = model->sie[year_id].fiscal_year_date_range();
-				auto fiscal_year_date_range = model->to_fiscal_year_date_range(year_id);
+      // auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
+      // for (auto const& vat_returns_had : vat_returns_hads) {
+      // 	if (auto o_iter = model->find_had(vat_returns_had)) {
+      // 		auto iter = *o_iter;
+      // 		// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
+      // 		if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
+      // 			// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
+      // 			*iter = vat_returns_had;
+      // 			prompt << "\n*UPDATED* " << vat_returns_had;
+      // 		}
+      // 	}
+      // 	else {
+      // 		model->heading_amount_date_entries.push_back(vat_returns_had);
+      // 		prompt << "\n*NEW* " << vat_returns_had;
+      // 	}
+      // }
+      // std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
+      if (ast.size()==1) {
+        prompt << to_had_listing_prompt(hads);
+        model->prompt_state = PromptState::HADIndex;
 
-				if (fiscal_year_date_range) {
-					auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
-					auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
+      // 	// Expose current hads (Heading Amount Date transaction entries) to the user
+      // 	auto& hads = model->heading_amount_date_entries;
+      // 	unsigned int index{0};
+      // 	std::vector<std::string> sHads{};
+      // 	std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
+      // 		std::stringstream os{};
+      // 		os << index++ << " " << had;
+      // 		return os.str();
+      // 	});
+      // 	prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+      // 		acc += "\n  " + entry;
+      // 		return acc;
+      // 	});
+      // 	model->prompt_state = PromptState::HADIndex;
+      }
+      else if (ast.size()==2) {
+        // Assume the user has entered text to macth against had Heading
+        // Expose the hads (Heading Amount Date transaction entries) that matches user input
+        // NOTE: Keep correct index for later retreiving any had selected by the user
+        auto& hads = model->heading_amount_date_entries;
+        unsigned int index{0};
+        std::vector<std::string> sHads{};
+        auto text = ast[1];
+        std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index,&text](auto const& had){
+          std::stringstream os{};
+          if (strings_share_tokens(text,had.heading)) os << index << " " << had;
+          ++index; // count even if not listed
+          return os.str();
+        });
+        prompt << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+          if (entry.size()>0) acc += "\n  " + entry;
+          return acc;
+        });
+        model->prompt_state = PromptState::HADIndex;
+      }
+      else {
+        prompt << "\nPlease re-enter a valid input (It seems you entered to many arguments for me to understand)";
+      }
+    }
+    else if (ast[0] == "-meta") {
+      if (ast.size() > 1) {
+        // Assume filter on provided text
+        if (auto to_match_account_no = BAS::to_account_no(ast[1])) {
+          // Assume match to BAS account or SRU account 
+          // for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+          // 	if ((*to_match_account_no == account_no) or (am.sru_code and (*to_match_account_no == *am.sru_code))) {
+          // 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
+          // 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+          // 	}
+          // }
+          auto ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
+          for (auto const& [account_no,am] : ams) {
+            prompt << "\n  " << account_no << " " << std::quoted(am.name);
+            if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+          }
+        }
+        else {
+          // Assume match to account name
+          // for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+          // 	if (first_in_second_case_insensitive(ast[1],am.name)) {
+          // 		prompt << "\n  " << account_no << " " << std::quoted(am.name);
+          // 		if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+          // 	}
+          // }
+          auto ams = matches_bas_account_name(ast[1],model->sie["current"]);
+          for (auto const& [account_no,am] : ams) {
+            prompt << "\n  " << account_no << " " << std::quoted(am.name);
+            if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+          }
+        }
+      }
+      else {
+        // list all metas
+        for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+          prompt << "\n  " << account_no << " " << std::quoted(am.name);
+          if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+        }
+      }
+    }
+    else if (ast[0] == "-sru") {
+      if (ast.size() > 1) {
+        if (ast[1] == "-bas") {
+          // List SRU Accounts mapped to BAS Accounts
+          auto const& account_metas = model->sie["current"].account_metas();
+          auto sru_map = sru_to_bas_map(account_metas);
+          for (auto const& [sru_account,bas_accounts] : sru_map) {
+            prompt << "\nSRU:" << sru_account;
+            for (auto const& bas_account_no : bas_accounts) {
+              prompt << "\n  BAS:" << bas_account_no << " " << std::quoted(account_metas.at(bas_account_no).name);
+            }
+          }
+        }
+        else if (ast.size() > 2) {
+          // Assume the user has provided a year-id and a path to a csv-file with SRU values for that year?
+          auto year_id = ast[1];
+          std::filesystem::path csv_file_path{ast[2]};
+          if (std::filesystem::exists(csv_file_path)) {
+            std::ifstream ifs{csv_file_path};
+            if (auto const& field_rows = CSV::to_field_rows(ifs,';')) {
+              for (auto const& field_row : *field_rows) {
+                if (field_row.size()==2) {
+                  if (auto const& sru_code = SKV::SRU::to_account_no(field_row[0])) {
+                    model->sru[year_id].set(*sru_code,field_row[1]);
+                  }
+                }
+              }
+            }
+            else {
+              prompt << "\nSorry, seems to be unable to parse for SRU values in csv-file " << csv_file_path;
+            }
+          }
+          else {
+            prompt << "\nSorry, I seem to fail to find file " << csv_file_path;
+          }
+        }
+        else {
+          prompt << "\nPlease provide no arguments, argument '-bas' or arguments <year-id> <csv-file-path>";
+        }
+      }
+      else {
+        for (auto const& [year_id,sru_env] : model->sru) {
+          prompt << "\nyear:id:" << year_id;
+          prompt << "\n" << sru_env;
+        }
+      }
+    }
+    else if (ast[0] == "-gross") {
+      auto ats = to_gross_account_transactions(model->sie);
+      for (auto const& at : ats) {
+        prompt << "\n" << at;
+      }				
+    }
+    else if (ast[0] == "-net") {
+      auto ats = to_net_account_transactions(model->sie);
+      for (auto const& at : ats) {
+        prompt << "\n" << at;
+      }				
+    }
+    else if (ast[0] == "-vat") {
+      auto vats = to_vat_account_transactions(model->sie);
+      for (auto const& vat : vats) {
+        prompt << "\n" << vat;
+      }				
+    }
+    else if (ast[0] == "-t2") {
+      auto t2s = t2_entries(model->sie);
+      prompt << t2s;
+    }
+    else if (ast[0] == "-skv") {
+      if (ast.size() == 1) {
+        // List skv options
+        prompt << "\n0: Arbetsgivardeklaration (TAX Returns)";
+        prompt << "\n1: Momsrapport (VAT Returns)";
+        prompt << "\n2: K10 (TAX Declaration Appendix Form)";
+        prompt << "\n3: INK1 + K10 (Swedish Tax Agency private TAX Form + Dividend Form";
+        prompt << "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
+        model->prompt_state = PromptState::SKVEntryIndex;
+      }
+    }
+    else if (ast[0] == "-csv") {
+      if (ast.size()==1) {
+        // Command "-csv" (and no more)
+        // ==> Process all *.csv in folder from_bank and *.skv in folder from_skv
 
-          std::map<BAS::AccountNo,Amount> opening_balances = model->sie[year_id].opening_balances();
-          // Output Omslutning
-          /*
-          Omslutning 20230501...20240430 {
-            <Konto>      <IN>  <period>     <OUT>
-                1920  36147,89  -7420,27  28727,62
-                1999    156,75   -156,75      0,00
-                2098      0,00  84192,50  84192,50
-                2099  84192,50 -84192,50      0,00
-                2440  -5459,55      0,00  -5459,55
-                2641   1331,46    156,75   1488,21
-                2893  -2601,86   2420,27   -181,59
-                2898  -5000,00   5000,00      0,00
-                9000                0,00      0,00
-          } // Omslutning
-          */
-          prompt << "\nOmslutning " << *fiscal_year_date_range << " {";
-          prompt << "\n" << std::setfill(' ');
-          auto w = 12;
-          prompt << std::setw(w) << "<Konto>";
-          prompt << "\t" << std::setw(w) << "<IN>";
-          prompt << "\t" << std::setw(w) << "<period>";
-          prompt << "\t" << std::setw(w) <<  "<OUT>";
+      }
+      else if ((ast.size()>2) and (ast[1] == "-had")) {
+        // Command "-csv -had <path>"
+        std::filesystem::path csv_file_path{ast[2]};
+        if (std::filesystem::exists(csv_file_path)) {
+          std::ifstream ifs{csv_file_path};
+          CSV::NORDEA::istream in{ifs};
+          BAS::OptionalAccountNo gross_bas_account_no{};
+          if (ast.size()>3) {
+            if (auto bas_account_no = BAS::to_account_no(ast[3])) {
+              gross_bas_account_no = *bas_account_no;
+            }
+            else {
+              prompt << "\nPlease enter a valid BAS account no for gross amount transaction. " << std::quoted(ast[3]) << " is not a valid BAS account no";
+            }
+          }
+          auto hads = CSV::from_stream(in,gross_bas_account_no);
+          // #X Filter entries in the read csv-file against already existing hads and sie-entries
+          // #X match date and amount
+          // 1) Don't add a had that is already in our models hads list
+          std::erase_if(hads,[this](HeadingAmountDateTransEntry const& had) {
+            auto iter = std::find_if(this->model->heading_amount_date_entries.begin(),this->model->heading_amount_date_entries.end(),[&had](HeadingAmountDateTransEntry const& other){
+              auto result = (had.date == other.date) and (had.amount == other.amount) and (had.heading == other.heading);
+              if (result) {
+                std::cout << "\nHAD ALREADY AS HAD";
+                std::cout << "\n\t" << had;
+                std::cout << "\n\t" << other;
+              }
+              return result;
+            });
+            auto result = (iter != this->model->heading_amount_date_entries.end());
+            return result;
+          });
+          // 2) Don't add a had that is already accounted for as an sie entry
+          auto sie_hads_reducer = [&hads](BAS::MetaEntry const& me) {
+            // Remove the had if it matches me 
+            std::erase_if(hads,[&me](HeadingAmountDateTransEntry const& had) {
+              bool result{false};
+              if (me.defacto.date == had.date) {
+                if (had.amount > 0) {
+                  auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
+                  result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
+                }
+                else {
+                  auto gross_amount = to_negative_gross_transaction_amount(me.defacto);
+                  result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
+                }
+              }
+              if (result) {
+                std::cout << "\nHAD ALREADY AS SIE: ";
+                std::cout << "\n\t" << had;
+                std::cout << "\n\t" << me;
+              }
+              return result;
+            });
+          };
+          for_each_meta_entry(model->sie["current"],sie_hads_reducer);
+          std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
+        }
+        else {
+          prompt << "\nPlease provide a path to an existing file. Can't find " << csv_file_path;
+        }
+      }
+      else if ((ast.size()>2) and (ast[1] == "-sru")) {
+        // Command "-csv -sru <path>"
+        std::filesystem::path csv_file_path{ast[2]};
+        if (std::filesystem::exists(csv_file_path)) {
+          std::ifstream ifs{csv_file_path};
+          if (auto field_rows = CSV::to_field_rows(ifs)) {
+            for (auto const& field_row : *field_rows) {
+              if (field_row.size()>0) prompt << "\n";
+              for (int i=0;i<field_row.size();++i) {
+                prompt << " [" << i << "]" << field_row[i];
+              }
+            }
+            if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
+              prompt << "\nSorry, Reading an input csv-file as base for SRU-file creation is not yet implemented.";
+            }
+            else {
+              prompt << "\nSorry, failed to gather required sru values to create a valid sru-file";
+            }
+          }
+          else {
+            prompt << "\nSorry, failed to parse as csv the file " << csv_file_path;
+          }
+        }
+        else {
+          prompt << "\nPlease provide a path to an existing file. Can't find " << csv_file_path;
+        }
+      }
+      else {
+        prompt << "\nPlease provide '-had' or '-sru' followed by a path to a csv-file";
+      }
+    }
+    else if (ast[0] == "-") {
+      model->prompt_state = PromptState::Root;
+    }
+    else if (ast[0] == "-omslutning") {
+      // Report yearly change for each BAS account
+      std::string year_id = "current"; // default
+      if (ast.size()>1) {
+        if (model->sie.contains(ast[1])) {
+          year_id = ast[1];
+        }
+        else {
+          prompt << "\nSorry, I find no record of year " << std::quoted(ast[1]);
+        }
+      }
+
+      // auto fiscal_year_date_range = model->sie[year_id].fiscal_year_date_range();
+      auto fiscal_year_date_range = model->to_fiscal_year_date_range(year_id);
+
+      if (fiscal_year_date_range) {
+        auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
+        auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
+
+        std::map<BAS::AccountNo,Amount> opening_balances = model->sie[year_id].opening_balances();
+        // Output Omslutning
+        /*
+        Omslutning 20230501...20240430 {
+          <Konto>      <IN>  <period>     <OUT>
+              1920  36147,89  -7420,27  28727,62
+              1999    156,75   -156,75      0,00
+              2098      0,00  84192,50  84192,50
+              2099  84192,50 -84192,50      0,00
+              2440  -5459,55      0,00  -5459,55
+              2641   1331,46    156,75   1488,21
+              2893  -2601,86   2420,27   -181,59
+              2898  -5000,00   5000,00      0,00
+              9000                0,00      0,00
+        } // Omslutning
+        */
+        prompt << "\nOmslutning " << *fiscal_year_date_range << " {";
+        prompt << "\n" << std::setfill(' ');
+        auto w = 12;
+        prompt << std::setw(w) << "<Konto>";
+        prompt << "\t" << std::setw(w) << "<IN>";
+        prompt << "\t" << std::setw(w) << "<period>";
+        prompt << "\t" << std::setw(w) <<  "<OUT>";
+        for (auto const& ta_ptr : bas_account_accs) {
+          auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
+          std::string bas_account_string = ta_ptr->tags().at("BAS"); 
+          prompt << "\n";
+          prompt << std::setw(w) << std::string("") + bas_account_string;
+          // ####
+          auto bas_account_no = *BAS::to_account_no(bas_account_string);
+          if (opening_balances.contains(bas_account_no)) {
+            auto ib = opening_balances.at(bas_account_no);
+            auto ib_units_and_cents = to_units_and_cents(to_cents_amount(ib)); 
+            prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
+            prompt << "\t" << std::setw(w) << to_string(omslutning);
+            prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(ib) + ta_ptr->cents_amount()));
+            opening_balances.erase(bas_account_no); // reported
+          }
+          else {
+            prompt << "\t" << std::setw(w) << "";
+            prompt << "\t" << std::setw(w) << to_string(omslutning);
+            prompt << "\t" << std::setw(w) << to_string(omslutning);
+          }
+        }
+        // Add on BAS accounts that has an IB but not reported above (no omslutning / transactions)
+        for (auto const& [bas_account_no,opening_balance] : opening_balances) {
+          std::string bas_account_string = std::to_string(bas_account_no); 
+          prompt << "\n";
+          prompt << std::setw(w) << std::string("") + bas_account_string;
+          auto ib_units_and_cents = to_units_and_cents(to_cents_amount(opening_balance)); 
+          prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
+          prompt << "\t" << std::setw(w) << "0,00";
+          prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
+        }
+        prompt << "\n} // Omslutning";
+      }
+      else {
+        prompt << "\nTry '-omslutning' with no argument for current year or enter a valid fiscal year id 'current','-1','-2',...";
+      }
+    }
+    else if (ast[0] == "-plain_ar") {
+      // Brute force an Annual Financial Statement as defined by Swedish Bolagsverket
+      // Parse BAS::K2::bas_2022_mapping_to_k2_ar_text to get mapping of BAS account saldos
+      // to Swedish Bolagsverket Annual Financial Statement ("Årsredovisning") according to K2 rules
+
+      // So BAS::K2::bas_2022_mapping_to_k2_ar_text maps AR <--> BAS
+      // So we can use it to accumulate saldos for AR fields from the specified BAS accounts over the fiscal year
+
+
+      // Create tagged amounts that aggregates BAS Accounts to a saldo and AR=<AR Field ID> ARTEXT=<AR Field Heading> ARCOMMENT=<AR Field Description>
+      // and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
+
+      auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2022_mapping_to_k2_ar_text);
+      auto fiscal_year_date_range = model->sie["-1"].fiscal_year_date_range();
+
+      if (false and fiscal_year_date_range) {
+        auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
+        auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
+
+        if (true) {
+          // Log Omslutning
+          std::cout << "\nOmslutning {";
           for (auto const& ta_ptr : bas_account_accs) {
             auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
             std::string bas_account_string = ta_ptr->tags().at("BAS"); 
-            prompt << "\n";
-            prompt << std::setw(w) << std::string("") + bas_account_string;
+            std::cout << "\n\tkonto:" << bas_account_string;
             // ####
-            auto bas_account_no = *BAS::to_account_no(bas_account_string);
-            if (opening_balances.contains(bas_account_no)) {
-              auto ib = opening_balances.at(bas_account_no);
-              auto ib_units_and_cents = to_units_and_cents(to_cents_amount(ib)); 
-              prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
-              prompt << "\t" << std::setw(w) << to_string(omslutning);
-              prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(ib) + ta_ptr->cents_amount()));
-              opening_balances.erase(bas_account_no); // reported
+            auto ib = model->sie["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
+            if (ib) {
+              auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
+              std::cout << " IB:" << to_string(ib_units_and_cents);
+              std::cout << " omslutning:" << to_string(omslutning);
+              std::cout << " UB:" << to_string(to_units_and_cents(to_cents_amount(*ib) + ta_ptr->cents_amount()));
             }
             else {
-              prompt << "\t" << std::setw(w) << "";
-              prompt << "\t" << std::setw(w) << to_string(omslutning);
-              prompt << "\t" << std::setw(w) << to_string(omslutning);
+              std::cout << " omslutning:" << to_string(omslutning);
             }
           }
-          // Add on BAS accounts that has an IB but not reported above (no omslutning / transactions)
-          for (auto const& [bas_account_no,opening_balance] : opening_balances) {
-            std::string bas_account_string = std::to_string(bas_account_no); 
-            prompt << "\n";
-            prompt << std::setw(w) << std::string("") + bas_account_string;
-            auto ib_units_and_cents = to_units_and_cents(to_cents_amount(opening_balance)); 
-            prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
-            prompt << "\t" << std::setw(w) << "0,00";
-            prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
-          }
-          prompt << "\n} // Omslutning";
+          std::cout << "\n} // Omslutning";
         }
-        else {
-          prompt << "\nTry '-omslutning' with no argument for current year or enter a valid fiscal year id 'current','-1','-2',...";
-        }
-      }
-			else if (ast[0] == "-plain_ar") {
-				// Brute force an Annual Financial Statement as defined by Swedish Bolagsverket
-				// Parse BAS::K2::bas_2022_mapping_to_k2_ar_text to get mapping of BAS account saldos
-				// to Swedish Bolagsverket Annual Financial Statement ("Årsredovisning") according to K2 rules
 
-				// So BAS::K2::bas_2022_mapping_to_k2_ar_text maps AR <--> BAS
-				// So we can use it to accumulate saldos for AR fields from the specified BAS accounts over the fiscal year
-
-
-				// Create tagged amounts that aggregates BAS Accounts to a saldo and AR=<AR Field ID> ARTEXT=<AR Field Heading> ARCOMMENT=<AR Field Description>
-				// and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
-
-				auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2022_mapping_to_k2_ar_text);
-				auto fiscal_year_date_range = model->sie["-1"].fiscal_year_date_range();
-
-				if (false and fiscal_year_date_range) {
-					auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
-					auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
-
-					if (true) {
-						// Log Omslutning
-						std::cout << "\nOmslutning {";
-						for (auto const& ta_ptr : bas_account_accs) {
-              auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
-              std::string bas_account_string = ta_ptr->tags().at("BAS"); 
-							std::cout << "\n\tkonto:" << bas_account_string;
-              // ####
-              auto ib = model->sie["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
-              if (ib) {
-                auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
-                std::cout << " IB:" << to_string(ib_units_and_cents);
-                std::cout << " omslutning:" << to_string(omslutning);
-                std::cout << " UB:" << to_string(to_units_and_cents(to_cents_amount(*ib) + ta_ptr->cents_amount()));
+        auto not_accumulated = bas_account_accs;
+        for (auto const& ta_ptr : bas_account_accs) {	
+          for (auto& ar_entry : ar_entries) {
+            if (ta_ptr->tags().contains("BAS")) {
+              if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
+                if (ar_entry.accumulate_this_bas_account(*bas_account_no,ta_ptr->cents_amount())) {
+                  if (auto iter = std::find(not_accumulated.begin(),not_accumulated.end(),ta_ptr); iter != not_accumulated.end()) {
+                    not_accumulated.erase(iter);
+                  }
+                }
               }
               else {
-                std::cout << " omslutning:" << to_string(omslutning);
+                std::cerr << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta_ptr->tags().at("BAS");
               }
-						}
-						std::cout << "\n} // Omslutning";
-					}
+            }
+            else {
+              // skip, this tagged amount  is NOT a transaction to a BAS account
+            }
+          }
+        }
+        prompt << "\nÅrsredovisning {";
+        for (auto& ar_entry : ar_entries) {
+          if (ar_entry.m_amount != 0) {
+            prompt << "\n\tfält:" << ar_entry.m_field_heading_text << " belopp:" << to_string(to_units_and_cents(ar_entry.m_amount));
+            prompt << " " << std::quoted(ar_entry.m_bas_accounts_text) << " matched:";
+            for (auto const& bas_account_no : ar_entry.m_bas_account_nos) {
+              prompt << " " << bas_account_no;
+            }
+          }
+        }
+        prompt << "\n} // Årsredovisning";
 
-					auto not_accumulated = bas_account_accs;
-					for (auto const& ta_ptr : bas_account_accs) {	
-						for (auto& ar_entry : ar_entries) {
-							if (ta_ptr->tags().contains("BAS")) {
-								if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
-									if (ar_entry.accumulate_this_bas_account(*bas_account_no,ta_ptr->cents_amount())) {
-										if (auto iter = std::find(not_accumulated.begin(),not_accumulated.end(),ta_ptr); iter != not_accumulated.end()) {
-											not_accumulated.erase(iter);
-										}
-									}
-								}
-								else {
-									std::cerr << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta_ptr->tags().at("BAS");
-								}
-							}
-							else {
-								// skip, this tagged amount  is NOT a transaction to a BAS account
-							}
-						}
-					}
-					prompt << "\nÅrsredovisning {";
-					for (auto& ar_entry : ar_entries) {
-						if (ar_entry.m_amount != 0) {
-							prompt << "\n\tfält:" << ar_entry.m_field_heading_text << " belopp:" << to_string(to_units_and_cents(ar_entry.m_amount));
-							prompt << " " << std::quoted(ar_entry.m_bas_accounts_text) << " matched:";
-							for (auto const& bas_account_no : ar_entry.m_bas_account_nos) {
-								prompt << " " << bas_account_no;
-							}
-						}
-					}
-					prompt << "\n} // Årsredovisning";
+        prompt << "\nNOT Accumulated {";
+        for (auto const& ta_ptr : not_accumulated) {	
+          prompt << "\n\t" << ta_ptr;
+        }
+        prompt << "\n} // NOT Accumulated";
+      }
+      else {
+        prompt << "\nSORRY, I seem to have lost track of last fiscal year first and last dates?";
+        prompt << "\nCheck that you have used the '-sie' command to import an sie file with that years data from another application?";
+      }
+    }
+    else if (ast[0] == "-plain_ink2") {
+      // SKV Tax return according to K2 rules (plain text)
+      // 
 
-					prompt << "\nNOT Accumulated {";
-					for (auto const& ta_ptr : not_accumulated) {	
-						prompt << "\n\t" << ta_ptr;
-					}
-					prompt << "\n} // NOT Accumulated";
-				}
-				else {
-					prompt << "\nSORRY, I seem to have lost track of last fiscal year first and last dates?";
-					prompt << "\nCheck that you have used the '-sie' command to import an sie file with that years data from another application?";
-				}
-			}
-			else if (ast[0] == "-plain_ink2") {
-				// SKV Tax return according to K2 rules (plain text)
-				// 
+      // Parse BAS::SRU::INK2_19_P1_intervall_vers_2_csv to get a mapping between SRU Codes and field designations on SKV TAX Return and BAS Account ranges
+      // From https://www.bas.se/kontoplaner/sru/
+      // Also in resources/INK2_19_P1-intervall-vers-2.csv
 
-				// Parse BAS::SRU::INK2_19_P1_intervall_vers_2_csv to get a mapping between SRU Codes and field designations on SKV TAX Return and BAS Account ranges
-				// From https://www.bas.se/kontoplaner/sru/
-				// Also in resources/INK2_19_P1-intervall-vers-2.csv
+      // Create tagged amounts that aggregates BAS Accounts to a saldo and SRU=<SRU code> TAX_RETURN_ID=<SKV Tax Return form box id>
+      // and the aggregates BAS accounts to accumulate for this Tax Return Field Saldo - members=id;id;id;... 
 
-				// Create tagged amounts that aggregates BAS Accounts to a saldo and SRU=<SRU code> TAX_RETURN_ID=<SKV Tax Return form box id>
-				// and the aggregates BAS accounts to accumulate for this Tax Return Field Saldo - members=id;id;id;... 
+      BAS::SRU::INK2::parse(BAS::SRU::INK2::INK2_19_P1_intervall_vers_2_csv);
 
-				BAS::SRU::INK2::parse(BAS::SRU::INK2::INK2_19_P1_intervall_vers_2_csv);
+    }
+    else if (ast[0] == "-doc_ar") {
+      // Assume the user wants to generate an annual report
+      // ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
+      doc::Document annual_report_financial_statements_approval{};
+      {
+        annual_report_financial_statements_approval << doc::plain_text("Fastställelseintyg");
+      }
 
-			}
-			else if (ast[0] == "-doc_ar") {
-				// Assume the user wants to generate an annual report
-				// ==> The first document seems to be the  1) financial statements approval (fastställelseintyg) ?
-				doc::Document annual_report_financial_statements_approval{};
-				{
-					annual_report_financial_statements_approval << doc::plain_text("Fastställelseintyg");
-				}
+      doc::Document annual_report{};
+      // ==> The second document seems to be the 2) directors’ report  (förvaltningsberättelse)?
+      auto annual_report_front_page = doc::separate_page();
+      {
+        *annual_report_front_page << doc::plain_text("Årsredovisning");
+      }
+      auto annual_report_directors_report = doc::separate_page();
+      {
+        *annual_report_directors_report << doc::plain_text("Förvaltningsberättelse");
+      }
+      // ==> The third document seems to be the 3)  profit and loss statement (resultaträkning)?
+      auto annual_report_profit_and_loss_statement = doc::separate_page();
+      {
+        *annual_report_profit_and_loss_statement << doc::plain_text("Resultaträkning");
+      }
+      // ==> The fourth document seems to be the 4) balance sheet (balansräkning)?
+      auto annual_report_balance_sheet = doc::separate_page();
+      {
+        *annual_report_balance_sheet << doc::plain_text("Balansräkning");
+      }
+      // ==> The fifth document seems to be the 5) notes (noter)?			
+      auto annual_report_annual_report_notes = doc::separate_page();
+      {
+        *annual_report_annual_report_notes << doc::plain_text("Noter");
+      }
 
-				doc::Document annual_report{};
-				// ==> The second document seems to be the 2) directors’ report  (förvaltningsberättelse)?
-				auto annual_report_front_page = doc::separate_page();
-				{
-					*annual_report_front_page << doc::plain_text("Årsredovisning");
-				}
-				auto annual_report_directors_report = doc::separate_page();
-				{
-					*annual_report_directors_report << doc::plain_text("Förvaltningsberättelse");
-				}
-				// ==> The third document seems to be the 3)  profit and loss statement (resultaträkning)?
-				auto annual_report_profit_and_loss_statement = doc::separate_page();
-				{
-					*annual_report_profit_and_loss_statement << doc::plain_text("Resultaträkning");
-				}
-				// ==> The fourth document seems to be the 4) balance sheet (balansräkning)?
-				auto annual_report_balance_sheet = doc::separate_page();
-				{
-					*annual_report_balance_sheet << doc::plain_text("Balansräkning");
-				}
-				// ==> The fifth document seems to be the 5) notes (noter)?			
-				auto annual_report_annual_report_notes = doc::separate_page();
-				{
-					*annual_report_annual_report_notes << doc::plain_text("Noter");
-				}
+      std::filesystem::path to_bolagsverket_file_folder{"to_bolagsverket"};
 
-				std::filesystem::path to_bolagsverket_file_folder{"to_bolagsverket"};
+      {
+        // Generate documents in RTF format
+        auto annual_report_file_folder = to_bolagsverket_file_folder / "rtf";
 
-				{
-					// Generate documents in RTF format
-					auto annual_report_file_folder = to_bolagsverket_file_folder / "rtf";
+        // Create one document for the financial statemnts approval (to accomodate the annual report copy sent to Swedish Bolagsverket)
+        {
+          auto annual_report_file_path = annual_report_file_folder / "financial_statement_approval.rtf";
+          std::filesystem::create_directories(annual_report_file_path.parent_path());
+          std::ofstream raw_annual_report_os{annual_report_file_path};
 
-					// Create one document for the financial statemnts approval (to accomodate the annual report copy sent to Swedish Bolagsverket)
-					{
-						auto annual_report_file_path = annual_report_file_folder / "financial_statement_approval.rtf";
-						std::filesystem::create_directories(annual_report_file_path.parent_path());
-						std::ofstream raw_annual_report_os{annual_report_file_path};
+          RTF::OStream annual_report_os{raw_annual_report_os};
 
-						RTF::OStream annual_report_os{raw_annual_report_os};
+          annual_report_os << annual_report_financial_statements_approval;
+        }
+        // Create the annual report with all the other sections
+        {
+          auto annual_report_file_path = annual_report_file_folder / "annual_report.rtf";
+          std::filesystem::create_directories(annual_report_file_path.parent_path());
+          std::ofstream raw_annual_report_os{annual_report_file_path};
 
-						annual_report_os << annual_report_financial_statements_approval;
-					}
-					// Create the annual report with all the other sections
-					{
-						auto annual_report_file_path = annual_report_file_folder / "annual_report.rtf";
-						std::filesystem::create_directories(annual_report_file_path.parent_path());
-						std::ofstream raw_annual_report_os{annual_report_file_path};
+          RTF::OStream annual_report_os{raw_annual_report_os};
 
-						RTF::OStream annual_report_os{raw_annual_report_os};
+          annual_report_os << annual_report_front_page;
+          annual_report_os << annual_report_directors_report;
+          annual_report_os << annual_report_profit_and_loss_statement;
+          annual_report_os << annual_report_balance_sheet;
+          annual_report_os << annual_report_annual_report_notes;
+        }
+      }
 
-						annual_report_os << annual_report_front_page;
-						annual_report_os << annual_report_directors_report;
-						annual_report_os << annual_report_profit_and_loss_statement;
-						annual_report_os << annual_report_balance_sheet;
-						annual_report_os << annual_report_annual_report_notes;
-					}
-				}
+      {
+        // Generate documents in HTML format
+        auto annual_report_file_folder = to_bolagsverket_file_folder / "html";
 
-				{
-					// Generate documents in HTML format
-					auto annual_report_file_folder = to_bolagsverket_file_folder / "html";
+        // Create one document for the financial statemnts approval (to accomodate the annual report copy sent to Swedish Bolagsverket)
+        {
+          auto annual_report_file_path = annual_report_file_folder / "financial_statement_approval.html";
+          std::filesystem::create_directories(annual_report_file_path.parent_path());
+          std::ofstream raw_annual_report_os{annual_report_file_path};
 
-					// Create one document for the financial statemnts approval (to accomodate the annual report copy sent to Swedish Bolagsverket)
-					{
-						auto annual_report_file_path = annual_report_file_folder / "financial_statement_approval.html";
-						std::filesystem::create_directories(annual_report_file_path.parent_path());
-						std::ofstream raw_annual_report_os{annual_report_file_path};
+          HTML::OStream annual_report_os{raw_annual_report_os};
 
-						HTML::OStream annual_report_os{raw_annual_report_os};
+          annual_report_os << annual_report_financial_statements_approval;
+        }
+        // Create the annual report with all the other sections
+        {
+          auto annual_report_file_path = annual_report_file_folder / "annual_report.html";
+          std::filesystem::create_directories(annual_report_file_path.parent_path());
+          std::ofstream raw_annual_report_os{annual_report_file_path};
 
-						annual_report_os << annual_report_financial_statements_approval;
-					}
-					// Create the annual report with all the other sections
-					{
-						auto annual_report_file_path = annual_report_file_folder / "annual_report.html";
-						std::filesystem::create_directories(annual_report_file_path.parent_path());
-						std::ofstream raw_annual_report_os{annual_report_file_path};
+          HTML::OStream annual_report_os{raw_annual_report_os};
 
-						HTML::OStream annual_report_os{raw_annual_report_os};
+          annual_report_os << annual_report_front_page;
+          annual_report_os << annual_report_directors_report;
+          annual_report_os << annual_report_profit_and_loss_statement;
+          annual_report_os << annual_report_balance_sheet;
+          annual_report_os << annual_report_annual_report_notes;
+        }
+      }
 
-						annual_report_os << annual_report_front_page;
-						annual_report_os << annual_report_directors_report;
-						annual_report_os << annual_report_profit_and_loss_statement;
-						annual_report_os << annual_report_balance_sheet;
-						annual_report_os << annual_report_annual_report_notes;
-					}
-				}
+      {
+        // Generate documents in LaTeX format and then transform them into pdf using OS installed pdflatex command
+        auto annual_report_file_folder = to_bolagsverket_file_folder / "tex";
+        std::filesystem::create_directories(annual_report_file_folder);
 
-				{
-					// Generate documents in LaTeX format and then transform them into pdf using OS installed pdflatex command
-					auto annual_report_file_folder = to_bolagsverket_file_folder / "tex";
-					std::filesystem::create_directories(annual_report_file_folder);
-
-					{
-						// Test code
-						char const* test_tex{R"(\documentclass{article}
+        {
+          // Test code
+          char const* test_tex{R"(\documentclass{article}
 
 \begin{document}
 
@@ -10492,500 +10505,497 @@ The ITfied AB
 \section*{Underskrifter}
 
 \end{document})"};
-						std::ofstream os{annual_report_file_folder / "test.tex"};
-						os << test_tex;
-						// std::filesystem::copy_file("test/test.tex",annual_report_file_folder / "test.tex",std::filesystem::copy_options::overwrite_existing);
-					}
-				}
+          std::ofstream os{annual_report_file_folder / "test.tex"};
+          os << test_tex;
+          // std::filesystem::copy_file("test/test.tex",annual_report_file_folder / "test.tex",std::filesystem::copy_options::overwrite_existing);
+        }
+      }
 
-				{
-					// Transform LaTeX documents to pdf:s
-					auto annual_report_file_folder = to_bolagsverket_file_folder / "pdf";
-					std::filesystem::create_directories(annual_report_file_folder);
+      {
+        // Transform LaTeX documents to pdf:s
+        auto annual_report_file_folder = to_bolagsverket_file_folder / "pdf";
+        std::filesystem::create_directories(annual_report_file_folder);
 
-					// pdflatex --output-directory to_bolagsverket/pdf test/test.tex
+        // pdflatex --output-directory to_bolagsverket/pdf test/test.tex
 
-					for (auto const& dir_entry : std::filesystem::directory_iterator{to_bolagsverket_file_folder / "tex"}) {
-						// Test for installed pdflatex
-						std::ostringstream command{};
-						command << "pdflatex";
-						command << " --output-directory " << annual_report_file_folder;
-						command << " " << dir_entry.path();
-						if (auto result = std::system(command.str().c_str());result == 0) {
-							prompt << "\nCreated pdf-document " << (annual_report_file_folder / dir_entry.path().stem()) << ".pdf" << " OK";
-						}
-						else {
-							prompt << "\nSorry, failed to create pdf-documents.";
-							prompt << "\n==> Please ensure you have installed command line tool 'pdflatex' on your system?";
-							prompt << "\nmacOS: brew install --cask mactex";
-							prompt << "\nLinux: 'sudo apt-get install texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra'";
-						}
-					}					
-
-
-				}
-
-			}
-			/* ======================================================
+        for (auto const& dir_entry : std::filesystem::directory_iterator{to_bolagsverket_file_folder / "tex"}) {
+          // Test for installed pdflatex
+          std::ostringstream command{};
+          command << "pdflatex";
+          command << " --output-directory " << annual_report_file_folder;
+          command << " " << dir_entry.path();
+          if (auto result = std::system(command.str().c_str());result == 0) {
+            prompt << "\nCreated pdf-document " << (annual_report_file_folder / dir_entry.path().stem()) << ".pdf" << " OK";
+          }
+          else {
+            prompt << "\nSorry, failed to create pdf-documents.";
+            prompt << "\n==> Please ensure you have installed command line tool 'pdflatex' on your system?";
+            prompt << "\nmacOS: brew install --cask mactex";
+            prompt << "\nLinux: 'sudo apt-get install texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra'";
+          }
+        }					
 
 
+      }
 
-								Act on on Words?
+    }
+    /* ======================================================
 
 
-			 ====================================================== */
-			else {
-				// std::cout << "\nAct on words";
-				// Assume word based input
-				if (model->prompt_state == PromptState::HADIndex) {
-					if (do_assign) {
-						prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
-					}
-				}
-				else if ((model->prompt_state == PromptState::NetVATAccountInput) or (model->prompt_state == PromptState::GrossAccountInput))  {
-					// Assume the user has enterd text to search for suitable accounts
-					// Assume match to account name
-					for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
-						if (first_in_second_case_insensitive(ast[1],am.name)) {
-							prompt << "\n  " << account_no << " " << std::quoted(am.name);
-							if (am.sru_code) prompt << " SRU:" << *am.sru_code;
-						}
-					}
-				}
-				else if (model->prompt_state == PromptState::EnterHA) {
-					if (auto had_iter = model->selected_had()) {
-						auto& had = *(*had_iter);
-						if (!had.optional.current_candidate) std::cerr << "\nNo had.optional.current_candidate";
-						if (!had.optional.counter_ats_producer) std::cerr << "\nNo had.optional.counter_ats_producer";
-						if (had.optional.current_candidate and had.optional.counter_ats_producer) {
-							auto gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
-							auto gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
-							auto gross_amounts_diff = gross_positive_amount + gross_negative_amount;
+
+              Act on on Words?
+
+
+      ====================================================== */
+    else {
+      // std::cout << "\nAct on words";
+      // Assume word based input
+      if (model->prompt_state == PromptState::HADIndex) {
+        if (do_assign) {
+          prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
+        }
+      }
+      else if ((model->prompt_state == PromptState::NetVATAccountInput) or (model->prompt_state == PromptState::GrossAccountInput))  {
+        // Assume the user has enterd text to search for suitable accounts
+        // Assume match to account name
+        for (auto const& [account_no,am] : model->sie["current"].account_metas()) {
+          if (first_in_second_case_insensitive(ast[1],am.name)) {
+            prompt << "\n  " << account_no << " " << std::quoted(am.name);
+            if (am.sru_code) prompt << " SRU:" << *am.sru_code;
+          }
+        }
+      }
+      else if (model->prompt_state == PromptState::EnterHA) {
+        if (auto had_iter = model->selected_had()) {
+          auto& had = *(*had_iter);
+          if (!had.optional.current_candidate) std::cerr << "\nNo had.optional.current_candidate";
+          if (!had.optional.counter_ats_producer) std::cerr << "\nNo had.optional.counter_ats_producer";
+          if (had.optional.current_candidate and had.optional.counter_ats_producer) {
+            auto gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
+            auto gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
+            auto gross_amounts_diff = gross_positive_amount + gross_negative_amount;
 // std::cout << "\ngross_positive_amount:" << gross_positive_amount << " gross_negative_amount:" << gross_negative_amount << " gross_amounts_diff:" << gross_amounts_diff;
 
-							switch (ast.size()) {
-								case 0: {
-									prompt << "\nPlease enter:";
-									prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
-									prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
-								} break;
-								case 1: {
-									if (auto amount = to_amount(ast[0])) {
-										prompt << "\nAMOUNT " << *amount;
-										prompt << "\nPlease enter Heading only (full remaining amount implied) or Heading + Amount";
-									}
-									else {
-										prompt << "\nHEADER " << ast[0];
-										auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0]);
-										std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
-										prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
-									}
-								} break;
-								case 2: {
-									if (auto amount = to_amount(ast[1])) {
-										prompt << "\nHEADER " << ast[0];
-										prompt << "\nAMOUNT " << *amount;
-										prompt << "\nWe will create a {net,vat} using this this header and amount";
-										if (gross_amounts_diff > 0) {
-											// We need to balance up with negative account transaction aggregates
-											auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
-											std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
-											prompt << "\nAdded negative transactions aggregate" << ats;
-										}
-										else if (gross_amounts_diff < 0) {
-											// We need to balance up with positive account transaction aggregates
-											auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
-											std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
-											prompt << "\nAdded positive transaction aggregate";
-										}
-										else if (std::abs(gross_amounts_diff) < 1.0) {
-											// Consider a cents rounding account transaction
-											prompt << "\nAdded cents rounding to account 3740";
-											auto cents_rounding_at = BAS::anonymous::AccountTransaction{
-												.account_no = 3740
-												,.amount = -gross_amounts_diff
-											};
-											had.optional.current_candidate->defacto.account_transactions.push_back(cents_rounding_at);
-										}
-										else {
-											// The journal entry candidate balances. Consider to stage it
-											prompt << "\nTODO: Stage balancing journal entry";
-										}
-									}
-								} break;
-							}
-							prompt << "\ncandidate:" << *had.optional.current_candidate;
-							gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
-							gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
-							gross_amounts_diff = gross_positive_amount + gross_negative_amount;
-							prompt << "\n-------------------------------";
-							prompt << "\ndiff:" << gross_amounts_diff;
-							if (gross_amounts_diff == 0) {
-								// Stage the journal entry
-								auto me = model->sie["current"].stage(*had.optional.current_candidate);
-								if (me) {
-									prompt << "\n" << *me << " STAGED";
-									model->heading_amount_date_entries.erase(*had_iter);
-									model->prompt_state = PromptState::HADIndex;
-								}
-								else {
-									prompt << "\nSORRY - Failed to stage entry";
-									model->prompt_state = PromptState::Root;
-								}
-							}
+            switch (ast.size()) {
+              case 0: {
+                prompt << "\nPlease enter:";
+                prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
+                prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
+              } break;
+              case 1: {
+                if (auto amount = to_amount(ast[0])) {
+                  prompt << "\nAMOUNT " << *amount;
+                  prompt << "\nPlease enter Heading only (full remaining amount implied) or Heading + Amount";
+                }
+                else {
+                  prompt << "\nHEADER " << ast[0];
+                  auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0]);
+                  std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
+                  prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
+                }
+              } break;
+              case 2: {
+                if (auto amount = to_amount(ast[1])) {
+                  prompt << "\nHEADER " << ast[0];
+                  prompt << "\nAMOUNT " << *amount;
+                  prompt << "\nWe will create a {net,vat} using this this header and amount";
+                  if (gross_amounts_diff > 0) {
+                    // We need to balance up with negative account transaction aggregates
+                    auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+                    std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
+                    prompt << "\nAdded negative transactions aggregate" << ats;
+                  }
+                  else if (gross_amounts_diff < 0) {
+                    // We need to balance up with positive account transaction aggregates
+                    auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+                    std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
+                    prompt << "\nAdded positive transaction aggregate";
+                  }
+                  else if (std::abs(gross_amounts_diff) < 1.0) {
+                    // Consider a cents rounding account transaction
+                    prompt << "\nAdded cents rounding to account 3740";
+                    auto cents_rounding_at = BAS::anonymous::AccountTransaction{
+                      .account_no = 3740
+                      ,.amount = -gross_amounts_diff
+                    };
+                    had.optional.current_candidate->defacto.account_transactions.push_back(cents_rounding_at);
+                  }
+                  else {
+                    // The journal entry candidate balances. Consider to stage it
+                    prompt << "\nTODO: Stage balancing journal entry";
+                  }
+                }
+              } break;
+            }
+            prompt << "\ncandidate:" << *had.optional.current_candidate;
+            gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
+            gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
+            gross_amounts_diff = gross_positive_amount + gross_negative_amount;
+            prompt << "\n-------------------------------";
+            prompt << "\ndiff:" << gross_amounts_diff;
+            if (gross_amounts_diff == 0) {
+              // Stage the journal entry
+              auto me = model->sie["current"].stage(*had.optional.current_candidate);
+              if (me) {
+                prompt << "\n" << *me << " STAGED";
+                model->heading_amount_date_entries.erase(*had_iter);
+                model->prompt_state = PromptState::HADIndex;
+              }
+              else {
+                prompt << "\nSORRY - Failed to stage entry";
+                model->prompt_state = PromptState::Root;
+              }
+            }
 
-						}
-						else {
-							prompt << "\nPlease re-select a valid HAD and template (Seems to have failed to identify a valid template for current situation)";
-						}
-					}
-					else {
-						prompt << "\nPlease re-select a valid had (seems to have lost previously selected had)";
-					}
+          }
+          else {
+            prompt << "\nPlease re-select a valid HAD and template (Seems to have failed to identify a valid template for current situation)";
+          }
+        }
+        else {
+          prompt << "\nPlease re-select a valid had (seems to have lost previously selected had)";
+        }
 
-				}
-				else if (    (model->prompt_state == PromptState::JEIndex)
-				          or (model->prompt_state == PromptState::JEAggregateOptionIndex)) {
-					if (do_assign) {
-						// Assume <text> = <text>
-						if (auto had_iter = model->selected_had()) {
-							auto& had = *(*had_iter);
-							if (ast.size() >= 3 and ast[1] == "=") {
-								// Assume at least three tokens 0:<token> 1:'=' 2:<Token>
-								if (auto amount = to_amount(ast[2])) {
-									BAS::AccountMetas ams{};
-									auto transaction_amount = (std::abs(*amount) <= 1)?(*amount * had.amount):(*amount); // quote of had amount or actual amount
+      }
+      else if (    (model->prompt_state == PromptState::JEIndex)
+                or (model->prompt_state == PromptState::JEAggregateOptionIndex)) {
+        if (do_assign) {
+          // Assume <text> = <text>
+          if (auto had_iter = model->selected_had()) {
+            auto& had = *(*had_iter);
+            if (ast.size() >= 3 and ast[1] == "=") {
+              // Assume at least three tokens 0:<token> 1:'=' 2:<Token>
+              if (auto amount = to_amount(ast[2])) {
+                BAS::AccountMetas ams{};
+                auto transaction_amount = (std::abs(*amount) <= 1)?(*amount * had.amount):(*amount); // quote of had amount or actual amount
 
-									if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
-										// The user entered <target> = a BAS Account or SRU account
-										ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
-									}
-									else {
-										// The user entered a search criteria for a BAS account name
-										ams = matches_bas_account_name(ast[0],model->sie["current"]);										
-									}
-									if (ams.size() == 0) {
-										prompt << "\nSorry, failed to match your input to any BAS or SRU account";
-									}
-									else if (ams.size() == 1) {
-										// Go ahead and use this account for an account transaction
-										if (had.optional.current_candidate) {
-											// extend current candidate
-											BAS::anonymous::AccountTransaction new_at{
-												.account_no = ams.begin()->first
-												,.amount = transaction_amount
-											};
-											had.optional.current_candidate->defacto.account_transactions.push_back(new_at);
-											prompt << "\n" << *had.optional.current_candidate;
-										}
-										else {
-											// Create options from scratch
-											had.optional.gross_account_no = ams.begin()->first;
-											BAS::TypedMetaEntries template_candidates{};
-											std::string transtext = (ast.size() == 4)?ast[3]:"";
-											for (auto series : std::string{"ABCDEIM"}) {
-												BAS::MetaEntry me{
-													.meta = {
-														.series = series
-													}
-													,.defacto = {
-														.caption = had.heading
-														,.date = had.date
-													}
-												};
-												BAS::anonymous::AccountTransaction new_at{
-													.account_no = ams.begin()->first
-													,.transtext = transtext
-													,.amount = transaction_amount
-												};
-												me.defacto.account_transactions.push_back(new_at);
-												template_candidates.push_back(to_typed_meta_entry(me));
-											}
-											model->template_candidates.clear();
-											std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
-											unsigned ix = 0;
-											for (int i=0; i < model->template_candidates.size(); ++i) {
-												prompt << "\n    " << ix++ << " " << model->template_candidates[i];
-											}
-										}
-									}
-									else {
-										// List the options to inform the user there are more than one BAS account that matches the input
-										prompt << "\nDid you mean...";
-										for (auto const& [account_no,am] : ams) {
-											prompt << "\n\t" << std::quoted(am.name) << " " << account_no << " = " << transaction_amount;
-										}
-										prompt << "\n==> Please try again <target> = <Quote or amount>";
-									}
-								} // to_amount
-								else {
-										prompt << "\nPlease provide a valid amount after '='. I failed to recognise your input " << std::quoted(ast[2]);
-								}
-							} // ast[1] == '='
-							else {
-								prompt << "Please provide a space on both sides of the '=' in your input " << std::quoted(command);
-							}							
-						}
-						else {
-							prompt << "\nSorry, I seem to have lost track of what had you selected.";
-							prompt << "\nPlease try again with a new had.";														
-						}
-					}
-					else {
-						// Assume the user has entered a new search criteria for template candidates
-						model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& aje){
-							return strings_share_tokens(command,aje.caption);
-						});
-						int ix{0};
-						for (int i = 0; i < model->template_candidates.size(); ++i) {
-							prompt << "\n    " << ix++ << " " << model->template_candidates[i];
-						}
-						// Consider the user may have entered the name of a gross account to journal the transaction amount
-						auto gats = to_gross_account_transactions(model->sie);
-						model->at_candidates.clear();
-						std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
-							bool result{false};
-							if (at.transtext) result |= strings_share_tokens(command,*at.transtext);
-							if (model->sie["current"].account_metas().contains(at.account_no)) {
-								auto const& meta = model->sie["current"].account_metas().at(at.account_no);
-								result |= strings_share_tokens(command,meta.name);
-							}
-							return result;
-						});
-						for (int i=0;i < model->at_candidates.size();++i) {
-							prompt << "\n    " << ix++<< " " << model->at_candidates[i];
-						}
-					}
-				}
-				else if (model->prompt_state == PromptState::CounterAccountsEntry) {
-					if (auto nha = to_name_heading_amount(ast)) {
-						// List account candidates for the assumed "Name, Heading + Amount" entry by the user
-						prompt << "\nAccount:" << std::quoted(nha->account_name);
-						if (nha->trans_text) prompt << " text:" << std::quoted(*nha->trans_text);
-						prompt << " amount:" << nha->amount;
-					}
-					else {
-						prompt << "\nPlease enter an account, and optional transaction text and an amount";
-					}
-					// List the new current options
-					if (auto had_iter = model->selected_had()) {
-						if ((*had_iter)->optional.current_candidate) {
-							unsigned int i{};
-							prompt << "\n" << (*had_iter)->optional.current_candidate->defacto.caption << " " << (*had_iter)->optional.current_candidate->defacto.date;
-							for (auto const& at : (*had_iter)->optional.current_candidate->defacto.account_transactions) {
-								prompt << "\n  " << i++ << " " << at;
-							}				
-						}
-						else {
-							prompt << "\nPlease enter a valid Account Transaction Index";
-						}
-					}
-					else {
-						prompt << "\nPlease select a Heading Amount Date entry";
-					}
-				}
-				else if (model->prompt_state == PromptState::EditAT) {
-					// Handle user Edit of currently selected account transaction (at)
+                if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
+                  // The user entered <target> = a BAS Account or SRU account
+                  ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie["current"]);
+                }
+                else {
+                  // The user entered a search criteria for a BAS account name
+                  ams = matches_bas_account_name(ast[0],model->sie["current"]);										
+                }
+                if (ams.size() == 0) {
+                  prompt << "\nSorry, failed to match your input to any BAS or SRU account";
+                }
+                else if (ams.size() == 1) {
+                  // Go ahead and use this account for an account transaction
+                  if (had.optional.current_candidate) {
+                    // extend current candidate
+                    BAS::anonymous::AccountTransaction new_at{
+                      .account_no = ams.begin()->first
+                      ,.amount = transaction_amount
+                    };
+                    had.optional.current_candidate->defacto.account_transactions.push_back(new_at);
+                    prompt << "\n" << *had.optional.current_candidate;
+                  }
+                  else {
+                    // Create options from scratch
+                    had.optional.gross_account_no = ams.begin()->first;
+                    BAS::TypedMetaEntries template_candidates{};
+                    std::string transtext = (ast.size() == 4)?ast[3]:"";
+                    for (auto series : std::string{"ABCDEIM"}) {
+                      BAS::MetaEntry me{
+                        .meta = {
+                          .series = series
+                        }
+                        ,.defacto = {
+                          .caption = had.heading
+                          ,.date = had.date
+                        }
+                      };
+                      BAS::anonymous::AccountTransaction new_at{
+                        .account_no = ams.begin()->first
+                        ,.transtext = transtext
+                        ,.amount = transaction_amount
+                      };
+                      me.defacto.account_transactions.push_back(new_at);
+                      template_candidates.push_back(to_typed_meta_entry(me));
+                    }
+                    model->template_candidates.clear();
+                    std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
+                    unsigned ix = 0;
+                    for (int i=0; i < model->template_candidates.size(); ++i) {
+                      prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+                    }
+                  }
+                }
+                else {
+                  // List the options to inform the user there are more than one BAS account that matches the input
+                  prompt << "\nDid you mean...";
+                  for (auto const& [account_no,am] : ams) {
+                    prompt << "\n\t" << std::quoted(am.name) << " " << account_no << " = " << transaction_amount;
+                  }
+                  prompt << "\n==> Please try again <target> = <Quote or amount>";
+                }
+              } // to_amount
+              else {
+                  prompt << "\nPlease provide a valid amount after '='. I failed to recognise your input " << std::quoted(ast[2]);
+              }
+            } // ast[1] == '='
+            else {
+              prompt << "Please provide a space on both sides of the '=' in your input " << std::quoted(command);
+            }							
+          }
+          else {
+            prompt << "\nSorry, I seem to have lost track of what had you selected.";
+            prompt << "\nPlease try again with a new had.";														
+          }
+        }
+        else {
+          // Assume the user has entered a new search criteria for template candidates
+          model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& aje){
+            return strings_share_tokens(command,aje.caption);
+          });
+          int ix{0};
+          for (int i = 0; i < model->template_candidates.size(); ++i) {
+            prompt << "\n    " << ix++ << " " << model->template_candidates[i];
+          }
+          // Consider the user may have entered the name of a gross account to journal the transaction amount
+          auto gats = to_gross_account_transactions(model->sie);
+          model->at_candidates.clear();
+          std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
+            bool result{false};
+            if (at.transtext) result |= strings_share_tokens(command,*at.transtext);
+            if (model->sie["current"].account_metas().contains(at.account_no)) {
+              auto const& meta = model->sie["current"].account_metas().at(at.account_no);
+              result |= strings_share_tokens(command,meta.name);
+            }
+            return result;
+          });
+          for (int i=0;i < model->at_candidates.size();++i) {
+            prompt << "\n    " << ix++<< " " << model->at_candidates[i];
+          }
+        }
+      }
+      else if (model->prompt_state == PromptState::CounterAccountsEntry) {
+        if (auto nha = to_name_heading_amount(ast)) {
+          // List account candidates for the assumed "Name, Heading + Amount" entry by the user
+          prompt << "\nAccount:" << std::quoted(nha->account_name);
+          if (nha->trans_text) prompt << " text:" << std::quoted(*nha->trans_text);
+          prompt << " amount:" << nha->amount;
+        }
+        else {
+          prompt << "\nPlease enter an account, and optional transaction text and an amount";
+        }
+        // List the new current options
+        if (auto had_iter = model->selected_had()) {
+          if ((*had_iter)->optional.current_candidate) {
+            unsigned int i{};
+            prompt << "\n" << (*had_iter)->optional.current_candidate->defacto.caption << " " << (*had_iter)->optional.current_candidate->defacto.date;
+            for (auto const& at : (*had_iter)->optional.current_candidate->defacto.account_transactions) {
+              prompt << "\n  " << i++ << " " << at;
+            }				
+          }
+          else {
+            prompt << "\nPlease enter a valid Account Transaction Index";
+          }
+        }
+        else {
+          prompt << "\nPlease select a Heading Amount Date entry";
+        }
+      }
+      else if (model->prompt_state == PromptState::EditAT) {
+        // Handle user Edit of currently selected account transaction (at)
 // std::cout << "\nPromptState::EditAT " << std::quoted(command);
-					if (auto had_iter = model->selected_had()) {
-						if (auto account_no = BAS::to_account_no(command)) {
-							auto new_at = model->at;
-							new_at.account_no = *account_no;
-							prompt << "\nBAS Account: " << *account_no;
-							if ((*had_iter)->optional.current_candidate) {
-								(*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
-								prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
-								model->prompt_state = PromptState::JEAggregateOptionIndex;
-							}
-							else {
-								prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
-							}
-						}
-						else if (auto amount = to_amount(command)) {
-							prompt << "\nAmount " << *amount;
-							model->at.amount = *amount;
-							if ((*had_iter)->optional.current_candidate) {
-								(*had_iter)->optional.current_candidate = updated_amounts_entry(*(*had_iter)->optional.current_candidate,model->at);
-								prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
-								model->prompt_state = PromptState::JEAggregateOptionIndex;
-							}
-							else {
-								prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
-							}
-						}
-						else {
-							// Assume the user entered a new transtext
-							prompt << "\nTranstext " << std::quoted(command);
-							auto new_at = model->at;
-							new_at.transtext = command;
-							if ((*had_iter)->optional.current_candidate) {
-								(*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
-								prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
-								model->prompt_state = PromptState::JEAggregateOptionIndex;
-							}
-							else {
-								prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
-							}
-						}
-					}
-					else {
-						prompt << "\nPlease select a Heading Amount Date entry";
-					}
-				}
-				else if (model->prompt_state == PromptState::EnterContact) {
-					if (ast.size() == 3) {
-						SKV::ContactPersonMeta cpm {
-							.name = ast[0]
-							,.phone = ast[1]
-							,.e_mail = ast[2]
-						};
-						if (model->organisation_contacts.size() == 0) {
-							model->organisation_contacts.push_back(cpm);
-						}
-						else {
-							model->organisation_contacts[0] = cpm;
-						}
-						auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
-						prompt << delta_prompt;
-						model->prompt_state = prompt_state;
-					}
-				}
-				else if (model->prompt_state == PromptState::EnterEmployeeID) {
-					if (ast.size() > 0) {
-						if (model->employee_birth_ids.size()==0) {
-							model->employee_birth_ids.push_back(ast[0]);
-						}
-						else {
-							model->employee_birth_ids[0] = ast[0];
-						}
-						auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
-						prompt << delta_prompt;
-						model->prompt_state = prompt_state;
-					}
-				}
-				else if (model->prompt_state == PromptState::EnterIncome) {
-					if (auto amount = to_amount(command)) {
-						model->sru["0"].set(1000,std::to_string(SKV::to_tax(*amount)));
+        if (auto had_iter = model->selected_had()) {
+          if (auto account_no = BAS::to_account_no(command)) {
+            auto new_at = model->at;
+            new_at.account_no = *account_no;
+            prompt << "\nBAS Account: " << *account_no;
+            if ((*had_iter)->optional.current_candidate) {
+              (*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
+              prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
+              model->prompt_state = PromptState::JEAggregateOptionIndex;
+            }
+            else {
+              prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
+            }
+          }
+          else if (auto amount = to_amount(command)) {
+            prompt << "\nAmount " << *amount;
+            model->at.amount = *amount;
+            if ((*had_iter)->optional.current_candidate) {
+              (*had_iter)->optional.current_candidate = updated_amounts_entry(*(*had_iter)->optional.current_candidate,model->at);
+              prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
+              model->prompt_state = PromptState::JEAggregateOptionIndex;
+            }
+            else {
+              prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
+            }
+          }
+          else {
+            // Assume the user entered a new transtext
+            prompt << "\nTranstext " << std::quoted(command);
+            auto new_at = model->at;
+            new_at.transtext = command;
+            if ((*had_iter)->optional.current_candidate) {
+              (*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
+              prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
+              model->prompt_state = PromptState::JEAggregateOptionIndex;
+            }
+            else {
+              prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
+            }
+          }
+        }
+        else {
+          prompt << "\nPlease select a Heading Amount Date entry";
+        }
+      }
+      else if (model->prompt_state == PromptState::EnterContact) {
+        if (ast.size() == 3) {
+          SKV::ContactPersonMeta cpm {
+            .name = ast[0]
+            ,.phone = ast[1]
+            ,.e_mail = ast[2]
+          };
+          if (model->organisation_contacts.size() == 0) {
+            model->organisation_contacts.push_back(cpm);
+          }
+          else {
+            model->organisation_contacts[0] = cpm;
+          }
+          auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
+          prompt << delta_prompt;
+          model->prompt_state = prompt_state;
+        }
+      }
+      else if (model->prompt_state == PromptState::EnterEmployeeID) {
+        if (ast.size() > 0) {
+          if (model->employee_birth_ids.size()==0) {
+            model->employee_birth_ids.push_back(ast[0]);
+          }
+          else {
+            model->employee_birth_ids[0] = ast[0];
+          }
+          auto const& [delta_prompt,prompt_state] = this->transition_prompt_state(model->prompt_state,PromptState::SKVTaxReturnEntryIndex);
+          prompt << delta_prompt;
+          model->prompt_state = prompt_state;
+        }
+      }
+      else if (model->prompt_state == PromptState::EnterIncome) {
+        if (auto amount = to_amount(command)) {
+          model->sru["0"].set(1000,std::to_string(SKV::to_tax(*amount)));
 
-						Amount income = get_INK1_Income(model);
-						prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
-						Amount dividend = get_K10_Dividend(model);
-						prompt << "\n2) K10 1.6 Utdelning = " << dividend;
-						prompt << "\n3) Continue (Create K10 and INK1)";
-						model->prompt_state = PromptState::K10INK1EditOptions;								
-					}
-					else {
-						prompt << "\nPlease enter a valid amount";
-					}
-				}
-				else if (model->prompt_state == PromptState::EnterDividend) {
-					if (auto amount = to_amount(command)) {
-						model->sru["0"].set(4504,std::to_string(SKV::to_tax(*amount)));
-						Amount income = get_INK1_Income(model);
-						prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
-						Amount dividend = get_K10_Dividend(model);
-						prompt << "\n2) K10 1.6 Utdelning = " << dividend;
-						prompt << "\n3) Continue (Create K10 and INK1)";
-						model->prompt_state = PromptState::K10INK1EditOptions;								
-					}
-					else {
-						prompt << "\nPlease enter a valid amount";
-					}
-				}
-				else if (auto me = find_meta_entry(model->sie["current"],ast)) {
-					// The user has entered a search term for a specific journal entry (to edit)
-					// Allow the user to edit individual account transactions
-					if (auto had = to_had(*me)) {
-						model->heading_amount_date_entries.push_back(*had);
-						model->had_index = 0; // index zero is the "last" (newest) one
-						unsigned int i{};
-						std::for_each(had->optional.current_candidate->defacto.account_transactions.begin(),had->optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
-							prompt << "\n  " << i++ << " " << at;
-						});
-						model->prompt_state = PromptState::ATIndex;
-					}
-					else {
-						prompt << "\nSorry, I failed to turn selected journal entry into a valid had (it seems I am not sure exactly why...)";
-					}
-				}
-				else {
-					// Assume Heading + Amount + Date (had) input
-					auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
-					if (tokens.size()==3) {
-						HeadingAmountDateTransEntry had {
-							.heading = tokens[0]
-							,.amount = *to_amount(tokens[1]) // Assume success
-							,.date = *to_date(tokens[2]) // Assume success
-						};
-						prompt << "\n" << had;
-						model->heading_amount_date_entries.push_back(had);
-						// Decided NOT to sort hads here to keep last listed had indexes intact (new -had command = sort and new indexes)
-					}
-					else {
-						prompt << "\nERROR - Expected Heading + Amount + Date";
-						prompt << "\nI Interpreted your input as,";
-						for (auto const& token : tokens) prompt << "\n\ttoken: \"" << token << "\"";
-						prompt << "\n\nPlease check that your input matches my expectations?";
-						prompt << "\n\tHeading = any text (\"...\" enclosure allowed)";
-						prompt << "\n\tAmount = any positive or negative amount with optional ',' or '.' decimal point with one or two decimal digits";
-						prompt << "\n\tDate = YYYYMMDD or YYYY-MM-DD";
-					}
-				}
-			}
-		}
-		if (prompt.str().size()>0) prompt << "\n"; 
-		prompt << prompt_line(model->prompt_state);
-		model->prompt = prompt.str();
-		return {};
-	}
-	Cmd operator()(Quit const& quit) {
-		// std::cout << "\noperator(Quit)";
-		std::ostringstream os{};
-		os << "\nBy for now :)";
-		model->prompt = os.str();
-		model->quit = true;
-		return {};
-	}
-	Cmd operator()(Nop const& nop) {
-		// std::cout << "\noperator(Nop)";
-		return {};
-	}	
-private:
-	BAS::TypedMetaEntries all_years_template_candidates(auto const& matches) {
-		BAS::TypedMetaEntries result{};
-		auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
-		for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-			for (auto const& [topology,tmes] : tme_map) {
-				auto accounts_topology_map = to_accounts_topology_map(tmes);
-				for (auto const& [signature,bat_map] : accounts_topology_map) {
-					for (auto const& [topology,tmes] : bat_map) {
-						for (auto const& tme : tmes) {
-							auto me = to_meta_entry(tme);
-							if (matches(me.defacto)) result.push_back(tme);
-						}
-					}
-				}
-			}
-		}
-		return result;
-	}
+          Amount income = get_INK1_Income(model);
+          prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
+          Amount dividend = get_K10_Dividend(model);
+          prompt << "\n2) K10 1.6 Utdelning = " << dividend;
+          prompt << "\n3) Continue (Create K10 and INK1)";
+          model->prompt_state = PromptState::K10INK1EditOptions;								
+        }
+        else {
+          prompt << "\nPlease enter a valid amount";
+        }
+      }
+      else if (model->prompt_state == PromptState::EnterDividend) {
+        if (auto amount = to_amount(command)) {
+          model->sru["0"].set(4504,std::to_string(SKV::to_tax(*amount)));
+          Amount income = get_INK1_Income(model);
+          prompt << "\n1) INK1 1.1 Lön, förmåner, sjukpenning m.m. = " << income;
+          Amount dividend = get_K10_Dividend(model);
+          prompt << "\n2) K10 1.6 Utdelning = " << dividend;
+          prompt << "\n3) Continue (Create K10 and INK1)";
+          model->prompt_state = PromptState::K10INK1EditOptions;								
+        }
+        else {
+          prompt << "\nPlease enter a valid amount";
+        }
+      }
+      else if (auto me = find_meta_entry(model->sie["current"],ast)) {
+        // The user has entered a search term for a specific journal entry (to edit)
+        // Allow the user to edit individual account transactions
+        if (auto had = to_had(*me)) {
+          model->heading_amount_date_entries.push_back(*had);
+          model->had_index = 0; // index zero is the "last" (newest) one
+          unsigned int i{};
+          std::for_each(had->optional.current_candidate->defacto.account_transactions.begin(),had->optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+            prompt << "\n  " << i++ << " " << at;
+          });
+          model->prompt_state = PromptState::ATIndex;
+        }
+        else {
+          prompt << "\nSorry, I failed to turn selected journal entry into a valid had (it seems I am not sure exactly why...)";
+        }
+      }
+      else {
+        // Assume Heading + Amount + Date (had) input
+        auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
+        if (tokens.size()==3) {
+          HeadingAmountDateTransEntry had {
+            .heading = tokens[0]
+            ,.amount = *to_amount(tokens[1]) // Assume success
+            ,.date = *to_date(tokens[2]) // Assume success
+          };
+          prompt << "\n" << had;
+          model->heading_amount_date_entries.push_back(had);
+          // Decided NOT to sort hads here to keep last listed had indexes intact (new -had command = sort and new indexes)
+        }
+        else {
+          prompt << "\nERROR - Expected Heading + Amount + Date";
+          prompt << "\nI Interpreted your input as,";
+          for (auto const& token : tokens) prompt << "\n\ttoken: \"" << token << "\"";
+          prompt << "\n\nPlease check that your input matches my expectations?";
+          prompt << "\n\tHeading = any text (\"...\" enclosure allowed)";
+          prompt << "\n\tAmount = any positive or negative amount with optional ',' or '.' decimal point with one or two decimal digits";
+          prompt << "\n\tDate = YYYYMMDD or YYYY-MM-DD";
+        }
+      }
+    }
+  }
+  if (prompt.str().size()>0) prompt << "\n"; 
+  prompt << prompt_line(model->prompt_state);
+  model->prompt = prompt.str();
+  return {};
+}
+Cmd Updater::operator()(Quit const& quit) {
+  // std::cout << "\noperator(Quit)";
+  std::ostringstream os{};
+  os << "\nBy for now :)";
+  model->prompt = os.str();
+  model->quit = true;
+  return {};
+}
+Cmd Updater::operator()(Nop const& nop) {
+  // std::cout << "\noperator(Nop)";
+  return {};
+}	
+BAS::TypedMetaEntries Updater::all_years_template_candidates(auto const& matches) {
+  BAS::TypedMetaEntries result{};
+  auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie);
+  for (auto const& [signature,tme_map] : meta_entry_topology_map) {
+    for (auto const& [topology,tmes] : tme_map) {
+      auto accounts_topology_map = to_accounts_topology_map(tmes);
+      for (auto const& [signature,bat_map] : accounts_topology_map) {
+        for (auto const& [topology,tmes] : bat_map) {
+          for (auto const& tme : tmes) {
+            auto me = to_meta_entry(tme);
+            if (matches(me.defacto)) result.push_back(tme);
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
+  std::ostringstream prompt{};
+  switch (to_state) {
+    case PromptState::SKVTaxReturnEntryIndex: {
+      prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
+      prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
+      prompt << "\n3 <Period> Generate Tax Returns form (Period in form YYYYMM)";
+    } break;
+    default: {
+      prompt << "\nPlease mail developer that transition_prompt_state detected a potential design insufficiency";
+    } break;
+  }
+  return {prompt.str(),to_state};
+}
 
-	std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
-		std::ostringstream prompt{};
-		switch (to_state) {
-			case PromptState::SKVTaxReturnEntryIndex: {
-				prompt << "\n1 Organisation Contact:" << std::quoted(model->organisation_contacts[0].name) << " " << std::quoted(model->organisation_contacts[0].phone) << " " << model->organisation_contacts[0].e_mail;
-				prompt << "\n2 Employee birth no:" << model->employee_birth_ids[0];
-				prompt << "\n3 <Period> Generate Tax Returns form (Period in form YYYYMM)";
-			} break;
-			default: {
-				prompt << "\nPlease mail developer that transition_prompt_state detected a potential design insufficiency";
-			} break;
-		}
-		return {prompt.str(),to_state};
-	}
-
-};
 
 class Cratchit {
 public:
@@ -11007,10 +11017,9 @@ public:
 		// std::cout << "\nupdate" << std::flush;
 		Cmd cmd{};
 		{
-			model->prompt.clear();
 			// Scope to ensure correct move of model in and out of updater
+			model->prompt.clear();
 			Updater updater{std::move(model)};
-			// std::cout << "\nCratchit::update updater created" << std::flush;
 			cmd = std::visit(updater,msg);
 			model = std::move(updater.model);
 		}
