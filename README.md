@@ -2,6 +2,68 @@
 An SIE based book keeping helper console in modern C++. SIE is a File Encoding format for exchange of book keeping data between applications.
 The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scrooge in Charles Dickens novel "A Christmas Carol".
 
+## version 0.5
+
+* Cratchit operates in states as defined by the following prompts:
+    * ":>"
+		* ":tas>"
+		* ":tas:accept>"
+		* ":had>"
+		* ":had:vat>"
+		* ":had:je>"
+		* ":had:aggregate:gross 0+or->"
+		* ":had:aggregate:counter>"
+		* ":had:aggregate:counter:gross>"
+		* ":had:aggregate:counter:net+vat>"
+		* ":had:je:1*at>"
+		* ":had:je:ha>"
+		* ":had:je:at>"
+		* ":had:je:at:edit>"
+		* "had:je:cat>"
+		* ":skv>"
+		* ":skv:tax_return:period>"
+		* ":skv:tax_return>"
+		* ":skv:to_tax>"
+		* ":skv:ink2>"
+		* ":skv:income?>"
+		* ":skv:dividend?>"
+		* ":contact>"
+		* ":employee>"
+		* ":??>"
+
+* Now supports the following commands
+    * "-version" or  "-v"
+    * "-tas" (Tagged Amounts)
+    * "-has_tag"
+    * "-has_not_tag"
+    * "-is_tagged"
+    * "-is_not_tagged"
+    * "-to_bas_account"
+    * "-amount_trails"
+    * "-aggregates"
+    * "-to_had"
+    * "-todo"
+    * "-bas"
+    * "-sie"
+    * "-types"
+    * "-balance"
+    * "-had"
+    * "-meta"
+    * "-sru"
+    * "-sru -bas"
+    * "-gross"
+    * "-net"
+    * "-vat"
+    * "-t2"
+    * "-skv"
+    * "-csv -had <path>"
+    * "-csv -sru <path>"
+    * "-"
+    * "-omslutning"
+    * "-plain_ar"
+    * "-plain_ink2"
+    * "-doc_ar"
+
 ## Version 0.4
 
 * Now supports Heading + Date + Amount input for input of transactions to Journal

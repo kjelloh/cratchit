@@ -1837,6 +1837,10 @@ UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
 	return result;
 }
 
+Amount to_amount(UnitsAndCents const& units_and_cents) {
+  return static_cast<Amount>(units_and_cents.first) + static_cast<Amount>(units_and_cents.second) / 100;
+}
+
 std::ostream& operator<<(std::ostream& os,UnitsAndCents const& units_and_cents) {
   bool is_negative = (units_and_cents.first<0) or (units_and_cents.second < 0);
   if (is_negative) os << "-";
@@ -7371,7 +7375,8 @@ OptionalHeadingAmountDateTransEntry to_had(TaggedAmountPtr const& ta_ptr) {
 
   HeadingAmountDateTransEntry had{
     .heading = heading
-    ,.amount = static_cast<Amount>(ta_ptr->cents_amount())
+    // ,.amount = static_cast<Amount>(ta_ptr->cents_amount())
+    ,.amount = to_amount(to_units_and_cents(ta_ptr->cents_amount()))
     ,.date = ta_ptr->date()
   };
   result = had;
