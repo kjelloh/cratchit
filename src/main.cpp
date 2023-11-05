@@ -6692,7 +6692,7 @@ namespace SKV { // SKV
 								// We need a per-account amount to counter (consolidate) into 1650 (VAT to get back) or 2650 (VAT to pay)
 								// 2650 "Redovisningskonto för moms" SRU:7369
 								// 1650 "Momsfordran" SRU:7261
-							std::cout << "\nPeriod:" << to_string(vat_returns_range.begin()) << "..." << to_string(vat_returns_range.end());
+  							std::cout << "\nPeriod:" << to_string(vat_returns_range.begin()) << "..." << to_string(vat_returns_range.end());
 								std::map<BAS::AccountNo,Amount> account_amounts{};
 								for (auto const& [box_no,mats] : *box_map)  {
 									std::cout << "\n\t[" << box_no << "]";
@@ -6716,7 +6716,6 @@ namespace SKV { // SKV
 									};
 									result.push_back(had);
 								}
-
 							}
 						}
 						current_quarter = to_three_months_earlier(current_quarter);
@@ -8704,15 +8703,13 @@ Cmd Updater::operator()(Command const& command) {
                     model->prompt_state = PromptState::JEAggregateOptionIndex;
                   } break;
                   case JournalEntryVATType::VATClearing: {
-                    //  ? = sort_code: 0x0 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Ränta" 2
                     //  ? = sort_code: 0x0 : "Avräkning för skatter och avgifter (skattekonto)":1630 "" 3440
                     //  vat = sort_code: 0x6 : "Momsfordran":1650 "" -3440
-                    //  ? = sort_code: 0x0 : "Skattefria ränteintäkter":8314 "" -2
                     if (false) {
 
                     }
                     else {
-                      prompt << "\nSorry, A VAt Clearing journal entry must book between two accounts but selected template is" << tme;
+                      prompt << "\nSorry, I have yet to become capable to create an VAT Clearing entry from template " << tme;
                     }
                   } break;
                   case JournalEntryVATType::VATSettlement: {
@@ -8722,7 +8719,7 @@ Cmd Updater::operator()(Command const& command) {
 
                     }
                     else {
-                      prompt << "\nSorry, A VAt Settlement journal entry must book between two accounts but selected template is" << tme;
+                      prompt << "\nSorry, I have yet to become capable to create an VAT Settlement entry from template " << tme;
                     }
                   } break;
                   case JournalEntryVATType::SKVInterest: {
@@ -9105,7 +9102,32 @@ Cmd Updater::operator()(Command const& command) {
 
         } break;
         case PromptState::ATIndex: {
-          if (auto at = model->selected_had_at(ix)) {
+          if (ast.size() == 2) {
+            auto bas_account_no = BAS::to_account_no(ast[0]);
+            auto amount = to_amount(ast[1]);
+            if (bas_account_no and amount) {
+              if (auto had_iter = model->selected_had()) {
+                BAS::anonymous::AccountTransaction at {
+                  .account_no = *bas_account_no
+                  ,.amount = *amount
+                };
+                auto& had = *(*had_iter);
+                had.optional.current_candidate->defacto.account_transactions.push_back(at);
+                unsigned int i{};
+                std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+                  prompt << "\n  " << i++ << " " << at;
+                });
+              }
+              else {
+                prompt << "\nSorry, I seems to have lost track of the HAD you selected. Please re-select a valid HAD";
+                model->prompt_state = PromptState::HADIndex;
+              }
+            }
+            else {
+              prompt << "\nPlease enter single index of entry to edit or a space separated BAS Account No and Amount to add a new entry. I failed to understand your entry " << std::quoted(command);
+            }
+          }
+          else if (auto at = model->selected_had_at(ix)) {
             model->at = *at;
             prompt << "\nAccount Transaction:" << model->at;
             model->prompt_state = PromptState::EditAT;
