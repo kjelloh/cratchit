@@ -5136,7 +5136,11 @@ enum class JournalEntryVATType {
 	,SwedishVAT = 1
 	,EUVAT = 2
 	,VATReturns = 3
-	,VATTransfer = 4
+  ,VATClearing = 4 // VAT Returns Cleared by Swedish Skatteverket (SKV) 
+  ,VATSettlement = 5 // VAT Settled (SKV pays us or We pay SKV)
+  ,SKVInterest = 6
+  ,SKVFee = 7
+	,VATTransfer = 8 // VAT Clearing and Settlement in one Journal Entry
 	,Unknown
 // 	case 0: {
 		// No VAT in candidate. 
@@ -5167,7 +5171,12 @@ std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
 		case JournalEntryVATType::SwedishVAT: {os << "Swedish VAT";} break;
 		case JournalEntryVATType::EUVAT: {os << "EU VAT";} break;
 		case JournalEntryVATType::VATReturns: {os << "VAT Returns";} break;
+    case JournalEntryVATType::VATClearing: {os << "VAT Returns Clearing";} break; // VAT Returns Cleared by Swedish Skatteverket (SKV) 
+    case JournalEntryVATType::VATSettlement: {os << "VAT returns Settlement";} break; // VAT Settled (SKV pays us or We pay SKV)
+    case JournalEntryVATType::SKVInterest: {os << "SKV Interest";} break; // SKV applied interest to holding on the SKV account
+    case JournalEntryVATType::SKVFee: {os << "SKV Fee";} break; // SKV applied a fee to be paied (e.g., for missing to leave a report before deadline)
 		case JournalEntryVATType::VATTransfer: {os << "VAT Transfer";} break;
+
 		case JournalEntryVATType::Unknown: {os << "Unknown";} break;
 
 		default: os << "operator<< failed for vat_type with integer value " << static_cast<int>(vat_type);
@@ -5221,9 +5230,21 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "vat") or (entry.first == "eu_vat") or  (entry.first == "cents");})) {
 		result = JournalEntryVATType::VATReturns; // All VATS (probably a VAT report)
 	}
+  else if ((tme.defacto.account_transactions.size() == 2) and (props_counter.size() == 1) and props_counter.contains("vat")) {
+		result = JournalEntryVATType::VATClearing; // Single Debit and Credit account and both are VAT accounts  
+  }
+  else if ((tme.defacto.account_transactions.size() == 2) and (props_counter.size() == 1) and props_counter.contains("vat") and props_counter.contains("gross")) {
+		result = JournalEntryVATType::VATSettlement; // One gross account (assumed to be a bank account) and one VAT account
+  }
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "transfer") or (entry.first == "vat");})) {
 		result = JournalEntryVATType::VATTransfer; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
 	}
+	else if (false) { // TODO 231105: Implement a criteria to recognise an SKV Interest event
+		result = JournalEntryVATType::SKVInterest;
+	}
+	else if (false) { // TODO 231105: Implement a criteria to identify an SKV Fee event
+		result = JournalEntryVATType::SKVFee;
+	}  
 	else {
 		if (log) std::cout << "\nFailed to recognise the VAT type";
 	}
@@ -7775,7 +7796,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 		case PromptState::Undefined: {result.push_back("DESIGN INSUFFICIENCY: options_list_of_prompt_state have no action for State PromptState::Undefined ");} break;
 		case PromptState::Root: {
 			result.push_back("<Heading> <Amount> <Date> : Entry of new Heading Amount Date (HAD) Transaction entry");
-			result.push_back("-had : lists current Heading Amount Date (HAD) entries");
+			result.push_back("-hads : lists current Heading Amount Date (HAD) entries");
 			result.push_back("-sie <sie file path> : imports a new input sie file");
 			result.push_back("-sie : lists transactions in input sie-file");
 			result.push_back("-env : lists cratchit environment");
@@ -8224,10 +8245,11 @@ Cmd Updater::operator()(Command const& command) {
         } break;
         case PromptState::HADIndex: {
           model->had_index = ix;
+          // Note: Side effect = model->selected_had() uses model->had_index to return the corresponing had ref.
           if (auto had_iter = model->selected_had()) {
             auto& had = *(*had_iter);
             prompt << "\n" << had;
-            bool do_prepend = (ast.size() == 4) and (ast[1] == "<--");
+            bool do_prepend = (ast.size() == 4) and (ast[1] == "<--"); // Command <Index> "<--" <Heading> <Date>
             if (do_remove) {
               model->heading_amount_date_entries.erase(*had_iter);
               prompt << " REMOVED";
@@ -8245,8 +8267,23 @@ Cmd Updater::operator()(Command const& command) {
               };
               model->heading_amount_date_entries.push_back(prepended_had);
               prompt << to_had_listing_prompt(model->refreshed_hads());
-              model->prompt_state = PromptState::HADIndex;
             }
+            else if (ast.size() == 4 and (ast[1] == "-initiated_as")) {
+              // Command <Had Index> "-initiated_as" <Heading> <Date>
+              if (auto init_date = to_date(ast[3])) {
+                HeadingAmountDateTransEntry initiating_had {
+                  .heading = ast[2]
+                  ,.amount = std::abs(had.amount) // always an unsigned amount for initiating had
+                  ,.date = *init_date
+                };
+                model->heading_amount_date_entries.push_back(initiating_had);
+                prompt << to_had_listing_prompt(model->refreshed_hads());
+              } 
+              else {
+                prompt << "\nI failed to interpret " << std::quoted(ast[3]) << " as a date";
+                prompt << "\nPlease enter a valid date for the event that intiated the indexed had (Syntax: <had Index> -initiated_as <Heading> <Date>)";
+              }
+            }            
             else {
               // selected HAD and list template options
               if (had.optional.vat_returns_form_box_map_candidate) {
@@ -8340,10 +8377,12 @@ Cmd Updater::operator()(Command const& command) {
                 }
               }
               else {
+                // Selected HAD is "naked" (no candidate for book keeping assigned)
                 model->had_index = ix;
                 model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
                   return had_matches_trans(had,aje);
                 });
+
                 {
                   // hard code a template for Inventory gross + n x (ex_vat + vat) journal entry
                   // 0  *** "Amazon" 20210924
@@ -8384,7 +8423,8 @@ Cmd Updater::operator()(Command const& command) {
                   me.defacto.account_transactions.push_back(vat_at);
                   model->template_candidates.push_back(to_typed_meta_entry(me));
                 }
-                // List options
+
+                // List options for how the HAD may be registered into the books based on available candidates
                 unsigned ix = 0;
                 for (int i=0; i < model->template_candidates.size(); ++i) {
                   prompt << "\n    " << ix++ << " " << model->template_candidates[i];
@@ -8516,7 +8556,9 @@ Cmd Updater::operator()(Command const& command) {
           }
         } break;
         case PromptState::JEIndex: {
+          // Wait for user to choose how to create a journal entry from selected HAD
           if (auto had_iter = model->selected_had()) {
+            // We have a selected HAD ok
             auto& had = *(*had_iter);
             if (auto account_no = BAS::to_account_no(command)) {
               // Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
@@ -8532,7 +8574,7 @@ Cmd Updater::operator()(Command const& command) {
               model->prompt_state = PromptState::GrossDebitorCreditOption;
             }
             else {
-              // Assume user selected an entry as base for a template
+              // Assume user selected an entry index as base for a template
               auto tme_iter = model->template_candidates.begin();
               auto tme_end = model->template_candidates.end();
               auto at_iter = model->at_candidates.begin();
@@ -8661,6 +8703,44 @@ Cmd Updater::operator()(Command const& command) {
                     had.optional.current_candidate = me;
                     model->prompt_state = PromptState::JEAggregateOptionIndex;
                   } break;
+                  case JournalEntryVATType::VATClearing: {
+                    //  ? = sort_code: 0x0 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Ränta" 2
+                    //  ? = sort_code: 0x0 : "Avräkning för skatter och avgifter (skattekonto)":1630 "" 3440
+                    //  vat = sort_code: 0x6 : "Momsfordran":1650 "" -3440
+                    //  ? = sort_code: 0x0 : "Skattefria ränteintäkter":8314 "" -2
+                    if (false) {
+
+                    }
+                    else {
+                      prompt << "\nSorry, A VAt Clearing journal entry must book between two accounts but selected template is" << tme;
+                    }
+                  } break;
+                  case JournalEntryVATType::VATSettlement: {
+                    //  gross = sort_code: 0x3 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -179
+                    //  gross = sort_code: 0x3 : "PlusGiro":1920 "" 179
+                    if (false) {
+
+                    }
+                    else {
+                      prompt << "\nSorry, A VAt Settlement journal entry must book between two accounts but selected template is" << tme;
+                    }
+                  } break;
+                  case JournalEntryVATType::SKVInterest: {
+                    if (false) {
+
+                    }
+                    else {
+                      prompt << "\nSorry, I have yet to become capable to create an SKV Interest entry from template " << tme;
+                    }
+                  } break;
+                  case JournalEntryVATType::SKVFee: {
+                    if (false) {
+
+                    }
+                    else {
+                      prompt << "\nSorry, I have yet to become capable to create an SKV Fee entry from template " << tme;
+                    }
+                  } break;
                   case JournalEntryVATType::VATTransfer: {
                     // 10  A2 "Utbetalning Moms från Skattekonto" 20210506
                     // transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -802
@@ -8671,6 +8751,7 @@ Cmd Updater::operator()(Command const& command) {
                       bool first{true};
                       Amount amount{};
                       if (std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[&amount,&first](auto const& entry){
+                        // Lambda that returns true as long as all entries have the same absolute amount as the first entry
                         if (first) {
                           amount = std::abs(entry.first.amount);
                           first = false;
@@ -9713,8 +9794,8 @@ Consider the process to turn account statements into SIE Journal entries?
         }
       }
     }
-    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_had") {
-      prompt << "\nCreating Heading Amount Date entries from selected Tagged Amounts";
+    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_hads") {
+      prompt << "\nCreating Heading Amount Date entries (HAD:s) from selected Tagged Amounts";
       auto had_candidate_ta_ptrs = model->selected_date_ordered_tagged_amounts;
       // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
       for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
@@ -9910,7 +9991,7 @@ Consider the process to turn account statements into SIE Journal entries?
       // The user has requested to have us list account balances
       prompt << model->sie["current"].balances_at(to_today());
     }
-    else if (ast[0] == "-had") {
+    else if (ast[0] == "-hads") {
       auto hads = model->refreshed_hads();
 
       // auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
