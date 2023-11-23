@@ -3,8 +3,8 @@
     "tasks": [
       {
         "type": "cppbuild",
-        "label": "macOS C/C++: Brew installed g++-13 build cratchit",
-        "command": "/usr/local/Cellar/gcc/13.1.0/bin/g++-13",
+        "label": "macOS C/C++: Brew installed g++-13.2.0 build cratchit",
+        "command": "/usr/local/Cellar/gcc/13.2.0/bin/g++-13",
         "args": [
           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
           "-fdiagnostics-color=always",
@@ -21,29 +21,7 @@
           "$gcc"
         ],
         "group": "build",
-        "detail": "compiler: /usr/local/Cellar/gcc/13.1.0/bin/g++-13"
-      },
-      {
-        "type": "cppbuild",
-        "label": "macOS C/C++: Brew installed g++-12 build cratchit",
-        "command": "/usr/local/Cellar/gcc/12.2.0/bin/g++-12",
-        "args": [
-          "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-          "-fdiagnostics-color=always",
-          "-std=c++20",
-          "-g",
-          "${file}",
-          "-o",
-          "${workspaceFolder}/cratchit.out"
-        ],
-        "options": {
-          "cwd": "${fileDirname}"
-        },
-        "problemMatcher": [
-          "$gcc"
-        ],
-        "group": "build",
-        "detail": "compiler: /usr/local/Cellar/gcc/12.2.0/bin/g++-12"
+        "detail": "compiler: /usr/local/Cellar/gcc/13.2.0/bin/g++-13"
       },
       {
         "type": "cppbuild",
@@ -69,12 +47,12 @@
       },      
       {
         "type": "cppbuild",
-        "label": "macOS C/C++: Brew installed clang-16 build cratchit",
-        "command": "/usr/local/Cellar/llvm/16.0.6/bin/clang++",
+        "label": "macOS C/C++: Brew installed clang-17.0.5 build cratchit",
+        "command": "/usr/local/Cellar/llvm/17.0.5/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
-          "-L/usr/local/Cellar/llvm/16.0.6/lib/c++/",
-          "-Wl,-rpath,/usr/local/Cellar/llvm/16.0.6/lib/c++",
+          "-L/usr/local/Cellar/llvm/17.0.5/lib/c++/",
+          "-Wl,-rpath,/usr/local/Cellar/llvm/17.0.5/lib/c++",
           "-std=c++20",
           "-g",
           "${file}",
@@ -88,7 +66,7 @@
           "$gcc"
         ],
         "group": "build",
-        "detail": "compiler: /usr/local/Cellar/llvm/16.0.6/bin/clang++"
+        "detail": "compiler: /usr/local/Cellar/llvm/17.0.5/bin/clang++"
       },
       {
         "type": "cppbuild",
