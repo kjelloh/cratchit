@@ -9590,18 +9590,15 @@ Cmd Updater::operator()(Command const& command) {
       if (model->L == nullptr) {
         model->L = luaL_newstate();
         luaL_openlibs(model->L);
-        prompt << "\n*NEW* Lua environment created :)";
+        prompt << "\nNOTE: NEW Lua environment created.";
       }
       int r = luaL_dostring(model->L,command.c_str());
-      if (r == LUA_OK) {
-        prompt << "\nOK";
-      }
-      else {
+      if (r != LUA_OK) {
         prompt << "\nSorry, ERROR:" << r;
         std::string sErrorMsg = lua_tostring(model->L,-1);
         prompt << " " << std::quoted(sErrorMsg);
       }
-      prompt << "\nLUA scripting not yet implemented";
+      prompt << "\nNOTE: LUA scripting of actual cratchit functionality not yet implemented";
     }
     // END LUA REPL Hack
 

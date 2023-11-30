@@ -10,6 +10,7 @@
           "-fdiagnostics-color=always",
           "-std=c++20",
           "-g",
+          "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
           "${file}",
           "-o",
           "${workspaceFolder}/cratchit.out"
@@ -32,6 +33,7 @@
           "-fdiagnostics-color=always",
           "-std=c++20",
           "-g",
+          "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
           "${file}",
           "-o",
           "${workspaceFolder}/cratchit.out"
@@ -79,6 +81,7 @@
           "-fdiagnostics-color=always",
           "-std=c++20",
           "-g",
+          "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
           "${file}",
           "-o",
           "${workspaceFolder}/cratchit.out"
@@ -91,28 +94,6 @@
         ],
         "group": "build",
         "detail": "compiler: /opt/local/libexec/llvm-15/bin/clang++"
-      },      
-      {
-        "type": "cppbuild",
-        "label": "Linux C/C++: clang-14 build cratchit",
-        "command": "/usr/lib/llvm-14/bin/clang++",
-        "args": [
-          "-fdiagnostics-color=always",
-          "-std=c++20",
-          "-stdlib=libc++",
-          "${file}",
-          "-o",
-          "${workspaceFolder}/cratchit.out"
-        ],
-        "options": {
-          "cwd": "${fileDirname}"
-        },
-        "problemMatcher": [
-          "$gcc"
-        ],
-        "group": "build",
-        "detail": "compiler: /usr/lib/llvm-14/bin/clang++"
-      }
-     
+      }     
     ]
 }
