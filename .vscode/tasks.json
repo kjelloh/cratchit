@@ -51,11 +51,11 @@
         "command": "/usr/local/Cellar/llvm/17.0.5/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
-          "-L/usr/local/Cellar/llvm/17.0.5/lib/c++/",
           "-Wl,-rpath,/usr/local/Cellar/llvm/17.0.5/lib/c++",
           "-std=c++20",
           "-g",
           "${file}",
+          "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
           "-o",
           "${workspaceFolder}/cratchit.out"
         ],

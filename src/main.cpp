@@ -24,6 +24,8 @@ float const VERSION = 0.5;
 #include <set>
 #include <ranges> // requires c++ compiler with c++20 support
 
+#include "../lib/macos/lua-5.2.4_MacOS1011_lib/include/lua.hpp"
+
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
 // tasks.json/"tasks"/label:"macOS..."/args: ... "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" 
@@ -7498,6 +7500,7 @@ std::optional<std::string> to_employee(EnvironmentValue const& ev) {
 enum class PromptState {
 	Undefined
 	,Root
+  ,LUARepl
 	,TAIndex
 	,AcceptNewTAs
 	,HADIndex
@@ -7531,6 +7534,12 @@ auto falling_date = [](auto const& had1,auto const& had2){
 
 class ConcreteModel {
 public:
+  lua_State* L{nullptr}; // LUA void* to its environment
+  ~ConcreteModel() {
+    if (L != nullptr) {
+      lua_close(this->L);
+    }
+  }
 	std::vector<SKV::ContactPersonMeta> organisation_contacts{};
 	std::vector<std::string> employee_birth_ids{};
 	std::string user_input{};
@@ -7805,6 +7814,9 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");			
 			result.push_back("'q' or 'Quit'");
 		} break;
+    case PromptState::LUARepl: {
+      result.push_back("Please enter a valid lua script to execute");
+    } break;
 		case PromptState::TAIndex: {
       result.push_back("The following options are available for Tagged Amounts selection.");
       result.push_back("<Enter> : Lists the currently selected tagged amounts");
@@ -8032,6 +8044,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::Root: {
 			prompt << ":";
 		} break;
+    case PromptState::LUARepl: {
+			prompt << ":lua";
+    } break;
 		case PromptState::TAIndex: {
 			prompt << ":tas";
 		} break;
@@ -8218,6 +8233,9 @@ Cmd Updater::operator()(Command const& command) {
       // Act on prompt state index input
       switch (model->prompt_state) {
         case PromptState::Root: {
+        } break;
+        case PromptState::LUARepl: {
+          prompt << "\nSorry, a single number in LUA script state does nothing. Please enter a valid LUA expression";
         } break;
         case PromptState::TAIndex: {
           model->ta_index = ix;
@@ -9562,6 +9580,31 @@ Cmd Updater::operator()(Command const& command) {
 
 
       ====================================================== */
+
+    // BEGIN LUA REPL Hack
+    else if (ast[0] == "-lua") {
+      model->prompt_state = PromptState::LUARepl;
+    }
+    else if (model->prompt_state == PromptState::LUARepl) {
+      // Execute input as a lua script
+      if (model->L == nullptr) {
+        model->L = luaL_newstate();
+        luaL_openlibs(model->L);
+        prompt << "\n*NEW* Lua environment created :)";
+      }
+      int r = luaL_dostring(model->L,command.c_str());
+      if (r == LUA_OK) {
+        prompt << "\nOK";
+      }
+      else {
+        prompt << "\nSorry, ERROR:" << r;
+        std::string sErrorMsg = lua_tostring(model->L,-1);
+        prompt << " " << std::quoted(sErrorMsg);
+      }
+      prompt << "\nLUA scripting not yet implemented";
+    }
+    // END LUA REPL Hack
+
     else if (ast[0] == "-version" or ast[0] == "-v") {
       prompt << "\nCratchit Version " << VERSION;
     }
@@ -10345,7 +10388,6 @@ Consider the process to turn account statements into SIE Journal entries?
           std::string bas_account_string = ta_ptr->tags().at("BAS"); 
           prompt << "\n";
           prompt << std::setw(w) << std::string("") + bas_account_string;
-          // ####
           auto bas_account_no = *BAS::to_account_no(bas_account_string);
           if (opening_balances.contains(bas_account_no)) {
             auto ib = opening_balances.at(bas_account_no);
@@ -10403,7 +10445,6 @@ Consider the process to turn account statements into SIE Journal entries?
             auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
             std::string bas_account_string = ta_ptr->tags().at("BAS"); 
             std::cout << "\n\tkonto:" << bas_account_string;
-            // ####
             auto ib = model->sie["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
             if (ib) {
               auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
