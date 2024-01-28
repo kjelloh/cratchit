@@ -8163,7 +8163,72 @@ std::optional<int> to_signed_ix(std::string const& s) {
 	return result;
 }
 
-namespace lua {
+// cratchit lua-to-cratchit interface
+namespace lua_faced_ifc {
+  // "hidden" implementation details
+  namespace detail {
+    OptionalHeadingAmountDateTransEntry to_had(lua_State *L)
+    {
+      // Check if the argument is a table
+      if (!lua_istable(L, -1))
+      {
+        luaL_error(L, "Invalid argument. Expected a table representing a heading amount date object.");
+        return {};
+      }
+
+      HeadingAmountDateTransEntry had;
+
+      // Get the 'heading' field
+      lua_getfield(L, -1, "heading");
+      if (!lua_isstring(L, -1))
+      {
+        luaL_error(L, "Invalid table. Expected a string for 'heading'.");
+        lua_pop(L, 1); // remove value from stack
+        return {};
+      }
+      had.heading = lua_tostring(L, -1);
+      lua_pop(L, 1); // remove value from stack
+
+      // Get the 'amount' field
+      lua_getfield(L, -1, "amount");
+      if (!lua_isnumber(L, -1))
+      {
+        luaL_error(L, "Invalid table. Expected a number for 'amount'.");
+        lua_pop(L, 1); // remove value from stack
+        return {};
+      }
+      had.amount = lua_tonumber(L, -1);
+      lua_pop(L, 1); // remove value from stack
+
+      // Get the 'date' field
+      lua_getfield(L, -1, "date");
+      if (!lua_isstring(L, -1))
+      {
+        luaL_error(L, "Invalid table. Expected a string for 'date'.");
+        lua_pop(L, 1); // remove value from stack
+        return {};
+      }
+      had.date = *to_date(lua_tostring(L, -1)); // assume success
+      lua_pop(L, 1); // remove value from stack
+
+      // ... (repeat for other fields)
+
+      return had;
+    }
+    static int had_to_string(lua_State *L)
+    {
+      // expect a lua table on the stack representing a HeadingAmountDateTransEntry
+      if (auto had = detail::to_had(L)) {
+        std::stringstream os{};
+        os << *had;
+        lua_pushstring(L, os.str().c_str());
+        return 1;
+      }
+      else {
+        return luaL_error(L, "Invalid argument. Expected a table on the form {heading = '', amount = 0, date = ''}");
+      }
+    };
+  }
   // Expect a single string on the lua stack on the form "<heading> <amount> <date>"
   static int to_had(lua_State *L) {
       // Check if the argument is a string
@@ -8273,12 +8338,23 @@ namespace lua {
           return luaL_error(L, "Invalid argument. Expected a string on the form '<heading> <amount> <date>'.");
       }
 
+      // Create a new table to be used as the metatable
+      lua_newtable(L);
+
+      // Push the __tostring function onto the stack
+      lua_pushstring(L, "__tostring");
+      lua_pushcfunction(L, detail::had_to_string);
+      lua_settable(L, -3);
+
+      // Set the new table as the metatable of the original table
+      lua_setmetatable(L, -2);      
+
       // The table is already on the stack, so just return the number of results
       return 1;
   }
 
   void register_cratchit_functions(lua_State *L) {
-    lua_pushcfunction(L, lua::to_had);
+    lua_pushcfunction(L, lua_faced_ifc::to_had);
     lua_setglobal(L, "to_had");
   }
 
@@ -9724,7 +9800,7 @@ Cmd Updater::operator()(Command const& command) {
         model->L = luaL_newstate();
         luaL_openlibs(model->L);
         // Register cratchit functions in Lua
-        lua::register_cratchit_functions(model->L);
+        lua_faced_ifc::register_cratchit_functions(model->L);
         prompt << "\nNOTE: NEW Lua environment created.";
       }
       int r = luaL_dostring(model->L,command.c_str());
