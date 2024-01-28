@@ -7405,6 +7405,18 @@ OptionalHeadingAmountDateTransEntry to_had(TaggedAmountPtr const& ta_ptr) {
   return result;
 }
 
+OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& tokens) {
+  if (tokens.size()==3) {
+    HeadingAmountDateTransEntry had {
+      .heading = tokens[0]
+      ,.amount = *to_amount(tokens[1]) // Assume success
+      ,.date = *to_date(tokens[2]) // Assume success
+    };
+    return had;
+  }
+  return std::nullopt;
+}
+
 EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	EnvironmentValue ev{};
 	ev["name"] = cpm.name;
@@ -8152,6 +8164,7 @@ std::optional<int> to_signed_ix(std::string const& s) {
 }
 
 namespace lua {
+  // Expect a single string on the lua stack on the form "<heading> <amount> <date>"
   static int to_had(lua_State *L) {
       // Check if the argument is a string
       if (!lua_isstring(L, 1)) {
@@ -8165,25 +8178,110 @@ namespace lua {
       // Create a table
       lua_newtable(L);
 
-      // For simplicity, let's assume the string is "key=value" format
-      std::string s(str);
-      std::size_t pos = s.find('=');
-      if (pos != std::string::npos) {
-          std::string key = s.substr(0, pos);
-          std::string value = s.substr(pos + 1);
+      /*
+      // lua table to represent a HeadingAmountDateTransEntry
+      headingAmountDateTransEntry = {
+          heading = "",
+          amount = 0,  -- Assuming Amount is a numeric type
+          date = "",  -- Assuming Date is a string
+          optional = {
+              series = nil,  -- Assuming char can be represented as a single character string
+              gross_account_no = nil,  -- Assuming AccountNo can be represented as a string or number
+              current_candidate = nil,  -- Assuming OptionalMetaEntry can be represented as a string or number
+              counter_ats_producer = nil,  -- Assuming ToNetVatAccountTransactions can be represented as a string or number
+              vat_returns_form_box_map_candidate = nil  -- Assuming FormBoxMap can be represented as a string or number
+          }
+      }
+      */
 
-          // Push the key and value into the table
-          lua_pushstring(L, key.c_str());
-          lua_pushstring(L, value.c_str());
+      // ####
+
+      // For simplicity, let's assume the string is "key=value" format
+      std::string command(str);
+      auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
+      if (auto had = ::to_had(tokens)) {
+          // Push the key
+          lua_pushstring(L, "heading");
+          // Push the value
+          lua_pushstring(L, had->heading.c_str());
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Push the key
+          lua_pushstring(L, "amount");
+          // Push the value
+          lua_pushnumber(L, had->amount);
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Push the key
+          lua_pushstring(L, "date");
+          // Push the value
+          lua_pushstring(L, to_string(had->date).c_str());
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Push the key
+          lua_pushstring(L, "optional");
+          // Push the value
+          lua_newtable(L);
+
+          // Push the key
+          lua_pushstring(L, "series");
+          // Push the value
+          if (had->optional.series) {
+            std::string series_str(1, *had->optional.series);
+            lua_pushstring(L, series_str.c_str());
+          }
+          else lua_pushnil(L);
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Push the key
+          lua_pushstring(L, "gross_account_no");
+          // Push the value
+          if (had->optional.gross_account_no) lua_pushstring(L, std::to_string(*had->optional.gross_account_no).c_str());
+          else lua_pushnil(L);
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Push the key
+          lua_pushstring(L, "current_candidate");
+          // Push the value
+          lua_pushnil(L);
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Push the key
+          lua_pushstring(L, "counter_ats_producer");
+          // Push the value
+          lua_pushnil(L);
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Push the key
+          lua_pushstring(L, "vat_returns_form_box_map_candidate");
+          // Push the value
+          lua_pushnil(L);
+          // Set the table value
+          lua_settable(L, -3);
+
+          // Set the table value
           lua_settable(L, -3);
       }
       else {
-          return luaL_error(L, "Invalid argument. Expected a string on the form 'key=value'.");
+          return luaL_error(L, "Invalid argument. Expected a string on the form '<heading> <amount> <date>'.");
       }
 
       // The table is already on the stack, so just return the number of results
       return 1;
   }
+
+  void register_cratchit_functions(lua_State *L) {
+    lua_pushcfunction(L, lua::to_had);
+    lua_setglobal(L, "to_had");
+  }
+
 } // namespace lua
 // ==================================================
 // *** class Updater declaration ***
@@ -9626,8 +9724,7 @@ Cmd Updater::operator()(Command const& command) {
         model->L = luaL_newstate();
         luaL_openlibs(model->L);
         // Register cratchit functions in Lua
-        lua_pushcfunction(model->L, lua::to_had);
-        lua_setglobal(model->L, "to_had");
+        lua::register_cratchit_functions(model->L);
         prompt << "\nNOTE: NEW Lua environment created.";
       }
       int r = luaL_dostring(model->L,command.c_str());
@@ -11107,14 +11204,9 @@ The ITfied AB
       else {
         // Assume Heading + Amount + Date (had) input
         auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
-        if (tokens.size()==3) {
-          HeadingAmountDateTransEntry had {
-            .heading = tokens[0]
-            ,.amount = *to_amount(tokens[1]) // Assume success
-            ,.date = *to_date(tokens[2]) // Assume success
-          };
-          prompt << "\n" << had;
-          model->heading_amount_date_entries.push_back(had);
+        if (auto had = to_had(tokens)) {
+          prompt << "\n" << *had;
+          model->heading_amount_date_entries.push_back(*had);
           // Decided NOT to sort hads here to keep last listed had indexes intact (new -had command = sort and new indexes)
         }
         else {
