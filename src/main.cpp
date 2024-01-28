@@ -8150,6 +8150,41 @@ std::optional<int> to_signed_ix(std::string const& s) {
 	catch (...) {}
 	return result;
 }
+
+namespace lua {
+  static int to_had(lua_State *L) {
+      // Check if the argument is a string
+      if (!lua_isstring(L, 1)) {
+          // If not, throw an error
+          return luaL_error(L, "Invalid argument. Expected a string.");
+      }
+
+      // Get the string from the Lua stack
+      const char *str = lua_tostring(L, 1);
+
+      // Create a table
+      lua_newtable(L);
+
+      // For simplicity, let's assume the string is "key=value" format
+      std::string s(str);
+      std::size_t pos = s.find('=');
+      if (pos != std::string::npos) {
+          std::string key = s.substr(0, pos);
+          std::string value = s.substr(pos + 1);
+
+          // Push the key and value into the table
+          lua_pushstring(L, key.c_str());
+          lua_pushstring(L, value.c_str());
+          lua_settable(L, -3);
+      }
+      else {
+          return luaL_error(L, "Invalid argument. Expected a string on the form 'key=value'.");
+      }
+
+      // The table is already on the stack, so just return the number of results
+      return 1;
+  }
+} // namespace lua
 // ==================================================
 // *** class Updater declaration ***
 // ==================================================
@@ -9590,6 +9625,9 @@ Cmd Updater::operator()(Command const& command) {
       if (model->L == nullptr) {
         model->L = luaL_newstate();
         luaL_openlibs(model->L);
+        // Register cratchit functions in Lua
+        lua_pushcfunction(model->L, lua::to_had);
+        lua_setglobal(model->L, "to_had");
         prompt << "\nNOTE: NEW Lua environment created.";
       }
       int r = luaL_dostring(model->L,command.c_str());
@@ -9598,7 +9636,6 @@ Cmd Updater::operator()(Command const& command) {
         std::string sErrorMsg = lua_tostring(model->L,-1);
         prompt << " " << std::quoted(sErrorMsg);
       }
-      prompt << "\nNOTE: LUA scripting of actual cratchit functionality not yet implemented";
     }
     // END LUA REPL Hack
 
