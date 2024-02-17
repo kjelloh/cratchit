@@ -11494,6 +11494,10 @@ private:
 				if (auto tagged_amounts = to_tagged_amounts(path)) {
 					result += *tagged_amounts;
 					std::cout << "\n\tValid entries count:" << tagged_amounts->size();
+          auto consumed_files_path = from_bank_or_skv_path / "consumed";
+          std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+          std::filesystem::rename(path,consumed_files_path / path.filename());
+          std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / path.filename();
 				}
 				else {
 					std::cout << "\n*Ignored* " << path << " (Failed to understand file content)";
@@ -11505,7 +11509,6 @@ private:
 		std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amount_ptrs().size() << " entries";
 		return result;
 	}
-
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
 		std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
