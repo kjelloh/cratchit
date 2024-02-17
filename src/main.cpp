@@ -2347,7 +2347,7 @@ namespace CSV {
 
 		OptionalTaggedAmountPtr to_tagged_amount(FieldRow const& field_row) {
 			OptionalTaggedAmountPtr result{};
-			if (field_row.size() == 10) {
+			if (field_row.size() >= 10) {
 				auto sDate = field_row[element::Bokforingsdag];
 				if (auto date = to_date(sDate)) {
 					auto sAmount = field_row[element::Belopp];
@@ -2466,6 +2466,42 @@ namespace CSV {
 			return result;
 		}
 	} // namespace SKV
+  enum class HeadingId {
+    Undefined
+    ,NORDEA
+    ,SKV
+    ,unknown
+  };
+
+  HeadingId to_csv_heading_id(FieldRow const& field_row) {
+    HeadingId result{HeadingId::Undefined};
+    std::cerr << "\nfield_row.size() = " << field_row.size();
+    if (field_row.size() >= 10) {
+      std::cerr << "\nNORDEA File candidate ok";
+      // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
+      // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
+      // Note: NORDEA web csv format has changed to incorporate and edning ';' (in effect changing ';' from being a separator to being a terminator)
+      // TODO 240221: Find a way to handle NORDEA file coming in UTF-8 with a BOM prefix and the SKV-file being ISO-8859-1 encoded (a mess!)
+      if (
+          true
+          and field_row[0].find(R"(Bokföringsdag)") != std::string::npos // avoid mathing to the prefix UTF-8 BOM
+          and field_row[1] == "Belopp" 
+          and field_row[2] == "Avsändare"
+          and field_row[3] == "Mottagare" 
+          and field_row[4] == "Namn" 
+          and (field_row[5] == "Rubrik" or field_row[5] == "Ytterligare detaljer")
+          and field_row[6] == "Meddelande" 
+          and field_row[7] == "Egna anteckningar" 
+          and field_row[8] == "Saldo" 
+          and field_row[9] == "Valuta") {
+        result = HeadingId::NORDEA;
+      }
+    }
+    else if (field_row.size() == 5) {
+      result = HeadingId::SKV;
+    }
+    return result;
+  }
 } // namespace CSV
 
 
@@ -2483,47 +2519,33 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 		// NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
 		// uses ';' as value separators
 		if (field_rows->size() > 0) {
-			auto row_value_count = field_rows->at(0).size();
-			switch (row_value_count) {
-				case 5: {
-					for (auto const& field_row : *field_rows) {
-						if (auto ta_ptr = CSV::SKV::to_tagged_amount(field_row)) {
-							// std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
-							dota.insert(*ta_ptr);
-						}
-						else {
-							std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
-						}
-					}
-				} break;
-				case 10: {
-					for (auto const& field_row : *field_rows) {
-						if (auto ta_ptr = CSV::NORDEA::to_tagged_amount(field_row)) {
-							// std::cout << "\n Row [" << field_row << "] ==> Tagged Amount [" << *ta_ptr << "]";
-							dota.insert(*ta_ptr);
-						}
-						else {
-							std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
-						}
-					}
-				} break;
-				default: {
-					// Skip this file (not a known count of values per row)
-					std::cerr << "\n*Skipped file* " << path << "with row_value_count = " << row_value_count << " (unknown file content)"; 
-				}
-			}
-			if (false) {
-				// Log
-				for (auto const& field_row : *field_rows) {
-					// A Nordea csv-file will have 10 values per row
-					// An skv-file will have 5 values per row
-					std::cout << "\n\tfield_row: ";
-					for (int i=0;i<field_row.size();++i) {
-						auto field = field_row[i];
-						std::cout << "\n\t [" << i << "]=" << std::quoted(field);
-					} 
-				}
-			} 
+      auto csv_heading_id = CSV::to_csv_heading_id(field_rows->at(0));
+      switch (csv_heading_id) {
+        case CSV::HeadingId::NORDEA: {
+          for (auto const& field_row : *field_rows) {
+            if (auto ta_ptr = CSV::NORDEA::to_tagged_amount(field_row)) {
+              dota.insert(*ta_ptr);
+            }
+            else {
+              std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+            }
+          }
+        } break;
+        case CSV::HeadingId::SKV: {
+          for (auto const& field_row : *field_rows) {
+            if (auto ta_ptr = CSV::SKV::to_tagged_amount(field_row)) {
+              dota.insert(*ta_ptr);
+            }
+            else {
+              std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+            }
+          }
+        } break;
+        default: {
+          // Skip this file (not a known count of values per row)
+          std::cerr << "\n*Skipped file* " << path << "with csv_heading_id = " << static_cast<int>(csv_heading_id) << " (unknown file content)"; 
+        }
+      }
 		}
 	}
 	if (dota.size() > 0) result = dota;
