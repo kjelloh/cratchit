@@ -1965,18 +1965,45 @@ namespace detail {
 																	or (     other.tags().contains(entry.first) 
 																				and other.tags().at(entry.first) == entry.second));
 											});
+      /*
+      should_match = An SIE with the same series and sequence number should match
+      result = same date, same amount, and all tags (except "reference" tags prefiexed with '_') in this are in other and have the same value
+      */
+      // Log a warning untiol we have a way to purge SIE entries that does not correspond to the correct ones in the SIE file.
+      // (SIE files reflects any changes made in external applications and MUST be regarded as the truth)
 			if (should_match and !result) {
 				std::cout << "\nShould Match but Does NOT {";
 				std::cout << "\n\tthis:" << *this;
 				std::cout << "\n\tother:" << other;
 				for (auto const& entry : m_tags) {
-					std::cout << "\nentry.second = " << entry.second << " entry.second.starts_with(\"_\") = " << entry.second.starts_with("_");
-					std::cout << "\nentry.first = " << entry.first << " other.tags().contains(entry.first) = " << other.tags().contains(entry.first);
-					std::cout << "\nother.tags().at(entry.first) = " << other.tags().at(entry.first) << " other.tags().at(entry.first) == entry.second) = " << (other.tags().at(entry.first) == entry.second);
+					std::cout << "\n\tentry.first = " << entry.first;
+          std::cout << "\n\t\tentry.first.starts_with(\"_\") = " << entry.first.starts_with("_");
+					std::cout << "\n\t\tother.tags().contains(entry.first) = " << other.tags().contains(entry.first);
+					std::cout << "\n\t\tother.tags().at(entry.first) = " << other.tags().at(entry.first) << " other.tags().at(entry.first) == entry.second) = " << (other.tags().at(entry.first) == entry.second);
 				}
 				std::cout << "\n}";
 			}
 			return result;
+      /*
+      20240216 tracking down dublicate tagged amount entries
+
+      TaggedAmountPtr "BAS=1227;Ix=0;TRANSTEXT=Indigogo: Flic Twist (Contribution ID 837);_instance_id=8b2984bdb624fd02;cents_amount=72072;parent_SIE=A7;yyyymmdd_date=20230630"
+      TaggedAmountPtr "BAS=1920;Ix=1;_instance_id=74d67b4249dbc1f5;cents_amount=-72072;parent_SIE=A7;yyyymmdd_date=20230630"
+      TaggedAmountPtr "SIE=A7;_instance_id=8b2984bdb624797b;_members=8b2984bdb624fd02^74d67b4249dbc1f5;cents_amount=72072;type=aggregate;vertext=Pledgebox (Flic Twist Indigogo #837 add on);yyyymmdd_date=20230630"
+
+      TaggedAmountPtr "BAS=2650;Ix=0;_instance_id=8b2984bdb6234885;cents_amount=181700;parent_SIE=M1;yyyymmdd_date=20230630"
+      TaggedAmountPtr "BAS=3740;Ix=1;_instance_id=8b2984bdb62616c0;cents_amount=36;parent_SIE=M1;yyyymmdd_date=20230630"
+      TaggedAmountPtr "BAS=2641;Ix=2;_instance_id=74d67b4249dca763;cents_amount=-181736;parent_SIE=M1;yyyymmdd_date=20230630"
+      TaggedAmountPtr "SIE=M1;_instance_id=8b2984bdb6230db1;_members=8b2984bdb6234885^8b2984bdb62616c0^74d67b4249dca763;cents_amount=181736;type=aggregate;vertext=Momsrapport 20230401...20230630;yyyymmdd_date=20230630"
+
+      TaggedAmountPtr "BAS=2650;Ix=0;_instance_id=a163c78bfafe93c3;cents_amount=133100;parent_SIE=M1;yyyymmdd_date=20230630"
+      TaggedAmountPtr "BAS=3740;Ix=1;_instance_id=a163c78bfafa3c19;cents_amount=46;parent_SIE=M1;yyyymmdd_date=20230630"
+      TaggedAmountPtr "BAS=2641;Ix=2;_instance_id=5e9c38740501695d;cents_amount=-133146;parent_SIE=M1;yyyymmdd_date=20230630"
+      TaggedAmountPtr "SIE=M1;_instance_id=a163c78bfafe9c1d;_members=a163c78bfafe93c3^a163c78bfafa3c19^5e9c38740501695d;cents_amount=133146;type=aggregate;vertext=Momsrapport 20230401...20230630;yyyymmdd_date=20230630"
+
+      TaggedAmountPtr "Account=NORDEA;Message=SHORTCUT LA* PL 2656;Saldo=1978926;Text=KORT             SHORTCUT LA* PL 26;_instance_id=5e9c38740507d4ff;cents_amount=-72072;yyyymmdd_date=20230630"
+
+      */
 		}
 	private:
 		InstanceId m_instance_id;
@@ -2151,6 +2178,11 @@ namespace tas {
 	In this way we can instantiate a tagged amount and later discover that we already have that tagged amount "value" recorded. This takes care of the cases
 	where we create tagged amounts from bank account statements or tax agency account statements. The user may provide statement files that overlap and we have
 	to use "same value" to filter out such overlaps between statement files as well as between statement files and tagged amounts we already had in persistent storage!
+
+  SIE file entries are another problem. Here we should NOT allow duplicates of SIE entries with the same series and sequence number within the same fiscal year.
+  But this is also not easy? If an SIE file is edited externally we may encounter edited or new SIE entries with a Series and sequence number that is already in our environment tagged amounts.
+  SIE entries in an SIE file are, by definition, the correct ones! So we need to somehow purge tagged amounts that are not longer correct according to
+  the content of the SIE file. But mathing on series and seuence number is NOT enough as these repeat between ficals years, while our tagged have no "fiscal year" concept. 
 */
 class DateOrderedTaggedAmountsContainer {
 	public:
@@ -2284,6 +2316,8 @@ class DateOrderedTaggedAmountsContainer {
 
 		DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const& other) {
 			other.for_each([this](TaggedAmountPtr const& ta_ptr){
+        // TODO: Consider a way to ensure that SIE entries in SIE file has preceedence (overwrite any existing tagged amounts reflecting the same events)
+        // Hm...May this is NOT the convenient place to do this?
 				this->insert(ta_ptr);
 			});
 			return *this;
@@ -2302,7 +2336,7 @@ class DateOrderedTaggedAmountsContainer {
 	private:
 		TaggedAmountPtrsMap m_tagged_amount_ptrs_map{};
 		TaggedAmountPtrs m_date_ordered_amount_ptrs{};
-};
+}; // class DateOrderedTaggedAmountsContainer
 
 namespace CSV {
 	// For CSV-files
@@ -2480,11 +2514,11 @@ namespace CSV {
       std::cerr << "\nNORDEA File candidate ok";
       // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
       // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
-      // Note: NORDEA web csv format has changed to incorporate and edning ';' (in effect changing ';' from being a separator to being a terminator)
+      // Note: NORDEA web csv format has changed to incorporate and ending ';' (in effect changing ';' from being a separator to being a terminator)
       // TODO 240221: Find a way to handle NORDEA file coming in UTF-8 with a BOM prefix and the SKV-file being ISO-8859-1 encoded (a mess!)
       if (
           true
-          and field_row[0].find(R"(Bokföringsdag)") != std::string::npos // avoid mathing to the prefix UTF-8 BOM
+          and field_row[0].find(R"(Bokföringsdag)") != std::string::npos // avoid mathing to the UTF-8 BOM prefix in a NORDEA file
           and field_row[1] == "Belopp" 
           and field_row[2] == "Avsändare"
           and field_row[3] == "Mottagare" 
@@ -11442,6 +11476,9 @@ private:
 		DateOrderedTaggedAmountsContainer result{};
 		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
 			auto tagged_amount_ptrs = to_tagged_amounts(me);
+      // TODO: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
+      //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
+      // Hm...problem is that here we do not have access to the other tagged amounts alreadyu in the environment...
 			result += tagged_amount_ptrs;
 		};
 		for_each_meta_entry(sie_env,create_tagged_amounts_to_result);
@@ -11619,10 +11656,18 @@ private:
 		model->organisation_contacts = this->contacts_from_environment(environment);
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
 		model->sru = this->srus_from_environment(environment);
+
+    // TODO 240216: Consider a way to ensure the tagged amounts are in sync with the actual SIE file contents.
+    // Note that we read the SIE files before reading in the existing tagged amounts.
+    // This is important for how we should implement a way to ensure the SIE file content is the map of the world we MUST use!
+    // Also note that the all_date_ordered_tagged_amounts type DateOrderedTaggedAmountsContainer has an overloaded operator+= that ensures no duplicates are added.
+    // So given we first read the SIE file with the values to keep, we should (?) be safe to modify the "equals" operator to ensure special treatment for SIE aggregates and its members?
 		for (auto const& sie_environments_entry : model->sie) {
 			model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
 		}
 		model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+
+    // TODO: 240216: Is skv_specs_mapping_from_csv_files still of intereset to use for something?
     auto dummy = this->skv_specs_mapping_from_csv_files(environment);
 
 		model->prompt = prompt.str();
