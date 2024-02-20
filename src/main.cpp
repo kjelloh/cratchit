@@ -2268,6 +2268,8 @@ class DateOrderedTaggedAmountsContainer {
 			return *this;
 		}
 
+    // TODO 240218: Consider to provide a predicate for the caller to control what should be regarded as "same value"
+    //              This could be a way to apply special teratment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
 		iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
 			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_ptr_to_insert)" <<  std::flush;
 			auto result = m_date_ordered_amount_ptrs.end();
@@ -2290,6 +2292,7 @@ class DateOrderedTaggedAmountsContainer {
 			return result;
 		}
 
+    // TODO 220218: Consider to provide an "ereaser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
     DateOrderedTaggedAmountsContainer erase(InstanceId const& instance_id) {
       if (auto o_ptr = this->at(instance_id)) {
         m_tagged_amount_ptrs_map.erase(instance_id);
@@ -2316,8 +2319,8 @@ class DateOrderedTaggedAmountsContainer {
 
 		DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const& other) {
 			other.for_each([this](TaggedAmountPtr const& ta_ptr){
-        // TODO: Consider a way to ensure that SIE entries in SIE file has preceedence (overwrite any existing tagged amounts reflecting the same events)
-        // Hm...May this is NOT the convenient place to do this?
+        // TODO 240217: Consider a way to ensure that SIE entries in SIE file has preceedence (overwrite any existing tagged amounts reflecting the same events)
+        // Hm...Maybe this is NOT the convenient place to do this?
 				this->insert(ta_ptr);
 			});
 			return *this;
@@ -2334,8 +2337,10 @@ class DateOrderedTaggedAmountsContainer {
 		}
 
 	private:
-		TaggedAmountPtrsMap m_tagged_amount_ptrs_map{};
-		TaggedAmountPtrs m_date_ordered_amount_ptrs{};
+    // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between instance_id and tagged amount pointer and once in a vector ordered by date.
+    // TODO 240218: Consider a more DRY solution for storing tagged amounts in a way that allows for efficient lookup and ordered iteration
+		TaggedAmountPtrsMap m_tagged_amount_ptrs_map{}; // map <instance id> -> <tagged amount ptr>
+		TaggedAmountPtrs m_date_ordered_amount_ptrs{};  // vector of tagged amount ptrs ordered by date
 }; // class DateOrderedTaggedAmountsContainer
 
 namespace CSV {
@@ -11476,7 +11481,7 @@ private:
 		DateOrderedTaggedAmountsContainer result{};
 		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
 			auto tagged_amount_ptrs = to_tagged_amounts(me);
-      // TODO: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
+      // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
       // Hm...problem is that here we do not have access to the other tagged amounts alreadyu in the environment...
 			result += tagged_amount_ptrs;
@@ -11587,6 +11592,16 @@ private:
 		return result;
 	}
 
+  void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_date_ordered_tagged_amounts,DateOrderedTaggedAmountsContainer const& date_ordered_tagged_amounts_from_sie_environment) {
+    // Use a double pointer mechanism to step through provided all_date_ordered_tagged_amounts and date_ordered_tagged_amounts_from_sie_environment in date order.
+    // 1) If an SIE entry is in tagged amount but NOT in sie environment --> erase it from tagged amounts
+    // 2) If an SIE entry is in sie environment but NOT in tagged amounts --> insert it into tagged amounts
+    // 3) If an SIE entry is in both tagged amounts and sie environment but with the wrong properties --> Erase in tagged amounts and insert from SIE
+    // 4) else, if both in tagged amounts and SIE --> do nithin (all is in sync)
+    // TODO 240219 - Implement this function
+    std::cout << "\nNOT YET IMPLEMENTED - synchronise_tagged_amounts_with_sie";
+  }
+
 	SRUEnvironments srus_from_environment(Environment const& environment) {
 		SRUEnvironments result{};
 		auto [begin,end] = environment.equal_range("SRU:S");
@@ -11657,15 +11672,36 @@ private:
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
 		model->sru = this->srus_from_environment(environment);
 
-    // TODO 240216: Consider a way to ensure the tagged amounts are in sync with the actual SIE file contents.
+    // TODO 240216 #SIE: Consider a way to ensure the tagged amounts are in sync with the actual SIE file contents.
     // Note that we read the SIE files before reading in the existing tagged amounts.
     // This is important for how we should implement a way to ensure the SIE file content is the map of the world we MUST use!
     // Also note that the all_date_ordered_tagged_amounts type DateOrderedTaggedAmountsContainer has an overloaded operator+= that ensures no duplicates are added.
     // So given we first read the SIE file with the values to keep, we should (?) be safe to modify the "equals" operator to ensure special treatment for SIE aggregates and its members?
-		for (auto const& sie_environments_entry : model->sie) {
-			model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
-		}
-		model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+    /*
+    240218 Consider to implement "last in wins" for SIE aggregates and its members?
+
+    1) Read the SIE-files last to ensure the tagged amounts are in sync with the actual SIE file contents.
+    2) Make insertiing of SIE aggregates into tagged amounts detect SIE entries with the same series and sequence number within the same fiscal year.
+       For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
+       
+    */
+    if (false) {
+      // TODO 240219 - switch to this new implementation
+      // 1) Read in tagged amounts from persistnt storage
+      model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+      // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
+      for (auto const& sie_environments_entry : model->sie) {
+        this->synchronize_tagged_amounts_with_sie(model->all_date_ordered_tagged_amounts,this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));
+      }
+    }
+    else {
+      // TODO 240219 - Replace this old implementation with the new one above
+      for (auto const& sie_environments_entry : model->sie) {
+        model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
+      }
+      prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
+      model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+    }
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of intereset to use for something?
     auto dummy = this->skv_specs_mapping_from_csv_files(environment);
