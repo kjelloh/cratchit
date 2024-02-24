@@ -1699,7 +1699,7 @@ Date to_today() {
 	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
 }
 
-class DateRange {
+class DateRange { // ####
 public:
 	DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
 	DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
@@ -1861,7 +1861,7 @@ std::string to_string(UnitsAndCents const& units_and_cents) {
 namespace detail {
 
 	// 1) TaggedAmountPtr instance is restricted to the Heap and accessible only through std::shared_ptr
-	class TaggedAmountClass {
+	class TaggedAmountClass { // ####
 	public:
 	  friend std::ostream& operator<<(std::ostream& os, TaggedAmountClass const& tac);
 		using OptionalTagValue = std::optional<std::string>;
@@ -1876,13 +1876,14 @@ namespace detail {
 			,m_cents_amount{cents_amount}
 			,m_tags{tags} {} 
 
-		// std::make_shared<detail::TaggedAmountClass>(Date const& date,CentsAmount const& cents_amount) : m_date{date},m_cents_amount{cents_amount) {}
-
+    // Getters
 		InstanceId instance_id() const {return m_instance_id;}
 		Date const& date() const {return m_date;}
 		CentsAmount const& cents_amount() const {return m_cents_amount;}
 		Tags const& tags() const {return m_tags;}	
 		Tags& tags() {return m_tags;}
+
+    // Map key to optional value
 		OptionalTagValue tag_value(std::string const& key) const {
 			OptionalTagValue result{};
 			if (m_tags.contains(key)) {
@@ -1890,6 +1891,7 @@ namespace detail {
 			}
 			return result;
 		}
+
 		// Pure "same value" operator i.e., same date, amount and all tags equal (different id is ignores. Still "same value")
 		// This allows x1 == x2 to detect two instances that are in fact the same value. "And there can be only one" paradigm can be applied.
 		bool operator==(TaggedAmountClass const& other) const {
@@ -2005,7 +2007,7 @@ namespace detail {
 
       */
 		}
-	private:
+	private: // ####
 		InstanceId m_instance_id;
 		Date m_date;
 		CentsAmount m_cents_amount;
@@ -2031,7 +2033,7 @@ namespace detail {
 
 }
 
-using TaggedAmountPtr = std::shared_ptr<detail::TaggedAmountClass>;
+using TaggedAmountPtr = std::shared_ptr<detail::TaggedAmountClass>; // ####
 
 auto random_16_bit_salt() {
 	// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
@@ -2112,7 +2114,7 @@ struct std::hash<TaggedAmountPtr> {
     }
 };
 
-using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
+using TaggedAmountPtrs = std::vector<TaggedAmountPtr>; // ####
 using OptionalTaggedAmountPtrs = std::optional<TaggedAmountPtrs>;
 using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>;
 
@@ -2184,7 +2186,7 @@ namespace tas {
   SIE entries in an SIE file are, by definition, the correct ones! So we need to somehow purge tagged amounts that are not longer correct according to
   the content of the SIE file. But mathing on series and seuence number is NOT enough as these repeat between ficals years, while our tagged have no "fiscal year" concept. 
 */
-class DateOrderedTaggedAmountsContainer {
+class DateOrderedTaggedAmountsContainer { // ####
 	public:
 		using OptionalTagValue = detail::TaggedAmountClass::OptionalTagValue;
 		using Tags = detail::TaggedAmountClass::Tags;
@@ -2193,7 +2195,7 @@ class DateOrderedTaggedAmountsContainer {
 		using InstanceIds = detail::TaggedAmountClass::InstanceIds;
 		using OptionalInstanceIds = detail::TaggedAmountClass::OptionalInstanceIds;
 
-		using iterator = TaggedAmountPtrs::iterator;
+		using iterator = TaggedAmountPtrs::iterator; // ####
 		using const_iterator = TaggedAmountPtrs::const_iterator;
 		TaggedAmountPtrs const& tagged_amount_ptrs() {return m_date_ordered_amount_ptrs;}
 		std::size_t size() const { return m_date_ordered_amount_ptrs.size();}
@@ -4901,7 +4903,7 @@ public:
 		return result;
 	}
 
-	OptionalDateRange fiscal_year_date_range() {
+	OptionalDateRange fiscal_year_date_range() const { // ####
 		return this->year_date_range;
 	}
 
@@ -4919,7 +4921,7 @@ public:
 	
 private:
 	BASJournals m_journals{};
-	OptionalDateRange year_date_range{};
+	OptionalDateRange year_date_range{}; // ####
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
 	BAS::MetaEntry add(BAS::MetaEntry me) {
@@ -8320,8 +8322,6 @@ namespace lua_faced_ifc {
       }
       */
 
-      // ####
-
       // For simplicity, let's assume the string is "key=value" format
       std::string command(str);
       auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
@@ -9964,7 +9964,7 @@ Consider the process to turn account statements into SIE Journal entries?
         }
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
-          for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {	
+          for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {	// ####
             model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
           }				
           model->prompt_state = PromptState::TAIndex;
@@ -11592,14 +11592,43 @@ private:
 		return result;
 	}
 
-  void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_date_ordered_tagged_amounts,DateOrderedTaggedAmountsContainer const& date_ordered_tagged_amounts_from_sie_environment) {
+  void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_date_ordered_tagged_amounts,SIEEnvironment const& sie_environment) {
     // Use a double pointer mechanism to step through provided all_date_ordered_tagged_amounts and date_ordered_tagged_amounts_from_sie_environment in date order.
     // 1) If an SIE entry is in tagged amount but NOT in sie environment --> erase it from tagged amounts
     // 2) If an SIE entry is in sie environment but NOT in tagged amounts --> insert it into tagged amounts
     // 3) If an SIE entry is in both tagged amounts and sie environment but with the wrong properties --> Erase in tagged amounts and insert from SIE
-    // 4) else, if both in tagged amounts and SIE --> do nithin (all is in sync)
-    // TODO 240219 - Implement this function
-    std::cout << "\nNOT YET IMPLEMENTED - synchronise_tagged_amounts_with_sie";
+    // 4) else, if both in tagged amounts and SIE --> do nothing (all is in sync)
+
+    std::cout << "\nSYNHRONIZE TAGGED AMOUNTS WITH SIE - BEGIN {";
+    if (auto fiscal_year_date_range = sie_environment.fiscal_year_date_range()) {
+      std::cout << "\n\tSIE fiscal year:" << *fiscal_year_date_range;
+      auto date_ordered_tagged_amounts_from_sie_environment = this->date_ordered_tagged_amounts_from_sie_environment(sie_environment);
+      auto target_iter = all_date_ordered_tagged_amounts.begin();
+      auto source_iter = date_ordered_tagged_amounts_from_sie_environment.begin();
+      if (target_iter != all_date_ordered_tagged_amounts.end() and source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
+        // Both are valid ranges
+        // get the fiscal year of provided SIE entries
+        if ((*target_iter)->date()<fiscal_year_date_range->begin()) {
+          // Skip tagged amounts before the fiscal year
+          while (target_iter != all_date_ordered_tagged_amounts.end() and (*target_iter)->date()<fiscal_year_date_range->begin()) {
+            std::cout << "\n\tSkipping Older TA" << *(*target_iter);
+            ++target_iter;
+          }
+        }
+        else while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end() and (*source_iter)->date() < (*target_iter)->date()) {
+          // Add new SIE entries not yet in (older than) "all"
+          std::cout << "\n\tAdding Older SIE " << *(*source_iter);
+          all_date_ordered_tagged_amounts.insert(*source_iter);
+          ++source_iter;
+        }
+        // ####
+      }
+    }
+    else {
+      std::cerr << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal lyear set";
+    }
+    std::cout << "\n\tNOT YET IMPLEMENTED - synchronise_tagged_amounts_with_sie";
+    std::cout << "\n} SYNHRONIZE TAGGED AMOUNTS WITH SIE - END";
   }
 
 	SRUEnvironments srus_from_environment(Environment const& environment) {
@@ -11687,11 +11716,11 @@ private:
     */
     if (false) {
       // TODO 240219 - switch to this new implementation
-      // 1) Read in tagged amounts from persistnt storage
+      // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
       // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
-      for (auto const& sie_environments_entry : model->sie) {
-        this->synchronize_tagged_amounts_with_sie(model->all_date_ordered_tagged_amounts,this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));
+      for (auto const& [key,sie_environment] : model->sie) {
+        this->synchronize_tagged_amounts_with_sie(model->all_date_ordered_tagged_amounts,sie_environment);
       }
     }
     else {
