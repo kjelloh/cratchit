@@ -1884,7 +1884,7 @@ namespace detail {
 		Tags& tags() {return m_tags;}
 
     // Map key to optional value
-		OptionalTagValue tag_value(std::string const& key) const {
+		OptionalTagValue tag_value(std::string const& key) const { // ####
 			OptionalTagValue result{};
 			if (m_tags.contains(key)) {
 				result = m_tags.at(key); 
@@ -2272,6 +2272,7 @@ class DateOrderedTaggedAmountsContainer { // ####
 
     // TODO 240218: Consider to provide a predicate for the caller to control what should be regarded as "same value"
     //              This could be a way to apply special teratment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
+    // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a godd solution for this?
 		iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
 			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_ptr_to_insert)" <<  std::flush;
 			auto result = m_date_ordered_amount_ptrs.end();
@@ -2294,7 +2295,8 @@ class DateOrderedTaggedAmountsContainer { // ####
 			return result;
 		}
 
-    // TODO 220218: Consider to provide an "ereaser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
+    // TODO 240218: Consider to provide an "ereaser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
+    // TODO: 240225: NOTE that erase of an aggregate does not erase the members of the aggregate. What is a good solution for this?
     DateOrderedTaggedAmountsContainer erase(InstanceId const& instance_id) {
       if (auto o_ptr = this->at(instance_id)) {
         m_tagged_amount_ptrs_map.erase(instance_id);
@@ -11621,6 +11623,60 @@ private:
           all_date_ordered_tagged_amounts.insert(*source_iter);
           ++source_iter;
         }
+        // We are now Synchronized to the "same" start date.
+        // Now ensure "all" contains only the provided SIE entries
+        while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
+          // iterate to next SIE aggregate in source and target
+          if (!(*source_iter)->tag_value("SIE")) {
+            ++source_iter;
+            continue; // skip non SIE aggregate
+          }
+          if  (target_iter != all_date_ordered_tagged_amounts.end() and !(*target_iter)->tag_value("SIE")) {
+            ++target_iter;
+            continue; // skip non SIE aggregate
+          }
+          // Both source and target is an SIE aggregate ok
+          if (target_iter != all_date_ordered_tagged_amounts.end()) {
+            if ((*target_iter)->date() < (*source_iter)->date()) {
+              // This SIE aggregate in "all" should not be there!
+              std::cout << "\n\tShould be erased - Older TA not in imported SIE" << *(*target_iter);
+              // all_date_ordered_tagged_amounts.erase(target_iter);
+              ++target_iter;
+            }
+            else {
+              // Now, the SIE in target must be in provided SIE entries or else it must go
+              // Note: Each aggregate has its own instance id both for itself and for its members!
+              //       So we can not use the equal operator to compare them!
+              if ((*target_iter) == (*source_iter)) {
+                // This is what we expect (source and target in synchronization)
+                std::cout << "\n\tIn sync - SIE and TA " << *(*target_iter);
+                ++source_iter;
+                ++target_iter;
+              }
+              else if ((*target_iter)->date() > (*source_iter)->date()) {
+                // Provided SIE contains an entry not in "all"
+                std::cout << "\n\tShould be added - Newer imported SIE not yet in TA" << *(*source_iter);
+                ++source_iter;
+              }
+              else {
+                // We have a quirky situation here. Provided SIE entries are ordrered by Date
+                // but may come out of order in their sequence number?!
+                // So maybe we need to assemble all SIE entries with the same date and check these sets are equal?
+                std::cout << "\n\tOut of order - May require SET by date comparisson? {";
+                std::cout << "\n\t\tSIE: " << *(*source_iter);
+                std::cout << "\n\t\tTA: " << *(*target_iter);
+                std::cout << "\n\t} Out of order";
+                ++target_iter;
+              }
+            }
+          }
+          else {
+            // Add new SIE entries not yet in "all"
+            std::cout << "\n\tShould be added - Newer imported SIE not yet in TA" << *(*source_iter);
+            // all_date_ordered_tagged_amounts.insert(*source_iter);
+            ++source_iter;
+          }
+        } // while source_iter
         // ####
       }
     }
@@ -11714,7 +11770,7 @@ private:
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (false) {
+    if (false) { // ####
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
