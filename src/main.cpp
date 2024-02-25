@@ -2080,6 +2080,11 @@ detail::TaggedAmountClass::OptionalInstanceIds to_instance_ids(Key::Path const& 
 	return result;
 }
 
+// TODO 240225 - It seems my idea to make instance_id be a "value hash" for value semantics does not work.
+//               Maybe I thought a tagged amount could be created based on only date and amount?
+//               If this is required, then I need to salt it to make it unique (at least until I know what the full "value" of the tagged amount will be?)
+//               Ok, so for now it seems the instance_id is like an "address" to the tagged amount instance.
+//               And the "value" is operated on by operator== of the TaggedAmountClass?
 detail::TaggedAmountClass::InstanceId to_instance_id(Date const& date,CentsAmount const& cents_amount) {
 		// Use a random salt to make a reasonable good effort to NOT generate the same guid twice.
 		// NOTE: Any aggregate of TaggedAmountPtr where a unique GUID is required should administrate and check for uniqueness. 
@@ -2116,8 +2121,8 @@ struct std::hash<TaggedAmountPtr> {
 
 using TaggedAmountPtrs = std::vector<TaggedAmountPtr>; // ####
 using OptionalTaggedAmountPtrs = std::optional<TaggedAmountPtrs>;
-using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>;
-
+using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>; // #### TODO 240225: Refactor to use std::unordered_map and a external "value hash" instead of std::map and internal instance_id?
+                                                                                             //                   In effect implement "value semantics" for tagged amounts?
 namespace tas {
 	// 221121 Tagged amounts namespace
 	//        A seed for structuring tagged amounts into name space structure
@@ -2158,9 +2163,10 @@ namespace tas {
 				return acc;
 			});
 
-			auto saldo_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(period_end_date,cents_saldo),period_end_date,cents_saldo);
-			saldo_ta_ptr->tags()["BAS"] = std::to_string(bas_account_no);
-			saldo_ta_ptr->tags()["type"] = "saldo";
+      // #### 240225 - It seems we can implement "value semantics" if we remove the internal instance_id and insetad create an external "value hash" for mapping and comparison? 
+			auto saldo_ta_ptr = std::make_shared<detail::TaggedAmountClass>(to_instance_id(period_end_date,cents_saldo),period_end_date,cents_saldo); // #### remove instance_id here
+			saldo_ta_ptr->tags()["BAS"] = std::to_string(bas_account_no); // #### Value can change without any "id" change
+			saldo_ta_ptr->tags()["type"] = "saldo"; // #### Value can change without any "id" change
 			result.push_back(saldo_ta_ptr);
 		}
 		return result;
@@ -2170,7 +2176,14 @@ namespace tas {
 // DateOrderedTaggedAmountsContainer operates on tagged amount "values"
 // Does not allow multiple tagged amounts with the same "value" (determined by operator== of detail::TaggedAmountClass)
 /*
-	NOTE: The processing of tagged amount is still a bit convoluted. 
+
+  NOTE 240225 - Here's an idea, why not implement value semantics for tagged amounts?
+                two instances with the same "value" are the same and no two instances with the same "value" can exist in the same container?
+                In this way we can also compare values between containers.
+                Is there a reason I miss that this can not work?
+              
+  
+	NOTE (pre 240225): The processing of tagged amount is still a bit convoluted. 
 	
 	For one we need a way to refer between tagged amounts that survives persistent storage in cratchit environment. 
 	This is accomplished with the instance_id based on date, amount and a random salt.
