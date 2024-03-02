@@ -2103,19 +2103,50 @@ std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
 	return os;
 }
 
+// Implementing boost::hash_combine for std::size_t
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v)
+{
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+}
+
 // custom specialization of std::hash injected into namespace std
+// #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
+//                         For now this std::hash is not used so we are free to implement it to fully reflect the "value" of the tagged amount!
+//                         1) First make one that makes a hash from all members not prefixed with '_'.
+//                         2) When instance_id is refactored away we can use all tags as part of the value hash.
 template<>
 struct std::hash<TaggedAmountPtr> {
     std::size_t operator()(TaggedAmountPtr const& ta_ptr) const noexcept {
 				std::size_t result{};
-				if (ta_ptr->tags().contains("_instance_id")) {
-					std::istringstream is{ta_ptr->tags().at("_instance_id")};
-					is >> std::hex >> result;
-				}
-				else {
-					std::cerr << "\nDESIGN INSUFFICIENCY - std::hash<TaggedAmountPtr>::operator(TaggedAmountPtr const& ta_ptr) failed to find tag 'GUID' in tagged amount = " << ta_ptr;
-				}
-        return result;
+        // #####
+        // InstanceId instance_id() const {return m_instance_id;}
+        // Date const& date() const {return m_date;}
+        // CentsAmount const& cents_amount() const {return m_cents_amount;}
+        // Tags const& tags() const {return m_tags;}
+      auto yyyymmdd = ta_ptr->date();
+      hash_combine(result, static_cast<int>(yyyymmdd.year()));
+      hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
+      hash_combine(result, static_cast<unsigned>(yyyymmdd.day()));
+      hash_combine(result, ta_ptr->cents_amount());
+      if (true) {
+        // TODO: Remove this when we have refactored away instance_id (object semantics) in tagged amount
+        for (auto const& [key,value] : ta_ptr->tags()) {
+          if (not key.starts_with("_")) {
+            hash_combine(result, key);
+            hash_combine(result, value);
+          }
+        }
+      }
+      else {
+        // TODO: Use all tags as part of the value hash for value semantics tagged amounts :)
+        for (auto const& [key,value] : ta_ptr->tags()) {
+          hash_combine(result, key);
+          hash_combine(result, value);
+        }
+      }
+      return result;
     }
 };
 
@@ -2227,6 +2258,7 @@ class DateOrderedTaggedAmountsContainer { // ####
 		}
 
     OptionalTaggedAmountPtr at(InstanceId const& instance_id) {
+      // #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
 			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << detail::to_string(instance_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
 			if (m_tagged_amount_ptrs_map.contains(instance_id)) {
@@ -2239,6 +2271,8 @@ class DateOrderedTaggedAmountsContainer { // ####
     }
 
 		OptionalTaggedAmountPtr operator[](InstanceId const& instance_id) {
+      // #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
+
 			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(instance_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
 			if (auto o_ptr = this->at(instance_id)) {
@@ -2251,6 +2285,9 @@ class DateOrderedTaggedAmountsContainer { // ####
 		}
 
 		OptionalTaggedAmountPtrs to_ta_ptrs(InstanceIds const& instance_ids) {
+      // #### Idea TODO 240226 - Consider how to handle "value semantics" based on value hash and not "instane ids"...
+      //                         Note, this is used by aggregate to get to its members (so maybe there is a better way)
+
 			std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs()" << std::flush;
 			OptionalTaggedAmountPtrs result{};
 			TaggedAmountPtrs ta_ptrs{};
@@ -2287,6 +2324,9 @@ class DateOrderedTaggedAmountsContainer { // ####
     //              This could be a way to apply special teratment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
     // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a godd solution for this?
 		iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
+      // #### Idea TODO 240226 - Update also the "value semantics" map of tagged amounts (to evalutae implementation before switching to it?)
+      //                         Consider to "insert" an aggregate by providing a list os ta ptrs to insert (aggregate + members)
+
 			// std::cout << "\nDateOrderedTaggedAmounts::insert(&ta_ptr_to_insert)" <<  std::flush;
 			auto result = m_date_ordered_amount_ptrs.end();
 			// Get range [begin,end[ for which date is equal to ta_ptr_to_insert
@@ -2311,6 +2351,8 @@ class DateOrderedTaggedAmountsContainer { // ####
     // TODO 240218: Consider to provide an "ereaser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
     // TODO: 240225: NOTE that erase of an aggregate does not erase the members of the aggregate. What is a good solution for this?
     DateOrderedTaggedAmountsContainer erase(InstanceId const& instance_id) {
+      // #### Idea TODO 240226 - Update also the "value semantics" map of tagged amounts (to evalutae implementation before switching to it?)
+      //                         Also consider to make erase remove also the aggregated values.
       if (auto o_ptr = this->at(instance_id)) {
         m_tagged_amount_ptrs_map.erase(instance_id);
         auto iter = std::ranges::find(m_date_ordered_amount_ptrs,*o_ptr);
@@ -2358,6 +2400,9 @@ class DateOrderedTaggedAmountsContainer { // ####
     // TODO 240218: Consider a more DRY solution for storing tagged amounts in a way that allows for efficient lookup and ordered iteration
 		TaggedAmountPtrsMap m_tagged_amount_ptrs_map{}; // map <instance id> -> <tagged amount ptr>
 		TaggedAmountPtrs m_date_ordered_amount_ptrs{};  // vector of tagged amount ptrs ordered by date
+
+    // #### Idea TODO 240226 - Add a C++ unordered map nad an std::hash for the value of the tagged amount to start implementing "value semantics"?
+
 }; // class DateOrderedTaggedAmountsContainer
 
 namespace CSV {
@@ -11783,7 +11828,7 @@ private:
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (false) { // ####
+    if (true) { // ####
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
