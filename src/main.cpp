@@ -1892,127 +1892,191 @@ namespace detail {
 			return result;
 		}
 
-		// Pure "same value" operator i.e., same date, amount and all tags equal (different id is ignores. Still "same value")
-		// This allows x1 == x2 to detect two instances that are in fact the same value. "And there can be only one" paradigm can be applied.
-		bool operator==(TaggedAmountClass const& other) const {
-      // TODO: Fix error that same amount and date on SIE transactions are considered "same" although in this case they ARE different
-      //       See how 2614 transaction in A18 is ignored in transaction listing on account
-      /*
-      A16 "Beställning Sorotec - Mafell FM1000 CNC-fräsmotor" 20220715
-        "Leverantörsskulder":2440 "" -6643.14
-        "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 CNC-fräsmotor" 6643.14
-        "Utgående moms omvänd skattskyldighet, 25 %":2614 "" -1661
-        "Beräknad ingående moms på förvärv från utlandet":2645 "" 1661
-        
-      A18 "Ändringsverifikation A16 - ersatt med D8" 20220715
-        "Leverantörsskulder":2440 "" 6643.14
-        "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 CNC-fräsmotor" -6643.14
-        "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1661
-        "Beräknad ingående moms på förvärv från utlandet":2645 "" -1661
-        
-      D8 "Sorotec Beställning A22-200974" 20220715
-        "Leverantörsskulder":2440 "Beställning A22-200974" -6643.14
-        "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 PV-WS CNC fräsmotor" 6643.14
-        "Utgående moms omvänd skattskyldighet, 25 %":2614 "" -1661
-        "Beräknad ingående moms på förvärv från utlandet":2645 "" 1661
-        "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Varuvärde EU-inköp (Momsrapport ruta 20)" 6643.14
-        "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6643.14
+		bool operator==(TaggedAmountClass const& other) const;
 
-      2614
-        20220715 -1661,00 ackumulerat:-1661,00
-        20220715 1661,00 ackumulerat:0,00
-        20220722 -69,00 ackumulerat:-69,00
-        20220802 -93,00 ackumulerat:-162,00
-        20220803 -471,00 ackumulerat:-633,00
-        20220914 -96,20 ackumulerat:-729,20
-        20220930 2390,20 ackumulerat:1661,00
-        20221031 -259,80 ackumulerat:1401,20
-        20221231 259,80 ackumulerat:1661,00
-        
-        */ 
-
-      /*
-      TaggedAmountPtr "SIE=A16;_instance_id=3a9c0aaa14d91c90;_members=
-        c563f555eb2b9c03 
-        ^3a9c0aaa14d46e65 
-        ^c563f555eb3a7fc1 // TaggedAmountPtr "BAS=2614;_instance_id=c563f555eb3a7fc1;cents_amount=-166100;yyyymmdd_date=20220715"
-        ^3a9c0aaa14c5cc37 
-      ;cents_amount=830414;type=aggregate;vertext=Beställning Sorotec - Mafell FM1000 CNC-fräsmotor;yyyymmdd_date=20220715"
-
-      TaggedAmountPtr "SIE=A18;_instance_id=3a9c0aaa14d9fa95;_members=
-        3a9c0aaa14d4e6b6
-        ^c563f555eb2bcac1
-        ^3a9c0aaa14c5d01e // TaggedAmountPtr "BAS=2614;_instance_id=3a9c0aaa14c5d01e;cents_amount=166100;yyyymmdd_date=20220715"
-        ^c563f555eb3a17ec
-      ;cents_amount=830414;type=aggregate;vertext=Ändringsverifikation A16 - ersatt med D8;yyyymmdd_date=20220715"
-
-      TaggedAmountPtr "SIE=D8;_instance_id=3a9c0aaa14edd2f0;_members=
-        c563f555eb2bb3c9
-        ^3a9c0aaa14d4d2e0
-        ^c563f555eb3aabc4 // FINNS INTE!! (Borde varit TaggedAmountPtr "BAS=2614;_instance_id=c563f555eb3aabc4;cents_amount=166100;yyyymmdd_date=20220715")
-        ^3a9c0aaa14c5e81c
-        ^3a9c0aaa14d4d6b0
-        ^c563f555eb2b1bb1
-      ;cents_amount=1494728;type=aggregate;vertext=Sorotec Beställning A22-200974;yyyymmdd_date=20220715"
-      */
-
-			bool should_match{other.tags().contains("SIE") and this->tags().contains("SIE") and other.tags().at("SIE") == this->tags().at("SIE")};
-			auto result =     this->date() == other.date() 
-										and this->cents_amount() == other.cents_amount()
-										and std::all_of(
-											 m_tags.begin()
-											,m_tags.end()
-											,[&other](Tags::value_type const& entry) {
-												return (     (entry.first.starts_with("_"))
-																	or (     other.tags().contains(entry.first) 
-																				and other.tags().at(entry.first) == entry.second));
-											});
-      /*
-      should_match = An SIE with the same series and sequence number should match
-      result = same date, same amount, and all tags (except "reference" tags prefiexed with '_') in this are in other and have the same value
-      */
-      // Log a warning untiol we have a way to purge SIE entries that does not correspond to the correct ones in the SIE file.
-      // (SIE files reflects any changes made in external applications and MUST be regarded as the truth)
-			if (should_match and !result) {
-				std::cout << "\nShould Match but Does NOT {";
-				std::cout << "\n\tthis:" << *this;
-				std::cout << "\n\tother:" << other;
-				for (auto const& entry : m_tags) {
-					std::cout << "\n\tentry.first = " << entry.first;
-          std::cout << "\n\t\tentry.first.starts_with(\"_\") = " << entry.first.starts_with("_");
-					std::cout << "\n\t\tother.tags().contains(entry.first) = " << other.tags().contains(entry.first);
-					std::cout << "\n\t\tother.tags().at(entry.first) = " << other.tags().at(entry.first) << " other.tags().at(entry.first) == entry.second) = " << (other.tags().at(entry.first) == entry.second);
-				}
-				std::cout << "\n}";
-			}
-			return result;
-      /*
-      20240216 tracking down dublicate tagged amount entries
-
-      TaggedAmountPtr "BAS=1227;Ix=0;TRANSTEXT=Indigogo: Flic Twist (Contribution ID 837);_instance_id=8b2984bdb624fd02;cents_amount=72072;parent_SIE=A7;yyyymmdd_date=20230630"
-      TaggedAmountPtr "BAS=1920;Ix=1;_instance_id=74d67b4249dbc1f5;cents_amount=-72072;parent_SIE=A7;yyyymmdd_date=20230630"
-      TaggedAmountPtr "SIE=A7;_instance_id=8b2984bdb624797b;_members=8b2984bdb624fd02^74d67b4249dbc1f5;cents_amount=72072;type=aggregate;vertext=Pledgebox (Flic Twist Indigogo #837 add on);yyyymmdd_date=20230630"
-
-      TaggedAmountPtr "BAS=2650;Ix=0;_instance_id=8b2984bdb6234885;cents_amount=181700;parent_SIE=M1;yyyymmdd_date=20230630"
-      TaggedAmountPtr "BAS=3740;Ix=1;_instance_id=8b2984bdb62616c0;cents_amount=36;parent_SIE=M1;yyyymmdd_date=20230630"
-      TaggedAmountPtr "BAS=2641;Ix=2;_instance_id=74d67b4249dca763;cents_amount=-181736;parent_SIE=M1;yyyymmdd_date=20230630"
-      TaggedAmountPtr "SIE=M1;_instance_id=8b2984bdb6230db1;_members=8b2984bdb6234885^8b2984bdb62616c0^74d67b4249dca763;cents_amount=181736;type=aggregate;vertext=Momsrapport 20230401...20230630;yyyymmdd_date=20230630"
-
-      TaggedAmountPtr "BAS=2650;Ix=0;_instance_id=a163c78bfafe93c3;cents_amount=133100;parent_SIE=M1;yyyymmdd_date=20230630"
-      TaggedAmountPtr "BAS=3740;Ix=1;_instance_id=a163c78bfafa3c19;cents_amount=46;parent_SIE=M1;yyyymmdd_date=20230630"
-      TaggedAmountPtr "BAS=2641;Ix=2;_instance_id=5e9c38740501695d;cents_amount=-133146;parent_SIE=M1;yyyymmdd_date=20230630"
-      TaggedAmountPtr "SIE=M1;_instance_id=a163c78bfafe9c1d;_members=a163c78bfafe93c3^a163c78bfafa3c19^5e9c38740501695d;cents_amount=133146;type=aggregate;vertext=Momsrapport 20230401...20230630;yyyymmdd_date=20230630"
-
-      TaggedAmountPtr "Account=NORDEA;Message=SHORTCUT LA* PL 2656;Saldo=1978926;Text=KORT             SHORTCUT LA* PL 26;_instance_id=5e9c38740507d4ff;cents_amount=-72072;yyyymmdd_date=20230630"
-
-      */
-		}
 	private: // ####
 		InstanceId m_instance_id;
 		Date m_date;
 		CentsAmount m_cents_amount;
 		Tags m_tags;
 	}; // class TaggedAmountClass
+} // namespace detail
+
+// From boost::hash_combine for std::size_t
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v)
+{
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2); // *magic* dustribution as defined by boost::hash_combine
+}
+
+namespace std {
+  template<>
+  struct hash<detail::TaggedAmountClass> {
+      std::size_t operator()(detail::TaggedAmountClass const& ta) const noexcept {
+          std::size_t result{};
+          // #####
+          // InstanceId instance_id() const {return m_instance_id;}
+          // Date const& date() const {return m_date;}
+          // CentsAmount const& cents_amount() const {return m_cents_amount;}
+          // Tags const& tags() const {return m_tags;}
+        auto yyyymmdd = ta.date();
+        hash_combine(result, static_cast<int>(yyyymmdd.year()));
+        hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
+        hash_combine(result, static_cast<unsigned>(yyyymmdd.day()));
+        hash_combine(result, ta.cents_amount());
+        if (true) {
+          // TODO: Remove this when we have refactored away instance_id (object semantics) in tagged amount
+          for (auto const& [key,value] : ta.tags()) {
+            if (not key.starts_with("_")) {
+              hash_combine(result, key);
+              hash_combine(result, value);
+            }
+          }
+        }
+        else {
+          // TODO: Use all tags as part of the value hash for value semantics tagged amounts :)
+          for (auto const& [key,value] : ta.tags()) {
+            hash_combine(result, key);
+            hash_combine(result, value);
+          }
+        }
+        return result;
+      }
+  };
+} // namespace std
+
+namespace detail {
+  // Pure "same value" operator i.e., same date, amount and all tags equal (different id is ignores. Still "same value")
+  // This allows x1 == x2 to detect two instances that are in fact the same value. "And there can be only one" paradigm can be applied.
+  bool TaggedAmountClass::operator==(TaggedAmountClass const& other) const {
+    // TODO: Fix error that same amount and date on SIE transactions are considered "same" although in this case they ARE different
+    //       See how 2614 transaction in A18 is ignored in transaction listing on account
+    /*
+    A16 "Beställning Sorotec - Mafell FM1000 CNC-fräsmotor" 20220715
+      "Leverantörsskulder":2440 "" -6643.14
+      "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 CNC-fräsmotor" 6643.14
+      "Utgående moms omvänd skattskyldighet, 25 %":2614 "" -1661
+      "Beräknad ingående moms på förvärv från utlandet":2645 "" 1661
+      
+    A18 "Ändringsverifikation A16 - ersatt med D8" 20220715
+      "Leverantörsskulder":2440 "" 6643.14
+      "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 CNC-fräsmotor" -6643.14
+      "Utgående moms omvänd skattskyldighet, 25 %":2614 "" 1661
+      "Beräknad ingående moms på förvärv från utlandet":2645 "" -1661
+      
+    D8 "Sorotec Beställning A22-200974" 20220715
+      "Leverantörsskulder":2440 "Beställning A22-200974" -6643.14
+      "Elektroniklabb - Verktyg och maskiner":1226 "Mafell FM1000 PV-WS CNC fräsmotor" 6643.14
+      "Utgående moms omvänd skattskyldighet, 25 %":2614 "" -1661
+      "Beräknad ingående moms på förvärv från utlandet":2645 "" 1661
+      "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "Varuvärde EU-inköp (Momsrapport ruta 20)" 6643.14
+      "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6643.14
+
+    2614
+      20220715 -1661,00 ackumulerat:-1661,00
+      20220715 1661,00 ackumulerat:0,00
+      20220722 -69,00 ackumulerat:-69,00
+      20220802 -93,00 ackumulerat:-162,00
+      20220803 -471,00 ackumulerat:-633,00
+      20220914 -96,20 ackumulerat:-729,20
+      20220930 2390,20 ackumulerat:1661,00
+      20221031 -259,80 ackumulerat:1401,20
+      20221231 259,80 ackumulerat:1661,00
+      
+      */ 
+
+    /*
+    TaggedAmountPtr "SIE=A16;_instance_id=3a9c0aaa14d91c90;_members=
+      c563f555eb2b9c03 
+      ^3a9c0aaa14d46e65 
+      ^c563f555eb3a7fc1 // TaggedAmountPtr "BAS=2614;_instance_id=c563f555eb3a7fc1;cents_amount=-166100;yyyymmdd_date=20220715"
+      ^3a9c0aaa14c5cc37 
+    ;cents_amount=830414;type=aggregate;vertext=Beställning Sorotec - Mafell FM1000 CNC-fräsmotor;yyyymmdd_date=20220715"
+
+    TaggedAmountPtr "SIE=A18;_instance_id=3a9c0aaa14d9fa95;_members=
+      3a9c0aaa14d4e6b6
+      ^c563f555eb2bcac1
+      ^3a9c0aaa14c5d01e // TaggedAmountPtr "BAS=2614;_instance_id=3a9c0aaa14c5d01e;cents_amount=166100;yyyymmdd_date=20220715"
+      ^c563f555eb3a17ec
+    ;cents_amount=830414;type=aggregate;vertext=Ändringsverifikation A16 - ersatt med D8;yyyymmdd_date=20220715"
+
+    TaggedAmountPtr "SIE=D8;_instance_id=3a9c0aaa14edd2f0;_members=
+      c563f555eb2bb3c9
+      ^3a9c0aaa14d4d2e0
+      ^c563f555eb3aabc4 // FINNS INTE!! (Borde varit TaggedAmountPtr "BAS=2614;_instance_id=c563f555eb3aabc4;cents_amount=166100;yyyymmdd_date=20220715")
+      ^3a9c0aaa14c5e81c
+      ^3a9c0aaa14d4d6b0
+      ^c563f555eb2b1bb1
+    ;cents_amount=1494728;type=aggregate;vertext=Sorotec Beställning A22-200974;yyyymmdd_date=20220715"
+    */
+
+    bool should_match{other.tags().contains("SIE") and this->tags().contains("SIE") and other.tags().at("SIE") == this->tags().at("SIE")};
+    auto result =     this->date() == other.date() 
+                  and this->cents_amount() == other.cents_amount()
+                  and std::all_of(
+                      m_tags.begin()
+                    ,m_tags.end()
+                    ,[&other](Tags::value_type const& entry) {
+                      return (     (entry.first.starts_with("_"))
+                                or (     other.tags().contains(entry.first) 
+                                      and other.tags().at(entry.first) == entry.second));
+                    });
+    /*
+    should_match = An SIE with the same series and sequence number should match
+    result = same date, same amount, and all tags (except "reference" tags prefiexed with '_') in this are in other and have the same value
+    */
+    // Log a warning untiol we have a way to purge SIE entries that does not correspond to the correct ones in the SIE file.
+    // (SIE files reflects any changes made in external applications and MUST be regarded as the truth)
+    if (should_match and !result) {
+      std::cout << "\nShould Match but Does NOT {";
+
+      if (true) {
+        auto this_hash = std::hash<TaggedAmountClass>{}(*this);
+        auto other_hash = std::hash<TaggedAmountClass>{}(other);
+        if (this_hash == other_hash) {
+          std::cout << "\n\tMATCHES ON HASH OK";
+        }
+        else {
+          std::cout << "\n\tDIFFERS ON HASH";
+        }
+        std::cout << "\n\this_hash = " << this_hash << " other_hash = " << other_hash;
+      }
+
+      std::cout << "\n\tthis:" << *this;
+      std::cout << "\n\tother:" << other;
+      for (auto const& entry : m_tags) {
+        std::cout << "\n\tentry.first = " << entry.first;
+        std::cout << "\n\t\tentry.first.starts_with(\"_\") = " << entry.first.starts_with("_");
+        std::cout << "\n\t\tother.tags().contains(entry.first) = " << other.tags().contains(entry.first);
+        std::cout << "\n\t\tother.tags().at(entry.first) = " << other.tags().at(entry.first) << " other.tags().at(entry.first) == entry.second) = " << (other.tags().at(entry.first) == entry.second);
+      }
+
+      std::cout << "\n}";
+    }
+    return result;
+    /*
+    20240216 tracking down dublicate tagged amount entries
+
+    TaggedAmountPtr "BAS=1227;Ix=0;TRANSTEXT=Indigogo: Flic Twist (Contribution ID 837);_instance_id=8b2984bdb624fd02;cents_amount=72072;parent_SIE=A7;yyyymmdd_date=20230630"
+    TaggedAmountPtr "BAS=1920;Ix=1;_instance_id=74d67b4249dbc1f5;cents_amount=-72072;parent_SIE=A7;yyyymmdd_date=20230630"
+    TaggedAmountPtr "SIE=A7;_instance_id=8b2984bdb624797b;_members=8b2984bdb624fd02^74d67b4249dbc1f5;cents_amount=72072;type=aggregate;vertext=Pledgebox (Flic Twist Indigogo #837 add on);yyyymmdd_date=20230630"
+
+    TaggedAmountPtr "BAS=2650;Ix=0;_instance_id=8b2984bdb6234885;cents_amount=181700;parent_SIE=M1;yyyymmdd_date=20230630"
+    TaggedAmountPtr "BAS=3740;Ix=1;_instance_id=8b2984bdb62616c0;cents_amount=36;parent_SIE=M1;yyyymmdd_date=20230630"
+    TaggedAmountPtr "BAS=2641;Ix=2;_instance_id=74d67b4249dca763;cents_amount=-181736;parent_SIE=M1;yyyymmdd_date=20230630"
+    TaggedAmountPtr "SIE=M1;_instance_id=8b2984bdb6230db1;_members=8b2984bdb6234885^8b2984bdb62616c0^74d67b4249dca763;cents_amount=181736;type=aggregate;vertext=Momsrapport 20230401...20230630;yyyymmdd_date=20230630"
+
+    TaggedAmountPtr "BAS=2650;Ix=0;_instance_id=a163c78bfafe93c3;cents_amount=133100;parent_SIE=M1;yyyymmdd_date=20230630"
+    TaggedAmountPtr "BAS=3740;Ix=1;_instance_id=a163c78bfafa3c19;cents_amount=46;parent_SIE=M1;yyyymmdd_date=20230630"
+    TaggedAmountPtr "BAS=2641;Ix=2;_instance_id=5e9c38740501695d;cents_amount=-133146;parent_SIE=M1;yyyymmdd_date=20230630"
+    TaggedAmountPtr "SIE=M1;_instance_id=a163c78bfafe9c1d;_members=a163c78bfafe93c3^a163c78bfafa3c19^5e9c38740501695d;cents_amount=133146;type=aggregate;vertext=Momsrapport 20230401...20230630;yyyymmdd_date=20230630"
+
+    TaggedAmountPtr "Account=NORDEA;Message=SHORTCUT LA* PL 2656;Saldo=1978926;Text=KORT             SHORTCUT LA* PL 26;_instance_id=5e9c38740507d4ff;cents_amount=-72072;yyyymmdd_date=20230630"
+
+    */
+  }
+
 
 	// tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
 	std::string to_string(TaggedAmountClass::InstanceId instance_id) {
@@ -2034,13 +2098,11 @@ namespace detail {
 }
 
 using TaggedAmountPtr = std::shared_ptr<detail::TaggedAmountClass>; // ####
+using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
 
-auto random_16_bit_salt() {
-	// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
-	std::random_device rd;  //Will be used to obtain a seed for the random number engine
-	std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-	std::uniform_int_distribution<> distrib(1, 0xFFFF); // Use a 16 bit random number		
-	return distrib(gen);
+std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
+	if (ta_ptr) os << *ta_ptr;
+	return os;
 }
 
 detail::TaggedAmountClass::OptionalInstanceId to_instance_id(std::string const& s) {
@@ -2080,6 +2142,14 @@ detail::TaggedAmountClass::OptionalInstanceIds to_instance_ids(Key::Path const& 
 	return result;
 }
 
+auto random_16_bit_salt() {
+	// Use example from cppreference std::uniform_int_distribution (https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution)
+	std::random_device rd;  //Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+	std::uniform_int_distribution<> distrib(1, 0xFFFF); // Use a 16 bit random number		
+	return distrib(gen);
+}
+
 // TODO 240225 - It seems my idea to make instance_id be a "value hash" for value semantics does not work.
 //               Maybe I thought a tagged amount could be created based on only date and amount?
 //               If this is required, then I need to salt it to make it unique (at least until I know what the full "value" of the tagged amount will be?)
@@ -2096,64 +2166,19 @@ detail::TaggedAmountClass::InstanceId to_instance_id(Date const& date,CentsAmoun
 		return result;
 }
 
-using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
-
-std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
-	if (ta_ptr) os << *ta_ptr;
-	return os;
-}
-
-// Implementing boost::hash_combine for std::size_t
-template <class T>
-inline void hash_combine(std::size_t& seed, const T& v)
-{
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-}
-
-// custom specialization of std::hash injected into namespace std
-// #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
-//                         For now this std::hash is not used so we are free to implement it to fully reflect the "value" of the tagged amount!
-//                         1) First make one that makes a hash from all members not prefixed with '_'.
-//                         2) When instance_id is refactored away we can use all tags as part of the value hash.
 template<>
 struct std::hash<TaggedAmountPtr> {
     std::size_t operator()(TaggedAmountPtr const& ta_ptr) const noexcept {
-				std::size_t result{};
-        // #####
-        // InstanceId instance_id() const {return m_instance_id;}
-        // Date const& date() const {return m_date;}
-        // CentsAmount const& cents_amount() const {return m_cents_amount;}
-        // Tags const& tags() const {return m_tags;}
-      auto yyyymmdd = ta_ptr->date();
-      hash_combine(result, static_cast<int>(yyyymmdd.year()));
-      hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
-      hash_combine(result, static_cast<unsigned>(yyyymmdd.day()));
-      hash_combine(result, ta_ptr->cents_amount());
-      if (true) {
-        // TODO: Remove this when we have refactored away instance_id (object semantics) in tagged amount
-        for (auto const& [key,value] : ta_ptr->tags()) {
-          if (not key.starts_with("_")) {
-            hash_combine(result, key);
-            hash_combine(result, value);
-          }
-        }
-      }
-      else {
-        // TODO: Use all tags as part of the value hash for value semantics tagged amounts :)
-        for (auto const& [key,value] : ta_ptr->tags()) {
-          hash_combine(result, key);
-          hash_combine(result, value);
-        }
-      }
-      return result;
+      return std::hash<detail::TaggedAmountClass>{}(*ta_ptr);
     }
 };
 
 using TaggedAmountPtrs = std::vector<TaggedAmountPtr>; // ####
 using OptionalTaggedAmountPtrs = std::optional<TaggedAmountPtrs>;
-using TaggedAmountPtrsMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>; // #### TODO 240225: Refactor to use std::unordered_map and a external "value hash" instead of std::map and internal instance_id?
+using TaggedAmountInstanceIdMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>; // #### TODO 240225: Refactor to use std::unordered_map and a external "value hash" instead of std::map and internal instance_id?
                                                                                              //                   In effect implement "value semantics" for tagged amounts?
+using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmountPtr>; // Value semantics map <value hash> --> <tagged amount ptr>
+
 namespace tas {
 	// 221121 Tagged amounts namespace
 	//        A seed for structuring tagged amounts into name space structure
@@ -2261,8 +2286,8 @@ class DateOrderedTaggedAmountsContainer { // ####
       // #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
 			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << detail::to_string(instance_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
-			if (m_tagged_amount_ptrs_map.contains(instance_id)) {
-				result = m_tagged_amount_ptrs_map.at(instance_id);
+			if (m_tagged_amount_instance_id_map.contains(instance_id)) {
+				result = m_tagged_amount_instance_id_map.at(instance_id);
 			}
 			else {
 				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to instance_id=" << detail::to_string(instance_id) << std::flush;
@@ -2309,14 +2334,16 @@ class DateOrderedTaggedAmountsContainer { // ####
 		}
 
 		DateOrderedTaggedAmountsContainer& clear() {
-			m_tagged_amount_ptrs_map.clear();
+			m_tagged_amount_instance_id_map.clear();
 			m_date_ordered_amount_ptrs.clear();
+      m_tagged_amount_value_id_map.clear(); // #### TODO: Remove m_tagged_amount_instance_id_map when this value semantics map is fully implemented
 			return *this;
 		}
 
 		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
 			this->m_date_ordered_amount_ptrs = other.m_date_ordered_amount_ptrs;
-			this->m_tagged_amount_ptrs_map = other.m_tagged_amount_ptrs_map;
+			this->m_tagged_amount_instance_id_map = other.m_tagged_amount_instance_id_map;
+      this->m_tagged_amount_value_id_map = other.m_tagged_amount_value_id_map;
 			return *this;
 		}
 
@@ -2337,24 +2364,44 @@ class DateOrderedTaggedAmountsContainer { // ####
 			auto iter = std::find_if(begin,end,[&ta_ptr_to_insert](TaggedAmountPtr const& ta_ptr){
 				return (*ta_ptr_to_insert == *ta_ptr);
 			});
+      auto value_hash = std::hash<TaggedAmountPtr>{}(ta_ptr_to_insert); // #### TODO: Remove m_tagged_amount_instance_id_map when this value semantics map is fully implemented
 			if (iter == end) {
 				// It has a unique value so go ahead and insert
-				m_tagged_amount_ptrs_map[ta_ptr_to_insert->instance_id()] = ta_ptr_to_insert; // mapped on id
+				m_tagged_amount_instance_id_map[ta_ptr_to_insert->instance_id()] = ta_ptr_to_insert; // mapped on id
 				result = m_date_ordered_amount_ptrs.insert(end,ta_ptr_to_insert); // sorted on date
+        if (not m_tagged_amount_value_id_map.contains(value_hash)) {
+          // The value is unique also as determoned by the value hash
+          m_tagged_amount_value_id_map[value_hash] = ta_ptr_to_insert; // #### TODO: Remove m_tagged_amount_instance_id_map when this value semantics map is fully implemented
+        }
+        else {
+          // We have a discrepancy between the two maps. This should not happen!
+          std::cerr << "\nDESIGN INSUFFICIENCY: ta_ptr_to_insert is NOT in m_tagged_amount_instance_id_map but IS in m_tagged_amount_value_id_map";
+          std::cerr << "\n\tta_ptr_to_insert = " << ta_ptr_to_insert;
+          std::cerr << "\n\tm_tagged_amount_value_id_map[value_hash] = " << m_tagged_amount_value_id_map[value_hash];
+        }
 			}
 			else {
-				// std::cout << "\n\tAlready in list " << ta_ptr_to_insert << " (" << *iter << ")";
+        // Value already in m_tagged_amount_instance_id_map
+        if (m_tagged_amount_value_id_map.contains(value_hash)) {
+          // OK, already in both maps
+        }
+        else {
+          // We have a discrepancy between the two maps. This should not happen!
+          std::cerr << "\nDESIGN INSUFFICIENCY: ta_ptr_to_insert is in m_tagged_amount_instance_id_map but NOT in m_tagged_amount_value_id_map";
+          std::cerr << "\n\tta_ptr_to_insert = " << ta_ptr_to_insert;
+          std::cerr << "\n\tm_tagged_amount_ptrs_map[ta_ptr_to_insert->instance_id()] = " << m_tagged_amount_instance_id_map[ta_ptr_to_insert->instance_id()];
+        }
 			}
 			return result;
 		}
 
-    // TODO 240218: Consider to provide an "ereaser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
+    // TODO 240218: Consider to provide an "eraser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
     // TODO: 240225: NOTE that erase of an aggregate does not erase the members of the aggregate. What is a good solution for this?
     DateOrderedTaggedAmountsContainer erase(InstanceId const& instance_id) {
       // #### Idea TODO 240226 - Update also the "value semantics" map of tagged amounts (to evalutae implementation before switching to it?)
       //                         Also consider to make erase remove also the aggregated values.
       if (auto o_ptr = this->at(instance_id)) {
-        m_tagged_amount_ptrs_map.erase(instance_id);
+        m_tagged_amount_instance_id_map.erase(instance_id);
         auto iter = std::ranges::find(m_date_ordered_amount_ptrs,*o_ptr);
         if (iter != m_date_ordered_amount_ptrs.end()) {
           m_date_ordered_amount_ptrs.erase(iter);
@@ -2398,8 +2445,9 @@ class DateOrderedTaggedAmountsContainer { // ####
 	private:
     // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between instance_id and tagged amount pointer and once in a vector ordered by date.
     // TODO 240218: Consider a more DRY solution for storing tagged amounts in a way that allows for efficient lookup and ordered iteration
-		TaggedAmountPtrsMap m_tagged_amount_ptrs_map{}; // map <instance id> -> <tagged amount ptr>
+		TaggedAmountInstanceIdMap m_tagged_amount_instance_id_map{}; // map <instance id> -> <tagged amount ptr>
 		TaggedAmountPtrs m_date_ordered_amount_ptrs{};  // vector of tagged amount ptrs ordered by date
+    TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <value hash> -> <tagged amount ptr> for "value semantics" of tagged amounts
 
     // #### Idea TODO 240226 - Add a C++ unordered map nad an std::hash for the value of the tagged amount to start implementing "value semantics"?
 
