@@ -3528,7 +3528,7 @@ TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
-	aggregate_ta_ptr->tags()["_members"] = instance_ids.to_string();
+	aggregate_ta_ptr->tags()["_members"] = instance_ids.to_string(); // #### value semantics
 	result.push_back(aggregate_ta_ptr);
 	return result;
 }
@@ -8645,6 +8645,13 @@ Cmd Updater::operator()(Command const& command) {
             auto& had = *(*had_iter);
             prompt << "\n" << had;
             bool do_prepend = (ast.size() == 4) and (ast[1] == "<--"); // Command <Index> "<--" <Heading> <Date>
+            // TODO In state PromptState::HADIndex (-hads) allow command <Index> <Heading> | <Amount> | <Date> to easilly modify single property of selected had
+            // Command: 4 "Betalning Faktura" modifies the heading of had with index 4
+            // Command: 4 20240123 modifies the date of had with index 4
+            // Command: 4 173,50 modifies the amount of had with index 4
+            OptionalDate new_date = (ast.size() == 2) ? to_date(ast[1]) : std::nullopt;
+            OptionalAmount new_amount = (ast.size() == 2 and not new_date) ? to_amount(ast[1]) : std::nullopt;
+            std::optional<std::string> new_heading = (ast.size() == 2 and not new_amount and not new_date) ? std::optional<std::string>(ast[1]) : std::nullopt;
             if (do_remove) {
               model->heading_amount_date_entries.erase(*had_iter);
               prompt << " REMOVED";
@@ -8662,6 +8669,18 @@ Cmd Updater::operator()(Command const& command) {
               };
               model->heading_amount_date_entries.push_back(prepended_had);
               prompt << to_had_listing_prompt(model->refreshed_hads());
+            }
+            else if (new_heading) {
+              had.heading = *new_heading;
+              prompt << "\n  *new* --> " << had;
+            }
+            else if (new_amount) {
+              had.amount = *new_amount;
+              prompt << "\n  *new* --> " << had;
+            }
+            else if (new_date) {
+              had.date = *new_date;
+              prompt << "\n  *new* --> " << had;
             }
             else if (ast.size() == 4 and (ast[1] == "-initiated_as")) {
               // Command <Had Index> "-initiated_as" <Heading> <Date>
@@ -10222,7 +10241,7 @@ Consider the process to turn account statements into SIE Journal entries?
       prompt << "\n<AGGREGATES>";
       for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
         prompt << "\n" << ta_ptr;
-        if (auto members_value = ta_ptr->tag_value("_members")) {
+        if (auto members_value = ta_ptr->tag_value("_members")) { // #### value semantics
           auto members = Key::Path{*members_value};
           if (auto instance_ids = to_instance_ids(members)) {
             prompt << "\n\t<members>";
@@ -10241,7 +10260,7 @@ Consider the process to turn account statements into SIE Journal entries?
       // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
       for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
         bool has_SIE_tag = ta_ptr->tag_value("SIE").has_value();
-        if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) {
+        if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) { // #### value semantics
           prompt << "\nDisregarded SIE aggregate " << ta_ptr;
           had_candidate_ta_ptrs.erase(ta_ptr->instance_id());
           auto members = Key::Path{*members_value};
