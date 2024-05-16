@@ -5310,7 +5310,6 @@ enum class JournalEntryVATType {
 	,EUVAT = 2
 	,VATReturns = 3
   ,VATClearing = 4 // VAT Returns Cleared by Swedish Skatteverket (SKV) 
-  ,VATSettlement = 5 // VAT Settled (SKV pays us or We pay SKV)
   ,SKVInterest = 6
   ,SKVFee = 7
 	,VATTransfer = 8 // VAT Clearing and Settlement in one Journal Entry
@@ -5345,7 +5344,6 @@ std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
 		case JournalEntryVATType::EUVAT: {os << "EU VAT";} break;
 		case JournalEntryVATType::VATReturns: {os << "VAT Returns";} break;
     case JournalEntryVATType::VATClearing: {os << "VAT Returns Clearing";} break; // VAT Returns Cleared by Swedish Skatteverket (SKV) 
-    case JournalEntryVATType::VATSettlement: {os << "VAT returns Settlement";} break; // VAT Settled (SKV pays us or We pay SKV)
     case JournalEntryVATType::SKVInterest: {os << "SKV Interest";} break; // SKV applied interest to holding on the SKV account
     case JournalEntryVATType::SKVFee: {os << "SKV Fee";} break; // SKV applied a fee to be paied (e.g., for missing to leave a report before deadline)
 		case JournalEntryVATType::VATTransfer: {os << "VAT Transfer";} break;
@@ -5409,9 +5407,6 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
       // Note: Sometimes BAS account 1650 is used to book (and clear) VAT to be paied to SKV (or maybe yhen it is paied when the VAT Returns is created)?
     })) {
 		result = JournalEntryVATType::VATClearing; // SKV account cleared against 2650
-  }
-  else if ((tme.defacto.account_transactions.size() == 2) and (props_counter.size() == 1) and props_counter.contains("vat") and props_counter.contains("gross")) {
-		result = JournalEntryVATType::VATSettlement; // One gross account (assumed to be a bank account) and one VAT account
   }
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "transfer") or (entry.first == "vat");})) {
 		result = JournalEntryVATType::VATTransfer; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
@@ -9022,10 +9017,13 @@ Cmd Updater::operator()(Command const& command) {
                     // Continue with 
                     // 1) Some proposed gross account transactions
                     // 2) a n x gross Counter aggregate
+
+                    // NOTE 20240516 - A transfer to or from the SKV account is for now treated as a "No VAT" or "plain" transfer
+
                     auto tp = to_template(*tme_iter);
                     if (tp) {
                       auto me = to_journal_entry(had,*tp);
-                      prompt << "\nNo VAT candidate " << me;
+                      prompt << "\nPlain transfer " << me;
                       had.optional.current_candidate = me;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
                     }
@@ -9137,16 +9135,6 @@ Cmd Updater::operator()(Command const& command) {
                       had.optional.current_candidate = me;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
                     }                  
-                  } break;
-                  case JournalEntryVATType::VATSettlement: {
-                    //  gross = sort_code: 0x3 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -179
-                    //  gross = sort_code: 0x3 : "PlusGiro":1920 "" 179
-                    if (false) {
-
-                    }
-                    else {
-                      prompt << "\nSorry, I have yet to become capable to create an VAT Settlement entry from template " << tme;
-                    }
                   } break;
                   case JournalEntryVATType::SKVInterest: {
                     auto tp = to_template(*tme_iter);
