@@ -5412,12 +5412,20 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "transfer") or (entry.first == "vat");})) {
 		result = JournalEntryVATType::VATTransfer; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
 	}
-	else if (false) { // TODO 231105: Implement a criteria to recognise an SKV Interest event
-		result = JournalEntryVATType::SKVInterest;
+  else if (tme.defacto.account_transactions.size() == 2 and std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[](auto const& tat){
+      auto const& [at,props] = tat;
+      return (at.account_no == 8314 or at.account_no == 1630);
+    })) {
+    // One account 1630 (SKV tax account) and one account 8314 (tax free interest gain)
+		result = JournalEntryVATType::SKVInterest; // SKV gained interest
 	}
 	else if (false) { // TODO 231105: Implement a criteria to identify an SKV Fee event
+    // bokförs på konto 6992 övriga ej avdragsgilla kostnader
 		result = JournalEntryVATType::SKVFee;
-	}  
+	}
+  else if (false) { // TODO 20240516: Implement criteria and type to idendify tax free SKV interest loss
+    // (at.account_no == 8423 or at.account_no == 1630);
+  }
 	else {
 		if (log) std::cout << "\nFailed to recognise the VAT type";
 	}
@@ -9005,10 +9013,11 @@ Cmd Updater::operator()(Command const& command) {
                   case JournalEntryVATType::Unknown:
                     prompt << "\nSorry, I encountered Unknown VAT type for " << tme;
                     break; // *silent ignore*
-                  case JournalEntryVATType::NoVAT: {
+                  case JournalEntryVATType::NoVAT:
+                  case JournalEntryVATType::SKVInterest: {
                     // No VAT in candidate. 
                     // Continue with 
-                    // 1) Some propose gross account transactions
+                    // 1) Some proposed gross account transactions
                     // 2) a n x gross Counter aggregate
                     auto tp = to_template(*tme_iter);
                     if (tp) {
@@ -9135,14 +9144,6 @@ Cmd Updater::operator()(Command const& command) {
                     }
                     else {
                       prompt << "\nSorry, I have yet to become capable to create an VAT Settlement entry from template " << tme;
-                    }
-                  } break;
-                  case JournalEntryVATType::SKVInterest: {
-                    if (false) {
-
-                    }
-                    else {
-                      prompt << "\nSorry, I have yet to become capable to create an SKV Interest entry from template " << tme;
                     }
                   } break;
                   case JournalEntryVATType::SKVFee: {
