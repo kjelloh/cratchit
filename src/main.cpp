@@ -5403,8 +5403,12 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "vat") or (entry.first == "eu_vat") or  (entry.first == "cents");})) {
 		result = JournalEntryVATType::VATReturns; // All VATS (probably a VAT report)
 	}
-  else if ((tme.defacto.account_transactions.size() == 2) and (props_counter.size() == 1) and props_counter.contains("vat")) {
-		result = JournalEntryVATType::VATClearing; // Single Debit and Credit account and both are VAT accounts  
+  else if (tme.defacto.account_transactions.size() == 2 and std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[](auto const& tat){
+      auto const& [at,props] = tat;
+      return (at.account_no == 1630 or at.account_no == 2650); // SKV account updated with VAT, i.e., cleared
+      // Note: Sometimes BAS account 1650 is used to book (and clear) VAT to be paied to SKV (or maybe yhen it is paied when the VAT Returns is created)?
+    })) {
+		result = JournalEntryVATType::VATClearing; // SKV account cleared against 2650
   }
   else if ((tme.defacto.account_transactions.size() == 2) and (props_counter.size() == 1) and props_counter.contains("vat") and props_counter.contains("gross")) {
 		result = JournalEntryVATType::VATSettlement; // One gross account (assumed to be a bank account) and one VAT account
@@ -9009,12 +9013,11 @@ Cmd Updater::operator()(Command const& command) {
                 switch (vat_type) {
                   case JournalEntryVATType::Undefined:
                     prompt << "\nSorry, I encountered Undefined VAT type for " << tme;
-                    break; // *silent ignore*
+                    break; // *NOP*
                   case JournalEntryVATType::Unknown:
                     prompt << "\nSorry, I encountered Unknown VAT type for " << tme;
-                    break; // *silent ignore*
-                  case JournalEntryVATType::NoVAT:
-                  case JournalEntryVATType::SKVInterest: {
+                    break; // *NOP*
+                  case JournalEntryVATType::NoVAT: {
                     // No VAT in candidate. 
                     // Continue with 
                     // 1) Some proposed gross account transactions
@@ -9127,14 +9130,13 @@ Cmd Updater::operator()(Command const& command) {
                     model->prompt_state = PromptState::JEAggregateOptionIndex;
                   } break;
                   case JournalEntryVATType::VATClearing: {
-                    //  ? = sort_code: 0x0 : "Avräkning för skatter och avgifter (skattekonto)":1630 "" 3440
-                    //  vat = sort_code: 0x6 : "Momsfordran":1650 "" -3440
-                    if (false) {
-
-                    }
-                    else {
-                      prompt << "\nSorry, I have yet to become capable to create an VAT Clearing entry from template " << tme;
-                    }
+                    auto tp = to_template(*tme_iter);
+                    if (tp) {
+                      auto me = to_journal_entry(had,*tp);
+                      prompt << "\nVAT clearing candidate " << me;
+                      had.optional.current_candidate = me;
+                      model->prompt_state = PromptState::JEAggregateOptionIndex;
+                    }                  
                   } break;
                   case JournalEntryVATType::VATSettlement: {
                     //  gross = sort_code: 0x3 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Utbetalning" -179
@@ -9144,6 +9146,15 @@ Cmd Updater::operator()(Command const& command) {
                     }
                     else {
                       prompt << "\nSorry, I have yet to become capable to create an VAT Settlement entry from template " << tme;
+                    }
+                  } break;
+                  case JournalEntryVATType::SKVInterest: {
+                    auto tp = to_template(*tme_iter);
+                    if (tp) {
+                      auto me = to_journal_entry(had,*tp);
+                      prompt << "\nTax free SKV interest " << me;
+                      had.optional.current_candidate = me;
+                      model->prompt_state = PromptState::JEAggregateOptionIndex;
                     }
                   } break;
                   case JournalEntryVATType::SKVFee: {
