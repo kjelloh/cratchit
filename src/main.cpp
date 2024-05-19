@@ -5218,6 +5218,16 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 	// std::cout << "\nto_typed_meta_entry: " << me; 
 	BAS::anonymous::TypedAccountTransactions typed_ats{};
 
+  /*
+  use the following tagging
+
+  "gross" for the transaction with the whole transaction amount (balances debit and credit to one account)
+  "vat" for a vat part amount
+  "net" for ex VAT amount
+  "transfer" For amount just "passing though" and account (a debit and credit in the same transaction = ending up being half the gross amount on each balancing side)
+  "counter" (for non VAT amount that counters (balances) the gross amount)
+  */
+
 	if (auto optional_gross_amount = to_gross_transaction_amount(me.defacto)) {
 		auto gross_amount = *optional_gross_amount; 
 		// Direct type detection based on gross_amount and account meta data
@@ -5225,7 +5235,7 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 			if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
 			if (is_vat_account_at(at)) typed_ats[at].insert("vat");
 			if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
-			if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer");
+			if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
 		}
 
 		// Ex vat amount Detection
@@ -5239,12 +5249,13 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 				vat_amount += at.amount;
 			}
 		}
+    std::string net_or_counter_tag = (vat_amount != 0)?std::string{"net"}:std::string{"counter"};
 		if (std::abs(std::round(std::abs(ex_vat_amount)) + std::round(std::abs(vat_amount)) - gross_amount) <= 1) {
 			// ex_vat + vat within cents of gross
 			// tag non typed ats as ex-vat
 			for (auto const& at : me.defacto.account_transactions) {
 				if (!typed_ats.contains(at)) {
-					typed_ats[at].insert("net");
+					typed_ats[at].insert(net_or_counter_tag);
 				}
 			}
 		}
@@ -5376,9 +5387,13 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	});
 	// Identify what type of VAT the candidate defines
 	if ((props_counter.size() == 1) and props_counter.contains("gross")) {
-		result = JournalEntryVATType::NoVAT; // NO VAT (gross, counter gross)
-		if (log) std::cout << "\nTemplate is an NO VAT transaction :)"; // gross,gross
+		result = JournalEntryVATType::NoVAT; // NO VAT (All gross i.e., a Debit and credit that is not a VAT and with the same amount)
+		if (log) std::cout << "\nTemplate is an NO VAT, all gross amount transaction :)"; // gross,gross
 	}
+  else if ((props_counter.size() == 2) and props_counter.contains("gross") and props_counter.contains("counter")) {
+		result = JournalEntryVATType::NoVAT; // NO VAT and only one gross and more than one counter gross
+		if (log) std::cout << "\nTemplate is an NO VAT, gross + counter gross transaction :)"; // gross,counter...    
+  }
 	else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
 		if (props_sum == 3) {
 			if (log) std::cout << "\nTemplate is a SWEDISH PURCHASE/sale"; // (gross,net,vat);
@@ -10005,72 +10020,6 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-tas") {
       // Enter tagged Amounts mode for specified period (from any state)
-/*
-
-Consider the process to turn account statements into SIE Journal entries?
-
-1) Turn the account statement
-
-0. 7297cc24f838c039 20220704 -5,10 "Account=NORDEA" "From=51 86 87-9" "To="
-
-
-1. c5eb4b1ff7ebb281 20220712 -162,62 "Account=NORDEA" "From=51 86 87-9" "To="
-2. 792052fc6a0039de 20220725 -6643,14 "Account=NORDEA" "From=51 86 87-9" "To="
-3. 792052fc6a14e708 20220725 -277,00 "Account=NORDEA" "From=51 86 87-9" "To="
-4. f2aa5fd6cd6cae8f 20220727 -165,25 "Account=NORDEA" "From=51 86 87-9" "To="
-5. 7c1a83a729f44e5a 20220801 -1149,55 "Account=NORDEA" "From=51 86 87-9" "To="
-6. 7c1a83a729f66cb3 20220801 -438,90 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
-7. e5bd98fed4eb6552 20220802 -372,30 "Account=NORDEA" "From=51 86 87-9" "To=DE93600501010008573182"
-8. 7f9334ab567a6a37 20220804 -135,70 "Account=NORDEA" "From=51 86 87-9" "To=377-8214"
-9. c77d560c408290a5 20220805 -1884,37 "Account=NORDEA" "From=51 86 87-9" "To="
-10. a30fe7f13729868 20220808 -4197,00 "Account=NORDEA" "From=51 86 87-9" "To="
-11. a30fe7f1375bbd1 20220808 -3829,41 "Account=NORDEA" "From=51 86 87-9" "To="
-12. a30fe7f137458c3 20220808 -3290,00 "Account=NORDEA" "From=51 86 87-9" "To="
-13. a30fe7f137874b4 20220808 -2129,00 "Account=NORDEA" "From=51 86 87-9" "To="
-14. a30fe7f137c0678 20220808 -699,90 "Account=NORDEA" "From=51 86 87-9" "To="
-15. 5169c9dc321572b4 20220809 -1917,00 "Account=NORDEA" "From=51 86 87-9" "To="
-16. d2d7ae5ec16d36f4 20220812 -155,94 "Account=NORDEA" "From=51 86 87-9" "To="
-17. b4b369c168af076 20220815 -1419,40 "Account=NORDEA" "From=51 86 87-9" "To="
-18. b0a082d4a3c65661 20220822 -1599,00 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
-19. 4f5f7d2b5c45dd3e 20220822 39550,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
-20. 8ea9957fbdb480fa 20220823 -39565,04 "Account=NORDEA" "From=51 86 87-9" "To=DE42620500000013602749"
-21. 71566a804232a107 20220823 504,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-22. 71566a80424b2932 20220823 39550,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-23. 6ad264805a693cad 20220824 -399,75 "Account=NORDEA" "From=51 86 87-9" "To=5365-8274"
-24. 481ac3653cd9dfaa 20220825 -39550,00 "Account=NORDEA" "From=51 86 87-9" "To=32592317244"
-25. 1e7760188d0449c6 20220826 -890,00 "Account=NORDEA" "From=51 86 87-9" "To="
-26. 4a4a7f482f5b07c 20220905 -4190,00 "Account=NORDEA" "From=51 86 87-9" "To="
-27. 4a4a7f482fdba4e 20220905 -1499,00 "Account=NORDEA" "From=51 86 87-9" "To="
-28. 4a4a7f482fb4a9c 20220905 -799,00 "Account=NORDEA" "From=51 86 87-9" "To="
-29. 4a4a7f482f905ca 20220905 -10,50 "Account=NORDEA" "From=51 86 87-9" "To="
-30. 68ba6148c41fc469 20220908 -446,00 "Account=NORDEA" "From=51 86 87-9" "To=5020-7042"
-31. f1afd7fc7fd9ff48 20220909 -2936,96 "Account=NORDEA" "From=51 86 87-9" "To="
-32. 9acabb4d626d9230 20220912 -149,00 "Account=NORDEA" "From=51 86 87-9" "To="
-33. 653544b29d901828 20220912 799,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-34. 653544b29d9611d0 20220912 1499,00 "Account=NORDEA" "From=" "To=51 86 87-9"
-35. acb727b0ab8ce0ee 20220913 -2963,94 "Account=NORDEA" "From=51 86 87-9" "To=5579-0372"
-36. acb727b0ab82725b 20220913 -2398,00 "Account=NORDEA" "From=51 86 87-9" "To="
-37. acb727b0ab85b882 20220913 -164,37 "Account=NORDEA" "From=51 86 87-9" "To="
-38. 5348d84f544709f3 20220913 20000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
-39. acb727b0abb83d58 20220913 -20000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
-40. ab17c38434cc1f54 20220914 -665,88 "Account=NORDEA" "From=51 86 87-9" "To="
-41. ab17c38434cf46dd 20220914 -384,80 "Account=NORDEA" "From=51 86 87-9" "To=SE4412000000012200137117"
-42. ab17c38434cecbfd 20220914 -182,38 "Account=NORDEA" "From=51 86 87-9" "To=5562-5735"
-43. 1fe7fcd9ce2219e6 20220915 -904,00 "Account=NORDEA" "From=51 86 87-9" "To=824-3040"
-44. 1fe7fcd9ce202ef2 20220915 -227,00 "Account=NORDEA" "From=51 86 87-9" "To="
-45. 1fe7fcd9ce207632 20220915 -191,00 "Account=NORDEA" "From=51 86 87-9" "To=412 20 00-5"
-46. 1fe7fcd9ce200a00 20220915 -118,00 "Account=NORDEA" "From=51 86 87-9" "To="
-47. 1f73f30e22a3e837 20220919 -13578,00 "Account=NORDEA" "From=51 86 87-9" "To="
-48. 1f73f30e2288d290 20220919 -694,00 "Account=NORDEA" "From=51 86 87-9" "To="
-49. baac6f0d83899487 20220920 -4765,00 "Account=NORDEA" "From=51 86 87-9" "To=5307-1676"
-50. ca3b0334ceead9de 20220921 25000,00 "Account=NORDEA" "From=32592317244" "To=51 86 87-9"
-51. 35c4fccb311520cf 20220921 -25000,00 "Account=NORDEA" "From=3259 23 17244" "To=5186879"
-52. f69942115b49b996 20220922 -2855,00 "Account=NORDEA" "From=51 86 87-9" "To=417 74 04-3"
-53. 966bdeea4bcd8c8 20220922 739,69 "Account=NORDEA" "From=" "To=51 86 87-9"
-54. 4301b16f2a993e63 20220926 -1031,00 "Account=NORDEA" "From=51 86 87-9" "To=5211-5664"
-55. c987951e9f67ff84 20220927 -783,75 "Account=NORDEA" "From=51 86 87-9" "To=5343-2795"
-56. d264d03b2b65eea7 20220929 -368,00 "Account=NORDEA" "From=51 86 87-9" "To=5249-4309"
-*/				
       if (ast.size() == 1 and model->selected_date_ordered_tagged_amounts.size() > 0) {
         // Enter into current selection
         model->prompt_state = PromptState::TAIndex;
@@ -10445,6 +10394,30 @@ Consider the process to turn account statements into SIE Journal entries?
             prompt << "\nYear identifier " << year_key << " is not associated with any data";
           }
         }
+      }
+    }
+    else if (ast[0] == "-huvudbok") {
+      // command "-huvudbok" defaults to "-huvudbok 0", that is the fiscal year of current date
+      std::string year_id = (ast.size() == 2)?ast[1]:std::string{"current"};
+      if (year_id == "0") year_id = "current";
+      prompt << "\nHuvudbok for year id " << year_id;
+      auto fiscal_year_date_range = model->to_fiscal_year_date_range(year_id);
+      if (fiscal_year_date_range) {
+        prompt << " " << *fiscal_year_date_range;
+        TaggedAmountPtrs ta_ptrs{}; // journal entries
+        auto is_SIE_member = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
+          return ta_ptr->tags().contains("parent_SIE");
+        };        
+        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_SIE_member),std::back_inserter(ta_ptrs));				
+        prompt << "\n<Journal Entries in year id " << year_id << ">";
+        for (auto const& ta_ptr : ta_ptrs) {
+          prompt << "\n\t" << ta_ptr;
+        }				
+        // 2. Group tagged amounts into same BAS account and a list of parent_SIE
+        // 3. "print" the table grouping BAS accounts and date ordered SIE verifications (also showing a running accumultaion of the account balance)
+      }
+      else {
+        prompt << "\nSORRY, Failed to understand what fiscal year " << year_id << " refers to. Please enter a valid year id (0 or 'current', -1 = previous fiscal year...)";
       }
     }
     else if (ast[0] == "-balance") {
