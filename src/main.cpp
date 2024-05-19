@@ -10406,7 +10406,7 @@ Cmd Updater::operator()(Command const& command) {
         prompt << " " << *fiscal_year_date_range;
         TaggedAmountPtrs ta_ptrs{}; // journal entries
         auto is_SIE_member = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
-          return ta_ptr->tags().contains("parent_SIE");
+          return (ta_ptr->tags().contains("parent_SIE") or ta_ptr->tags().contains("IB"));
         };        
         std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_SIE_member),std::back_inserter(ta_ptrs));				
         prompt << "\n<Journal Entries in year id " << year_id << ">";
@@ -11577,16 +11577,27 @@ private:
 	}
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
-		// std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
+		std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
 		DateOrderedTaggedAmountsContainer result{};
 		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
 			auto tagged_amount_ptrs = to_tagged_amounts(me);
       // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
-      // Hm...problem is that here we do not have access to the other tagged amounts alreadyu in the environment...
+      // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
 			result += tagged_amount_ptrs;
 		};
 		for_each_meta_entry(sie_env,create_tagged_amounts_to_result);
+    // TODO 240519 - Also create tagged amounts for IB (Ingående balans / Opening saldo) available in std::map<BAS::AccountNo,Amount> opening_balance{};
+    auto fiscal_year_date_range = sie_env.fiscal_year_date_range();
+    auto opening_saldo_date = fiscal_year_date_range->begin();
+    std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
+    for (auto const& [bas_account_no,saldo_cents_amount] : sie_env.opening_balances()) {
+      auto saldo_ta = std::make_shared<detail::TaggedAmountClass>(to_instance_id(opening_saldo_date,saldo_cents_amount), opening_saldo_date,saldo_cents_amount);
+      saldo_ta->tags()["BAS"] = std::to_string(bas_account_no);
+      saldo_ta->tags()["IB"] = "True";
+      result.insert(saldo_ta);
+      std::cout << "\n\tsaldo_ta : " << saldo_ta;
+    }
 		return result;
 	}
 
@@ -11717,15 +11728,21 @@ private:
         }
         else while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end() and (*source_iter)->date() < (*target_iter)->date()) {
           // Add new SIE entries not yet in (older than) "all"
-          std::cout << "\n\tAdding Older SIE " << *(*source_iter);
+          std::cout << "\n\tAdding Older SIE entry" << *(*source_iter);
           all_date_ordered_tagged_amounts.insert(*source_iter);
           ++source_iter;
         }
         // We are now Synchronized to the "same" start date.
         // Now ensure "all" contains only the provided SIE entries
         while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
+          if ((*source_iter)->tag_value("IB")) {
+            all_date_ordered_tagged_amounts.insert(*source_iter); // Ensure any opening balance is updated ok (sie file values take precedence)
+            ++source_iter;
+            continue; // skip further processing of added opening balance
+          }
+
           // iterate to next SIE aggregate in source and target
-          if (!(*source_iter)->tag_value("SIE")) {
+          if ( not (*source_iter)->tag_value("SIE")) {
             ++source_iter;
             continue; // skip non SIE aggregate
           }
@@ -11779,7 +11796,7 @@ private:
       }
     }
     else {
-      std::cerr << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal lyear set";
+      std::cerr << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
     }
     std::cout << "\n\tNOT YET IMPLEMENTED - synchronise_tagged_amounts_with_sie";
     std::cout << "\n} SYNHRONIZE TAGGED AMOUNTS WITH SIE - END";
