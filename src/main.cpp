@@ -10405,16 +10405,39 @@ Cmd Updater::operator()(Command const& command) {
       if (fiscal_year_date_range) {
         prompt << " " << *fiscal_year_date_range;
         TaggedAmountPtrs ta_ptrs{}; // journal entries
-        auto is_SIE_member = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
+        auto is_journal_entry = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
           return (ta_ptr->tags().contains("parent_SIE") or ta_ptr->tags().contains("IB"));
         };        
-        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_SIE_member),std::back_inserter(ta_ptrs));				
-        prompt << "\n<Journal Entries in year id " << year_id << ">";
-        for (auto const& ta_ptr : ta_ptrs) {
-          prompt << "\n\t" << ta_ptr;
-        }				
+        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(ta_ptrs));				
         // 2. Group tagged amounts into same BAS account and a list of parent_SIE
+        std::map<std::string,TaggedAmountPtrs> huvudbok{};
+        std::map<std::string,CentsAmount> opening_balance{};
+        
+        for (auto const& ta_ptr : ta_ptrs) {
+          if (ta_ptr->tags().contains("IB")) {
+            opening_balance[ta_ptr->tags()["BAS"]] = ta_ptr->cents_amount();
+          }
+          else {
+            huvudbok[ta_ptr->tags()["BAS"]].push_back(ta_ptr);
+          }
+        }
+
         // 3. "print" the table grouping BAS accounts and date ordered SIE verifications (also showing a running accumultaion of the account balance)
+        prompt << "\n<Journal Entries in year id " << year_id << ">";
+        for (auto const& [bas_account_no,ta_ptrs] : huvudbok) {
+          CentsAmount acc{0};
+          prompt << "\n" << bas_account_no;
+          if (opening_balance.contains(bas_account_no)) {
+            acc = opening_balance[bas_account_no];
+            prompt << "\n\topening balance\t" << to_units_and_cents(acc);
+          }
+          for (auto const& ta_ptr : ta_ptrs) {
+            prompt << "\n\t" << ta_ptr;
+            acc += ta_ptr->cents_amount();
+            prompt << "\tsaldo:" << to_units_and_cents(acc); 
+          }
+          prompt << "\n\tclosing balance\t" << to_units_and_cents(acc);
+        }
       }
       else {
         prompt << "\nSORRY, Failed to understand what fiscal year " << year_id << " refers to. Please enter a valid year id (0 or 'current', -1 = previous fiscal year...)";
