@@ -2026,7 +2026,7 @@ namespace detail {
     should_match = An SIE with the same series and sequence number should match
     result = same date, same amount, and all tags (except "reference" tags prefiexed with '_') in this are in other and have the same value
     */
-    // Log a warning untiol we have a way to purge SIE entries that does not correspond to the correct ones in the SIE file.
+    // Log a warning until we have a way to purge SIE entries that does not correspond to the correct ones in the SIE file.
     // (SIE files reflects any changes made in external applications and MUST be regarded as the truth)
     if (should_match and !result) {
       std::cout << "\nShould Match but Does NOT {";
@@ -2053,7 +2053,22 @@ namespace detail {
       }
 
       std::cout << "\n}";
+
     }
+
+    // 20240520 Hack - If same date, amount and SIE series and number, then treat them as "the same"
+    if (this->date() == other.date() and this->cents_amount() == other.cents_amount()) {
+      auto this_sie_label = this->tag_value("SIE");
+      auto other_sie_label = other.tag_value("SIE");
+      if (this_sie_label and other_sie_label and (*this_sie_label == *other_sie_label)) {
+        // if (should_match) std::cout << "\n\t*PATCH* - Same date, amount and SIE label = treat as SAME!";
+        result = true;
+      }
+    }
+
+    // std::cout << "\nTaggedAmountClass::operator== ";
+    // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
+
     return result;
     /*
     20240216 tracking down dublicate tagged amount entries
@@ -4902,6 +4917,7 @@ public:
 	}
 
 	void post(BAS::MetaEntry const& me) {
+    // std::cout << "\npost(" << me << ")"; 
 		if (me.meta.verno) {
 			m_journals[me.meta.series][*me.meta.verno] = me.defacto;
 			verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
@@ -4910,13 +4926,14 @@ public:
 			std::cerr << "\nSIEEnvironment::post failed - can't post an entry with null verno";
 		}
 	}
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& entry) {
+	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
+    // std::cout << "\nstage(" << me << ")"  << std::flush; 
 		std::optional<BAS::MetaEntry> result{};
-		if (does_balance(entry.defacto)) {
-			if (this->already_in_posted(entry) == false) {
-        result = this->add(entry);
+		if (does_balance(me.defacto)) {
+			if (this->already_in_posted(me) == false) {
+        result = this->add(me); // return entry if it is no longer unposted / staged for posting
       }
-			else result = this->update(entry);
+			else result = this->update(me);
 		}
 		else {
 			std::cout << "\nSorry, Failed to stage. Entry Does not Balance";
@@ -4924,7 +4941,9 @@ public:
 		return result;
 	}
 
+  // Try to stage all provided entries for posting
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {
+    // std::cout << "\nstage(sie environment)"  << std::flush; 
 		BAS::MetaEntries result{};
 		for (auto const& [series,journal] : staged_sie_environment.journals()) {
 			for (auto const& [verno,aje] : journal) {
@@ -4937,7 +4956,7 @@ public:
 		return result;
 	}
 	BAS::MetaEntries unposted() const {
-		std::cout << "\nunposted()";
+		// std::cout << "\nunposted()";
 		BAS::MetaEntries result{};
     for (auto const& [series,journal] : this->m_journals) {
       for (auto const& [verno,je] : journal) {
@@ -4960,7 +4979,7 @@ public:
 
 	void set_year_date_range(DateRange const& dr) {
 		this->year_date_range = dr;
-		std::cout << "\nset_year_date_range <== " << *this->year_date_range;
+		// std::cout << "\nset_year_date_range <== " << *this->year_date_range;
 	}
 
 	void set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
@@ -5032,7 +5051,9 @@ private:
 	OptionalDateRange year_date_range{}; // ####
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
+
 	BAS::MetaEntry add(BAS::MetaEntry me) {
+    // std::cout << "\nadd(" << me << ")"  << std::flush; 
 		BAS::MetaEntry result{me};
 		// Ensure a valid series
 		if (me.meta.series < 'A' or 'M' < me.meta.series) {
@@ -5041,11 +5062,19 @@ private:
 		}
 		// Assign "actual" sequence number
 		auto verno = largest_verno(me.meta.series) + 1;
+    // std::cout << "\n\tSetting actual ver no:" << verno;
 		result.meta.verno = verno;
-		m_journals[me.meta.series][verno] = me.defacto;
+    if (m_journals[me.meta.series].contains(verno) == false) {
+		  m_journals[me.meta.series][verno] = me.defacto;
+    }
+    else {
+      std::cerr << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
+    }
 		return result;
 	}
+
 	BAS::MetaEntry update(BAS::MetaEntry const& me) {
+    // std::cout << "\nupdate(" << me << ")" << std::flush; 
 		BAS::MetaEntry result{me};
 		if (me.meta.verno and *me.meta.verno > 0) {
 			auto journal_iter = m_journals.find(me.meta.series);
@@ -5054,6 +5083,8 @@ private:
 					auto entry_iter = journal_iter->second.find(*me.meta.verno);
 					if (entry_iter != journal_iter->second.end()) {
 						entry_iter->second = me.defacto; // update
+            // std::cout << "\nupdated :" << entry_iter->second;
+            // std::cout << "\n    --> :" << me;
 					}
 				}
 			}
@@ -11600,8 +11631,19 @@ private:
 	}
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
-		std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
+		// std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
 		DateOrderedTaggedAmountsContainer result{};
+    // Create / add opening balances for BAS accounts as tagged amounts
+    auto fiscal_year_date_range = sie_env.fiscal_year_date_range();
+    auto opening_saldo_date = fiscal_year_date_range->begin();
+    // std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
+    for (auto const& [bas_account_no,saldo_cents_amount] : sie_env.opening_balances()) {
+      auto saldo_ta = std::make_shared<detail::TaggedAmountClass>(to_instance_id(opening_saldo_date,saldo_cents_amount), opening_saldo_date,saldo_cents_amount);
+      saldo_ta->tags()["BAS"] = std::to_string(bas_account_no);
+      saldo_ta->tags()["IB"] = "True";
+      result.insert(saldo_ta);
+      // std::cout << "\n\tsaldo_ta : " << saldo_ta;
+    }
 		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
 			auto tagged_amount_ptrs = to_tagged_amounts(me);
       // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
@@ -11610,17 +11652,6 @@ private:
 			result += tagged_amount_ptrs;
 		};
 		for_each_meta_entry(sie_env,create_tagged_amounts_to_result);
-    // TODO 240519 - Also create tagged amounts for IB (Ingående balans / Opening saldo) available in std::map<BAS::AccountNo,Amount> opening_balance{};
-    auto fiscal_year_date_range = sie_env.fiscal_year_date_range();
-    auto opening_saldo_date = fiscal_year_date_range->begin();
-    std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
-    for (auto const& [bas_account_no,saldo_cents_amount] : sie_env.opening_balances()) {
-      auto saldo_ta = std::make_shared<detail::TaggedAmountClass>(to_instance_id(opening_saldo_date,saldo_cents_amount), opening_saldo_date,saldo_cents_amount);
-      saldo_ta->tags()["BAS"] = std::to_string(bas_account_no);
-      saldo_ta->tags()["IB"] = "True";
-      result.insert(saldo_ta);
-      std::cout << "\n\tsaldo_ta : " << saldo_ta;
-    }
 		return result;
 	}
 
@@ -11644,16 +11675,17 @@ private:
             if (std::filesystem::is_regular_file(fiscal_year_member_path) and (fiscal_year_member_path.extension() == ".csv")) {
               auto in = std::ifstream{fiscal_year_member_path};
               if (auto field_rows = CSV::to_field_rows(in,';')) {
-                std::cout << "\n\t<Entries>";
+                std::cout << "\n\tNo Operation implemented";
+                // std::cout << "\n\t<Entries>";
                 for (int i=0;i<field_rows->size();++i) {
                   auto field_row = field_rows->at(i);
-                  std::cout << "\n\t\t[" << i << "] : ";
+                  // std::cout << "\n\t\t[" << i << "] : ";
                   for (int j=0;j<field_row.size();++j) {
                     // [14] :  [0]1.1 Årets gränsbelopp enligt förenklingsregeln [1]4511 [2]Numeriskt_B [3]N [4]+ [5]Regel_E
                     // index 1 = SRU Code
                     // Index 0 = Readable field name on actual human readable form
                     // The other fields defines representation and "rules"
-                    std::cout << " [" << j << "]" << field_row[j];
+                    // std::cout << " [" << j << "]" << field_row[j];
                   }
                 }
               }
@@ -11704,12 +11736,12 @@ private:
 			}
 			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
 		}
-		std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amount_ptrs().size() << " entries";
+		// std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amount_ptrs().size() << " entries";
 		return result;
 	}
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
-		std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
+		// std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
 		DateOrderedTaggedAmountsContainer result{};
 		auto [begin,end] = environment.equal_range("TaggedAmountPtr");
 		std::for_each(begin,end,[&result](auto const& entry){
@@ -11785,33 +11817,38 @@ private:
               // Now, the SIE in target must be in provided SIE entries or else it must go
               // Note: Each aggregate has its own instance id both for itself and for its members!
               //       So we can not use the equal operator to compare them!
-              if ((*target_iter) == (*source_iter)) {
+              // std::cout << "\nNEXT log should be operator== call!" << std::flush;
+              if ((**target_iter) == (**source_iter)) { // Iteror to shared pointer requires ** to dereference *sigh*
                 // This is what we expect (source and target in synchronization)
-                std::cout << "\n\tIn sync - SIE and TA " << *(*target_iter);
+                std::cout << "\n\tIn sync";
+                std::cout << "\n\t\t   source SIE:" << **source_iter;
+                std::cout << "\n\t\tAlready in TA:" << **target_iter;
+
                 ++source_iter;
                 ++target_iter;
               }
               else if ((*target_iter)->date() > (*source_iter)->date()) {
                 // Provided SIE contains an entry not in "all"
-                std::cout << "\n\tShould be added - Newer imported SIE not yet in TA" << *(*source_iter);
+                std::cout << "\n\tInserted to TA a source SIE with date > target SIE date " << *(*source_iter);
+                all_date_ordered_tagged_amounts.insert(*source_iter);
                 ++source_iter;
               }
               else {
                 // We have a quirky situation here. Provided SIE entries are ordrered by Date
-                // but may come out of order in their sequence number?!
+                // but may come out of order in sequence?!
                 // So maybe we need to assemble all SIE entries with the same date and check these sets are equal?
-                std::cout << "\n\tOut of order - May require SET by date comparisson? {";
+                std::cout << "\n\tOut of order (or undeteced same?) - May require SET comparisson or updated operator==? {";
                 std::cout << "\n\t\tSIE: " << *(*source_iter);
                 std::cout << "\n\t\tTA: " << *(*target_iter);
-                std::cout << "\n\t} Out of order";
+                std::cout << "\n\t} Out of order?";
                 ++target_iter;
               }
             }
           }
           else {
             // Add new SIE entries not yet in "all"
-            std::cout << "\n\tShould be added - Newer imported SIE not yet in TA" << *(*source_iter);
-            // all_date_ordered_tagged_amounts.insert(*source_iter);
+            std::cout << "\n\tADDING to TA the newer imported SIE" << *(*source_iter);
+            all_date_ordered_tagged_amounts.insert(*source_iter);
             ++source_iter;
           }
         } // while source_iter
@@ -11885,7 +11922,7 @@ private:
 				prompt << "\n<STAGED>";
 				prompt << *sse;
 			}
-			auto unstaged = model->sie["current"].stage(*sse);
+			auto unstaged = model->sie["current"].stage(*sse); // the call returns any now no longer staged entries
 			for (auto const& je : unstaged) {
 				prompt << "\nnow posted " << je; 
 			}
@@ -11904,11 +11941,11 @@ private:
     240218 Consider to implement "last in wins" for SIE aggregates and its members?
 
     1) Read the SIE-files last to ensure the tagged amounts are in sync with the actual SIE file contents.
-    2) Make insertiing of SIE aggregates into tagged amounts detect SIE entries with the same series and sequence number within the same fiscal year.
+    2) Make inserting of SIE aggregates into tagged amounts detect SIE entries with the same series and sequence number within the same fiscal year.
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (true) { // ####
+    if (false) { // ####
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
