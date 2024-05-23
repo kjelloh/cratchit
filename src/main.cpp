@@ -10441,15 +10441,21 @@ Cmd Updater::operator()(Command const& command) {
         };        
         std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(ta_ptrs));				
         // 2. Group tagged amounts into same BAS account and a list of parent_SIE
-        std::map<std::string,TaggedAmountPtrs> huvudbok{};
-        std::map<std::string,CentsAmount> opening_balance{};
+        std::map<BAS::AccountNo,TaggedAmountPtrs> huvudbok{};
+        std::map<BAS::AccountNo,CentsAmount> opening_balance{};
         
         for (auto const& ta_ptr : ta_ptrs) {
-          if (ta_ptr->tags().contains("IB")) {
-            opening_balance[ta_ptr->tags()["BAS"]] = ta_ptr->cents_amount();
+          auto opt_bas_account_no = BAS::to_account_no(ta_ptr->tags()["BAS"]);
+          if (opt_bas_account_no) {
+            if (ta_ptr->tags().contains("IB")) {
+              opening_balance[*opt_bas_account_no] = ta_ptr->cents_amount();
+            }
+            else {
+              huvudbok[*opt_bas_account_no].push_back(ta_ptr);
+            }
           }
           else {
-            huvudbok[ta_ptr->tags()["BAS"]].push_back(ta_ptr);
+            std::cerr << "\nDESIGN INSUFFICIENCY: Error, BAS tag contains value:" << ta_ptr->tags()["BAS"] << " that fails to translate to a BAS account no";
           }
         }
 
@@ -10458,6 +10464,7 @@ Cmd Updater::operator()(Command const& command) {
         for (auto const& [bas_account_no,ta_ptrs] : huvudbok) {
           CentsAmount acc{0};
           prompt << "\n" << bas_account_no;
+          prompt << ":" << std::quoted(BAS::global_account_metas().at(bas_account_no).name);
           if (opening_balance.contains(bas_account_no)) {
             acc = opening_balance[bas_account_no];
             prompt << "\n\topening balance\t" << to_units_and_cents(acc);
@@ -11777,7 +11784,7 @@ private:
         if ((*target_iter)->date()<fiscal_year_date_range->begin()) {
           // Skip tagged amounts before the fiscal year
           while (target_iter != all_date_ordered_tagged_amounts.end() and (*target_iter)->date()<fiscal_year_date_range->begin()) {
-            std::cout << "\n\tSkipping Older TA" << *(*target_iter);
+            // std::cout << "\n\tSkipping Older TA" << *(*target_iter);
             ++target_iter;
           }
         }
@@ -11809,7 +11816,7 @@ private:
           if (target_iter != all_date_ordered_tagged_amounts.end()) {
             if ((*target_iter)->date() < (*source_iter)->date()) {
               // This SIE aggregate in "all" should not be there!
-              std::cout << "\n\tShould be erased - Older TA not in imported SIE" << *(*target_iter);
+              std::cout << "\n\tShould be erased - Older TA not in imported SIE " << *(*target_iter);
               // all_date_ordered_tagged_amounts.erase(target_iter);
               ++target_iter;
             }
@@ -11820,9 +11827,9 @@ private:
               // std::cout << "\nNEXT log should be operator== call!" << std::flush;
               if ((**target_iter) == (**source_iter)) { // Iteror to shared pointer requires ** to dereference *sigh*
                 // This is what we expect (source and target in synchronization)
-                std::cout << "\n\tIn sync";
-                std::cout << "\n\t\t   source SIE:" << **source_iter;
-                std::cout << "\n\t\tAlready in TA:" << **target_iter;
+                // std::cout << "\n\tIn sync";
+                // std::cout << "\n\t\t   source SIE:" << **source_iter;
+                // std::cout << "\n\t\tAlready in TA:" << **target_iter;
 
                 ++source_iter;
                 ++target_iter;
@@ -11858,7 +11865,6 @@ private:
     else {
       std::cerr << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
     }
-    std::cout << "\n\tNOT YET IMPLEMENTED - synchronise_tagged_amounts_with_sie";
     std::cout << "\n} SYNHRONIZE TAGGED AMOUNTS WITH SIE - END";
   }
 
@@ -11945,7 +11951,7 @@ private:
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (false) { // ####
+    if (true) { // ####
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
