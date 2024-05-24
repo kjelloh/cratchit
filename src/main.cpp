@@ -7682,8 +7682,10 @@ OptionalTaggedAmountPtr to_tagged_amount(EnvironmentValue const& ev) {
 			result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*date,*cents_amount),*date,*cents_amount,std::move(tags));
 		}
 	}
+  // TODO 240524 - Remove when fully functional tagged amounts to and from SIE is in place
+  //               For now, discard any stored tagged amounts that represents SIE journal entries
   if (true and result) {
-    if ((*result)->tag_value("BAS") or (*result)->tag_value("SIE")) return std::nullopt; // discard / filter out 'old' SIE environment tagged amounts (start fresh)
+    if ((*result)->tag_value("BAS") or (*result)->tag_value("SIE")) return std::nullopt; // discard / filter out stored SIE environment tagged amounts (start fresh)
   }
 	return result;
 }
@@ -11982,6 +11984,11 @@ private:
 	Environment environment_from_model(Model const& model) {
 		Environment result{};
 		auto tagged_amount_to_environment = [&result](TaggedAmountPtr const& ta_ptr) {
+      // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
+      //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
+      if (true) {
+        if (ta_ptr->tag_value("BAS") or ta_ptr->tag_value("SIE")) return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
+      }
 			result.insert({"TaggedAmountPtr",to_environment_value(ta_ptr)});
 		};
 		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);

@@ -49,12 +49,38 @@
       },      
       {
         "type": "cppbuild",
-        "label": "macOS C/C++: Brew installed clang-17.0.5 build cratchit",
+        "label": "SPEEDY macOS C/C++: Brew installed clang-17.0.5 build cratchit",
         "command": "/usr/local/Cellar/llvm/17.0.5/bin/clang++",
         "args": [
           "-fdiagnostics-color=always",
           "-Wl,-rpath,/usr/local/Cellar/llvm/17.0.5/lib/c++",
           "-std=c++20",
+          "-g",
+          "${file}",
+          "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+          "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ],
+        "group": "build",
+        "detail": "compiler: /usr/local/Cellar/llvm/17.0.5/bin/clang++"
+      },
+      {
+        "type": "cppbuild",
+        "label": "SANITIZED macOS C/C++: Brew installed clang-17.0.5 build cratchit",
+        "command": "/usr/local/Cellar/llvm/17.0.5/bin/clang++",
+        "args": [
+          "-fdiagnostics-color=always",
+          "-Wl,-rpath,/usr/local/Cellar/llvm/17.0.5/lib/c++",
+          "-std=c++20",
+          "-fsanitize=undefined",
+          "-fsanitize=address",
+          "-fsanitize=integer",          
           "-g",
           "${file}",
           "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
