@@ -11644,7 +11644,8 @@ private:
     auto fiscal_year_date_range = sie_env.fiscal_year_date_range();
     auto opening_saldo_date = fiscal_year_date_range->begin();
     // std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
-    for (auto const& [bas_account_no,saldo_cents_amount] : sie_env.opening_balances()) {
+    for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
+      auto saldo_cents_amount = to_cents_amount(saldo);
       auto saldo_ta = std::make_shared<detail::TaggedAmountClass>(to_instance_id(opening_saldo_date,saldo_cents_amount), opening_saldo_date,saldo_cents_amount);
       saldo_ta->tags()["BAS"] = std::to_string(bas_account_no);
       saldo_ta->tags()["IB"] = "True";
@@ -11951,7 +11952,7 @@ private:
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (true) { // ####
+    if (false) { // ####
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
