@@ -7682,6 +7682,9 @@ OptionalTaggedAmountPtr to_tagged_amount(EnvironmentValue const& ev) {
 			result = std::make_shared<detail::TaggedAmountClass>(to_instance_id(*date,*cents_amount),*date,*cents_amount,std::move(tags));
 		}
 	}
+  if (true and result) {
+    if ((*result)->tag_value("BAS") or (*result)->tag_value("SIE")) return std::nullopt; // discard / filter out 'old' SIE environment tagged amounts (start fresh)
+  }
 	return result;
 }
 
