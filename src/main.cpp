@@ -306,8 +306,8 @@ namespace tokenize {
 		if (const std::regex date_regex("([2-9]\\d{3})-?([0]\\d|[1][0-2])-?([0-2]\\d|[3][0-1])"); std::regex_match(s,date_regex)) result = TokenID::Date;
 		// '+','-' or none followed by nnn... (any number of digits) followed by an optional ',' or '.' followed by ate least and max two digits
 		else if (const std::regex amount_regex("^[+-]?\\d+([.,]\\d\\d?)?$"); std::regex_match(s,amount_regex)) result = TokenID::Amount;
-		// any string of characters in range ' ' to '~'
-		else if (const std::regex caption_regex("[ -~]+"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
+		// any string of characters in the set a-z,A-Z, and åäöÅÄÖ. NOTE: Requires the runtime locale to be set to UTF-8 encoding and that this source file is also UTF-8 encoded!
+		else if (const std::regex caption_regex("[a-zA-ZåäöÅÄÖ ]+"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
 		else result = TokenID::Unknown;
 
 		// std::cout << "\n\ttoken_id_of " << std::quoted(s) << " = " << result;
@@ -323,9 +323,11 @@ namespace tokenize {
 		for (auto const& s : spaced_tokens) {
 			ids.push_back(token_id_of(s));
 		}
+
 		for (int i=0;i<spaced_tokens.size();++i) {
-			// std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]);
+			std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]) << std::flush;
 		}
+
 		switch (split_on) {
 			case SplitOn::TextAmountAndDate: {
 				std::vector<TokenID> expected_id{TokenID::Caption,TokenID::Amount,TokenID::Date};
@@ -338,11 +340,15 @@ namespace tokenize {
 					}
 					else {
 						if (s.size()>0) result.push_back(s);
-						++state;	
+            ++state;
 						s.clear();					
 					}
+          if (state+1 > expected_id.size()) {
+            std::cerr << "\nDESIGN INSUFFICIENCY: Error, unable to process state:" << state;
+            break;
+          }
 				}
-				if (s.size()>0) result.push_back(s);
+				if (s.size()>0) result.push_back(s); // add any tail
 			} break;
 			default: {
 				std::cerr << "\nERROR - Unknown split_on value " << static_cast<int>(split_on);
@@ -3170,7 +3176,7 @@ namespace BAS {
 					std::size_t result{};
 					for (auto const& prop : props) {
 						auto h = std::hash<std::string>{}(prop);
-						result = result ^ (h << 1);
+						result = result ^ static_cast<std::size_t>((h << 1));
 					}
 					return result;
 				}	
@@ -3379,7 +3385,8 @@ std::string to_string(BAS::anonymous::AccountTransaction const& at) {
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
 	for (auto const& at : ats) {
-		os << "\n\t" << at; 
+		// os << "\n\t" << at; 
+		os << "\n  " << at; 
 	}
 	return os;
 }
@@ -3765,6 +3772,21 @@ using char16_t_string = std::wstring;
 
 namespace charset {
 
+  /*
+
+  The main idea is to always encode through UNICODE as the intermediate encoding.
+
+  So, Cratchit may assume the runtime environment / terminal uses UTF-8 encoding.
+
+  Thus, to store text from the user input (in UTF-8) into an SIE-file that is encoded using the CP437 the transformations will be:
+  UTF-8 --> UNICODE --> CP437
+
+  And to read in an SIE-file the transformatons will be
+
+  CP437 --> UNICODE --> UTF-8
+
+  */
+
 	namespace ISO_8859_1 {
 
 		// Unicode code points 0x00 to 0xFF maps directly to ISO 8895-1 (ISO Latin).
@@ -3791,30 +3813,33 @@ namespace charset {
 
 	}
 
-	namespace CP435 {
-		extern std::map<char,char16_t> cp435ToUnicodeMap;
+	namespace CP437 {
+		extern std::map<char,char16_t> cp437ToUnicodeMap;
 
-		char16_t cp435ToUnicode(char ch435) {
-			return cp435ToUnicodeMap[ch435];
+		char16_t cp437ToUnicode(char ch437) {
+			return cp437ToUnicodeMap[ch437];
 		}
 	
-		uint8_t UnicodeToCP435(char16_t unicode) {
+		uint8_t UnicodeToCP437(char16_t unicode) {
 			uint8_t result{'?'};
-			auto iter = std::find_if(cp435ToUnicodeMap.begin(),cp435ToUnicodeMap.end(),[&unicode](auto const& entry){
+			auto iter = std::find_if(cp437ToUnicodeMap.begin(),cp437ToUnicodeMap.end(),[&unicode](auto const& entry){
 				return entry.second == unicode;
 			});
-			if (iter != cp435ToUnicodeMap.end()) result = iter->first;
+			if (iter != cp437ToUnicodeMap.end()) result = iter->first;
+      if (false) {
+        std::cout << "\nUnicodeToCP437(unicode:" << std::hex << static_cast<unsigned int>(unicode) << ") --> " << static_cast<unsigned int>(result); 
+      }
 			return result;
 		} 
 
-		char16_t_string cp435ToUnicode(std::string s435) {
+		char16_t_string cp437ToUnicode(std::string s437) {
 			char16_t_string result{};
-			std::transform(s435.begin(),s435.end(),std::back_inserter(result),[](char ch){
-				return charset::CP435::cp435ToUnicode(ch);
+			std::transform(s437.begin(),s437.end(),std::back_inserter(result),[](char ch){
+				return charset::CP437::cp437ToUnicode(ch);
 			});
 			return result;
 		}
-	} // namespace CP435
+	} // namespace CP437
 } // namespace CharSet
 
 namespace encoding {
@@ -3888,6 +3913,11 @@ namespace encoding {
 				// U+0800	U+FFFF										1110xxxx	10xxxxxx	10xxxxxx	
 				// U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
 				this->m_utf_8_buffer.push_back(b);
+        if (false) {
+          std::cout << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")";
+          std::cout << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
+          for (auto ch : m_utf_8_buffer) std::cout << "[" << std::hex << static_cast<unsigned int>(ch) << "]";
+        }
 				return this->to_unicode();
 			}
 		private:
@@ -4229,7 +4259,7 @@ namespace SIE {
 
 			// Convert from code point 437 to utf-8
 			auto s437 = konto.name;
-			auto sUnicode = charset::CP435::cp435ToUnicode(s437);
+			auto sUnicode = charset::CP437::cp437ToUnicode(s437);
 			konto.name = encoding::UTF8::unicode_to_utf8(sUnicode);
 
 			result = konto;
@@ -4267,7 +4297,7 @@ namespace SIE {
 			if (trans.transtext) {
 				// Convert from code point 437 to utf-8
 				auto s437 = *trans.transtext;
-				auto sUnicode = charset::CP435::cp435ToUnicode(s437);
+				auto sUnicode = charset::CP437::cp437ToUnicode(s437);
 				trans.transtext = encoding::UTF8::unicode_to_utf8(sUnicode);
 			}
 
@@ -4300,12 +4330,12 @@ namespace SIE {
 		SIE::Ver ver{};
 		YYYYMMdd_parser verdate_parser{ver.verdate};
 		if (in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
-			if (true) {
+			if (false) {
 				// std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
 			}
 			// Convert from code point 437 to utf-8
 			auto s437 = ver.vertext;
-			auto sUnicode = charset::CP435::cp435ToUnicode(s437);
+			auto sUnicode = charset::CP437::cp437ToUnicode(s437);
 			ver.vertext = encoding::UTF8::unicode_to_utf8(sUnicode);
 
 			while (true) {
@@ -4359,7 +4389,7 @@ namespace SIE {
 	// ===============================================================
 
 	/**
-	 * NOTE ABOUT UTF-8 TO Code Page 435 used as the character set of an SIE file
+	 * NOTE ABOUT UTF-8 TO Code Page 437 used as the character set of an SIE file
 	 * 
 	 * The convertion is made in overloaded operator<<(SIE::OStream& sieos,char ch) called by operator<<(SIE::OStream& sieos,std::string s).
 	 * 
@@ -4374,17 +4404,20 @@ namespace SIE {
 	};
 
 	SIE::OStream& operator<<(SIE::OStream& sieos,char ch) {
-		// Assume ch is a byte in an UTF-8 stream and convert it to CP435 charachter set in file
+		// Assume ch is a byte in an UTF-8 stream and convert it to CP437 charachter set in file
 		if (auto unicode = sieos.to_unicode_buffer.push(ch)) {
-			auto cp435_ch = charset::CP435::UnicodeToCP435(*unicode);
-			sieos.os.put(cp435_ch);
+			auto cp437_ch = charset::CP437::UnicodeToCP437(*unicode);
+			sieos.os.put(cp437_ch);
 		}
 		return sieos;
 	}
 
 	SIE::OStream& operator<<(SIE::OStream& sieos,std::string s) {
+    if (false) {
+      std::cout << "\nto SIE:" << std::quoted(s);
+    }
 		for (char ch : s) {
-			sieos << ch; // Stream through operator<<(SIE::OStream& sieos,char ch) that will tarnsform utf-8 encoded Unicode, to char encoded CP435
+			sieos << ch; // Stream through operator<<(SIE::OStream& sieos,char ch) that will transform utf-8 encoded Unicode, to char encoded CP437
 		}
 		return sieos;
 	}
@@ -4428,7 +4461,7 @@ SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
 	SIE::Trans result{
 		.account_no = trans.account_no
 		,.amount = trans.amount
-		,.transtext = trans.transtext
+		,.transtext = trans.transtext // TODO: Ensure the text is charset::CP437, i.e., codepage 437
 	};
 	return result;
 }
@@ -5970,7 +6003,7 @@ namespace SKV { // SKV
 		};
 
 		OStream& operator<<(OStream& sru_os,char ch) {
-			// Assume ch is a byte in an UTF-8 stream and convert it to CP435 charachter set in file
+			// Assume ch is a byte in an UTF-8 stream and convert it to CP437 charachter set in file
 			// std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
 			if (auto unicode = sru_os.to_unicode_buffer.push(ch)) {
 				auto iso8859_ch = charset::ISO_8859_1::UnicodeToISO8859(*unicode);
@@ -7789,7 +7822,8 @@ public:
 	// BAS::MetaEntries template_candidates{};
 	BAS::TypedMetaEntries template_candidates{};
 	BAS::anonymous::AccountTransactions at_candidates{};
-	BAS::anonymous::AccountTransaction at{};
+	// BAS::anonymous::AccountTransaction at{};
+  std::size_t at_index{};
   std::string prompt{};
 	bool quit{};
 	std::map<std::string,std::filesystem::path> sie_file_path{};
@@ -7825,6 +7859,26 @@ public:
 		return result;
 	}
 
+  std::optional<BAS::anonymous::AccountTransactions::iterator> to_at_iter(std::optional<HeadingAmountDateTransEntries::iterator> had_iter,std::size_t ix) {
+    std::cout << "\nto_at_iter(" << ix << ")";
+    std::optional<BAS::anonymous::AccountTransactions::iterator> result{};
+    if (had_iter) {
+      std::cout << ",had_iter ok";
+			if ((*had_iter)->optional.current_candidate) {
+        std::cout << ",optional ok";
+				auto at_iter = (*had_iter)->optional.current_candidate->defacto.account_transactions.begin();
+				auto end = (*had_iter)->optional.current_candidate->defacto.account_transactions.end();
+				if (ix < std::distance(at_iter,end)) {
+          std::cout << ",ix ok";
+          std::advance(at_iter,ix);
+          std::cout << " --> selected at:" << *at_iter;
+          result = at_iter;
+        }
+			}
+    }
+    return result;
+  }
+
 	std::optional<DateOrderedTaggedAmountsContainer::iterator> selected_ta() {
 		return to_ta_iter(this->ta_index);
 	}
@@ -7832,21 +7886,7 @@ public:
 	std::optional<HeadingAmountDateTransEntries::iterator> selected_had() {
 		return to_had_iter(this->had_index);
 	}
-
-	BAS::anonymous::OptionalAccountTransaction selected_had_at(int at_index) {
-		BAS::anonymous::OptionalAccountTransaction result{};
-		if (auto had_iter = to_had_iter(this->had_index)) {
-			if ((*had_iter)->optional.current_candidate) {
-				auto at_iter = (*had_iter)->optional.current_candidate->defacto.account_transactions.begin();
-				auto end = (*had_iter)->optional.current_candidate->defacto.account_transactions.end();
-				if (at_index < std::distance(at_iter,end))
-				std::advance(at_iter,at_index);
-				result = *at_iter;
-			}
-		}
-		return result;
-	}
-
+  
 	void erease_selected_had() {
 		if (auto had_iter = to_had_iter(this->had_index)) {
 			this->heading_amount_date_entries.erase(*had_iter);
@@ -8100,9 +8140,11 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("3 STAGE as-is");
 		} break;
 		case PromptState::EnterHA: {result.push_back("PromptState::EnterHA");} break;
-		case PromptState::ATIndex: {result.push_back("PromptState::ATIndex");} break;
+		case PromptState::ATIndex: {
+      result.push_back("Please enter index of entry to edit, or <BAS account> <Amount> to add a new entry;'x' to exit back to journal entry");
+    } break;
 		case PromptState::EditAT: {
-			result.push_back("Please Enter new Account, new Amount (with decimal comma) or new transaction text");
+			result.push_back("Please Enter new Account, new Amount (with decimal comma) or new transaction text; 'x' to exit back to candidate");
 		} break;
 		case PromptState::CounterAccountsEntry: {result.push_back("PromptState::CounterAccountsEntry");} break;
 		case PromptState::SKVEntryIndex: {result.push_back("PromptState::SKVEntryIndex");} break;
@@ -9568,16 +9610,17 @@ Cmd Updater::operator()(Command const& command) {
 
         } break;
         case PromptState::ATIndex: {
-          if (ast.size() == 2) {
-            auto bas_account_no = BAS::to_account_no(ast[0]);
-            auto amount = to_amount(ast[1]);
-            if (bas_account_no and amount) {
-              if (auto had_iter = model->selected_had()) {
+          if (auto had_iter = model->selected_had()) {
+            auto& had = **had_iter;
+            if (ast.size() == 2) {
+              auto bas_account_no = BAS::to_account_no(ast[0]);
+              auto amount = to_amount(ast[1]);
+              if (bas_account_no and amount) {
+                // push back a new account transaction with detected BAS account and amount
                 BAS::anonymous::AccountTransaction at {
                   .account_no = *bas_account_no
                   ,.amount = *amount
                 };
-                auto& had = *(*had_iter);
                 had.optional.current_candidate->defacto.account_transactions.push_back(at);
                 unsigned int i{};
                 std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
@@ -9585,22 +9628,27 @@ Cmd Updater::operator()(Command const& command) {
                 });
               }
               else {
-                prompt << "\nSorry, I seems to have lost track of the HAD you selected. Please re-select a valid HAD";
-                model->prompt_state = PromptState::HADIndex;
+                prompt << "\nSorry, I failed to understand your entry. Press <Enter> to get help" << std::quoted(command);
               }
             }
+            else if (auto at_iter = model->to_at_iter(model->selected_had(),ix)) {
+              model->at_index = ix;
+              prompt << "\nAccount Transaction:" << **at_iter;
+              if (do_remove) {
+                had.optional.current_candidate->defacto.account_transactions.erase(*at_iter);
+              }
+              model->prompt_state = PromptState::EditAT;
+            }
             else {
-              prompt << "\nPlease enter single index of entry to edit or a space separated BAS Account No and Amount to add a new entry. I failed to understand your entry " << std::quoted(command);
+              prompt << "\nEntered index does not refer to an Account Transaction Entry in current Heading Amount Date entry";
+              model->prompt_state = PromptState::JEAggregateOptionIndex;
             }
           }
-          else if (auto at = model->selected_had_at(ix)) {
-            model->at = *at;
-            prompt << "\nAccount Transaction:" << model->at;
-            model->prompt_state = PromptState::EditAT;
-          }
           else {
-            prompt << "\nEntered index does not refer to an Account Trasnaction Entry in current Heading Amount Date entry";
+            prompt << "\nSorry, I seems to have lost track of the HAD you selected. Please re-select a valid HAD";
+            model->prompt_state = PromptState::HADIndex;            
           }
+
         } break;
 
         case PromptState::CounterAccountsEntry: {
@@ -11384,48 +11432,40 @@ The ITfied AB
         // Handle user Edit of currently selected account transaction (at)
 // std::cout << "\nPromptState::EditAT " << std::quoted(command);
         if (auto had_iter = model->selected_had()) {
-          if (auto account_no = BAS::to_account_no(command)) {
-            auto new_at = model->at;
-            new_at.account_no = *account_no;
-            prompt << "\nBAS Account: " << *account_no;
-            if ((*had_iter)->optional.current_candidate) {
-              (*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
-              prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
-              model->prompt_state = PromptState::JEAggregateOptionIndex;
+          auto const& had = **had_iter;
+      		if (auto at_iter = model->to_at_iter(had_iter,model->at_index)) {
+            auto& at = **at_iter;
+            prompt << "\n\tbefore:" << at;
+            if (auto account_no = BAS::to_account_no(command)) {
+              at.account_no = *account_no;
+              prompt << "\nBAS Account: " << *account_no;
+            }
+            else if (auto amount = to_amount(command)) {
+              prompt << "\nAmount " << *amount;
+              at.amount = *amount;
+            }
+            else if (command[0] == 'x') {
+              // ignore input
             }
             else {
-              prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
+              // Assume the user entered a new transtext
+              prompt << "\nTranstext " << std::quoted(command);
+              at.transtext = command;
             }
-          }
-          else if (auto amount = to_amount(command)) {
-            prompt << "\nAmount " << *amount;
-            model->at.amount = *amount;
-            if ((*had_iter)->optional.current_candidate) {
-              (*had_iter)->optional.current_candidate = updated_amounts_entry(*(*had_iter)->optional.current_candidate,model->at);
-              prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
-              model->prompt_state = PromptState::JEAggregateOptionIndex;
-            }
-            else {
-              prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
-            }
+            unsigned int i{};
+            std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+              prompt << "\n  " << i++ << " " << at;
+            });
+            model->prompt_state = PromptState::ATIndex;
           }
           else {
-            // Assume the user entered a new transtext
-            prompt << "\nTranstext " << std::quoted(command);
-            auto new_at = model->at;
-            new_at.transtext = command;
-            if ((*had_iter)->optional.current_candidate) {
-              (*had_iter)->optional.current_candidate = swapped_ats_entry(*(*had_iter)->optional.current_candidate,model->at,new_at);
-              prompt << "\nCandidate: " << *(*had_iter)->optional.current_candidate;
-              model->prompt_state = PromptState::JEAggregateOptionIndex;
-            }
-            else {
-              prompt << "\nPlease ascociate current Heading Amount Date entry with a Journal Entry candidate";
-            }
+            prompt << "\nSORRY, I seems to have forgotten what account transaction you selected. Please try over again";
+            model->prompt_state = PromptState::HADIndex;
           }
         }
         else {
-          prompt << "\nPlease select a Heading Amount Date entry";
+          prompt << "\nSORRY, I seem to have forgotten what HAD you selected. Please select a Heading Amount Date entry";
+          model->prompt_state = PromptState::HADIndex;
         }
       }
       else if (model->prompt_state == PromptState::EnterContact) {
@@ -11987,6 +12027,7 @@ private:
       // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
       if (true) {
+        std::cerr << "\nDESIGN INSUFFICIENCY: Syncing between SIE file(s) and Tagged Amounts not yet implemented";
         if (ta_ptr->tag_value("BAS") or ta_ptr->tag_value("SIE")) return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
       }
 			result.insert({"TaggedAmountPtr",to_environment_value(ta_ptr)});
@@ -12120,9 +12161,9 @@ int main(int argc, char *argv[])
 			for (auto const& ch : sHello) {
 // std::cout << "\n" << ch << " " << std::hex << static_cast<int>(ch) << std::dec; // check stream and console encoding, std::locale behaviour
 			}
-			std::ofstream os{"cp435_test.txt"};
+			std::ofstream os{"cp437_test.txt"};
 			SIE::OStream sieos{os};
-			sieos << sHello; // We expect SIE file encoding of CP435
+			sieos << sHello; // We expect SIE file encoding of CP437
 			return 0;
 			std::string sPATH{std::getenv("PATH")};
 // std::cout << "\nPATH=" << sPATH;
@@ -12224,10 +12265,10 @@ char const* ACCOUNT_VAT_CSV = R"(KONTO;BENÄMNING;MOMSKOD (MOMSRUTA);SRU
 } // namespace SKV 
 
 namespace charset {
-	namespace CP435 {
+	namespace CP437 {
 
 		// from http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/PC/CP437.TXT
-		std::map<char,char16_t> cp435ToUnicodeMap{
+		std::map<char,char16_t> cp437ToUnicodeMap{
 		{0x0,0x0}
 		,{0x1,0x1}
 		,{0x2,0x2}
@@ -12485,7 +12526,7 @@ namespace charset {
 		,{0xFE,0x25A0}
 		,{0xFF,0xA0}
 		};
-	} // namespace CP435
+	} // namespace CP437
 }
 
 namespace SKV {
