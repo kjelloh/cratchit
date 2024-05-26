@@ -1751,13 +1751,21 @@ DateRange to_quarter_range(Date const& a_period_date) {
 	auto begin_month = to_quarter_begin(quarter);
 	auto end_month = to_quarter_end(quarter);
 	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
-	auto end = Date{a_period_date.year()/end_month/std::chrono::last};
+	auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
+  if (true) {
+    std::cout << "\nto_quarter_range(" << a_period_date << ") --> " << begin << ".." << end;
+  }
 	return {begin,end};
 }
 
 DateRange to_three_months_earlier(DateRange const& quarter) {
 	auto const quarter_duration = std::chrono::months{3};
-	return {quarter.begin() - quarter_duration,quarter.end() - quarter_duration};
+  // get the year and month for the date range to return
+  auto ballpark_end = quarter.end() - quarter_duration;
+  // Adjust the end day to the correct one for the range end month
+  auto end = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
+  // Note: We do not need to adjust the begin day as all month starts on day 1
+	return {quarter.begin() - quarter_duration,end};
 }
 
 std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
@@ -8086,7 +8094,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 		case PromptState::Root: {
 			result.push_back("<Heading> <Amount> <Date> : Entry of new Heading Amount Date (HAD) Transaction entry");
 			result.push_back("-hads : lists current Heading Amount Date (HAD) entries");
-			result.push_back("-sie <sie file path> : imports a new input sie file");
+			result.push_back("-sie <sie file path> : imports a new input sie file. Please enclose path with \"\" if it contains space.");
 			result.push_back("-sie : lists transactions in input sie-file");
 			result.push_back("-env : lists cratchit environment");
 			result.push_back("-tas <first date> <last date> : Selects tagged amounts in the period first date .. last date");
@@ -10481,6 +10489,13 @@ Cmd Updater::operator()(Command const& command) {
           }
         }
       }
+      else {
+        prompt << "\nSorry, failed to understand your request.";
+        prompt << "\n\tI interpreted your input to contain " << ast.size() << " arguments:";
+        for (auto const& token : ast) prompt << " " << std::quoted(token);
+        prompt << "\n\tPlease enclose arguments (e.g., an SIE file path) that contains space(s) with \"\"";
+        prompt << "\n\tPress <Enter> for additional help";
+      }
     }
     else if (ast[0] == "-huvudbok") {
       // command "-huvudbok" defaults to "-huvudbok 0", that is the fiscal year of current date
@@ -10542,24 +10557,6 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-hads") {
       auto hads = model->refreshed_hads();
-
-      // auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(model->sie);
-      // for (auto const& vat_returns_had : vat_returns_hads) {
-      // 	if (auto o_iter = model->find_had(vat_returns_had)) {
-      // 		auto iter = *o_iter;
-      // 		// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
-      // 		if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
-      // 			// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to not retreived from environment file)
-      // 			*iter = vat_returns_had;
-      // 			prompt << "\n*UPDATED* " << vat_returns_had;
-      // 		}
-      // 	}
-      // 	else {
-      // 		model->heading_amount_date_entries.push_back(vat_returns_had);
-      // 		prompt << "\n*NEW* " << vat_returns_had;
-      // 	}
-      // }
-      // std::sort(model->heading_amount_date_entries.begin(),model->heading_amount_date_entries.end(),falling_date);
       if (ast.size()==1) {
         prompt << to_had_listing_prompt(hads);
         model->prompt_state = PromptState::HADIndex;
@@ -12030,7 +12027,7 @@ private:
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
       if (true) {
         if (ta_ptr->tag_value("BAS") or ta_ptr->tag_value("SIE")) {
-          std::cerr << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta_ptr;
+          // std::cerr << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta_ptr;
           return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
         }
       }
