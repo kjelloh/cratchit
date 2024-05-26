@@ -10381,6 +10381,7 @@ Cmd Updater::operator()(Command const& command) {
           prompt << filtered_sie;
         }
         else if (auto sie_file_path = path_to_existing_file(ast[1])) {
+          prompt << "\nImporting SIE to current year from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
             model->sie_file_path["current"] = *sie_file_path;
             model->sie["current"] = std::move(*sie_env);
@@ -10441,7 +10442,7 @@ Cmd Updater::operator()(Command const& command) {
           for (auto const& topology : detected_topologies) {
             prompt << "\n\t" << topology;
           }
-          // LOG tmes we failed to identify as templates for new journal entries
+          // LOG the 'tmes' (template meta entries) we failed to identify as templates for new journal entries
           prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
           for (auto const& tme : failed_tmes) {
             auto types_topology = BAS::kind::to_types_topology(tme);
@@ -10459,6 +10460,7 @@ Cmd Updater::operator()(Command const& command) {
       else if (ast.size()==3) {
         auto year_key = ast[1];
         if (auto sie_file_path = path_to_existing_file(ast[2])) {
+          prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
             model->sie_file_path[year_key] = *sie_file_path;
             model->sie[year_key] = std::move(*sie_env);
@@ -12027,8 +12029,10 @@ private:
       // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
       if (true) {
-        std::cerr << "\nDESIGN INSUFFICIENCY: Syncing between SIE file(s) and Tagged Amounts not yet implemented";
-        if (ta_ptr->tag_value("BAS") or ta_ptr->tag_value("SIE")) return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
+        if (ta_ptr->tag_value("BAS") or ta_ptr->tag_value("SIE")) {
+          std::cerr << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta_ptr;
+          return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
+        }
       }
 			result.insert({"TaggedAmountPtr",to_environment_value(ta_ptr)});
 		};
