@@ -186,7 +186,264 @@ float const VERSION = 0.5;
     //     }
     // ],
 
+using char16_t_string = std::wstring;
 
+namespace charset {
+
+  /*
+
+  The main idea is to always encode through UNICODE as the intermediate encoding.
+
+  So, Cratchit may assume the runtime environment / terminal uses UTF-8 encoding.
+
+  Thus, to store text from the user input (in UTF-8) into an SIE-file that is encoded using the CP437 the transformations will be:
+  UTF-8 --> UNICODE --> CP437
+
+  And to read in an SIE-file the transformatons will be
+
+  CP437 --> UNICODE --> UTF-8
+
+  
+  
+  According to ChatGPT the Swedish letters åäöÅÄÖ are encoded in charachtrer sets of interest to Cratchit as,
+
+  Here are the Unicode code points for the Swedish letters:
+
+    å: U+00E5 (LATIN SMALL LETTER A WITH RING ABOVE)
+    ä: U+00E4 (LATIN SMALL LETTER A WITH DIAERESIS)
+    ö: U+00F6 (LATIN SMALL LETTER O WITH DIAERESIS)
+    Å: U+00C5 (LATIN CAPITAL LETTER A WITH RING ABOVE)
+    Ä: U+00C4 (LATIN CAPITAL LETTER A WITH DIAERESIS)
+    Ö: U+00D6 (LATIN CAPITAL LETTER O WITH DIAERESIS)
+
+  The CP 437 encodings for Swedish letters åäöÅÄÖ are:
+
+    å (U+00E5): 0x86 (134 in decimal)
+    ä (U+00E4): 0x84 (132 in decimal)
+    ö (U+00F6): 0x94 (148 in decimal)
+    Å (U+00C5): 0x8F (143 in decimal)
+    Ä (U+00C4): 0x8E (142 in decimal)
+    Ö (U+00D6): 0x99 (153 in decimal)  
+
+  In UTF-8, these Unicode code points are encoded as follows:
+
+    å (U+00E5) → 0xC3 0xA5 (2 bytes)
+    ä (U+00E4) → 0xC3 0xA4 (2 bytes)
+    ö (U+00F6) → 0xC3 0xB6 (2 bytes)
+    Å (U+00C5) → 0xC3 0x85 (2 bytes)
+    Ä (U+00C4) → 0xC3 0x84 (2 bytes)
+    Ö (U+00D6) → 0xC3 0x96 (2 bytes)
+
+  In ISO 8859-1 (Latin-1), these characters are represented by single byte values:
+
+      å → 0xE5
+      ä → 0xE4
+      ö → 0xF6
+      Å → 0xC5
+      Ä → 0xC4
+      Ö → 0xD6
+
+  */
+
+	namespace ISO_8859_1 {
+
+		// Unicode code points 0x00 to 0xFF maps directly to ISO 8859-1 (ISO Latin).
+		// So we have to convert UTF-8 to Unicode and then truncate the code point to the low value byte.
+		// Code points above 0xFF has NO obvious representation in ISO 8859-1 (I suppose we could cherry pick to get some similar ISO 8859-1 glyph but...)
+
+		char16_t iso8859ToUnicode(char ch8859) {
+			return static_cast<uint8_t>(ch8859);
+		}
+	
+		uint8_t UnicodeToISO8859(char16_t unicode) {
+			uint8_t result{'?'};
+			if (unicode<=0xFF) result = unicode;
+			return result;
+		} 
+
+		char16_t_string iso8859ToUnicode(std::string s8859) {
+			char16_t_string result{};
+			std::transform(s8859.begin(),s8859.end(),std::back_inserter(result),[](char ch){
+				return iso8859ToUnicode(ch);
+			});
+      if (true) {
+        std::cout << "\niso8859ToUnicode(";
+        for (auto ch : s8859) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        std::cout << ") --> ";
+        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+      }
+			return result;
+		}
+
+	}
+
+	namespace CP437 {
+		extern std::map<char,char16_t> cp437ToUnicodeMap;
+
+		char16_t cp437ToUnicode(char ch437) {
+			return cp437ToUnicodeMap[ch437];
+		}
+	
+		uint8_t UnicodeToCP437(char16_t unicode) {
+			uint8_t result{'?'};
+			auto iter = std::find_if(cp437ToUnicodeMap.begin(),cp437ToUnicodeMap.end(),[&unicode](auto const& entry){
+				return entry.second == unicode;
+			});
+			if (iter != cp437ToUnicodeMap.end()) result = iter->first;
+      if (false) {
+        std::cout << "\nUnicodeToCP437(unicode:" << std::hex << static_cast<unsigned int>(unicode) << ") --> " << static_cast<unsigned int>(result); 
+      }
+			return result;
+		} 
+
+		char16_t_string cp437ToUnicode(std::string s437) {
+			char16_t_string result{};
+			std::transform(s437.begin(),s437.end(),std::back_inserter(result),[](char ch){
+				return charset::CP437::cp437ToUnicode(ch);
+			});
+      if (true) {
+        std::cout << "\ncp437ToUnicode(";
+        for (auto ch : s437) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        std::cout << ") --> ";
+        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+      }
+
+			return result;
+		}
+	} // namespace CP437
+} // namespace CharSet
+
+namespace encoding {
+  namespace ISO_8859_1 {
+
+		struct istream {
+			std::istream& is;
+			operator bool() {return static_cast<bool>(is);}
+		};
+
+  }
+
+	namespace UTF8 {
+		// Unicode constants
+		// Leading (high) surrogates: 0xd800 - 0xdbff
+		// Trailing (low) surrogates: 0xdc00 - 0xdfff
+		const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
+		const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
+		const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
+		const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
+
+		// Maximum valid value for a Unicode code point
+		const char32_t CODE_POINT_MAX      = 0x0010ffff;
+
+		inline bool is_surrogate(char32_t cp) {
+					return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
+		}
+
+		bool is_valid_unicode(char32_t cp) {
+			return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
+		}
+
+		struct ostream {
+			std::ostream& os;
+		};
+
+		encoding::UTF8::ostream& operator<<(encoding::UTF8::ostream& os,char32_t cp) {
+			// Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
+			if (!is_valid_unicode(cp)) {
+				os.os << '?';
+			}
+			else if (cp < 0x80)                        // one octet
+					os.os << static_cast<char>(cp);
+			else if (cp < 0x800) {                // two octets
+					os.os << static_cast<char>((cp >> 6)            | 0xc0);
+					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
+			}
+			else if (cp < 0x10000) {              // three octets
+					os.os << static_cast<char>((cp >> 12)           | 0xe0);
+					os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
+					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
+			}
+			else {                                // four octets
+					os.os << static_cast<char>((cp >> 18)           | 0xf0);
+					os.os << static_cast<char>(((cp >> 12) & 0x3f)  | 0x80);
+					os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
+					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
+			}
+			return os;
+		}
+
+		std::string unicode_to_utf8(char16_t_string const& s) {
+			std::ostringstream os{};
+			encoding::UTF8::ostream utf8_os{os};
+			for (auto cp : s) utf8_os << cp;
+      if (true) {
+        std::cout << "\nunicode_to_utf8(";
+        for (auto ch : s) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        std::cout << ") --> " << std::quoted(os.str());
+      }
+			return os.str();
+		}
+
+		// UTF-8 to Unicode
+		class ToUnicodeBuffer {
+		public:
+			using OptionalUnicode = std::optional<uint16_t>;
+			OptionalUnicode push(uint8_t b) {
+				OptionalUnicode result{};
+				// See https://en.wikipedia.org/wiki/UTF-8#Encoding
+				// Code point <-> UTF-8 conversion
+				// First code point	Last code point	Byte 1		Byte 2    Byte 3    Byte 4
+				// U+0000	U+007F										0xxxxxxx	
+				// U+0080	U+07FF										110xxxxx	10xxxxxx	
+				// U+0800	U+FFFF										1110xxxx	10xxxxxx	10xxxxxx	
+				// U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
+				this->m_utf_8_buffer.push_back(b);
+        if (false) {
+          std::cout << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")";
+          std::cout << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
+          for (auto ch : m_utf_8_buffer) std::cout << "[" << std::hex << static_cast<unsigned int>(ch) << "]";
+        }
+				return this->to_unicode();
+			}
+		private:
+			std::deque<uint8_t> m_utf_8_buffer{};
+			OptionalUnicode to_unicode() {
+				OptionalUnicode result{};
+				switch (m_utf_8_buffer.size()) {
+					case 1: {
+						if (m_utf_8_buffer[0] < 0x7F) {
+							result = m_utf_8_buffer[0];
+							m_utf_8_buffer.clear();
+						}
+					} break;
+					case 2: {
+						if (m_utf_8_buffer[0]>>5 == 0b110) {
+							uint16_t wch = (m_utf_8_buffer[0] & 0b00011111) << 6;
+							wch += (m_utf_8_buffer[1] & 0b00111111);
+							result = wch;
+							m_utf_8_buffer.clear();
+						}
+					} break;
+					case 3: {
+						if (m_utf_8_buffer[0]>>4 == 0b1110) {
+							uint16_t wch = (m_utf_8_buffer[0] & 0b00001111) << 6;
+							wch += (m_utf_8_buffer[1] & 0b00111111);
+							wch = (wch << 6) + (m_utf_8_buffer[2] & 0b00111111);
+							result = wch;
+							m_utf_8_buffer.clear();
+						}
+					} break;
+					default: {
+						// We don't support Unicodes over the range U+0800	U+FFFF
+						m_utf_8_buffer.clear(); // reset
+					}
+				}
+				return result;
+			}
+		};
+
+	} // namespace UTF8
+} // namespace encoding
 
 namespace tokenize {
 
@@ -248,7 +505,7 @@ namespace tokenize {
 			}
 		}
 		catch (std::exception const& e) {
-			std::cerr << "\nDESIGN INSUFFICIENCY: splits(s,delim,allow_empty_tokens) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
+			std::cout << "\nDESIGN INSUFFICIENCY: splits(s,delim,allow_empty_tokens) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
 		}
 		return result;
 	}
@@ -264,7 +521,7 @@ namespace tokenize {
 			}
 		}
 		catch (std::exception const& e) {
-			std::cerr << "\nDESIGN INSUFFICIENCY: splits(s) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
+			std::cout << "\nDESIGN INSUFFICIENCY: splits(s) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
 		}
 		
 		// for (auto const& token : result) std::cout << "\n\tsplits token: " << std::quoted(token);
@@ -344,14 +601,14 @@ namespace tokenize {
 						s.clear();					
 					}
           if (state+1 > expected_id.size()) {
-            std::cerr << "\nDESIGN INSUFFICIENCY: Error, unable to process state:" << state;
+            std::cout << "\nDESIGN INSUFFICIENCY: Error, unable to process state:" << state;
             break;
           }
 				}
 				if (s.size()>0) result.push_back(s); // add any tail
 			} break;
 			default: {
-				std::cerr << "\nERROR - Unknown split_on value " << static_cast<int>(split_on);
+				std::cout << "\nERROR - Unknown split_on value " << static_cast<int>(split_on);
 			} break;
 		}
 
@@ -1070,7 +1327,7 @@ namespace BAS::K2::AR {
           
         }
         if (!m_parsed_ok) {
-          std::cerr << "\n\tFAILED TO PARSE";
+          std::cout << "\n\tFAILED TO PARSE";
         }
       }
       bool operator()(BAS::AccountNo bas_account_no) {
@@ -1092,7 +1349,7 @@ namespace BAS::K2::AR {
           });
         }
         else {
-          std::cerr << "\n - NOT PARSED OK (can't use for match)";
+          std::cout << "\n - NOT PARSED OK (can't use for match)";
         }
         return result;
       }
@@ -1260,9 +1517,9 @@ namespace BAS::K2::AR {
 		else std::cout << " ** ERROR (must be equal = all must be parsed) **";
 #else
 		// Warn that we have no code to check the input / parsed result correctness
-		std::cerr << "\nWARNING: I Failed to check parse result of input bas_2022_mapping_to_k2_ar_text (Because this code is compiled with a compiler that does not support std::ranges)";
-		std::cerr << "\nWARNING: If I have failed to parse bas_2022_mapping_to_k2_ar_text, I may generate an incorrect Annual Financial Statement (Swedish Årsredovisning)";
-		std::cerr << "\nNOTE: I parse bas_2022_mapping_to_k2_ar_text to create a mapping between BAS accounts and fields on the Annual Financial Statement (Swedish Årsredovisning)";
+		std::cout << "\nWARNING: I Failed to check parse result of input bas_2022_mapping_to_k2_ar_text (Because this code is compiled with a compiler that does not support std::ranges)";
+		std::cout << "\nWARNING: If I have failed to parse bas_2022_mapping_to_k2_ar_text, I may generate an incorrect Annual Financial Statement (Swedish Årsredovisning)";
+		std::cout << "\nNOTE: I parse bas_2022_mapping_to_k2_ar_text to create a mapping between BAS accounts and fields on the Annual Financial Statement (Swedish Årsredovisning)";
 #endif
 		return result;
 	}
@@ -1526,7 +1783,7 @@ namespace RTF {
 	}
 
 
-}
+} // namespace RTF
 
 namespace HTML {
 	// Rich Text Format namespace
@@ -1559,25 +1816,50 @@ namespace HTML {
 		return os;
 	}
 
-}
+} // namespace HTML
 
 namespace CSV {
 	using FieldRow = Key::Path;
 	using FieldRows = std::vector<FieldRow>;
 	using OptionalFieldRows = std::optional<FieldRows>;
-							
-	OptionalFieldRows to_field_rows(std::istream& is,char delim=';') {
+
+	OptionalFieldRows to_field_rows(std::istream& in,char delim=';') {
+    if (true) {
+      std::cout << "\nto_field_rows(std::istream& in...";
+    }
 		OptionalFieldRows result{};
 		try {
 			FieldRows field_rows{};
 			std::string entry{};
-			while (std::getline(is,entry)) {
+			while (std::getline(in,entry)) {
 				field_rows.push_back({entry,delim});
 			}
 			result = field_rows;
 		}
 		catch (std::exception const& e) {
-			std::cerr << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
+			std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
+		}
+		return result;
+	}
+
+	OptionalFieldRows to_field_rows(encoding::ISO_8859_1::istream& in,char delim=';') {
+    if (true) {
+      std::cout << "\nto_field_rows(encoding::ISO_8859_1::istream& in...";
+    }
+		OptionalFieldRows result{};
+		try {
+			FieldRows field_rows{};
+			std::string raw_entry{};
+			while (std::getline(in.is,raw_entry)) {
+        // patch from assumed ISO8859_1 to assumed run time environment UTF-8
+        auto unicode_string = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
+        auto entry = encoding::UTF8::unicode_to_utf8(unicode_string);
+				field_rows.push_back({entry,delim});
+			}
+			result = field_rows;
+		}
+		catch (std::exception const& e) {
+			std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
 		}
 		return result;
 	}
@@ -1629,7 +1911,7 @@ std::optional<unsigned int> to_four_digit_positive_int(std::string const& s) {
 			}
 		}
 	}
-	catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_four_digit_positive_int(" << s << ") failed. Exception=" << std::quoted(e.what());}
+	catch (std::exception const& e) { std::cout << "\nDESIGN INSUFFICIENCY: to_four_digit_positive_int(" << s << ") failed. Exception=" << std::quoted(e.what());}
 	return result;
 }
 
@@ -1788,7 +2070,7 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 	std::optional<IsPeriod> result{};
 	if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
 	else {
-		std::cerr << "\nERROR, to_is_period failed. Invalid period " << std::quoted(yyyymmdd_begin) << " ... " << std::quoted(yyyymmdd_begin);
+		std::cout << "\nERROR, to_is_period failed. Invalid period " << std::quoted(yyyymmdd_begin) << " ... " << std::quoted(yyyymmdd_begin);
 	}
 	return result;
 }
@@ -1836,7 +2118,7 @@ OptionalCentsAmount to_cents_amount(std::string const& s) {
 	}
 	catch (...) {
 		// Whine about input and failure
-		std::cerr << "\nThe string " << std::quoted(s) << " is not a valid cents amount (to_cents_amount returns nullopt)";
+		std::cout << "\nThe string " << std::quoted(s) << " is not a valid cents amount (to_cents_amount returns nullopt)";
 	}
 	return result;
 }
@@ -2144,7 +2426,7 @@ detail::TaggedAmountClass::OptionalInstanceId to_instance_id(std::string const& 
 		result = instance_id;
 	}
 	catch (...) {
-		std::cerr << "\nto_instance_id(" << std::quoted(s) << ") failed. General Exception caught." << std::flush;
+		std::cout << "\nto_instance_id(" << std::quoted(s) << ") failed. General Exception caught." << std::flush;
 	}
 	return result;
 }
@@ -2159,14 +2441,14 @@ detail::TaggedAmountClass::OptionalInstanceIds to_instance_ids(Key::Path const& 
 			instance_ids.push_back(*instance_id);
 		}
 		else {
-			std::cerr << "\nto_instance_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
+			std::cout << "\nto_instance_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
 		}
 	}
 	if (instance_ids.size() == sids.size()) {
 		result = instance_ids;
 	}
 	else {
-		std::cerr << "\nto_instance_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << instance_ids.size() << " out of " << sids.size() << " possible.";
+		std::cout << "\nto_instance_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << instance_ids.size() << " out of " << sids.size() << " possible.";
 	}
 	return result;
 }
@@ -2224,7 +2506,7 @@ namespace tas {
 			if (ta_ptr->tags().contains("BAS") and !(BAS::to_account_no(ta_ptr->tags().at("BAS")))) {
 				// Whine about invalid tagging of 'BAS' tag!
 				// It is vital we do NOT have any badly tagged BAS account transactions as this will screw up the saldo calculation!
-				std::cerr << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta_ptr->tags().at("BAS"));
+				std::cout << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta_ptr->tags().at("BAS"));
 				return false;
 			}
 			else return (     (ta_ptr->tags().contains("BAS"))
@@ -2350,14 +2632,14 @@ class DateOrderedTaggedAmountsContainer { // ####
 					ta_ptrs.push_back(*ta_ptr);
 				}
 				else {
-					std::cerr << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for instance_id=" << detail::to_string(instance_id) << std::flush;
+					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for instance_id=" << detail::to_string(instance_id) << std::flush;
 				}
 			}
 			if (ta_ptrs.size() == instance_ids.size()) {
 				result = ta_ptrs;
 			}
 			else {
-				std::cerr << "\nto_ta_ptrs() Failed. ta_ptrs.size() = " << ta_ptrs.size() << " IS NOT provided instance_ids.size() = " << instance_ids.size() << std::flush;
+				std::cout << "\nto_ta_ptrs() Failed. ta_ptrs.size() = " << ta_ptrs.size() << " IS NOT provided instance_ids.size() = " << instance_ids.size() << std::flush;
 			}
 			return result;
 		}
@@ -2404,9 +2686,9 @@ class DateOrderedTaggedAmountsContainer { // ####
         }
         else {
           // We have a discrepancy between the two maps. This should not happen!
-          std::cerr << "\nDESIGN INSUFFICIENCY: ta_ptr_to_insert is NOT in m_tagged_amount_instance_id_map but IS in m_tagged_amount_value_id_map";
-          std::cerr << "\n\tta_ptr_to_insert = " << ta_ptr_to_insert;
-          std::cerr << "\n\tm_tagged_amount_value_id_map[value_hash] = " << m_tagged_amount_value_id_map[value_hash];
+          std::cout << "\nDESIGN INSUFFICIENCY: ta_ptr_to_insert is NOT in m_tagged_amount_instance_id_map but IS in m_tagged_amount_value_id_map";
+          std::cout << "\n\tta_ptr_to_insert = " << ta_ptr_to_insert;
+          std::cout << "\n\tm_tagged_amount_value_id_map[value_hash] = " << m_tagged_amount_value_id_map[value_hash];
         }
 			}
 			else {
@@ -2416,9 +2698,9 @@ class DateOrderedTaggedAmountsContainer { // ####
         }
         else {
           // We have a discrepancy between the two maps. This should not happen!
-          std::cerr << "\nDESIGN INSUFFICIENCY: ta_ptr_to_insert is in m_tagged_amount_instance_id_map but NOT in m_tagged_amount_value_id_map";
-          std::cerr << "\n\tta_ptr_to_insert = " << ta_ptr_to_insert;
-          std::cerr << "\n\tm_tagged_amount_ptrs_map[ta_ptr_to_insert->instance_id()] = " << m_tagged_amount_instance_id_map[ta_ptr_to_insert->instance_id()];
+          std::cout << "\nDESIGN INSUFFICIENCY: ta_ptr_to_insert is in m_tagged_amount_instance_id_map but NOT in m_tagged_amount_value_id_map";
+          std::cout << "\n\tta_ptr_to_insert = " << ta_ptr_to_insert;
+          std::cout << "\n\tm_tagged_amount_ptrs_map[ta_ptr_to_insert->instance_id()] = " << m_tagged_amount_instance_id_map[ta_ptr_to_insert->instance_id()];
         }
 			}
 			return result;
@@ -2436,11 +2718,11 @@ class DateOrderedTaggedAmountsContainer { // ####
           m_date_ordered_amount_ptrs.erase(iter);
         }
         else {
-          std::cerr << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, instance_id " << instance_id;
+          std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, instance_id " << instance_id;
         }
       }
       else {
-        std::cerr << "nDateOrderedTaggedAmountsContainer::at failed to find instance_id " << instance_id;
+        std::cout << "nDateOrderedTaggedAmountsContainer::at failed to find instance_id " << instance_id;
       }
       return *this;
     }
@@ -2554,16 +2836,16 @@ namespace CSV {
 						result = ta_ptr;
 					}
 					else {
-						std::cerr << "\nNot a valid amount: " << std::quoted(sAmount); 
+						std::cout << "\nNot a valid amount: " << std::quoted(sAmount); 
 					}
 				}
 				else {
-					if (sDate.size() > 0) std::cerr << "\nNot a valid date: " << std::quoted(sDate);
+					if (sDate.size() > 0) std::cout << "\nNot a valid date: " << std::quoted(sDate);
 				}
 			}
 			return result;
-		} // namespace NORDEA 
-	}
+		} 
+	} // namespace NORDEA 
 
 	namespace SKV {
 		// For SKV CSV-files (so called skv-files with tax account statements)
@@ -2602,7 +2884,7 @@ namespace CSV {
 						result = ta_ptr;
 					}
 					else {
-						std::cerr << "\nNot a valid amount: " << std::quoted(sAmount); 
+						std::cout << "\nNot a valid amount: " << std::quoted(sAmount); 
 					}
 				}
 				else {
@@ -2631,14 +2913,14 @@ namespace CSV {
 								result = ta_ptr;
 							}
 							else {
-								std::cerr << "\nNot a valid SKV Saldo: " << std::quoted(sSaldo); 
+								std::cout << "\nNot a valid SKV Saldo: " << std::quoted(sSaldo); 
 							}
 						}
 						else {
-								std::cerr << "\nNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
+								std::cout << "\nNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
 						}
 					}
-					if (sDate.size() > 0) std::cerr << "\nNot a valid date: " << std::quoted(sDate);
+					if (sDate.size() > 0) std::cout << "\nNot a valid date: " << std::quoted(sDate);
 				}
 			}
 			return result;
@@ -2653,9 +2935,11 @@ namespace CSV {
 
   HeadingId to_csv_heading_id(FieldRow const& field_row) {
     HeadingId result{HeadingId::Undefined};
-    std::cerr << "\nfield_row.size() = " << field_row.size();
+    std::cout << "\nfield_row.size() = " << field_row.size();
     if (field_row.size() >= 10) {
-      std::cerr << "\nNORDEA File candidate ok";
+      if (true) {
+        std::cout << "\nNORDEA File candidate ok";
+      }
       // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
       // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
       // Note: NORDEA web csv format has changed to incorporate and ending ';' (in effect changing ';' from being a separator to being a terminator)
@@ -2676,6 +2960,9 @@ namespace CSV {
       }
     }
     else if (field_row.size() == 5) {
+      if (true) {
+        std::cout << "\nSKV File candidate ok";
+      }
       result = HeadingId::SKV;
     }
     return result;
@@ -2689,10 +2976,27 @@ using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsC
  * Return a list of tagged amounts if provided path is to a file with amount values (e.g., a bank account csv statements file)
  */
 OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
-	OptionalDateOrderedTaggedAmounts result{};
+  if (true) {
+    std::cout << "\nto_tagged_amounts(" << path << ")";
+  }
+  OptionalDateOrderedTaggedAmounts result{};
+  CSV::OptionalFieldRows field_rows{};
+  std::ifstream ifs{path};
+  // NOTE: The mechanism implemented to apply correct decoding and parsing of different files is a mess!
+  //       For one, The runtime on Mac uses UTF-8 through the console by default (which Windows and Unix may or may not do).
+  //       Also, The NORDEA CSV-file as downloaded through Safary from NORDEA web bank is also UTF-8 encoded (although I am not sure it will be using another browser on another platform?).
+  //       Finally, The SKV-file from Swedish Tax Agency web interface gets encoded in ISO8859-1 on Mac using Safari.
+  //       For now the whole thing is a patch-work that may or may not continue to work on Mac and will very unlikelly work on Linux or Windows?
+  //       TODO 20240527 - Try to refactor this into something more stable and cross-platform at some point in time?!
+  if (path.extension() == ".csv") {
+    field_rows = CSV::to_field_rows(ifs,';'); // Call to_field_rows overload for "raw" input (assuming a CSV-file is UTF-8 encoded and our runtime also uses UTF-8 = works on Mac)
+  }
+  else if (path.extension() == ".skv") {
+    encoding::ISO_8859_1::istream in{ifs};
+    field_rows = CSV::to_field_rows(in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
+  }
 	DateOrderedTaggedAmountsContainer dota{};
-	std::ifstream in{path};
-	if (auto field_rows = CSV::to_field_rows(in,';')) {
+	if (field_rows) {
 		// The file is some form of 'comma separated value' file using ';' as separators
 		// NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
 		// uses ';' as value separators
@@ -2705,7 +3009,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
               dota.insert(*ta_ptr);
             }
             else {
-              std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+              std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
             }
           }
         } break;
@@ -2715,21 +3019,21 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
               dota.insert(*ta_ptr);
             }
             else {
-              std::cerr << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+              std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
             }
           }
         } break;
         default: {
           // Skip this file (not a known count of values per row)
-          std::cerr << "\n*Skipped file* " << path << "with csv_heading_id = " << static_cast<int>(csv_heading_id) << " (unknown file content)"; 
+          std::cout << "\n*Skipped file* with csv_heading_id = " << static_cast<int>(csv_heading_id) << " (unknown file content)"; 
         }
       }
 		}
 	}
 	if (dota.size() > 0) result = dota;
-	return result;
-}
 
+  return result;
+}
 
 unsigned first_digit(BAS::AccountNo account_no) {
 	return account_no / 1000;
@@ -2965,7 +3269,7 @@ namespace BAS {
 				 .series = s[0]
 				,.verno = static_cast<VerNo>(std::stoi(s.substr(1)))};
 		}
-		catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_journal_meta(" << s << ") failed. Exception=" << std::quoted(e.what());}
+		catch (std::exception const& e) { std::cout << "\nDESIGN INSUFFICIENCY: to_journal_meta(" << s << ") failed. Exception=" << std::quoted(e.what());}
 		return result;
 	}
 
@@ -3646,10 +3950,7 @@ using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 namespace CSV {
 
 	namespace NORDEA {
-		struct istream {
-			std::istream& is;
-			operator bool() {return static_cast<bool>(is);}
-		};
+		struct istream : public encoding::ISO_8859_1::istream {};
 
 		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 		/*
@@ -3775,198 +4076,6 @@ namespace CSV {
 		return result;
 	}
 } // namespace CSV
-
-using char16_t_string = std::wstring;
-
-namespace charset {
-
-  /*
-
-  The main idea is to always encode through UNICODE as the intermediate encoding.
-
-  So, Cratchit may assume the runtime environment / terminal uses UTF-8 encoding.
-
-  Thus, to store text from the user input (in UTF-8) into an SIE-file that is encoded using the CP437 the transformations will be:
-  UTF-8 --> UNICODE --> CP437
-
-  And to read in an SIE-file the transformatons will be
-
-  CP437 --> UNICODE --> UTF-8
-
-  */
-
-	namespace ISO_8859_1 {
-
-		// Unicode code points 0x00 to 0xFF maps directly to ISO 8895-1 (ISO Latin).
-		// So we have to convert UTF-8 to Unicode and then truncate the code point to the low value byte.
-		// Code points above 0xFF has NO obvious representation in ISO 8895-1 (I suppose we could cherry pick to get some similar ISO 8895-1 glyph but...)
-
-		char16_t iso8859ToUnicode(char ch8859) {
-			return ch8859;
-		}
-	
-		uint8_t UnicodeToISO8859(char16_t unicode) {
-			uint8_t result{'?'};
-			if (unicode<=0xFF) result = unicode;
-			return result;
-		} 
-
-		char16_t_string iso8859ToUnicode(std::string s8859) {
-			char16_t_string result{};
-			std::transform(s8859.begin(),s8859.end(),std::back_inserter(result),[](char ch){
-				return iso8859ToUnicode(ch);
-			});
-			return result;
-		}
-
-	}
-
-	namespace CP437 {
-		extern std::map<char,char16_t> cp437ToUnicodeMap;
-
-		char16_t cp437ToUnicode(char ch437) {
-			return cp437ToUnicodeMap[ch437];
-		}
-	
-		uint8_t UnicodeToCP437(char16_t unicode) {
-			uint8_t result{'?'};
-			auto iter = std::find_if(cp437ToUnicodeMap.begin(),cp437ToUnicodeMap.end(),[&unicode](auto const& entry){
-				return entry.second == unicode;
-			});
-			if (iter != cp437ToUnicodeMap.end()) result = iter->first;
-      if (false) {
-        std::cout << "\nUnicodeToCP437(unicode:" << std::hex << static_cast<unsigned int>(unicode) << ") --> " << static_cast<unsigned int>(result); 
-      }
-			return result;
-		} 
-
-		char16_t_string cp437ToUnicode(std::string s437) {
-			char16_t_string result{};
-			std::transform(s437.begin(),s437.end(),std::back_inserter(result),[](char ch){
-				return charset::CP437::cp437ToUnicode(ch);
-			});
-			return result;
-		}
-	} // namespace CP437
-} // namespace CharSet
-
-namespace encoding {
-	namespace UTF8 {
-		// Unicode constants
-		// Leading (high) surrogates: 0xd800 - 0xdbff
-		// Trailing (low) surrogates: 0xdc00 - 0xdfff
-		const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
-		const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
-		const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
-		const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
-
-		// Maximum valid value for a Unicode code point
-		const char32_t CODE_POINT_MAX      = 0x0010ffff;
-
-		inline bool is_surrogate(char32_t cp) {
-					return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
-		}
-
-		bool is_valid_unicode(char32_t cp) {
-			return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
-		}
-
-		struct Stream {
-			std::ostream& os;
-		};
-
-		encoding::UTF8::Stream& operator<<(encoding::UTF8::Stream& os,char32_t cp) {
-			// Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
-			if (!is_valid_unicode(cp)) {
-				os.os << '?';
-			}
-			else if (cp < 0x80)                        // one octet
-					os.os << static_cast<char>(cp);
-			else if (cp < 0x800) {                // two octets
-					os.os << static_cast<char>((cp >> 6)            | 0xc0);
-					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-			}
-			else if (cp < 0x10000) {              // three octets
-					os.os << static_cast<char>((cp >> 12)           | 0xe0);
-					os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
-					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-			}
-			else {                                // four octets
-					os.os << static_cast<char>((cp >> 18)           | 0xf0);
-					os.os << static_cast<char>(((cp >> 12) & 0x3f)  | 0x80);
-					os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
-					os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-			}
-			return os;
-		}
-
-		std::string unicode_to_utf8(char16_t_string const& s) {
-			std::ostringstream os{};
-			encoding::UTF8::Stream utf8_os{os};
-			for (auto cp : s) utf8_os << cp;
-			return os.str();
-		}
-
-		// UTF-8 to Unicode
-		class ToUnicodeBuffer {
-		public:
-			using OptionalUnicode = std::optional<uint16_t>;
-			OptionalUnicode push(uint8_t b) {
-				OptionalUnicode result{};
-				// See https://en.wikipedia.org/wiki/UTF-8#Encoding
-				// Code point <-> UTF-8 conversion
-				// First code point	Last code point	Byte 1		Byte 2    Byte 3    Byte 4
-				// U+0000	U+007F										0xxxxxxx	
-				// U+0080	U+07FF										110xxxxx	10xxxxxx	
-				// U+0800	U+FFFF										1110xxxx	10xxxxxx	10xxxxxx	
-				// U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
-				this->m_utf_8_buffer.push_back(b);
-        if (false) {
-          std::cout << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")";
-          std::cout << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
-          for (auto ch : m_utf_8_buffer) std::cout << "[" << std::hex << static_cast<unsigned int>(ch) << "]";
-        }
-				return this->to_unicode();
-			}
-		private:
-			std::deque<uint8_t> m_utf_8_buffer{};
-			OptionalUnicode to_unicode() {
-				OptionalUnicode result{};
-				switch (m_utf_8_buffer.size()) {
-					case 1: {
-						if (m_utf_8_buffer[0] < 0x7F) {
-							result = m_utf_8_buffer[0];
-							m_utf_8_buffer.clear();
-						}
-					} break;
-					case 2: {
-						if (m_utf_8_buffer[0]>>5 == 0b110) {
-							uint16_t wch = (m_utf_8_buffer[0] & 0b00011111) << 6;
-							wch += (m_utf_8_buffer[1] & 0b00111111);
-							result = wch;
-							m_utf_8_buffer.clear();
-						}
-					} break;
-					case 3: {
-						if (m_utf_8_buffer[0]>>4 == 0b1110) {
-							uint16_t wch = (m_utf_8_buffer[0] & 0b00001111) << 6;
-							wch += (m_utf_8_buffer[1] & 0b00111111);
-							wch = (wch << 6) + (m_utf_8_buffer[2] & 0b00111111);
-							result = wch;
-							m_utf_8_buffer.clear();
-						}
-					} break;
-					default: {
-						// We don't support Unicodes over the range U+0800	U+FFFF
-						m_utf_8_buffer.clear(); // reset
-					}
-				}
-				return result;
-			}
-		};
-
-	} // namespace UTF8
-} // namespace encoding
 
 namespace SIE {
 
@@ -4363,7 +4472,7 @@ namespace SIE {
 					break;
 				}
 				else {
-					std::cerr << "\nERROR - Unexpected input while parsing #VER SIE entry";
+					std::cout << "\nERROR - Unexpected input while parsing #VER SIE entry";
 					break;
 				}
 			}
@@ -4645,7 +4754,7 @@ public:
 				});
 			}
 			else {
-				std::cerr << "DESIGN INSUFFICIENY - JournalEntryTemplate constructor failed to determine gross amount";
+				std::cout << "DESIGN INSUFFICIENY - JournalEntryTemplate constructor failed to determine gross amount";
 			}
 		}
 	}
@@ -4739,7 +4848,7 @@ BAS::MetaEntry swapped_ats_entry(BAS::MetaEntry const& me,BAS::anonymous::Accoun
 		result.defacto.account_transactions.push_back(new_at);
 	}
 	else {
-		std::cerr << "\nswapped_ats_entry failed. Could not match target " << target_at << " with new_at " << new_at;
+		std::cout << "\nswapped_ats_entry failed. Could not match target " << target_at << " with new_at " << new_at;
 	}
 	BAS::sort(result,BAS::has_greater_abs_amount);
 	return result;
@@ -4952,7 +5061,7 @@ public:
 			if (bas_account_nos.size() > 0) result = bas_account_nos;
 		}
 		catch (std::exception const& e) {
-			std::cerr << "\nto_bas_accounts failed. Exception=" << std::quoted(e.what());
+			std::cout << "\nto_bas_accounts failed. Exception=" << std::quoted(e.what());
 		}
 		return result;
 	}
@@ -4964,7 +5073,7 @@ public:
 			verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
 		}
 		else {
-			std::cerr << "\nSIEEnvironment::post failed - can't post an entry with null verno";
+			std::cout << "\nSIEEnvironment::post failed - can't post an entry with null verno";
 		}
 	}
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
@@ -5026,7 +5135,7 @@ public:
 	void set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].name != name) {
-				std::cerr << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
+				std::cout << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
 			}
 		}
 		BAS::detail::global_account_metas[bas_account_no].name = name; // Mutate global instance
@@ -5035,7 +5144,7 @@ public:
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].sru_code) {
 				if (*BAS::detail::global_account_metas[bas_account_no].sru_code != sru_code) {
-					std::cerr << "\nWARNING: BAS Account " << bas_account_no << " SRU Code " << *BAS::detail::global_account_metas[bas_account_no].sru_code << " changed to " << sru_code;
+					std::cout << "\nWARNING: BAS Account " << bas_account_no << " SRU Code " << *BAS::detail::global_account_metas[bas_account_no].sru_code << " changed to " << sru_code;
 				}
 			}
 		}
@@ -5045,9 +5154,9 @@ public:
 	void set_opening_balance(BAS::AccountNo bas_account_no,Amount opening_balance) {
 		if (this->opening_balance.contains(bas_account_no) == false) this->opening_balance[bas_account_no] = opening_balance;
 		else {
-			std::cerr << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
-			std::cerr << " is already registered as " << this->opening_balance[bas_account_no] << ".";
-			std::cerr << " Provided opening_balance:" << opening_balance << " IGNORED";
+			std::cout << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
+			std::cout << " is already registered as " << this->opening_balance[bas_account_no] << ".";
+			std::cout << " Provided opening_balance:" << opening_balance << " IGNORED";
 		}
 	}
 
@@ -5099,7 +5208,7 @@ private:
 		// Ensure a valid series
 		if (me.meta.series < 'A' or 'M' < me.meta.series) {
 			me.meta.series = 'A';
-			std::cerr << "\nadd(me) assigned series 'A' to entry with no series assigned";
+			std::cout << "\nadd(me) assigned series 'A' to entry with no series assigned";
 		}
 		// Assign "actual" sequence number
 		auto verno = largest_verno(me.meta.series) + 1;
@@ -5109,7 +5218,7 @@ private:
 		  m_journals[me.meta.series][verno] = me.defacto;
     }
     else {
-      std::cerr << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
+      std::cout << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
     }
 		return result;
 	}
@@ -5275,7 +5384,7 @@ OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BAS::AccountNos const&
 		result = amount;
 	}
 	catch (std::exception const& e) {
-		std::cerr << "\nto_ats_sum failed. Excpetion=" << std::quoted(e.what());
+		std::cout << "\nto_ats_sum failed. Excpetion=" << std::quoted(e.what());
 	}
 	return result;
 }
@@ -5333,7 +5442,7 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 		}
 	}
 	else {
-		std::cerr << "\nDESIGN INSUFFICIENCY - to_typed_meta_entry failed to determine gross amount";
+		std::cout << "\nDESIGN INSUFFICIENCY - to_typed_meta_entry failed to determine gross amount";
 	}
 	// Identify an EU Purchase journal entry
 	// Example:
@@ -5947,7 +6056,7 @@ BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vecto
 		}
 	}
 	catch (std::exception const& e) {
-		std::cerr << "\nfind_meta_entry failed. Exception=" << std::quoted(e.what());
+		std::cout << "\nfind_meta_entry failed. Exception=" << std::quoted(e.what());
 	}
 	return result;
 }
@@ -5984,7 +6093,7 @@ namespace SKV { // SKV
 			else throw std::runtime_error(std::string{"Can't interpret period_id=\""} + period_id + "\"");
 		}
 		catch (std::exception const& e) {
-			std::cerr << "\nERROR, to_date_range failed. Exception = " << std::quoted(e.what());
+			std::cout << "\nERROR, to_date_range failed. Exception = " << std::quoted(e.what());
 		}
 		return result;
 	}
@@ -6255,7 +6364,7 @@ namespace SKV { // SKV
 					result = fm;
 				}
 				catch (std::exception const& e) {
-					std::cerr << "\nDESIGN INSUFFICIENCY: to_files_mapping failed. Excpetion=" << std::quoted(e.what());
+					std::cout << "\nDESIGN INSUFFICIENCY: to_files_mapping failed. Excpetion=" << std::quoted(e.what());
 				}
 				return result;
 			}
@@ -6441,7 +6550,7 @@ namespace SKV { // SKV
 				edos << "\n" << R"(</Skatteverket>)";
 			}
 			catch (std::exception const& e) {
-				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
+				std::cout << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
 				edos.os.setstate(std::ostream::badbit);
 			}
 			return edos;
@@ -6453,7 +6562,7 @@ namespace SKV { // SKV
 				edos << xml_map;
 			}
 			catch (std::exception const& e) {
-				std::cerr << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
+				std::cout << "\nERROR: Failed to generate skv-file, excpetion=" << e.what();
 			}
 			return static_cast<bool>(os);
 		}
@@ -6564,7 +6673,7 @@ namespace SKV { // SKV
 					};
 				}
 				catch (std::exception const& e) {
-					std::cerr << "ERROR, to_vat_returns_meta failed. Excpetion=" << std::quoted(e.what());
+					std::cout << "ERROR, to_vat_returns_meta failed. Excpetion=" << std::quoted(e.what());
 				}
 				return result;
 			}
@@ -6747,7 +6856,7 @@ namespace SKV { // SKV
 						if (p[2].find(os.str()) != std::string::npos) acc.push_back(std::stoi(p[0]));
 
 					}
-					catch (std::exception const& e) { std::cerr << "\nDESIGN INSUFFICIENCY: to_accounts::lambda failed. Exception=" << std::quoted(e.what());}					
+					catch (std::exception const& e) { std::cout << "\nDESIGN INSUFFICIENCY: to_accounts::lambda failed. Exception=" << std::quoted(e.what());}					
 					return acc;
 				});
 				return result;
@@ -6827,7 +6936,7 @@ namespace SKV { // SKV
 						result = xml_map;
 				}
 				catch (std::exception const& e) {
-					std::cerr << "\nERROR, to_xml_map failed. Expection=" << std::quoted(e.what());
+					std::cout << "\nERROR, to_xml_map failed. Expection=" << std::quoted(e.what());
 				}
 				return result;
 			}
@@ -6904,7 +7013,7 @@ namespace SKV { // SKV
 					result = box_map;
 				}
 				catch (std::exception const& e) {
-					std::cerr << "\nERROR, to_form_box_map failed. Expection=" << std::quoted(e.what());
+					std::cout << "\nERROR, to_form_box_map failed. Expection=" << std::quoted(e.what());
 				}
 				return result;
 			}
@@ -6990,7 +7099,7 @@ namespace SKV { // SKV
 					}
 				}
 				catch (std::exception const& e) {
-					std::cerr << "\nERROR: to_vat_returns_had failed. Excpetion = " << std::quoted(e.what());
+					std::cout << "\nERROR: to_vat_returns_had failed. Excpetion = " << std::quoted(e.what());
 				}
 				return result;
 			}
@@ -7263,7 +7372,7 @@ namespace SKV { // SKV
 					result = form;
 				}
 				catch (std::exception& e) {
-					std::cerr << "\nvat_returns_to_eu_sales_list_form failed. Exception = " << std::quoted(e.what());
+					std::cout << "\nvat_returns_to_eu_sales_list_form failed. Exception = " << std::quoted(e.what());
 				}
 				return result;
 			}
@@ -7440,7 +7549,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		result = xml_map;
 	}
 	catch (std::exception const& e) {
-		std::cerr << "\nERROR: to_skv_xml_map failed, exception=" << e.what();
+		std::cout << "\nERROR: to_skv_xml_map failed, exception=" << e.what();
 	}
 	if (result) {
 		for (auto const& [tag,value] : *result) {
@@ -7526,7 +7635,7 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 		result = to_skv_xml_map(sender_meta,declaration_meta,employer_meta,tax_declarations);
 	}
 	catch (std::exception const& e) {
-		std::cerr << "\nERROR: Failed to create SKV data from SIE Environment, expection=" << e.what();
+		std::cout << "\nERROR: Failed to create SKV data from SIE Environment, expection=" << e.what();
 	}
 	return result;
 }
@@ -7746,7 +7855,7 @@ std::optional<SRUEnvironments::value_type> to_sru_environments_entry(Environment
 		return SRUEnvironments::value_type{year_id,sru_env};
 	}
 	catch (std::exception const& e) {
-		std::cerr << "\nto_sru_environments_entry failed. Exception=" << std::quoted(e.what());
+		std::cout << "\nto_sru_environments_entry failed. Exception=" << std::quoted(e.what());
 	}
 	return std::nullopt;
 }
@@ -8173,7 +8282,7 @@ namespace SKV {
 				result = sru_value_map;
 			}
 			catch (std::exception const& e) {
-				std::cerr << "\nto_sru_value_map failed. Excpetion=" << std::quoted(e.what());
+				std::cout << "\nto_sru_value_map failed. Excpetion=" << std::quoted(e.what());
 			}
 			return result;
 		}
@@ -9518,7 +9627,7 @@ Cmd Updater::operator()(Command const& command) {
                 case JournalEntryVATType::VATTransfer: {
                   // All VATS and one gross non-vat (assume bank transfer of VAT to/from tax agency?)
                 } break;
-                default: {std::cerr << "\nDESIGN INSUFFICIENCY - Unknown JournalEntryVATType " << vat_type;}
+                default: {std::cout << "\nDESIGN INSUFFICIENCY - Unknown JournalEntryVATType " << vat_type;}
               }
               // std::map<std::string,unsigned int> props_counter{};
               // for (auto const& [at,props] : tme.defacto.account_transactions) {
@@ -9600,8 +9709,8 @@ Cmd Updater::operator()(Command const& command) {
                     if (props.contains("net")) net_at = at;
                     if (props.contains("vat")) vat_at = at;
                   }
-                  if (!net_at) std::cerr << "\nNo net_at";
-                  if (!vat_at) std::cerr << "\nNo vat_at";
+                  if (!net_at) std::cout << "\nNo net_at";
+                  if (!vat_at) std::cout << "\nNo vat_at";
                   if (net_at and vat_at) {
                     had.optional.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
                     
@@ -10568,7 +10677,7 @@ Cmd Updater::operator()(Command const& command) {
             }
           }
           else {
-            std::cerr << "\nDESIGN INSUFFICIENCY: Error, BAS tag contains value:" << ta_ptr->tags()["BAS"] << " that fails to translate to a BAS account no";
+            std::cout << "\nDESIGN INSUFFICIENCY: Error, BAS tag contains value:" << ta_ptr->tags()["BAS"] << " that fails to translate to a BAS account no";
           }
         }
 
@@ -10998,7 +11107,7 @@ Cmd Updater::operator()(Command const& command) {
                 }
               }
               else {
-                std::cerr << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta_ptr->tags().at("BAS");
+                std::cout << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta_ptr->tags().at("BAS");
               }
             }
             else {
@@ -11244,8 +11353,8 @@ The ITfied AB
       else if (model->prompt_state == PromptState::EnterHA) {
         if (auto had_iter = model->selected_had()) {
           auto& had = *(*had_iter);
-          if (!had.optional.current_candidate) std::cerr << "\nNo had.optional.current_candidate";
-          if (!had.optional.counter_ats_producer) std::cerr << "\nNo had.optional.counter_ats_producer";
+          if (!had.optional.current_candidate) std::cout << "\nNo had.optional.current_candidate";
+          if (!had.optional.counter_ats_producer) std::cout << "\nNo had.optional.counter_ats_producer";
           if (had.optional.current_candidate and had.optional.counter_ats_producer) {
             auto gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
             auto gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
@@ -11818,8 +11927,11 @@ private:
 			for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) {
 				auto path = dir_entry.path();
 				std::cout << "\n\nBEGIN File: " << path;
+        if (dir_entry.is_directory()) {
+          // skip directories (will process regular files and symlinks etc...)
+        }
 				// Process file
-				if (auto tagged_amounts = to_tagged_amounts(path)) {
+				else if (auto tagged_amounts = to_tagged_amounts(path)) {
 					result += *tagged_amounts;
 					std::cout << "\n\tValid entries count:" << tagged_amounts->size();
           auto consumed_files_path = from_bank_or_skv_path / "consumed";
@@ -11847,7 +11959,7 @@ private:
 				result.insert(*ta_ptr);
 			}
 			else {
-				std::cerr << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmountPtr";
+				std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmountPtr";
 			}
 		});
 
@@ -11954,7 +12066,7 @@ private:
       }
     }
     else {
-      std::cerr << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
+      std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
     }
     std::cout << "\n} SYNHRONIZE TAGGED AMOUNTS WITH SIE - END";
   }
@@ -12073,7 +12185,7 @@ private:
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
       if (true) {
         if (ta_ptr->tag_value("BAS") or ta_ptr->tag_value("SIE")) {
-          // std::cerr << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta_ptr;
+          // std::cout << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta_ptr;
           return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
         }
       }
@@ -12127,7 +12239,7 @@ private:
 			}
 		}
 		catch (std::runtime_error const& e) {
-			std::cerr << "\nERROR - Read from " << p << " failed. Exception:" << e.what();
+			std::cout << "\nERROR - Read from " << p << " failed. Exception:" << e.what();
 		}
 		return result;
 	}
@@ -12140,7 +12252,7 @@ private:
 			}
 		}
 		catch (std::runtime_error const& e) {
-			std::cerr << "\nERROR - Write to " << p << " failed. Exception:" << e.what();
+			std::cout << "\nERROR - Write to " << p << " failed. Exception:" << e.what();
 		}
 	}
 };
@@ -12182,7 +12294,7 @@ public:
 				}
 			}
 			catch (std::exception& e) {
-				std::cerr << "\nERROR: run() loop failed, exception=" << e.what() << std::flush;
+				std::cout << "\nERROR: run() loop failed, exception=" << e.what() << std::flush;
 			}
 		}
 		// std::cout << "\nREPL::run exit" << std::flush;
