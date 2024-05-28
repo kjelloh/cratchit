@@ -2072,7 +2072,7 @@ Date to_today() {
 	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
 }
 
-class DateRange { // ####
+class DateRange {
 public:
 	DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
 	DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
@@ -2242,7 +2242,7 @@ std::string to_string(UnitsAndCents const& units_and_cents) {
 namespace detail {
 
 	// 1) TaggedAmountPtr instance is restricted to the Heap and accessible only through std::shared_ptr
-	class TaggedAmountClass { // ####
+	class TaggedAmountClass {
 	public:
 	  friend std::ostream& operator<<(std::ostream& os, TaggedAmountClass const& tac);
 		using OptionalTagValue = std::optional<std::string>;
@@ -2263,7 +2263,7 @@ namespace detail {
 		Tags& tags() {return m_tags;}
 
     // Map key to optional value
-		OptionalTagValue tag_value(std::string const& key) const { // ####
+		OptionalTagValue tag_value(std::string const& key) const {
 			OptionalTagValue result{};
 			if (m_tags.contains(key)) {
 				result = m_tags.at(key); 
@@ -2273,7 +2273,7 @@ namespace detail {
 
 		bool operator==(TaggedAmountClass const& other) const;
 
-	private: // ####
+	private:
 		Date m_date;
 		CentsAmount m_cents_amount;
 		Tags m_tags;
@@ -2350,7 +2350,7 @@ namespace detail {
 
 }
 
-using TaggedAmountPtr = std::shared_ptr<detail::TaggedAmountClass>; // ####
+using TaggedAmountPtr = std::shared_ptr<detail::TaggedAmountClass>;
 using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
 
 std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
@@ -2480,7 +2480,6 @@ class DateOrderedTaggedAmountsContainer {
 		}
 
     OptionalTaggedAmountPtr at(ValueId const& value_id) {
-      // #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
 			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << detail::to_string(value_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
 			if (m_tagged_amount_value_id_map.contains(value_id)) {
@@ -2493,8 +2492,6 @@ class DateOrderedTaggedAmountsContainer {
     }
 
 		OptionalTaggedAmountPtr operator[](ValueId const& value_id) {
-      // #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
-
 			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(value_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
 			if (auto o_ptr = this->at(value_id)) {
@@ -2559,11 +2556,7 @@ class DateOrderedTaggedAmountsContainer {
 			return result;
 		}
 
-    // TODO 240218: Consider to provide an "eraser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
-    // TODO: 240225: NOTE that erase of an aggregate does not erase the members of the aggregate. What is a good solution for this?
     DateOrderedTaggedAmountsContainer erase(ValueId const& value_id) {
-      // #### Idea TODO 240226 - Update also the "value semantics" map of tagged amounts (to evalutae implementation before switching to it?)
-      //                         Also consider to make erase remove also the aggregated values.
       if (auto o_ptr = this->at(value_id)) {
         m_tagged_amount_value_id_map.erase(value_id);
         auto iter = std::ranges::find(m_date_ordered_amount_ptrs,*o_ptr);
@@ -3695,7 +3688,7 @@ TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
-	aggregate_ta_ptr->tags()["_members"] = value_ids.to_string(); // #### value semantics
+	aggregate_ta_ptr->tags()["_members"] = value_ids.to_string();
 	result.push_back(aggregate_ta_ptr);
 	return result;
 }
@@ -4998,7 +4991,7 @@ public:
 		return result;
 	}
 
-	OptionalDateRange fiscal_year_date_range() const { // ####
+	OptionalDateRange fiscal_year_date_range() const {
 		return this->year_date_range;
 	}
 
@@ -5016,7 +5009,7 @@ public:
 	
 private:
 	BASJournals m_journals{};
-	OptionalDateRange year_date_range{}; // ####
+	OptionalDateRange year_date_range{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
 
@@ -10104,7 +10097,7 @@ Cmd Updater::operator()(Command const& command) {
         }
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
-          for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {	// ####
+          for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {
             model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
           }				
           model->prompt_state = PromptState::TAIndex;
@@ -10272,7 +10265,7 @@ Cmd Updater::operator()(Command const& command) {
       // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
       for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
         bool has_SIE_tag = ta_ptr->tag_value("SIE").has_value();
-        if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) { // #### value semantics
+        if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) {
           prompt << "\nDisregarded SIE aggregate " << ta_ptr;
           had_candidate_ta_ptrs.erase(detail::to_value_id(*ta_ptr));
           auto members = Key::Path{*members_value};
@@ -11884,7 +11877,6 @@ private:
             ++source_iter;
           }
         } // while source_iter
-        // ####
       }
     }
     else {
@@ -11976,7 +11968,7 @@ private:
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (false) { // ####
+    if (false) {
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
