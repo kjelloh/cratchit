@@ -457,6 +457,26 @@ namespace encoding {
 
 	} // namespace UTF8
 
+  namespace CP437 {
+		struct istream {
+			std::istream& is;
+			operator bool() {return static_cast<bool>(is);}
+      // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
+      template <class F>
+      std::optional<typename F::value_type> getline(F const& f) {
+        typename F::value_type result{};
+        std::string raw_entry{};
+        if (std::getline(is,raw_entry)) {
+          auto unicode_s = charset::CP437::cp437ToUnicode(raw_entry);
+          result = f(unicode_s);
+        }
+        if (result.size() > 0) return result;
+        else return std::nullopt;
+      }
+		};    
+  }
+  
+
   namespace unicode {
     // while (auto entry = in.getline(encoding::unicode::to_utf8{}))
     struct to_utf8 {
@@ -4401,12 +4421,6 @@ namespace SIE {
 		SIE::Konto konto{};
 		auto pos = in.tellg();
 		if (in >> Tag{sie_field_tag} >> konto.account_no >> std::quoted(konto.name)) {
-
-			// Convert from code point 437 to utf-8
-			auto s437 = konto.name;
-			auto sUnicode = charset::CP437::cp437ToUnicode(s437);
-			konto.name = encoding::UTF8::unicode_to_utf8(sUnicode);
-
 			result = konto;
 			pos = in.tellg(); // accept new stream position
 		}
@@ -4438,14 +4452,6 @@ namespace SIE {
 		optional_Text_parser optional_transtext_parser{trans.transtext};
 		if (in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
 			// std::cout << trans_tag << trans.account_no << " " << trans.amount;
-
-			if (trans.transtext) {
-				// Convert from code point 437 to utf-8
-				auto s437 = *trans.transtext;
-				auto sUnicode = charset::CP437::cp437ToUnicode(s437);
-				trans.transtext = encoding::UTF8::unicode_to_utf8(sUnicode);
-			}
-
 			result = trans;
 			pos = in.tellg(); // accept new stream position
 		}
@@ -4478,11 +4484,6 @@ namespace SIE {
 			if (false) {
 				// std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
 			}
-			// Convert from code point 437 to utf-8
-			auto s437 = ver.vertext;
-			auto sUnicode = charset::CP437::cp437ToUnicode(s437);
-			ver.vertext = encoding::UTF8::unicode_to_utf8(sUnicode);
-
 			while (true) {
 				if (auto entry = parse_TRANS(in,"#TRANS")) {
 					// std::cout << "\nTRANS :)";	
@@ -8402,8 +8403,15 @@ BAS::MetaEntry to_entry(SIE::Ver const& ver) {
 
 OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path) {
 	OptionalSIEEnvironment result{};
-	std::ifstream in{sie_file_path};
-	if (in) {
+	std::ifstream ifs{sie_file_path};
+  encoding::CP437::istream is{ifs};
+	if (is) {
+    std::string s_utf8{};
+    while (auto entry = is.getline(encoding::unicode::to_utf8{})) {
+      s_utf8 += *entry;
+      s_utf8 += "\n";
+    }
+    std::istringstream in{s_utf8};
 		SIEEnvironment sie_environment{};
 		while (true) {
 			// std::cout << "\nparse";
