@@ -311,6 +311,7 @@ namespace charset {
 			return result;
 		}
 	} // namespace CP437
+
 } // namespace CharSet
 
 namespace encoding {
@@ -455,6 +456,41 @@ namespace encoding {
 			}
 		};
 
+    char16_t_string utf8ToUnicode(std::string const& s_utf8) {
+      char16_t_string result{};
+      ToUnicodeBuffer to_unicode_buffer{};
+      for (auto ch : s_utf8) {
+        if (auto unicode = to_unicode_buffer.push(ch)) {
+          result += *unicode;
+        }
+      }
+      if (true) {
+        std::cout << "\nutf8ToUnicode(";
+        for (auto ch : s_utf8) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        std::cout << ") --> ";
+        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+      }
+
+      return result;
+    }
+
+		struct istream {
+			std::istream& is;
+			operator bool() {return static_cast<bool>(is);}
+      // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
+      template <class F>
+      std::optional<typename F::value_type> getline(F const& f) {
+        typename F::value_type result{};
+        std::string raw_entry{};
+        if (std::getline(is,raw_entry)) {
+          auto unicode_s = encoding::UTF8::utf8ToUnicode(raw_entry);
+          result = f(unicode_s);
+        }
+        if (result.size() > 0) return result;
+        else return std::nullopt;
+      }
+		};
+
 	} // namespace UTF8
 
   namespace CP437 {
@@ -474,9 +510,8 @@ namespace encoding {
         else return std::nullopt;
       }
 		};    
-  }
+  } // namespace encoding
   
-
   namespace unicode {
     // while (auto entry = in.getline(encoding::unicode::to_utf8{}))
     struct to_utf8 {
@@ -1869,7 +1904,7 @@ namespace CSV {
 	using OptionalFieldRows = std::optional<FieldRows>;
 
 	OptionalFieldRows to_field_rows(std::istream& in,char delim=';') {
-    if (false) {
+    if (true) {
       std::cout << "\nto_field_rows(std::istream& in...";
     }
 		OptionalFieldRows result{};
@@ -1910,7 +1945,33 @@ namespace CSV {
 			std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
 		}
 		return result;
+	}  
+
+	OptionalFieldRows to_field_rows(encoding::UTF8::istream& in,char delim=';') {
+    if (true) {
+      std::cout << "\nto_field_rows(encoding::UTF8::istream& in...";
+    }
+		OptionalFieldRows result{};
+		try {
+			FieldRows field_rows{};
+			std::string raw_entry{};
+			// while (std::getline(in.is,raw_entry)) {
+      //   // patch from assumed ISO8859_1 to assumed run time environment UTF-8
+      //   auto unicode_string = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
+      //   auto entry = encoding::UTF8::unicode_to_utf8(unicode_string);
+			// 	field_rows.push_back({entry,delim});
+			// }
+      while (auto entry = in.getline(encoding::unicode::to_utf8{})) {
+				field_rows.push_back({*entry,delim});
+      }
+			result = field_rows;
+		}
+		catch (std::exception const& e) {
+			std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
+		}
+		return result;
 	}
+
 } // namespace CSV
 
 auto utf_ignore_to_upper_f = [](char ch) {
@@ -2985,7 +3046,7 @@ namespace CSV {
     HeadingId result{HeadingId::Undefined};
     std::cout << "\nfield_row.size() = " << field_row.size();
     if (field_row.size() >= 10) {
-      if (false) {
+      if (true) {
         std::cout << "\nNORDEA File candidate ok";
       }
       // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
@@ -3008,7 +3069,7 @@ namespace CSV {
       }
     }
     else if (field_row.size() == 5) {
-      if (false) {
+      if (true) {
         std::cout << "\nSKV File candidate ok";
       }
       result = HeadingId::SKV;
@@ -3037,11 +3098,12 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
   //       For now the whole thing is a patch-work that may or may not continue to work on Mac and will very unlikelly work on Linux or Windows?
   //       TODO 20240527 - Try to refactor this into something more stable and cross-platform at some point in time?!
   if (path.extension() == ".csv") {
-    field_rows = CSV::to_field_rows(ifs,';'); // Call to_field_rows overload for "raw" input (assuming a CSV-file is UTF-8 encoded and our runtime also uses UTF-8 = works on Mac)
+    encoding::UTF8::istream utf8_in{ifs};
+    field_rows = CSV::to_field_rows(utf8_in,';'); // Call to_field_rows overload for "UTF8" input (assuming a CSV-file is ISO8859-1 encoded, as NORDEA csv-file is)
   }
   else if (path.extension() == ".skv") {
-    encoding::ISO_8859_1::istream in{ifs};
-    field_rows = CSV::to_field_rows(in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
+    encoding::ISO_8859_1::istream iso8859_in{ifs};
+    field_rows = CSV::to_field_rows(iso8859_in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
   }
 	DateOrderedTaggedAmountsContainer dota{};
 	if (field_rows) {
@@ -6153,7 +6215,7 @@ namespace SKV { // SKV
 		};
 
 		OStream& operator<<(OStream& sru_os,char ch) {
-			// Assume ch is a byte in an UTF-8 stream and convert it to CP437 charachter set in file
+			// Assume ch is a byte in an UTF-8 stream and convert it to ISO8859_1 charachter set in file to SKV
 			// std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
 			if (auto unicode = sru_os.to_unicode_buffer.push(ch)) {
 				auto iso8859_ch = charset::ISO_8859_1::UnicodeToISO8859(*unicode);
