@@ -255,12 +255,6 @@ namespace charset {
 			return static_cast<uint8_t>(ch8859);
 		}
 	
-		uint8_t UnicodeToISO8859(char16_t unicode) {
-			uint8_t result{'?'};
-			if (unicode<=0xFF) result = unicode;
-			return result;
-		} 
-
 		char16_t_string iso8859ToUnicode(std::string s8859) {
 			char16_t_string result{};
 			std::transform(s8859.begin(),s8859.end(),std::back_inserter(result),[](char ch){
@@ -274,6 +268,12 @@ namespace charset {
       }
 			return result;
 		}
+
+		uint8_t UnicodeToISO8859(char16_t unicode) {
+			uint8_t result{'?'};
+			if (unicode<=0xFF) result = unicode;
+			return result;
+		} 
 
 	}
 
@@ -314,11 +314,24 @@ namespace charset {
 } // namespace CharSet
 
 namespace encoding {
+
   namespace ISO_8859_1 {
 
 		struct istream {
 			std::istream& is;
 			operator bool() {return static_cast<bool>(is);}
+      // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
+      template <class F>
+      std::optional<typename F::value_type> getline(F const& f) {
+        typename F::value_type result{};
+        std::string raw_entry{};
+        if (std::getline(is,raw_entry)) {
+          auto unicode_s = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
+          result = f(unicode_s);
+        }
+        if (result.size() > 0) return result;
+        else return std::nullopt;
+      }
 		};
 
   }
@@ -443,6 +456,18 @@ namespace encoding {
 		};
 
 	} // namespace UTF8
+
+  namespace unicode {
+    // while (auto entry = in.getline(encoding::unicode::to_utf8{}))
+    struct to_utf8 {
+      using value_type = std::string;
+      value_type operator()(char16_t_string const& unicode_s) const {
+        return encoding::UTF8::unicode_to_utf8(unicode_s);
+      }
+
+    };
+  } // namespace unicode
+
 } // namespace encoding
 
 namespace tokenize {
@@ -1850,12 +1875,15 @@ namespace CSV {
 		try {
 			FieldRows field_rows{};
 			std::string raw_entry{};
-			while (std::getline(in.is,raw_entry)) {
-        // patch from assumed ISO8859_1 to assumed run time environment UTF-8
-        auto unicode_string = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
-        auto entry = encoding::UTF8::unicode_to_utf8(unicode_string);
-				field_rows.push_back({entry,delim});
-			}
+			// while (std::getline(in.is,raw_entry)) {
+      //   // patch from assumed ISO8859_1 to assumed run time environment UTF-8
+      //   auto unicode_string = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
+      //   auto entry = encoding::UTF8::unicode_to_utf8(unicode_string);
+			// 	field_rows.push_back({entry,delim});
+			// }
+      while (auto entry = in.getline(encoding::unicode::to_utf8{})) {
+				field_rows.push_back({*entry,delim});
+      }
 			result = field_rows;
 		}
 		catch (std::exception const& e) {
