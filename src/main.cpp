@@ -4127,6 +4127,9 @@ namespace CSV {
 
 namespace SIE {
 
+  // Parses SIE entries assumed to be in UTF8 encoding.
+  // See encoding::CP437::istream::getline mechanism in from_sie_file
+
 	struct Tag {
 		std::string const expected;
 	};
@@ -4218,16 +4221,17 @@ namespace SIE {
 	struct AnonymousLine {std::string str{};};
 	using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Rar,Ib,Konto,Sru,Ver,Trans,AnonymousLine>;
 	using SIEParseResult = std::optional<SIEFileEntry>;
-	std::istream& operator>>(std::istream& in,Tag const& tag) {
-		if (in.good()) {
+
+	std::istream& operator>>(std::istream& utf8_in,Tag const& tag) {
+		if (utf8_in.good()) {
 			// std::cout << "\n>>Tag[expected:" << tag.expected;
-			auto pos = in.tellg();
+			auto pos = utf8_in.tellg();
 			std::string token{};
-			if (in >> token) {
+			if (utf8_in >> token) {
 				// std::cout << ",read:" << token << "]";
 				if (token != tag.expected) {
-					in.seekg(pos); // Reset position for failed tag
-					in.setstate(std::ios::failbit); // failed to read expected tag
+					utf8_in.seekg(pos); // Reset position for failed tag
+					utf8_in.setstate(std::ios::failbit); // failed to read expected tag
 					// std::cout << " rejected";
 				}
 			}
@@ -4235,7 +4239,7 @@ namespace SIE {
 				// std::cout << "null";
 			}
 		}		
-		return in;
+		return utf8_in;
 	}
 
 	struct optional_YYYYMMdd_parser {
@@ -4244,69 +4248,69 @@ namespace SIE {
 	struct YYYYMMdd_parser {
 		Date& date;
 	};
-	std::istream& operator>>(std::istream& in,optional_YYYYMMdd_parser& p) {
-		if (in.good()) {
-			auto pos = in.tellg();
+	std::istream& operator>>(std::istream& utf8_in,optional_YYYYMMdd_parser& p) {
+		if (utf8_in.good()) {
+			auto pos = utf8_in.tellg();
 			try {
-				// std::chrono::from_stream(in,p.fmt,p.date); // Not in g++11 libc++?
+				// std::chrono::from_stream(utf8_in,p.fmt,p.date); // Not utf8_in g++11 libc++?
 				std::string sDate{};
-				in >> std::quoted(sDate);
+				utf8_in >> std::quoted(sDate);
 				if (sDate.size()==0) {
-					pos = in.tellg(); // Accept this parse position (e.g., "" is to be accepted)
+					pos = utf8_in.tellg(); // Accept this parse position (e.g., "" is to be accepted)
 				}
 				else if (auto date = to_date(sDate);date) {
 					p.date = *date;
-					pos = in.tellg(); // Accept this parse position (an actual date was parsed)
+					pos = utf8_in.tellg(); // Accept this parse position (an actual date was parsed)
 				}
 			}
 			catch (std::exception const& e) { /* swallow all failures silently for optional parse */}
-			in.seekg(pos); // Reset position in case of failed parse
-			in.clear(); // Reset failbit to allow try for other parse
+			utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+			utf8_in.clear(); // Reset failbit to allow try for other parse
 		}
-		return in;
+		return utf8_in;
 	}
-	std::istream& operator>>(std::istream& in,YYYYMMdd_parser& p) {
-		if (in.good()) {
+	std::istream& operator>>(std::istream& utf8_in,YYYYMMdd_parser& p) {
+		if (utf8_in.good()) {
 			std::optional<Date> od{};
 			optional_YYYYMMdd_parser op{od};
-			in >> op;
+			utf8_in >> op;
 			if (op.date) {
 				p.date = *op.date;
 			}
 			else {
-				in.setstate(std::ios::failbit);
+				utf8_in.setstate(std::ios::failbit);
 			}
 		}
-		return in;
+		return utf8_in;
 	}
 
 	struct optional_Text_parser {
 		std::optional<std::string>& text;
 	};
-	std::istream& operator>>(std::istream& in,optional_Text_parser& p) {
-		if (in.good()) {
-			auto pos = in.tellg();
+	std::istream& operator>>(std::istream& utf8_in,optional_Text_parser& p) {
+		if (utf8_in.good()) {
+			auto pos = utf8_in.tellg();
 			std::string text{};
-			if (in >> std::quoted(text)) {
+			if (utf8_in >> std::quoted(text)) {
 				p.text = text;
-				pos = in.tellg(); // accept this parse pos
+				pos = utf8_in.tellg(); // accept this parse pos
 			}
-			in.clear(); // Reset failbit to allow try for other parse
-			in.seekg(pos); // Reset position in case of failed parse
+			utf8_in.clear(); // Reset failbit to allow try for other parse
+			utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
 		}
-		return in;
+		return utf8_in;
 	}
 	struct Scraps {};
-	std::istream& operator>>(std::istream& in,Scraps& p) {
-		if (in.good()) {
+	std::istream& operator>>(std::istream& utf8_in,Scraps& p) {
+		if (utf8_in.good()) {
 			std::string scraps{};
-			std::getline(in,scraps);
+			std::getline(utf8_in,scraps);
 			// std::cout << "\nscraps:" << scraps;
 		}
-		return in;		
+		return utf8_in;		
 	}
 
-	SIEParseResult parse_RAR(std::istream& in,std::string const& sie_field_tag) {
+	SIEParseResult parse_RAR(std::istream& utf8_in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		// #RAR 0 20210501 20220430
 		// #RAR -1 20200501 20210430	
@@ -4317,19 +4321,19 @@ namespace SIE {
 		// 	YYYYMMDD last_day_yyyymmdd;
 		// };
 		SIE::Rar rar{};
-		auto pos = in.tellg();
+		auto pos = utf8_in.tellg();
 		YYYYMMdd_parser first_day_parser{rar.first_day_yyyymmdd};
 		YYYYMMdd_parser last_day_parser{rar.last_day_yyyymmdd};
-		if (in >> Tag{sie_field_tag} >> rar.year_no >> first_day_parser >> last_day_parser) {
+		if (utf8_in >> Tag{sie_field_tag} >> rar.year_no >> first_day_parser >> last_day_parser) {
 			result = rar;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;
 	}
 
-	SIEParseResult parse_IB(std::istream& in,std::string const& sie_field_tag) {
+	SIEParseResult parse_IB(std::istream& utf8_in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		Scraps scraps{};
 		// struct Ib {
@@ -4340,17 +4344,17 @@ namespace SIE {
 		// 	std::optional<float> quantity{};
 		// };
 		SIE::Ib ib{};
-		auto pos = in.tellg();
-		if (in >> Tag{sie_field_tag} >> ib.year_no >> ib.account_no >> ib.opening_balance >> scraps) {
+		auto pos = utf8_in.tellg();
+		if (utf8_in >> Tag{sie_field_tag} >> ib.year_no >> ib.account_no >> ib.opening_balance >> scraps) {
 			result = ib;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;
 	}
 
-	SIEParseResult parse_ORGNR(std::istream& in,std::string const& sie_field_tag) {
+	SIEParseResult parse_ORGNR(std::istream& utf8_in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		// #ORGNR CIN 
 		// struct OrgNr {
@@ -4360,18 +4364,18 @@ namespace SIE {
 		// 	// act_no
 		// };
 		SIE::OrgNr orgnr{};
-		auto pos = in.tellg();
-		if (in >> Tag{sie_field_tag} >> orgnr.CIN) {
+		auto pos = utf8_in.tellg();
+		if (utf8_in >> Tag{sie_field_tag} >> orgnr.CIN) {
 			result = orgnr;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 
 		return result;
 	}
 
-	SIEParseResult parse_FNAMN(std::istream& in,std::string const& sie_field_tag) {
+	SIEParseResult parse_FNAMN(std::istream& utf8_in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		// #FNAMN company name
 		// struct FNamn {
@@ -4379,17 +4383,17 @@ namespace SIE {
 		// 	std::string company_name;
 		// };
 		SIE::FNamn fnamn{};
-		auto pos = in.tellg();
-		if (in >> Tag{sie_field_tag} >> std::quoted(fnamn.company_name)) {
+		auto pos = utf8_in.tellg();
+		if (utf8_in >> Tag{sie_field_tag} >> std::quoted(fnamn.company_name)) {
 			result = fnamn;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;
 	}
 
-	SIEParseResult parse_ADRESS(std::istream& in,std::string const& sie_field_tag) {
+	SIEParseResult parse_ADRESS(std::istream& utf8_in,std::string const& sie_field_tag) {
 		SIEParseResult result{};
 		// #ADRESS contact distribution address postal address tel
 		// struct Adress {
@@ -4400,17 +4404,17 @@ namespace SIE {
 		// 	std::string tel;
 		// };
 		SIE::Adress adress{};
-		auto pos = in.tellg();
-		if (in >> Tag{sie_field_tag} >> std::quoted(adress.contact) >> std::quoted(adress.distribution_address) >> std::quoted(adress.postal_address) >> std::quoted(adress.tel)) {
+		auto pos = utf8_in.tellg();
+		if (utf8_in >> Tag{sie_field_tag} >> std::quoted(adress.contact) >> std::quoted(adress.distribution_address) >> std::quoted(adress.postal_address) >> std::quoted(adress.tel)) {
 			result = adress;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;
 	}
 
-	SIEParseResult parse_KONTO(std::istream& in,std::string const& sie_field_tag) {
+	SIEParseResult parse_KONTO(std::istream& utf8_in,std::string const& sie_field_tag) {
 	// // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
 	// struct Konto {
 	// 	std::string tag;
@@ -4419,85 +4423,85 @@ namespace SIE {
 	// };
 		SIEParseResult result{};
 		SIE::Konto konto{};
-		auto pos = in.tellg();
-		if (in >> Tag{sie_field_tag} >> konto.account_no >> std::quoted(konto.name)) {
+		auto pos = utf8_in.tellg();
+		if (utf8_in >> Tag{sie_field_tag} >> konto.account_no >> std::quoted(konto.name)) {
 			result = konto;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;		
 	}
 
-	SIEParseResult parse_SRU(std::istream& in,std::string const& sru_tag) {
+	SIEParseResult parse_SRU(std::istream& utf8_in,std::string const& sru_tag) {
 		SIEParseResult result{};
 		SIE::Sru sru{};
-		auto pos = in.tellg();
-		if (in >> Tag{sru_tag} >> sru.bas_account_no >> sru.sru_account_no) {
+		auto pos = utf8_in.tellg();
+		if (utf8_in >> Tag{sru_tag} >> sru.bas_account_no >> sru.sru_account_no) {
 			result = sru;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;		
 	}
 
-	SIEParseResult parse_TRANS(std::istream& in,std::string const& trans_tag) {
+	SIEParseResult parse_TRANS(std::istream& utf8_in,std::string const& trans_tag) {
 		SIEParseResult result{};
 		Scraps scraps{};
-		auto pos = in.tellg();
+		auto pos = utf8_in.tellg();
 		// #TRANS 2610 {} 25900 "" "" 0
 		SIE::Trans trans{};
 		optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
 		optional_Text_parser optional_transtext_parser{trans.transtext};
-		if (in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
+		if (utf8_in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
 			// std::cout << trans_tag << trans.account_no << " " << trans.amount;
 			result = trans;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;		
 	}
 
-	SIEParseResult parse_Tag(std::istream& in,std::string const& tag) {
+	SIEParseResult parse_Tag(std::istream& utf8_in,std::string const& tag) {
 		SIEParseResult result{};
 		Scraps scraps{};
-		auto pos = in.tellg();
-		if (in >> Tag{tag}) {
+		auto pos = utf8_in.tellg();
+		if (utf8_in >> Tag{tag}) {
 			result = AnonymousLine{}; // Success but not data
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;		
 	}
 
-	SIEParseResult parse_VER(std::istream& in) {
+	SIEParseResult parse_VER(std::istream& utf8_in) {
 		SIEParseResult result{};
 		Scraps scraps{};
-		auto pos = in.tellg();
+		auto pos = utf8_in.tellg();
 		// #VER A 1 20210505 "M�nadsavgift PG" 20210817
 		SIE::Ver ver{};
 		YYYYMMdd_parser verdate_parser{ver.verdate};
-		if (in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
+		if (utf8_in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
 			if (false) {
 				// std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
 			}
 			while (true) {
-				if (auto entry = parse_TRANS(in,"#TRANS")) {
+				if (auto entry = parse_TRANS(utf8_in,"#TRANS")) {
 					// std::cout << "\nTRANS :)";	
 					ver.transactions.push_back(std::get<Trans>(*entry));					
 				}
-				else if (auto entry = parse_TRANS(in,"#BTRANS")) {
+				else if (auto entry = parse_TRANS(utf8_in,"#BTRANS")) {
 					// Ignore
 					// std::cout << " Ignored";
 				}
-				else if (auto entry = parse_TRANS(in,"#RTRANS")) {
+				else if (auto entry = parse_TRANS(utf8_in,"#RTRANS")) {
 					// Ignore
 					// std::cout << " Ignored";
 				}
-				else if (auto entry = parse_Tag(in,"}")) {
+				else if (auto entry = parse_Tag(utf8_in,"}")) {
 					break;
 				}
 				else {
@@ -4506,26 +4510,26 @@ namespace SIE {
 				}
 			}
 			result = ver;
-			pos = in.tellg(); // accept new stream position
+			pos = utf8_in.tellg(); // accept new stream position
 		}
-		in.seekg(pos); // Reset position in case of failed parse
-		in.clear(); // Reset failbit to allow try for other parse
+		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
+		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;
 	}
 
-	SIEParseResult parse_any_line(std::istream& in) {
-		if (in.fail()) {
-			// std::cout << "\nparse_any_line in==fail";
+	SIEParseResult parse_any_line(std::istream& utf8_in) {
+		if (utf8_in.fail()) {
+			// std::cout << "\nparse_any_line utf8_in==fail";
 		}
-		auto pos = in.tellg();
+		auto pos = utf8_in.tellg();
 		std::string line{};
-		if (std::getline(in,line)) {
+		if (std::getline(utf8_in,line)) {
 			// std::cout << "\n\tany=" << line;
 			return AnonymousLine{.str=line};
 		}
 		else {
 			// std::cout << "\n\tany null";
-			in.seekg(pos);
+			utf8_in.seekg(pos);
 			return {};
 		}
 	}
@@ -8406,43 +8410,45 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 	std::ifstream ifs{sie_file_path};
   encoding::CP437::istream is{ifs};
 	if (is) {
+    // Read in the SIE file and transcode it to UTF8
     std::string s_utf8{};
     while (auto entry = is.getline(encoding::unicode::to_utf8{})) {
       s_utf8 += *entry;
       s_utf8 += "\n";
     }
-    std::istringstream in{s_utf8};
+    // Create a stream with the UTF8 encoded SIE file entries for internal parsing
+    std::istringstream utf8_in{s_utf8};
 		SIEEnvironment sie_environment{};
 		while (true) {
 			// std::cout << "\nparse";
-			if (auto opt_entry = SIE::parse_ORGNR(in,"#ORGNR")) {
+			if (auto opt_entry = SIE::parse_ORGNR(utf8_in,"#ORGNR")) {
 				SIE::OrgNr orgnr = std::get<SIE::OrgNr>(*opt_entry);
 				sie_environment.organisation_no = orgnr;
 			}
-			else if (auto opt_entry = SIE::parse_FNAMN(in,"#FNAMN")) {
+			else if (auto opt_entry = SIE::parse_FNAMN(utf8_in,"#FNAMN")) {
 				SIE::FNamn fnamn = std::get<SIE::FNamn>(*opt_entry);
 				sie_environment.organisation_name = fnamn;
 			}
-			else if (auto opt_entry = SIE::parse_ADRESS(in,"#ADRESS")) {
+			else if (auto opt_entry = SIE::parse_ADRESS(utf8_in,"#ADRESS")) {
 				SIE::Adress adress = std::get<SIE::Adress>(*opt_entry);
 				sie_environment.organisation_address = adress;
 			}
-			else if (auto opt_entry = SIE::parse_RAR(in,"#RAR")) {
+			else if (auto opt_entry = SIE::parse_RAR(utf8_in,"#RAR")) {
 				SIE::Rar rar = std::get<SIE::Rar>(*opt_entry);
 				if (rar.year_no == 0) {
 					// Process only "current" year in read sie file
 					sie_environment.set_year_date_range(DateRange{rar.first_day_yyyymmdd,rar.last_day_yyyymmdd});
 				}
 			}
-			else if (auto opt_entry = SIE::parse_KONTO(in,"#KONTO")) {
+			else if (auto opt_entry = SIE::parse_KONTO(utf8_in,"#KONTO")) {
 				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
 				sie_environment.set_account_name(konto.account_no,konto.name);
 			}
-			else if (auto opt_entry = SIE::parse_SRU(in,"#SRU")) {
+			else if (auto opt_entry = SIE::parse_SRU(utf8_in,"#SRU")) {
 				SIE::Sru sru = std::get<SIE::Sru>(*opt_entry);
 				sie_environment.set_account_SRU(sru.bas_account_no,sru.sru_account_no);
 			}
-			else if (auto opt_entry = SIE::parse_IB(in,"#IB")) {
+			else if (auto opt_entry = SIE::parse_IB(utf8_in,"#IB")) {
 				SIE::Ib ib = std::get<SIE::Ib>(*opt_entry);
 				// std::cout << "\nIB " << ib.account_no << " = " << ib.opening_balance;
 				if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no,ib.opening_balance); // Only use "current" year opening balance
@@ -8452,13 +8458,13 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 				// #RAR 0 20210501 20220430
 				// #RAR -1 20200501 20210430				
 			}
-			else if (auto opt_entry = SIE::parse_VER(in)) {
+			else if (auto opt_entry = SIE::parse_VER(utf8_in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 				// std::cout << "\n\tVER!";
 				auto me = to_entry(ver);
 				sie_environment.post(me);
 			}
-			else if (auto opt_entry = SIE::parse_any_line(in)) {
+			else if (auto opt_entry = SIE::parse_any_line(utf8_in)) {
 				SIE::AnonymousLine al = std::get<SIE::AnonymousLine>(*opt_entry);
 				// std::cout << "\n\tANY=" << al.str;
 			}
