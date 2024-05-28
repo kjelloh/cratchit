@@ -2237,48 +2237,53 @@ std::string to_string(UnitsAndCents const& units_and_cents) {
 	return os.str();
 }
 
-// This namespace is just for being able to refactor cratchit to use TaggedAmountClass instances as heap-instances processed through chared pointers!
-// TODO: Refactor into some cleaner disposition of code when appropriate.
-namespace detail {
+class TaggedAmount {
+public:
+  friend std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta);
+  using OptionalTagValue = std::optional<std::string>;
+  using Tags = std::map<std::string,std::string>;
+  using ValueId = std::size_t;
+  using OptionalValueId = std::optional<ValueId>;
+  using ValueIds = std::vector<ValueId>;
+  using OptionalValueIds = std::optional<ValueIds>;
+  TaggedAmount(Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
+    : m_date{date}
+      ,m_cents_amount{cents_amount}
+      ,m_tags{tags} {} 
 
-	// 1) TaggedAmountPtr instance is restricted to the Heap and accessible only through std::shared_ptr
-	class TaggedAmountClass {
-	public:
-	  friend std::ostream& operator<<(std::ostream& os, TaggedAmountClass const& tac);
-		using OptionalTagValue = std::optional<std::string>;
-		using Tags = std::map<std::string,std::string>;
-		using ValueId = std::size_t;
-		using OptionalValueId = std::optional<ValueId>;
-		using ValueIds = std::vector<ValueId>;
-		using OptionalValueIds = std::optional<ValueIds>;
-		TaggedAmountClass(Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
-			: m_date{date}
-			 ,m_cents_amount{cents_amount}
-			 ,m_tags{tags} {} 
+  // Getters
+  Date const& date() const {return m_date;}
+  CentsAmount const& cents_amount() const {return m_cents_amount;}
+  Tags const& tags() const {return m_tags;}	
+  Tags& tags() {return m_tags;}
 
-    // Getters
-		Date const& date() const {return m_date;}
-		CentsAmount const& cents_amount() const {return m_cents_amount;}
-		Tags const& tags() const {return m_tags;}	
-		Tags& tags() {return m_tags;}
+  // Map key to optional value
+  OptionalTagValue tag_value(std::string const& key) const {
+    OptionalTagValue result{};
+    if (m_tags.contains(key)) {
+      result = m_tags.at(key); 
+    }
+    return result;
+  }
 
-    // Map key to optional value
-		OptionalTagValue tag_value(std::string const& key) const {
-			OptionalTagValue result{};
-			if (m_tags.contains(key)) {
-				result = m_tags.at(key); 
-			}
-			return result;
-		}
+  bool operator==(TaggedAmount const& other) const;
 
-		bool operator==(TaggedAmountClass const& other) const;
+  // tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
+  static std::string to_string(TaggedAmount::ValueId value_id) {
+    std::ostringstream os{};
+    os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << value_id;
+    return os.str();
+  }
 
-	private:
-		Date m_date;
-		CentsAmount m_cents_amount;
-		Tags m_tags;
-	}; // class TaggedAmountClass
-} // namespace detail
+private:
+  Date m_date;
+  CentsAmount m_cents_amount;
+  Tags m_tags;
+}; // class TaggedAmount
+
+using TaggedAmounts = std::vector<TaggedAmount>;
+using OptionalTaggedAmount = std::optional<TaggedAmount>;
+using OptionalTaggedAmounts = std::optional<TaggedAmounts>;
 
 // From boost::hash_combine for std::size_t
 template <class T>
@@ -2290,8 +2295,8 @@ inline void hash_combine(std::size_t& seed, const T& v)
 
 namespace std {
   template<>
-  struct hash<detail::TaggedAmountClass> {
-      std::size_t operator()(detail::TaggedAmountClass const& ta) const noexcept {
+  struct hash<TaggedAmount> {
+      std::size_t operator()(TaggedAmount const& ta) const noexcept {
           std::size_t result{};
         auto yyyymmdd = ta.date();
         hash_combine(result, static_cast<int>(yyyymmdd.year()));
@@ -2307,61 +2312,41 @@ namespace std {
   };
 } // namespace std
 
-namespace detail {
-
-  detail::TaggedAmountClass::ValueId to_value_id(detail::TaggedAmountClass const& ta) {
-    return std::hash<detail::TaggedAmountClass>{}(ta);
-  }
-
-  bool TaggedAmountClass::operator==(TaggedAmountClass const& other) const {
-    auto result =     this->date() == other.date() 
-                  and this->cents_amount() == other.cents_amount()
-                  and std::all_of(
-                      m_tags.begin()
-                    ,m_tags.end()
-                    ,[&other](Tags::value_type const& entry) {
-                      return (     (entry.first.starts_with("_"))
-                                or (     other.tags().contains(entry.first) 
-                                      and other.tags().at(entry.first) == entry.second));
-                    });
-
-    // std::cout << "\nTaggedAmountClass::operator== ";
-    // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
-    return result;
-  }
-
-
-	// tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
-	std::string to_string(TaggedAmountClass::ValueId value_id) {
-		std::ostringstream os{};
-		os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << value_id;
-		return os.str();
-	}
-
-	std::ostream& operator<<(std::ostream& os, detail::TaggedAmountClass const& tac) {
-		os << to_string(detail::to_value_id(tac));
-		os << " " << ::to_string(tac.date());
-		os << " " << ::to_string(to_units_and_cents(tac.cents_amount()));
-		for (auto const& tag : tac.tags()) {
-			os << " \"" << tag.first << "=" << tag.second << "\"";
-		}
-		return os;
-	}
-
+TaggedAmount::ValueId to_value_id(TaggedAmount const& ta) {
+  return std::hash<TaggedAmount>{}(ta);
 }
 
-using TaggedAmountPtr = std::shared_ptr<detail::TaggedAmountClass>;
-using OptionalTaggedAmountPtr = std::optional<TaggedAmountPtr>;
+bool TaggedAmount::operator==(TaggedAmount const& other) const {
+  auto result =     this->date() == other.date() 
+                and this->cents_amount() == other.cents_amount()
+                and std::all_of(
+                    m_tags.begin()
+                  ,m_tags.end()
+                  ,[&other](Tags::value_type const& entry) {
+                    return (     (entry.first.starts_with("_"))
+                              or (     other.tags().contains(entry.first) 
+                                    and other.tags().at(entry.first) == entry.second));
+                  });
 
-std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
-	if (ta_ptr) os << *ta_ptr;
-	return os;
+  // std::cout << "\nTaggedAmountClass::operator== ";
+  // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
+  return result;
 }
 
-detail::TaggedAmountClass::OptionalValueId to_value_id(std::string const& s) {
+std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
+  os << TaggedAmount::to_string(to_value_id(ta));
+  os << " " << ::to_string(ta.date());
+  os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
+  for (auto const& tag : ta.tags()) {
+    os << " \"" << tag.first << "=" << tag.second << "\"";
+  }
+  return os;
+}
+
+TaggedAmount::OptionalValueId to_value_id(std::string const& s) {
 	// std::cout << "\nto_value_id()" << std::flush;
-	detail::TaggedAmountClass::OptionalValueId result{};
-	detail::TaggedAmountClass::ValueId value_id{};
+	TaggedAmount::OptionalValueId result{};
+	TaggedAmount::ValueId value_id{};
 	std::istringstream is{s};
 	try {
 		is >> std::hex >> value_id;
@@ -2373,10 +2358,10 @@ detail::TaggedAmountClass::OptionalValueId to_value_id(std::string const& s) {
 	return result;
 }
 
-detail::TaggedAmountClass::OptionalValueIds to_value_ids(Key::Path const& sids) {
+TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
 	std::cout << "\nto_value_ids()" << std::flush;
-	detail::TaggedAmountClass::OptionalValueIds result{};
-	detail::TaggedAmountClass::ValueIds value_ids{};
+	TaggedAmount::OptionalValueIds result{};
+	TaggedAmount::ValueIds value_ids{};
 	for (auto const& sid : sids) {
 		if (auto value_id = to_value_id(sid)) {
 			std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
@@ -2395,58 +2380,49 @@ detail::TaggedAmountClass::OptionalValueIds to_value_ids(Key::Path const& sids) 
 	return result;
 }
 
-template<>
-struct std::hash<TaggedAmountPtr> {
-    std::size_t operator()(TaggedAmountPtr const& ta_ptr) const noexcept {
-      return std::hash<detail::TaggedAmountClass>{}(*ta_ptr);
-    }
-};
-
-using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
-using OptionalTaggedAmountPtrs = std::optional<TaggedAmountPtrs>;
-using TaggedAmountValueIdMap = std::map<detail::TaggedAmountClass::ValueId,TaggedAmountPtr>; 
-using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmountPtr>;
+using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
+using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmount>;
 
 namespace tas {
 	// namespace for processing that produces tagged amounts and tagged amounts
 
 	// Generic for parsing a range or container of tagged amount pointers into a vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas account)
-	TaggedAmountPtrs to_bas_omslutning(auto const& ta_ptrs) {
-		TaggedAmountPtrs result{};
-		using BASBuckets = std::map<BAS::AccountNo,TaggedAmountPtrs>;
+	TaggedAmounts to_bas_omslutning(auto const& tas) {
+		TaggedAmounts result{};
+		using BASBuckets = std::map<BAS::AccountNo,TaggedAmounts>;
 		BASBuckets bas_buckets{};
-		auto is_valid_bas_account_transaction = [](TaggedAmountPtr const& ta_ptr){
-			if (ta_ptr->tags().contains("BAS") and !(BAS::to_account_no(ta_ptr->tags().at("BAS")))) {
+		auto is_valid_bas_account_transaction = [](TaggedAmount const& ta){
+			if (ta.tags().contains("BAS") and !(BAS::to_account_no(ta.tags().at("BAS")))) {
 				// Whine about invalid tagging of 'BAS' tag!
 				// It is vital we do NOT have any badly tagged BAS account transactions as this will screw up the saldo calculation!
-				std::cout << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta_ptr->tags().at("BAS"));
+				std::cout << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta.tags().at("BAS"));
 				return false;
 			}
-			else return (     (ta_ptr->tags().contains("BAS"))
-										and (BAS::to_account_no(ta_ptr->tags().at("BAS")))
-										and (    (     (ta_ptr->tags().contains("type") == false))
-													or (     (ta_ptr->tags().contains("type") == true)
-															 and (ta_ptr->tags().at("type") != "saldo"))));
+			else return (     (ta.tags().contains("BAS"))
+										and (BAS::to_account_no(ta.tags().at("BAS")))
+										and (    (     (ta.tags().contains("type") == false))
+													or (     (ta.tags().contains("type") == true)
+															 and (ta.tags().at("type") != "saldo"))));
 		};
-		for (auto const& ta_ptr : ta_ptrs) {
-			if (is_valid_bas_account_transaction(ta_ptr)) {
-				bas_buckets[*BAS::to_account_no(ta_ptr->tags().at("BAS"))].push_back(ta_ptr);
+		for (auto const& ta : tas) {
+			if (is_valid_bas_account_transaction(ta)) {
+				bas_buckets[*BAS::to_account_no(ta.tags().at("BAS"))].push_back(ta);
 			}
 		}
-		for (auto const& [bas_account_no,ta_ptrs] : bas_buckets) {
+		for (auto const& [bas_account_no,tas] : bas_buckets) {
 			Date period_end_date{};
 			std::cout << "\n" << bas_account_no;
-			auto cents_saldo = std::accumulate(ta_ptrs.begin(),ta_ptrs.end(),CentsAmount{0},[&period_end_date](auto acc, auto const& ta_ptr){
-				period_end_date = std::max(period_end_date,ta_ptr->date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
-				acc += ta_ptr->cents_amount();
-				std::cout << "\n\t" << period_end_date << " " << to_string(to_units_and_cents(ta_ptr->cents_amount())) << " ackumulerat:" << to_string(to_units_and_cents(acc));
+			auto cents_saldo = std::accumulate(tas.begin(),tas.end(),CentsAmount{0},[&period_end_date](auto acc, auto const& ta){
+				period_end_date = std::max(period_end_date,ta.date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
+				acc += ta.cents_amount();
+				std::cout << "\n\t" << period_end_date << " " << to_string(to_units_and_cents(ta.cents_amount())) << " ackumulerat:" << to_string(to_units_and_cents(acc));
 				return acc;
 			});
 
-			auto saldo_ta_ptr = std::make_shared<detail::TaggedAmountClass>(period_end_date,cents_saldo);
-			saldo_ta_ptr->tags()["BAS"] = std::to_string(bas_account_no);
-			saldo_ta_ptr->tags()["type"] = "saldo";
-			result.push_back(saldo_ta_ptr);
+			TaggedAmount saldo_ta{period_end_date,cents_saldo};
+			saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
+			saldo_ta.tags()["type"] = "saldo";
+			result.push_back(saldo_ta);
 		}
 		return result;
 	}
@@ -2454,84 +2430,84 @@ namespace tas {
 
 class DateOrderedTaggedAmountsContainer {
 	public:
-		using OptionalTagValue = detail::TaggedAmountClass::OptionalTagValue;
-		using Tags = detail::TaggedAmountClass::Tags;
-		using ValueId = detail::TaggedAmountClass::ValueId;
-		using OptionalValueId = detail::TaggedAmountClass::OptionalValueId;
-		using ValueIds = detail::TaggedAmountClass::ValueIds;
-		using OptionalValueIds = detail::TaggedAmountClass::OptionalValueIds;
+		using OptionalTagValue = TaggedAmount::OptionalTagValue;
+		using Tags = TaggedAmount::Tags;
+		using ValueId = TaggedAmount::ValueId;
+		using OptionalValueId = TaggedAmount::OptionalValueId;
+		using ValueIds = TaggedAmount::ValueIds;
+		using OptionalValueIds = TaggedAmount::OptionalValueIds;
 
-		using iterator = TaggedAmountPtrs::iterator;
-		using const_iterator = TaggedAmountPtrs::const_iterator;
-		TaggedAmountPtrs const& tagged_amount_ptrs() {return m_date_ordered_amount_ptrs;}
-		std::size_t size() const { return m_date_ordered_amount_ptrs.size();}
-		iterator begin() {return m_date_ordered_amount_ptrs.begin();}
-		iterator end() {return m_date_ordered_amount_ptrs.end();}
-		const_iterator begin() const {return m_date_ordered_amount_ptrs.begin();}
-		const_iterator end() const {return m_date_ordered_amount_ptrs.end();}
+		using iterator = TaggedAmounts::iterator;
+		using const_iterator = TaggedAmounts::const_iterator;
+		TaggedAmounts const& tagged_amounts() {return m_date_ordered_tagged_amounts;}
+		std::size_t size() const { return m_date_ordered_tagged_amounts.size();}
+		iterator begin() {return m_date_ordered_tagged_amounts.begin();}
+		iterator end() {return m_date_ordered_tagged_amounts.end();}
+		const_iterator begin() const {return m_date_ordered_tagged_amounts.begin();}
+		const_iterator end() const {return m_date_ordered_tagged_amounts.end();}
 		auto in_date_range(DateRange const& date_period) {
-			auto first = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta_ptr){
-				return (ta_ptr->date() >= date_period.begin());
+			auto first = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta){
+				return (ta.date() >= date_period.begin());
 			});
-			auto last = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta_ptr){
-				return (ta_ptr->date() > date_period.end());
+			auto last = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta){
+				return (ta.date() > date_period.end());
 			});
 			return std::ranges::subrange(first,last);
 		}
 
-    OptionalTaggedAmountPtr at(ValueId const& value_id) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << detail::to_string(value_id) << ")" << std::flush;
-			OptionalTaggedAmountPtr result{};
+    OptionalTaggedAmount at(ValueId const& value_id) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << TaggedAmount::to_string(value_id) << ")" << std::flush;
+			OptionalTaggedAmount result{};
 			if (m_tagged_amount_value_id_map.contains(value_id)) {
 				result = m_tagged_amount_value_id_map.at(value_id);
 			}
 			else {
-				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to value_id=" << detail::to_string(value_id) << std::flush;
+				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to value_id=" << TaggedAmount::to_string(value_id) << std::flush;
 			}
 			return result;
     }
 
-		OptionalTaggedAmountPtr operator[](ValueId const& value_id) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(value_id) << ")" << std::flush;
-			OptionalTaggedAmountPtr result{};
+		OptionalTaggedAmount operator[](ValueId const& value_id) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << TaggedAmount::to_string(value_id) << ")" << std::flush;
+			OptionalTaggedAmount result{};
 			if (auto o_ptr = this->at(value_id)) {
 				result = o_ptr;
 			}
 			else {
-				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to value_id=" << detail::to_string(value_id) << std::flush;
+				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to value_id=" << TaggedAmount::to_string(value_id) << std::flush;
 			}
 			return result;
 		}
 
-		OptionalTaggedAmountPtrs to_ta_ptrs(ValueIds const& value_ids) {
+		OptionalTaggedAmounts to_ta_ptrs(ValueIds const& value_ids) {
 			std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs()" << std::flush;
-			OptionalTaggedAmountPtrs result{};
-			TaggedAmountPtrs ta_ptrs{};
+			OptionalTaggedAmounts result{};
+			TaggedAmounts tas{};
 			for (auto const& value_id : value_ids) {
-				if (auto ta_ptr = (*this)[value_id]) {
-					ta_ptrs.push_back(*ta_ptr);
+				if (auto o_ta = (*this)[value_id]) {
+					tas.push_back(*o_ta);
 				}
 				else {
-					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for value_id=" << detail::to_string(value_id) << std::flush;
+					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for value_id=" << TaggedAmount::to_string(value_id) << std::flush;
 				}
 			}
-			if (ta_ptrs.size() == value_ids.size()) {
-				result = ta_ptrs;
+			if (tas.size() == value_ids.size()) {
+				result = tas;
 			}
 			else {
-				std::cout << "\nto_ta_ptrs() Failed. ta_ptrs.size() = " << ta_ptrs.size() << " IS NOT provided value_ids.size() = " << value_ids.size() << std::flush;
+				std::cout << "\nto_ta_ptrs() Failed. tas.size() = " << tas.size() << " IS NOT provided value_ids.size() = " << value_ids.size() << std::flush;
 			}
 			return result;
 		}
 
 		DateOrderedTaggedAmountsContainer& clear() {
 			m_tagged_amount_value_id_map.clear();
-			m_date_ordered_amount_ptrs.clear();
+			m_date_ordered_tagged_amounts.clear();
 			return *this;
 		}
 
 		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
-			this->m_date_ordered_amount_ptrs = other.m_date_ordered_amount_ptrs;
+			this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
 			this->m_tagged_amount_value_id_map = other.m_tagged_amount_value_id_map;
 			return *this;
 		}
@@ -2539,19 +2515,21 @@ class DateOrderedTaggedAmountsContainer {
     // TODO 240218: Consider to provide a predicate for the caller to control what should be regarded as "same value"
     //              This could be a way to apply special teratment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
     // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a godd solution for this?
-		iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
-			auto result = m_date_ordered_amount_ptrs.end();
-      auto value_id = detail::to_value_id(*ta_ptr_to_insert);
+		iterator insert(TaggedAmount const& ta) {
+			auto result = m_date_ordered_tagged_amounts.end();
+      auto value_id = to_value_id(ta);
       if (m_tagged_amount_value_id_map.contains(value_id) == false) {
-        auto [begin,end] = std::equal_range(m_date_ordered_amount_ptrs.begin(),m_date_ordered_amount_ptrs.end(),ta_ptr_to_insert,[](TaggedAmountPtr const& ta1,TaggedAmountPtr const& ta2){
-				  return (ta1->date() < ta2->date());
-			  });        
-			  m_tagged_amount_value_id_map[value_id] = ta_ptr_to_insert; // mapped on id
-				result = m_date_ordered_amount_ptrs.insert(end,ta_ptr_to_insert); // sorted on date
+        // Find the last element with a date less than the date of ta        
+        auto end = std::upper_bound(m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end(),ta,[](TaggedAmount const& ta1, TaggedAmount const& ta2) {
+            return ta1.date() < ta2.date();
+        });
+
+			  m_tagged_amount_value_id_map.insert({value_id,ta}); // id -> ta
+				result = m_date_ordered_tagged_amounts.insert(end,ta); // place after all with date less than the one of ta
       }
       else {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Error, Skipped new[" << detail::to_string(value_id) << "] " << ta_ptr_to_insert;
-        std::cout << "\n                             same as old[" << detail::to_string(detail::to_value_id(*m_tagged_amount_value_id_map[value_id])) << "] " << m_tagged_amount_value_id_map[value_id];
+        std::cout << "\nDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
+        std::cout << "\n                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
       }
 			return result;
 		}
@@ -2559,9 +2537,9 @@ class DateOrderedTaggedAmountsContainer {
     DateOrderedTaggedAmountsContainer erase(ValueId const& value_id) {
       if (auto o_ptr = this->at(value_id)) {
         m_tagged_amount_value_id_map.erase(value_id);
-        auto iter = std::ranges::find(m_date_ordered_amount_ptrs,*o_ptr);
-        if (iter != m_date_ordered_amount_ptrs.end()) {
-          m_date_ordered_amount_ptrs.erase(iter);
+        auto iter = std::ranges::find(m_date_ordered_tagged_amounts,*o_ptr);
+        if (iter != m_date_ordered_tagged_amounts.end()) {
+          m_date_ordered_tagged_amounts.erase(iter);
         }
         else {
           std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, value_id " << value_id;
@@ -2574,26 +2552,26 @@ class DateOrderedTaggedAmountsContainer {
     }
 
 		DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
-			for (auto const& ta_ptr : m_date_ordered_amount_ptrs) {
-				f(ta_ptr);
+			for (auto const& ta : m_date_ordered_tagged_amounts) {
+				f(ta);
 			}
 			return *this;
 		}
 
 		DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const& other) {
-			other.for_each([this](TaggedAmountPtr const& ta_ptr){
+			other.for_each([this](TaggedAmount const& ta){
         // TODO 240217: Consider a way to ensure that SIE entries in SIE file has preceedence (overwrite any existing tagged amounts reflecting the same events)
         // Hm...Maybe this is NOT the convenient place to do this?
-				this->insert(ta_ptr);
+				this->insert(ta);
 			});
 			return *this;
 		}
-		DateOrderedTaggedAmountsContainer& operator+=(TaggedAmountPtrs const& tas) {
-			for (auto const& ta_ptr : tas) this->insert(ta_ptr);
+		DateOrderedTaggedAmountsContainer& operator+=(TaggedAmounts const& tas) {
+			for (auto const& ta : tas) this->insert(ta);
 			return *this;
 		}
 
-		DateOrderedTaggedAmountsContainer& operator=(TaggedAmountPtrs const& tas) {
+		DateOrderedTaggedAmountsContainer& operator=(TaggedAmounts const& tas) {
 			this->clear();
 			*this += tas;
 			return *this;
@@ -2602,7 +2580,7 @@ class DateOrderedTaggedAmountsContainer {
 	private:
     // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between value_id and tagged amount pointer and once in a vector ordered by date.
 		TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <instance id> -> <tagged amount ptr>
-		TaggedAmountPtrs m_date_ordered_amount_ptrs{};  // vector of tagged amount ptrs ordered by date
+		TaggedAmounts m_date_ordered_tagged_amounts{};  // vector of tagged amount ptrs ordered by date
 }; // class DateOrderedTaggedAmountsContainer
 
 namespace CSV {
@@ -2646,35 +2624,35 @@ namespace CSV {
 			,unknown
 		};
 
-		OptionalTaggedAmountPtr to_tagged_amount(FieldRow const& field_row) {
-			OptionalTaggedAmountPtr result{};
+		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row) {
+			OptionalTaggedAmount result{};
 			if (field_row.size() >= 10) {
 				auto sDate = field_row[element::Bokforingsdag];
 				if (auto date = to_date(sDate)) {
 					auto sAmount = field_row[element::Belopp];
 					if (auto amount = to_amount(sAmount)) {
 						auto cents_amount = to_cents_amount(*amount);
-						auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(*date,cents_amount);
-						ta_ptr->tags()["Account"] = "NORDEA";
+						TaggedAmount ta{*date,cents_amount};
+						ta.tags()["Account"] = "NORDEA";
 						if (field_row[element::Namn].size() > 0) {
-							ta_ptr->tags()["Text"] = field_row[element::Namn];
+							ta.tags()["Text"] = field_row[element::Namn];
 						}
 						if (field_row[element::Avsandare].size() > 0) {
-							ta_ptr->tags()["From"] = field_row[element::Avsandare];
+							ta.tags()["From"] = field_row[element::Avsandare];
 						}
 						if (field_row[element::Mottagare].size() > 0) {
-							ta_ptr->tags()["To"] = field_row[element::Mottagare];
+							ta.tags()["To"] = field_row[element::Mottagare];
 						}
 						if (auto saldo = to_amount(field_row[element::Saldo])) {
-							ta_ptr->tags()["Saldo"] = std::to_string(to_cents_amount(*saldo));
+							ta.tags()["Saldo"] = std::to_string(to_cents_amount(*saldo));
 						}
 						if (field_row[element::Meddelande].size() > 0) {
-							ta_ptr->tags()["Message"] = field_row[element::Meddelande];
+							ta.tags()["Message"] = field_row[element::Meddelande];
 						}
 						if (field_row[element::Egna_anteckningar].size() > 0) {
-							ta_ptr->tags()["Notes"] = field_row[element::Egna_anteckningar];
+							ta.tags()["Notes"] = field_row[element::Egna_anteckningar];
 						}
-						result = ta_ptr;
+						result = ta;
 					}
 					else {
 						std::cout << "\nNot a valid amount: " << std::quoted(sAmount); 
@@ -2707,8 +2685,8 @@ namespace CSV {
 			,unknown
 		};
 
-		OptionalTaggedAmountPtr to_tagged_amount(FieldRow const& field_row) {
-			OptionalTaggedAmountPtr result{};
+		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row) {
+			OptionalTaggedAmount result{};
 			if (field_row.size() == 5) {
 				// NOTE: The SKV comma separated file is in fact a end-with-';' field file (so we get five separations where the file only contains four fields...)
 				//       I.e., field index 0..3 contains values
@@ -2717,12 +2695,12 @@ namespace CSV {
 					auto sAmount = field_row[element::Belopp];
 					if (auto amount = to_amount(sAmount)) {
 						auto cents_amount = to_cents_amount(*amount);
-						auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(*date,cents_amount);
-						ta_ptr->tags()["Account"] = "SKV";
-						ta_ptr->tags()["Text"] = field_row[element::Text];
+						TaggedAmount ta{*date,cents_amount};
+						ta.tags()["Account"] = "SKV";
+						ta.tags()["Text"] = field_row[element::Text];
 						// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
 						// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
-						result = ta_ptr;
+						result = ta;
 					}
 					else {
 						std::cout << "\nNot a valid amount: " << std::quoted(sAmount); 
@@ -2745,13 +2723,13 @@ namespace CSV {
 							auto sSaldo = field_row[element::Saldo];
 							if (auto saldo = to_amount(sSaldo)) {
 								auto cents_saldo = to_cents_amount(*saldo);
-								auto ta_ptr = std::make_shared<detail::TaggedAmountClass>(*saldo_date,cents_saldo);
-								ta_ptr->tags()["Account"] = "SKV";
-								ta_ptr->tags()["Text"] = field_row[element::Text];
-								ta_ptr->tags()["type"] = "saldo";
+								TaggedAmount ta{*saldo_date,cents_saldo};
+								ta.tags()["Account"] = "SKV";
+								ta.tags()["Text"] = field_row[element::Text];
+								ta.tags()["type"] = "saldo";
 								// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
 								// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
-								result = ta_ptr;
+								result = ta;
 							}
 							else {
 								std::cout << "\nNot a valid SKV Saldo: " << std::quoted(sSaldo); 
@@ -2847,8 +2825,8 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
       switch (csv_heading_id) {
         case CSV::HeadingId::NORDEA: {
           for (auto const& field_row : *field_rows) {
-            if (auto ta_ptr = CSV::NORDEA::to_tagged_amount(field_row)) {
-              dota.insert(*ta_ptr);
+            if (auto o_ta = CSV::NORDEA::to_tagged_amount(field_row)) {
+              dota.insert(*o_ta);
             }
             else {
               std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
@@ -2857,8 +2835,8 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
         } break;
         case CSV::HeadingId::SKV: {
           for (auto const& field_row : *field_rows) {
-            if (auto ta_ptr = CSV::SKV::to_tagged_amount(field_row)) {
-              dota.insert(*ta_ptr);
+            if (auto o_ta = CSV::SKV::to_tagged_amount(field_row)) {
+              dota.insert(*o_ta);
             }
             else {
               std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
@@ -3658,38 +3636,38 @@ using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
 using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
 
-TaggedAmountPtr to_tagged_amount(Date const& date,BAS::anonymous::AccountTransaction const& at) {
+TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransaction const& at) {
 	auto cents_amount = to_cents_amount(at.amount);
-	auto result = std::make_shared<detail::TaggedAmountClass>(date,cents_amount);
-	result->tags()["BAS"] = std::to_string(at.account_no);
-	if (at.transtext and at.transtext->size() > 0) result->tags()["TRANSTEXT"] = *at.transtext;
+	TaggedAmount result{date,cents_amount};
+	result.tags()["BAS"] = std::to_string(at.account_no);
+	if (at.transtext and at.transtext->size() > 0) result.tags()["TRANSTEXT"] = *at.transtext;
 	return result;
 }
 
-TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
-	TaggedAmountPtrs result{};
+TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
+	TaggedAmounts result{};
 	auto journal_id = me.meta.series;
 	auto verno = me.meta.verno;
 	auto date = me.defacto.date;
 	auto gross_cents_amount = to_cents_amount(to_positive_gross_transaction_amount(me.defacto));
-	detail::TaggedAmountClass::Tags tags{};
+	TaggedAmount::Tags tags{};
 	tags["type"] = "aggregate";
 	if (verno) tags["SIE"] = journal_id+std::to_string(*verno);
 	tags["vertext"] = me.defacto.caption;
-	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(date,gross_cents_amount,std::move(tags));
+	TaggedAmount aggregate_ta{date,gross_cents_amount,std::move(tags)};
 	Key::Path value_ids{};
 	auto push_back_as_tagged_amount = [&value_ids,&date,&journal_id,&verno,&result](BAS::anonymous::AccountTransaction const& at){
-		auto ta_ptr = to_tagged_amount(date,at);
-    if (verno) ta_ptr->tags()["parent_SIE"] = journal_id+std::to_string(*verno);
-    ta_ptr->tags()["Ix"]=std::to_string(result.size()); // index 0,1,2...
-		result.push_back(ta_ptr);
-		value_ids += detail::to_string(to_value_id(*ta_ptr));
+		auto ta = to_tagged_amount(date,at);
+    if (verno) ta.tags()["parent_SIE"] = journal_id+std::to_string(*verno);
+    ta.tags()["Ix"]=std::to_string(result.size()); // index 0,1,2...
+		result.push_back(ta);
+		value_ids += TaggedAmount::to_string(to_value_id(ta));
 	};
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
-	aggregate_ta_ptr->tags()["_members"] = value_ids.to_string();
-	result.push_back(aggregate_ta_ptr);
+	aggregate_ta.tags()["_members"] = value_ids.to_string();
+	result.push_back(aggregate_ta);
 	return result;
 }
 
@@ -7570,21 +7548,21 @@ OptionalHeadingAmountDateTransEntry to_had(BAS::MetaEntry const& me) {
 	return result;
 }
 
-OptionalHeadingAmountDateTransEntry to_had(TaggedAmountPtr const& ta_ptr) {
+OptionalHeadingAmountDateTransEntry to_had(TaggedAmount const& ta) {
   OptionalHeadingAmountDateTransEntry result{};
   std::string heading{};
 
-  if (auto o_value = ta_ptr->tag_value("Account")) heading += std::string{"Account:"} + *o_value;
-  if (auto o_value = ta_ptr->tag_value("Text")) heading += std::string{" Text:"} + *o_value;
-  if (auto o_value = ta_ptr->tag_value("Message")) heading += std::string{" Message:"} + *o_value;
-  if (auto o_value = ta_ptr->tag_value("From")) heading += std::string{" From:"} + *o_value;
-  if (auto o_value = ta_ptr->tag_value("To")) heading += std::string{" To:"} + *o_value;
+  if (auto o_value = ta.tag_value("Account")) heading += std::string{"Account:"} + *o_value;
+  if (auto o_value = ta.tag_value("Text")) heading += std::string{" Text:"} + *o_value;
+  if (auto o_value = ta.tag_value("Message")) heading += std::string{" Message:"} + *o_value;
+  if (auto o_value = ta.tag_value("From")) heading += std::string{" From:"} + *o_value;
+  if (auto o_value = ta.tag_value("To")) heading += std::string{" To:"} + *o_value;
 
   HeadingAmountDateTransEntry had{
     .heading = heading
-    // ,.amount = static_cast<Amount>(ta_ptr->cents_amount())
-    ,.amount = to_amount(to_units_and_cents(ta_ptr->cents_amount()))
-    ,.date = ta_ptr->date()
+    // ,.amount = static_cast<Amount>(ta.cents_amount())
+    ,.amount = to_amount(to_units_and_cents(ta.cents_amount()))
+    ,.date = ta.date()
   };
   result = had;
   return result;
@@ -7610,34 +7588,34 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	return ev;
 }
 
-EnvironmentValue to_environment_value(TaggedAmountPtr const& ta_ptr) {
+EnvironmentValue to_environment_value(TaggedAmount const& ta) {
 	EnvironmentValue ev{};
-	ev["yyyymmdd_date"] = to_string(ta_ptr->date());
-	ev["cents_amount"] = std::to_string(ta_ptr->cents_amount());
-	for (auto const& entry : ta_ptr->tags()) {
+	ev["yyyymmdd_date"] = to_string(ta.date());
+	ev["cents_amount"] = std::to_string(ta.cents_amount());
+	for (auto const& entry : ta.tags()) {
 		ev[entry.first] = entry.second;
 	}
 	return ev;
 }
 
-OptionalTaggedAmountPtr to_tagged_amount(EnvironmentValue const& ev) {
-	OptionalTaggedAmountPtr result{};
+OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
+	OptionalTaggedAmount result{};
 	OptionalDate date{};
 	OptionalCentsAmount cents_amount{};
-	detail::TaggedAmountClass::OptionalValueId value_id{};
-	detail::TaggedAmountClass::Tags tags{};
+	TaggedAmount::OptionalValueId value_id{};
+	TaggedAmount::Tags tags{};
 	for (auto const& entry : ev) {
 		if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
 		else if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
 		else tags[entry.first] = entry.second;
 	}
 	if (date and cents_amount) {
-    result = std::make_shared<detail::TaggedAmountClass>(*date,*cents_amount,std::move(tags)); 			    
+    result = TaggedAmount{*date,*cents_amount,std::move(tags)};
 	}
   // TODO 240524 - Remove when fully functional tagged amounts to and from SIE is in place
   //               For now, discard any stored tagged amounts that represents SIE journal entries
   if (true and result) {
-    if ((*result)->tag_value("BAS") or (*result)->tag_value("SIE")) return std::nullopt; // discard / filter out stored SIE environment tagged amounts (start fresh)
+    if (result->tag_value("BAS") or result->tag_value("SIE")) return std::nullopt; // discard / filter out stored SIE environment tagged amounts (start fresh)
   }
 	return result;
 }
@@ -8615,10 +8593,10 @@ Cmd Updater::operator()(Command const& command) {
       prompt << options_list_of_prompt_state(model->prompt_state);
       // List current selection
       prompt << "\n<SELECTED>";
-      // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+      // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
       int index = 0;
-      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-        prompt << "\n\t" << index++ << ". " << ta_ptr;
+      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
+        prompt << "\n\t" << index++ << ". " << ta;
       }				
     }
     else if (model->prompt_state == PromptState::AcceptNewTAs) {
@@ -8673,8 +8651,8 @@ Cmd Updater::operator()(Command const& command) {
         case PromptState::TAIndex: {
           model->ta_index = ix;
           if (auto ta_ptr_iter = model->selected_ta()) {
-            auto& ta_ptr = *(*ta_ptr_iter);
-            prompt << "\n" << ta_ptr;
+            auto& ta = *(*ta_ptr_iter);
+            prompt << "\n" << ta;
           }
         } break;
         case PromptState::AcceptNewTAs: {
@@ -10082,10 +10060,10 @@ Cmd Updater::operator()(Command const& command) {
         model->prompt_state = PromptState::TAIndex;
       // List current selection
         prompt << "\n<SELECTED>";
-        // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+        // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
         int index = 0;
-        for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-          prompt << "\n\t" << index++ << ". " << ta_ptr;
+        for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
+          prompt << "\n\t" << index++ << ". " << ta;
         }				
       }
       else {
@@ -10097,15 +10075,15 @@ Cmd Updater::operator()(Command const& command) {
         }
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
-          for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {
-            model->selected_date_ordered_tagged_amounts.insert(ta_ptr);
+          for (auto const& ta : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {
+            model->selected_date_ordered_tagged_amounts.insert(ta);
           }				
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
-          // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+          // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {	
-            prompt << "\n\t" << index++ << ". " << ta_ptr;
+          for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
+            prompt << "\n\t" << index++ << ". " << ta;
           }				
 
         }
@@ -10116,10 +10094,10 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_tag") {
       if (ast.size() == 2) {
-        auto has_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
-          return ta_ptr->tags().contains(tag);
+        auto has_tag = [tag = ast[1]](TaggedAmount const& ta) {
+          return ta.tags().contains(tag);
         };
-        TaggedAmountPtrs reduced{};
+        TaggedAmounts reduced{};
         std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_tag),std::back_inserter(reduced));				
         model->selected_date_ordered_tagged_amounts = reduced;
       }
@@ -10129,10 +10107,10 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_not_tag") {
       if (ast.size() == 2) {
-        auto has_not_tag = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
-          return !ta_ptr->tags().contains(tag);
+        auto has_not_tag = [tag = ast[1]](TaggedAmount const& ta) {
+          return !ta.tags().contains(tag);
         };
-        TaggedAmountPtrs reduced{};
+        TaggedAmounts reduced{};
         std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_not_tag),std::back_inserter(reduced));				
         model->selected_date_ordered_tagged_amounts = reduced;
       }
@@ -10144,11 +10122,11 @@ Cmd Updater::operator()(Command const& command) {
       if (ast.size() == 2) {
         auto [tag,pattern] = tokenize::split(ast[1],'=');
         if (tag.size()>0) {
-          auto is_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
+          auto is_tagged = [tag=tag,pattern=pattern](TaggedAmount const& ta) {
             const std::regex pattern_regex(pattern); 
-            return (ta_ptr->tags().contains(tag) and std::regex_match(ta_ptr->tags().at(tag),pattern_regex));
+            return (ta.tags().contains(tag) and std::regex_match(ta.tags().at(tag),pattern_regex));
           };
-          TaggedAmountPtrs reduced{};
+          TaggedAmounts reduced{};
           std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_tagged),std::back_inserter(reduced));				
           model->selected_date_ordered_tagged_amounts = reduced;
         }
@@ -10164,11 +10142,11 @@ Cmd Updater::operator()(Command const& command) {
       if (ast.size() == 2) {
         auto [tag,pattern] = tokenize::split(ast[1],'=');
         if (tag.size()>0) {
-          auto is_not_tagged = [tag=tag,pattern=pattern](TaggedAmountPtr const& ta_ptr) {
+          auto is_not_tagged = [tag=tag,pattern=pattern](TaggedAmount const& ta) {
             const std::regex pattern_regex(pattern); 
-            return (ta_ptr->tags().contains(tag)==false or std::regex_match(ta_ptr->tags().at(tag),pattern_regex)==false);
+            return (ta.tags().contains(tag)==false or std::regex_match(ta.tags().at(tag),pattern_regex)==false);
           };
-          TaggedAmountPtrs reduced{};
+          TaggedAmounts reduced{};
           std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_not_tagged),std::back_inserter(reduced));				
           model->selected_date_ordered_tagged_amounts = reduced;
         }
@@ -10184,23 +10162,23 @@ Cmd Updater::operator()(Command const& command) {
       // -to_bas <BAS account no | Bas Account Name>
       if (ast.size() == 2) {
         if (auto bas_account = BAS::to_account_no(ast[1])) {
-          TaggedAmountPtrs created{};
-          auto new_ta = [bas_account = *bas_account](TaggedAmountPtr const& ta_ptr){
-            auto date = ta_ptr->date();
-            auto cents_amount = ta_ptr->cents_amount();
-            auto source_tags = ta_ptr->tags();
-            detail::TaggedAmountClass::Tags tags{};
+          TaggedAmounts created{};
+          auto new_ta = [bas_account = *bas_account](TaggedAmount const& ta){
+            auto date = ta.date();
+            auto cents_amount = ta.cents_amount();
+            auto source_tags = ta.tags();
+            TaggedAmount::Tags tags{};
             tags["BAS"]=std::to_string(bas_account);
-            auto result = std::make_shared<detail::TaggedAmountClass>(date,cents_amount,std::move(tags));
+            TaggedAmount result{date,cents_amount,std::move(tags)};
             return result;
           };
           std::ranges::transform(model->selected_date_ordered_tagged_amounts,std::back_inserter(created),new_ta);
           model->new_date_ordered_tagged_amounts = created;
           prompt << "\n<CREATED>";
-          // for (auto const& ta_ptr : model->all_date_ordered_tagged_amounts.tagged_amount_ptrs()) {
+          // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta_ptr : model->new_date_ordered_tagged_amounts) {	
-            prompt << "\n\t" << index++ << ". " << ta_ptr;
+          for (auto const& ta : model->new_date_ordered_tagged_amounts) {	
+            prompt << "\n\t" << index++ << ". " << ta;
           }				
           model->prompt_state = PromptState::AcceptNewTAs;
           prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
@@ -10214,45 +10192,45 @@ Cmd Updater::operator()(Command const& command) {
       }
     }
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
-      using AmountTrailsMap = std::map<CentsAmount,TaggedAmountPtrs>;
+      using AmountTrailsMap = std::map<CentsAmount,TaggedAmounts>;
       AmountTrailsMap amount_trails_map{};
-      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
-        amount_trails_map[std::abs(ta_ptr->cents_amount())].push_back(ta_ptr);
+      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {
+        amount_trails_map[std::abs(ta.cents_amount())].push_back(ta);
       }
-      std::vector<std::pair<CentsAmount,TaggedAmountPtrs>> date_ordered_amount_trails_map{};
+      std::vector<std::pair<CentsAmount,TaggedAmounts>> date_ordered_amount_trails_map{};
       std::ranges::copy(amount_trails_map,std::back_inserter(date_ordered_amount_trails_map));
       std::ranges::sort(date_ordered_amount_trails_map,[](auto const& e1,auto const& e2){
-        if (e1.second.front()->date() == e2.second.front()->date()) return e1.first < e2.first;
-        else return e1.second.front()->date() < e2.second.front()->date();
+        if (e1.second.front().date() == e2.second.front().date()) return e1.first < e2.first;
+        else return e1.second.front().date() < e2.second.front().date();
       });
-      for (auto const& [cents_amount,ta_ptrs] : date_ordered_amount_trails_map) {
+      for (auto const& [cents_amount,tas] : date_ordered_amount_trails_map) {
         auto units_and_cents_amount = to_units_and_cents(cents_amount);
         prompt << "\n" << units_and_cents_amount;
-        for (auto const& ta_ptr : ta_ptrs) {
-          prompt << "\n\t" << ta_ptr;
+        for (auto const& ta : tas) {
+          prompt << "\n\t" << ta;
         }
       }
     }
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
       // Reduce to aggregates
-      auto is_aggregate = [](TaggedAmountPtr const& ta_ptr) {
-        return (ta_ptr->tags().contains("type") and ta_ptr->tags().at("type") == "aggregate");
+      auto is_aggregate = [](TaggedAmount const& ta) {
+        return (ta.tags().contains("type") and ta.tags().at("type") == "aggregate");
       };
-      TaggedAmountPtrs reduced{};
+      TaggedAmounts reduced{};
       std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_aggregate),std::back_inserter(reduced));				
       model->selected_date_ordered_tagged_amounts = reduced;
       // List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
       std::cout << "\n<AGGREGATES>" << std::flush;
       prompt << "\n<AGGREGATES>";
-      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
-        prompt << "\n" << ta_ptr;
-        if (auto members_value = ta_ptr->tag_value("_members")) {
+      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {
+        prompt << "\n" << ta;
+        if (auto members_value = ta.tag_value("_members")) {
           auto members = Key::Path{*members_value};
           if (auto value_ids = to_value_ids(members)) {
             prompt << "\n\t<members>";
-            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
-              for (auto const& ta_ptr : *ta_ptrs) {
-                prompt << "\n\t" << ta_ptr;
+            if (auto tas = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
+              for (auto const& ta : *tas) {
+                prompt << "\n\t" << ta;
               }
             }
           }
@@ -10263,28 +10241,28 @@ Cmd Updater::operator()(Command const& command) {
       prompt << "\nCreating Heading Amount Date entries (HAD:s) from selected Tagged Amounts";
       auto had_candidate_ta_ptrs = model->selected_date_ordered_tagged_amounts;
       // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
-      for (auto const& ta_ptr : model->selected_date_ordered_tagged_amounts) {
-        bool has_SIE_tag = ta_ptr->tag_value("SIE").has_value();
-        if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) {
-          prompt << "\nDisregarded SIE aggregate " << ta_ptr;
-          had_candidate_ta_ptrs.erase(detail::to_value_id(*ta_ptr));
+      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {
+        bool has_SIE_tag = ta.tag_value("SIE").has_value();
+        if (auto members_value = ta.tag_value("_members");has_SIE_tag and members_value) {
+          prompt << "\nDisregarded SIE aggregate " << ta;
+          had_candidate_ta_ptrs.erase(to_value_id(ta));
           auto members = Key::Path{*members_value};
           if (auto value_ids = to_value_ids(members)) {
-            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
-              for (auto const& ta_ptr : *ta_ptrs) {
-                prompt << "\nDisregarded SIE aggregate member " << ta_ptr;
-                had_candidate_ta_ptrs.erase(detail::to_value_id(*ta_ptr));            
+            if (auto tas = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
+              for (auto const& ta : *tas) {
+                prompt << "\nDisregarded SIE aggregate member " << ta;
+                had_candidate_ta_ptrs.erase(to_value_id(ta));            
               }
             }
           }
         }
       }
-      for (auto const& ta_ptr : had_candidate_ta_ptrs) {
-        if (auto o_had = to_had(ta_ptr)) {
+      for (auto const& ta : had_candidate_ta_ptrs) {
+        if (auto o_had = to_had(ta)) {
           model->heading_amount_date_entries.push_back(*o_had);
         }
         else {
-          prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry" << ta_ptr;
+          prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry" << ta;
         }
       }
     }
@@ -10469,33 +10447,38 @@ Cmd Updater::operator()(Command const& command) {
       auto fiscal_year_date_range = model->to_fiscal_year_date_range(year_id);
       if (fiscal_year_date_range) {
         prompt << " " << *fiscal_year_date_range;
-        TaggedAmountPtrs ta_ptrs{}; // journal entries
-        auto is_journal_entry = [tag = ast[1]](TaggedAmountPtr const& ta_ptr) {
-          return (ta_ptr->tags().contains("parent_SIE") or ta_ptr->tags().contains("IB"));
+        TaggedAmounts tas{}; // journal entries
+        auto is_journal_entry = [tag = ast[1]](TaggedAmount const& ta) {
+          return (ta.tags().contains("parent_SIE") or ta.tags().contains("IB"));
         };        
-        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(ta_ptrs));				
+        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
         // 2. Group tagged amounts into same BAS account and a list of parent_SIE
-        std::map<BAS::AccountNo,TaggedAmountPtrs> huvudbok{};
+        std::map<BAS::AccountNo,TaggedAmounts> huvudbok{};
         std::map<BAS::AccountNo,CentsAmount> opening_balance{};
         
-        for (auto const& ta_ptr : ta_ptrs) {
-          auto opt_bas_account_no = BAS::to_account_no(ta_ptr->tags()["BAS"]);
-          if (opt_bas_account_no) {
-            if (ta_ptr->tags().contains("IB")) {
-              opening_balance[*opt_bas_account_no] = ta_ptr->cents_amount();
+        for (auto const& ta : tas) {
+          if (ta.tags().contains("BAS")) {
+            auto opt_bas_account_no = BAS::to_account_no(ta.tags().at("BAS"));
+            if (opt_bas_account_no) {
+              if (ta.tags().contains("IB")) {
+                opening_balance[*opt_bas_account_no] = ta.cents_amount();
+              }
+              else {
+                huvudbok[*opt_bas_account_no].push_back(ta);
+              }
             }
             else {
-              huvudbok[*opt_bas_account_no].push_back(ta_ptr);
+              std::cout << "\nDESIGN INSUFFICIENCY: Error, BAS tag contains value:" << ta.tags().at("BAS") << " that fails to translate to a BAS account no";
             }
           }
           else {
-            std::cout << "\nDESIGN INSUFFICIENCY: Error, BAS tag contains value:" << ta_ptr->tags()["BAS"] << " that fails to translate to a BAS account no";
+            std::cout << "\nDESIGN_INSUFFICIENCY: Error, Contains no BAS tag : " << ta;
           }
         }
 
         // 3. "print" the table grouping BAS accounts and date ordered SIE verifications (also showing a running accumultaion of the account balance)
         prompt << "\n<Journal Entries in year id " << year_id << ">";
-        for (auto const& [bas_account_no,ta_ptrs] : huvudbok) {
+        for (auto const& [bas_account_no,tas] : huvudbok) {
           CentsAmount acc{0};
           prompt << "\n" << bas_account_no;
           prompt << ":" << std::quoted(BAS::global_account_metas().at(bas_account_no).name);
@@ -10503,9 +10486,9 @@ Cmd Updater::operator()(Command const& command) {
             acc = opening_balance[bas_account_no];
             prompt << "\n\topening balance\t" << to_units_and_cents(acc);
           }
-          for (auto const& ta_ptr : ta_ptrs) {
-            prompt << "\n\t" << ta_ptr;
-            acc += ta_ptr->cents_amount();
+          for (auto const& ta : tas) {
+            prompt << "\n\t" << ta;
+            acc += ta.cents_amount();
             prompt << "\tsaldo:" << to_units_and_cents(acc); 
           }
           prompt << "\n\tclosing balance\t" << to_units_and_cents(acc);
@@ -10833,9 +10816,9 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\t" << std::setw(w) << "<IN>";
         prompt << "\t" << std::setw(w) << "<period>";
         prompt << "\t" << std::setw(w) <<  "<OUT>";
-        for (auto const& ta_ptr : bas_account_accs) {
-          auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
-          std::string bas_account_string = ta_ptr->tags().at("BAS"); 
+        for (auto const& ta : bas_account_accs) {
+          auto omslutning = to_units_and_cents(ta.cents_amount());
+          std::string bas_account_string = ta.tags().at("BAS"); 
           prompt << "\n";
           prompt << std::setw(w) << std::string("") + bas_account_string;
           auto bas_account_no = *BAS::to_account_no(bas_account_string);
@@ -10844,7 +10827,7 @@ Cmd Updater::operator()(Command const& command) {
             auto ib_units_and_cents = to_units_and_cents(to_cents_amount(ib)); 
             prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
             prompt << "\t" << std::setw(w) << to_string(omslutning);
-            prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(ib) + ta_ptr->cents_amount()));
+            prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(ib) + ta.cents_amount()));
             opening_balances.erase(bas_account_no); // reported
           }
           else {
@@ -10891,16 +10874,16 @@ Cmd Updater::operator()(Command const& command) {
         if (true) {
           // Log Omslutning
           std::cout << "\nOmslutning {";
-          for (auto const& ta_ptr : bas_account_accs) {
-            auto omslutning = to_units_and_cents(ta_ptr->cents_amount());
-            std::string bas_account_string = ta_ptr->tags().at("BAS"); 
+          for (auto const& ta : bas_account_accs) {
+            auto omslutning = to_units_and_cents(ta.cents_amount());
+            std::string bas_account_string = ta.tags().at("BAS"); 
             std::cout << "\n\tkonto:" << bas_account_string;
             auto ib = model->sie["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
             if (ib) {
               auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
               std::cout << " IB:" << to_string(ib_units_and_cents);
               std::cout << " omslutning:" << to_string(omslutning);
-              std::cout << " UB:" << to_string(to_units_and_cents(to_cents_amount(*ib) + ta_ptr->cents_amount()));
+              std::cout << " UB:" << to_string(to_units_and_cents(to_cents_amount(*ib) + ta.cents_amount()));
             }
             else {
               std::cout << " omslutning:" << to_string(omslutning);
@@ -10910,18 +10893,18 @@ Cmd Updater::operator()(Command const& command) {
         }
 
         auto not_accumulated = bas_account_accs;
-        for (auto const& ta_ptr : bas_account_accs) {	
+        for (auto const& ta : bas_account_accs) {	
           for (auto& ar_entry : ar_entries) {
-            if (ta_ptr->tags().contains("BAS")) {
-              if (auto bas_account_no = BAS::to_account_no(ta_ptr->tags().at("BAS"))) {
-                if (ar_entry.accumulate_this_bas_account(*bas_account_no,ta_ptr->cents_amount())) {
-                  if (auto iter = std::find(not_accumulated.begin(),not_accumulated.end(),ta_ptr); iter != not_accumulated.end()) {
+            if (ta.tags().contains("BAS")) {
+              if (auto bas_account_no = BAS::to_account_no(ta.tags().at("BAS"))) {
+                if (ar_entry.accumulate_this_bas_account(*bas_account_no,ta.cents_amount())) {
+                  if (auto iter = std::find(not_accumulated.begin(),not_accumulated.end(),ta); iter != not_accumulated.end()) {
                     not_accumulated.erase(iter);
                   }
                 }
               }
               else {
-                std::cout << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta_ptr->tags().at("BAS");
+                std::cout << "\nDESIGN INSUFFICIENCY: A tagged amount has a BAS tag set to an invalid (Non BAS account no) value " << ta.tags().at("BAS");
               }
             }
             else {
@@ -10942,8 +10925,8 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n} // Årsredovisning";
 
         prompt << "\nNOT Accumulated {";
-        for (auto const& ta_ptr : not_accumulated) {	
-          prompt << "\n\t" << ta_ptr;
+        for (auto const& ta : not_accumulated) {	
+          prompt << "\n\t" << ta;
         }
         prompt << "\n} // NOT Accumulated";
       }
@@ -11659,18 +11642,18 @@ private:
     // std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
     for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
       auto saldo_cents_amount = to_cents_amount(saldo);
-      auto saldo_ta = std::make_shared<detail::TaggedAmountClass>(opening_saldo_date,saldo_cents_amount);
-      saldo_ta->tags()["BAS"] = std::to_string(bas_account_no);
-      saldo_ta->tags()["IB"] = "True";
+      TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
+      saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
+      saldo_ta.tags()["IB"] = "True";
       result.insert(saldo_ta);
       // std::cout << "\n\tsaldo_ta : " << saldo_ta;
     }
 		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
-			auto tagged_amount_ptrs = to_tagged_amounts(me);
+			auto tagged_amounts = to_tagged_amounts(me);
       // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
       // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
-			result += tagged_amount_ptrs;
+			result += tagged_amounts;
 		};
 		for_each_meta_entry(sie_env,create_tagged_amounts_to_result);
 		return result;
@@ -11761,20 +11744,20 @@ private:
 			}
 			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
 		}
-		// std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amount_ptrs().size() << " entries";
+		// std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
 		return result;
 	}
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
 		// std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
 		DateOrderedTaggedAmountsContainer result{};
-		auto [begin,end] = environment.equal_range("TaggedAmountPtr");
+		auto [begin,end] = environment.equal_range("TaggedAmount");
 		std::for_each(begin,end,[&result](auto const& entry){
-			if (auto ta_ptr = to_tagged_amount(entry.second)) {
-				result.insert(*ta_ptr);
+			if (auto o_ta = to_tagged_amount(entry.second)) {
+				result.insert(*o_ta);
 			}
 			else {
-				std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmountPtr";
+				std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmount";
 			}
 		});
 
@@ -11799,62 +11782,54 @@ private:
       if (target_iter != all_date_ordered_tagged_amounts.end() and source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
         // Both are valid ranges
         // get the fiscal year of provided SIE entries
-        if ((*target_iter)->date()<fiscal_year_date_range->begin()) {
+        if (target_iter->date()<fiscal_year_date_range->begin()) {
           // Skip tagged amounts before the fiscal year
-          while (target_iter != all_date_ordered_tagged_amounts.end() and (*target_iter)->date()<fiscal_year_date_range->begin()) {
+          while (target_iter != all_date_ordered_tagged_amounts.end() and target_iter->date()<fiscal_year_date_range->begin()) {
             // std::cout << "\n\tSkipping Older TA" << *(*target_iter);
             ++target_iter;
           }
         }
-        else while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end() and (*source_iter)->date() < (*target_iter)->date()) {
+        else while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end() and source_iter->date() < target_iter->date()) {
           // Add new SIE entries not yet in (older than) "all"
-          std::cout << "\n\tAdding Older SIE entry" << *(*source_iter);
+          std::cout << "\n\tAdding Older SIE entry" << *source_iter;
           all_date_ordered_tagged_amounts.insert(*source_iter);
           ++source_iter;
         }
         // We are now Synchronized to the "same" start date.
         // Now ensure "all" contains only the provided SIE entries
         while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
-          if ((*source_iter)->tag_value("IB")) {
+          if (source_iter->tag_value("IB")) {
             all_date_ordered_tagged_amounts.insert(*source_iter); // Ensure any opening balance is updated ok (sie file values take precedence)
             ++source_iter;
             continue; // skip further processing of added opening balance
           }
 
           // iterate to next SIE aggregate in source and target
-          if ( not (*source_iter)->tag_value("SIE")) {
+          if ( not source_iter->tag_value("SIE")) {
             ++source_iter;
             continue; // skip non SIE aggregate
           }
-          if  (target_iter != all_date_ordered_tagged_amounts.end() and !(*target_iter)->tag_value("SIE")) {
+          if  (target_iter != all_date_ordered_tagged_amounts.end() and !target_iter->tag_value("SIE")) {
             ++target_iter;
             continue; // skip non SIE aggregate
           }
           // Both source and target is an SIE aggregate ok
           if (target_iter != all_date_ordered_tagged_amounts.end()) {
-            if ((*target_iter)->date() < (*source_iter)->date()) {
+            if (target_iter->date() < source_iter->date()) {
               // This SIE aggregate in "all" should not be there!
-              std::cout << "\n\tShould be erased - Older TA not in imported SIE " << *(*target_iter);
+              std::cout << "\n\tShould be erased - Older TA not in imported SIE " << *target_iter;
               // all_date_ordered_tagged_amounts.erase(target_iter);
               ++target_iter;
             }
             else {
               // Now, the SIE in target must be in provided SIE entries or else it must go
-              // Note: Each aggregate has its own instance id both for itself and for its members!
-              //       So we can not use the equal operator to compare them!
-              // std::cout << "\nNEXT log should be operator== call!" << std::flush;
-              if ((**target_iter) == (**source_iter)) { // Iteror to shared pointer requires ** to dereference *sigh*
-                // This is what we expect (source and target in synchronization)
-                // std::cout << "\n\tIn sync";
-                // std::cout << "\n\t\t   source SIE:" << **source_iter;
-                // std::cout << "\n\t\tAlready in TA:" << **target_iter;
-
+              if (*target_iter == *source_iter) { 
                 ++source_iter;
                 ++target_iter;
               }
-              else if ((*target_iter)->date() > (*source_iter)->date()) {
+              else if (target_iter->date() > source_iter->date()) {
                 // Provided SIE contains an entry not in "all"
-                std::cout << "\n\tInserted to TA a source SIE with date > target SIE date " << *(*source_iter);
+                std::cout << "\n\tInserted to TA a source SIE with date > target SIE date " << *source_iter;
                 all_date_ordered_tagged_amounts.insert(*source_iter);
                 ++source_iter;
               }
@@ -11863,8 +11838,8 @@ private:
                 // but may come out of order in sequence?!
                 // So maybe we need to assemble all SIE entries with the same date and check these sets are equal?
                 std::cout << "\n\tOut of order (or undeteced same?) - May require SET comparisson or updated operator==? {";
-                std::cout << "\n\t\tSIE: " << *(*source_iter);
-                std::cout << "\n\t\tTA: " << *(*target_iter);
+                std::cout << "\n\t\tSIE: " << *source_iter;
+                std::cout << "\n\t\tTA: " << *target_iter;
                 std::cout << "\n\t} Out of order?";
                 ++target_iter;
               }
@@ -11872,7 +11847,7 @@ private:
           }
           else {
             // Add new SIE entries not yet in "all"
-            std::cout << "\n\tADDING to TA the newer imported SIE" << *(*source_iter);
+            std::cout << "\n\tADDING to TA the newer imported SIE" << *source_iter;
             all_date_ordered_tagged_amounts.insert(*source_iter);
             ++source_iter;
           }
@@ -11994,16 +11969,16 @@ private:
 	}
 	Environment environment_from_model(Model const& model) {
 		Environment result{};
-		auto tagged_amount_to_environment = [&result](TaggedAmountPtr const& ta_ptr) {
+		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
       // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
       if (true) {
-        if (ta_ptr->tag_value("BAS") or ta_ptr->tag_value("SIE")) {
-          // std::cout << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta_ptr;
+        if (ta.tag_value("BAS") or ta.tag_value("SIE")) {
+          // std::cout << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta;
           return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
         }
       }
-			result.insert({"TaggedAmountPtr",to_environment_value(ta_ptr)});
+			result.insert({"TaggedAmount",to_environment_value(ta)});
 		};
 		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
 		for (auto const& entry :  model->heading_amount_date_entries) {
