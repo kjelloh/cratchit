@@ -464,7 +464,7 @@ namespace encoding {
           result += *unicode;
         }
       }
-      if (true) {
+      if (false) {
         std::cout << "\nutf8ToUnicode(";
         for (auto ch : s_utf8) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
         std::cout << ") --> ";
@@ -1903,24 +1903,25 @@ namespace CSV {
 	using FieldRows = std::vector<FieldRow>;
 	using OptionalFieldRows = std::optional<FieldRows>;
 
-	OptionalFieldRows to_field_rows(std::istream& in,char delim=';') {
-    if (true) {
-      std::cout << "\nto_field_rows(std::istream& in...";
-    }
-		OptionalFieldRows result{};
-		try {
-			FieldRows field_rows{};
-			std::string entry{};
-			while (std::getline(in,entry)) {
-				field_rows.push_back({entry,delim});
-			}
-			result = field_rows;
-		}
-		catch (std::exception const& e) {
-			std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
-		}
-		return result;
-	}
+  // 20240528 - Now requires a known encoing of the input stream characters
+	// OptionalFieldRows to_field_rows(std::istream& in,char delim=';') {
+  //   if (true) {
+  //     std::cout << "\nto_field_rows(std::istream& in...";
+  //   }
+	// 	OptionalFieldRows result{};
+	// 	try {
+	// 		FieldRows field_rows{};
+	// 		std::string entry{};
+	// 		while (std::getline(in,entry)) {
+	// 			field_rows.push_back({entry,delim});
+	// 		}
+	// 		result = field_rows;
+	// 	}
+	// 	catch (std::exception const& e) {
+	// 		std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
+	// 	}
+	// 	return result;
+	// }
 
 	OptionalFieldRows to_field_rows(encoding::ISO_8859_1::istream& in,char delim=';') {
     if (false) {
@@ -10168,7 +10169,8 @@ Cmd Updater::operator()(Command const& command) {
                 SKV::SRU::OptionalSRUValueMap ink1_sru_value_map{};
 
                 std::istringstream k10_is{SKV::SRU::INK1::k10_csv_to_sru_template};
-                if (auto field_rows = CSV::to_field_rows(k10_is)) {
+                encoding::UTF8::istream utf8_K10_in{k10_is};
+                if (auto field_rows = CSV::to_field_rows(utf8_K10_in)) {
                   // LOG
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) prompt << "\n";
@@ -10184,7 +10186,8 @@ Cmd Updater::operator()(Command const& command) {
                 }
                 // ink1_csv_to_sru_template
                 std::istringstream ink1_is{SKV::SRU::INK1::ink1_csv_to_sru_template};
-                if (auto field_rows = CSV::to_field_rows(ink1_is)) {
+                encoding::UTF8::istream utf8_ink1_in{ink1_is};
+                if (auto field_rows = CSV::to_field_rows(utf8_ink1_in)) {
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) prompt << "\n";
                     for (int i=0;i<field_row.size();++i) {
@@ -10915,7 +10918,8 @@ Cmd Updater::operator()(Command const& command) {
           std::filesystem::path csv_file_path{ast[2]};
           if (std::filesystem::exists(csv_file_path)) {
             std::ifstream ifs{csv_file_path};
-            if (auto const& field_rows = CSV::to_field_rows(ifs,';')) {
+            encoding::UTF8::istream utf8_in{ifs}; // Assume UTF8 encoded file (should work for all-digits csv.file as ASCII 0..7F overlaps with UTF8 encoing anyhow?)
+            if (auto const& field_rows = CSV::to_field_rows(utf8_in,';')) {
               for (auto const& field_row : *field_rows) {
                 if (field_row.size()==2) {
                   if (auto const& sru_code = SKV::SRU::to_account_no(field_row[0])) {
@@ -11049,7 +11053,8 @@ Cmd Updater::operator()(Command const& command) {
         std::filesystem::path csv_file_path{ast[2]};
         if (std::filesystem::exists(csv_file_path)) {
           std::ifstream ifs{csv_file_path};
-          if (auto field_rows = CSV::to_field_rows(ifs)) {
+          encoding::UTF8::istream utf8_in{ifs};
+          if (auto field_rows = CSV::to_field_rows(utf8_in)) {
             for (auto const& field_row : *field_rows) {
               if (field_row.size()>0) prompt << "\n";
               for (int i=0;i<field_row.size();++i) {
@@ -11984,8 +11989,9 @@ private:
     				auto fiscal_year_member_path = dir_entry.path();
             std::cout << "\n\tBEGIN " <<  fiscal_year_member_path;
             if (std::filesystem::is_regular_file(fiscal_year_member_path) and (fiscal_year_member_path.extension() == ".csv")) {
-              auto in = std::ifstream{fiscal_year_member_path};
-              if (auto field_rows = CSV::to_field_rows(in,';')) {
+              auto ifs = std::ifstream{fiscal_year_member_path};
+              encoding::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
+              if (auto field_rows = CSV::to_field_rows(utf8_in,';')) {
                 std::cout << "\n\tNo Operation implemented";
                 // std::cout << "\n\t<Entries>";
                 for (int i=0;i<field_rows->size();++i) {
