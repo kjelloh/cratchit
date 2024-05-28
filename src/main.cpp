@@ -260,7 +260,7 @@ namespace charset {
 			std::transform(s8859.begin(),s8859.end(),std::back_inserter(result),[](char ch){
 				return iso8859ToUnicode(ch);
 			});
-      if (true) {
+      if (false) {
         std::cout << "\niso8859ToUnicode(";
         for (auto ch : s8859) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
         std::cout << ") --> ";
@@ -301,7 +301,7 @@ namespace charset {
 			std::transform(s437.begin(),s437.end(),std::back_inserter(result),[](char ch){
 				return charset::CP437::cp437ToUnicode(ch);
 			});
-      if (true) {
+      if (false) {
         std::cout << "\ncp437ToUnicode(";
         for (auto ch : s437) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
         std::cout << ") --> ";
@@ -389,7 +389,7 @@ namespace encoding {
 			std::ostringstream os{};
 			encoding::UTF8::ostream utf8_os{os};
 			for (auto cp : s) utf8_os << cp;
-      if (true) {
+      if (false) {
         std::cout << "\nunicode_to_utf8(";
         for (auto ch : s) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
         std::cout << ") --> " << std::quoted(os.str());
@@ -1869,7 +1869,7 @@ namespace CSV {
 	using OptionalFieldRows = std::optional<FieldRows>;
 
 	OptionalFieldRows to_field_rows(std::istream& in,char delim=';') {
-    if (true) {
+    if (false) {
       std::cout << "\nto_field_rows(std::istream& in...";
     }
 		OptionalFieldRows result{};
@@ -1888,7 +1888,7 @@ namespace CSV {
 	}
 
 	OptionalFieldRows to_field_rows(encoding::ISO_8859_1::istream& in,char delim=';') {
-    if (true) {
+    if (false) {
       std::cout << "\nto_field_rows(encoding::ISO_8859_1::istream& in...";
     }
 		OptionalFieldRows result{};
@@ -2082,7 +2082,7 @@ DateRange to_quarter_range(Date const& a_period_date) {
 	auto end_month = to_quarter_end(quarter);
 	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
 	auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
-  if (true) {
+  if (false) {
     std::cout << "\nto_quarter_range(" << a_period_date << ") --> " << begin << ".." << end;
   }
 	return {begin,end};
@@ -2985,7 +2985,7 @@ namespace CSV {
     HeadingId result{HeadingId::Undefined};
     std::cout << "\nfield_row.size() = " << field_row.size();
     if (field_row.size() >= 10) {
-      if (true) {
+      if (false) {
         std::cout << "\nNORDEA File candidate ok";
       }
       // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
@@ -3008,7 +3008,7 @@ namespace CSV {
       }
     }
     else if (field_row.size() == 5) {
-      if (true) {
+      if (false) {
         std::cout << "\nSKV File candidate ok";
       }
       result = HeadingId::SKV;
@@ -3024,7 +3024,7 @@ using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsC
  * Return a list of tagged amounts if provided path is to a file with amount values (e.g., a bank account csv statements file)
  */
 OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
-  if (true) {
+  if (false) {
     std::cout << "\nto_tagged_amounts(" << path << ")";
   }
   OptionalDateOrderedTaggedAmounts result{};
