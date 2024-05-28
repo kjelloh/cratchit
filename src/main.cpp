@@ -2247,10 +2247,10 @@ namespace detail {
 	  friend std::ostream& operator<<(std::ostream& os, TaggedAmountClass const& tac);
 		using OptionalTagValue = std::optional<std::string>;
 		using Tags = std::map<std::string,std::string>;
-		using InstanceId = std::size_t;
-		using OptionalInstanceId = std::optional<InstanceId>;
-		using InstanceIds = std::vector<InstanceId>;
-		using OptionalInstanceIds = std::optional<InstanceIds>;
+		using ValueId = std::size_t;
+		using OptionalValueId = std::optional<ValueId>;
+		using ValueIds = std::vector<ValueId>;
+		using OptionalValueIds = std::optional<ValueIds>;
 		TaggedAmountClass(Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
 			: m_date{date}
 			 ,m_cents_amount{cents_amount}
@@ -2293,11 +2293,6 @@ namespace std {
   struct hash<detail::TaggedAmountClass> {
       std::size_t operator()(detail::TaggedAmountClass const& ta) const noexcept {
           std::size_t result{};
-          // #####
-          // InstanceId instance_id() const {return m_instance_id;}
-          // Date const& date() const {return m_date;}
-          // CentsAmount const& cents_amount() const {return m_cents_amount;}
-          // Tags const& tags() const {return m_tags;}
         auto yyyymmdd = ta.date();
         hash_combine(result, static_cast<int>(yyyymmdd.year()));
         hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
@@ -2314,7 +2309,7 @@ namespace std {
 
 namespace detail {
 
-  detail::TaggedAmountClass::InstanceId to_instance_id(detail::TaggedAmountClass const& ta) {
+  detail::TaggedAmountClass::ValueId to_value_id(detail::TaggedAmountClass const& ta) {
     return std::hash<detail::TaggedAmountClass>{}(ta);
   }
 
@@ -2337,14 +2332,14 @@ namespace detail {
 
 
 	// tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
-	std::string to_string(TaggedAmountClass::InstanceId instance_id) {
+	std::string to_string(TaggedAmountClass::ValueId value_id) {
 		std::ostringstream os{};
-		os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << instance_id;
+		os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << value_id;
 		return os.str();
 	}
 
 	std::ostream& operator<<(std::ostream& os, detail::TaggedAmountClass const& tac) {
-		os << to_string(detail::to_instance_id(tac));
+		os << to_string(detail::to_value_id(tac));
 		os << " " << ::to_string(tac.date());
 		os << " " << ::to_string(to_units_and_cents(tac.cents_amount()));
 		for (auto const& tag : tac.tags()) {
@@ -2363,39 +2358,39 @@ std::ostream& operator<<(std::ostream& os, TaggedAmountPtr const& ta_ptr) {
 	return os;
 }
 
-detail::TaggedAmountClass::OptionalInstanceId to_instance_id(std::string const& s) {
-	// std::cout << "\nto_instance_id()" << std::flush;
-	detail::TaggedAmountClass::OptionalInstanceId result{};
-	detail::TaggedAmountClass::InstanceId instance_id{};
+detail::TaggedAmountClass::OptionalValueId to_value_id(std::string const& s) {
+	// std::cout << "\nto_value_id()" << std::flush;
+	detail::TaggedAmountClass::OptionalValueId result{};
+	detail::TaggedAmountClass::ValueId value_id{};
 	std::istringstream is{s};
 	try {
-		is >> std::hex >> instance_id;
-		result = instance_id;
+		is >> std::hex >> value_id;
+		result = value_id;
 	}
 	catch (...) {
-		std::cout << "\nto_instance_id(" << std::quoted(s) << ") failed. General Exception caught." << std::flush;
+		std::cout << "\nto_value_id(" << std::quoted(s) << ") failed. General Exception caught." << std::flush;
 	}
 	return result;
 }
 
-detail::TaggedAmountClass::OptionalInstanceIds to_instance_ids(Key::Path const& sids) {
-	std::cout << "\nto_instance_ids()" << std::flush;
-	detail::TaggedAmountClass::OptionalInstanceIds result{};
-	detail::TaggedAmountClass::InstanceIds instance_ids{};
+detail::TaggedAmountClass::OptionalValueIds to_value_ids(Key::Path const& sids) {
+	std::cout << "\nto_value_ids()" << std::flush;
+	detail::TaggedAmountClass::OptionalValueIds result{};
+	detail::TaggedAmountClass::ValueIds value_ids{};
 	for (auto const& sid : sids) {
-		if (auto instance_id = to_instance_id(sid)) {
+		if (auto value_id = to_value_id(sid)) {
 			std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
-			instance_ids.push_back(*instance_id);
+			value_ids.push_back(*value_id);
 		}
 		else {
-			std::cout << "\nto_instance_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
+			std::cout << "\nto_value_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
 		}
 	}
-	if (instance_ids.size() == sids.size()) {
-		result = instance_ids;
+	if (value_ids.size() == sids.size()) {
+		result = value_ids;
 	}
 	else {
-		std::cout << "\nto_instance_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << instance_ids.size() << " out of " << sids.size() << " possible.";
+		std::cout << "\nto_value_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << value_ids.size() << " out of " << sids.size() << " possible.";
 	}
 	return result;
 }
@@ -2407,17 +2402,12 @@ struct std::hash<TaggedAmountPtr> {
     }
 };
 
-using TaggedAmountPtrs = std::vector<TaggedAmountPtr>; // ####
+using TaggedAmountPtrs = std::vector<TaggedAmountPtr>;
 using OptionalTaggedAmountPtrs = std::optional<TaggedAmountPtrs>;
-using TaggedAmountInstanceIdMap = std::map<detail::TaggedAmountClass::InstanceId,TaggedAmountPtr>; // #### TODO 240225: Refactor to use std::unordered_map and a external "value hash" instead of std::map and internal instance_id?
-                                                                                             //                   In effect implement "value semantics" for tagged amounts?
-using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmountPtr>; // Value semantics map <value hash> --> <tagged amount ptr>
+using TaggedAmountValueIdMap = std::map<detail::TaggedAmountClass::ValueId,TaggedAmountPtr>; 
+using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmountPtr>;
 
 namespace tas {
-	// 221121 Tagged amounts namespace
-	//        A seed for structuring tagged amounts into name space structure
-	//        TODO: Refactor external tagged amount code into this namespace if / when appropriate
-
 	// namespace for processing that produces tagged amounts and tagged amounts
 
 	// Generic for parsing a range or container of tagged amount pointers into a vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas account)
@@ -2462,42 +2452,16 @@ namespace tas {
 	}
 }
 
-// DateOrderedTaggedAmountsContainer operates on tagged amount "values"
-// Does not allow multiple tagged amounts with the same "value" (determined by operator== of detail::TaggedAmountClass)
-/*
-
-  NOTE 240225 - Here's an idea, why not implement value semantics for tagged amounts?
-                two instances with the same "value" are the same and no two instances with the same "value" can exist in the same container?
-                In this way we can also compare values between containers.
-                Is there a reason I miss that this can not work?
-              
-  
-	NOTE (pre 240225): The processing of tagged amount is still a bit convoluted. 
-	
-	For one we need a way to refer between tagged amounts that survives persistent storage in cratchit environment. 
-	This is accomplished with the instance_id based on date, amount and a random salt.
-
-	But secondly we also need to to distinguish different instances with "the same" value.
-	This is accomplished with the operator== of the detail::TaggedAmountClass. It is defined as a tagged amount with all members BUT the instance_id equal!
-	In this way we can instantiate a tagged amount and later discover that we already have that tagged amount "value" recorded. This takes care of the cases
-	where we create tagged amounts from bank account statements or tax agency account statements. The user may provide statement files that overlap and we have
-	to use "same value" to filter out such overlaps between statement files as well as between statement files and tagged amounts we already had in persistent storage!
-
-  SIE file entries are another problem. Here we should NOT allow duplicates of SIE entries with the same series and sequence number within the same fiscal year.
-  But this is also not easy? If an SIE file is edited externally we may encounter edited or new SIE entries with a Series and sequence number that is already in our environment tagged amounts.
-  SIE entries in an SIE file are, by definition, the correct ones! So we need to somehow purge tagged amounts that are not longer correct according to
-  the content of the SIE file. But mathing on series and seuence number is NOT enough as these repeat between ficals years, while our tagged have no "fiscal year" concept. 
-*/
-class DateOrderedTaggedAmountsContainer { // ####
+class DateOrderedTaggedAmountsContainer {
 	public:
 		using OptionalTagValue = detail::TaggedAmountClass::OptionalTagValue;
 		using Tags = detail::TaggedAmountClass::Tags;
-		using InstanceId = detail::TaggedAmountClass::InstanceId;
-		using OptionalInstanceId = detail::TaggedAmountClass::OptionalInstanceId;
-		using InstanceIds = detail::TaggedAmountClass::InstanceIds;
-		using OptionalInstanceIds = detail::TaggedAmountClass::OptionalInstanceIds;
+		using ValueId = detail::TaggedAmountClass::ValueId;
+		using OptionalValueId = detail::TaggedAmountClass::OptionalValueId;
+		using ValueIds = detail::TaggedAmountClass::ValueIds;
+		using OptionalValueIds = detail::TaggedAmountClass::OptionalValueIds;
 
-		using iterator = TaggedAmountPtrs::iterator; // ####
+		using iterator = TaggedAmountPtrs::iterator;
 		using const_iterator = TaggedAmountPtrs::const_iterator;
 		TaggedAmountPtrs const& tagged_amount_ptrs() {return m_date_ordered_amount_ptrs;}
 		std::size_t size() const { return m_date_ordered_amount_ptrs.size();}
@@ -2515,66 +2479,63 @@ class DateOrderedTaggedAmountsContainer { // ####
 			return std::ranges::subrange(first,last);
 		}
 
-    OptionalTaggedAmountPtr at(InstanceId const& instance_id) {
+    OptionalTaggedAmountPtr at(ValueId const& value_id) {
       // #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
-			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << detail::to_string(instance_id) << ")" << std::flush;
+			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << detail::to_string(value_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
-			if (m_tagged_amount_instance_id_map.contains(instance_id)) {
-				result = m_tagged_amount_instance_id_map.at(instance_id);
+			if (m_tagged_amount_value_id_map.contains(value_id)) {
+				result = m_tagged_amount_value_id_map.at(value_id);
 			}
 			else {
-				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to instance_id=" << detail::to_string(instance_id) << std::flush;
+				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to value_id=" << detail::to_string(value_id) << std::flush;
 			}
 			return result;
     }
 
-		OptionalTaggedAmountPtr operator[](InstanceId const& instance_id) {
+		OptionalTaggedAmountPtr operator[](ValueId const& value_id) {
       // #### Idea TODO 240226 - Consider what we need for "value semantics" based on value hash and not "instane ids"...
 
-			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(instance_id) << ")" << std::flush;
+			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << detail::to_string(value_id) << ")" << std::flush;
 			OptionalTaggedAmountPtr result{};
-			if (auto o_ptr = this->at(instance_id)) {
+			if (auto o_ptr = this->at(value_id)) {
 				result = o_ptr;
 			}
 			else {
-				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to instance_id=" << detail::to_string(instance_id) << std::flush;
+				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to value_id=" << detail::to_string(value_id) << std::flush;
 			}
 			return result;
 		}
 
-		OptionalTaggedAmountPtrs to_ta_ptrs(InstanceIds const& instance_ids) {
-      // #### Idea TODO 240226 - Consider how to handle "value semantics" based on value hash and not "instane ids"...
-      //                         Note, this is used by aggregate to get to its members (so maybe there is a better way)
-
+		OptionalTaggedAmountPtrs to_ta_ptrs(ValueIds const& value_ids) {
 			std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs()" << std::flush;
 			OptionalTaggedAmountPtrs result{};
 			TaggedAmountPtrs ta_ptrs{};
-			for (auto const& instance_id : instance_ids) {
-				if (auto ta_ptr = (*this)[instance_id]) {
+			for (auto const& value_id : value_ids) {
+				if (auto ta_ptr = (*this)[value_id]) {
 					ta_ptrs.push_back(*ta_ptr);
 				}
 				else {
-					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for instance_id=" << detail::to_string(instance_id) << std::flush;
+					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for value_id=" << detail::to_string(value_id) << std::flush;
 				}
 			}
-			if (ta_ptrs.size() == instance_ids.size()) {
+			if (ta_ptrs.size() == value_ids.size()) {
 				result = ta_ptrs;
 			}
 			else {
-				std::cout << "\nto_ta_ptrs() Failed. ta_ptrs.size() = " << ta_ptrs.size() << " IS NOT provided instance_ids.size() = " << instance_ids.size() << std::flush;
+				std::cout << "\nto_ta_ptrs() Failed. ta_ptrs.size() = " << ta_ptrs.size() << " IS NOT provided value_ids.size() = " << value_ids.size() << std::flush;
 			}
 			return result;
 		}
 
 		DateOrderedTaggedAmountsContainer& clear() {
-			m_tagged_amount_instance_id_map.clear();
+			m_tagged_amount_value_id_map.clear();
 			m_date_ordered_amount_ptrs.clear();
 			return *this;
 		}
 
 		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
 			this->m_date_ordered_amount_ptrs = other.m_date_ordered_amount_ptrs;
-			this->m_tagged_amount_instance_id_map = other.m_tagged_amount_instance_id_map;
+			this->m_tagged_amount_value_id_map = other.m_tagged_amount_value_id_map;
 			return *this;
 		}
 
@@ -2583,38 +2544,38 @@ class DateOrderedTaggedAmountsContainer { // ####
     // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a godd solution for this?
 		iterator insert(TaggedAmountPtr ta_ptr_to_insert) {
 			auto result = m_date_ordered_amount_ptrs.end();
-      auto instance_id = detail::to_instance_id(*ta_ptr_to_insert);
-      if (m_tagged_amount_instance_id_map.contains(instance_id) == false) {
+      auto value_id = detail::to_value_id(*ta_ptr_to_insert);
+      if (m_tagged_amount_value_id_map.contains(value_id) == false) {
         auto [begin,end] = std::equal_range(m_date_ordered_amount_ptrs.begin(),m_date_ordered_amount_ptrs.end(),ta_ptr_to_insert,[](TaggedAmountPtr const& ta1,TaggedAmountPtr const& ta2){
 				  return (ta1->date() < ta2->date());
 			  });        
-			  m_tagged_amount_instance_id_map[instance_id] = ta_ptr_to_insert; // mapped on id
+			  m_tagged_amount_value_id_map[value_id] = ta_ptr_to_insert; // mapped on id
 				result = m_date_ordered_amount_ptrs.insert(end,ta_ptr_to_insert); // sorted on date
       }
       else {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Error, Skipped new[" << detail::to_string(instance_id) << "] " << ta_ptr_to_insert;
-        std::cout << "\n                             same as old[" << detail::to_string(detail::to_instance_id(*m_tagged_amount_instance_id_map[instance_id])) << "] " << m_tagged_amount_instance_id_map[instance_id];
+        std::cout << "\nDESIGN_INSUFFICIENCY: Error, Skipped new[" << detail::to_string(value_id) << "] " << ta_ptr_to_insert;
+        std::cout << "\n                             same as old[" << detail::to_string(detail::to_value_id(*m_tagged_amount_value_id_map[value_id])) << "] " << m_tagged_amount_value_id_map[value_id];
       }
 			return result;
 		}
 
     // TODO 240218: Consider to provide an "eraser" that the caller can provide to have "erase" apply special treatment to e.g., SIE aggregate tagged amounts
     // TODO: 240225: NOTE that erase of an aggregate does not erase the members of the aggregate. What is a good solution for this?
-    DateOrderedTaggedAmountsContainer erase(InstanceId const& instance_id) {
+    DateOrderedTaggedAmountsContainer erase(ValueId const& value_id) {
       // #### Idea TODO 240226 - Update also the "value semantics" map of tagged amounts (to evalutae implementation before switching to it?)
       //                         Also consider to make erase remove also the aggregated values.
-      if (auto o_ptr = this->at(instance_id)) {
-        m_tagged_amount_instance_id_map.erase(instance_id);
+      if (auto o_ptr = this->at(value_id)) {
+        m_tagged_amount_value_id_map.erase(value_id);
         auto iter = std::ranges::find(m_date_ordered_amount_ptrs,*o_ptr);
         if (iter != m_date_ordered_amount_ptrs.end()) {
           m_date_ordered_amount_ptrs.erase(iter);
         }
         else {
-          std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, instance_id " << instance_id;
+          std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, value_id " << value_id;
         }
       }
       else {
-        std::cout << "nDateOrderedTaggedAmountsContainer::at failed to find instance_id " << instance_id;
+        std::cout << "nDateOrderedTaggedAmountsContainer::at failed to find value_id " << value_id;
       }
       return *this;
     }
@@ -2646,13 +2607,9 @@ class DateOrderedTaggedAmountsContainer { // ####
 		}
 
 	private:
-    // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between instance_id and tagged amount pointer and once in a vector ordered by date.
-    // TODO 240218: Consider a more DRY solution for storing tagged amounts in a way that allows for efficient lookup and ordered iteration
-		TaggedAmountInstanceIdMap m_tagged_amount_instance_id_map{}; // map <instance id> -> <tagged amount ptr>
+    // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between value_id and tagged amount pointer and once in a vector ordered by date.
+		TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <instance id> -> <tagged amount ptr>
 		TaggedAmountPtrs m_date_ordered_amount_ptrs{};  // vector of tagged amount ptrs ordered by date
-
-    // #### Idea TODO 240226 - Add a C++ unordered map nad an std::hash for the value of the tagged amount to start implementing "value semantics"?
-
 }; // class DateOrderedTaggedAmountsContainer
 
 namespace CSV {
@@ -3717,21 +3674,6 @@ TaggedAmountPtr to_tagged_amount(Date const& date,BAS::anonymous::AccountTransac
 }
 
 TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
-  // NOTE! Identifying unique tagged amounts from SIE verifications is t r i c k y!
-  //       Current implementation tags member BAS account transactions with both parent_SIE and ix (index in parent SIE)
-
-  // E.g., TaggedAmountPtr "BAS=2614;Ix=2;_instance_id=c563f555eb3aa596;cents_amount=-166100;parent_SIE=A16;yyyymmdd_date=20220715"
-  //       TaggedAmountPtr "BAS=2614;Ix=2;_instance_id=3a9c0aaa14c54efa;cents_amount=166100;parent_SIE=A18;yyyymmdd_date=20220715"
-  //       TaggedAmountPtr "BAS=2614;Ix=2;_instance_id=c563f555eb3ac9b0;cents_amount=-166100;parent_SIE=D8;yyyymmdd_date=20220715"
-
-  // The parent_SIE tag ensures same BAS account, date and amount can exist as different trasnactions in different SIE verifications (as in the example above)
-  // And the Ix tag ensures the several BAS account, date and amount can exist in the same SIE verification as different trasnactions.
-
-  // But reading the same SIE file again (e.g., after a restart) will NOT add the same transactions again (Now clones will have same parent_SIE and Ix)
-
-  // NOTE: This algorithm will NOT detect if an SIE verificationhas been edited with the same trasnactions but in a new order!
-  // TODO: Try to find a better way to identify "same" tagged amounts (also in reading from bank statement csv files)...
-
 	TaggedAmountPtrs result{};
 	auto journal_id = me.meta.series;
 	auto verno = me.meta.verno;
@@ -3742,18 +3684,18 @@ TaggedAmountPtrs to_tagged_amounts(BAS::MetaEntry const& me) {
 	if (verno) tags["SIE"] = journal_id+std::to_string(*verno);
 	tags["vertext"] = me.defacto.caption;
 	auto aggregate_ta_ptr = std::make_shared<detail::TaggedAmountClass>(date,gross_cents_amount,std::move(tags));
-	Key::Path instance_ids{};
-	auto push_back_as_tagged_amount = [&instance_ids,&date,&journal_id,&verno,&result](BAS::anonymous::AccountTransaction const& at){
+	Key::Path value_ids{};
+	auto push_back_as_tagged_amount = [&value_ids,&date,&journal_id,&verno,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta_ptr = to_tagged_amount(date,at);
     if (verno) ta_ptr->tags()["parent_SIE"] = journal_id+std::to_string(*verno);
     ta_ptr->tags()["Ix"]=std::to_string(result.size()); // index 0,1,2...
 		result.push_back(ta_ptr);
-		instance_ids += detail::to_string(to_instance_id(*ta_ptr));
+		value_ids += detail::to_string(to_value_id(*ta_ptr));
 	};
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
-	aggregate_ta_ptr->tags()["_members"] = instance_ids.to_string(); // #### value semantics
+	aggregate_ta_ptr->tags()["_members"] = value_ids.to_string(); // #### value semantics
 	result.push_back(aggregate_ta_ptr);
 	return result;
 }
@@ -7689,7 +7631,7 @@ OptionalTaggedAmountPtr to_tagged_amount(EnvironmentValue const& ev) {
 	OptionalTaggedAmountPtr result{};
 	OptionalDate date{};
 	OptionalCentsAmount cents_amount{};
-	detail::TaggedAmountClass::OptionalInstanceId instance_id{};
+	detail::TaggedAmountClass::OptionalValueId value_id{};
 	detail::TaggedAmountClass::Tags tags{};
 	for (auto const& entry : ev) {
 		if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
@@ -10313,9 +10255,9 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n" << ta_ptr;
         if (auto members_value = ta_ptr->tag_value("_members")) {
           auto members = Key::Path{*members_value};
-          if (auto instance_ids = to_instance_ids(members)) {
+          if (auto value_ids = to_value_ids(members)) {
             prompt << "\n\t<members>";
-            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
+            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
               for (auto const& ta_ptr : *ta_ptrs) {
                 prompt << "\n\t" << ta_ptr;
               }
@@ -10332,13 +10274,13 @@ Cmd Updater::operator()(Command const& command) {
         bool has_SIE_tag = ta_ptr->tag_value("SIE").has_value();
         if (auto members_value = ta_ptr->tag_value("_members");has_SIE_tag and members_value) { // #### value semantics
           prompt << "\nDisregarded SIE aggregate " << ta_ptr;
-          had_candidate_ta_ptrs.erase(detail::to_instance_id(*ta_ptr));
+          had_candidate_ta_ptrs.erase(detail::to_value_id(*ta_ptr));
           auto members = Key::Path{*members_value};
-          if (auto instance_ids = to_instance_ids(members)) {
-            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*instance_ids)) {
+          if (auto value_ids = to_value_ids(members)) {
+            if (auto ta_ptrs = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
               for (auto const& ta_ptr : *ta_ptrs) {
                 prompt << "\nDisregarded SIE aggregate member " << ta_ptr;
-                had_candidate_ta_ptrs.erase(detail::to_instance_id(*ta_ptr));            
+                had_candidate_ta_ptrs.erase(detail::to_value_id(*ta_ptr));            
               }
             }
           }
