@@ -1923,9 +1923,9 @@ namespace CSV {
 	// 	return result;
 	// }
 
-	OptionalFieldRows to_field_rows(encoding::ISO_8859_1::istream& in,char delim=';') {
+	OptionalFieldRows to_field_rows(auto& in,char delim=';') {
     if (false) {
-      std::cout << "\nto_field_rows(encoding::ISO_8859_1::istream& in...";
+      std::cout << "\nto_field_rows(auto& in...";
     }
 		OptionalFieldRows result{};
 		try {
@@ -1947,31 +1947,6 @@ namespace CSV {
 		}
 		return result;
 	}  
-
-	OptionalFieldRows to_field_rows(encoding::UTF8::istream& in,char delim=';') {
-    if (true) {
-      std::cout << "\nto_field_rows(encoding::UTF8::istream& in...";
-    }
-		OptionalFieldRows result{};
-		try {
-			FieldRows field_rows{};
-			std::string raw_entry{};
-			// while (std::getline(in.is,raw_entry)) {
-      //   // patch from assumed ISO8859_1 to assumed run time environment UTF-8
-      //   auto unicode_string = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
-      //   auto entry = encoding::UTF8::unicode_to_utf8(unicode_string);
-			// 	field_rows.push_back({entry,delim});
-			// }
-      while (auto entry = in.getline(encoding::unicode::to_utf8{})) {
-				field_rows.push_back({*entry,delim});
-      }
-			result = field_rows;
-		}
-		catch (std::exception const& e) {
-			std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
-		}
-		return result;
-	}
 
 } // namespace CSV
 
