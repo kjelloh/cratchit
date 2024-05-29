@@ -23,6 +23,7 @@ float const VERSION = 0.5;
 #include <functional>
 #include <set>
 #include <ranges> // requires c++ compiler with c++20 support
+#include <type_traits>  // For std::is_arithmetic_v
 
 #include "../lib/macos/lua-5.2.4_MacOS1011_lib/include/lua.hpp"
 
@@ -770,12 +771,103 @@ using CentsAmount = int;
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
 // using Amount= float;
-using Amount= double;
-// class Amount {
-// public:
-// private:
+// using Amount= double;
+class Amount {
+public:
+    // Constructors
+    Amount() : value_(0.0) {}
+    explicit Amount(double value) : value_(value) {}
 
-// };
+    // Conversion operator
+    operator double() const { return value_; }
+
+    // Arithmetic operators
+    Amount operator+(Amount const& other) const { return Amount(value_ + other.value_); }
+    Amount operator-(Amount const& other) const { return Amount(value_ - other.value_); }
+    Amount operator*(auto const& other) const {
+        if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
+            return Amount(value_ * other);
+        } else {
+            return Amount(value_ * other.value_);
+        }
+    }    
+    Amount operator/(auto const& other) const {
+        if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
+            return Amount(value_ / other);
+        } else {
+            return Amount(value_ / other.value_);
+        }
+    }
+
+    Amount& operator+=(auto const& other) {
+        if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
+            value_ += other;
+        } else {
+            value_ += other.value_;
+        }
+       return *this; 
+    }
+    Amount& operator-=(const Amount& other) { value_ -= other.value_; return *this; }
+    Amount& operator*=(const Amount& other) { value_ *= other.value_; return *this; }
+    Amount& operator/=(const Amount& other) { value_ /= other.value_; return *this; }
+
+    Amount& operator-() { value_ = -value_; return *this; }
+    Amount operator-() const { return Amount{-value_};}
+
+    // Assignment operators
+    Amount& operator=(auto const& other) {
+        if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
+            value_ = other;
+        } else {
+            value_ = other.value_;
+        }
+       return *this; 
+    }
+
+    // Generic comparison operator using spaceship operator
+    template <typename T>
+    constexpr auto operator<=>(const T& other) const {
+        if constexpr (std::is_same_v<std::decay_t<T>, Amount>) {
+            return value_ <=> other.value_;
+        } else if constexpr (std::is_arithmetic_v<std::decay_t<T>>) {
+            return value_ <=> other;
+        } else {
+            static_assert(false, "Comparison not supported for this type");
+        }
+    }    
+    // bool operator==(const Amount& other) const { return value_ == other.value_; }
+    // bool operator!=(const Amount& other) const { return value_ != other.value_; }
+    // bool operator<(const Amount& other) const { return value_ < other.value_; }
+    // bool operator<=(const Amount& other) const { return value_ <= other.value_; }
+    // bool operator>(const Amount& other) const { return value_ > other.value_; }
+    // bool operator>=(const Amount& other) const { return value_ >= other.value_; }
+
+    // Stream operators
+    friend std::ostream& operator<<(std::ostream& os, const Amount& amount) {
+        os << amount.value_;
+        return os;
+    }
+
+    friend std::istream& operator>>(std::istream& is, Amount& amount) {
+        is >> amount.value_;
+        return is;
+    }
+
+private:
+    double value_;
+}; // class Amount
+
+Amount abs(Amount const& other) {
+  return Amount{std::abs(other)};
+}
+
+Amount round(Amount const& other) {
+  return Amount{std::round(other)};
+}
+
+Amount trunc(Amount const& other) {
+  return Amount{std::trunc(other)};
+}
 
 using OptionalAmount = std::optional<Amount>;
 
@@ -2954,8 +3046,8 @@ namespace BAS {
 		}
 	}
 
-	Amount to_cents_amount(Amount amount) {
-		return std::round(amount*100.0)/100.0;
+	Amount to_cents_amount(Amount const& amount) {
+		return Amount{std::round(amount*100.0)/100.0};
 	}
 
 	enum class AccountKind {
@@ -3682,7 +3774,7 @@ public:
 	ToNetVatAccountTransactions(BAS::anonymous::AccountTransaction const& net_at, BAS::anonymous::AccountTransaction const& vat_at)
 		:  m_net_at{net_at}
 		  ,m_vat_at{vat_at}
-			,m_gross_vat_rate{static_cast<Amount>((net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0)}
+			,m_gross_vat_rate{(net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0}
 			,m_sign{(net_at.amount<0)?-1.0f:1.0f} /* 0 gets sign + */ {}
 
 	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,OptionalAmount const& inc_vat_amount = std::nullopt) {
@@ -4603,7 +4695,7 @@ BAS::MetaEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEn
 	};
 	result.defacto.caption = had.heading;
 	result.defacto.date = had.date;
-	result.defacto.account_transactions = jet(std::abs(had.amount)); // Ignore sign to have template apply its sign
+	result.defacto.account_transactions = jet(abs(had.amount)); // Ignore sign to have template apply its sign
 	return result;
 }
 
@@ -4966,8 +5058,8 @@ public:
 			result[date].push_back(Balance{
 				.account_no = ob.first
 				,.opening_balance = ob.second
-				,.change = -1
-				,.end_balance = -1
+				,.change = Amount{-1}
+				,.end_balance = Amount{-1}
 			});
 		}
 		return result;
@@ -5570,7 +5662,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x3: {
@@ -5578,7 +5670,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x5: {
@@ -5609,7 +5701,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						}; break;
 					} // switch
@@ -6475,8 +6567,8 @@ namespace SKV { // SKV
 				// All VAT Returns form amounts are without sign except box 49 where + means VAT to pay and - means VAT to "get back"
 				switch (box_no) {
 					// TODO: Consider it is in fact so that all amounts to SKV are to have the opposite sign of those in BAS?
-					case 49: return -1 * amount; break; // The VAT Returns form must encode VAT to be paied as positive (opposite of how it is booked in BAS, negative meaning a debt to SKV)
-					default: return std::abs(amount);
+					case 49: return -amount; break; // The VAT Returns form must encode VAT to be paied as positive (opposite of how it is booked in BAS, negative meaning a debt to SKV)
+					default: return abs(amount);
 				}
 			}
 
@@ -6912,7 +7004,7 @@ namespace SKV { // SKV
 
 			// Correct sign and rounding
 			Amount to_eu_sales_list_amount(Amount amount) {
-				return std::abs(std::round(amount)); // All amounts in the sales list form are defined to be positve (although sales in BAS are negative credits)
+				return abs(round(amount)); // All amounts in the sales list form are defined to be positve (although sales in BAS are negative credits)
 			}
 
 			// Correct amount type for the form
@@ -8701,7 +8793,7 @@ Cmd Updater::operator()(Command const& command) {
               std::cout << "\nprepend with heading:" << std::quoted(ast[2]) << " Date:" << ast[3];
               HeadingAmountDateTransEntry prepended_had {
                 .heading = ast[2]
-                ,.amount = std::abs(had.amount) // always an unsigned amount for prepended had
+                ,.amount = abs(had.amount) // always an unsigned amount for prepended had
                 ,.date = *to_date(ast[3]) // Assume success
               };
               model->heading_amount_date_entries.push_back(prepended_had);
@@ -8724,7 +8816,7 @@ Cmd Updater::operator()(Command const& command) {
               if (auto init_date = to_date(ast[3])) {
                 HeadingAmountDateTransEntry initiating_had {
                   .heading = ast[2]
-                  ,.amount = std::abs(had.amount) // always an unsigned amount for initiating had
+                  ,.amount = abs(had.amount) // always an unsigned amount for initiating had
                   ,.date = *init_date
                 };
                 model->heading_amount_date_entries.push_back(initiating_had);
@@ -8778,11 +8870,11 @@ Cmd Updater::operator()(Command const& command) {
                     if (account_no==0) {
                       me.defacto.account_transactions.push_back({
                         .account_no = 2650
-                        ,.amount = std::trunc(-amount)
+                        ,.amount = trunc(-amount)
                       });
                       me.defacto.account_transactions.push_back({
                         .account_no = 3740
-                        ,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+                        ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
                       });
                     }
                     else {
@@ -8901,7 +8993,7 @@ Cmd Updater::operator()(Command const& command) {
                     auto mats_sum = BAS::mats_sum(mats);
                     auto sign = (mats_sum<0)?-1:1;
                     // mats_sum + diff = amount
-                    auto diff = sign*(std::abs(*amount)) - mats_sum;
+                    auto diff = abs(*amount)*sign - mats_sum;
                     mats.push_back({
                       .defacto = {
                         .account_no = mats[0].defacto.account_no
@@ -8961,11 +9053,11 @@ Cmd Updater::operator()(Command const& command) {
                     if (account_no==0) {
                       me.defacto.account_transactions.push_back({
                         .account_no = 2650
-                        ,.amount = std::trunc(-amount)
+                        ,.amount = trunc(-amount)
                       });
                       me.defacto.account_transactions.push_back({
                         .account_no = 3740
-                        ,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+                        ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
                       });
                     }
                     else {
@@ -9083,7 +9175,7 @@ Cmd Updater::operator()(Command const& command) {
                     };
                     for (auto const& [at,props] : tme_iter->defacto.account_transactions) {
                       if (props.contains("gross") or props.contains("eu_purchase")) {
-                        Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        Amount sign{(at.amount < 0)?-1.0:1.0}; // 0 treated as +
                         BAS::anonymous::AccountTransaction new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
@@ -9092,7 +9184,7 @@ Cmd Updater::operator()(Command const& command) {
                         me.defacto.account_transactions.push_back(new_at);
                       }
                       else if (props.contains("vat")) {
-                        Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        Amount sign{(at.amount < 0)?-1.0:1.0}; // 0 treated as +
                         BAS::anonymous::AccountTransaction new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
@@ -9126,22 +9218,22 @@ Cmd Updater::operator()(Command const& command) {
                     me.defacto.account_transactions.push_back({
                       .account_no = 2610 // "Utgående moms, 25 %"
                       ,.transtext = std::nullopt
-                      ,.amount = 0
+                      ,.amount = Amount{0}
                     });
                     me.defacto.account_transactions.push_back({
                       .account_no = 2614 // "Utgående moms omvänd skattskyldighet, 25 %"
                       ,.transtext = std::nullopt
-                      ,.amount = 0
+                      ,.amount = Amount{0}
                     });
                     me.defacto.account_transactions.push_back({
                       .account_no = 2640 // "Ingående moms"
                       ,.transtext = std::nullopt
-                      ,.amount = 0
+                      ,.amount = Amount{0}
                     });
                     me.defacto.account_transactions.push_back({
                       .account_no = 2641 // "Debiterad ingående moms"
                       ,.transtext = std::nullopt
-                      ,.amount = 0
+                      ,.amount = Amount{0}
                     });
                     me.defacto.account_transactions.push_back({
                       .account_no = 2650 // "Redovisningskonto för moms"
@@ -9151,7 +9243,7 @@ Cmd Updater::operator()(Command const& command) {
                     me.defacto.account_transactions.push_back({
                       .account_no = 3740 // "Öres- och kronutjämning"
                       ,.transtext = std::nullopt
-                      ,.amount = 0
+                      ,.amount = Amount{0}
                     });
                     prompt << "\nVAT Consolidate candidate " << me;
                     had.optional.current_candidate = me;
@@ -9212,7 +9304,7 @@ Cmd Updater::operator()(Command const& command) {
                           me.defacto.account_transactions.push_back({
                             .account_no = tat.first.account_no
                             ,.transtext = std::nullopt
-                            ,.amount = sign*std::abs(had.amount)
+                            ,.amount = abs(had.amount)*sign
                           });
                         }
                         had.optional.current_candidate = me;
@@ -9317,7 +9409,7 @@ Cmd Updater::operator()(Command const& command) {
                     Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
                     had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
                       .account_no = *gross_counter_account_no
-                      ,.amount = -1.0f * gross_transaction_amount
+                      ,.amount =  gross_transaction_amount * -1.0
                     }
                     );
                     prompt << "\nmutated candidate:" << *had.optional.current_candidate;
@@ -9356,12 +9448,12 @@ Cmd Updater::operator()(Command const& command) {
                     Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
                     had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
                       .account_no = *net_counter_account_no
-                      ,.amount = -0.8f * gross_transaction_amount
+                      ,.amount =  gross_transaction_amount * -0.8
                     }
                     );
                     had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
                       .account_no = *vat_counter_account_no
-                      ,.amount = -0.2f * gross_transaction_amount
+                      ,.amount =  gross_transaction_amount * -0.2
                     }
                     );
                     prompt << "\nNOTE: Cratchit currently assumes 25% VAT";
@@ -11175,7 +11267,7 @@ The ITfied AB
                 }
                 else {
                   prompt << "\nHEADER " << ast[0];
-                  auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0]);
+                  auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0]);
                   std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
                   prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
                 }
@@ -11187,13 +11279,13 @@ The ITfied AB
                   prompt << "\nWe will create a {net,vat} using this this header and amount";
                   if (gross_amounts_diff > 0) {
                     // We need to balance up with negative account transaction aggregates
-                    auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+                    auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
                     prompt << "\nAdded negative transactions aggregate" << ats;
                   }
                   else if (gross_amounts_diff < 0) {
                     // We need to balance up with positive account transaction aggregates
-                    auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+                    auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
                     prompt << "\nAdded positive transaction aggregate";
                   }
