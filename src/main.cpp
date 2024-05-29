@@ -698,6 +698,601 @@ namespace tokenize {
 	}
 } // namespace tokenize
 
+namespace Key {
+		class Path {
+		public:
+			auto begin() const {return m_path.begin();}
+			auto end() const {return m_path.end();}
+			Path() = default;
+			Path(Path const& other) = default;
+			Path(std::string const& s_path,char delim = '^') : 
+			  m_delim{delim}
+				,m_path(tokenize::splits(s_path,delim,tokenize::eAllowEmptyTokens::YES)) {};
+			auto size() const {return m_path.size();}
+			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
+			operator std::string() const {
+				std::ostringstream os{};
+				os << *this;
+				return os.str();
+			}
+			Path& operator+=(std::string const& key) {
+				m_path.push_back(key);
+				// std::cout << "\noperator+= :" << *this  << " size:" << this->size();
+				return *this;
+			}
+			Path& operator--() {
+				m_path.pop_back();
+				// std::cout << "\noperator-- :" << *this << " size:" << this->size();
+				return *this;
+			}
+			Path parent() {
+				Path result{*this};
+				--result;
+				// std::cout << "\nparent:" << result << " size:" << result.size();
+				return result;
+			}
+			std::string back() const {return m_path.back();}
+			std::string operator[](std::size_t pos) const {return m_path[pos];}
+			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
+			std::string to_string() const {
+				std::ostringstream os{};
+				os << *this;
+				return os.str();
+			}
+		private:
+			std::vector<std::string> m_path{};
+			char m_delim{'^'};
+		}; // class Path
+
+		using Paths = std::vector<Path>;
+
+		std::ostream& operator<<(std::ostream& os,Key::Path const& key_path) {
+			int key_count{0};
+			for (auto const& key : key_path) {
+				if (key_count++>0) os << key_path.m_delim;
+				for (auto ch : key) {
+					if (std::isprint(ch)) os << ch; // Filter out non printable characters (AND characters in wrong encoding, e.g., charset::ISO_8859_1 from raw file input that erroneously end up here ...)
+					else os << "?";
+				}
+				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
+			}
+			return os;
+		}
+} // namespace Key
+
+std::string filtered(std::string const& s,auto filter) {
+	std::string result{};;
+	std::copy_if(s.begin(),s.end(),std::back_inserter(result),filter);
+	return result;
+}
+
+using CentsAmount = int;
+using OptionalCentsAmount = std::optional<CentsAmount>;
+
+// using Amount= float;
+using Amount= double;
+// class Amount {
+// public:
+// private:
+
+// };
+
+using OptionalAmount = std::optional<Amount>;
+
+OptionalAmount to_amount(std::string const& sAmount) {
+	// std::cout << "\nto_amount " << std::quoted(sAmount);
+	OptionalAmount result{};
+	Amount amount{};
+	std::istringstream is{sAmount};
+	if (auto pos = sAmount.find(','); pos != std::string::npos) {
+		// Handle 123,45 ==> 123.45
+		result = to_amount(std::accumulate(sAmount.begin(),sAmount.end(),std::string{},[](auto acc,char ch){
+			acc += (ch==',')?'.':ch;
+			return acc;
+		}));
+	}
+	else if (is >> amount) {
+		result = amount;
+	}
+	else {
+		// handle integer (no decimal point)
+		try {
+			auto int_amount = std::stoi(sAmount);
+			result = static_cast<Amount>(int_amount);
+		}
+		catch (std::exception const& e) { /* failed - do nothing */}
+	}
+	// if (result) std::cout << "\nresult " << *result;
+	return result;
+}
+
+OptionalCentsAmount to_cents_amount(std::string const& s) {
+	OptionalCentsAmount result{};
+	CentsAmount ca{};
+	try {
+		ca = std::stoi(s);
+		result = ca;
+	}
+	catch (...) {
+		// Whine about input and failure
+		std::cout << "\nThe string " << std::quoted(s) << " is not a valid cents amount (to_cents_amount returns nullopt)";
+	}
+	return result;
+}
+
+CentsAmount to_cents_amount(Amount amount) {
+	return std::round(amount*100);
+}
+
+using UnitsAmount = int;
+using UnitsAndCents = std::pair<UnitsAmount,CentsAmount>;
+
+UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
+	UnitsAndCents result{std::round(cents_amount / 100),cents_amount % 100};
+	return result;
+}
+
+Amount to_amount(UnitsAndCents const& units_and_cents) {
+  return static_cast<Amount>(units_and_cents.first) + static_cast<Amount>(units_and_cents.second) / 100;
+}
+
+std::ostream& operator<<(std::ostream& os,UnitsAndCents const& units_and_cents) {
+  bool is_negative = (units_and_cents.first<0) or (units_and_cents.second < 0);
+  if (is_negative) os << "-";
+	os << std::abs(units_and_cents.first) << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
+	return os;
+}
+
+std::string to_string(UnitsAndCents const& units_and_cents) {
+	std::ostringstream os{};
+	os << units_and_cents;
+	return os.str();
+}
+
+using Date = std::chrono::year_month_day;
+using OptionalDate = std::optional<Date>;
+
+std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
+	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support?)
+	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
+	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
+	return os;
+}
+std::string to_string(Date const& yyyymmdd) {
+		std::ostringstream os{};
+		os << yyyymmdd;
+		return os.str();
+}
+
+Date to_date(int year,unsigned month,unsigned day) {
+	return Date {
+		std::chrono::year{year}
+		,std::chrono::month{month}
+		,std::chrono::day{day}
+	};
+}
+
+OptionalDate to_date(std::string const& sYYYYMMDD) {
+	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
+	OptionalDate result{};
+	try {
+		if (sYYYYMMDD.size()==8) {
+			result = to_date(
+				std::stoi(sYYYYMMDD.substr(0,4))
+				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
+				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
+		}
+		else {
+			// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
+			std::string sDate = filtered(sYYYYMMDD,::isdigit);
+			if (sDate.size()==8) result = to_date(sDate);
+		}
+		// if (result) std::cout << " = " << *result;
+		// else std::cout << " = null";
+	}
+	catch (std::exception const& e) {} // swallow silently
+	return result;
+}
+
+Date to_today() {
+	// TODO: Upgrade to correct std::chrono way when C++20 compiler support is there
+	// std::cout << "\nto_today";
+	std::ostringstream os{};
+	auto now_timet = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	std::tm* now_local = localtime(&now_timet);
+	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
+}
+
+class DateRange {
+public:
+	DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
+	DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+		OptionalDate begin{to_date(yyyymmdd_begin)};
+		OptionalDate end{to_date(yyyymmdd_end)};
+		if (begin and end) {
+			m_valid = true;
+			m_begin = *begin;
+			m_end = *end;
+		}
+	}
+	Date begin() const {return m_begin;}
+	Date end() const {return m_end;}
+	bool contains(Date const& date) const { return begin() <= date and date <= end();}
+	operator bool() const {return m_valid;}
+private:
+	bool m_valid{};
+	Date m_begin{};
+	Date m_end{};
+};
+using OptionalDateRange = std::optional<DateRange>;
+
+struct Quarter {
+	unsigned ix;
+};
+
+Quarter to_quarter(Date const& a_period_date) {
+	return {((static_cast<unsigned>(a_period_date.month())-1) / 3u)+ 1u}; // ((0..3) + 1
+}
+
+std::chrono::month to_quarter_begin(Quarter const& quarter) {
+	unsigned begin_month_no = (quarter.ix-1u) * 3u + 1u; // [0..3]*3 = [0,3,6,9] + 1 = [1,4,7,10]
+	return std::chrono::month{begin_month_no};
+}
+
+std::chrono::month to_quarter_end(Quarter const& quarter) {
+	return (to_quarter_begin(quarter) + std::chrono::months{2});
+}
+
+DateRange to_quarter_range(Date const& a_period_date) {
+// std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
+	auto quarter = to_quarter(a_period_date);
+	auto begin_month = to_quarter_begin(quarter);
+	auto end_month = to_quarter_end(quarter);
+	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
+	auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
+  if (false) {
+    std::cout << "\nto_quarter_range(" << a_period_date << ") --> " << begin << ".." << end;
+  }
+	return {begin,end};
+}
+
+DateRange to_three_months_earlier(DateRange const& quarter) {
+	auto const quarter_duration = std::chrono::months{3};
+  // get the year and month for the date range to return
+  auto ballpark_end = quarter.end() - quarter_duration;
+  // Adjust the end day to the correct one for the range end month
+  auto end = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
+  // Note: We do not need to adjust the begin day as all month starts on day 1
+	return {quarter.begin() - quarter_duration,end};
+}
+
+std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
+	os << dr.begin() << "..." << dr.end();
+	return os;
+}
+
+struct IsPeriod {
+	DateRange period;
+	bool operator()(Date const& date) const {
+		return period.contains(date);
+	}
+};
+
+IsPeriod to_is_period(DateRange const& period) {
+	return {period};
+}
+
+std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+	std::optional<IsPeriod> result{};
+	if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
+	else {
+		std::cout << "\nERROR, to_is_period failed. Invalid period " << std::quoted(yyyymmdd_begin) << " ... " << std::quoted(yyyymmdd_begin);
+	}
+	return result;
+}
+
+class TaggedAmount {
+public:
+  friend std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta);
+  using OptionalTagValue = std::optional<std::string>;
+  using Tags = std::map<std::string,std::string>;
+  using ValueId = std::size_t;
+  using OptionalValueId = std::optional<ValueId>;
+  using ValueIds = std::vector<ValueId>;
+  using OptionalValueIds = std::optional<ValueIds>;
+  TaggedAmount(Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
+    : m_date{date}
+      ,m_cents_amount{cents_amount}
+      ,m_tags{tags} {} 
+
+  // Getters
+  Date const& date() const {return m_date;}
+  CentsAmount const& cents_amount() const {return m_cents_amount;}
+  Tags const& tags() const {return m_tags;}	
+  Tags& tags() {return m_tags;}
+
+  // Map key to optional value
+  OptionalTagValue tag_value(std::string const& key) const {
+    OptionalTagValue result{};
+    if (m_tags.contains(key)) {
+      result = m_tags.at(key); 
+    }
+    return result;
+  }
+
+  bool operator==(TaggedAmount const& other) const;
+
+  // tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
+  static std::string to_string(TaggedAmount::ValueId value_id) {
+    std::ostringstream os{};
+    os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << value_id;
+    return os.str();
+  }
+
+private:
+  Date m_date;
+  CentsAmount m_cents_amount;
+  Tags m_tags;
+}; // class TaggedAmount
+
+using TaggedAmounts = std::vector<TaggedAmount>;
+using OptionalTaggedAmount = std::optional<TaggedAmount>;
+using OptionalTaggedAmounts = std::optional<TaggedAmounts>;
+
+// From boost::hash_combine for std::size_t
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v)
+{
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2); // *magic* dustribution as defined by boost::hash_combine
+}
+
+namespace std {
+  template<>
+  struct hash<TaggedAmount> {
+      std::size_t operator()(TaggedAmount const& ta) const noexcept {
+          std::size_t result{};
+        auto yyyymmdd = ta.date();
+        hash_combine(result, static_cast<int>(yyyymmdd.year()));
+        hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
+        hash_combine(result, static_cast<unsigned>(yyyymmdd.day()));
+        hash_combine(result, ta.cents_amount());
+        for (auto const& [key,value] : ta.tags()) {
+          hash_combine(result, key);
+          hash_combine(result, value);
+        }
+        return result;
+      }
+  };
+} // namespace std
+
+TaggedAmount::ValueId to_value_id(TaggedAmount const& ta) {
+  return std::hash<TaggedAmount>{}(ta);
+}
+
+bool TaggedAmount::operator==(TaggedAmount const& other) const {
+  auto result =     this->date() == other.date() 
+                and this->cents_amount() == other.cents_amount()
+                and std::all_of(
+                    m_tags.begin()
+                  ,m_tags.end()
+                  ,[&other](Tags::value_type const& entry) {
+                    return (     (entry.first.starts_with("_"))
+                              or (     other.tags().contains(entry.first) 
+                                    and other.tags().at(entry.first) == entry.second));
+                  });
+
+  // std::cout << "\nTaggedAmountClass::operator== ";
+  // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
+  return result;
+}
+
+std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
+  os << TaggedAmount::to_string(to_value_id(ta));
+  os << " " << ::to_string(ta.date());
+  os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
+  for (auto const& tag : ta.tags()) {
+    os << " \"" << tag.first << "=" << tag.second << "\"";
+  }
+  return os;
+}
+
+TaggedAmount::OptionalValueId to_value_id(std::string const& s) {
+	// std::cout << "\nto_value_id()" << std::flush;
+	TaggedAmount::OptionalValueId result{};
+	TaggedAmount::ValueId value_id{};
+	std::istringstream is{s};
+	try {
+		is >> std::hex >> value_id;
+		result = value_id;
+	}
+	catch (...) {
+		std::cout << "\nto_value_id(" << std::quoted(s) << ") failed. General Exception caught." << std::flush;
+	}
+	return result;
+}
+
+TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
+	std::cout << "\nto_value_ids()" << std::flush;
+	TaggedAmount::OptionalValueIds result{};
+	TaggedAmount::ValueIds value_ids{};
+	for (auto const& sid : sids) {
+		if (auto value_id = to_value_id(sid)) {
+			std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
+			value_ids.push_back(*value_id);
+		}
+		else {
+			std::cout << "\nto_value_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
+		}
+	}
+	if (value_ids.size() == sids.size()) {
+		result = value_ids;
+	}
+	else {
+		std::cout << "\nto_value_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << value_ids.size() << " out of " << sids.size() << " possible.";
+	}
+	return result;
+}
+
+using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
+using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmount>;
+
+class DateOrderedTaggedAmountsContainer {
+	public:
+		using OptionalTagValue = TaggedAmount::OptionalTagValue;
+		using Tags = TaggedAmount::Tags;
+		using ValueId = TaggedAmount::ValueId;
+		using OptionalValueId = TaggedAmount::OptionalValueId;
+		using ValueIds = TaggedAmount::ValueIds;
+		using OptionalValueIds = TaggedAmount::OptionalValueIds;
+
+		using iterator = TaggedAmounts::iterator;
+		using const_iterator = TaggedAmounts::const_iterator;
+		TaggedAmounts const& tagged_amounts() {return m_date_ordered_tagged_amounts;}
+		std::size_t size() const { return m_date_ordered_tagged_amounts.size();}
+		iterator begin() {return m_date_ordered_tagged_amounts.begin();}
+		iterator end() {return m_date_ordered_tagged_amounts.end();}
+		const_iterator begin() const {return m_date_ordered_tagged_amounts.begin();}
+		const_iterator end() const {return m_date_ordered_tagged_amounts.end();}
+		auto in_date_range(DateRange const& date_period) {
+			auto first = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta){
+				return (ta.date() >= date_period.begin());
+			});
+			auto last = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta){
+				return (ta.date() > date_period.end());
+			});
+			return std::ranges::subrange(first,last);
+		}
+
+    OptionalTaggedAmount at(ValueId const& value_id) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << TaggedAmount::to_string(value_id) << ")" << std::flush;
+			OptionalTaggedAmount result{};
+			if (m_tagged_amount_value_id_map.contains(value_id)) {
+				result = m_tagged_amount_value_id_map.at(value_id);
+			}
+			else {
+				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to value_id=" << TaggedAmount::to_string(value_id) << std::flush;
+			}
+			return result;
+    }
+
+		OptionalTaggedAmount operator[](ValueId const& value_id) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << TaggedAmount::to_string(value_id) << ")" << std::flush;
+			OptionalTaggedAmount result{};
+			if (auto o_ptr = this->at(value_id)) {
+				result = o_ptr;
+			}
+			else {
+				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to value_id=" << TaggedAmount::to_string(value_id) << std::flush;
+			}
+			return result;
+		}
+
+		OptionalTaggedAmounts to_ta_ptrs(ValueIds const& value_ids) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs()" << std::flush;
+			OptionalTaggedAmounts result{};
+			TaggedAmounts tas{};
+			for (auto const& value_id : value_ids) {
+				if (auto o_ta = (*this)[value_id]) {
+					tas.push_back(*o_ta);
+				}
+				else {
+					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for value_id=" << TaggedAmount::to_string(value_id) << std::flush;
+				}
+			}
+			if (tas.size() == value_ids.size()) {
+				result = tas;
+			}
+			else {
+				std::cout << "\nto_ta_ptrs() Failed. tas.size() = " << tas.size() << " IS NOT provided value_ids.size() = " << value_ids.size() << std::flush;
+			}
+			return result;
+		}
+
+		DateOrderedTaggedAmountsContainer& clear() {
+			m_tagged_amount_value_id_map.clear();
+			m_date_ordered_tagged_amounts.clear();
+			return *this;
+		}
+
+		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
+			this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
+			this->m_tagged_amount_value_id_map = other.m_tagged_amount_value_id_map;
+			return *this;
+		}
+
+    // TODO 240218: Consider to provide a predicate for the caller to control what should be regarded as "same value"
+    //              This could be a way to apply special teratment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
+    // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a godd solution for this?
+		iterator insert(TaggedAmount const& ta) {
+			auto result = m_date_ordered_tagged_amounts.end();
+      auto value_id = to_value_id(ta);
+      if (m_tagged_amount_value_id_map.contains(value_id) == false) {
+        // Find the last element with a date less than the date of ta        
+        auto end = std::upper_bound(m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end(),ta,[](TaggedAmount const& ta1, TaggedAmount const& ta2) {
+            return ta1.date() < ta2.date();
+        });
+
+			  m_tagged_amount_value_id_map.insert({value_id,ta}); // id -> ta
+				result = m_date_ordered_tagged_amounts.insert(end,ta); // place after all with date less than the one of ta
+      }
+      else {
+        std::cout << "\nDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
+        std::cout << "\n                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
+      }
+			return result;
+		}
+
+    DateOrderedTaggedAmountsContainer erase(ValueId const& value_id) {
+      if (auto o_ptr = this->at(value_id)) {
+        m_tagged_amount_value_id_map.erase(value_id);
+        auto iter = std::ranges::find(m_date_ordered_tagged_amounts,*o_ptr);
+        if (iter != m_date_ordered_tagged_amounts.end()) {
+          m_date_ordered_tagged_amounts.erase(iter);
+        }
+        else {
+          std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, value_id " << value_id;
+        }
+      }
+      else {
+        std::cout << "nDateOrderedTaggedAmountsContainer::at failed to find value_id " << value_id;
+      }
+      return *this;
+    }
+
+		DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
+			for (auto const& ta : m_date_ordered_tagged_amounts) {
+				f(ta);
+			}
+			return *this;
+		}
+
+		DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const& other) {
+			other.for_each([this](TaggedAmount const& ta){
+        // TODO 240217: Consider a way to ensure that SIE entries in SIE file has preceedence (overwrite any existing tagged amounts reflecting the same events)
+        // Hm...Maybe this is NOT the convenient place to do this?
+				this->insert(ta);
+			});
+			return *this;
+		}
+		DateOrderedTaggedAmountsContainer& operator+=(TaggedAmounts const& tas) {
+			for (auto const& ta : tas) this->insert(ta);
+			return *this;
+		}
+
+		DateOrderedTaggedAmountsContainer& operator=(TaggedAmounts const& tas) {
+			this->clear();
+			*this += tas;
+			return *this;
+		}
+
+	private:
+    // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between value_id and tagged amount pointer and once in a vector ordered by date.
+		TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <instance id> -> <tagged amount ptr>
+		TaggedAmounts m_date_ordered_tagged_amounts{};  // vector of tagged amount ptrs ordered by date
+}; // class DateOrderedTaggedAmountsContainer
+
 // Forward declaration of data and members of namespaces
 namespace BAS {
 	using AccountNo = unsigned int;
@@ -707,6 +1302,52 @@ namespace BAS {
 
 	OptionalAccountNo to_account_no(std::string const& s);
 }
+
+namespace tas {
+	// namespace for processing that produces tagged amounts and tagged amounts
+
+	// Generic for parsing a range or container of tagged amount pointers into a vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas account)
+	TaggedAmounts to_bas_omslutning(auto const& tas) {
+		TaggedAmounts result{};
+		using BASBuckets = std::map<BAS::AccountNo,TaggedAmounts>;
+		BASBuckets bas_buckets{};
+		auto is_valid_bas_account_transaction = [](TaggedAmount const& ta){
+			if (ta.tags().contains("BAS") and !(BAS::to_account_no(ta.tags().at("BAS")))) {
+				// Whine about invalid tagging of 'BAS' tag!
+				// It is vital we do NOT have any badly tagged BAS account transactions as this will screw up the saldo calculation!
+				std::cout << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta.tags().at("BAS"));
+				return false;
+			}
+			else return (     (ta.tags().contains("BAS"))
+										and (BAS::to_account_no(ta.tags().at("BAS")))
+										and (    (     (ta.tags().contains("type") == false))
+													or (     (ta.tags().contains("type") == true)
+															 and (ta.tags().at("type") != "saldo"))));
+		};
+		for (auto const& ta : tas) {
+			if (is_valid_bas_account_transaction(ta)) {
+				bas_buckets[*BAS::to_account_no(ta.tags().at("BAS"))].push_back(ta);
+			}
+		}
+		for (auto const& [bas_account_no,tas] : bas_buckets) {
+			Date period_end_date{};
+			std::cout << "\n" << bas_account_no;
+			auto cents_saldo = std::accumulate(tas.begin(),tas.end(),CentsAmount{0},[&period_end_date](auto acc, auto const& ta){
+				period_end_date = std::max(period_end_date,ta.date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
+				acc += ta.cents_amount();
+				std::cout << "\n\t" << period_end_date << " " << to_string(to_units_and_cents(ta.cents_amount())) << " ackumulerat:" << to_string(to_units_and_cents(acc));
+				return acc;
+			});
+
+			TaggedAmount saldo_ta{period_end_date,cents_saldo};
+			saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
+			saldo_ta.tags()["type"] = "saldo";
+			result.push_back(saldo_ta);
+		}
+		return result;
+	}
+} // namespace tas
+
 namespace SKV::SRU::INK1 {
 	extern const char* ink1_csv_to_sru_template;
 	extern const char* k10_csv_to_sru_template;
@@ -1293,8 +1934,6 @@ namespace BAS::K2::AR {
 
   }
 
-	using CentsAmount = int; // Forward
-
   using Tokens = std::vector<std::string>;
   Tokens tokenize(std::string const& bas_accounts_text) {
     Tokens result{};
@@ -1646,75 +2285,6 @@ std::ostream& operator<<(std::ostream& os,std::vector<std::pair<I,I>> const& rr)
 	return os;
 }
 
-std::string filtered(std::string const& s,auto filter) {
-	std::string result{};;
-	std::copy_if(s.begin(),s.end(),std::back_inserter(result),filter);
-	return result;
-}
-
-
-namespace Key {
-		class Path {
-		public:
-			auto begin() const {return m_path.begin();}
-			auto end() const {return m_path.end();}
-			Path() = default;
-			Path(Path const& other) = default;
-			Path(std::string const& s_path,char delim = '^') : 
-			  m_delim{delim}
-				,m_path(tokenize::splits(s_path,delim,tokenize::eAllowEmptyTokens::YES)) {};
-			auto size() const {return m_path.size();}
-			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
-			operator std::string() const {
-				std::ostringstream os{};
-				os << *this;
-				return os.str();
-			}
-			Path& operator+=(std::string const& key) {
-				m_path.push_back(key);
-				// std::cout << "\noperator+= :" << *this  << " size:" << this->size();
-				return *this;
-			}
-			Path& operator--() {
-				m_path.pop_back();
-				// std::cout << "\noperator-- :" << *this << " size:" << this->size();
-				return *this;
-			}
-			Path parent() {
-				Path result{*this};
-				--result;
-				// std::cout << "\nparent:" << result << " size:" << result.size();
-				return result;
-			}
-			std::string back() const {return m_path.back();}
-			std::string operator[](std::size_t pos) const {return m_path[pos];}
-			friend std::ostream& operator<<(std::ostream& os,Path const& key_path);
-			std::string to_string() const {
-				std::ostringstream os{};
-				os << *this;
-				return os.str();
-			}
-		private:
-			std::vector<std::string> m_path{};
-			char m_delim{'^'};
-		}; // class Path
-
-		using Paths = std::vector<Path>;
-
-		std::ostream& operator<<(std::ostream& os,Key::Path const& key_path) {
-			int key_count{0};
-			for (auto const& key : key_path) {
-				if (key_count++>0) os << key_path.m_delim;
-				for (auto ch : key) {
-					if (std::isprint(ch)) os << ch; // Filter out non printable characters (AND characters in wrong encoding, e.g., charset::ISO_8859_1 from raw file input that erroneously end up here ...)
-					else os << "?";
-				}
-				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
-			}
-			return os;
-		}
-} // namespace Key
-
 namespace doc {
 
 	namespace meta {
@@ -2016,572 +2586,6 @@ namespace SKV {
 
 	} // namespace SRU
 }
-
-using Date = std::chrono::year_month_day;
-using OptionalDate = std::optional<Date>;
-
-std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
-	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support?)
-	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
-	return os;
-}
-std::string to_string(Date const& yyyymmdd) {
-		std::ostringstream os{};
-		os << yyyymmdd;
-		return os.str();
-}
-
-Date to_date(int year,unsigned month,unsigned day) {
-	return Date {
-		std::chrono::year{year}
-		,std::chrono::month{month}
-		,std::chrono::day{day}
-	};
-}
-
-OptionalDate to_date(std::string const& sYYYYMMDD) {
-	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
-	OptionalDate result{};
-	try {
-		if (sYYYYMMDD.size()==8) {
-			result = to_date(
-				std::stoi(sYYYYMMDD.substr(0,4))
-				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
-				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
-		}
-		else {
-			// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
-			std::string sDate = filtered(sYYYYMMDD,::isdigit);
-			if (sDate.size()==8) result = to_date(sDate);
-		}
-		// if (result) std::cout << " = " << *result;
-		// else std::cout << " = null";
-	}
-	catch (std::exception const& e) {} // swallow silently
-	return result;
-}
-
-Date to_today() {
-	// TODO: Upgrade to correct std::chrono way when C++20 compiler support is there
-	// std::cout << "\nto_today";
-	std::ostringstream os{};
-	auto now_timet = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	std::tm* now_local = localtime(&now_timet);
-	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
-}
-
-class DateRange {
-public:
-	DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
-	DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-		OptionalDate begin{to_date(yyyymmdd_begin)};
-		OptionalDate end{to_date(yyyymmdd_end)};
-		if (begin and end) {
-			m_valid = true;
-			m_begin = *begin;
-			m_end = *end;
-		}
-	}
-	Date begin() const {return m_begin;}
-	Date end() const {return m_end;}
-	bool contains(Date const& date) const { return begin() <= date and date <= end();}
-	operator bool() const {return m_valid;}
-private:
-	bool m_valid{};
-	Date m_begin{};
-	Date m_end{};
-};
-using OptionalDateRange = std::optional<DateRange>;
-
-struct Quarter {
-	unsigned ix;
-};
-
-Quarter to_quarter(Date const& a_period_date) {
-	return {((static_cast<unsigned>(a_period_date.month())-1) / 3u)+ 1u}; // ((0..3) + 1
-}
-
-std::chrono::month to_quarter_begin(Quarter const& quarter) {
-	unsigned begin_month_no = (quarter.ix-1u) * 3u + 1u; // [0..3]*3 = [0,3,6,9] + 1 = [1,4,7,10]
-	return std::chrono::month{begin_month_no};
-}
-
-std::chrono::month to_quarter_end(Quarter const& quarter) {
-	return (to_quarter_begin(quarter) + std::chrono::months{2});
-}
-
-DateRange to_quarter_range(Date const& a_period_date) {
-// std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
-	auto quarter = to_quarter(a_period_date);
-	auto begin_month = to_quarter_begin(quarter);
-	auto end_month = to_quarter_end(quarter);
-	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
-	auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
-  if (false) {
-    std::cout << "\nto_quarter_range(" << a_period_date << ") --> " << begin << ".." << end;
-  }
-	return {begin,end};
-}
-
-DateRange to_three_months_earlier(DateRange const& quarter) {
-	auto const quarter_duration = std::chrono::months{3};
-  // get the year and month for the date range to return
-  auto ballpark_end = quarter.end() - quarter_duration;
-  // Adjust the end day to the correct one for the range end month
-  auto end = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
-  // Note: We do not need to adjust the begin day as all month starts on day 1
-	return {quarter.begin() - quarter_duration,end};
-}
-
-std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
-	os << dr.begin() << "..." << dr.end();
-	return os;
-}
-
-struct IsPeriod {
-	DateRange period;
-	bool operator()(Date const& date) const {
-		return period.contains(date);
-	}
-};
-
-IsPeriod to_is_period(DateRange const& period) {
-	return {period};
-}
-
-std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-	std::optional<IsPeriod> result{};
-	if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
-	else {
-		std::cout << "\nERROR, to_is_period failed. Invalid period " << std::quoted(yyyymmdd_begin) << " ... " << std::quoted(yyyymmdd_begin);
-	}
-	return result;
-}
-
-// using Amount= float;
-using Amount= double;
-using OptionalAmount = std::optional<Amount>;
-
-OptionalAmount to_amount(std::string const& sAmount) {
-	// std::cout << "\nto_amount " << std::quoted(sAmount);
-	OptionalAmount result{};
-	Amount amount{};
-	std::istringstream is{sAmount};
-	if (auto pos = sAmount.find(','); pos != std::string::npos) {
-		// Handle 123,45 ==> 123.45
-		result = to_amount(std::accumulate(sAmount.begin(),sAmount.end(),std::string{},[](auto acc,char ch){
-			acc += (ch==',')?'.':ch;
-			return acc;
-		}));
-	}
-	else if (is >> amount) {
-		result = amount;
-	}
-	else {
-		// handle integer (no decimal point)
-		try {
-			auto int_amount = std::stoi(sAmount);
-			result = static_cast<Amount>(int_amount);
-		}
-		catch (std::exception const& e) { /* failed - do nothing */}
-	}
-	// if (result) std::cout << "\nresult " << *result;
-	return result;
-}
-
-using CentsAmount = int;
-using OptionalCentsAmount = std::optional<CentsAmount>;
-
-OptionalCentsAmount to_cents_amount(std::string const& s) {
-	OptionalCentsAmount result{};
-	CentsAmount ca{};
-	try {
-		ca = std::stoi(s);
-		result = ca;
-	}
-	catch (...) {
-		// Whine about input and failure
-		std::cout << "\nThe string " << std::quoted(s) << " is not a valid cents amount (to_cents_amount returns nullopt)";
-	}
-	return result;
-}
-
-CentsAmount to_cents_amount(Amount amount) {
-	return std::round(amount*100);
-}
-
-using UnitsAmount = int;
-using UnitsAndCents = std::pair<UnitsAmount,CentsAmount>;
-
-UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
-	UnitsAndCents result{std::round(cents_amount / 100),cents_amount % 100};
-	return result;
-}
-
-Amount to_amount(UnitsAndCents const& units_and_cents) {
-  return static_cast<Amount>(units_and_cents.first) + static_cast<Amount>(units_and_cents.second) / 100;
-}
-
-std::ostream& operator<<(std::ostream& os,UnitsAndCents const& units_and_cents) {
-  bool is_negative = (units_and_cents.first<0) or (units_and_cents.second < 0);
-  if (is_negative) os << "-";
-	os << std::abs(units_and_cents.first) << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
-	return os;
-}
-
-std::string to_string(UnitsAndCents const& units_and_cents) {
-	std::ostringstream os{};
-	os << units_and_cents;
-	return os.str();
-}
-
-class TaggedAmount {
-public:
-  friend std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta);
-  using OptionalTagValue = std::optional<std::string>;
-  using Tags = std::map<std::string,std::string>;
-  using ValueId = std::size_t;
-  using OptionalValueId = std::optional<ValueId>;
-  using ValueIds = std::vector<ValueId>;
-  using OptionalValueIds = std::optional<ValueIds>;
-  TaggedAmount(Date const& date,CentsAmount const& cents_amount,Tags&& tags = Tags{})
-    : m_date{date}
-      ,m_cents_amount{cents_amount}
-      ,m_tags{tags} {} 
-
-  // Getters
-  Date const& date() const {return m_date;}
-  CentsAmount const& cents_amount() const {return m_cents_amount;}
-  Tags const& tags() const {return m_tags;}	
-  Tags& tags() {return m_tags;}
-
-  // Map key to optional value
-  OptionalTagValue tag_value(std::string const& key) const {
-    OptionalTagValue result{};
-    if (m_tags.contains(key)) {
-      result = m_tags.at(key); 
-    }
-    return result;
-  }
-
-  bool operator==(TaggedAmount const& other) const;
-
-  // tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
-  static std::string to_string(TaggedAmount::ValueId value_id) {
-    std::ostringstream os{};
-    os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << value_id;
-    return os.str();
-  }
-
-private:
-  Date m_date;
-  CentsAmount m_cents_amount;
-  Tags m_tags;
-}; // class TaggedAmount
-
-using TaggedAmounts = std::vector<TaggedAmount>;
-using OptionalTaggedAmount = std::optional<TaggedAmount>;
-using OptionalTaggedAmounts = std::optional<TaggedAmounts>;
-
-// From boost::hash_combine for std::size_t
-template <class T>
-inline void hash_combine(std::size_t& seed, const T& v)
-{
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2); // *magic* dustribution as defined by boost::hash_combine
-}
-
-namespace std {
-  template<>
-  struct hash<TaggedAmount> {
-      std::size_t operator()(TaggedAmount const& ta) const noexcept {
-          std::size_t result{};
-        auto yyyymmdd = ta.date();
-        hash_combine(result, static_cast<int>(yyyymmdd.year()));
-        hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
-        hash_combine(result, static_cast<unsigned>(yyyymmdd.day()));
-        hash_combine(result, ta.cents_amount());
-        for (auto const& [key,value] : ta.tags()) {
-          hash_combine(result, key);
-          hash_combine(result, value);
-        }
-        return result;
-      }
-  };
-} // namespace std
-
-TaggedAmount::ValueId to_value_id(TaggedAmount const& ta) {
-  return std::hash<TaggedAmount>{}(ta);
-}
-
-bool TaggedAmount::operator==(TaggedAmount const& other) const {
-  auto result =     this->date() == other.date() 
-                and this->cents_amount() == other.cents_amount()
-                and std::all_of(
-                    m_tags.begin()
-                  ,m_tags.end()
-                  ,[&other](Tags::value_type const& entry) {
-                    return (     (entry.first.starts_with("_"))
-                              or (     other.tags().contains(entry.first) 
-                                    and other.tags().at(entry.first) == entry.second));
-                  });
-
-  // std::cout << "\nTaggedAmountClass::operator== ";
-  // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
-  return result;
-}
-
-std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
-  os << TaggedAmount::to_string(to_value_id(ta));
-  os << " " << ::to_string(ta.date());
-  os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
-  for (auto const& tag : ta.tags()) {
-    os << " \"" << tag.first << "=" << tag.second << "\"";
-  }
-  return os;
-}
-
-TaggedAmount::OptionalValueId to_value_id(std::string const& s) {
-	// std::cout << "\nto_value_id()" << std::flush;
-	TaggedAmount::OptionalValueId result{};
-	TaggedAmount::ValueId value_id{};
-	std::istringstream is{s};
-	try {
-		is >> std::hex >> value_id;
-		result = value_id;
-	}
-	catch (...) {
-		std::cout << "\nto_value_id(" << std::quoted(s) << ") failed. General Exception caught." << std::flush;
-	}
-	return result;
-}
-
-TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
-	std::cout << "\nto_value_ids()" << std::flush;
-	TaggedAmount::OptionalValueIds result{};
-	TaggedAmount::ValueIds value_ids{};
-	for (auto const& sid : sids) {
-		if (auto value_id = to_value_id(sid)) {
-			std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
-			value_ids.push_back(*value_id);
-		}
-		else {
-			std::cout << "\nto_value_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
-		}
-	}
-	if (value_ids.size() == sids.size()) {
-		result = value_ids;
-	}
-	else {
-		std::cout << "\nto_value_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << value_ids.size() << " out of " << sids.size() << " possible.";
-	}
-	return result;
-}
-
-using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
-using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmount>;
-
-namespace tas {
-	// namespace for processing that produces tagged amounts and tagged amounts
-
-	// Generic for parsing a range or container of tagged amount pointers into a vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas account)
-	TaggedAmounts to_bas_omslutning(auto const& tas) {
-		TaggedAmounts result{};
-		using BASBuckets = std::map<BAS::AccountNo,TaggedAmounts>;
-		BASBuckets bas_buckets{};
-		auto is_valid_bas_account_transaction = [](TaggedAmount const& ta){
-			if (ta.tags().contains("BAS") and !(BAS::to_account_no(ta.tags().at("BAS")))) {
-				// Whine about invalid tagging of 'BAS' tag!
-				// It is vital we do NOT have any badly tagged BAS account transactions as this will screw up the saldo calculation!
-				std::cout << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to create a valid BAS account no from tag 'BAS' with value " << std::quoted(ta.tags().at("BAS"));
-				return false;
-			}
-			else return (     (ta.tags().contains("BAS"))
-										and (BAS::to_account_no(ta.tags().at("BAS")))
-										and (    (     (ta.tags().contains("type") == false))
-													or (     (ta.tags().contains("type") == true)
-															 and (ta.tags().at("type") != "saldo"))));
-		};
-		for (auto const& ta : tas) {
-			if (is_valid_bas_account_transaction(ta)) {
-				bas_buckets[*BAS::to_account_no(ta.tags().at("BAS"))].push_back(ta);
-			}
-		}
-		for (auto const& [bas_account_no,tas] : bas_buckets) {
-			Date period_end_date{};
-			std::cout << "\n" << bas_account_no;
-			auto cents_saldo = std::accumulate(tas.begin(),tas.end(),CentsAmount{0},[&period_end_date](auto acc, auto const& ta){
-				period_end_date = std::max(period_end_date,ta.date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
-				acc += ta.cents_amount();
-				std::cout << "\n\t" << period_end_date << " " << to_string(to_units_and_cents(ta.cents_amount())) << " ackumulerat:" << to_string(to_units_and_cents(acc));
-				return acc;
-			});
-
-			TaggedAmount saldo_ta{period_end_date,cents_saldo};
-			saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
-			saldo_ta.tags()["type"] = "saldo";
-			result.push_back(saldo_ta);
-		}
-		return result;
-	}
-}
-
-class DateOrderedTaggedAmountsContainer {
-	public:
-		using OptionalTagValue = TaggedAmount::OptionalTagValue;
-		using Tags = TaggedAmount::Tags;
-		using ValueId = TaggedAmount::ValueId;
-		using OptionalValueId = TaggedAmount::OptionalValueId;
-		using ValueIds = TaggedAmount::ValueIds;
-		using OptionalValueIds = TaggedAmount::OptionalValueIds;
-
-		using iterator = TaggedAmounts::iterator;
-		using const_iterator = TaggedAmounts::const_iterator;
-		TaggedAmounts const& tagged_amounts() {return m_date_ordered_tagged_amounts;}
-		std::size_t size() const { return m_date_ordered_tagged_amounts.size();}
-		iterator begin() {return m_date_ordered_tagged_amounts.begin();}
-		iterator end() {return m_date_ordered_tagged_amounts.end();}
-		const_iterator begin() const {return m_date_ordered_tagged_amounts.begin();}
-		const_iterator end() const {return m_date_ordered_tagged_amounts.end();}
-		auto in_date_range(DateRange const& date_period) {
-			auto first = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta){
-				return (ta.date() >= date_period.begin());
-			});
-			auto last = std::find_if(this->begin(),this->end(),[&date_period](auto const& ta){
-				return (ta.date() > date_period.end());
-			});
-			return std::ranges::subrange(first,last);
-		}
-
-    OptionalTaggedAmount at(ValueId const& value_id) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << TaggedAmount::to_string(value_id) << ")" << std::flush;
-			OptionalTaggedAmount result{};
-			if (m_tagged_amount_value_id_map.contains(value_id)) {
-				result = m_tagged_amount_value_id_map.at(value_id);
-			}
-			else {
-				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to value_id=" << TaggedAmount::to_string(value_id) << std::flush;
-			}
-			return result;
-    }
-
-		OptionalTaggedAmount operator[](ValueId const& value_id) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::operator[](" << TaggedAmount::to_string(value_id) << ")" << std::flush;
-			OptionalTaggedAmount result{};
-			if (auto o_ptr = this->at(value_id)) {
-				result = o_ptr;
-			}
-			else {
-				std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not find a mapping to value_id=" << TaggedAmount::to_string(value_id) << std::flush;
-			}
-			return result;
-		}
-
-		OptionalTaggedAmounts to_ta_ptrs(ValueIds const& value_ids) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs()" << std::flush;
-			OptionalTaggedAmounts result{};
-			TaggedAmounts tas{};
-			for (auto const& value_id : value_ids) {
-				if (auto o_ta = (*this)[value_id]) {
-					tas.push_back(*o_ta);
-				}
-				else {
-					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for value_id=" << TaggedAmount::to_string(value_id) << std::flush;
-				}
-			}
-			if (tas.size() == value_ids.size()) {
-				result = tas;
-			}
-			else {
-				std::cout << "\nto_ta_ptrs() Failed. tas.size() = " << tas.size() << " IS NOT provided value_ids.size() = " << value_ids.size() << std::flush;
-			}
-			return result;
-		}
-
-		DateOrderedTaggedAmountsContainer& clear() {
-			m_tagged_amount_value_id_map.clear();
-			m_date_ordered_tagged_amounts.clear();
-			return *this;
-		}
-
-		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
-			this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
-			this->m_tagged_amount_value_id_map = other.m_tagged_amount_value_id_map;
-			return *this;
-		}
-
-    // TODO 240218: Consider to provide a predicate for the caller to control what should be regarded as "same value"
-    //              This could be a way to apply special teratment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
-    // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a godd solution for this?
-		iterator insert(TaggedAmount const& ta) {
-			auto result = m_date_ordered_tagged_amounts.end();
-      auto value_id = to_value_id(ta);
-      if (m_tagged_amount_value_id_map.contains(value_id) == false) {
-        // Find the last element with a date less than the date of ta        
-        auto end = std::upper_bound(m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end(),ta,[](TaggedAmount const& ta1, TaggedAmount const& ta2) {
-            return ta1.date() < ta2.date();
-        });
-
-			  m_tagged_amount_value_id_map.insert({value_id,ta}); // id -> ta
-				result = m_date_ordered_tagged_amounts.insert(end,ta); // place after all with date less than the one of ta
-      }
-      else {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
-        std::cout << "\n                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
-      }
-			return result;
-		}
-
-    DateOrderedTaggedAmountsContainer erase(ValueId const& value_id) {
-      if (auto o_ptr = this->at(value_id)) {
-        m_tagged_amount_value_id_map.erase(value_id);
-        auto iter = std::ranges::find(m_date_ordered_tagged_amounts,*o_ptr);
-        if (iter != m_date_ordered_tagged_amounts.end()) {
-          m_date_ordered_tagged_amounts.erase(iter);
-        }
-        else {
-          std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in map but not in date-ordered-vector, value_id " << value_id;
-        }
-      }
-      else {
-        std::cout << "nDateOrderedTaggedAmountsContainer::at failed to find value_id " << value_id;
-      }
-      return *this;
-    }
-
-		DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
-			for (auto const& ta : m_date_ordered_tagged_amounts) {
-				f(ta);
-			}
-			return *this;
-		}
-
-		DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const& other) {
-			other.for_each([this](TaggedAmount const& ta){
-        // TODO 240217: Consider a way to ensure that SIE entries in SIE file has preceedence (overwrite any existing tagged amounts reflecting the same events)
-        // Hm...Maybe this is NOT the convenient place to do this?
-				this->insert(ta);
-			});
-			return *this;
-		}
-		DateOrderedTaggedAmountsContainer& operator+=(TaggedAmounts const& tas) {
-			for (auto const& ta : tas) this->insert(ta);
-			return *this;
-		}
-
-		DateOrderedTaggedAmountsContainer& operator=(TaggedAmounts const& tas) {
-			this->clear();
-			*this += tas;
-			return *this;
-		}
-
-	private:
-    // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between value_id and tagged amount pointer and once in a vector ordered by date.
-		TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <instance id> -> <tagged amount ptr>
-		TaggedAmounts m_date_ordered_tagged_amounts{};  // vector of tagged amount ptrs ordered by date
-}; // class DateOrderedTaggedAmountsContainer
 
 namespace CSV {
 	// For CSV-files
