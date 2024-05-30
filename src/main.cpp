@@ -772,54 +772,65 @@ using OptionalCentsAmount = std::optional<CentsAmount>;
 
 // using Amount= float;
 // using Amount= double;
+
+
+/*
+  Amount holds the quantity of a currency and behaves as a real number whole and cents, e.g. 135.40
+  This means that the value 10 is 10 units of currency, NOT 10 cents of currency.
+  But internally it operates a value in cents, e.g., 13540 cents for 135.40 Amount
+  The interface with any client is through a real number representing Amount (NOT cents amount)
+  But, math operators accepts also integer amounts, still assumed to be whole amounts (not amount in cents)
+  So, it allows both real numbers and integers to 'leak in' as arguments to math operations.
+  But, it never allows 'leak out' of the cents amount as any built in integral type.
+*/
 class Amount {
 public:
     // Constructors
-    Amount() : value_(0.0) {}
-    explicit Amount(double value) : value_(value) {}
+    Amount() : cents_integer_value_(0) {}
+    explicit Amount(double real_value) : cents_integer_value_(Amount::to_cents_amount(real_value)) {}
 
     // Conversion operator
-    operator double() const { return value_; }
+    operator double() const { return this->to_double(); }
 
     // Arithmetic operators
-    Amount operator+(Amount const& other) const { return Amount(value_ + other.value_); }
-    Amount operator-(Amount const& other) const { return Amount(value_ - other.value_); }
+    Amount operator+(Amount const& other) const { return Amount(cents_integer_value_ + other.cents_integer_value_); }
+    Amount operator-(Amount const& other) const { return Amount(cents_integer_value_ - other.cents_integer_value_); }
     Amount operator*(auto const& other) const {
         if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
-            return Amount(value_ * other);
+            return Amount(cents_integer_value_ * other);
         } else {
-            return Amount(value_ * other.value_);
+            return Amount(cents_integer_value_ * other.cents_integer_value_);
         }
     }    
     Amount operator/(auto const& other) const {
         if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
-            return Amount(value_ / other);
+            return Amount(cents_integer_value_ / other);
         } else {
-            return Amount(value_ / other.value_);
+            return Amount(cents_integer_value_ / other.cents_integer_value_);
         }
     }
 
     Amount& operator+=(auto const& other) {
         if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
-            value_ += other;
+            cents_integer_value_ += other;
         } else {
-            value_ += other.value_;
+            cents_integer_value_ += other.cents_integer_value_;
         }
        return *this; 
     }
-    Amount& operator-=(const Amount& other) { value_ -= other.value_; return *this; }
-    Amount& operator*=(const Amount& other) { value_ *= other.value_; return *this; }
-    Amount& operator/=(const Amount& other) { value_ /= other.value_; return *this; }
+    Amount& operator-=(const Amount& other) { cents_integer_value_ -= other.cents_integer_value_; return *this; }
+    Amount& operator*=(const Amount& other) { cents_integer_value_ *= other.cents_integer_value_; return *this; }
+    Amount& operator/=(const Amount& other) { cents_integer_value_ /= other.cents_integer_value_; return *this; }
 
-    Amount& operator-() { value_ = -value_; return *this; }
-    Amount operator-() const { return Amount{-value_};}
+    Amount& operator-() { cents_integer_value_ = -cents_integer_value_; return *this; }
+    Amount operator-() const { return Amount{-this->to_double()};}
 
-    // Assignment operators
+    // Assignment operators (other assumed to be a whole amount in any number type, that is, never a cents amount)
     Amount& operator=(auto const& other) {
         if constexpr (std::is_arithmetic_v<std::decay_t<decltype(other)>>) {
-            value_ = other;
+            cents_integer_value_ = Amount::to_cents_amount(other);
         } else {
-            value_ = other.value_;
+            cents_integer_value_ = other.cents_integer_value_;
         }
        return *this; 
     }
@@ -828,33 +839,52 @@ public:
     template <typename T>
     constexpr auto operator<=>(const T& other) const {
         if constexpr (std::is_same_v<std::decay_t<T>, Amount>) {
-            return value_ <=> other.value_;
+            return cents_integer_value_ <=> other.cents_integer_value_;
         } else if constexpr (std::is_arithmetic_v<std::decay_t<T>>) {
-            return value_ <=> other;
+            return cents_integer_value_ <=> other;
         } else {
             static_assert(false, "Comparison not supported for this type");
         }
     }    
-    // bool operator==(const Amount& other) const { return value_ == other.value_; }
-    // bool operator!=(const Amount& other) const { return value_ != other.value_; }
-    // bool operator<(const Amount& other) const { return value_ < other.value_; }
-    // bool operator<=(const Amount& other) const { return value_ <= other.value_; }
-    // bool operator>(const Amount& other) const { return value_ > other.value_; }
-    // bool operator>=(const Amount& other) const { return value_ >= other.value_; }
+    // bool operator==(const Amount& other) const { return cents_integer_value_ == other.cents_integer_value_; }
+    // bool operator!=(const Amount& other) const { return cents_integer_value_ != other.cents_integer_value_; }
+    // bool operator<(const Amount& other) const { return cents_integer_value_ < other.cents_integer_value_; }
+    // bool operator<=(const Amount& other) const { return cents_integer_value_ <= other.cents_integer_value_; }
+    // bool operator>(const Amount& other) const { return cents_integer_value_ > other.cents_integer_value_; }
+    // bool operator>=(const Amount& other) const { return cents_integer_value_ >= other.cents_integer_value_; }
 
     // Stream operators
     friend std::ostream& operator<<(std::ostream& os, const Amount& amount) {
-        os << amount.value_;
+        os << Amount::to_double(amount.cents_integer_value_);
         return os;
     }
 
     friend std::istream& operator>>(std::istream& is, Amount& amount) {
-        is >> amount.value_;
+        double real_amount{};
+        is >> real_amount;
+        amount = real_amount;
         return is;
     }
 
+    CentsAmount to_cents_amount() const {
+      return this->cents_integer_value_;
+    }
+
 private:
-    double value_;
+    // double cents_integer_value_;
+    CentsAmount cents_integer_value_;
+
+    static double to_double(CentsAmount cents_amount) {
+      return cents_amount / 100.0; 
+    }
+    static CentsAmount to_cents_amount(double other) {
+      return other*100;
+    }
+
+    double to_double() const {
+      return Amount::to_double(this->cents_integer_value_);
+    }
+
 }; // class Amount
 
 Amount abs(Amount const& other) {
@@ -867,6 +897,10 @@ Amount round(Amount const& other) {
 
 Amount trunc(Amount const& other) {
   return Amount{std::trunc(other)};
+}
+
+CentsAmount to_cents_amount(Amount const& amount) {
+  return amount.to_cents_amount();
 }
 
 using OptionalAmount = std::optional<Amount>;
@@ -910,10 +944,6 @@ OptionalCentsAmount to_cents_amount(std::string const& s) {
 		std::cout << "\nThe string " << std::quoted(s) << " is not a valid cents amount (to_cents_amount returns nullopt)";
 	}
 	return result;
-}
-
-CentsAmount to_cents_amount(Amount amount) {
-	return std::round(amount*100);
 }
 
 using UnitsAmount = int;
@@ -3046,6 +3076,7 @@ namespace BAS {
 		}
 	}
 
+  // TODO 20240530 - Now when Amount uses CentsAmount internally this BAS::to_cents_amount 'pruning' of decimals below cents are no longer needed?
 	Amount to_cents_amount(Amount const& amount) {
 		return Amount{std::round(amount*100.0)/100.0};
 	}
