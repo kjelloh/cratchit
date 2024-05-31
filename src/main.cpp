@@ -834,17 +834,6 @@ public:
   friend double to_double(Amount const& amount);
   friend Amount operator*(double a, Amount const &b);
   
-  // Round to whole amount
-  static Amount round(Amount const &amount) {
-    return Amount{std::round(amount.m_double_value)};
-  }
-
-  // return positive amount value (remove negative sign)
-  static Amount abs(Amount const &amount) {
-    return Amount{std::abs(amount.m_double_value)};
-  }
-
-
 private:
   double m_double_value;
 };
@@ -888,6 +877,18 @@ double to_double(Amount const& amount) {
   return detail::to_double(amount); // delegate to 'if constexpr' shaped to_double
 }
 
+// Round to whole amount
+Amount round(Amount const &amount) {
+  return Amount{std::round(to_double(amount))};
+}
+
+// return positive amount value (remove negative sign)
+template<typename T>
+requires std::is_class_v<T> && std::is_same_v<T, Amount>
+T abs(T const& amount) {
+  return T{abs(to_double(amount))};
+}
+
 using OptionalAmount = std::optional<Amount>;
 
 OptionalAmount to_amount(std::string const& sAmount) {
@@ -917,14 +918,14 @@ OptionalAmount to_amount(std::string const& sAmount) {
 	return result;
 }
 
-// Define operator<< for class Amount when Amount is a class and its name is 'Amount'
+// Define operator<< for Amount when Amount is a class and its name is 'Amount'
 template<typename T>
 requires std::is_class_v<T> && std::is_same_v<T, Amount>
-std::istream& operator>>(std::istream& is, Amount& amount) {
+std::istream& operator>>(std::istream& is, T& amount) {
     std::string token;
     if (is >> token) {
       if (auto result = to_amount(token)) {
-        amount = Amount{*result};
+        amount = T{*result};
       }
       else {
         // Make the istream signal failure to stream to an Amount
@@ -975,7 +976,7 @@ Amount to_amount(UnitsAndCents const& units_and_cents) {
 std::ostream& operator<<(std::ostream& os,UnitsAndCents const& units_and_cents) {
   bool is_negative = (units_and_cents.first<0) or (units_and_cents.second < 0);
   if (is_negative) os << "-";
-	os << std::abs(units_and_cents.first) << ',' << std::setfill('0') << std::setw(2) << std::abs(units_and_cents.second);
+	os << abs(units_and_cents.first) << ',' << std::setfill('0') << std::setw(2) << abs(units_and_cents.second);
 	return os;
 }
 
@@ -4597,7 +4598,7 @@ BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonym
 	BAS::anonymous::OptionalAccountTransaction result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
-		return std::abs(at.amount) == trans_amount;
+		return abs(at.amount) == trans_amount;
 	});
 	if (iter != aje.account_transactions.end()) result = *iter;
 	return result;
@@ -4629,8 +4630,8 @@ BAS::anonymous::OptionalAccountTransaction net_account_transaction(BAS::anonymou
 	BAS::anonymous::OptionalAccountTransaction result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
-		return (std::abs(at.amount) < trans_amount and not is_vat_account_at(at));
-		// return std::abs(at.amount) == 0.8*trans_amount;
+		return (abs(at.amount) < trans_amount and not is_vat_account_at(at));
+		// return abs(at.amount) == 0.8*trans_amount;
 	});
 	if (iter != aje.account_transactions.end()) result = *iter;
 	return result;
@@ -4641,7 +4642,7 @@ BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymou
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
 		return is_vat_account_at(at);
-		// return std::abs(at.amount) == 0.2*trans_amount;
+		// return abs(at.amount) == 0.2*trans_amount;
 	});
 	if (iter != aje.account_transactions.end()) result = *iter;
 	return result;
@@ -4680,7 +4681,7 @@ public:
 					return result;
 				});
 				std::sort(this->templates.begin(),this->templates.end(),[](auto const& e1,auto const& e2){
-					return (std::abs(e1.percent()) > std::abs(e2.percent())); // greater to lesser
+					return (abs(e1.percent()) > abs(e2.percent())); // greater to lesser
 				});
 			}
 			else {
@@ -4740,7 +4741,7 @@ BAS::MetaEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEn
 	};
 	result.defacto.caption = had.heading;
 	result.defacto.date = had.date;
-	result.defacto.account_transactions = jet(std::abs(had.amount)); // Ignore sign to have template apply its sign
+	result.defacto.account_transactions = jet(abs(had.amount)); // Ignore sign to have template apply its sign
 	return result;
 }
 
@@ -4764,7 +4765,7 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 // ==================================================================================
 
 bool are_same_and_less_than_100_cents_apart(Amount const& a1,Amount const& a2) {
-	bool result = (std::abs(std::abs(a1) - std::abs(a2)) < 1.0);
+	bool result = (abs(abs(a1) - abs(a2)) < 1.0);
 	return result;
 }
 
@@ -4811,13 +4812,13 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 		auto& vat_amount = result.defacto.account_transactions[2].amount;
 		auto& round_amount = result.defacto.account_transactions[3].amount;
 
-		auto abs_trans_amount = std::abs(trans_amount);
-		auto abs_ex_vat_amount = std::abs(ex_vat_amount);
-		auto abs_vat_amount = std::abs(vat_amount);
-		auto abs_round_amount = std::abs(round_amount);
-		auto abs_at_amount = std::abs(at.amount);
+		auto abs_trans_amount = abs(trans_amount);
+		auto abs_ex_vat_amount = abs(ex_vat_amount);
+		auto abs_vat_amount = abs(vat_amount);
+		auto abs_round_amount = abs(round_amount);
+		auto abs_at_amount = abs(at.amount);
 
-		auto trans_amount_sign = static_cast<int>(trans_amount / std::abs(trans_amount));
+		auto trans_amount_sign = static_cast<int>(trans_amount / abs(trans_amount));
 		auto vat_sign = static_cast<int>(vat_amount/abs_vat_amount); // +-1
 		auto at_sign = static_cast<int>(at.amount/abs_at_amount);
 
@@ -4858,7 +4859,7 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 							round_amount = at.amount;
 							// std::cout << "\ntrans_amount_sign " << trans_amount_sign;
 							// std::cout << "\nvat_sign " << vat_sign; 
-							auto adjusted_trans_amount = std::abs(trans_amount+round_amount);
+							auto adjusted_trans_amount = abs(trans_amount+round_amount);
 							// std::cout << "\nadjusted_trans_amount " << trans_amount_sign*adjusted_trans_amount;
 							// std::cout << "\nvat_rate " << vat_rate;
 							auto reverse_vat_factor = vat_rate*1.0/(100+vat_rate); // E.g. 25/125 = 0.2
@@ -5343,10 +5344,10 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 		auto gross_amount = *optional_gross_amount; 
 		// Direct type detection based on gross_amount and account meta data
 		for (auto const& at : me.defacto.account_transactions) {
-			if (std::round(std::abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
+			if (std::round(abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
 			if (is_vat_account_at(at)) typed_ats[at].insert("vat");
-			if (std::abs(at.amount) < 1) typed_ats[at].insert("cents");
-			if (std::round(std::abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
+			if (abs(at.amount) < 1) typed_ats[at].insert("cents");
+			if (std::round(abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
 		}
 
 		// Ex vat amount Detection
@@ -5361,7 +5362,7 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 			}
 		}
     std::string net_or_counter_tag = (vat_amount != 0)?std::string{"net"}:std::string{"counter"};
-		if (std::abs(std::round(std::abs(ex_vat_amount)) + std::round(std::abs(vat_amount)) - gross_amount) <= 1) {
+		if (abs(std::round(abs(ex_vat_amount)) + std::round(abs(vat_amount)) - gross_amount) <= 1) {
 			// ex_vat + vat within cents of gross
 			// tag non typed ats as ex-vat
 			for (auto const& at : me.defacto.account_transactions) {
@@ -5403,7 +5404,7 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 	// Mark gross accounts for EU VAT transaction journal entry
 	for (auto const& at : me.defacto.account_transactions) {
 		// We expect two accounts left unmarked and they are the gross accounts
-		if (!typed_ats.contains(at) and (std::abs(at.amount) == std::abs(eu_purchase_amount))) {
+		if (!typed_ats.contains(at) and (abs(at.amount) == abs(eu_purchase_amount))) {
 			typed_ats[at].insert("gross");
 		}
 	}
@@ -5707,7 +5708,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x3: {
@@ -5715,12 +5716,12 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x5: {
 							// eu_vat +/-
-							auto vat_amount = static_cast<Amount>(((tat.first.amount<0)?-1.0:1.0) * 0.2 * std::abs(gross_amount));
+							auto vat_amount = static_cast<Amount>(((tat.first.amount<0)?-1.0:1.0) * 0.2 * abs(gross_amount));
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
@@ -5746,7 +5747,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 							me_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-std::abs(gross_amount):std::abs(gross_amount)
+								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						}; break;
 					} // switch
@@ -5782,7 +5783,7 @@ bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransactions 
 				result = are_same_and_less_than_100_cents_apart(ats1[i],ats2[i]);
 			}
 			else {
-				result = std::abs(ats1[i].amount) < 1.0; // Do not care about cents
+				result = abs(ats1[i].amount) < 1.0; // Do not care about cents
 			}
 		}
 	}
@@ -6613,7 +6614,7 @@ namespace SKV { // SKV
 				switch (box_no) {
 					// TODO: Consider it is in fact so that all amounts to SKV are to have the opposite sign of those in BAS?
 					case 49: return -1 * amount; break; // The VAT Returns form must encode VAT to be paied as positive (opposite of how it is booked in BAS, negative meaning a debt to SKV)
-					default: return std::abs(amount);
+					default: return abs(amount);
 				}
 			}
 
@@ -7009,7 +7010,7 @@ namespace SKV { // SKV
 								}
 
 								// Valid amount if > 1.0 SEK (takes care of invalid entries caused by rounding errors)
-								if (std::abs(account_amounts[0]) >= 1.0) {
+								if (abs(account_amounts[0]) >= 1.0) {
 									std::ostringstream heading{};
 									heading << "Momsrapport " << current_quarter;
 									HeadingAmountDateTransEntry had{
@@ -7049,7 +7050,7 @@ namespace SKV { // SKV
 
 			// Correct sign and rounding
 			Amount to_eu_sales_list_amount(Amount amount) {
-				return std::abs(std::round(amount)); // All amounts in the sales list form are defined to be positve (although sales in BAS are negative credits)
+				return abs(std::round(amount)); // All amounts in the sales list form are defined to be positve (although sales in BAS are negative credits)
 			}
 
 			// Correct amount type for the form
@@ -8780,7 +8781,7 @@ Cmd Updater::operator()(Command const& command) {
           and model->prompt_state != PromptState::EnterIncome
           and model->prompt_state != PromptState::EnterDividend) {
       // std::cout << "\nAct on ix = " << *signed_ix << " in state:" << static_cast<int>(model->prompt_state);
-      size_t ix = std::abs(*signed_ix);
+      size_t ix = abs(*signed_ix);
       bool do_remove = (ast[0][0] == '-');
       // Act on prompt state index input
       switch (model->prompt_state) {
@@ -8838,7 +8839,7 @@ Cmd Updater::operator()(Command const& command) {
               std::cout << "\nprepend with heading:" << std::quoted(ast[2]) << " Date:" << ast[3];
               HeadingAmountDateTransEntry prepended_had {
                 .heading = ast[2]
-                ,.amount = std::abs(had.amount) // always an unsigned amount for prepended had
+                ,.amount = abs(had.amount) // always an unsigned amount for prepended had
                 ,.date = *to_date(ast[3]) // Assume success
               };
               model->heading_amount_date_entries.push_back(prepended_had);
@@ -8861,7 +8862,7 @@ Cmd Updater::operator()(Command const& command) {
               if (auto init_date = to_date(ast[3])) {
                 HeadingAmountDateTransEntry initiating_had {
                   .heading = ast[2]
-                  ,.amount = std::abs(had.amount) // always an unsigned amount for initiating had
+                  ,.amount = abs(had.amount) // always an unsigned amount for initiating had
                   ,.date = *init_date
                 };
                 model->heading_amount_date_entries.push_back(initiating_had);
@@ -9038,7 +9039,7 @@ Cmd Updater::operator()(Command const& command) {
                     auto mats_sum = BAS::mats_sum(mats);
                     auto sign = (mats_sum<0)?-1:1;
                     // mats_sum + diff = amount
-                    auto diff = sign*(std::abs(*amount)) - mats_sum;
+                    auto diff = sign*(abs(*amount)) - mats_sum;
                     mats.push_back({
                       .defacto = {
                         .account_no = mats[0].defacto.account_no
@@ -9224,7 +9225,7 @@ Cmd Updater::operator()(Command const& command) {
                         BAS::anonymous::AccountTransaction new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
-                          ,.amount = sign*std::abs(had.amount)
+                          ,.amount = sign*abs(had.amount)
                         };
                         me.defacto.account_transactions.push_back(new_at);
                       }
@@ -9233,7 +9234,7 @@ Cmd Updater::operator()(Command const& command) {
                         BAS::anonymous::AccountTransaction new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
-                          ,.amount = sign*std::abs(had.amount*0.2f)
+                          ,.amount = sign*abs(had.amount*0.2f)
                         };
                         me.defacto.account_transactions.push_back(new_at);
                         prompt << "\nNOTE: Assumed 25% VAT for " << new_at;
@@ -9332,11 +9333,11 @@ Cmd Updater::operator()(Command const& command) {
                       if (std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[&amount,&first](auto const& entry){
                         // Lambda that returns true as long as all entries have the same absolute amount as the first entry
                         if (first) {
-                          amount = std::abs(entry.first.amount);
+                          amount = abs(entry.first.amount);
                           first = false;
                           return true;
                         }
-                        return (std::abs(entry.first.amount) == amount);
+                        return (abs(entry.first.amount) == amount);
                       })) {
                         BAS::MetaEntry me {
                           .defacto = {
@@ -9349,7 +9350,7 @@ Cmd Updater::operator()(Command const& command) {
                           me.defacto.account_transactions.push_back({
                             .account_no = tat.first.account_no
                             ,.transtext = std::nullopt
-                            ,.amount = sign*std::abs(had.amount)
+                            ,.amount = sign*abs(had.amount)
                           });
                         }
                         had.optional.current_candidate = me;
@@ -9384,12 +9385,12 @@ Cmd Updater::operator()(Command const& command) {
                   } break;
                   case 1: {
                     // Force debit
-                    had.optional.current_candidate->defacto.account_transactions[0].amount = std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
+                    had.optional.current_candidate->defacto.account_transactions[0].amount = abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
                     model->prompt_state = PromptState::CounterTransactionsAggregateOption;
                   } break;
                   case 2: {
                       // Force credit
-                    had.optional.current_candidate->defacto.account_transactions[0].amount = -1.0f * std::abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
+                    had.optional.current_candidate->defacto.account_transactions[0].amount = -1.0f * abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
                     model->prompt_state = PromptState::CounterTransactionsAggregateOption;
                   } break;
                   default: {
@@ -9601,7 +9602,7 @@ Cmd Updater::operator()(Command const& command) {
                     std::cout << "\nCurrent candidate does not balance";
                   }
                   else if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
-                    return std::abs(at.amount) < 1.0;
+                    return abs(at.amount) < 1.0;
                   })) {
                     // Assume the user need to specify rounding by editing proposed account transactions
                     if (false) {
@@ -10336,7 +10337,7 @@ Cmd Updater::operator()(Command const& command) {
       using AmountTrailsMap = std::map<CentsAmount,TaggedAmounts>;
       AmountTrailsMap amount_trails_map{};
       for (auto const& ta : model->selected_date_ordered_tagged_amounts) {
-        amount_trails_map[std::abs(ta.cents_amount())].push_back(ta);
+        amount_trails_map[abs(ta.cents_amount())].push_back(ta);
       }
       std::vector<std::pair<CentsAmount,TaggedAmounts>> date_ordered_amount_trails_map{};
       std::ranges::copy(amount_trails_map,std::back_inserter(date_ordered_amount_trails_map));
@@ -11312,7 +11313,7 @@ The ITfied AB
                 }
                 else {
                   prompt << "\nHEADER " << ast[0];
-                  auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0]);
+                  auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0]);
                   std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
                   prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
                 }
@@ -11324,17 +11325,17 @@ The ITfied AB
                   prompt << "\nWe will create a {net,vat} using this this header and amount";
                   if (gross_amounts_diff > 0) {
                     // We need to balance up with negative account transaction aggregates
-                    auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+                    auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
                     prompt << "\nAdded negative transactions aggregate" << ats;
                   }
                   else if (gross_amounts_diff < 0) {
                     // We need to balance up with positive account transaction aggregates
-                    auto ats = (*had.optional.counter_ats_producer)(std::abs(gross_amounts_diff),ast[0],amount);
+                    auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
                     prompt << "\nAdded positive transaction aggregate";
                   }
-                  else if (std::abs(gross_amounts_diff) < 1.0) {
+                  else if (abs(gross_amounts_diff) < 1.0) {
                     // Consider a cents rounding account transaction
                     prompt << "\nAdded cents rounding to account 3740";
                     auto cents_rounding_at = BAS::anonymous::AccountTransaction{
@@ -11390,7 +11391,7 @@ The ITfied AB
               // Assume at least three tokens 0:<token> 1:'=' 2:<Token>
               if (auto amount = to_amount(ast[2])) {
                 BAS::AccountMetas ams{};
-                auto transaction_amount = (std::abs(*amount) <= 1)?(*amount * had.amount):(*amount); // quote of had amount or actual amount
+                auto transaction_amount = (abs(*amount) <= 1)?(*amount * had.amount):(*amount); // quote of had amount or actual amount
 
                 if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
                   // The user entered <target> = a BAS Account or SRU account
