@@ -98,6 +98,34 @@
       },
       {
         "type": "cppbuild",
+        "label": "SANITIZED SPARSE macOS C/C++: Brew installed clang-17.0.5 build cratchit",
+        "command": "/usr/local/Cellar/llvm/17.0.5/bin/clang++",
+        "args": [
+          "-fdiagnostics-color=always",
+          "-Wl,-rpath,/usr/local/Cellar/llvm/17.0.5/lib/c++",
+          "-std=c++20",
+          "-fsanitize=undefined",
+          "-fsanitize=address",
+          "-fsanitize=integer",
+          "-ferror-limit=3",
+          "-fno-caret-diagnostics",          
+          "-g",
+          "${file}",
+          "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "options": {
+          "cwd": "${fileDirname}"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ],
+        "group": "build",
+        "detail": "compiler: /usr/local/Cellar/llvm/17.0.5/bin/clang++"
+      },
+      {
+        "type": "cppbuild",
         "label": "macOS C/C++: macPorts installed clang-15 build cratchit",
         "command": "/opt/local/libexec/llvm-15/bin/clang++",
         "args": [

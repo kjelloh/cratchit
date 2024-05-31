@@ -75,5 +75,6 @@
     "set": "cpp",
     "ranges": "cpp"
   },
-  "cmake.configureOnOpen": true
+  "cmake.configureOnOpen": true,
+  "git.enableCommitSigning": false
 }
