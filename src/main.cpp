@@ -6016,8 +6016,8 @@ BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vecto
 
 namespace SKV { // SKV
 
-	int to_tax(Amount amount) {return trunc(amount);} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
-	int to_fee(Amount amount) {return trunc(amount);} 
+	int to_tax(Amount amount) {return to_double(trunc(amount));} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
+	int to_fee(Amount amount) {return to_double(trunc(amount));} 
 
 	OptionalDateRange to_date_range(std::string const& period_id) {
 		OptionalDateRange result{};
