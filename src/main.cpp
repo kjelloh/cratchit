@@ -784,10 +784,10 @@ class Amount
 public:
   Amount() = default;
   Amount(double value)  {
-    double rounded_value = round(this->m_double_value * 100.0) / 100.0;
+    double rounded_value = round(value * 100.0) / 100.0;
     auto error = value - rounded_value;
-    if (std::fabs(error) > std::numeric_limits<double>::epsilon() * 100) {
-      std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") will be truncated to cents precision " << rounded_value; 
+    if (std::fabs(error) > std::numeric_limits<double>::epsilon()) {
+      std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") to rounded value " << rounded_value << " error " << error; 
     }
     this->m_double_value = rounded_value;
   } // Implicit form double
@@ -834,8 +834,6 @@ public:
     return this->m_double_value <=> other.m_double_value;
   }
 
-  friend std::istream& operator>>(std::istream& is, Amount &amount);
-  friend std::ostream& operator<<(std::ostream& os, Amount &amount);
   friend double to_double(Amount const& amount);
   friend Amount operator*(double a, Amount const &b);
   
@@ -858,50 +856,50 @@ Amount operator*(double a, Amount const &b) {
   return Amount{a} * b.m_double_value; // Do Amount * double
 }
 
+double to_double(Amount const& amount) {
+  return amount.m_double_value; 
+}
+
+// Return Amount rounded to whole value
+Amount round(Amount const& amount) {
+  return Amount{std::round(to_double(amount))};
+}
+
+// Return positive amount value (remove negative sign)
+Amount abs(Amount const& amount) {
+  return Amount{std::abs(to_double(amount))};
+}
+
+// Returns Amount truncated to whole value (ignore decimal cents)
+Amount trunc(Amount const& amount) {
+  return Amount{trunc(to_double(amount))};
+}
+
+std::istream& operator>>(std::istream& is, Amount& amount) {
+    double double_value;
+    if (is >> double_value) {
+      amount = Amount{double_value};
+    }
+    return is;
+}
+
+// Define operator<< for class Amount when Amount is a class and its name is 'Amount'
+std::ostream& operator<<(std::ostream& os, Amount const& amount) {
+    os << std::fixed << std::setprecision(2) << to_double(amount);
+    return os;
+}
 
 #else 
 
 // using Amount= float;
 using Amount= double;
 
-#endif
-
-namespace detail {
-  // Helper to make the compiler only compile the constexpr if branch that matches the type
-  double to_double(auto const& amount) {
-    if constexpr (std::is_class_v<Amount>) {
-      return amount.m_double_value; // Assume class Amount
-    } else {
-      return amount; // Assume C++ double
-    }  
-  }
-
-}
-
 double to_double(Amount const& amount) {
-  return detail::to_double(amount); // delegate to 'if constexpr' shaped to_double
+  return amount; 
 }
 
-// Return Amount rounded to whole value
-template<typename T>
-requires std::is_class_v<T> && std::is_same_v<T, Amount>
-T round(T const& amount) {
-  return T{std::round(to_double(amount))};
-}
 
-// Return positive amount value (remove negative sign)
-template<typename T>
-requires std::is_class_v<T> && std::is_same_v<T, Amount>
-T abs(T const& amount) {
-  return T{std::abs(to_double(amount))};
-}
-
-// Returns Amount truncated to whole value (ignore decimal cents)
-template<typename T>
-requires std::is_class_v<T> && std::is_same_v<T, Amount>
-T trunc(T const& amount) {
-  return T{trunc(to_double(amount))};
-}
+#endif
 
 using OptionalAmount = std::optional<Amount>;
 
@@ -930,31 +928,6 @@ OptionalAmount to_amount(std::string const& sAmount) {
 	}
 	// if (result) std::cout << "\nresult " << *result;
 	return result;
-}
-
-// Define operator<< for Amount when Amount is a class and its name is 'Amount'
-template<typename T>
-requires std::is_class_v<T> && std::is_same_v<T, Amount>
-std::istream& operator>>(std::istream& is, T& amount) {
-    std::string token;
-    if (is >> token) {
-      if (auto result = to_amount(token)) {
-        amount = T{*result};
-      }
-      else {
-        // Make the istream signal failure to stream to an Amount
-        is.setstate(std::ios_base::failbit);        
-      }
-    }
-    return is;
-}
-
-// Define operator<< for class Amount when Amount is a class and its name is 'Amount'
-template<typename T>
-requires std::is_class_v<T> && std::is_same_v<T, Amount>
-std::ostream& operator<<(std::ostream& os, const T& amount) {
-    os << std::fixed << std::setprecision(2) << to_double(amount);
-    return os;
 }
 
 std::string to_string(Amount const& amount) {
@@ -11411,7 +11384,7 @@ The ITfied AB
               // Assume at least three tokens 0:<token> 1:'=' 2:<Token>
               if (auto amount = to_amount(ast[2])) {
                 BAS::AccountMetas ams{};
-                auto transaction_amount = (abs(*amount) <= 1)?(*amount * had.amount):(*amount); // quote of had amount or actual amount
+                auto transaction_amount = (abs(*amount) <= 1)?(to_double(*amount) * had.amount):(*amount); // quote of had amount or actual amount
 
                 if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
                   // The user entered <target> = a BAS Account or SRU account
