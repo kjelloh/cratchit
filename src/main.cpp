@@ -7075,7 +7075,7 @@ namespace SKV { // SKV
 
 			// Correct amount type for the form
 			FormAmount to_form_amount(Amount amount) {
-				return to_eu_sales_list_amount(amount);
+				return to_double(to_eu_sales_list_amount(amount));
 			}
 
 			std::string to_10_digit_orgno(std::string generic_org_no) {
@@ -8639,7 +8639,7 @@ namespace lua_faced_ifc {
           // Push the key
           lua_pushstring(L, "amount");
           // Push the value
-          lua_pushnumber(L, had->amount);
+          lua_pushnumber(L, to_double(had->amount));
           // Set the table value
           lua_settable(L, -3);
 
@@ -9241,7 +9241,7 @@ Cmd Updater::operator()(Command const& command) {
                     };
                     for (auto const& [at,props] : tme_iter->defacto.account_transactions) {
                       if (props.contains("gross") or props.contains("eu_purchase")) {
-                        Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        int sign = (at.amount < 0)?-1:1; // 0 treated as +
                         BAS::anonymous::AccountTransaction new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
@@ -9250,7 +9250,7 @@ Cmd Updater::operator()(Command const& command) {
                         me.defacto.account_transactions.push_back(new_at);
                       }
                       else if (props.contains("vat")) {
-                        Amount sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        int sign = (at.amount < 0)?-1:1; // 0 treated as +
                         BAS::anonymous::AccountTransaction new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
