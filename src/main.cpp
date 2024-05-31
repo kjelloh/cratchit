@@ -780,7 +780,7 @@ class Amount
 public:
   Amount() = default;
   Amount(double value)  {
-    double rounded_value = std::round(this->m_double_value * 100.0) / 100.0;
+    double rounded_value = round(this->m_double_value * 100.0) / 100.0;
     auto error = value - rounded_value;
     if (std::fabs(error) > std::numeric_limits<double>::epsilon() * 100) {
       std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") will be truncated to cents precision " << rounded_value; 
@@ -817,7 +817,7 @@ public:
 
   // Amount - Amount
   Amount operator-(const Amount& other) const { return Amount(m_double_value - other.m_double_value); }
-  Amount operator-() { return Amount(-m_double_value); }
+  Amount operator-() const { return Amount(-m_double_value); }
   // Amount * double
   Amount operator*(double scalar) const { return Amount(m_double_value * scalar); }
   double operator/(const Amount& other) const { return m_double_value / other.m_double_value; }
@@ -879,8 +879,10 @@ double to_double(Amount const& amount) {
 }
 
 // Round to whole amount
-Amount round(Amount const &amount) {
-  return Amount{std::round(to_double(amount))};
+template<typename T>
+requires std::is_class_v<T> && std::is_same_v<T, Amount>
+T round(T const& amount) {
+  return T{round(to_double(amount))};
 }
 
 // return positive amount value (remove negative sign)
@@ -959,14 +961,14 @@ OptionalCentsAmount to_cents_amount(std::string const& s) {
 }
 
 CentsAmount to_cents_amount(Amount const& amount) {
-	return std::round(to_double(amount)*100);
+	return round(to_double(amount)*100);
 }
 
 using UnitsAmount = int;
 using UnitsAndCents = std::pair<UnitsAmount,CentsAmount>;
 
 UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
-	UnitsAndCents result{std::round(cents_amount / 100),cents_amount % 100};
+	UnitsAndCents result{round(cents_amount / 100),cents_amount % 100};
 	return result;
 }
 
@@ -3093,7 +3095,7 @@ namespace BAS {
 	}
 
 	Amount to_cents_amount(Amount const& amount) {
-		return std::round((amount*100.0)/Amount{100.0}); // Amount / Amount = real number 
+		return round((amount*100.0)/Amount{100.0}); // Amount / Amount = real number 
 	}
 
 	enum class AccountKind {
@@ -4653,13 +4655,13 @@ class AccountTransactionTemplate {
 public:
 	AccountTransactionTemplate(Amount gross_amount,BAS::anonymous::AccountTransaction const& at) 
 		:  m_at{at}
-			,m_percent{static_cast<int>(std::round(at.amount*100 / gross_amount))}  {}
+			,m_percent{static_cast<int>(round(at.amount*100 / gross_amount))}  {}
 	BAS::anonymous::AccountTransaction operator()(Amount amount) const {
 		// BAS::anonymous::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
 		BAS::anonymous::AccountTransaction result{
 			 .account_no = m_at.account_no
 			,.transtext = m_at.transtext
-			,.amount=static_cast<Amount>(std::round(amount*m_percent)/100.0)};
+			,.amount=static_cast<Amount>(round(amount*m_percent)/100.0)};
 		return result;
 	}
 	int percent() const {return m_percent;}
@@ -4823,7 +4825,7 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 		auto vat_sign = static_cast<int>(vat_amount/abs_vat_amount); // +-1
 		auto at_sign = static_cast<int>(at.amount/abs_at_amount);
 
-		auto vat_rate = static_cast<int>(std::round(abs_vat_amount*100/abs_ex_vat_amount));
+		auto vat_rate = static_cast<int>(round(abs_vat_amount*100/abs_ex_vat_amount));
 // std::cout << "\nabs_vat_amount:" << abs_vat_amount << " abs_ex_vat_amount:" << abs_ex_vat_amount << " vat_rate:" << vat_rate;
 		switch (vat_rate) {
 			case 25:
@@ -4839,11 +4841,11 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 						// Assume update amount ex VAT
 // std::cout << "\n Update Net Amount Ex VAT";
 						abs_ex_vat_amount = abs_at_amount;
-						abs_vat_amount = std::round(vat_rate*abs_ex_vat_amount)/100;
+						abs_vat_amount = round(vat_rate*abs_ex_vat_amount)/100;
 
 						ex_vat_amount = vat_sign*abs_ex_vat_amount;
 						vat_amount = vat_sign*abs_vat_amount;
-						round_amount = -1*std::round(100*(trans_amount + ex_vat_amount + vat_amount))/100;
+						round_amount = -1*round(100*(trans_amount + ex_vat_amount + vat_amount))/100;
 					} break;
 					case 2: {
 						// Assume update VAT amount
@@ -4865,9 +4867,9 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 							// std::cout << "\nvat_rate " << vat_rate;
 							auto reverse_vat_factor = vat_rate*1.0/(100+vat_rate); // E.g. 25/125 = 0.2
 							// std::cout << "\nreverse_vat_factor " << reverse_vat_factor;
-							vat_amount = vat_sign * std::round(reverse_vat_factor*100*adjusted_trans_amount)/100.0; // round to cents
+							vat_amount = vat_sign * round(reverse_vat_factor*100*adjusted_trans_amount)/100.0; // round to cents
 							// std::cout << "\nvat_amount " << vat_amount;
-							ex_vat_amount = vat_sign * std::round((1.0 - reverse_vat_factor)*100*adjusted_trans_amount)/100.0; // round to cents
+							ex_vat_amount = vat_sign * round((1.0 - reverse_vat_factor)*100*adjusted_trans_amount)/100.0; // round to cents
 							// std::cout << "\nex_vat_amount " << ex_vat_amount;
 						}
 					} break;
@@ -5345,10 +5347,10 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 		auto gross_amount = *optional_gross_amount; 
 		// Direct type detection based on gross_amount and account meta data
 		for (auto const& at : me.defacto.account_transactions) {
-			if (std::round(abs(at.amount)) == std::round(gross_amount)) typed_ats[at].insert("gross");
+			if (round(abs(at.amount)) == round(gross_amount)) typed_ats[at].insert("gross");
 			if (is_vat_account_at(at)) typed_ats[at].insert("vat");
 			if (abs(at.amount) < 1) typed_ats[at].insert("cents");
-			if (std::round(abs(at.amount)) == std::round(gross_amount / 2)) typed_ats[at].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
+			if (round(abs(at.amount)) == round(gross_amount / 2)) typed_ats[at].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
 		}
 
 		// Ex vat amount Detection
@@ -5363,7 +5365,7 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
 			}
 		}
     std::string net_or_counter_tag = (vat_amount != 0)?std::string{"net"}:std::string{"counter"};
-		if (abs(std::round(abs(ex_vat_amount)) + std::round(abs(vat_amount)) - gross_amount) <= 1) {
+		if (abs(round(abs(ex_vat_amount)) + round(abs(vat_amount)) - gross_amount) <= 1) {
 			// ex_vat + vat within cents of gross
 			// tag non typed ats as ex-vat
 			for (auto const& at : me.defacto.account_transactions) {
@@ -7051,7 +7053,7 @@ namespace SKV { // SKV
 
 			// Correct sign and rounding
 			Amount to_eu_sales_list_amount(Amount amount) {
-				return abs(std::round(amount)); // All amounts in the sales list form are defined to be positve (although sales in BAS are negative credits)
+				return abs(round(amount)); // All amounts in the sales list form are defined to be positve (although sales in BAS are negative credits)
 			}
 
 			// Correct amount type for the form
