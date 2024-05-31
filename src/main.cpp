@@ -769,13 +769,124 @@ std::string filtered(std::string const& s,auto filter) {
 using CentsAmount = int;
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
+// #define USE_CLASS_AMOUNT
+#ifdef USE_CLASS_AMOUNT 
+
+// A C++ double typically represents a floating-point number using 64 bits, 
+// following the IEEE 754 floating-point standard. 
+// This allows for approximately 15-16 decimal digits of precision or nnnnnnnnnnnnn.nnn amounts if we allow for three decimal to allow for cents rounding?
+class Amount
+{
+public:
+  Amount() = default;
+  Amount(double value)  {
+    double rounded_value = std::round(this->m_double_value * 100.0) / 100.0;
+    auto error = value - rounded_value;
+    if (std::fabs(error) > std::numeric_limits<double>::epsilon() * 100) {
+      std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") will be truncated to cents precision " << rounded_value; 
+    }
+    this->m_double_value = rounded_value;
+  } // Implicit form double
+
+  /*
+
+  Allow for Currency Math
+  Amount + Amount = Amount
+  Amount - Amount = Amount
+  Amount * Amount = Not defined (NOT an amount)
+  double * Amount = Amount
+  Amount * Double = Amount
+  Amount / double = Amount
+  double / Amount = Not defined (NOT an amount)
+  Amount / Amount = double ok (and also NOT an Amount)
+
+  */
+
+  // Amount += Amount
+  Amount operator+=(const Amount& other) { 
+    this->m_double_value += other.m_double_value;
+    return *this;
+  }
+
+  // Amount + Amount
+  Amount operator+(const Amount& other) const {
+    Amount result{*this};
+    result += other;
+    return result;
+  }
+
+  // Amount - Amount
+  Amount operator-(const Amount& other) const { return Amount(m_double_value - other.m_double_value); }
+  // Amount * double
+  Amount operator*(double scalar) const { return Amount(m_double_value * scalar); }
+  double operator/(const Amount& other) const { return m_double_value / other.m_double_value; }
+
+  // Amount / double
+  Amount operator/(double divisor) const { return Amount(m_double_value / divisor); }
+
+  bool operator==(Amount const& other) const {return this->m_double_value == other.m_double_value;}
+  auto operator<=>(Amount const& other) const {
+    return this->m_double_value <=> other.m_double_value;
+  }
+
+  friend std::istream& operator>>(std::istream& is, Amount &amount);
+  friend std::ostream& operator<<(std::ostream& os, Amount &amount);
+  friend double to_double(Amount const& amount);
+  friend Amount operator*(double a, Amount const &b);
+  
+  // Round to whole amount
+  static Amount round(Amount const &amount) {
+    return Amount{std::round(amount.m_double_value)};
+  }
+
+  // return positive amount value (remove negative sign)
+  static Amount abs(Amount const &amount) {
+    return Amount{std::abs(amount.m_double_value)};
+  }
+
+
+private:
+  double m_double_value;
+};
+
+// double + Amount
+Amount operator+(double a, Amount const &b) {
+  return Amount{a} + b; // Do Amount + Amount
+}
+
+// double - Amount
+Amount operator-(double a, Amount const &b) {
+  return Amount{a} - b; // Do Amount - Amount
+}
+
+// double * Amount
+Amount operator*(double a, Amount const &b) {
+  return Amount{a} * b.m_double_value; // Do Amount * double
+}
+
+
+#else 
+
 // using Amount= float;
 using Amount= double;
-// class Amount {
-// public:
-// private:
 
-// };
+#endif
+
+namespace detail {
+  // Helper to make the compiler only compile the constexpr if branch that matches the type
+  double to_double(auto const& amount) {
+    if constexpr (std::is_class_v<Amount>) {
+      return amount.m_double_value; // Assume class Amount
+    } else {
+      return amount; // Assume C++ double
+    }  
+  }
+
+}
+
+double to_double(Amount const& amount) {
+  return detail::to_double(amount); // delegate to 'if constexpr' shaped to_double
+}
 
 using OptionalAmount = std::optional<Amount>;
 
@@ -806,6 +917,31 @@ OptionalAmount to_amount(std::string const& sAmount) {
 	return result;
 }
 
+// Define operator<< for class Amount when Amount is a class and its name is 'Amount'
+template<typename T>
+requires std::is_class_v<T> && std::is_same_v<T, Amount>
+std::istream& operator>>(std::istream& is, Amount& amount) {
+    std::string token;
+    if (is >> token) {
+      if (auto result = to_amount(token)) {
+        amount = Amount{*result};
+      }
+      else {
+        // Make the istream signal failure to stream to an Amount
+        is.setstate(std::ios_base::failbit);        
+      }
+    }
+    return is;
+}
+
+// Define operator<< for class Amount when Amount is a class and its name is 'Amount'
+template<typename T>
+requires std::is_class_v<T> && std::is_same_v<T, Amount>
+std::ostream& operator<<(std::ostream& os, const T& amount) {
+    os << std::fixed << std::setprecision(2) << to_double(amount);
+    return os;
+}
+
 OptionalCentsAmount to_cents_amount(std::string const& s) {
 	OptionalCentsAmount result{};
 	CentsAmount ca{};
@@ -820,8 +956,8 @@ OptionalCentsAmount to_cents_amount(std::string const& s) {
 	return result;
 }
 
-CentsAmount to_cents_amount(Amount amount) {
-	return std::round(amount*100);
+CentsAmount to_cents_amount(Amount const& amount) {
+	return std::round(to_double(amount)*100);
 }
 
 using UnitsAmount = int;
@@ -2954,8 +3090,8 @@ namespace BAS {
 		}
 	}
 
-	Amount to_cents_amount(Amount amount) {
-		return std::round(amount*100.0)/100.0;
+	Amount to_cents_amount(Amount const& amount) {
+		return std::round((amount*100.0)/Amount{100.0}); // Amount / Amount = real number 
 	}
 
 	enum class AccountKind {
@@ -3102,7 +3238,8 @@ namespace BAS {
 	};
 
 	auto has_greater_abs_amount = [](BAS::anonymous::AccountTransaction const& at1,BAS::anonymous::AccountTransaction const& at2) {
-		return (std::abs(at1.amount) > std::abs(at2.amount));
+    // Note: Prefix '::' means 'global namespace', NOT 'namespace above this one'.
+		return (abs(at1.amount) > abs(at2.amount));
 	};
 
 	BAS::MetaEntry& sort(BAS::MetaEntry& me,auto& comp) {
@@ -3682,8 +3819,8 @@ public:
 	ToNetVatAccountTransactions(BAS::anonymous::AccountTransaction const& net_at, BAS::anonymous::AccountTransaction const& vat_at)
 		:  m_net_at{net_at}
 		  ,m_vat_at{vat_at}
-			,m_gross_vat_rate{static_cast<Amount>((net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0)}
-			,m_sign{(net_at.amount<0)?-1.0f:1.0f} /* 0 gets sign + */ {}
+			,m_gross_vat_rate{static_cast<float>((net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0)}
+			,m_sign{(net_at.amount<0)?-1:1} /* 0 gets sign + */ {}
 
 	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,OptionalAmount const& inc_vat_amount = std::nullopt) {
 		BAS::anonymous::AccountTransactions result{};
@@ -3705,8 +3842,8 @@ public:
 private:
 	BAS::anonymous::AccountTransaction m_net_at;
 	BAS::anonymous::AccountTransaction m_vat_at;
-	Amount m_gross_vat_rate;
-	Amount m_sign;
+	float m_gross_vat_rate;
+	int m_sign;
 };
 
 struct HeadingAmountDateTransEntry {
@@ -4442,15 +4579,15 @@ OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& a
 		result = to_positive_gross_transaction_amount(aje); // Pick the positive alternative
 	}
 	else if (aje.account_transactions.size() == 1) {
-		result = std::abs(aje.account_transactions.front().amount);
+		result = abs(aje.account_transactions.front().amount);
 	}
 	else {
 		// Does NOT balance, and more than one account transaction.
 		// Define the gross amount as the largest account absolute transaction amount
 		auto max_at_iter = std::max_element(aje.account_transactions.begin(),aje.account_transactions.end(),[](auto const& at1,auto const& at2) {
-			return std::abs(at1.amount) < std::abs(at2.amount);
+			return abs(at1.amount) < abs(at2.amount);
 		});
-		if (max_at_iter != aje.account_transactions.end()) result = std::abs(max_at_iter->amount);
+		if (max_at_iter != aje.account_transactions.end()) result = abs(max_at_iter->amount);
 	}
 	// if (result) std::cout << "\n\t==> " << *result;
 	return result;	
