@@ -775,6 +775,10 @@ using OptionalCentsAmount = std::optional<CentsAmount>;
 // A C++ double typically represents a floating-point number using 64 bits, 
 // following the IEEE 754 floating-point standard. 
 // This allows for approximately 15-16 decimal digits of precision or nnnnnnnnnnnnn.nnn amounts if we allow for three decimal to allow for cents rounding?
+
+// A drop-in-replacement class for a 'using Amount = double'.
+// To enable the same code to compile and run with any of the two representations.
+// The class Amount enables more control over currency amount expressions restricted to the limits of a two decimals (cents) currency amount
 class Amount
 {
 public:
@@ -878,18 +882,25 @@ double to_double(Amount const& amount) {
   return detail::to_double(amount); // delegate to 'if constexpr' shaped to_double
 }
 
-// Round to whole amount
+// Return Amount rounded to whole value
 template<typename T>
 requires std::is_class_v<T> && std::is_same_v<T, Amount>
 T round(T const& amount) {
-  return T{round(to_double(amount))};
+  return T{std::round(to_double(amount))};
 }
 
-// return positive amount value (remove negative sign)
+// Return positive amount value (remove negative sign)
 template<typename T>
 requires std::is_class_v<T> && std::is_same_v<T, Amount>
 T abs(T const& amount) {
-  return T{abs(to_double(amount))};
+  return T{std::abs(to_double(amount))};
+}
+
+// Returns Amount truncated to whole value (ignore decimal cents)
+template<typename T>
+requires std::is_class_v<T> && std::is_same_v<T, Amount>
+T trunc(T const& amount) {
+  return T{trunc(to_double(amount))};
 }
 
 using OptionalAmount = std::optional<Amount>;
@@ -6005,8 +6016,8 @@ BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vecto
 
 namespace SKV { // SKV
 
-	int to_tax(Amount amount) {return std::trunc(amount);} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
-	int to_fee(Amount amount) {return std::trunc(amount);} 
+	int to_tax(Amount amount) {return trunc(amount);} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
+	int to_fee(Amount amount) {return trunc(amount);} 
 
 	OptionalDateRange to_date_range(std::string const& period_id) {
 		OptionalDateRange result{};
@@ -8925,11 +8936,11 @@ Cmd Updater::operator()(Command const& command) {
                     if (account_no==0) {
                       me.defacto.account_transactions.push_back({
                         .account_no = 2650
-                        ,.amount = std::trunc(-amount)
+                        ,.amount = trunc(-amount)
                       });
                       me.defacto.account_transactions.push_back({
                         .account_no = 3740
-                        ,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+                        ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
                       });
                     }
                     else {
@@ -9108,11 +9119,11 @@ Cmd Updater::operator()(Command const& command) {
                     if (account_no==0) {
                       me.defacto.account_transactions.push_back({
                         .account_no = 2650
-                        ,.amount = std::trunc(-amount)
+                        ,.amount = trunc(-amount)
                       });
                       me.defacto.account_transactions.push_back({
                         .account_no = 3740
-                        ,.amount = BAS::to_cents_amount(-amount - std::trunc(-amount)) // to_tax(-amount) + diff = -amount
+                        ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
                       });
                     }
                     else {
