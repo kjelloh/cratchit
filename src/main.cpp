@@ -946,6 +946,12 @@ std::ostream& operator<<(std::ostream& os, const T& amount) {
     return os;
 }
 
+std::string to_string(Amount const& amount) {
+  std::ostringstream oss{};
+  oss << amount;
+  return oss.str();
+}
+
 OptionalCentsAmount to_cents_amount(std::string const& s) {
 	OptionalCentsAmount result{};
 	CentsAmount ca{};
@@ -5325,7 +5331,7 @@ OptionalAmount to_ats_sum(SIEEnvironments const& sie_envs,BAS::AccountNos const&
 
 std::optional<std::string> to_ats_sum_string(SIEEnvironments const& sie_envs,BAS::AccountNos const& bas_account_nos) {
 	std::optional<std::string> result{};
-	if (auto const& ats_sum = to_ats_sum(sie_envs,bas_account_nos)) result = std::to_string(*ats_sum);
+	if (auto const& ats_sum = to_ats_sum(sie_envs,bas_account_nos)) result = to_string(*ats_sum);
 	return result;
 }
 
