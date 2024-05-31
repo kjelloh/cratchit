@@ -817,6 +817,7 @@ public:
 
   // Amount - Amount
   Amount operator-(const Amount& other) const { return Amount(m_double_value - other.m_double_value); }
+  Amount operator-() { return Amount(-m_double_value); }
   // Amount * double
   Amount operator*(double scalar) const { return Amount(m_double_value * scalar); }
   double operator/(const Amount& other) const { return m_double_value / other.m_double_value; }
