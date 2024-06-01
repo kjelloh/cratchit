@@ -769,14 +769,14 @@ std::string filtered(std::string const& s,auto filter) {
 using CentsAmount = int;
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
-// #define USE_CLASS_AMOUNT
+#define USE_CLASS_AMOUNT
 #ifdef USE_CLASS_AMOUNT 
 
 // A C++ double typically represents a floating-point number using 64 bits, 
 // following the IEEE 754 floating-point standard. 
 // This allows for approximately 15-16 decimal digits of precision or nnnnnnnnnnnnn.nnn amounts if we allow for three decimal to allow for cents rounding?
 
-// A drop-in-replacement class for a 'using Amount = double'.
+// Amount aims to be a drop-in-replacement class for a 'using Amount = double'.
 // To enable the same code to compile and run with any of the two representations.
 // The class Amount enables more control over currency amount expressions restricted to the limits of a two decimals (cents) currency amount
 class Amount
@@ -784,13 +784,24 @@ class Amount
 public:
   Amount() = default;
   Amount(double value)  {
-    double rounded_value = round(value * 100.0) / 100.0;
-    auto error = value - rounded_value;
-    if (std::fabs(error) > std::numeric_limits<double>::epsilon()) {
-      std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") to rounded value " << rounded_value << " error " << error; 
+    // Convert to integer representation of cents
+    long long cents = static_cast<long long>(std::round(value * 100));
+    double converted_back = cents / 100.0;
+    auto error = std::fabs(value - converted_back);
+
+    // If the converted back value does not match the original, it had more than two decimal places
+    // Note 240601 - The value 0.01 comes from practical testing. I still fail to understand
+    //               how *100 followed by /100 can introduce such a large error?
+    //               This code seems to work for now.
+    //               TODO: refactor Cratchit to represent Currency values as whole integer cents to avoid the floating point precision problems!
+    if (error > 0.01) {
+      std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") has more than two decimal places. Error:" << error << ". Rounded it to " << converted_back;
+      this->m_double_value = converted_back;
+    } else {
+      this->m_double_value = value; // ok    
     }
-    this->m_double_value = rounded_value;
-  } // Implicit form double
+      
+  }
 
   /*
 
@@ -883,7 +894,6 @@ std::istream& operator>>(std::istream& is, Amount& amount) {
     return is;
 }
 
-// Define operator<< for class Amount when Amount is a class and its name is 'Amount'
 std::ostream& operator<<(std::ostream& os, Amount const& amount) {
     os << std::fixed << std::setprecision(2) << to_double(amount);
     return os;
@@ -932,7 +942,7 @@ OptionalAmount to_amount(std::string const& sAmount) {
 
 std::string to_string(Amount const& amount) {
   std::ostringstream oss{};
-  oss << amount;
+  oss << std::fixed << std::setprecision(2) << to_double(amount);
   return oss.str();
 }
 
@@ -3640,7 +3650,7 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction con
 	if (BAS::global_account_metas().contains(at.account_no)) os << std::quoted(BAS::global_account_metas().at(at.account_no).name) << ":";
 	os << at.account_no;
 	os << " " << at.transtext;
-	os << " " << at.amount;
+	os << " " << to_string(at.amount); // When amount is double there will be no formatting of the amount to ensure two decimal cents digits
 	return os;
 };
 
