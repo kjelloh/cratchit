@@ -768,27 +768,55 @@ std::string filtered(std::string const& s,auto filter) {
 
 namespace WrappedCentsAmount {
 
+  // A drop-in type for an integer amount in cents.
+  // This implies any conversion between CentsAmount and any built in arithmetic type keeps the value as a value in cents.  
   class CentsAmount {
   public:
     using cents_value_type = int;
     CentsAmount() = default;
-    explicit CentsAmount(CentsAmount::cents_value_type cents_value) : m_cents_value{cents_value} {}
+    explicit CentsAmount(CentsAmount::cents_value_type cents_value) : m_in_cents_value{cents_value} {}
 
+    CentsAmount& operator+=(CentsAmount const& other) {
+      this->m_in_cents_value += other.m_in_cents_value;
+      return *this;
+    }
+
+    auto operator<=>(CentsAmount const& other) const = default;
+
+    bool operator==(CentsAmount const& other) const {return this->m_in_cents_value == other.m_in_cents_value;}
+
+    friend CentsAmount abs(CentsAmount const& cents_amount);
     friend CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const& cents_amount);
     friend CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const& cents_amount);
+    friend std::ostream& operator<<(std::ostream& os,CentsAmount const& cents_amount);
+
 
   private:
-    cents_value_type m_cents_value;
+    cents_value_type m_in_cents_value;
   };
 
+  CentsAmount abs(CentsAmount const& cents_amount) {
+    return CentsAmount{std::abs(cents_amount.m_in_cents_value)};
+  }
+
   CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const& cents_amount) {
-    return cents_amount.m_cents_value / 100;
+    return cents_amount.m_in_cents_value / 100;
   }
 
   CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const& cents_amount) {
-    return cents_amount.m_cents_value % 100;
+    return cents_amount.m_in_cents_value % 100;
   }
 
+  std::ostream& operator<<(std::ostream& os,CentsAmount const& cents_amount) {
+    os << cents_amount.m_in_cents_value; // keep value in integer cents
+    return os;
+  }
+
+  std::string to_string(CentsAmount const& cents_amount) {
+    std::ostringstream oss{};
+    oss << cents_amount;
+    return oss.str();
+  }
 
 }
 
@@ -1014,8 +1042,8 @@ CentsAmount to_cents_amount(Amount const& amount) {
 	return static_cast<CentsAmount>(std::round(to_double(amount)*100));
 }
 
-using UnitsAmount = int;
-using UnitsAndCents = std::pair<UnitsAmount,CentsAmount>;
+using UnitsAndCentsValueType = int;
+using UnitsAndCents = std::pair<UnitsAndCentsValueType,UnitsAndCentsValueType>;
 
 UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
 	UnitsAndCents result{to_whole_part_integer(cents_amount),to_cents_part_integer(cents_amount)};
@@ -2838,7 +2866,7 @@ namespace CSV {
 							ta.tags()["To"] = field_row[element::Mottagare];
 						}
 						if (auto saldo = to_amount(field_row[element::Saldo])) {
-							ta.tags()["Saldo"] = std::to_string(to_cents_amount(*saldo));
+							ta.tags()["Saldo"] = to_string(to_cents_amount(*saldo));
 						}
 						if (field_row[element::Meddelande].size() > 0) {
 							ta.tags()["Message"] = field_row[element::Meddelande];
@@ -7786,7 +7814,7 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 EnvironmentValue to_environment_value(TaggedAmount const& ta) {
 	EnvironmentValue ev{};
 	ev["yyyymmdd_date"] = to_string(ta.date());
-	ev["cents_amount"] = std::to_string(ta.cents_amount());
+	ev["cents_amount"] = to_string(ta.cents_amount());
 	for (auto const& entry : ta.tags()) {
 		ev[entry.first] = entry.second;
 	}
