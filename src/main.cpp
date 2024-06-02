@@ -766,12 +766,11 @@ std::string filtered(std::string const& s,auto filter) {
 	return result;
 }
 
+// Cents Amount represents e.g., 117.17 as the integer 11717
 using CentsAmount = int;
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
-#define USE_CLASS_AMOUNT
-#ifdef USE_CLASS_AMOUNT
-
+// The namespace for a class Amount that wraps a double as representation
 namespace WrappedDoubleAmount {
   // A C++ double typically represents a floating-point number using 64 bits, 
   // following the IEEE 754 floating-point standard. 
@@ -902,10 +901,7 @@ namespace WrappedDoubleAmount {
 
 }
 
-using Amount = WrappedDoubleAmount::Amount;
-
-#else
-
+// namespace for Amount as a plain double (the 'original' approach)
 namespace DoubleAmount {
 
   // using Amount= float;
@@ -916,10 +912,11 @@ namespace DoubleAmount {
   }
 }
 
-using Amount = DoubleAmount::Amount;
-using DoubleAmount::to_double;
+// Choose the Amount type to use
+// using Amount = DoubleAmount::Amount;
+// using DoubleAmount::to_double;
+using Amount = WrappedDoubleAmount::Amount;
 
-#endif
 
 using OptionalAmount = std::optional<Amount>;
 
