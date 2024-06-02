@@ -781,34 +781,43 @@ namespace WrappedCentsAmount {
       return *this;
     }
 
+    CentsAmount operator+(CentsAmount const& other) {
+      CentsAmount result{*this};
+      result += other;
+      return result;
+    }
+
     auto operator<=>(CentsAmount const& other) const = default;
 
     bool operator==(CentsAmount const& other) const {return this->m_in_cents_value == other.m_in_cents_value;}
+    bool operator!=(CentsAmount const& other) const {return not (*this==other);}
+    bool operator!=(CentsAmount::cents_value_type const& cents_value) const {return not (this->m_in_cents_value == cents_value);}
 
-    friend CentsAmount abs(CentsAmount const& cents_amount);
-    friend CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const& cents_amount);
-    friend CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const& cents_amount);
-    friend std::ostream& operator<<(std::ostream& os,CentsAmount const& cents_amount);
+    friend CentsAmount::cents_value_type to_amount_in_cents_integer(CentsAmount const& cents_amount);
 
 
   private:
     cents_value_type m_in_cents_value;
   };
 
+  CentsAmount::cents_value_type to_amount_in_cents_integer(CentsAmount const& cents_amount) {
+    return cents_amount.m_in_cents_value;
+  }
+
   CentsAmount abs(CentsAmount const& cents_amount) {
-    return CentsAmount{std::abs(cents_amount.m_in_cents_value)};
+    return CentsAmount{std::abs(to_amount_in_cents_integer(cents_amount))};
   }
 
   CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const& cents_amount) {
-    return cents_amount.m_in_cents_value / 100;
+    return to_amount_in_cents_integer(cents_amount) / 100;
   }
 
   CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const& cents_amount) {
-    return cents_amount.m_in_cents_value % 100;
+    return to_amount_in_cents_integer(cents_amount) % 100;
   }
 
   std::ostream& operator<<(std::ostream& os,CentsAmount const& cents_amount) {
-    os << cents_amount.m_in_cents_value; // keep value in integer cents
+    os << to_amount_in_cents_integer(cents_amount); // keep value in integer cents
     return os;
   }
 
@@ -817,7 +826,15 @@ namespace WrappedCentsAmount {
     oss << cents_amount;
     return oss.str();
   }
+}
 
+namespace std {
+  template<>
+  struct hash<WrappedCentsAmount::CentsAmount> {
+      std::size_t operator()(WrappedCentsAmount::CentsAmount const& cents_amount) const noexcept {
+          return std::hash<WrappedCentsAmount::CentsAmount::cents_value_type>{}(to_amount_in_cents_integer(cents_amount));
+      }
+  };
 }
 
 namespace IntCentsAmount {
@@ -834,11 +851,11 @@ namespace IntCentsAmount {
 
 }
 
-using CentsAmount = IntCentsAmount::CentsAmount;
-using IntCentsAmount::to_whole_part_integer;
-using IntCentsAmount::to_cents_part_integer;
+// using CentsAmount = IntCentsAmount::CentsAmount;
+// using IntCentsAmount::to_whole_part_integer;
+// using IntCentsAmount::to_cents_part_integer;
 
-// using CentsAmount = WrappedCentsAmount::CentsAmount;
+using CentsAmount = WrappedCentsAmount::CentsAmount;
 
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
@@ -1270,7 +1287,7 @@ namespace std {
   template<>
   struct hash<TaggedAmount> {
       std::size_t operator()(TaggedAmount const& ta) const noexcept {
-          std::size_t result{};
+        std::size_t result{};
         auto yyyymmdd = ta.date();
         hash_combine(result, static_cast<int>(yyyymmdd.year()));
         hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
