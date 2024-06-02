@@ -771,6 +771,8 @@ namespace WrappedCentsAmount {
   class CentsAmount {
   public:
     using cents_value_type = int;
+    CentsAmount() = default;
+    explicit CentsAmount(CentsAmount::cents_value_type cents_value) : m_cents_value{cents_value} {}
   private:
     cents_value_type m_cents_value;
   };
@@ -780,10 +782,10 @@ namespace WrappedCentsAmount {
 namespace IntCentsAmount {
   // Cents Amount represents e.g., 117.17 as the integer 11717
   using CentsAmount = int;
-
 }
 
 using CentsAmount = IntCentsAmount::CentsAmount;
+// using CentsAmount = WrappedCentsAmount::CentsAmount;
 
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
@@ -972,10 +974,8 @@ std::string to_string(Amount const& amount) {
 
 OptionalCentsAmount to_cents_amount(std::string const& s) {
 	OptionalCentsAmount result{};
-	CentsAmount ca{};
 	try {
-		ca = std::stoi(s);
-		result = ca;
+		result = CentsAmount{std::stoi(s)};
 	}
 	catch (...) {
 		// Whine about input and failure
