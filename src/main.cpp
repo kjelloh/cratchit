@@ -770,144 +770,154 @@ using CentsAmount = int;
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
 #define USE_CLASS_AMOUNT
-#ifdef USE_CLASS_AMOUNT 
+#ifdef USE_CLASS_AMOUNT
 
-// A C++ double typically represents a floating-point number using 64 bits, 
-// following the IEEE 754 floating-point standard. 
-// This allows for approximately 15-16 decimal digits of precision or nnnnnnnnnnnnn.nnn amounts if we allow for three decimal to allow for cents rounding?
+namespace WrappedDoubleAmount {
+  // A C++ double typically represents a floating-point number using 64 bits, 
+  // following the IEEE 754 floating-point standard. 
+  // This allows for approximately 15-16 decimal digits of precision or nnnnnnnnnnnnn.nnn amounts if we allow for three decimal to allow for cents rounding?
 
-// Amount aims to be a drop-in-replacement class for a 'using Amount = double'.
-// To enable the same code to compile and run with any of the two representations.
-// The class Amount enables more control over currency amount expressions restricted to the limits of a two decimals (cents) currency amount
-class Amount
-{
-public:
-  Amount() = default;
-  Amount(double value)  {
-    // Convert to integer representation of cents
-    long long cents = static_cast<long long>(std::round(value * 100));
-    double converted_back = cents / 100.0;
-    auto error = std::fabs(value - converted_back);
+  // Amount aims to be a drop-in-replacement class for a 'using Amount = double'.
+  // To enable the same code to compile and run with any of the two representations.
+  // The class Amount enables more control over currency amount expressions restricted to the limits of a two decimals (cents) currency amount
+  class Amount
+  {
+  public:
+    Amount() = default;
+    Amount(double value)  {
+      // Convert to integer representation of cents
+      long long cents = static_cast<long long>(std::round(value * 100));
+      double converted_back = cents / 100.0;
+      auto error = std::fabs(value - converted_back);
 
-    // If the converted back value does not match the original, it had more than two decimal places
-    // Note 240601 - The value 0.01 comes from practical testing. I still fail to understand
-    //               how *100 followed by /100 can introduce such a large error?
-    //               This code seems to work for now.
-    //               TODO: refactor Cratchit to represent Currency values as whole integer cents to avoid the floating point precision problems!
-    if (error > 0.01) {
-      std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") has more than two decimal places. Error:" << error << ". Rounded it to " << converted_back;
-      this->m_double_value = converted_back;
-    } else {
-      this->m_double_value = value; // ok    
+      // If the converted back value does not match the original, it had more than two decimal places
+      // Note 240601 - The value 0.01 comes from practical testing. I still fail to understand
+      //               how *100 followed by /100 can introduce such a large error?
+      //               This code seems to work for now.
+      //               TODO: refactor Cratchit to represent Currency values as whole integer cents to avoid the floating point precision problems!
+      if (error > 0.01) {
+        std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") has more than two decimal places. Error:" << error << ". Rounded it to " << converted_back;
+        this->m_double_value = converted_back;
+      } else {
+        this->m_double_value = value; // ok    
+      }
+        
     }
-      
-  }
 
-  /*
+    /*
 
-  Allow for Currency Math
-  Amount + Amount = Amount
-  Amount - Amount = Amount
-  Amount * Amount = Not defined (NOT an amount)
-  double * Amount = Amount
-  Amount * Double = Amount
-  Amount / double = Amount
-  double / Amount = Not defined (NOT an amount)
-  Amount / Amount = double ok (and also NOT an Amount)
+    Allow for Currency Math
+    Amount + Amount = Amount
+    Amount - Amount = Amount
+    Amount * Amount = Not defined (NOT an amount)
+    double * Amount = Amount
+    Amount * Double = Amount
+    Amount / double = Amount
+    double / Amount = Not defined (NOT an amount)
+    Amount / Amount = double ok (and also NOT an Amount)
 
-  */
+    */
 
-  // Amount += Amount
-  Amount operator+=(const Amount& other) { 
-    this->m_double_value += other.m_double_value;
-    return *this;
-  }
-
-  // Amount + Amount
-  Amount operator+(const Amount& other) const {
-    Amount result{*this};
-    result += other;
-    return result;
-  }
-
-  // Amount - Amount
-  Amount operator-(const Amount& other) const { return Amount(m_double_value - other.m_double_value); }
-  Amount operator-() const { return Amount(-m_double_value); }
-  // Amount * double
-  Amount operator*(double scalar) const { return Amount(m_double_value * scalar); }
-  double operator/(const Amount& other) const { return m_double_value / other.m_double_value; }
-
-  // Amount / double
-  Amount operator/(double divisor) const { return Amount(m_double_value / divisor); }
-
-  bool operator==(Amount const& other) const {return this->m_double_value == other.m_double_value;}
-  auto operator<=>(Amount const& other) const {
-    return this->m_double_value <=> other.m_double_value;
-  }
-
-  friend double to_double(Amount const& amount);
-  friend Amount operator*(double a, Amount const &b);
-  
-private:
-  double m_double_value;
-};
-
-// double + Amount
-Amount operator+(double a, Amount const &b) {
-  return Amount{a} + b; // Do Amount + Amount
-}
-
-// double - Amount
-Amount operator-(double a, Amount const &b) {
-  return Amount{a} - b; // Do Amount - Amount
-}
-
-// double * Amount
-Amount operator*(double a, Amount const &b) {
-  return Amount{a} * b.m_double_value; // Do Amount * double
-}
-
-double to_double(Amount const& amount) {
-  return amount.m_double_value; 
-}
-
-// Return Amount rounded to whole value
-Amount round(Amount const& amount) {
-  return Amount{std::round(to_double(amount))};
-}
-
-// Return positive amount value (remove negative sign)
-Amount abs(Amount const& amount) {
-  return Amount{std::abs(to_double(amount))};
-}
-
-// Returns Amount truncated to whole value (ignore decimal cents)
-Amount trunc(Amount const& amount) {
-  return Amount{trunc(to_double(amount))};
-}
-
-std::istream& operator>>(std::istream& is, Amount& amount) {
-    double double_value;
-    if (is >> double_value) {
-      amount = Amount{double_value};
+    // Amount += Amount
+    Amount operator+=(const Amount& other) { 
+      this->m_double_value += other.m_double_value;
+      return *this;
     }
-    return is;
+
+    // Amount + Amount
+    Amount operator+(const Amount& other) const {
+      Amount result{*this};
+      result += other;
+      return result;
+    }
+
+    // Amount - Amount
+    Amount operator-(const Amount& other) const { return Amount(m_double_value - other.m_double_value); }
+    Amount operator-() const { return Amount(-m_double_value); }
+    // Amount * double
+    Amount operator*(double scalar) const { return Amount(m_double_value * scalar); }
+    double operator/(const Amount& other) const { return m_double_value / other.m_double_value; }
+
+    // Amount / double
+    Amount operator/(double divisor) const { return Amount(m_double_value / divisor); }
+
+    bool operator==(Amount const& other) const {return this->m_double_value == other.m_double_value;}
+    auto operator<=>(Amount const& other) const {
+      return this->m_double_value <=> other.m_double_value;
+    }
+
+    friend double to_double(Amount const& amount);
+    friend Amount operator*(double a, Amount const &b);
+    
+  private:
+    double m_double_value;
+  };
+
+  // double + Amount
+  Amount operator+(double a, Amount const &b) {
+    return Amount{a} + b; // Do Amount + Amount
+  }
+
+  // double - Amount
+  Amount operator-(double a, Amount const &b) {
+    return Amount{a} - b; // Do Amount - Amount
+  }
+
+  // double * Amount
+  Amount operator*(double a, Amount const &b) {
+    return Amount{a} * b.m_double_value; // Do Amount * double
+  }
+
+  double to_double(Amount const& amount) {
+    return amount.m_double_value; 
+  }
+
+  // Return Amount rounded to whole value
+  Amount round(Amount const& amount) {
+    return Amount{std::round(to_double(amount))};
+  }
+
+  // Return positive amount value (remove negative sign)
+  Amount abs(Amount const& amount) {
+    return Amount{std::abs(to_double(amount))};
+  }
+
+  // Returns Amount truncated to whole value (ignore decimal cents)
+  Amount trunc(Amount const& amount) {
+    return Amount{trunc(to_double(amount))};
+  }
+
+  std::istream& operator>>(std::istream& is, Amount& amount) {
+      double double_value;
+      if (is >> double_value) {
+        amount = Amount{double_value};
+      }
+      return is;
+  }
+
+  std::ostream& operator<<(std::ostream& os, Amount const& amount) {
+      os << std::fixed << std::setprecision(2) << to_double(amount);
+      return os;
+  }
+
 }
 
-std::ostream& operator<<(std::ostream& os, Amount const& amount) {
-    os << std::fixed << std::setprecision(2) << to_double(amount);
-    return os;
+using Amount = WrappedDoubleAmount::Amount;
+
+#else
+
+namespace DoubleAmount {
+
+  // using Amount= float;
+  using Amount= double;
+
+  double to_double(Amount const& amount) {
+    return amount; 
+  }
 }
 
-#else 
-
-// using Amount= float;
-using Amount= double;
-
-double to_double(Amount const& amount) {
-  return amount; 
-}
-
+using Amount = DoubleAmount::Amount;
+using DoubleAmount::to_double;
 
 #endif
 
