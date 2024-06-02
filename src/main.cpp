@@ -773,18 +773,43 @@ namespace WrappedCentsAmount {
     using cents_value_type = int;
     CentsAmount() = default;
     explicit CentsAmount(CentsAmount::cents_value_type cents_value) : m_cents_value{cents_value} {}
+
+    friend CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const& cents_amount);
+    friend CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const& cents_amount);
+
   private:
     cents_value_type m_cents_value;
   };
+
+  CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const& cents_amount) {
+    return cents_amount.m_cents_value / 100;
+  }
+
+  CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const& cents_amount) {
+    return cents_amount.m_cents_value % 100;
+  }
+
 
 }
 
 namespace IntCentsAmount {
   // Cents Amount represents e.g., 117.17 as the integer 11717
   using CentsAmount = int;
+
+  CentsAmount to_whole_part_integer(CentsAmount const& cents_amount) {
+    return cents_amount / 100;
+  }
+
+  CentsAmount to_cents_part_integer(CentsAmount const& cents_amount) {
+    return cents_amount % 100;
+  }
+
 }
 
 using CentsAmount = IntCentsAmount::CentsAmount;
+using IntCentsAmount::to_whole_part_integer;
+using IntCentsAmount::to_cents_part_integer;
+
 // using CentsAmount = WrappedCentsAmount::CentsAmount;
 
 using OptionalCentsAmount = std::optional<CentsAmount>;
@@ -985,14 +1010,15 @@ OptionalCentsAmount to_cents_amount(std::string const& s) {
 }
 
 CentsAmount to_cents_amount(Amount const& amount) {
-	return round(to_double(amount)*100);
+  // Compiler will cast double to CentsAmount::cents_value_type and use CentsAmount{cents_value_type} constructor
+	return static_cast<CentsAmount>(std::round(to_double(amount)*100));
 }
 
 using UnitsAmount = int;
 using UnitsAndCents = std::pair<UnitsAmount,CentsAmount>;
 
 UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount) {
-	UnitsAndCents result{round(cents_amount / 100),cents_amount % 100};
+	UnitsAndCents result{to_whole_part_integer(cents_amount),to_cents_part_integer(cents_amount)};
 	return result;
 }
 
