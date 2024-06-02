@@ -766,8 +766,25 @@ std::string filtered(std::string const& s,auto filter) {
 	return result;
 }
 
-// Cents Amount represents e.g., 117.17 as the integer 11717
-using CentsAmount = int;
+namespace WrappedCentsAmount {
+
+  class CentsAmount {
+  public:
+    using cents_value_type = int;
+  private:
+    cents_value_type m_cents_value;
+  };
+
+}
+
+namespace IntCentsAmount {
+  // Cents Amount represents e.g., 117.17 as the integer 11717
+  using CentsAmount = int;
+
+}
+
+using CentsAmount = IntCentsAmount::CentsAmount;
+
 using OptionalCentsAmount = std::optional<CentsAmount>;
 
 // The namespace for a class Amount that wraps a double as representation
