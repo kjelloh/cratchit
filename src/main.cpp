@@ -429,6 +429,16 @@ namespace encoding {
 
 namespace tokenize {
 
+  std::string trim(std::string const& s) {
+    return std::ranges::to<std::string>(
+        s 
+      | std::views::drop_while(::isspace) 
+      | std::views::reverse 
+      | std::views::drop_while(::isspace) 
+      | std::views::reverse
+    );
+  }  
+
 	bool contains(std::string const& key,std::string const& s) {
 		return (s.find(key) != std::string::npos);
 	}
@@ -2662,14 +2672,19 @@ namespace CSV {
 
   using TableHeading = FieldRow;
   using OptionalTableHeading = std::optional<TableHeading>;
+
+  // Helper to identify a valid function to_heading(row_0) : FieldRow -> std::optional<TableHeading> 
   template<typename ToHeading, typename FieldRow>
   concept ToHeadingConcept = requires(ToHeading to_heading, FieldRow field_row) {
       { to_heading(field_row) } -> std::convertible_to<std::optional<TableHeading>>;
   };  
 
   struct Table {
-    TableHeading heading;
-    std::vector<FieldRow> rows;
+    using Heading = FieldRow;
+    using Row = FieldRow;
+    using Rows = std::vector<Row>;
+    Heading heading;
+    Rows rows;
   };
   using OptionalTable = std::optional<Table>;
 
@@ -2685,7 +2700,6 @@ namespace CSV {
     }
     return result;
   }
-
 
 } // namespace CSV
 
@@ -2797,7 +2811,7 @@ namespace CSV {
 			,unknown
 		};
 
-		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row) {
+		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row,Table::Heading const& heading = Table::Heading{}) {
 			OptionalTaggedAmount result{};
 			if (field_row.size() >= 10) {
 				auto sDate = field_row[element::Bokforingsdag];
@@ -2825,6 +2839,23 @@ namespace CSV {
 						if (field_row[element::Egna_anteckningar].size() > 0) {
 							ta.tags()["Notes"] = field_row[element::Egna_anteckningar];
 						}
+            // Tag with column names as defiend by heading
+            if (heading.size() > 0 and heading.size() == field_row.size()) {
+              for (int i=0;i<heading.size();++i) {
+                auto key = heading[i];
+                auto value = field_row[i];
+                if (ta.tags().contains(key) == false) {
+                  if (value.size() > 0) ta.tags()[key] = field_row[i]; // add column value tagged with column name
+                }
+                else {
+                  std::cout << "\nWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
+                }
+              }
+            }
+            else {
+              std::cout << "\nError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
+            }
+
 						result = ta;
 					}
 					else {
@@ -2859,11 +2890,13 @@ namespace CSV {
 			,unknown
 		};
 
-		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row) {
+		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row,Table::Heading const& heading = Table::Heading{}) {
 			OptionalTaggedAmount result{};
 			if (field_row.size() == 5) {
 				// NOTE: The SKV comma separated file is in fact a end-with-';' field file (so we get five separations where the file only contains four fields...)
 				//       I.e., field index 0..3 contains values
+        // NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
+        // Assume the client calling this function has already transcoded the text into internal character set and encoding (on macOS UNICODE in UTF-8)
 				auto sDate = field_row[element::OptionalDate];
 				if (auto date = to_date(sDate)) {
 					auto sAmount = field_row[element::Belopp];
@@ -2872,8 +2905,27 @@ namespace CSV {
 						TaggedAmount ta{*date,cents_amount};
 						ta.tags()["Account"] = "SKV";
 						ta.tags()["Text"] = field_row[element::Text];
-						// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
-            // Assume the client calling this function has already transcoded the text into internal character set and encoding (on macOS UNICODE in UTF-8)
+
+            // Tag with column names as defiend by heading
+            if (heading.size() > 0 and heading.size() == field_row.size()) {
+              for (int i=0;i<heading.size();++i) {
+                auto key = heading[i];
+                if (ta.tags().contains(key) == false) {
+                  // Note: The SKV file may contain both CR (0x0D) and LF (0x0A) even when downloaded to macOS that expects only CR.
+                  // We cann trim on the value to get rid of any residue LF
+                  // TODO: Make reading of text from file robust against control characters that does not match the expectation of the runtime
+                  auto value = tokenize::trim(field_row[i]);
+                  if (value.size() > 0) ta.tags()[key] = field_row[i]; // add column value tagged with column name
+                }
+                else {
+                  std::cout << "\nWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
+                }
+              }
+            }
+            else {
+              std::cout << "\nError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
+            }
+
 						result = ta;
 					}
 					else {
@@ -3012,7 +3064,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
           };
           if (auto table = CSV::to_table(field_rows,to_heading)) {
             for (auto const& field_row : table->rows) {
-              if (auto o_ta = CSV::NORDEA::to_tagged_amount(field_row)) {
+              if (auto o_ta = CSV::NORDEA::to_tagged_amount(field_row,table->heading)) {
                 dota.insert(*o_ta);
               }
               else {
@@ -3037,7 +3089,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
           };
           if (auto table = CSV::to_table(field_rows,to_heading)) {
             for (auto const& field_row : table->rows) {
-              if (auto o_ta = CSV::SKV::to_tagged_amount(field_row)) {
+              if (auto o_ta = CSV::SKV::to_tagged_amount(field_row,table->heading)) {
                 dota.insert(*o_ta);
               }
               else {
