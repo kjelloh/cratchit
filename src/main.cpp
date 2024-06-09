@@ -23,8 +23,50 @@ float const VERSION = 0.5;
 #include <functional>
 #include <set>
 #include <ranges> // requires c++ compiler with c++20 support
+#include <concepts> // Requires C++23 support
 
 #include "../lib/macos/lua-5.2.4_MacOS1011_lib/include/lua.hpp"
+
+// Helpers to stream this pointer for logging purposes
+template<typename T>
+concept PointerToClassType = std::is_pointer_v<T> && std::is_class_v<std::remove_pointer_t<T>>;
+template<PointerToClassType T>
+std::ostream& operator<<(std::ostream& os, T ptr) {
+    os << " memory[" << std::hex << std::showbase << reinterpret_cast<std::uintptr_t>(ptr) << "]";
+    return os;
+}
+
+// The Cratchit should comply with the Swedish law Accouning Act
+/*
+
+The Accounting Act (1999:1078) Chapter 5, Section 7 states that each voucher must contain:
+
+The date when the business transaction occurred.
+The date when the voucher was compiled.
+Voucher number or other identification.
+Information about what the business transaction pertains to.
+Amount and any applicable VAT.
+The name of the counterparty.
+
+From Swedish law text:
+
+Bokföringslagen (1999:1078) kapitel 5 § 7 säger att varje verifikation ska innehålla:
+
+Datum när affärshändelsen inträffade.
+Datum när verifikationen sammanställdes.
+Verifikationsnummer eller annan identifiering.
+Uppgift om vad affärshändelsen avser.
+Belopp och eventuell moms.
+Motpartens namn.
+
+As of 240603 I have yet to understand the exact difference between "date when the business transaction occurred" and "The date when the voucher was compiled".
+
+* The SIE entry of a registered voucher contains only the "accounting date" which, as far as I can see, is usually the date when the event happened.
+* This leads me to conclude that the electronic register of a voucher is valid with 'only' the 'date of event'?
+* In this way, the BAS account saldo will reflect 'reality' based on the reported date of when the event happened.
+* Especially for Bank Accounts or the Swedish Tax Agency account for company tax transactions the saldo will correctly reflect the reported saldo.
+
+*/
 
 // Scratch comments to "remember" what configuration for VSCode that does "work"
 
@@ -45,146 +87,6 @@ float const VERSION = 0.5;
 // c_cpp_properties.json/"configurations":/"includePath": ... "/Library/Developer/CommandLineTools/usr/include/c++/v1"
 //                                               to have Intellisense find actual OS specific c++ library headers (required by macro "include_next" in c++ library headers).
 
-// {
-//     "version": "2.0.0",
-//     "tasks": [
-//       {
-//         "type": "cppbuild",
-//         "label": "macOS C/C++: Brew installed g++-12 build cratchit",
-//         "command": "/usr/local/Cellar/gcc/12.2.0/bin/g++-12",
-//         "args": [
-//           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-//           "-fdiagnostics-color=always",
-//           "-std=c++20",
-//           "-g",
-//           "${file}",
-//           "-o",
-//           "${workspaceFolder}/cratchit.out"
-//         ],
-//         "options": {
-//           "cwd": "${fileDirname}"
-//         },
-//         "problemMatcher": [
-//           "$gcc"
-//         ],
-//         "group": "build",
-//         "detail": "compiler: /usr/local/Cellar/gcc/12.2.0/bin/g++-12"
-//       },
-//       {
-//         "type": "cppbuild",
-//         "label": "macOS C/C++: macPorts installed g++-12 build cratchit",
-//         "command": "/opt/local/bin/g++-mp-12",
-//         "args": [
-//           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-//           "-fdiagnostics-color=always",
-//           "-std=c++20",
-//           "-g",
-//           "${file}",
-//           "-o",
-//           "${workspaceFolder}/cratchit.out"
-//         ],
-//         "options": {
-//           "cwd": "${fileDirname}"
-//         },
-//         "problemMatcher": [
-//           "$gcc"
-//         ],
-//         "group": "build",
-//         "detail": "compiler: /opt/local/bin/g++-mp-12"
-//       },      
-
-//       {
-//         "type": "cppbuild",
-//         "label": "macOS C/C++: Brew installed clang-16 build cratchit",
-//         "command": "/usr/local/Cellar/llvm/16.0.2/bin/clang++",
-//         "args": [
-//           "-fdiagnostics-color=always",
-//           "-L/usr/local/Cellar/llvm/16.0.2/lib/c++/",
-//           "-Wl,-rpath,/usr/local/Cellar/llvm/16.0.2/lib/c++",
-//           "-std=c++20",
-//           "-g",
-//           "${file}",
-//           "-o",
-//           "${workspaceFolder}/cratchit.out"
-//         ],
-//         "options": {
-//           "cwd": "${fileDirname}"
-//         },
-//         "problemMatcher": [
-//           "$gcc"
-//         ],
-//         "group": "build",
-//         "detail": "compiler: /usr/local/Cellar/llvm/16.0.2/bin/clang++"
-//       },
-
-//       {
-//         "type": "cppbuild",
-//         "label": "macOS C/C++: macPorts installed clang-15 build cratchit",
-//         "command": "/opt/local/libexec/llvm-15/bin/clang++",
-//         "args": [
-//           "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-//           "-fexperimental-library",
-//           "-L/opt/local/libexec/llvm-15/lib/",
-//           "-fdiagnostics-color=always",
-//           "-std=c++20",
-//           "-g",
-//           "${file}",
-//           "-o",
-//           "${workspaceFolder}/cratchit.out"
-//         ],
-//         "options": {
-//           "cwd": "${fileDirname}"
-//         },
-//         "problemMatcher": [
-//           "$gcc"
-//         ],
-//         "group": "build",
-//         "detail": "compiler: /opt/local/libexec/llvm-15/bin/clang++"
-//       },      
-
-//       {
-//         "type": "cppbuild",
-//         "label": "Linux C/C++: clang-14 build cratchit",
-//         "command": "/usr/lib/llvm-14/bin/clang++",
-//         "args": [
-//           "-fdiagnostics-color=always",
-//           "-std=c++20",
-//           "-stdlib=libc++",
-//           "${file}",
-//           "-o",
-//           "${workspaceFolder}/cratchit.out"
-//         ],
-//         "options": {
-//           "cwd": "${fileDirname}"
-//         },
-//         "problemMatcher": [
-//           "$gcc"
-//         ],
-//         "group": "build",
-//         "detail": "compiler: /usr/lib/llvm-14/bin/clang++"
-//       }
-     
-//     ]
-// }
-
-    // "configurations": [
-    //     {
-    //         "name": "Mac",
-    //         "includePath": [
-    //             "${workspaceFolder}/**",
-    //             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
-    //             "/Library/Developer/CommandLineTools/usr/include/c++/v1"
-    //         ],
-    //         "defines": [],
-    //         "macFrameworkPath": [
-    //             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
-    //         ],
-    //         "compilerPath": "/usr/local/bin/gcc-11",
-    //         "cStandard": "gnu17",
-    //         "cppStandard": "gnu++17",
-    //         "intelliSenseMode": "macos-gcc-x64"
-    //     }
-    // ],
 
 using char16_t_string = std::wstring;
 
@@ -705,6 +607,7 @@ namespace Key {
 			auto end() const {return m_path.end();}
 			Path() = default;
 			Path(Path const& other) = default;
+      Path(std::vector<std::string> const& v) : m_path{v} {}
 			Path(std::string const& s_path,char delim = '^') : 
 			  m_delim{delim}
 				,m_path(tokenize::splits(s_path,delim,tokenize::eAllowEmptyTokens::YES)) {};
@@ -1458,12 +1361,15 @@ class DateOrderedTaggedAmountsContainer {
 		}
 
     // TODO 240218: Consider to provide a predicate for the caller to control what should be regarded as "same value"
-    //              This could be a way to apply special teratment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
-    // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a godd solution for this?
+    //              This could be a way to apply special treatment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
+    // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a good solution for this?
 		iterator insert(TaggedAmount const& ta) {
 			auto result = m_date_ordered_tagged_amounts.end();
       auto value_id = to_value_id(ta);
       if (m_tagged_amount_value_id_map.contains(value_id) == false) {
+        if (true) {
+          std::cout << "\nthis:" << this << " Inserted new " << ta;
+        }
         // Find the last element with a date less than the date of ta        
         auto end = std::upper_bound(m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end(),ta,[](TaggedAmount const& ta1, TaggedAmount const& ta2) {
             return ta1.date() < ta2.date();
@@ -1473,8 +1379,9 @@ class DateOrderedTaggedAmountsContainer {
 				result = m_date_ordered_tagged_amounts.insert(end,ta); // place after all with date less than the one of ta
       }
       else {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
-        std::cout << "\n                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
+        std::cout << "\nthis:" << this;
+        std::cout << "\n\tDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
+        std::cout << "\n\t                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
       }
 			return result;
 		}
@@ -2751,7 +2658,34 @@ namespace CSV {
 			std::cout << "\nDESIGN INSUFFICIENCY: to_field_rows failed. Exception=" << std::quoted(e.what());
 		}
 		return result;
-	}  
+	}
+
+  using TableHeading = FieldRow;
+  using OptionalTableHeading = std::optional<TableHeading>;
+  template<typename ToHeading, typename FieldRow>
+  concept ToHeadingConcept = requires(ToHeading to_heading, FieldRow field_row) {
+      { to_heading(field_row) } -> std::convertible_to<std::optional<TableHeading>>;
+  };  
+
+  struct Table {
+    TableHeading heading;
+    std::vector<FieldRow> rows;
+  };
+  using OptionalTable = std::optional<Table>;
+
+  OptionalTable to_table(OptionalFieldRows const& field_rows,ToHeadingConcept<FieldRow> auto to_heading) {
+    OptionalTable result{};
+    if (field_rows and field_rows->size()>0) {
+      Table table{};
+      if (auto heading = to_heading(field_rows->at(0))) {
+        table.heading = *heading;
+        table.rows = *field_rows; // Keep all rows inclduing heading row if there is one (TODO: Remove when mechanism to differ between rows with and without a heading row 0 implemented)
+        result = table;
+      }
+    }
+    return result;
+  }
+
 
 } // namespace CSV
 
@@ -2914,6 +2848,7 @@ namespace CSV {
 			2022-06-20;Inbetalning bokf�rd 220613;625;;
 			;Utg�ende saldo 2022-07-02;625;0;
 		*/
+
 		enum element: std::size_t {
 			undefined
 			,OptionalDate=0
@@ -2938,7 +2873,7 @@ namespace CSV {
 						ta.tags()["Account"] = "SKV";
 						ta.tags()["Text"] = field_row[element::Text];
 						// NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
-						// TODO: Re-enocode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
+            // Assume the client calling this function has already transcoded the text into internal character set and encoding (on macOS UNICODE in UTF-8)
 						result = ta;
 					}
 					else {
@@ -3063,28 +2998,60 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
       auto csv_heading_id = CSV::to_csv_heading_id(field_rows->at(0));
       switch (csv_heading_id) {
         case CSV::HeadingId::NORDEA: {
-          for (auto const& field_row : *field_rows) {
-            if (auto o_ta = CSV::NORDEA::to_tagged_amount(field_row)) {
-              dota.insert(*o_ta);
+          auto to_heading = [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
+            if (field_row.size() > 3) {
+              // Note: Requiring at least 3 'columns' is a heuristic to somewhat ensure we have at least a date, an amount and some description to work with
+              // E.g. NORDEA bank CSV-file row 0: "Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta"
+              return field_row; // Assume csv-file has row 0 as the one naming the columns (as of 2024-06-09 NORDEA web bank csv-file does)
+              // NOTE: This approach makes Cratchit dependent on the naming chosen by Nordea in its web bank generated CSV-file...
             }
             else {
-              std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+              std::cout << "\nDESIGN_INSUFFICIENCY: Failed to use provied field_row " << field_row << " to return a table heading. Insufficient field_row.size()=" << field_row.size();
+              return std::nullopt;
             }
+          };
+          if (auto table = CSV::to_table(field_rows,to_heading)) {
+            for (auto const& field_row : table->rows) {
+              if (auto o_ta = CSV::NORDEA::to_tagged_amount(field_row)) {
+                dota.insert(*o_ta);
+              }
+              else {
+                std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+              }
+            }            
+          }
+          else {
+            std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << path << " to a CVS::Table with known heading and data content";
           }
         } break;
         case CSV::HeadingId::SKV: {
-          for (auto const& field_row : *field_rows) {
-            if (auto o_ta = CSV::SKV::to_tagged_amount(field_row)) {
-              dota.insert(*o_ta);
+          auto to_heading = [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
+            // Assume this is row 0 of an SKV-file which in turn we assume is from SKV, the swedish tax agency, with transactions on 'our' tax account
+            // This mean we have no column names in the file and need to hard code them.
+            if (field_row.size() == 5) {
+              return CSV::TableHeading{{"Bokföringsdag","Rubrik","Belopp","Kolumn_4","Kolumn_5"}};
             }
             else {
-              std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+              return std::nullopt;
             }
+          };
+          if (auto table = CSV::to_table(field_rows,to_heading)) {
+            for (auto const& field_row : table->rows) {
+              if (auto o_ta = CSV::SKV::to_tagged_amount(field_row)) {
+                dota.insert(*o_ta);
+              }
+              else {
+                std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+              }
+            }
+          }
+          else {
+            std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << path << " to a CVS::Table with known heading and data content";
           }
         } break;
         default: {
           // Skip this file (not a known count of values per row)
-          std::cout << "\n*Skipped file* with csv_heading_id = " << static_cast<int>(csv_heading_id) << " (unknown file content)"; 
+          std::cout << "\n*Skipped file* " << path << " with csv_heading_id = " << static_cast<int>(csv_heading_id) << ". ERROR, unknown file content)";
         }
       }
 		}
@@ -11955,6 +11922,9 @@ private:
   }
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
+    if (true) {
+		  std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files" << std::flush;
+    }
 		DateOrderedTaggedAmountsContainer result{};
 		// Ensure folder "from_bank_or_skv folder" exists
 		auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
@@ -11982,14 +11952,18 @@ private:
 				}
 				std::cout << "\nEND File: " << path;
 			}
-			std::cout << "\nEND: Prfocessed Files in " << from_bank_or_skv_path;
+			std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
 		}
-		// std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
+    if (true) {
+  		std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
+    }
 		return result;
 	}
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
-		// std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
+    if (true) {
+		  std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
+    }
 		DateOrderedTaggedAmountsContainer result{};
 		auto [begin,end] = environment.equal_range("TaggedAmount");
 		std::for_each(begin,end,[&result](auto const& entry){
