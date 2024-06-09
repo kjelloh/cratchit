@@ -10,7 +10,7 @@
             "defines": [],
             "compilerPath": "/usr/local/bin/gcc-11",
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "macos-gcc-x64"
         },
         {
@@ -23,7 +23,7 @@
             "defines": [],
             "compilerPath": "/usr/local/Cellar/llvm/13.0.1_1/bin/clang++",
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "macos-gcc-x64"
         },
         {
@@ -36,7 +36,7 @@
             "defines": [],
             "compilerPath": "/usr/local/Cellar/llvm/15.0.3/bin/clang++",
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "macos-gcc-x64"
         },
         {
@@ -49,7 +49,7 @@
             "defines": [],
             "compilerPath": "/usr/lib/llvm-14/bin/clang++",
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "linux-gcc-x64"
         },
         {
@@ -63,7 +63,7 @@
             ],
             "compilerPath": "/usr/local/Cellar/llvm/16.0.2/bin/clang++",
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "macos-clang-x64"
         }
     ],
