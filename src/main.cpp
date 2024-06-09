@@ -216,6 +216,40 @@ namespace charset {
 
 } // namespace CharSet
 
+// Helper to read from a stream into an std::array of predefined size
+template<std::size_t N>
+std::istream& operator>>(std::istream& is, std::array<unsigned char, N>& arr) {
+    is.read(reinterpret_cast<char*>(arr.data()), arr.size());
+    return is;
+}
+
+// Helper to  write an std::array of predefined size to a stream
+template <std::size_t N>
+std::ostream& operator<<(std::ostream& os, std::array<unsigned char, N> const& arr){
+  for (int b : arr) os << " " << std::hex << b; // Note: We need b to be an int to apply the appropriate integer output formatting
+  return os;
+}
+
+struct BOM {
+  using value_type = std::array<unsigned char,3>;
+  value_type value;
+};
+
+std::istream& operator>>(std::istream& is,BOM& bom) {
+  auto original_pos = is.tellg();
+  const BOM::value_type UTF8_BOM{0xEF,0xBB,0xBF};
+  if ((is >> bom.value) and (bom.value == UTF8_BOM)) {
+    // std::cout << "\nBOM consumed from read file. bom:" << bom.value;
+  }
+  else {
+    // std::cout << "\nNo BOM detected in read file";
+    // Signal the failure
+    is.setstate(std::ios_base::failbit);
+    is.seekg(original_pos); // Note: ChatGPT argues C++ library 'backend' does this on the fail signal - but just in case...
+  }
+  return is;
+}
+
 namespace encoding {
 
   namespace ISO_8859_1 {
@@ -376,7 +410,20 @@ namespace encoding {
       return result;
     }
 
-		struct istream {
+		class istream {
+    public:
+      istream(std::istream& in) : is{in} {
+        // Check for BOM in input stream
+        BOM bom{};
+
+        if (is >> bom) {
+          std::cout << "\nBOM consumed from read file";
+          ::operator<<(std::cout,bom.value); // TODO: Figure out why operator<< templetized for std::array is 'hidden' unless we use :: to search the global namespace?
+        }
+        else {
+          std::cout << "\nNo BOM detected in read file";
+        }
+      }
 			std::istream& is;
 			operator bool() {return static_cast<bool>(is);}
       // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
@@ -437,7 +484,7 @@ namespace tokenize {
       | std::views::drop_while(::isspace) 
       | std::views::reverse
     );
-  }  
+  }
 
 	bool contains(std::string const& key,std::string const& s) {
 		return (s.find(key) != std::string::npos);
