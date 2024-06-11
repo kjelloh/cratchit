@@ -254,17 +254,34 @@ namespace std_overload {
 
 namespace encoding {
 
-
   struct BOM {
-    using value_type = std::array<unsigned char,3>;
+    using value_type = std::array<unsigned char,3>; // Works for 3-byte BOM like UTF8
     value_type value;
+
+    // TODO: Refactor to handle BOM of length other than 3 *sigh*
+    // NOTE: It seems no BOM is more than 4 bytes (So 4 bytes with checking the third and fourth only if the first two and three match?)
+    /*
+    Encoding	              BOM
+    UTF-8	                  EF BB BF
+    UTF-16 (Big endian)	    FE FF
+    UTF-16 (Little endian)	FF FE
+    UTF-32 (Big endian)	    00 00 FE FF
+    UTF-32 (Little endian)  FF FE 00 00
+    UTF-7	                  2B 2F 76 followed by 38, 39, 2B, 2F, or 38 2D
+    UTF-1	                  F7 64 4C
+    UTF-EBCDIC	            DD 73 66 73
+    SCSU	                  0E FE FF
+    BOCU-1	                FB EE 28
+    GB-18030	              84 31 95 33
+    */    
+
+    static constexpr BOM::value_type UTF8_VALUE{0xEF,0xBB,0xBF};
   };
 
   std::istream& operator>>(std::istream& is,BOM& bom) {
     using std_overload::operator>>; // to 'see' the defined overload for std::array
     auto original_pos = is.tellg();
-    const BOM::value_type UTF8_BOM{0xEF,0xBB,0xBF};
-    if ((is >> bom.value) and (bom.value == UTF8_BOM)) {
+    if ((is >> bom.value) and (bom.value == BOM::UTF8_VALUE)) {
       // std::cout << "\nBOM consumed from read file. bom:" << bom.value;
     }
     else {
@@ -285,12 +302,14 @@ namespace encoding {
   class bom_istream {
   public:
 			std::istream& raw_in;
+      std::optional<BOM> bom{};
       bom_istream(std::istream& in) : raw_in{in} {
         // Check for BOM in fresh input stream
-        BOM bom{};
+        BOM candidate{};
 
-        if (raw_in >> bom) {
-          std::cout << "\nConsumed BOM:" << bom;
+        if (raw_in >> candidate) {
+          std::cout << "\nConsumed BOM:" << candidate;
+          this->bom = candidate;
         }
         else {
           std::cout << "\nNo BOM detected in stream";
@@ -463,7 +482,15 @@ namespace encoding {
 
 		class istream : public bom_istream {
     public:
-      istream(std::istream& in) : bom_istream{in} {}
+      istream(std::istream& in) : bom_istream{in} {
+        if (this->bom) {
+          if (this->bom->value != BOM::UTF8_VALUE) {
+            // We expect the input stream to be in UTF8 and thus any BOM must confirm this
+            std::cout << "\nSorry, Expected an UTF8 input stream but found contradicting BOM:" << *(this->bom);
+            this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
+          }
+        }
+      }
       // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
