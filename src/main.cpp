@@ -460,7 +460,7 @@ namespace encoding {
 						}
 					} break;
 					default: {
-						// We don't support Unicodes over the range U+0800	U+FFFF
+						// We don't support Unicodes above the range U+0800	U+FFFF
 						m_utf_8_buffer.clear(); // reset
 					}
 				}
@@ -472,7 +472,7 @@ namespace encoding {
       char16_t_string result{};
       ToUnicodeBuffer to_unicode_buffer{};
       for (auto ch : s_utf8) {
-        if (auto unicode = to_unicode_buffer.push(ch)) {
+        if (auto unicode = to_unicode_buffer.push(static_cast<std::uint8_t>(ch))) {
           result += *unicode;
         }
       }
@@ -615,8 +615,11 @@ namespace tokenize {
 				size_t first{},delim_pos{};
 				do {
 					delim_pos = s.find(delim,first);
-					result.push_back(s.substr(first,delim_pos-first));
-					first = delim_pos+1;
+          if (delim_pos != std::string::npos) {
+            result.push_back(s.substr(first,delim_pos-first));
+            first = delim_pos+1;
+          }
+          else break;
 				} while (delim_pos<s.size());
 			}
 		}
@@ -1324,12 +1327,20 @@ using TaggedAmounts = std::vector<TaggedAmount>;
 using OptionalTaggedAmount = std::optional<TaggedAmount>;
 using OptionalTaggedAmounts = std::optional<TaggedAmounts>;
 
-// From boost::hash_combine for std::size_t
 template <class T>
+__attribute__((no_sanitize("undefined")))
 inline void hash_combine(std::size_t& seed, const T& v)
 {
+    constexpr auto shift_left_count = 1;
+    constexpr std::size_t max_size_t = std::numeric_limits<std::size_t>::max();
+    constexpr std::size_t mask = max_size_t >> shift_left_count;
     std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2); // *magic* dustribution as defined by boost::hash_combine
+    // Note: I decided to NOT use boost::hash_combine code as it will cause integer overflow and thus undefined behaviour.
+    //       And I need the hash I produce to be consistent so I can use it in persistent storage (the environment text file for Cratchit)
+    //       Now, maybe the risk of getting different values on different hardware or runtimes (macOS, Linus, Windows etc) is non existent in practice.
+    //       But hey, better safe than sorry, right?
+    // seed ^= hasher(v) + 0x9e3779b9 + ((seed & mask) <<6) + (seed>>2); // *magic* dustribution as defined by boost::hash_combine
+    seed ^= (hasher(v) and mask) << shift_left_count; // Simple shift left distribution and no addition
 }
 
 namespace std {
