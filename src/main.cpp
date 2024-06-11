@@ -619,7 +619,6 @@ namespace tokenize {
             result.push_back(s.substr(first,delim_pos-first));
             first = delim_pos+1;
           }
-          else break;
 				} while (delim_pos<s.size());
 			}
 		}
@@ -1340,7 +1339,7 @@ inline void hash_combine(std::size_t& seed, const T& v)
     //       Now, maybe the risk of getting different values on different hardware or runtimes (macOS, Linus, Windows etc) is non existent in practice.
     //       But hey, better safe than sorry, right?
     // seed ^= hasher(v) + 0x9e3779b9 + ((seed & mask) <<6) + (seed>>2); // *magic* dustribution as defined by boost::hash_combine
-    seed ^= (hasher(v) and mask) << shift_left_count; // Simple shift left distribution and no addition
+    seed ^= (hasher(v) & mask) << shift_left_count; // Simple shift left distribution and no addition
 }
 
 namespace std {
