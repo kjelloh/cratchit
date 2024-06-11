@@ -216,41 +216,71 @@ namespace charset {
 
 } // namespace CharSet
 
-// Helper to read from a stream into an std::array of predefined size
-template<std::size_t N>
-std::istream& operator>>(std::istream& is, std::array<unsigned char, N>& arr) {
-    is.read(reinterpret_cast<char*>(arr.data()), arr.size());
-    return is;
-}
+// Namespace that overloads on std types ()
+namespace std_overload {
+  // Note: We could have placed these overloads in either the global namespace or the std namespace.
 
-// Helper to  write an std::array of predefined size to a stream
-template <std::size_t N>
-std::ostream& operator<<(std::ostream& os, std::array<unsigned char, N> const& arr){
-  for (int b : arr) os << " " << std::hex << b; // Note: We need b to be an int to apply the appropriate integer output formatting
-  return os;
-}
+  //       But placing them in the std namespace is considered bad practice as we would potentially pollute std with declarations with unknown conflicts as a result.
+  //       And placing these in the global namespace renders these overloads to NOT be considered by the compiler is used in another (not global) namespace.
 
-struct BOM {
-  using value_type = std::array<unsigned char,3>;
-  value_type value;
-};
+  //       Explanation: The compiler will apply C++ argument dependant lookup (ADL), i.e., look for overloads in the std namespace for arguments of std namespace types
+  //       This means it will fail to consider this overload as it is not in the std namespace (and it will not look in teh global namespace)
 
-std::istream& operator>>(std::istream& is,BOM& bom) {
-  auto original_pos = is.tellg();
-  const BOM::value_type UTF8_BOM{0xEF,0xBB,0xBF};
-  if ((is >> bom.value) and (bom.value == UTF8_BOM)) {
-    // std::cout << "\nBOM consumed from read file. bom:" << bom.value;
+  //       E.g., any 'std::istream >> array-type-variable' will fail to find this overload (fails to compile)
+
+  //       Solution 1: Have the client use the call syntax ::operator>>(stream,array-type-variable)
+  //       Solution 2: Place 'using std_overload::operator>>' in the namespace (class or function scope) where we want to use it
+  //       Solution 3: Pre-create here the namespaces where we want to use this overload and inject them with 'using ::operator>>' so that the using code don't have to
+
+  // None of the alternatives is fully satisfactory but in Cratchit we have chose alternative 2 for now.
+
+  // Helper to read from a stream into an std::array of predefined size
+  // Client namespace needs an 'using std_overload::operator>>' to 'see it'
+  template<std::size_t N>
+  std::istream& operator>>(std::istream& is, std::array<unsigned char, N>& arr) {
+      is.read(reinterpret_cast<char*>(arr.data()), arr.size());
+      return is;
   }
-  else {
-    // std::cout << "\nNo BOM detected in read file";
-    // Signal the failure
-    is.setstate(std::ios_base::failbit);
-    is.seekg(original_pos); // Note: ChatGPT argues C++ library 'backend' does this on the fail signal - but just in case...
+
+  // Helper to  write an std::array of predefined size to a stream
+  // Client namespace needs an 'using std_overload::operator<<' to 'see it'
+  template <std::size_t N>
+  std::ostream& operator<<(std::ostream& os, std::array<unsigned char, N> const& arr){
+    for (int b : arr) os << " " << std::hex << b; // Note: We need b to be an int to apply the appropriate integer output formatting
+    return os;
   }
-  return is;
 }
+
 
 namespace encoding {
+
+
+  struct BOM {
+    using value_type = std::array<unsigned char,3>;
+    value_type value;
+  };
+
+  std::istream& operator>>(std::istream& is,BOM& bom) {
+    using std_overload::operator>>; // to 'see' the defined overload for std::array
+    auto original_pos = is.tellg();
+    const BOM::value_type UTF8_BOM{0xEF,0xBB,0xBF};
+    if ((is >> bom.value) and (bom.value == UTF8_BOM)) {
+      // std::cout << "\nBOM consumed from read file. bom:" << bom.value;
+    }
+    else {
+      // std::cout << "\nNo BOM detected in read file";
+      // Signal the failure
+      is.setstate(std::ios_base::failbit);
+      is.seekg(original_pos); // Note: ChatGPT argues C++ library 'backend' does this on the fail signal - but just in case...
+    }
+    return is;
+  }
+
+  std::ostream& operator<<(std::ostream& os,BOM const& bom) {
+    using std_overload::operator<<; // to 'see' the defined overload for std::array
+    os << bom.value;
+    return os;
+  }
 
   namespace ISO_8859_1 {
 
@@ -417,8 +447,7 @@ namespace encoding {
         BOM bom{};
 
         if (is >> bom) {
-          std::cout << "\nBOM consumed from read file";
-          ::operator<<(std::cout,bom.value); // TODO: Figure out why operator<< templetized for std::array is 'hidden' unless we use :: to search the global namespace?
+          std::cout << "\nBOM consumed from read file" << bom;
         }
         else {
           std::cout << "\nNo BOM detected in read file";
