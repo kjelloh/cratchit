@@ -326,7 +326,13 @@ namespace encoding {
 
 		class istream : public bom_istream {
     public:
-      istream(std::istream& in) : bom_istream{in} {}
+      istream(std::istream& in) : bom_istream{in} {
+        if (this->bom) {
+          // We expect the input stream to be without BOM
+          std::cout << "\nSorry, Expected ISO8859-1 stream but found bom:" << *(this->bom);
+          this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
+        }
+      }
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
@@ -510,7 +516,13 @@ namespace encoding {
   namespace CP437 {
 		class istream : public bom_istream {
     public:
-      istream(std::istream& in) : bom_istream{in} {}
+      istream(std::istream& in) : bom_istream{in} {
+        if (this->bom) {
+          // We expect the input stream to be without BOM
+          std::cout << "\nSorry, Expected CP437 (SIE-file) stream but found bom:" << *(this->bom);
+          this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
+        }
+      }
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
@@ -790,6 +802,11 @@ namespace Key {
 			}
 			return os;
 		}
+    std::string to_string(Key::Path const& key_path) {
+      std::ostringstream os{};
+      os << key_path;
+      return os.str();
+    }
 } // namespace Key
 
 std::string filtered(std::string const& s,auto filter) {
@@ -3187,7 +3204,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
                 dota.insert(*o_ta);
               }
               else {
-                std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
+                std::cout << "\nSorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
               }
             }            
           }
