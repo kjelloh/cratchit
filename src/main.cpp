@@ -24,6 +24,12 @@ float const VERSION = 0.5;
 #include <set>
 #include <ranges> // requires c++ compiler with c++20 support
 #include <concepts> // Requires C++23 support
+#include <csignal>
+
+// Define a signal handler function that does nothing
+void handle_winch(int sig) {
+    // Do nothing
+}
 
 #include "../lib/macos/lua-5.2.4_MacOS1011_lib/include/lua.hpp"
 
@@ -12128,10 +12134,13 @@ private:
 		std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
 		if (std::filesystem::exists(from_bank_or_skv_path) == true) {
 			// Process all files in from_bank_or_skv_path
-			std::cout << "\nBEGIN: Processing files in " << from_bank_or_skv_path;
-			for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) {
+			std::cout << "\nBEGIN: Processing files in " << from_bank_or_skv_path << std::flush;
+      // auto dir_entries = std::filesystem::directory_iterator{}; // Test empty iterator (does heap error disappear?) - YES!
+      // TODO 240611 - Locate heap error detected here for g++ built with address sanitizer
+      // NOTE: Seems to be all std::filesystem::directory_iterator usage in this code (Empty iterator here makes another loop cause heap error)
+			for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) { 
 				auto path = dir_entry.path();
-				std::cout << "\n\nBEGIN File: " << path;
+				std::cout << "\n\nBEGIN File: " << path << std::flush;
         if (dir_entry.is_directory()) {
           // skip directories (will process regular files and symlinks etc...)
         }
@@ -12520,6 +12529,8 @@ int main(int argc, char *argv[])
 			// std::string sPATH{std::getenv("PATH")};
       // std::cout << "\nPATH=" << sPATH;
 	}
+  
+  std::signal(SIGWINCH, handle_winch); // We need a signal handler to not confuse std::cin on console window resize
 	std::string command{};
 	for (int i=1;i < argc;i++) command+= std::string{argv[i]} + " ";
 	auto current_path = std::filesystem::current_path();
