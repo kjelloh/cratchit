@@ -271,7 +271,7 @@ namespace encoding {
       // std::cout << "\nNo BOM detected in read file";
       // Signal the failure
       is.setstate(std::ios_base::failbit);
-      is.seekg(original_pos); // Note: ChatGPT argues C++ library 'backend' does this on the fail signal - but just in case...
+      is.seekg(original_pos); // Restore to before checking for BOM in case there was none
     }
     return is;
   }
@@ -285,7 +285,20 @@ namespace encoding {
   class bom_istream {
   public:
 			std::istream& raw_in;
+      bom_istream(std::istream& in) : raw_in{in} {
+        // Check for BOM in fresh input stream
+        BOM bom{};
+
+        if (raw_in >> bom) {
+          std::cout << "\nConsumed BOM:" << bom;
+        }
+        else {
+          std::cout << "\nNo BOM detected in stream";
+          raw_in.clear(); // clear the signalled failure to allow the stream to be read for non-BOM content
+        }
+      }
 			operator bool() {return static_cast<bool>(raw_in);}
+
     // TODO: Move base class members from derived 8859_1 and UTF-8 istream classes to here
   private:
   };
@@ -450,17 +463,7 @@ namespace encoding {
 
 		class istream : public bom_istream {
     public:
-      istream(std::istream& in) : bom_istream{in} {
-        // Check for BOM in input stream
-        BOM bom{};
-
-        if (raw_in >> bom) {
-          std::cout << "\nBOM consumed from read file" << bom;
-        }
-        else {
-          std::cout << "\nNo BOM detected in read file";
-        }
-      }
+      istream(std::istream& in) : bom_istream{in} {}
       // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
