@@ -284,6 +284,8 @@ namespace encoding {
 
   class bom_istream {
   public:
+			std::istream& raw_in;
+			operator bool() {return static_cast<bool>(raw_in);}
     // TODO: Move base class members from derived 8859_1 and UTF-8 istream classes to here
   private:
   };
@@ -292,15 +294,13 @@ namespace encoding {
 
 		class istream : public bom_istream {
     public:
-			std::istream& is;
-      istream(std::istream& in) : is{in} {}
-			operator bool() {return static_cast<bool>(is);}
+      istream(std::istream& in) : bom_istream{in} {}
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
         typename F::value_type result{};
         std::string raw_entry{};
-        if (std::getline(is,raw_entry)) {
+        if (std::getline(raw_in,raw_entry)) {
           auto unicode_s = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
           result = f(unicode_s);
         }
@@ -450,25 +450,23 @@ namespace encoding {
 
 		class istream : public bom_istream {
     public:
-      istream(std::istream& in) : is{in} {
+      istream(std::istream& in) : bom_istream{in} {
         // Check for BOM in input stream
         BOM bom{};
 
-        if (is >> bom) {
+        if (raw_in >> bom) {
           std::cout << "\nBOM consumed from read file" << bom;
         }
         else {
           std::cout << "\nNo BOM detected in read file";
         }
       }
-			std::istream& is;
-			operator bool() {return static_cast<bool>(is);}
       // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
         typename F::value_type result{};
         std::string raw_entry{};
-        if (std::getline(is,raw_entry)) {
+        if (std::getline(raw_in,raw_entry)) {
           auto unicode_s = encoding::UTF8::utf8ToUnicode(raw_entry);
           result = f(unicode_s);
         }
@@ -482,15 +480,13 @@ namespace encoding {
   namespace CP437 {
 		class istream : public bom_istream {
     public:
-			std::istream& is;
-      istream(std::istream& in) : is{in} {}
-			operator bool() {return static_cast<bool>(is);}
+      istream(std::istream& in) : bom_istream{in} {}
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
         typename F::value_type result{};
         std::string raw_entry{};
-        if (std::getline(is,raw_entry)) {
+        if (std::getline(raw_in,raw_entry)) {
           auto unicode_s = charset::CP437::cp437ToUnicode(raw_entry);
           result = f(unicode_s);
         }
@@ -749,10 +745,17 @@ namespace Key {
 			int key_count{0};
 			for (auto const& key : key_path) {
 				if (key_count++>0) os << key_path.m_delim;
-				for (auto ch : key) {
-					if (std::isprint(ch)) os << ch; // Filter out non printable characters (AND characters in wrong encoding, e.g., charset::ISO_8859_1 from raw file input that erroneously end up here ...)
-					else os << "?";
-				}
+        if (false) {
+          // patch to filter out unprintable characters that results from incorrect character decodings
+          // NOTE: This loop will break down multi-character encodings like UTF-8 and turn them into two or more '?'
+          for (auto ch : key) {
+          	if (std::isprint(ch)) os << ch; // Filter out non printable characters (AND characters in wrong encoding, e.g., charset::ISO_8859_1 from raw file input that erroneously end up here ...)
+          	else os << "?";
+          }
+        }
+        else {
+          os << key; // Assume key is in runtime character encoding (ok to output as-is)
+        }
 				// std::cout << "\n\t[" << key_count-1 << "]:" << std::quoted(key);
 			}
 			return os;
@@ -2945,7 +2948,7 @@ namespace CSV {
 						result = ta;
 					}
 					else {
-						std::cout << "\nNot a valid amount: " << std::quoted(sAmount); 
+						std::cout << "\nNot a valid NORDEA amount: " << std::quoted(sAmount); 
 					}
 				}
 				else {
@@ -3051,7 +3054,7 @@ namespace CSV {
 								std::cout << "\nNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
 						}
 					}
-					if (sDate.size() > 0) std::cout << "\nNot a valid date: " << std::quoted(sDate);
+					if (sDate.size() > 0) std::cout << "\nNot a valid SKV date: " << std::quoted(sDate);
 				}
 			}
 			return result;
@@ -4135,9 +4138,8 @@ namespace CSV {
 			// ;PAYPAL *HKSITES 2656	;										;51981,54		;SEK
 
 			// 
-			std::string sEntry{};
-			if (std::getline(in.is,sEntry)) {
-				auto tokens = tokenize::splits(sEntry,';',tokenize::eAllowEmptyTokens::YES);
+			if (auto sEntry = in.getline(encoding::unicode::to_utf8{})) {
+				auto tokens = tokenize::splits(*sEntry,';',tokenize::eAllowEmptyTokens::YES);
 				// LOG
 				if (false) {
 // std::cout << "\ncsv count: " << tokens.size(); // Expected 10
@@ -4170,9 +4172,9 @@ namespace CSV {
 					while (true) {
 						had.heading = heading;
 						if (amount and valuta == "SEK") had.amount = *amount;
-						else {in.is.setstate(std::istream::failbit);break;}
+						else {in.raw_in.setstate(std::istream::failbit);break;}
 						if (date) had.date = *date;
-						else {in.is.setstate(std::istream::failbit);break;}
+						else {in.raw_in.setstate(std::istream::failbit);break;}
 						break;
 					}
 				}
@@ -4185,15 +4187,15 @@ namespace CSV {
 
 	CSVParseResult parse_TRANS(auto& in) {
 		CSVParseResult result{};
-		auto pos = in.is.tellg();
+		auto pos = in.raw_in.tellg();
 		HeadingAmountDateTransEntry had{};
 		if (in >> had) {
 			// std::cout << "\nfrom csv: " << had;
 			result = had;
-			pos = in.is.tellg(); // accept new stream position
+			pos = in.raw_in.tellg(); // accept new stream position
 		}
-		in.is.seekg(pos); // Reset position in case of failed parse
-		in.is.clear(); // Reset failbit to allow try for other parse
+		in.raw_in.seekg(pos); // Reset position in case of failed parse
+		in.raw_in.clear(); // Reset failbit to allow try for other parse
 		return result;		
 	}
 
@@ -12452,21 +12454,14 @@ private:
 
 int main(int argc, char *argv[])
 {
-	if (false) {
+	if (true) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
-			std::wcout << "\nDeafult (current) locale setting is " << std::locale().name().c_str();
+			std::cout << "\nDeafult (current) locale setting is " << std::locale().name().c_str();
 			std::string sHello{"Hallå Åland! Ömsom ödmjuk. Ärligt äkta."}; // This source file expected to be in UTF-8
-// std::cout << "\ncout:" << sHello; // macOS handles UTF-8 ok (how about other platforms?)
-			for (auto const& ch : sHello) {
-// std::cout << "\n" << ch << " " << std::hex << static_cast<int>(ch) << std::dec; // check stream and console encoding, std::locale behaviour
-			}
-			std::ofstream os{"cp437_test.txt"};
-			SIE::OStream sieos{os};
-			sieos << sHello; // We expect SIE file encoding of CP437
-			return 0;
-			std::string sPATH{std::getenv("PATH")};
-// std::cout << "\nPATH=" << sPATH;
+      std::cout << "\nUTF-8 sHello:" << std::quoted(sHello);
+			// std::string sPATH{std::getenv("PATH")};
+      // std::cout << "\nPATH=" << sPATH;
 	}
 	std::string command{};
 	for (int i=1;i < argc;i++) command+= std::string{argv[i]} + " ";
