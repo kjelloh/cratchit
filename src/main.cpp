@@ -282,10 +282,18 @@ namespace encoding {
     return os;
   }
 
-  namespace ISO_8859_1 {
+  class bom_istream {
+  public:
+    // TODO: Move base class members from derived 8859_1 and UTF-8 istream classes to here
+  private:
+  };
 
-		struct istream {
+  namespace ISO_8859_1  {
+
+		class istream : public bom_istream {
+    public:
 			std::istream& is;
+      istream(std::istream& in) : is{in} {}
 			operator bool() {return static_cast<bool>(is);}
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
@@ -440,7 +448,7 @@ namespace encoding {
       return result;
     }
 
-		class istream {
+		class istream : public bom_istream {
     public:
       istream(std::istream& in) : is{in} {
         // Check for BOM in input stream
@@ -472,8 +480,10 @@ namespace encoding {
 	} // namespace UTF8
 
   namespace CP437 {
-		struct istream {
+		class istream : public bom_istream {
+    public:
 			std::istream& is;
+      istream(std::istream& in) : is{in} {}
 			operator bool() {return static_cast<bool>(is);}
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
       template <class F>
@@ -4089,7 +4099,7 @@ using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 namespace CSV {
 
 	namespace NORDEA {
-		struct istream : public encoding::ISO_8859_1::istream {};
+		class istream : public encoding::UTF8::istream {};
 
 		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 		/*
