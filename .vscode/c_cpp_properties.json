@@ -1,71 +1,33 @@
 {
     "configurations": [
         {
-            "name": "Mac gcc-11",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
-            ],
-            "defines": [],
-            "compilerPath": "/usr/local/bin/gcc-11",
-            "cStandard": "c17",
-            "cppStandard": "c++23",
-            "intelliSenseMode": "macos-gcc-x64"
+          "name": "Mac g++-14",
+          "includePath": [
+              "${workspaceFolder}/**",
+              "/usr/local/Cellar/gcc/14.1.0_1/include/c++/14.1.0",  // GCC's C++ standard library headers
+              "/usr/local/Cellar/gcc/14.1.0_1/include/c++/14.1.0/x86_64-apple-darwin20",  // GCC's target-specific headers
+              "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"  // System headers
+          ],
+          "defines": [],
+          "compilerPath": "/usr/local/Cellar/gcc/14.1.0_1/bin/g++-14",
+          "cStandard": "c17",
+          "cppStandard": "c++23",
+          "intelliSenseMode": "macos-gcc-x64"
         },
         {
-            "name": "Mac clang++-13",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
-            ],
-            "defines": [],
-            "compilerPath": "/usr/local/Cellar/llvm/13.0.1_1/bin/clang++",
-            "cStandard": "c17",
-            "cppStandard": "c++23",
-            "intelliSenseMode": "macos-gcc-x64"
-        },
-        {
-            "name": "Mac clang++-15",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"
-            ],
-            "defines": [],
-            "compilerPath": "/usr/local/Cellar/llvm/15.0.3/bin/clang++",
-            "cStandard": "c17",
-            "cppStandard": "c++23",
-            "intelliSenseMode": "macos-gcc-x64"
-        },
-        {
-            "name": "Linux clang++-14",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/usr/lib/llvm-14//include/c++/v1",
-                "/usr/include"
-            ],
-            "defines": [],
-            "compilerPath": "/usr/lib/llvm-14/bin/clang++",
-            "cStandard": "c17",
-            "cppStandard": "c++23",
-            "intelliSenseMode": "linux-gcc-x64"
-        },
-        {
-            "name": "Mac clang++-16",
-            "includePath": [
-                "${workspaceFolder}/**"
-            ],
-            "defines": [],
-            "macFrameworkPath": [
-                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
-            ],
-            "compilerPath": "/usr/local/Cellar/llvm/16.0.2/bin/clang++",
-            "cStandard": "c17",
-            "cppStandard": "c++23",
-            "intelliSenseMode": "macos-clang-x64"
-        }
-    ],
+          "name": "Mac clang++-18",
+          "includePath": [
+              "${workspaceFolder}/**",
+              "/usr/local/Cellar/llvm/18.1.6/include/c++/v1",  // Updated path for LLVM's C++ standard library headers
+              "/usr/local/Cellar/llvm/18.1.6/lib/clang/18.1.6/include",  // LLVM's Clang resource headers
+              "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"  // System headers
+          ],
+          "defines": [],
+          "compilerPath": "/usr/local/Cellar/llvm/18.1.6/bin/clang++",
+          "cStandard": "c17",
+          "cppStandard": "c++23",
+          "intelliSenseMode": "macos-clang-x64"
+      }
+  ],
     "version": 4
 }

@@ -1,40 +1,21 @@
 {
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
   "configurations": [
     {
-      "name": "(gdb) Launch",
+      "name": "(lldb) Launch cratchit.out",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/cratchit.out",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${fileDirname}",
+      "cwd": "${workspaceFolder}",
       "environment": [],
       "externalConsole": true,
-      "MIMode": "gdb",
-      "setupCommands": [
-          {
-              "description": "Enable pretty-printing for gdb",
-              "text": "-enable-pretty-printing",
-              "ignoreFailures": true
-          },
-          {
-              "description":  "Set Disassembly Flavor to Intel",
-              "text": "-gdb-set disassembly-flavor intel",
-              "ignoreFailures": true
-          }
-      ]
-    },
-  {
-    "name": "(lldb) Launch cratchit",
-    "type": "cppdbg",
-    "request": "launch",
-    "program": "${workspaceFolder}/cratchit.out",
-    "args": [],
-    "stopAtEntry": false,
-    "cwd": "${fileDirname}",
-    "environment": [],
-    "externalConsole": true,
-    "MIMode": "lldb"
-  }
-]
+      "MIMode": "lldb"
+    }
+
+  ]
 }

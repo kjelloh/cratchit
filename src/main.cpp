@@ -12139,24 +12139,28 @@ private:
       // TODO 240611 - Locate heap error detected here for g++ built with address sanitizer
       // NOTE: Seems to be all std::filesystem::directory_iterator usage in this code (Empty iterator here makes another loop cause heap error)
 			for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) { 
-				auto path = dir_entry.path();
-				std::cout << "\n\nBEGIN File: " << path << std::flush;
-        if (dir_entry.is_directory()) {
-          // skip directories (will process regular files and symlinks etc...)
+        // 240612 Test if g++14 with sanitizer detects heap violation also for an empty std::filesystem::directory_iterator loop?
+        //        YES - c++14 with "-fsanitize=address,undefined" reports runtime heap violation error on the for statement above!
+        if (true) {
+          auto path = dir_entry.path();
+          std::cout << "\n\nBEGIN File: " << path << std::flush;
+          if (dir_entry.is_directory()) {
+            // skip directories (will process regular files and symlinks etc...)
+          }
+          // Process file
+          else if (auto tagged_amounts = to_tagged_amounts(path)) {
+            result += *tagged_amounts;
+            std::cout << "\n\tValid entries count:" << tagged_amounts->size();
+            auto consumed_files_path = from_bank_or_skv_path / "consumed";
+            std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+            std::filesystem::rename(path,consumed_files_path / path.filename());
+            std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / path.filename();
+          }
+          else {
+            std::cout << "\n*Ignored* " << path << " (Failed to understand file content)";
+          }
+          std::cout << "\nEND File: " << path;
         }
-				// Process file
-				else if (auto tagged_amounts = to_tagged_amounts(path)) {
-					result += *tagged_amounts;
-					std::cout << "\n\tValid entries count:" << tagged_amounts->size();
-          auto consumed_files_path = from_bank_or_skv_path / "consumed";
-          std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-          std::filesystem::rename(path,consumed_files_path / path.filename());
-          std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / path.filename();
-				}
-				else {
-					std::cout << "\n*Ignored* " << path << " (Failed to understand file content)";
-				}
-				std::cout << "\nEND File: " << path;
 			}
 			std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
 		}
@@ -12518,8 +12522,22 @@ private:
     std::queue<Msg> in{};
 };
 
+// void test_directory_iterator() {
+//   // Code from https://en.cppreference.com/w/cpp/filesystem/directory_iterator 
+//     const std::filesystem::path sandbox{"sandbox"};
+//     std::filesystem::create_directories(sandbox/"dir1"/"dir2");
+//     std::ofstream{sandbox/"file1.txt"};
+//     std::ofstream{sandbox/"file2.txt"};
+ 
+//     std::cout << "directory_iterator:\n";
+//     // directory_iterator can be iterated using a range-for loop
+//     for (auto const& dir_entry : std::filesystem::directory_iterator{sandbox}) {}
+// }
+
 int main(int argc, char *argv[])
 {
+  // test_directory_iterator();
+  // exit(0);
 	if (true) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
