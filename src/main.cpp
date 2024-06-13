@@ -240,20 +240,23 @@ namespace std_overload {
 
   // None of the alternatives is fully satisfactory but in Cratchit we have chose alternative 2 for now.
 
-  // Helper to read from a stream into an std::array of predefined size
-  // Client namespace needs an 'using std_overload::operator>>' to 'see it'
-  template<std::size_t N>
-  std::istream& operator>>(std::istream& is, std::array<unsigned char, N>& arr) {
-      is.read(reinterpret_cast<char*>(arr.data()), arr.size());
-      return is;
-  }
-
   // Helper to  write an std::array of predefined size to a stream
   // Client namespace needs an 'using std_overload::operator<<' to 'see it'
   template <std::size_t N>
   std::ostream& operator<<(std::ostream& os, std::array<unsigned char, N> const& arr){
     for (int b : arr) os << " " << std::hex << b; // Note: We need b to be an int to apply the appropriate integer output formatting
     return os;
+  }
+
+  // Helper to read from a stream into an std::array of predefined size
+  // Client namespace needs an 'using std_overload::operator>>' to 'see it'
+  template<std::size_t N>
+  std::istream& operator>>(std::istream& is, std::array<unsigned char, N>& arr) {
+      is.read(reinterpret_cast<char*>(arr.data()), arr.size());
+      if (is) {
+        std::cout << "\noperator>> read array:" << arr;
+      }
+      return is;
   }
 }
 
@@ -286,15 +289,22 @@ namespace encoding {
 
   std::istream& operator>>(std::istream& is,BOM& bom) {
     using std_overload::operator>>; // to 'see' the defined overload for std::array
+    using std_overload::operator<<; // to 'see' the defined overload for std::array
     auto original_pos = is.tellg();
-    if ((is >> bom.value) and (bom.value == BOM::UTF8_VALUE)) {
-      // std::cout << "\nBOM consumed from read file. bom:" << bom.value;
+    if (is >> bom.value) {
+      if (bom.value == BOM::UTF8_VALUE) {
+        std::cout << "\noperator>>(BOM) consumed from read file. bom:" << bom.value;
+      }
+      else {
+        std::cout << "\noperator>>(BOM) Not a valid BOM - file position is reset";
+        // NOTE 240613 - Most vexing semantics: seekg does nothing if the failbit is set!!
+        //               So it is important we do not set the failbit until after setting the file position *sigh*
+        is.seekg(original_pos); // Restore to before checking for BOM in case there was none
+        is.setstate(std::ios_base::failbit); // Signal the failure
+      }
     }
     else {
-      // std::cout << "\nNo BOM detected in read file";
-      // Signal the failure
-      is.setstate(std::ios_base::failbit);
-      is.seekg(original_pos); // Restore to before checking for BOM in case there was none
+      // failed to even read the bytes
     }
     return is;
   }
@@ -321,6 +331,7 @@ namespace encoding {
           std::cout << "\nNo BOM detected in stream";
           raw_in.clear(); // clear the signalled failure to allow the stream to be read for non-BOM content
         }
+        std::cout << "\nbom_istream{} raw_in is at position:" << raw_in.tellg();
       }
 			operator bool() {return static_cast<bool>(raw_in);}
 
@@ -624,6 +635,9 @@ namespace tokenize {
           if (delim_pos != std::string::npos) {
             result.push_back(s.substr(first,delim_pos-first));
             first = delim_pos+1;
+          }
+          else {
+            result.push_back(s.substr(first)); // add the tail
           }
 				} while (delim_pos<s.size());
 			}
@@ -3132,7 +3146,11 @@ namespace CSV {
 
   HeadingId to_csv_heading_id(FieldRow const& field_row) {
     HeadingId result{HeadingId::Undefined};
-    std::cout << "\nfield_row.size() = " << field_row.size();
+    if (true) {
+      std::cout << "\nfield_row.size() = " << field_row.size();
+      std::cout << "\nto_csv_heading_id(field_row:" << std::quoted(to_string(field_row)) << ")";
+      for (auto const& field : field_row) std::cout << "\n\t[" << "]" << std::quoted(field);
+    }
     if (field_row.size() >= 10) {
       if (true) {
         std::cout << "\nNORDEA File candidate ok";
