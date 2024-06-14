@@ -1,4 +1,3 @@
-
 float const VERSION = 0.5;
 
 #include <iostream>
@@ -25,6 +24,7 @@ float const VERSION = 0.5;
 #include <ranges> // requires c++ compiler with c++20 support
 #include <concepts> // Requires C++23 support
 #include <csignal>
+#include <format>
 
 // Define a signal handler function that does nothing
 void handle_winch(int sig) {
@@ -7860,6 +7860,148 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 using EnvironmentValue = std::map<std::string,std::string>;
 using Environment = std::multimap<std::string,EnvironmentValue>;
 
+class ImmutableFileManager {
+private:    
+    std::filesystem::path directoryPath_;
+    std::string prefix_;
+    std::string suffix_;
+    using key_type = std::pair<std::chrono::year_month_day, std::chrono::hh_mm_ss<std::chrono::seconds>>;
+    struct new_to_old {
+      bool operator()(key_type const& key1,key_type const& key2) const {
+        // Note: std::chrono::hh_mm_ss does NOT define any comparisson operators so we need this proprietary compare functor
+        if (key1.first == key2.first) return (key1.second.to_duration() > key2.second.to_duration());
+        return key1.first > key2.first;
+      }
+    };
+    std::map<key_type, std::filesystem::path,new_to_old> files_;
+    /*
+error: invalid operands to binary expression (
+'const std::pair<std::chrono::year_month_day, std::chrono::hh_mm_ss<std::chrono::duration<long long>>>' and 
+'const std::pair<std::chrono::year_month_day, std::chrono::hh_mm_ss<std::chrono::duration<long long>>>')
+    */
+    void loadFiles() {
+      std::cout << "\nloadFiles";
+      files_.clear();
+      for (const auto& entry : std::filesystem::directory_iterator(directoryPath_)) {
+        std::cout << "\n\tfile:" << entry.path();
+        if (entry.is_regular_file()) {
+          auto filePath = entry.path();
+          std::cout << ",regular";
+          if (filePath.filename().string().starts_with(prefix_) && filePath.extension() == suffix_) {
+            std::cout << ",is " << prefix_ << "..." << suffix_;
+            auto ftime = std::filesystem::last_write_time(filePath);
+            auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+
+            auto tp = std::chrono::floor<std::chrono::days>(sctp);
+            std::chrono::year_month_day ymd{tp};
+            std::chrono::hh_mm_ss tod{std::chrono::duration_cast<std::chrono::seconds>(sctp - tp)};
+
+            std::cout << ", key:{ymd:}" << ymd << ",tod:" << tod;
+            auto file_count_before = files_.size();
+            files_[{ymd, tod}] = filePath;
+            std::cout << "\n\t\tfile_count_before:" << file_count_before << " file_count_after:" << files_.size();
+            if (files_.size() == file_count_before) std::cout << " KEY CONFLICT!!";
+          }              
+        }
+      }      
+    }
+public:
+    ImmutableFileManager(std::filesystem::path const& directoryPath,std::string const& prefix,std::string const& suffix) 
+      :  directoryPath_{directoryPath} 
+        ,prefix_{prefix} 
+        ,suffix_{suffix} {
+      this->loadFiles();
+    }
+    
+    std::optional<std::filesystem::path> getOldestFile() const {
+      std::optional<std::filesystem::path> result{};
+      if (not files_.empty()) {
+        result = files_.rbegin()->second; // last listed path
+      }
+      return result;
+    }
+    std::optional<std::filesystem::path> getNewestFile() const {
+      std::optional<std::filesystem::path> result{};
+      if (not files_.empty()) {
+        result = files_.begin()->second; // first listed path
+      }
+      return result;
+    }
+    std::optional<std::filesystem::path> generateNewFilePath() const {
+      std::optional<std::filesystem::path> result{};
+      auto now = std::chrono::system_clock::now();
+      auto tp = std::chrono::floor<std::chrono::seconds>(now); // Round down to seconds
+
+      // Format date and time as part of the file name
+      std::ostringstream oss;
+      // Note: Vexing syntax - the format string for std::format requires the ':' inside place holder "{...}" to prefix any format specifiers! Took me hours!!
+      std::string creation_date_and_time = std::format("{:%Y%m%d_%H%M%S}", tp);
+      oss << prefix_ << '_' << creation_date_and_time << suffix_;
+
+      std::filesystem::path newFilePath = directoryPath_ / oss.str();
+
+      // Handle path colisision (should happen only if new path requested within the same second, but still..)
+      int counter = 1;
+      int const MAX_COUNT{10}; // Max 10 file paths that differs on counter
+      while (counter <= MAX_COUNT) {
+          if (not std::filesystem::exists(newFilePath)) {
+            result = newFilePath;
+            break;
+          }
+          // Append a counter and try again
+          oss.str("");
+          oss << prefix_ << '_' << creation_date_and_time << '_' << counter << suffix_;
+          newFilePath = directoryPath_ / oss.str();
+          ++counter;
+      }
+
+      return result;
+    }
+
+    std::optional<std::filesystem::path> getPreviousFile(const std::filesystem::path& filePath) const {
+      std::optional<std::filesystem::path> result{};
+      auto it = std::adjacent_find(files_.begin(), files_.end(),
+          [&](const auto& pair1, const auto& pair2) { return pair1.second == filePath; });
+
+      if (it != files_.end()) {
+          // If found, return the second file in the pair (which is the 'previous' file in the new-to-old ordered list)
+          result = std::next(it)->second;
+      }
+      return result;
+    }
+
+    std::vector<std::filesystem::path> paths() {
+      std::vector<std::filesystem::path> result{};
+      for (auto const& entry : files_) {
+        result.push_back(entry.second);
+      }
+      return result;
+    }
+};
+
+void test_immutable_file_manager() {
+  if (false) {
+    std::cout << "\ntest_immutable_file_manager";
+    std::filesystem::path folder{"."};
+    ImmutableFileManager ifm{"./test","immutable_file",".txt"};
+    std::cout << "\nimmutable files";
+    for (auto const& p : ifm.paths()) {
+      std::cout << "\n\tfile:" << p;
+    }
+    if (auto new_path = ifm.generateNewFilePath()) {
+      std::ofstream ofs{*new_path};
+      if (ofs) {
+        std::cout << "\ncreated new file:" << *new_path;
+        ofs << "This is an immutable file";
+      }
+    }
+    std::cout << "\ntest_immutable_file_manager calls exit(0) :)";
+    exit(0);
+  }
+}
+
+
 OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ) {
 	OptionalJournalEntryTemplate result{};
 	if (had) {
@@ -12554,8 +12696,14 @@ private:
 
 int main(int argc, char *argv[])
 {
-  // test_directory_iterator();
-  // exit(0);
+  // Test ImmutableFileManager
+  if (false) {
+    test_immutable_file_manager();
+  }
+  if (false) {
+    // test_directory_iterator();
+    // exit(0);
+  }
 	if (true) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
