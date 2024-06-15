@@ -11018,7 +11018,7 @@ Cmd Updater::operator()(Command const& command) {
       if (fiscal_year_date_range) {
         prompt << " " << *fiscal_year_date_range;
         TaggedAmounts tas{}; // journal entries
-        auto is_journal_entry = [tag = ast[1]](TaggedAmount const& ta) {
+        auto is_journal_entry = [](TaggedAmount const& ta) {
           return (ta.tags().contains("parent_SIE") or ta.tags().contains("IB"));
         };        
         std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
