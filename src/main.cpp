@@ -1441,7 +1441,7 @@ std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
   os << " " << ::to_string(ta.date());
   os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
   for (auto const& tag : ta.tags()) {
-    os << " \"" << tag.first << "=" << tag.second << "\"";
+    os << "\n\t|--> \"" << tag.first << "=" << tag.second << "\"";
   }
   return os;
 }
@@ -8326,7 +8326,6 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("-hads : lists current Heading Amount Date (HAD) entries");
 			result.push_back("-sie <sie file path> : imports a new input sie file. Please enclose path with \"\" if it contains space.");
 			result.push_back("-sie : lists transactions in input sie-file");
-			result.push_back("-env : lists cratchit environment");
 			result.push_back("-tas <first date> <last date> : Selects tagged amounts in the period first date .. last date");
 			result.push_back("-tas : Selects last selected tagged amounts");
 			result.push_back("-csv <csv file path> : Imports Comma Seperated Value file of Web bank account transactions");
@@ -9200,7 +9199,7 @@ Cmd Updater::operator()(Command const& command) {
       // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
       int index = 0;
       for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
-        prompt << "\n\t" << index++ << ". " << ta;
+        prompt << "\n" << index++ << ". " << ta;
       }				
     }
     else if (model->prompt_state == PromptState::AcceptNewTAs) {
@@ -10667,7 +10666,7 @@ Cmd Updater::operator()(Command const& command) {
         // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
         int index = 0;
         for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
-          prompt << "\n\t" << index++ << ". " << ta;
+          prompt << "\n" << index++ << ". " << ta;
         }				
       }
       else {
@@ -10687,7 +10686,7 @@ Cmd Updater::operator()(Command const& command) {
           // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
           int index = 0;
           for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
-            prompt << "\n\t" << index++ << ". " << ta;
+            prompt << "\n" << index++ << ". " << ta;
           }				
 
         }
