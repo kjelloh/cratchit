@@ -258,6 +258,40 @@ namespace std_overload {
       }
       return is;
   }
+
+    // std::ranges replacement (overload) until used with a tool-chain that supports
+    namespace ranges {
+
+        // Helper traits to check if a type is a container
+        template<typename T, typename = void>
+        struct is_container : std::false_type {};
+
+        template<typename T>
+        struct is_container<T, std::void_t<typename T::value_type,
+                                           decltype(std::begin(std::declval<T>())),
+                                           decltype(std::end(std::declval<T>()))>>
+            : std::true_type {};
+
+        template<typename T>
+        inline constexpr bool is_container_v = is_container<T>::value;
+
+        // A concept to check if the type is a range
+        template<typename T>
+        concept range = requires(T t) {
+            std::ranges::begin(t);
+            std::ranges::end(t);
+        };
+
+        // Custom implementation of std::ranges::to
+        template<typename Container, range R>
+        requires is_container_v<Container>
+        Container to(R&& r) {
+            using std::ranges::begin, std::ranges::end;
+            return Container(begin(r), end(r));
+        }
+
+    } // namespace ranges  
+
 }
 
 
@@ -571,7 +605,7 @@ namespace encoding {
 namespace tokenize {
 
   std::string trim(std::string const& s) {
-    return std::ranges::to<std::string>(
+    return std_overload::ranges::to<std::string>(
         s 
       | std::views::drop_while(::isspace) 
       | std::views::reverse 

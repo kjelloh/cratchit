@@ -1,11 +1,25 @@
 {
     "version": "2.0.0",
     "tasks": [
+        {
+          "label": "print-working-directory",
+          "type": "shell",
+          "command": "pwd",
+          "group": {
+              "kind": "build",
+              "isDefault": false
+          },
+          "problemMatcher": [],
+          "runOptions": {
+              "runOn": "before"
+          }
+      },
       {
         "type": "cppbuild",
         "label": "cratchit.out clang++ SPARSE SANITIZED build - llvm/18.1.6/lib/c++ macOS C/C++: Brew installed",
         "command": "/usr/local/Cellar/llvm/18.1.6/bin/clang++",
         "args": [
+          "-mmacosx-version-min=12.7",
           "-fdiagnostics-color=always",
           "-Wl,-rpath,/usr/local/Cellar/llvm/18.1.6/lib/c++",
           "-std=c++23",
@@ -90,6 +104,7 @@
           "-fdiagnostics-color=always",
           "-std=c++23",
           "-g",
+          "-Wl,-v",
           "-fsanitize=address,undefined",
           "-fno-omit-frame-pointer",
           "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
@@ -103,6 +118,7 @@
         "problemMatcher": [
           "$cpp"
         ],
+        "dependsOn": "print-working-directory",
         "group": "build",
         "detail": "compiler:/usr/local/Cellar/gcc/14.1.0_1/bin/g++-14"
       },
@@ -111,7 +127,6 @@
         "label": "cratchit.out g++ build - g++-14.1.0_1 macOS C/C++: Brew installed",
         "command": "/usr/local/Cellar/gcc/14.1.0_1/bin/g++-14",
         "args": [
-          "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
           "-fdiagnostics-color=always",
           "-std=c++23",
           "-g",
@@ -131,15 +146,16 @@
       },
       {
         "type": "cppbuild",
-        "label": "g++ 13.3.0 CRATCHIT Build SANITIZED SPARSE",
+        "label": "g++ 13.3.0 CRATCHIT Build SANITIZED",
         "command": "/usr/local/Cellar/gcc@13/13.3.0/bin/g++-13",
         "args": [
             "-fdiagnostics-color=always",
             "-std=c++23",
             "-fsanitize=address,undefined",
             "-g",
+            "-Wl,-v",
+            "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
             "${file}",
-            "../lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
             "-o",
             "${workspaceFolder}/cratchit.out"
         ],
@@ -149,6 +165,7 @@
         "problemMatcher": [
             "$gcc"
         ],
+        "dependsOn": "print-working-directory",
         "group": {
             "kind": "build",
             "isDefault": false
