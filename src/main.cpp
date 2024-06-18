@@ -7909,8 +7909,8 @@ std::pair<std::string,std::optional<EnvironmentValueId>> to_name_and_id(std::str
     std::cout << "\n\tname:" << std::quoted(name) << " id_string:" << std::quoted(id_string); 
     std::istringstream is{id_string};
     EnvironmentValueId id{};
-    if (is >> id) {
-      std::cout << " ok id:" << id;
+    if (is >> std::hex >> id) {
+      std::cout << " ok id:" << std::hex << id;
       return {name,id};
     }
     else {
@@ -8114,8 +8114,10 @@ std::string to_string(EnvironmentValue const& ev) {
 
 std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
   auto const& [key,id_ev_pairs] = entry;
-  for (auto const& [id,ev] : id_ev_pairs) {
-    os << key << ":" << id << " " << std::quoted(to_string(ev));
+  for (auto iter = id_ev_pairs.begin();iter!=id_ev_pairs.end();++iter) {
+    auto const& [id,ev] = *iter;
+    if (iter != id_ev_pairs.begin()) os << "\n";
+    os << key << ":" << std::hex << id << " " << std::quoted(to_string(ev));
   }
 	return os;
 }
@@ -8255,7 +8257,7 @@ OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
 	}
   // TODO 240524 - Remove when fully functional tagged amounts to and from SIE is in place
   //               For now, discard any stored tagged amounts that represents SIE journal entries
-  if (true and result) {
+  if (false and result) {
     if (result->tag_value("BAS") or result->tag_value("SIE")) return std::nullopt; // discard / filter out stored SIE environment tagged amounts (start fresh)
   }
 	return result;
@@ -12714,7 +12716,7 @@ private:
 		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
       // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
-      if (true) {
+      if (false) {
         if (ta.tag_value("BAS") or ta.tag_value("SIE")) {
           // std::cout << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta;
           return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
@@ -12773,12 +12775,12 @@ private:
 				if (is_value_line(line)) {
 					std::istringstream in{line};
 					std::string key{},value_string{};
-					in >> key >> std::quoted(value_string);
+					in >> std::hex >> key >> std::quoted(value_string);
 					// result.insert({key,to_environment_value(value)});
           auto const& [name,id] = to_name_and_id(key);
           if (id) {
             index[name] = *id;
-            std::cout << "\nRead name:index " << name << ":" << index[name] << " for environment file entry " << std::quoted(line);
+            std::cout << "\nRead name:index " << name << ":" << std::hex << index[name] << " for environment file entry " << std::quoted(line);
           }
           else {
             index[name] = result[key].size();
