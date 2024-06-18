@@ -7891,10 +7891,38 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 	return result;
 }
 
-using EnvironmentValue = std::map<std::string,std::string>;
-using EnvironmentValues = std::vector<EnvironmentValue>;
+using EnvironmentValue = std::map<std::string,std::string>; // name-value-pairs
+using EnvironmentValueName = std::string;
+using EnvironmentValueId = std::size_t;
+using EnvironmentIdValueMap = std::map<EnvironmentValueId,EnvironmentValue>;
+using EnvironmentIdValueVector = std::vector<EnvironmentIdValueMap::value_type>;
+// using EnvironmentValues = std::vector<EnvironmentValue>;
 // using Environment = std::multimap<std::string,EnvironmentValue>;
-using Environment = std::map<std::string,EnvironmentValues>;
+// using Environment = std::map<std::string,EnvironmentValues>;
+using Environment = std::map<EnvironmentValueName,EnvironmentIdValueVector>;
+
+std::pair<std::string,std::optional<EnvironmentValueId>> to_name_and_id(std::string key) {
+  std::cout << "\nto_name_and_id(" << std::quoted(key) << ")";    
+  if (auto pos = key.find(':'); pos != std::string::npos) {
+    auto name = key.substr(0,pos);
+    auto id_string = key.substr(pos+1);
+    std::cout << "\n\tname:" << std::quoted(name) << " id_string:" << std::quoted(id_string); 
+    std::istringstream is{id_string};
+    EnvironmentValueId id{};
+    if (is >> id) {
+      std::cout << " ok id:" << id;
+      return {name,id};
+    }
+    else {
+      std::cout << "\nDESIGN_INSUFFICIENCY: Failed to parse the value id after ':' in " << std::quoted(key);
+      return {name,std::nullopt};
+    }
+  }
+  else {
+    std::cout << " NO id in name";
+    return {key,std::nullopt};
+  }
+}
 
 class ImmutableFileManager {
 private:    
@@ -8085,11 +8113,9 @@ std::string to_string(EnvironmentValue const& ev) {
 }
 
 std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
-  // 240618 - Environment::value_type changed from map<string,value> to map<string,vector<value>
-	// os << entry.first << " " << std::quoted(to_string(entry.second));
-  auto const& [key,values] = entry;
-  for (auto const& value : values) {
-    os << key << " " << std::quoted(to_string(value));
+  auto const& [key,id_ev_pairs] = entry;
+  for (auto const& [id,ev] : id_ev_pairs) {
+    os << key << ":" << id << " " << std::quoted(to_string(ev));
   }
 	return os;
 }
@@ -12245,8 +12271,9 @@ private:
 		// 	});
 		// }
     if (environment.contains("contact")) {
-  		auto const& values = environment.at("contact");
-			std::transform(values.begin(),values.end(),std::back_inserter(result),[](auto const& ev){
+  		auto const& id_ev_pairs = environment.at("contact");
+			std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
+        auto const& [id,ev] = id_ev_pair;
 				return *to_contact(ev); // Assume success
 			});
     }
@@ -12404,8 +12431,9 @@ private:
 		// 	}
 		// });
     if (environment.contains("TaggedAmount")) {
-      auto const& values = environment.at("TaggedAmount");
-      std::for_each(values.begin(),values.end(),[&result](auto const& ev){
+      auto const id_ev_pairs = environment.at("TaggedAmount");
+      std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&result](auto const& id_ev_pair){
+        auto const& [id,ev] = id_ev_pair;
         if (auto o_ta = to_tagged_amount(ev)) {
           result.insert(*o_ta);
         }
@@ -12525,8 +12553,9 @@ private:
 		// 	return SRUEnvironments::value_type{"null",{}};
 		// });
     if (environment.contains("SRU:S")) {
-      auto const& values = environment.at("SRU:S");
-      std::transform(values.begin(),values.end(),std::inserter(result,result.end()),[](auto const& ev){
+      auto const id_ev_pairs = environment.at("SRU:S");
+      std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::inserter(result,result.end()),[](auto const& id_ev_pair){
+        auto const& [id,ev] = id_ev_pair;
         if (auto result_entry = to_sru_environments_entry(ev)) return *result_entry;
         return SRUEnvironments::value_type{"null",{}};
       });
@@ -12550,8 +12579,9 @@ private:
 		// 	});
 		// }
     if (environment.contains("employee")) {
-  		auto const& values = environment.at("employee");
-			std::transform(values.begin(),values.end(),std::back_inserter(result),[](auto const& ev){
+  		auto const id_ev_pairs = environment.at("employee");
+			std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
+        auto const [id,ev] = id_ev_pair;
 				return *to_employee(ev); // dereference optional = Assume success
 			});
     }
@@ -12570,8 +12600,9 @@ private:
 		// 	return *to_had(entry.second); // Assume success
 		// });
     if (environment.contains("HeadingAmountDateTransEntry")) {
-      auto const& values = environment.at("HeadingAmountDateTransEntry");
-      std::transform(values.begin(),values.end(),std::back_inserter(result),[](auto const& ev){
+      auto const id_ev_pairs = environment.at("HeadingAmountDateTransEntry");
+      std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
+        auto const& [id,ev] = id_ev_pair;
         return *to_had(ev); // Assume success
       });
     }
@@ -12603,11 +12634,12 @@ private:
 		// 	}
 		// }
     if (environment.contains("sie_file")) {
-      auto const& values = environment.at("sie_file");
-      if (values.size() > 1) {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Expected at most one but found " << values.size() << " 'sie_file' entries in environment file";
+      auto const id_ev_pairs = environment.at("sie_file");
+      if (id_ev_pairs.size() > 1) {
+        std::cout << "\nDESIGN_INSUFFICIENCY: Expected at most one but found " << id_ev_pairs.size() << " 'sie_file' entries in environment file";
       }
-      for (auto const& ev : values) {
+      for (auto const& id_ev_pair : id_ev_pairs) {
+        auto const& [id,ev] = id_ev_pair;
         for (auto const& [year_key,sie_file_name] : ev) {
           std::filesystem::path sie_file_path{sie_file_name};
           if (auto sie_environment = from_sie_file(sie_file_path)) {
@@ -12621,6 +12653,9 @@ private:
         }
 
       }
+    }
+    else {
+      std::cout << "\nNo sie_file entries found in environment";
     }
 		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
 			if (sse->journals().size()>0) {
@@ -12686,12 +12721,13 @@ private:
         }
       }
 			// result.insert({"TaggedAmount",to_environment_value(ta)});
-			result["TaggedAmount"].push_back(to_environment_value(ta));
+			// result["TaggedAmount"].push_back(to_environment_value(ta));
+			result["TaggedAmount"].push_back({to_value_id(ta),to_environment_value(ta)});
 		};
 		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
-		for (auto const& entry :  model->heading_amount_date_entries) {
+		for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {
 			// result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
-			result["HeadingAmountDateTransEntry"].push_back(to_environment_value(entry));
+			result["HeadingAmountDateTransEntry"].push_back({index,to_environment_value(entry)});
 		}
 		std::string sev = std::accumulate(model->sie_file_path.begin(),model->sie_file_path.end(),std::string{},[](auto acc,auto const& entry){
 			std::ostringstream os{};
@@ -12701,22 +12737,23 @@ private:
 		});
 		// sev += std::string{";"} + "path" + "=" + model->sie_file_path["current"].string();
 		// result.insert({"sie_file",to_environment_value(sev)});
-		result["sie_file"].push_back(to_environment_value(sev));
-		for (auto const& entry : model->organisation_contacts) {
+		result["sie_file"].push_back({0,to_environment_value(sev)});
+		for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->organisation_contacts)) {
 			// result.insert({"contact",to_environment_value(entry)});
-			result["contact"].push_back(to_environment_value(entry));
+			result["contact"].push_back({index,to_environment_value(entry)});
 		}
-		for (auto const& entry : model->employee_birth_ids) {
+		for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->employee_birth_ids)) {
 			// result.insert({"employee",to_environment_value(std::string{"birth-id="} + entry)});
-			result["employee"].push_back(to_environment_value(std::string{"birth-id="} + entry));
+			result["employee"].push_back({index,to_environment_value(std::string{"birth-id="} + entry)});
 		}
-		for (auto const& [year_id,sru_env] : model->sru) {
-			std::ostringstream os{};
-			OEnvironmentValueOStream en_val_os{os};
-			en_val_os << "year_id=" << year_id << sru_env;
-			// result.insert({"SRU:S",to_environment_value(os.str())});
-			result["SRU:S"].push_back(to_environment_value(os.str()));
-		}
+    for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->sru)) {
+      auto const& [year_id,sru_env] = entry;
+      std::ostringstream os{};
+      OEnvironmentValueOStream en_val_os{os};
+      en_val_os << "year_id=" << year_id << sru_env;
+      // result.insert({"SRU:S",to_environment_value(os.str())});
+      result["SRU:S"].push_back({index,to_environment_value(os.str())});
+    }
 		return result;
 	}
 	Environment add_cratchit_environment(Environment const& environment) {
@@ -12731,19 +12768,35 @@ private:
 		try {
 			std::ifstream in{p};
 			std::string line{};
+      std::map<std::string,std::size_t> index{};
 			while (std::getline(in,line)) {
 				if (is_value_line(line)) {
 					std::istringstream in{line};
-					std::string key{},value{};
-					in >> key >> std::quoted(value);
+					std::string key{},value_string{};
+					in >> key >> std::quoted(value_string);
 					// result.insert({key,to_environment_value(value)});
-					result[key].push_back(to_environment_value(value));
+          auto const& [name,id] = to_name_and_id(key);
+          if (id) {
+            index[name] = *id;
+            std::cout << "\nRead name:index " << name << ":" << index[name] << " for environment file entry " << std::quoted(line);
+          }
+          else {
+            index[name] = result[key].size();
+            std::cout << "\nNo index in environment file for name: " << name << ". Created index:" << ":" << index[name] << " for environment file entry " << std::quoted(line);
+          }
+					result[name].push_back({index[name],to_environment_value(value_string)});
 				}
 			}
 		}
 		catch (std::runtime_error const& e) {
 			std::cout << "\nERROR - Read from " << p << " failed. Exception:" << e.what();
 		}
+    if (true) {
+      std::cout << "\nenvironment_from_file(" << p << ")";
+      for (auto const& [key,entry] : result) {
+        std::cout << "\n\tkey:" << key << " count:" << entry.size();
+      }
+    }
 		return result;
 	}
 	void environment_to_file(Environment const& environment, std::filesystem::path const& p) {
