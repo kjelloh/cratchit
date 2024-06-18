@@ -7892,7 +7892,9 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 }
 
 using EnvironmentValue = std::map<std::string,std::string>;
-using Environment = std::multimap<std::string,EnvironmentValue>;
+using EnvironmentValues = std::vector<EnvironmentValue>;
+// using Environment = std::multimap<std::string,EnvironmentValue>;
+using Environment = std::map<std::string,EnvironmentValues>;
 
 class ImmutableFileManager {
 private:    
@@ -8083,13 +8085,22 @@ std::string to_string(EnvironmentValue const& ev) {
 }
 
 std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
-	os << entry.first << " " << std::quoted(to_string(entry.second));
+  // 240618 - Environment::value_type changed from map<string,value> to map<string,vector<value>
+	// os << entry.first << " " << std::quoted(to_string(entry.second));
+  auto const& [key,values] = entry;
+  for (auto const& value : values) {
+    os << key << " " << std::quoted(to_string(value));
+  }
 	return os;
 }
 
 std::ostream& operator<<(std::ostream& os,Environment const& env) {
+  // 240618 - Environment::value_type changed from map<string,value> to map<string,vector<value>
+	// for (auto const& entry : env) {
+	// 	os << "\n\t" << entry;
+	// }	
 	for (auto const& entry : env) {
-		os << "\n\t" << entry;
+		os << "\n" << entry;
 	}	
 	return os;
 }
@@ -12219,20 +12230,35 @@ private:
 	std::filesystem::path cratchit_file_path{};
 	std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
 		std::vector<SKV::ContactPersonMeta> result{};
-		auto [begin,end] = environment.equal_range("contact");
-		if (begin == end) {
+		// auto [begin,end] = environment.equal_range("contact");
+		// if (begin == end) {
+		// 	// Instantiate default values if required
+		// 	result.push_back({
+		// 			.name = "Ville Vessla"
+		// 			,.phone = "555-244454"
+		// 			,.e_mail = "ville.vessla@foretaget.se"
+		// 		});
+		// }
+		// else {
+		// 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+		// 		return *to_contact(entry.second); // Assume success
+		// 	});
+		// }
+    if (environment.contains("contact")) {
+  		auto const& values = environment.at("contact");
+			std::transform(values.begin(),values.end(),std::back_inserter(result),[](auto const& ev){
+				return *to_contact(ev); // Assume success
+			});
+    }
+    else {
 			// Instantiate default values if required
 			result.push_back({
 					.name = "Ville Vessla"
 					,.phone = "555-244454"
 					,.e_mail = "ville.vessla@foretaget.se"
 				});
-		}
-		else {
-			std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-				return *to_contact(entry.second); // Assume success
-			});
-		}
+    }
+
 		return result;
 	}
 
@@ -12368,15 +12394,29 @@ private:
 		  std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
     }
 		DateOrderedTaggedAmountsContainer result{};
-		auto [begin,end] = environment.equal_range("TaggedAmount");
-		std::for_each(begin,end,[&result](auto const& entry){
-			if (auto o_ta = to_tagged_amount(entry.second)) {
-				result.insert(*o_ta);
-			}
-			else {
-				std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmount";
-			}
-		});
+		// auto [begin,end] = environment.equal_range("TaggedAmount");
+		// std::for_each(begin,end,[&result](auto const& entry){
+		// 	if (auto o_ta = to_tagged_amount(entry.second)) {
+		// 		result.insert(*o_ta);
+		// 	}
+		// 	else {
+		// 		std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmount";
+		// 	}
+		// });
+    if (environment.contains("TaggedAmount")) {
+      auto const& values = environment.at("TaggedAmount");
+      std::for_each(values.begin(),values.end(),[&result](auto const& ev){
+        if (auto o_ta = to_tagged_amount(ev)) {
+          result.insert(*o_ta);
+        }
+        else {
+          std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
+        }
+      });
+    }
+    else {
+      // Nop
+    }
 
 		// Import any new account statements in dedicated "files from bank or skv" folder
 		result += date_ordered_tagged_amounts_from_account_statement_files(environment);
@@ -12479,35 +12519,65 @@ private:
 
 	SRUEnvironments srus_from_environment(Environment const& environment) {
 		SRUEnvironments result{};
-		auto [begin,end] = environment.equal_range("SRU:S");
-		std::transform(begin,end,std::inserter(result,result.end()),[](auto const& entry){
-			if (auto result_entry = to_sru_environments_entry(entry.second)) return *result_entry;
-			return SRUEnvironments::value_type{"null",{}};
-		});
+		// auto [begin,end] = environment.equal_range("SRU:S");
+		// std::transform(begin,end,std::inserter(result,result.end()),[](auto const& entry){
+		// 	if (auto result_entry = to_sru_environments_entry(entry.second)) return *result_entry;
+		// 	return SRUEnvironments::value_type{"null",{}};
+		// });
+    if (environment.contains("SRU:S")) {
+      auto const& values = environment.at("SRU:S");
+      std::transform(values.begin(),values.end(),std::inserter(result,result.end()),[](auto const& ev){
+        if (auto result_entry = to_sru_environments_entry(ev)) return *result_entry;
+        return SRUEnvironments::value_type{"null",{}};
+      });
+    }
+    else {
+      // Nop
+    }
 		return result;
 	}
 
 	std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
 		std::vector<std::string> result{};
-		auto [begin,end] = environment.equal_range("employee");
-		if (begin == end) {
+		// auto [begin,end] = environment.equal_range("employee");
+		// if (begin == end) {
+		// 	// Instantiate default values if required
+		// 	result.push_back({"198202252386"});
+		// }
+		// else {
+		// 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+		// 		return *to_employee(entry.second); // dereference optional = Assume success
+		// 	});
+		// }
+    if (environment.contains("employee")) {
+  		auto const& values = environment.at("employee");
+			std::transform(values.begin(),values.end(),std::back_inserter(result),[](auto const& ev){
+				return *to_employee(ev); // dereference optional = Assume success
+			});
+    }
+    else {
 			// Instantiate default values if required
 			result.push_back({"198202252386"});
-		}
-		else {
-			std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-				return *to_employee(entry.second); // dereference optional = Assume success
-			});
-		}
+    }
+
 		return result;
 	}
 	
 	HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
 		HeadingAmountDateTransEntries result{};
-		auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
-		std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-			return *to_had(entry.second); // Assume success
-		});
+		// auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
+		// std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+		// 	return *to_had(entry.second); // Assume success
+		// });
+    if (environment.contains("HeadingAmountDateTransEntry")) {
+      auto const& values = environment.at("HeadingAmountDateTransEntry");
+      std::transform(values.begin(),values.end(),std::back_inserter(result),[](auto const& ev){
+        return *to_had(ev); // Assume success
+      });
+    }
+    else {
+      // Nop
+    }
 		return result;
 	}
 
@@ -12519,19 +12589,39 @@ private:
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
 
-		if (auto val_iter = environment.find("sie_file");val_iter != environment.end()) {
-			for (auto const& [year_key,sie_file_name] : val_iter->second) {
-				std::filesystem::path sie_file_path{sie_file_name};
-				if (auto sie_environment = from_sie_file(sie_file_path)) {
-					model->sie[year_key] = std::move(*sie_environment);
-					model->sie_file_path[year_key] = {sie_file_name};
-					prompt << "\nsie[" << year_key << "] from " << sie_file_path;
-				}
-        else {
-					prompt << "\nsie[" << year_key << "] from " << sie_file_path << " - *FAILED*";
+		// if (auto val_iter = environment.find("sie_file");val_iter != environment.end()) {
+		// 	for (auto const& [year_key,sie_file_name] : val_iter->second) {
+		// 		std::filesystem::path sie_file_path{sie_file_name};
+		// 		if (auto sie_environment = from_sie_file(sie_file_path)) {
+		// 			model->sie[year_key] = std::move(*sie_environment);
+		// 			model->sie_file_path[year_key] = {sie_file_name};
+		// 			prompt << "\nsie[" << year_key << "] from " << sie_file_path;
+		// 		}
+    //     else {
+		// 			prompt << "\nsie[" << year_key << "] from " << sie_file_path << " - *FAILED*";
+    //     }
+		// 	}
+		// }
+    if (environment.contains("sie_file")) {
+      auto const& values = environment.at("sie_file");
+      if (values.size() > 1) {
+        std::cout << "\nDESIGN_INSUFFICIENCY: Expected at most one but found " << values.size() << " 'sie_file' entries in environment file";
+      }
+      for (auto const& ev : values) {
+        for (auto const& [year_key,sie_file_name] : ev) {
+          std::filesystem::path sie_file_path{sie_file_name};
+          if (auto sie_environment = from_sie_file(sie_file_path)) {
+            model->sie[year_key] = std::move(*sie_environment);
+            model->sie_file_path[year_key] = {sie_file_name};
+            prompt << "\nsie[" << year_key << "] from " << sie_file_path;
+          }
+          else {
+            prompt << "\nsie[" << year_key << "] from " << sie_file_path << " - *FAILED*";
+          }
         }
-			}
-		}
+
+      }
+    }
 		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
 			if (sse->journals().size()>0) {
 				prompt << "\n<STAGED>";
@@ -12595,11 +12685,13 @@ private:
           return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
         }
       }
-			result.insert({"TaggedAmount",to_environment_value(ta)});
+			// result.insert({"TaggedAmount",to_environment_value(ta)});
+			result["TaggedAmount"].push_back(to_environment_value(ta));
 		};
 		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
 		for (auto const& entry :  model->heading_amount_date_entries) {
-			result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
+			// result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
+			result["HeadingAmountDateTransEntry"].push_back(to_environment_value(entry));
 		}
 		std::string sev = std::accumulate(model->sie_file_path.begin(),model->sie_file_path.end(),std::string{},[](auto acc,auto const& entry){
 			std::ostringstream os{};
@@ -12608,18 +12700,22 @@ private:
 			return os.str();
 		});
 		// sev += std::string{";"} + "path" + "=" + model->sie_file_path["current"].string();
-		result.insert({"sie_file",to_environment_value(sev)});
+		// result.insert({"sie_file",to_environment_value(sev)});
+		result["sie_file"].push_back(to_environment_value(sev));
 		for (auto const& entry : model->organisation_contacts) {
-			result.insert({"contact",to_environment_value(entry)});
+			// result.insert({"contact",to_environment_value(entry)});
+			result["contact"].push_back(to_environment_value(entry));
 		}
 		for (auto const& entry : model->employee_birth_ids) {
-			result.insert({"employee",to_environment_value(std::string{"birth-id="} + entry)});
+			// result.insert({"employee",to_environment_value(std::string{"birth-id="} + entry)});
+			result["employee"].push_back(to_environment_value(std::string{"birth-id="} + entry));
 		}
 		for (auto const& [year_id,sru_env] : model->sru) {
 			std::ostringstream os{};
 			OEnvironmentValueOStream en_val_os{os};
 			en_val_os << "year_id=" << year_id << sru_env;
-			result.insert({"SRU:S",to_environment_value(os.str())});
+			// result.insert({"SRU:S",to_environment_value(os.str())});
+			result["SRU:S"].push_back(to_environment_value(os.str()));
 		}
 		return result;
 	}
@@ -12640,7 +12736,8 @@ private:
 					std::istringstream in{line};
 					std::string key{},value{};
 					in >> key >> std::quoted(value);
-					result.insert({key,to_environment_value(value)});
+					// result.insert({key,to_environment_value(value)});
+					result[key].push_back(to_environment_value(value));
 				}
 			}
 		}
