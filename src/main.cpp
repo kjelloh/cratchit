@@ -1337,9 +1337,11 @@ namespace cas {
 
   template <typename Key,typename Value>
   class ImmutableRepository {
-  public:
   private:
-    std::map<Key,Value> m_map{};
+    using KeyValueMap = std::map<Key,Value>;
+    KeyValueMap m_map{};
+  public:
+    using value_type = KeyValueMap::value_type;
   };
 }
 
@@ -7906,14 +7908,14 @@ using EnvironmentValue = std::map<std::string,std::string>; // name-value-pairs
 using EnvironmentValueName = std::string;
 using EnvironmentValueId = std::size_t;
 
-using EnvironmentIdValueMap = std::map<EnvironmentValueId,EnvironmentValue>;
-// using EnvironmentIdValueMap = cas::ImmutableRepository<EnvironmentValueId,EnvironmentValue>;
+// using EnvironmentIdValueMap = std::map<EnvironmentValueId,EnvironmentValue>;
+using EnvironmentIdValueMap = cas::ImmutableRepository<EnvironmentValueId,EnvironmentValue>;
 
 using EnvironmentIdValueVector = std::vector<EnvironmentIdValueMap::value_type>;
 // using EnvironmentValues = std::vector<EnvironmentValue>;
 // using Environment = std::multimap<std::string,EnvironmentValue>;
 // using Environment = std::map<std::string,EnvironmentValues>;
-using Environment = std::map<EnvironmentValueName,EnvironmentIdValueVector>;
+using Environment = std::map<EnvironmentValueName,EnvironmentIdValueVector>; // Note: Uses a vector of mappings to keep ordering to and from file
 
 std::pair<std::string,std::optional<EnvironmentValueId>> to_name_and_id(std::string key) {
   std::cout << "\nto_name_and_id(" << std::quoted(key) << ")";    
