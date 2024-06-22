@@ -1346,7 +1346,7 @@ namespace cas {
     Value const& at(Key const& key) const {return m_map.at(key);}
     void clear() {return m_map.clear();}
     KeyValueMap& the_map() {
-      std::cout << "\nDESIGN_INSUFFICIENCY: called cas::Repository::the_map() to gain access to aggregated map (Developer should extend Repository services to protect internal map handling.)";
+      // std::cout << "\nDESIGN_INSUFFICIENCY: called cas::Repository::the_map() to gain access to aggregated map (Developer should extend Repository services to protect internal map handling.)";
       return m_map;
     }
   };
@@ -1506,6 +1506,9 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
 // using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
 using TaggedAmountValueIdMap = cas::Repository<TaggedAmount::ValueId,TaggedAmount>;
 
+// Behaves more or less as a vector of tagged amounts in date order.
+// But uses a map <Key,Value> as the mechanism to look up a value based on its value_id.
+// A of 240622 the behind-the-scenes map is a CAS (Content Addressable Storage) with a key being a hash of its 'value'  
 class DateOrderedTaggedAmountsContainer {
 	public:
 		using OptionalTagValue = TaggedAmount::OptionalTagValue;
@@ -1590,10 +1593,10 @@ class DateOrderedTaggedAmountsContainer {
 			return *this;
 		}
 
-    // TODO 240218: Consider to provide a predicate for the caller to control what should be regarded as "same value"
-    //              This could be a way to apply special treatment to SIE aggregate tagged amounts (last in wins and erases any previous occurrence of same series and sequence number of same fiscal year) 
-    // TODO: 240225: NOTE that insert of an aggregate does not insert the members of the aggregate. What is a good solution for this?
-		iterator insert(TaggedAmount const& ta) {
+    // Insert the value and return the iterator to the vector of tas
+    // (internal CAS map is hidden from client)
+    // But the internally used key (the ValueId) is returned for environment vs tagged amounts key transformation purposes (to and from Environment)
+		std::pair<ValueId,iterator> insert(TaggedAmount const& ta) {
 			auto result = m_date_ordered_tagged_amounts.end();
       auto value_id = to_value_id(ta);
       if (m_tagged_amount_value_id_map.contains(value_id) == false) {
@@ -1609,11 +1612,11 @@ class DateOrderedTaggedAmountsContainer {
 				result = m_date_ordered_tagged_amounts.insert(end,ta); // place after all with date less than the one of ta
       }
       else {
-        std::cout << "\nthis:" << this;
-        std::cout << "\n\tDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
-        std::cout << "\n\t                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
+        // std::cout << "\nthis:" << this;
+        // std::cout << "\n\tDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
+        // std::cout << "\n\t                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
       }
-			return result;
+			return {value_id,result};
 		}
 
     DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id) {
@@ -12457,27 +12460,72 @@ private:
 		// });
     if (environment.contains("TaggedAmount")) {
       auto const id_ev_pairs = environment.at("TaggedAmount");
-      std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&result](auto const& id_ev_pair){
-        auto const& [id,ev] = id_ev_pair;
+      // 240621 - How can we convert the id used for the environment value to the one used by DateOrderedTaggedAmountsContainer?
+      //          The problembeing that an aggregate tagged amount refers to its members by listing the id:s of the members.
+      //          Thus, If we transform the id of a value referenmced by an aggregate, then we need to update thje id used in the listing.
+      // 240622 - Aha, What I am trying to implement is a CAS (Content Adressible Storage) with the known problem of uppdating cross referencies
+      //          when aggregate members are muraded.
+      //          Now in CAS values are in effect immutable, so the only way to mutate is to replace the mutated value with the new one
+      //          (that will for that reason have a new key).
+      //          My problem here is a variant of this problem, where the values are not mutated, but the keys may be.
+      //          Solution: Implement a two pass approach.
+      //          1. Transform all non-aggregates (ensuring they exist witgh their new key in the target map)
+      //             I need to cache the mapping of ev-keys to ta-keys to later transform aggrete member key listings
+      //          2. Transform all aggregates (ensuring they now refer to their members using their new keys)
+      //             using the cached ev-key to ta-key recorded in (1).
+      std::map<std::size_t,std::size_t> ev_id_to_ta_id{};
+      // Pass 1 - transform <ev_id,ev> --> <ta_id,ta> for non-aggregates (keep track of any key changes)
+      std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
+        auto const& [ev_id,ev] = id_ev_pair;
         if (auto o_ta = to_tagged_amount(ev)) {
-          // 240621 - How can we convert the id used for the environment value to the one used by DateOrderedTaggedAmountsContainer?
-          //          The problembeing that an aggregate tagged amount refers to its members by listing the id:s of the members.
-          //          Thus, If we transform the id of a value referenmced by an aggregate, then we need to update thje id used in the listing.
-          // 240622 - Aha, What I am trying to implement is a CAS (Content Adressible Storage) with the known problem of uppdating cross referencies
-          //          when aggregate members are muraded.
-          //          Now in CAS values are in effect immutable, so the only way to mutate is to replace the mutated value with the new one
-          //          (that will for that reason have a new key).
-          //          My problem here is a variant of this problem, where the values are not mutated, but the keys may be.
-          //          Solution: Implement a two pass approach.
-          //          1. Transform all non-aggregates (ensuring they exist witgh their new key in the target map)
-          //             I need to cache the mapping of ev-keys to ta-keys to later transform aggrete member key listings
-          //          2. Transform all aggregates (ensuring they now refer to their members using their new keys)
-          //             using the cached ev-key to ta-key recorded in (1).
-          result.insert(*o_ta);
+          if (not o_ta->tag_value("_members")) {
+            // Not an aggregate = no member keys to be concerned about 
+            auto const& [ta_id,iter] = result.insert(*o_ta);
+            if (ta_id != ev_id) {
+              // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
+              std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id; 
+            }
+            ev_id_to_ta_id[ev_id] = ta_id;
+          }
         }
         else {
           std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
+        }              
+      });
+      // Pass 2 - transform <ev_id,ev> --> <ta_id,ta> for aggregates (update any changes to listed members keys)
+      std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
+        auto const& [ev_id,ev] = id_ev_pair;
+        if (auto o_ta = to_tagged_amount(ev)) {
+          auto ta = *o_ta;
+          if (auto ev_members_value = ta.tag_value("_members")) {
+            // Is an aggregate, but members not yet transformed from ev_id to ta_id
+            auto ev_members = Key::Path{*ev_members_value};
+            decltype(ev_members) ta_members{};
+            if (auto ev_ids = to_value_ids(ev_members)) {
+              for (auto const ev_id : *ev_ids) {
+                if (ev_id_to_ta_id.contains(ev_id)) {
+                  ta_members += TaggedAmount::to_string(ev_id_to_ta_id[ev_id]);
+                }
+                else {
+                  std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id. Member discarded!";
+                }
+              }
+            }
+            else {
+              std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert ev_members  " << ev_members << " to value ids";
+            }
+            if (ev_members.size() != ta_members.size()) {
+              std::cout << "\nDESIGN INSUFFICIENCY: EV and TA Aggregates differs in members size. ev_members.size():" << ev_members.size() << " ta_members.size():" << ta_members.size();
+            }
+            if (true) {
+              std::cout << "\nev_members:" << ev_members << " --> ta_members:" << ta_members;
+            }
+            ta.tags()["_members"] = ta_members.to_string();
+          }
         }
+        else {
+          std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
+        }              
       });
     }
     else {
