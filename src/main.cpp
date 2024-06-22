@@ -1332,6 +1332,17 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 	return result;
 }
 
+// Content Addressable Storage namespace
+namespace cas {
+
+  template <typename Key,typename Value>
+  class ImmutableRepository {
+  public:
+  private:
+    std::map<Key,Value> m_map{};
+  };
+}
+
 class TaggedAmount {
 public:
   friend std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta);
@@ -1484,7 +1495,7 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
 }
 
 using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
-using TaggedAmountValueIdMap = std::map<std::size_t,TaggedAmount>;
+// using TaggedAmountValueIdMap = cas::ImmutableRepository<TaggedAmount::ValueId,TaggedAmount>;
 
 class DateOrderedTaggedAmountsContainer {
 	public:
@@ -1641,7 +1652,7 @@ class DateOrderedTaggedAmountsContainer {
 
 	private:
     // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between value_id and tagged amount pointer and once in a vector ordered by date.
-		TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <instance id> -> <tagged amount ptr>
+		TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <instance id> -> <tagged amount>
 		TaggedAmounts m_date_ordered_tagged_amounts{};  // vector of tagged amount ptrs ordered by date
 }; // class DateOrderedTaggedAmountsContainer
 
@@ -7894,7 +7905,10 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 using EnvironmentValue = std::map<std::string,std::string>; // name-value-pairs
 using EnvironmentValueName = std::string;
 using EnvironmentValueId = std::size_t;
+
 using EnvironmentIdValueMap = std::map<EnvironmentValueId,EnvironmentValue>;
+// using EnvironmentIdValueMap = cas::ImmutableRepository<EnvironmentValueId,EnvironmentValue>;
+
 using EnvironmentIdValueVector = std::vector<EnvironmentIdValueMap::value_type>;
 // using EnvironmentValues = std::vector<EnvironmentValue>;
 // using Environment = std::multimap<std::string,EnvironmentValue>;
@@ -12437,6 +12451,19 @@ private:
       std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&result](auto const& id_ev_pair){
         auto const& [id,ev] = id_ev_pair;
         if (auto o_ta = to_tagged_amount(ev)) {
+          // 240621 - How can we convert the id used for the environment value to the one used by DateOrderedTaggedAmountsContainer?
+          //          The problembeing that an aggregate tagged amount refers to its members by listing the id:s of the members.
+          //          Thus, If we transform the id of a value referenmced by an aggregate, then we need to update thje id used in the listing.
+          // 240622 - Aha, What I am trying to implement is a CAS (Content Adressible Storage) with the known problem of uppdating cross referencies
+          //          when aggregate members are muraded.
+          //          Now in CAS values are in effect immutable, so the only way to mutate is to replace the mutated value with the new one
+          //          (that will for that reason have a new key).
+          //          My problem here is a variant of this problem, where the values are not mutated, but the keys may be.
+          //          Solution: Implement a two pass approach.
+          //          1. Transform all non-aggregates (ensuring they exist witgh their new key in the target map)
+          //             I need to cache the mapping of ev-keys to ta-keys to later transform aggrete member key listings
+          //          2. Transform all aggregates (ensuring they now refer to their members using their new keys)
+          //             using the cached ev-key to ta-key recorded in (1).
           result.insert(*o_ta);
         }
         else {
