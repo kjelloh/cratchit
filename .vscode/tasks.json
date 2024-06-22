@@ -61,6 +61,7 @@
           "-fdiagnostics-color=always",
           "-Wl,-rpath,/usr/local/Cellar/llvm/18.1.6/lib/c++",
           "-std=c++23",
+          "-ferror-limit=3",
           "-g",
           "${file}",
           "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
@@ -80,6 +81,7 @@
         "args": [
           "-fdiagnostics-color=always",
           "-std=c++23",
+          "-fmax-errors=3",
           "-g",
           "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
           "${file}",
@@ -99,6 +101,7 @@
         "args": [
             "-fdiagnostics-color=always",
             "-std=c++23",
+            "-fmax-errors=3",
             "-g",
             "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
             "${file}",
