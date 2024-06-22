@@ -1336,12 +1336,19 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 namespace cas {
 
   template <typename Key,typename Value>
-  class ImmutableRepository {
+  class Repository {
   private:
     using KeyValueMap = std::map<Key,Value>;
     KeyValueMap m_map{};
   public:
     using value_type = KeyValueMap::value_type;
+    bool contains(Key const& key) const {return m_map.contains(key);}
+    Value const& at(Key const& key) const {return m_map.at(key);}
+    void clear() {return m_map.clear();}
+    KeyValueMap& the_map() {
+      std::cout << "\nDESIGN_INSUFFICIENCY: called cas::Repository::the_map() to gain access to aggregated map (Developer should extend Repository services to protect internal map handling.)";
+      return m_map;
+    }
   };
 }
 
@@ -1496,8 +1503,8 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
 	return result;
 }
 
-using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
-// using TaggedAmountValueIdMap = cas::ImmutableRepository<TaggedAmount::ValueId,TaggedAmount>;
+// using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
+using TaggedAmountValueIdMap = cas::Repository<TaggedAmount::ValueId,TaggedAmount>;
 
 class DateOrderedTaggedAmountsContainer {
 	public:
@@ -1598,7 +1605,7 @@ class DateOrderedTaggedAmountsContainer {
             return ta1.date() < ta2.date();
         });
 
-			  m_tagged_amount_value_id_map.insert({value_id,ta}); // id -> ta
+			  m_tagged_amount_value_id_map.the_map().insert({value_id,ta}); // id -> ta
 				result = m_date_ordered_tagged_amounts.insert(end,ta); // place after all with date less than the one of ta
       }
       else {
@@ -1609,9 +1616,9 @@ class DateOrderedTaggedAmountsContainer {
 			return result;
 		}
 
-    DateOrderedTaggedAmountsContainer erase(ValueId const& value_id) {
+    DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id) {
       if (auto o_ptr = this->at(value_id)) {
-        m_tagged_amount_value_id_map.erase(value_id);
+        m_tagged_amount_value_id_map.the_map().erase(value_id);
         auto iter = std::ranges::find(m_date_ordered_tagged_amounts,*o_ptr);
         if (iter != m_date_ordered_tagged_amounts.end()) {
           m_date_ordered_tagged_amounts.erase(iter);
@@ -7909,7 +7916,7 @@ using EnvironmentValueName = std::string;
 using EnvironmentValueId = std::size_t;
 
 // using EnvironmentIdValueMap = std::map<EnvironmentValueId,EnvironmentValue>;
-using EnvironmentIdValueMap = cas::ImmutableRepository<EnvironmentValueId,EnvironmentValue>;
+using EnvironmentIdValueMap = cas::Repository<EnvironmentValueId,EnvironmentValue>;
 
 using EnvironmentIdValueVector = std::vector<EnvironmentIdValueMap::value_type>;
 // using EnvironmentValues = std::vector<EnvironmentValue>;
