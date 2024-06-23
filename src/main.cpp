@@ -253,13 +253,13 @@ namespace std_overload {
   template<std::size_t N>
   std::istream& operator>>(std::istream& is, std::array<unsigned char, N>& arr) {
       is.read(reinterpret_cast<char*>(arr.data()), arr.size());
-      if (is) {
-        std::cout << "\noperator>> read array:" << arr;
-      }
+      // if (is) {
+      //   std::cout << "\noperator>> read array:" << arr;
+      // }
       return is;
   }
 
-    // std::ranges replacement (overload) until used with a tool-chain that supports
+    // std::ranges replacement (overload) until used with a tool-chain that supports what cratchit requires
     namespace ranges {
 
         // Helper traits to check if a type is a container
@@ -327,10 +327,10 @@ namespace encoding {
     auto original_pos = is.tellg();
     if (is >> bom.value) {
       if (bom.value == BOM::UTF8_VALUE) {
-        std::cout << "\noperator>>(BOM) consumed from read file. bom:" << bom.value;
+        // std::cout << "\noperator>>(BOM) consumed from read file. bom:" << bom.value;
       }
       else {
-        std::cout << "\noperator>>(BOM) Not a valid BOM - file position is reset";
+        // std::cout << "\noperator>>(BOM) Not a valid BOM - file position is reset";
         // NOTE 240613 - Most vexing semantics: seekg does nothing if the failbit is set!!
         //               So it is important we do not set the failbit until after setting the file position *sigh*
         is.seekg(original_pos); // Restore to before checking for BOM in case there was none
@@ -362,10 +362,10 @@ namespace encoding {
           this->bom = candidate;
         }
         else {
-          std::cout << "\nNo BOM detected in stream";
+          // std::cout << "\nNo BOM detected in stream";
           raw_in.clear(); // clear the signalled failure to allow the stream to be read for non-BOM content
         }
-        std::cout << "\nbom_istream{} raw_in is at position:" << raw_in.tellg();
+        // std::cout << "\nbom_istream{} raw_in is at position:" << raw_in.tellg();
       }
 			operator bool() {return static_cast<bool>(raw_in);}
 
@@ -671,7 +671,8 @@ namespace tokenize {
             first = delim_pos+1;
           }
           else {
-            result.push_back(s.substr(first)); // add the tail
+            auto tail = s.substr(first);
+            if (tail.size() > 0) result.push_back(tail); // add non empty tail
           }
 				} while (delim_pos<s.size());
 			}
@@ -679,6 +680,13 @@ namespace tokenize {
 		catch (std::exception const& e) {
 			std::cout << "\nDESIGN INSUFFICIENCY: splits(s,delim,allow_empty_tokens) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
 		}
+    if (result.size()==1 and result[0].size()==0) {
+      // Quick Fix that tokenize::splits will return one element of zero length for an empty string :\
+      // 240623 - Log this path to detect where in Cratchit this may occur and potentially cause unwanted behaviour
+      result.clear();
+      std::cout << "\ntokensize::splits(" << std::quoted(s) << ") PATCHED to empty path result";
+    }
+
 		return result;
 	}
 
@@ -800,7 +808,14 @@ namespace Key {
       Path(std::vector<std::string> const& v) : m_path{v} {}
 			Path(std::string const& s_path,char delim = '^') : 
 			  m_delim{delim}
-				,m_path(tokenize::splits(s_path,delim,tokenize::eAllowEmptyTokens::YES)) {};
+				,m_path(tokenize::splits(s_path,delim,tokenize::eAllowEmptyTokens::YES)) {
+          if (m_path.size()==1 and m_path[0].size()==0) {
+            // Quick Fix that tokenize::splits will return one element of zero length for an empty string :\
+            // 240623 - I do not dare to fix 'splits' itself when I do not know the effect it may have on other code... 
+            m_path.clear();
+            std::cout << "\nKey::Path(" << std::quoted(s_path) << ") PATCHED to empty path";
+          }
+        };
 			auto size() const {return m_path.size();}
 			Path operator+(std::string const& key) const {Path result{*this};result.m_path.push_back(key);return result;}
 			operator std::string() const {
@@ -1457,7 +1472,7 @@ bool TaggedAmount::operator==(TaggedAmount const& other) const {
 }
 
 std::ostream& operator<<(std::ostream& os, TaggedAmount const& ta) {
-  os << TaggedAmount::to_string(to_value_id(ta));
+  // os << TaggedAmount::to_string(to_value_id(ta));
   os << " " << ::to_string(ta.date());
   os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
   for (auto const& tag : ta.tags()) {
@@ -1482,23 +1497,23 @@ TaggedAmount::OptionalValueId to_value_id(std::string const& s) {
 }
 
 TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
-	std::cout << "\nto_value_ids()" << std::flush;
+	// std::cout << "\nto_value_ids()" << std::flush;
 	TaggedAmount::OptionalValueIds result{};
 	TaggedAmount::ValueIds value_ids{};
 	for (auto const& sid : sids) {
 		if (auto value_id = to_value_id(sid)) {
-			std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
+			// std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
 			value_ids.push_back(*value_id);
 		}
 		else {
-			std::cout << "\nto_value_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
+			std::cout << "\nDESIGN_INSUFFICIENCY: to_value_ids: Not a valid instance id string sid=" << std::quoted(sid) << std::flush;
 		}
 	}
 	if (value_ids.size() == sids.size()) {
 		result = value_ids;
 	}
 	else {
-		std::cout << "\nto_value_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << value_ids.size() << " out of " << sids.size() << " possible.";
+		std::cout << "\nDESIGN_INSUFFICIENCY: to_value_ids(Key::Path const& " << sids.to_string() << ") Failed. Created" << value_ids.size() << " out of " << sids.size() << " possible.";
 	}
 	return result;
 }
@@ -1600,7 +1615,7 @@ class DateOrderedTaggedAmountsContainer {
 			auto result = m_date_ordered_tagged_amounts.end();
       auto value_id = to_value_id(ta);
       if (m_tagged_amount_value_id_map.contains(value_id) == false) {
-        if (true) {
+        if (false) {
           std::cout << "\nthis:" << this << " Inserted new " << ta;
         }
         // Find the last element with a date less than the date of ta        
@@ -1631,7 +1646,7 @@ class DateOrderedTaggedAmountsContainer {
         }
       }
       else {
-        std::cout << "nDateOrderedTaggedAmountsContainer::at failed to find value_id " << value_id;
+        std::cout << "nDESIGN INSUFFICIENCY: DateOrderedTaggedAmountsContainer::at failed to find value_id " << value_id;
       }
       return *this;
     }
@@ -4749,11 +4764,11 @@ namespace SIE {
 				}
 				else if (auto entry = parse_TRANS(utf8_in,"#BTRANS")) {
 					// Ignore
-					std::cout << "\n*Ignored* #BTRANS in " << ver.series << " " << ver.verno << " " << ver.verdate << " (as allowed by SIE specification SIE_filformat_ver_4B_ENGLISH.pdf)";
+					// std::cout << "\n*Ignored* #BTRANS in " << ver.series << " " << ver.verno << " " << ver.verdate << " (as allowed by SIE specification SIE_filformat_ver_4B_ENGLISH.pdf)";
 				}
 				else if (auto entry = parse_TRANS(utf8_in,"#RTRANS")) {
 					// Ignore
-					std::cout << "\n*Ignored* #RTRANS in " << ver.series << " " << ver.verno << " " << ver.verdate << " (as allowed by SIE specification SIE_filformat_ver_4B_ENGLISH.pdf)";
+					// std::cout << "\n*Ignored* #RTRANS in " << ver.series << " " << ver.verno << " " << ver.verdate << " (as allowed by SIE specification SIE_filformat_ver_4B_ENGLISH.pdf)";
 				}
 				else if (auto entry = parse_Tag(utf8_in,"}")) {
 					break;
@@ -7941,15 +7956,17 @@ using EnvironmentIdValueVector = std::vector<EnvironmentIdValueMap::value_type>;
 using Environment = std::map<EnvironmentValueName,EnvironmentIdValueVector>; // Note: Uses a vector of mappings to keep ordering to and from file
 
 std::pair<std::string,std::optional<EnvironmentValueId>> to_name_and_id(std::string key) {
-  std::cout << "\nto_name_and_id(" << std::quoted(key) << ")";    
+  if (false) {
+    std::cout << "\nto_name_and_id(" << std::quoted(key) << ")";    
+  }
   if (auto pos = key.find(':'); pos != std::string::npos) {
     auto name = key.substr(0,pos);
     auto id_string = key.substr(pos+1);
-    std::cout << "\n\tname:" << std::quoted(name) << " id_string:" << std::quoted(id_string); 
+    // std::cout << "\n\tname:" << std::quoted(name) << " id_string:" << std::quoted(id_string); 
     std::istringstream is{id_string};
     EnvironmentValueId id{};
     if (is >> std::hex >> id) {
-      std::cout << " ok id:" << std::hex << id;
+      // std::cout << " ok id:" << std::hex << id;
       return {name,id};
     }
     else {
@@ -7958,7 +7975,7 @@ std::pair<std::string,std::optional<EnvironmentValueId>> to_name_and_id(std::str
     }
   }
   else {
-    std::cout << " NO id in name";
+    // std::cout << " NO id in name";
     return {key,std::nullopt};
   }
 }
@@ -8815,7 +8832,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 }
 
 BAS::MetaEntry to_entry(SIE::Ver const& ver) {
-  if (true) {
+  if (false) {
     std::cout << "\nto_entry(ver:" << ver.series << std::dec << ver.verno << " " << ver.verdate << " member count:" << ver.transactions.size()  << ")";
   }
 	BAS::MetaEntry result{
@@ -12415,7 +12432,7 @@ private:
   }
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
-    if (true) {
+    if (false) {
 		  std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files" << std::flush;
     }
 		DateOrderedTaggedAmountsContainer result{};
@@ -12461,7 +12478,7 @@ private:
 	}
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
-    if (true) {
+    if (false) {
 		  std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
     }
 		DateOrderedTaggedAmountsContainer result{};
@@ -12499,7 +12516,7 @@ private:
             auto const& [ta_id,iter] = result.insert(*o_ta);
             if (ta_id != ev_id) {
               // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
-              std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id;
+              // std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id;
             }
             ev_id_to_ta_id[ev_id] = ta_id;
           }
@@ -12523,7 +12540,7 @@ private:
                   ta_members += TaggedAmount::to_string(ev_id_to_ta_id[ev_id]);
                 }
                 else {
-                  std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id. Member discarded!";
+                  std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id in members listing of ev value:" << ev << ". Member discarded!";
                 }
               }
             }
@@ -12533,7 +12550,7 @@ private:
             if (ev_members.size() != ta_members.size()) {
               std::cout << "\nDESIGN INSUFFICIENCY: EV and TA Aggregates differs in members size. ev_members.size():" << ev_members.size() << " ta_members.size():" << ta_members.size();
             }
-            if (true) {
+            if (false) {
               std::cout << "\nev_members:" << ev_members << " --> ta_members:" << ta_members;
             }
             ta.tags()["_members"] = ta_members.to_string();
@@ -12880,20 +12897,20 @@ private:
           auto const& [name,id] = to_name_and_id(key);
           if (id) {
             index[name] = *id;
-            std::cout << "\nRead name:index " << name << ":" << std::hex << index[name] << " for environment file entry " << std::quoted(line);
+            // std::cout << "\nRead name:index " << name << ":" << std::hex << index[name] << " for environment file entry " << std::quoted(line);
           }
           else {
             index[name] = result[key].size();
-            std::cout << "\nNo index in environment file for name: " << name << ". Created index:" << ":" << index[name] << " for environment file entry " << std::quoted(line);
+            // std::cout << "\nNo index in environment file for name: " << name << ". Created index:" << ":" << index[name] << " for environment file entry " << std::quoted(line);
           }
 					result[name].push_back({index[name],to_environment_value(value_string)});
 				}
 			}
 		}
 		catch (std::runtime_error const& e) {
-			std::cout << "\nERROR - Read from " << p << " failed. Exception:" << e.what();
+			std::cout << "\nDESIGN_INSUFFICIENCY:ERROR - Read from " << p << " failed. Exception:" << e.what();
 		}
-    if (true) {
+    if (false) {
       std::cout << "\nenvironment_from_file(" << p << ")";
       for (auto const& [key,entry] : result) {
         std::cout << "\n\tkey:" << key << " count:" << entry.size();
@@ -12989,7 +13006,7 @@ int main(int argc, char *argv[])
     // test_directory_iterator();
     // exit(0);
   }
-	if (true) {
+	if (false) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
 			std::cout << "\nDeafult (current) locale setting is " << std::locale().name().c_str();
