@@ -4142,6 +4142,7 @@ TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
 	tags["vertext"] = me.defacto.caption;
 	TaggedAmount aggregate_ta{date,gross_cents_amount,std::move(tags)};
 	Key::Path value_ids{};
+
 	auto push_back_as_tagged_amount = [&value_ids,&date,&journal_id,&verno,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta = to_tagged_amount(date,at);
     if (verno) ta.tags()["parent_SIE"] = journal_id+std::to_string(*verno);
@@ -4149,6 +4150,7 @@ TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
 		result.push_back(ta);
 		value_ids += TaggedAmount::to_string(to_value_id(ta));
 	};
+  
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	// TODO: Create the aggregate amount that refers to all account transaction amounts
 	// type=aggregate members=<id>&<id>&<id>...
@@ -4727,8 +4729,19 @@ namespace SIE {
 		YYYYMMdd_parser verdate_parser{ver.verdate};
 		if (utf8_in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
 			if (false) {
-				// std::cout << "\nVer: " << ver.series << " " << ver.verno << " " << ver.vertext;
+				std::cout << "\nparse_VER Ver: " << ver.series << " " << ver.verno << " " << ver.verdate << " " << ver.vertext;
 			}
+      /*
+      From SIE Specification "SIE_filformat_ver_4B_ENGLISH.pdf"
+
+      "#RTRANS Supplementary Transaction Item...
+      ...This item [RTRANS] is a supplement in the SIE standard. 
+      There is to always be a row of type #RTRANS immediately followed 
+      by an identical row of type #TRANS 
+      so that backward compatibility with the old SIE formats is maintained."      
+
+      "If items of the type #RTRANS and #BTRANS are not handled, these rows are to be ignored when importing a SIE file."
+      */      
 			while (true) {
 				if (auto entry = parse_TRANS(utf8_in,"#TRANS")) {
 					// std::cout << "\nTRANS :)";	
@@ -4736,11 +4749,11 @@ namespace SIE {
 				}
 				else if (auto entry = parse_TRANS(utf8_in,"#BTRANS")) {
 					// Ignore
-					// std::cout << " Ignored";
+					std::cout << "\n*Ignored* #BTRANS in " << ver.series << " " << ver.verno << " " << ver.verdate << " (as allowed by SIE specification SIE_filformat_ver_4B_ENGLISH.pdf)";
 				}
 				else if (auto entry = parse_TRANS(utf8_in,"#RTRANS")) {
 					// Ignore
-					// std::cout << " Ignored";
+					std::cout << "\n*Ignored* #RTRANS in " << ver.series << " " << ver.verno << " " << ver.verdate << " (as allowed by SIE specification SIE_filformat_ver_4B_ENGLISH.pdf)";
 				}
 				else if (auto entry = parse_Tag(utf8_in,"}")) {
 					break;
@@ -8802,6 +8815,9 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 }
 
 BAS::MetaEntry to_entry(SIE::Ver const& ver) {
+  if (true) {
+    std::cout << "\nto_entry(ver:" << ver.series << std::dec << ver.verno << " " << ver.verdate << " member count:" << ver.transactions.size()  << ")";
+  }
 	BAS::MetaEntry result{
 		.meta = {
 			.series = ver.series
@@ -8810,7 +8826,7 @@ BAS::MetaEntry to_entry(SIE::Ver const& ver) {
 	};
 	result.defacto.caption = ver.vertext;
 	result.defacto.date = ver.verdate;
-	for (auto const& trans : ver.transactions) {								
+	for (auto const& trans : ver.transactions) {
 		result.defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
 			.account_no = trans.account_no
 			,.transtext = trans.transtext
@@ -12483,7 +12499,7 @@ private:
             auto const& [ta_id,iter] = result.insert(*o_ta);
             if (ta_id != ev_id) {
               // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
-              std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id; 
+              std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id;
             }
             ev_id_to_ta_id[ev_id] = ta_id;
           }
