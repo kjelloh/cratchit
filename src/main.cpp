@@ -1351,7 +1351,7 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 namespace cas {
 
   template <typename Key,typename Value>
-  class Repository {
+  class repository {
   private:
     using KeyValueMap = std::map<Key,Value>;
     KeyValueMap m_map{};
@@ -1364,7 +1364,7 @@ namespace cas {
     Value const& at(Key const& key) const {return m_map.at(key);}
     void clear() {return m_map.clear();}
     KeyValueMap& the_map() {
-      // std::cout << "\nDESIGN_INSUFFICIENCY: called cas::Repository::the_map() to gain access to aggregated map (Developer should extend Repository services to protect internal map handling.)";
+      // std::cout << "\nDESIGN_INSUFFICIENCY: called cas::repository::the_map() to gain access to aggregated map (Developer should extend repository services to protect internal map handling.)";
       return m_map;
     }
     AdjacencyList& the_adjacency_list() {
@@ -1525,7 +1525,8 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const& sids) {
 }
 
 // using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>; 
-using TaggedAmountValueIdMap = cas::Repository<TaggedAmount::ValueId,TaggedAmount>;
+// using TaggedAmountValueIdMap = cas::repository<TaggedAmount::ValueId,TaggedAmount>;
+using TaggedAmountsCasRepository = cas::repository<TaggedAmount::ValueId,TaggedAmount>;
 
 // Behaves more or less as a vector of tagged amounts in date order.
 // But uses a map <Key,Value> as the mechanism to look up a value based on its value_id.
@@ -1560,8 +1561,8 @@ class DateOrderedTaggedAmountsContainer {
     OptionalTaggedAmount at(ValueId const& value_id) {
 			std::cout << "\nDateOrderedTaggedAmountsContainer::at(" << TaggedAmount::to_string(value_id) << ")" << std::flush;
 			OptionalTaggedAmount result{};
-			if (m_tagged_amount_value_id_map.contains(value_id)) {
-				result = m_tagged_amount_value_id_map.at(value_id);
+			if (m_tagged_amount_cas_repository.contains(value_id)) {
+				result = m_tagged_amount_cas_repository.at(value_id);
 			}
 			else {
 				std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a mapping to value_id=" << TaggedAmount::to_string(value_id) << std::flush;
@@ -1603,14 +1604,14 @@ class DateOrderedTaggedAmountsContainer {
 		}
 
 		DateOrderedTaggedAmountsContainer& clear() {
-			m_tagged_amount_value_id_map.clear();
+			m_tagged_amount_cas_repository.clear();
 			m_date_ordered_tagged_amounts.clear();
 			return *this;
 		}
 
 		DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const& other) {
 			this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
-			this->m_tagged_amount_value_id_map = other.m_tagged_amount_value_id_map;
+			this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
 			return *this;
 		}
 
@@ -1620,7 +1621,7 @@ class DateOrderedTaggedAmountsContainer {
 		std::pair<ValueId,iterator> insert(TaggedAmount const& ta) {
 			auto result = m_date_ordered_tagged_amounts.end();
       auto value_id = to_value_id(ta);
-      if (m_tagged_amount_value_id_map.contains(value_id) == false) {
+      if (m_tagged_amount_cas_repository.contains(value_id) == false) {
         if (false) {
           std::cout << "\nthis:" << this << " Inserted new " << ta;
         }
@@ -1629,20 +1630,20 @@ class DateOrderedTaggedAmountsContainer {
             return ta1.date() < ta2.date();
         });
 
-			  m_tagged_amount_value_id_map.the_map().insert({value_id,ta}); // id -> ta
+			  m_tagged_amount_cas_repository.the_map().insert({value_id,ta}); // id -> ta
 				result = m_date_ordered_tagged_amounts.insert(end,ta); // place after all with date less than the one of ta
       }
       else {
         // std::cout << "\nthis:" << this;
         // std::cout << "\n\tDESIGN_INSUFFICIENCY: Error, Skipped new[" << TaggedAmount::to_string(value_id) << "] " << ta;
-        // std::cout << "\n\t                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_value_id_map.at(value_id))) << "] " << m_tagged_amount_value_id_map.at(value_id);
+        // std::cout << "\n\t                             same as old[" << TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_cas_repository.at(value_id))) << "] " << m_tagged_amount_cas_repository.at(value_id);
       }
 			return {value_id,result};
 		}
 
     DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id) {
       if (auto o_ptr = this->at(value_id)) {
-        m_tagged_amount_value_id_map.the_map().erase(value_id);
+        m_tagged_amount_cas_repository.the_map().erase(value_id);
         auto iter = std::ranges::find(m_date_ordered_tagged_amounts,*o_ptr);
         if (iter != m_date_ordered_tagged_amounts.end()) {
           m_date_ordered_tagged_amounts.erase(iter);
@@ -1685,7 +1686,7 @@ class DateOrderedTaggedAmountsContainer {
 
 	private:
     // Note: Each tagged amount pointer instance is stored twice. Once in a mapping between value_id and tagged amount pointer and once in a vector ordered by date.
-		TaggedAmountValueIdMap m_tagged_amount_value_id_map{}; // map <instance id> -> <tagged amount>
+		TaggedAmountsCasRepository m_tagged_amount_cas_repository{}; // map <instance id> -> <tagged amount> as content addressable storage repository
 		TaggedAmounts m_date_ordered_tagged_amounts{};  // vector of tagged amount ptrs ordered by date
 }; // class DateOrderedTaggedAmountsContainer
 
@@ -7953,13 +7954,13 @@ using EnvironmentValueName = std::string;
 using EnvironmentValueId = std::size_t;
 
 // using EnvironmentIdValueMap = std::map<EnvironmentValueId,EnvironmentValue>;
-using EnvironmentIdValueMap = cas::Repository<EnvironmentValueId,EnvironmentValue>;
+using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
 
-using EnvironmentIdValueVector = std::vector<EnvironmentIdValueMap::value_type>;
+using EnvironmentCasEntryVector = std::vector<EnvironmentValues_cas_repository::value_type>;
 // using EnvironmentValues = std::vector<EnvironmentValue>;
 // using Environment = std::multimap<std::string,EnvironmentValue>;
 // using Environment = std::map<std::string,EnvironmentValues>;
-using Environment = std::map<EnvironmentValueName,EnvironmentIdValueVector>; // Note: Uses a vector of mappings to keep ordering to and from file
+using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 
 std::pair<std::string,std::optional<EnvironmentValueId>> to_name_and_id(std::string key) {
   if (false) {
@@ -12518,13 +12519,13 @@ private:
         auto const& [ev_id,ev] = id_ev_pair;
         if (auto o_ta = to_tagged_amount(ev)) {
           if (not o_ta->tag_value("_members")) {
-            // Not an aggregate = no member keys to be concerned about 
+            // Not an aggregate = process in this pass 1
             auto const& [ta_id,iter] = result.insert(*o_ta);
             if (ta_id != ev_id) {
               // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
               // std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id;
             }
-            ev_id_to_ta_id[ev_id] = ta_id;
+            ev_id_to_ta_id[ev_id] = ta_id; // record 'ev id' -> 'ta id'
           }
         }
         else {
@@ -12537,7 +12538,7 @@ private:
         if (auto o_ta = to_tagged_amount(ev)) {
           auto ta = *o_ta;
           if (auto ev_members_value = ta.tag_value("_members")) {
-            // Is an aggregate, but members not yet transformed from ev_id to ta_id
+            // Is an aggregate, process these in this pass 2 (transform 'ev id' -> 'ta id' references)
             auto ev_members = Key::Path{*ev_members_value};
             decltype(ev_members) ta_members{};
             if (auto ev_ids = to_value_ids(ev_members)) {
