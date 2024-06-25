@@ -1355,6 +1355,9 @@ namespace cas {
   private:
     using KeyValueMap = std::map<Key,Value>;
     KeyValueMap m_map{};
+    using Keys = std::vector<Key>;
+    using AdjacencyList = std::map<Key,Keys>;
+    AdjacencyList m_adj{};
   public:
     using value_type = KeyValueMap::value_type;
     bool contains(Key const& key) const {return m_map.contains(key);}
@@ -1363,6 +1366,9 @@ namespace cas {
     KeyValueMap& the_map() {
       // std::cout << "\nDESIGN_INSUFFICIENCY: called cas::Repository::the_map() to gain access to aggregated map (Developer should extend Repository services to protect internal map handling.)";
       return m_map;
+    }
+    AdjacencyList& the_adjacency_list() {
+      return m_adj;
     }
   };
 }
@@ -1575,8 +1581,8 @@ class DateOrderedTaggedAmountsContainer {
 			return result;
 		}
 
-		OptionalTaggedAmounts to_ta_ptrs(ValueIds const& value_ids) {
-			std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs()" << std::flush;
+		OptionalTaggedAmounts to_tagged_amounts(ValueIds const& value_ids) {
+			std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()" << std::flush;
 			OptionalTaggedAmounts result{};
 			TaggedAmounts tas{};
 			for (auto const& value_id : value_ids) {
@@ -1584,14 +1590,14 @@ class DateOrderedTaggedAmountsContainer {
 					tas.push_back(*o_ta);
 				}
 				else {
-					std::cout << "\nDateOrderedTaggedAmountsContainer::to_ta_ptrs() failed. No instance found for value_id=" << TaggedAmount::to_string(value_id) << std::flush;
+					std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() failed. No instance found for value_id=" << TaggedAmount::to_string(value_id) << std::flush;
 				}
 			}
 			if (tas.size() == value_ids.size()) {
 				result = tas;
 			}
 			else {
-				std::cout << "\nto_ta_ptrs() Failed. tas.size() = " << tas.size() << " IS NOT provided value_ids.size() = " << value_ids.size() << std::flush;
+				std::cout << "\nto_tagged_amounts() Failed. tas.size() = " << tas.size() << " IS NOT provided value_ids.size() = " << value_ids.size() << std::flush;
 			}
 			return result;
 		}
@@ -10929,7 +10935,7 @@ Cmd Updater::operator()(Command const& command) {
           auto members = Key::Path{*members_value};
           if (auto value_ids = to_value_ids(members)) {
             prompt << "\n\t<members>";
-            if (auto tas = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
+            if (auto tas = model->all_date_ordered_tagged_amounts.to_tagged_amounts(*value_ids)) {
               for (auto const& ta : *tas) {
                 prompt << "\n\t" << ta;
               }
@@ -10949,7 +10955,7 @@ Cmd Updater::operator()(Command const& command) {
           had_candidate_ta_ptrs.erase(to_value_id(ta));
           auto members = Key::Path{*members_value};
           if (auto value_ids = to_value_ids(members)) {
-            if (auto tas = model->all_date_ordered_tagged_amounts.to_ta_ptrs(*value_ids)) {
+            if (auto tas = model->all_date_ordered_tagged_amounts.to_tagged_amounts(*value_ids)) {
               for (auto const& ta : *tas) {
                 prompt << "\nDisregarded SIE aggregate member " << ta;
                 had_candidate_ta_ptrs.erase(to_value_id(ta));            
@@ -12449,24 +12455,24 @@ private:
         // 240612 Test if g++14 with sanitizer detects heap violation also for an empty std::filesystem::directory_iterator loop?
         //        YES - c++14 with "-fsanitize=address,undefined" reports runtime heap violation error on the for statement above!
         if (true) {
-          auto path = dir_entry.path();
-          std::cout << "\n\nBEGIN File: " << path << std::flush;
+          auto statement_file_path = dir_entry.path();
+          std::cout << "\n\nBEGIN File: " << statement_file_path << std::flush;
           if (dir_entry.is_directory()) {
             // skip directories (will process regular files and symlinks etc...)
           }
           // Process file
-          else if (auto tagged_amounts = to_tagged_amounts(path)) {
+          else if (auto tagged_amounts = to_tagged_amounts(statement_file_path)) {
             result += *tagged_amounts;
             std::cout << "\n\tValid entries count:" << tagged_amounts->size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";
             std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-            std::filesystem::rename(path,consumed_files_path / path.filename());
-            std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / path.filename();
+            std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
+            std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / statement_file_path.filename();
           }
           else {
-            std::cout << "\n*Ignored* " << path << " (Failed to understand file content)";
+            std::cout << "\n*Ignored* " << statement_file_path << " (Failed to understand file content)";
           }
-          std::cout << "\nEND File: " << path;
+          std::cout << "\nEND File: " << statement_file_path;
         }
 			}
 			std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
