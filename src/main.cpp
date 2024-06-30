@@ -5526,7 +5526,7 @@ public:
 		return result;
 	}
 
-	OptionalDateRange fiscal_year_date_range() const {
+	OptionalDateRange financial_year_date_range() const {
 		return this->year_date_range;
 	}
 
@@ -8655,10 +8655,10 @@ public:
 		return this->heading_amount_date_entries;
 	}
 
-  OptionalDateRange to_fiscal_year_date_range(std::string const& year_id) {
+  OptionalDateRange to_financial_year_date_range(std::string const& year_id) {
     OptionalDateRange result{};
 		if (this->sie.contains(year_id)) {
-      result = this->sie[year_id].fiscal_year_date_range();
+      result = this->sie[year_id].financial_year_date_range();
     }
     return result;
   }
@@ -11189,14 +11189,14 @@ Cmd Updater::operator()(Command const& command) {
       std::string year_id = (ast.size() == 2)?ast[1]:std::string{"current"};
       if (year_id == "0") year_id = "current";
       prompt << "\nHuvudbok for year id " << year_id;
-      auto fiscal_year_date_range = model->to_fiscal_year_date_range(year_id);
-      if (fiscal_year_date_range) {
-        prompt << " " << *fiscal_year_date_range;
+      auto financial_year_date_range = model->to_financial_year_date_range(year_id);
+      if (financial_year_date_range) {
+        prompt << " " << *financial_year_date_range;
         TaggedAmounts tas{}; // journal entries
         auto is_journal_entry = [](TaggedAmount const& ta) {
           return (ta.tags().contains("parent_SIE") or ta.tags().contains("IB"));
         };        
-        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
+        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
         // 2. Group tagged amounts into same BAS account and a list of parent_SIE
         std::map<BAS::AccountNo,TaggedAmounts> huvudbok{};
         std::map<BAS::AccountNo,CentsAmount> opening_balance{};
@@ -11531,12 +11531,12 @@ Cmd Updater::operator()(Command const& command) {
         }
       }
 
-      // auto fiscal_year_date_range = model->sie[year_id].fiscal_year_date_range();
-      auto fiscal_year_date_range = model->to_fiscal_year_date_range(year_id);
+      // auto financial_year_date_range = model->sie[year_id].financial_year_date_range();
+      auto financial_year_date_range = model->to_financial_year_date_range(year_id);
 
-      if (fiscal_year_date_range) {
-        auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
-        auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
+      if (financial_year_date_range) {
+        auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
+        auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
 
         std::map<BAS::AccountNo,Amount> opening_balances = model->sie[year_id].opening_balances();
         // Output Omslutning
@@ -11554,7 +11554,7 @@ Cmd Updater::operator()(Command const& command) {
               9000                0,00      0,00
         } // Omslutning
         */
-        prompt << "\nOmslutning " << *fiscal_year_date_range << " {";
+        prompt << "\nOmslutning " << *financial_year_date_range << " {";
         prompt << "\n" << std::setfill(' ');
         auto w = 12;
         prompt << std::setw(w) << "<Konto>";
@@ -11610,11 +11610,11 @@ Cmd Updater::operator()(Command const& command) {
       // and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
 
       auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2022_mapping_to_k2_ar_text);
-      auto fiscal_year_date_range = model->sie["-1"].fiscal_year_date_range();
+      auto financial_year_date_range = model->sie["-1"].financial_year_date_range();
 
-      if (false and fiscal_year_date_range) {
-        auto fiscal_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*fiscal_year_date_range); 
-        auto bas_account_accs = tas::to_bas_omslutning(fiscal_year_tagged_amounts_range);
+      if (false and financial_year_date_range) {
+        auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
+        auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
 
         if (true) {
           // Log Omslutning
@@ -12398,8 +12398,8 @@ private:
 		// std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
 		DateOrderedTaggedAmountsContainer result{};
     // Create / add opening balances for BAS accounts as tagged amounts
-    auto fiscal_year_date_range = sie_env.fiscal_year_date_range();
-    auto opening_saldo_date = fiscal_year_date_range->begin();
+    auto financial_year_date_range = sie_env.financial_year_date_range();
+    auto opening_saldo_date = financial_year_date_range->begin();
     // std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
     for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
       auto saldo_cents_amount = to_cents_amount(saldo);
@@ -12435,10 +12435,10 @@ private:
         if (std::filesystem::is_directory(skv_specs_member_path)) {
           std::cout << "\n\nBEGIN Folder: " << skv_specs_member_path;
     			for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_member_path}) {
-    				auto fiscal_year_member_path = dir_entry.path();
-            std::cout << "\n\tBEGIN " <<  fiscal_year_member_path;
-            if (std::filesystem::is_regular_file(fiscal_year_member_path) and (fiscal_year_member_path.extension() == ".csv")) {
-              auto ifs = std::ifstream{fiscal_year_member_path};
+    				auto financial_year_member_path = dir_entry.path();
+            std::cout << "\n\tBEGIN " <<  financial_year_member_path;
+            if (std::filesystem::is_regular_file(financial_year_member_path) and (financial_year_member_path.extension() == ".csv")) {
+              auto ifs = std::ifstream{financial_year_member_path};
               encoding::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
               if (auto field_rows = CSV::to_field_rows(utf8_in,';')) {
                 std::cout << "\n\tNo Operation implemented";
@@ -12456,13 +12456,13 @@ private:
                 }
               }
               else {
-                std::cout << "\n\tFAILED PARSING FILE " <<  fiscal_year_member_path;
+                std::cout << "\n\tFAILED PARSING FILE " <<  financial_year_member_path;
               }
             }
             else {
-              std::cout << "\n\tSKIPPED UNUSED FILE" <<  fiscal_year_member_path;
+              std::cout << "\n\tSKIPPED UNUSED FILE" <<  financial_year_member_path;
             }
-            std::cout << "\n\tEND " <<  fiscal_year_member_path;
+            std::cout << "\n\tEND " <<  financial_year_member_path;
           }
           std::cout << "\nEND Folder: " << skv_specs_member_path;
         }
@@ -12622,17 +12622,17 @@ private:
     // 4) else, if both in tagged amounts and SIE --> do nothing (all is in sync)
 
     std::cout << "\nSYNHRONIZE TAGGED AMOUNTS WITH SIE - BEGIN {";
-    if (auto fiscal_year_date_range = sie_environment.fiscal_year_date_range()) {
-      std::cout << "\n\tSIE fiscal year:" << *fiscal_year_date_range;
+    if (auto financial_year_date_range = sie_environment.financial_year_date_range()) {
+      std::cout << "\n\tSIE fiscal year:" << *financial_year_date_range;
       auto date_ordered_tagged_amounts_from_sie_environment = this->date_ordered_tagged_amounts_from_sie_environment(sie_environment);
       auto target_iter = all_date_ordered_tagged_amounts.begin();
       auto source_iter = date_ordered_tagged_amounts_from_sie_environment.begin();
       if (target_iter != all_date_ordered_tagged_amounts.end() and source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
         // Both are valid ranges
         // get the fiscal year of provided SIE entries
-        if (target_iter->date()<fiscal_year_date_range->begin()) {
+        if (target_iter->date()<financial_year_date_range->begin()) {
           // Skip tagged amounts before the fiscal year
-          while (target_iter != all_date_ordered_tagged_amounts.end() and target_iter->date()<fiscal_year_date_range->begin()) {
+          while (target_iter != all_date_ordered_tagged_amounts.end() and target_iter->date()<financial_year_date_range->begin()) {
             // std::cout << "\n\tSkipping Older TA" << *(*target_iter);
             ++target_iter;
           }
