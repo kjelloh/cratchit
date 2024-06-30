@@ -1349,6 +1349,14 @@ std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::stri
 
 namespace sie {
 
+  auto to_financial_year_range = [](std::chrono::year financial_year_start_year, std::chrono::month financial_year_start_month) -> DateRange {
+      auto start_date = std::chrono::year_month_day{financial_year_start_year, financial_year_start_month, std::chrono::day{1}};
+      auto next_start_date = std::chrono::year_month_day{financial_year_start_year + std::chrono::years{1}, financial_year_start_month, std::chrono::day{1}};
+      auto end_date_sys_days = std::chrono::sys_days(next_start_date) - std::chrono::days{1};
+      auto end_date = std::chrono::year_month_day{end_date_sys_days};
+      return {start_date, end_date};
+  };
+
   // SIE defines a relative index 0,-1,-2 for financial years relative the financial year of current date 
   using YearIndex2DateRangeMap = std::map<std::string,DateRange>;
   YearIndex2DateRangeMap current_date_to_year_id_map(std::chrono::month financial_year_start_month,int index_count) {
@@ -1357,17 +1365,9 @@ namespace sie {
     auto today = std::chrono::year_month_day{floor<std::chrono::days>(std::chrono::system_clock::now())};
     auto current_year = today.year();
 
-    auto get_financial_year_range = [&](std::chrono::year current_year, std::chrono::month start_month) -> DateRange {
-        auto start_date = std::chrono::year_month_day{current_year, start_month, std::chrono::day{1}};
-        auto next_start_date = std::chrono::year_month_day{current_year + std::chrono::years{1}, start_month, std::chrono::day{1}};
-        auto end_date_sys_days = std::chrono::sys_days(next_start_date) - std::chrono::days{1};
-        auto end_date = std::chrono::year_month_day{end_date_sys_days};
-        return {start_date, end_date};
-    };
-
     for (int i = 0; i < index_count; ++i) {
-        auto start_year = current_year - std::chrono::years{i};
-        auto range = get_financial_year_range(start_year, financial_year_start_month);
+        auto financial_year_start_year = current_year - std::chrono::years{i};
+        auto range = to_financial_year_range(financial_year_start_year, financial_year_start_month);
         result.emplace(std::to_string(-i),range); // emplace insert to avoid default constructing a DateRange
     }
 
@@ -1382,8 +1382,6 @@ namespace sie {
 
     return result;    
   }
-
-
 }
 
 // Content Addressable Storage namespace
