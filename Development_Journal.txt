@@ -1,0 +1,27 @@
+2024-06-30  ? Do we actually need to keep track of SIE concept 'year id'
+              That is, keeping an index 0,-1,-2 that indicates how each financial year
+              relates to current date?
+
+            * SIEEnvironments is a map year_id -> SIEEnvironment
+              E.g. "for (auto const& [year_id,sie_env] : sie_envs)..."
+
+            * Environment 'SRU:s' are mapped to year_id as in 'SRU:S "1000=21300;4504=125000;year_id=0"'
+
+            * to_fiscal_year_date_range(std::string const& year_id) is used to 'know'
+              what '-huvudbok' and '-omslutning' to show
+
+            * year_id is used for '-sru <year_id>' to list environment SRU values for a specific relative finacial year
+              Also, 'for (auto const& [year_id,sru_env] : model->sru)'
+              and,  'using SRUEnvironments = std::map<std::string,SRUEnvironment>;'
+
+2024-06-30  ? Can we just enter a verification into the right SIE finacial year based on the verifiaction date?
+
+              Idea: Protect an SIE year by detecting if an 2099 <-> 8999 transaction is booked (as this indicated booking the closed year result)
+                    The user must delete the 2099 <-> 8999 entry to be able to enter new finacial year events?
+                    Or, the user is allowed to add entries as long as the result in the 2099 <-> 8999 is not affected?
+
+              Idea: Try to implement an 'automatic' adjustment of how financial years relates to current date?
+                    That is, if the financial year at index 0 is no longer a date range that includes current year,
+                    then shift the index down (--1) and adjust all mapping form year_id -> thing to remain correct
+                    E.g., the 'sie_file' entry in the Environment needs to shift so that refered to SIE-files
+                    now uses an index that corresponds to current IRL date. 
