@@ -1102,7 +1102,7 @@ namespace WrappedDoubleAmount {
 
   // Returns Amount truncated to whole value (ignore decimal cents)
   Amount trunc(Amount const& amount) {
-    return Amount{trunc(to_double(amount))};
+    return Amount{std::trunc(to_double(amount))};
   }
 
   std::istream& operator>>(std::istream& is, Amount& amount) {
@@ -4872,9 +4872,6 @@ namespace SIE {
 			return AnonymousLine{.str=line};
 		}
 		else {
-      // NOTE 240706 - std::getline if the input file starts with an empty line
-      //               I have no idea why?
-      //               Is it the character set conversion that fails SIE -> UNICODE -> UTF-8?
       if (false) {
         if (utf8_in.eof()) {
             std::cout << "\n\tError: End of File reached";
@@ -4971,7 +4968,7 @@ SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
 	SIE::Trans result{
 		.account_no = trans.account_no
 		,.amount = trans.amount
-		,.transtext = trans.transtext // TODO: Ensure the text is charset::CP437, i.e., codepage 437
+		,.transtext = trans.transtext // 240706 - encoded in runtime character set (cp437 encoding handled by output stream)
 	};
 	return result;
 }
@@ -9038,8 +9035,6 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now = std::chrono::system_clock::now();
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
-  // NOTE: 240706 - The parse_any_line fails if the sie-file starts with an emoty line.
-  //                It is std::getline that fails and I have NO F** idea why :(
 	// sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	sieos.os << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	for (auto const& entry : sie.unposted()) {
