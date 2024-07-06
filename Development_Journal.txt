@@ -1,3 +1,97 @@
+2024-07-06
+
+            BUG: The generated sie-file cratchit.se now have error in its encoding again!
+                 The file ends up with 'EF BF BD' which is UTF-8 for '?'.
+
+            BUG: Cratchit craches for processing had for VAT returns (stack overflow)
+                 #0 0x103959c4b in WrappedDoubleAmount::trunc(WrappedDoubleAmount::Amount const&) main.cpp:1105
+            FIXED: The code called itself instead of std::trunc.
+
+            BUG: We do not get unposted from cratchit.se into app on startup.
+            FIXED: Now correctly consumes empty lines in sie-file + don't create sie-file 
+                   cratchit.se with an initial empty line.
+
+            ? Consider to add command '-sie -update' to update the sie year index to coincide with current date?
+            ? Consider to make the environment file a rolling history of changed files?
+              (This would enable a backup to go back to if/when entrries are wrong or application malfunctions)
+            ? Consider to 'import' sie-files in 'from_sie' by renaming the used on to its 'year id' e.g., theitfied_1.se for the -1 year id?
+              Also consider to put a plain copy of the imported sie-file in to sub-folder 'consumed'?
+            BUG: When importing a changed sie-file (in test an M1 verification was changed to an A1 one),
+                 then the no longer existing aggregate is no longer present as tagged amount in the environment file.
+                 But, the members still remains as 'orphan' tagged amounts (tagged 'parent_SIE=M1' for nor non existent aggregate M1)
+                 ==> Todo: Find a way to prune also aggregate members for aggregates that no longer exist in applied 'from sie' file.
+
+                 ? Consider to prune amounts tagged to 'have' a member but where the member no longer exists?
+            ? Consider to filter import from skv-file (and csv-file) with account statements to a specified period?
+              (This would make it easier to adapt to the web-interface of SKV that is cumbersome to make export for a period).
+
+            Observation: In state '-tas' (PromptState::TAIndex) current commands are
+                          "-has_tag" to filter current selection on tagged amounts having specified tag.
+
+            Test: To turn account statements into hads I could 
+                  1) Use command '-tas 20240401 20240630' to get all tagged amounts for Q2
+                  2) Use command '-has_tag Account' to filter out all account statements
+                  3) Use command '-to_hads' to get a had from each currently selected account statement
+
+            ? Consider to have Cratchit generate plain text files for the user to print?
+              I imagine a command -print that writes the last prompt to a file 'to_print/<state>.txt' or simmilar?
+              We can in this way be able to print all current hads in state '-hads' (PromptState::HADIndex)?
+
+            ? Consider to confirm entry of a had (now it is silent)
+
+            BUG: Cratchit can't handle had input "Faktura Webbsupport webbhotell 7/7 - 11/10 896,25 2024-05-29".
+                 TODO: Find a new way to handle heading-amount-date so that it is sufficient if the 
+                       two last tokens matched date then amount (and make any text before those be the hading)?
+
+            ? Consider to enable removing the last had in current list (to trim down the list)
+              Currently one can only remove a single had after a '-hads' command.
+
+            ? Consider to add a command to show the mapping from sie year index to actual files?
+              (I missed to move current to -1 when I manually updated to a new year and did not 'see' it)
+
+            BUG: There is no lock from entering an SIE entry with a date belonging to previous fiscal year!
+
+            ? Consider to show saldo on each BAS account after having added an SIE entry?
+              (To be able to verify with any saldo shown on e.g., account statements from bank or SKV?)
+
+            ? Consider to list templates for a selected had in date order and 'match'-order and restrict the list to fit on one screen?
+              (For now, I can get hundreds of suggestions)
+              E.g, consider to limit the number of 'account set' used in template aggregate (no need to repeat simmilar aggregates of BAS accounts and signs)
+
+            ? Consider to implement a mechanism that can detect that a had from an account statement is 'the same' as one already booked?
+              (this happens when the same account statement is imported from e.g., skv-file and bank csv-file for payment of VAT skv <-> bank)
+
+            ? Consider to show the diff between debit and credit while editing an sie aggregate (journal entry)
+              (This helps when entering "Öres- och kronutjämning":3740)
+
+              Also consider to always show member entries in falling amount size?
+              (In this way we can edit amounts top-down and potentially push any imbalance 'down the stack' until it ends up in "Öres- och kronutjämning":3740)
+
+            ? Consider a way to undo application of a template?
+              (Would be convenient if one happens to select the wrong template)
+
+            ? Consider a mechanism so that the process account-statement -> had -> sie aggregate leaves all amounts immutable?
+              (That is, account statement and had remains but had gets tagged to have used an account statement and an sie aggregate
+               gets tagged to have come from a had)?
+               In this way we can also have sie-aggregate use different account statements for 1920,1930 and 1630 (same event but different locations)
+
+            ? Consider to have Cratchit save the environment continuously into an history of immutable files?
+              (In this way we are more secure against crashes and may also be able to 'undo')
+
+            ? Consider to implement a VAT return statement mechanism that only uses the defined period data?
+              (Current implementation uses a rolling window of 6 months to be safe against erroneous difference between report to SKV and actual VAT to report)
+
+            ? Consider to implement some mechanism so that cratchit can zero out multiple VAT accounts on VAT Returns generation?
+              Also, make cratchit book the correct amount on "Öres- och kronutjämning":3740 required to zero out e.g., 2641 but have "Redovisningskonto för moms":2650
+              be whole SEK.
+              Also, make cratchit use 2650 for VAT to pay to SKV and 1650 for VAT to get from SKV?
+
+            Observation:  Web based Fortnox app can not generate a VAT report entry that spans over the split of two fiscal years (e.g., Q2 [Apr..June]).
+                          It seems we need to close of the April VAT period first so that the balances gets transferred to the new year.
+                          Then we must close May and June on the new year and build it on top of the VAT balance from April.
+
+            ? Consider to make Cratchit be able to generate two verifications when closing a VAT period (one for each side of a fiscal year boundary).
+
 2024-06-30  ? Do we actually need to keep track of SIE concept 'year id'
               That is, keeping an index 0,-1,-2 that indicates how each financial year
               relates to current date?
