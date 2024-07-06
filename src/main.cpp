@@ -206,14 +206,18 @@ namespace charset {
 
 		char16_t_string cp437ToUnicode(std::string s437) {
 			char16_t_string result{};
+      if (false) {
+        std::cout << "\ncp437ToUnicode(" << std::quoted(s437) << ")";
+      }
 			std::transform(s437.begin(),s437.end(),std::back_inserter(result),[](char ch){
 				return charset::CP437::cp437ToUnicode(ch);
 			});
       if (false) {
         std::cout << "\ncp437ToUnicode(";
         for (auto ch : s437) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
-        std::cout << ") --> ";
+        std::cout << ") --> \"";
         for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        std::cout << "\"";
       }
 
 			return result;
@@ -385,16 +389,18 @@ namespace encoding {
         }
       }
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
+      // Emtpy line is allowed (returns nullopt only on failure to read)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
-        typename F::value_type result{};
+        typename std::optional<typename F::value_type> result{};
         std::string raw_entry{};
         if (std::getline(raw_in,raw_entry)) {
           auto unicode_s = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
           result = f(unicode_s);
         }
-        if (result.size() > 0) return result;
-        else return std::nullopt;
+        // if (result.size() > 0) return result;
+        // else return std::nullopt;
+        return result;
       }
 		};
 
@@ -549,16 +555,18 @@ namespace encoding {
         }
       }
       // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
+      // Emtpy line is allowed (returns nullopt only on failure to read)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
-        typename F::value_type result{};
+        typename std::optional<typename F::value_type> result{};
         std::string raw_entry{};
         if (std::getline(raw_in,raw_entry)) {
           auto unicode_s = encoding::UTF8::utf8ToUnicode(raw_entry);
           result = f(unicode_s);
         }
-        if (result.size() > 0) return result;
-        else return std::nullopt;
+        // if (result.size() > 0) return result;
+        // else return std::nullopt;
+        return result;
       }
 		};
 
@@ -575,16 +583,18 @@ namespace encoding {
         }
       }
       // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
+      // Emtpy line is allowed (returns nullopt only on failure to read)
       template <class F>
       std::optional<typename F::value_type> getline(F const& f) {
-        typename F::value_type result{};
+        typename std::optional<typename F::value_type> result{};
         std::string raw_entry{};
         if (std::getline(raw_in,raw_entry)) {
           auto unicode_s = charset::CP437::cp437ToUnicode(raw_entry);
           result = f(unicode_s);
         }
-        if (result.size() > 0) return result;
-        else return std::nullopt;
+        // if (result.size() > 0) return result;
+        // else return std::nullopt;
+        return result;
       }
 		};    
   } // namespace encoding
@@ -4825,23 +4835,60 @@ namespace SIE {
 			result = ver;
 			pos = utf8_in.tellg(); // accept new stream position
 		}
+    else {
+      // Failure to partse is NOT an error (it only indicates that the current entry in the parsed file is something else)
+    }
 		utf8_in.seekg(pos); // Reset position utf8_in case of failed parse
 		utf8_in.clear(); // Reset failbit to allow try for other parse
 		return result;
 	}
 
 	SIEParseResult parse_any_line(std::istream& utf8_in) {
-		if (utf8_in.fail()) {
-			// std::cout << "\nparse_any_line utf8_in==fail";
-		}
+    if (false) {
+      std::cout << "\nparse_any_line";
+      if (not utf8_in.good()) {
+        std::cout << "\nparse_any_line utf8_in NOT GOOD";
+        if (utf8_in.eof()) {
+            std::cout << "\n\tError: End of File reached";
+        }
+        if (utf8_in.fail()) {
+            std::cout << "\n\tError: Logical error on i/o operation (failbit)";
+        }
+        if (utf8_in.bad()) {
+            std::cout << "\n\tError: Read/writing error on i/o operation (badbit)";
+        }
+      }
+      else {
+        std::cout << "\n\tpeek:" << std::to_string(utf8_in.peek());
+      }
+    }
 		auto pos = utf8_in.tellg();
 		std::string line{};
 		if (std::getline(utf8_in,line)) {
-			// std::cout << "\n\tany=" << line;
+      if (false) {
+        // Log what is consumed as 'any' = not used
+			  std::cout << "\n\tany=" << line;
+      }
 			return AnonymousLine{.str=line};
 		}
 		else {
-			// std::cout << "\n\tany null";
+      // NOTE 240706 - std::getline if the input file starts with an empty line
+      //               I have no idea why?
+      //               Is it the character set conversion that fails SIE -> UNICODE -> UTF-8?
+      if (false) {
+        if (utf8_in.eof()) {
+            std::cout << "\n\tError: End of File reached";
+        }
+        if (utf8_in.fail()) {
+            std::cout << "\n\tError: Logical error on i/o operation (failbit)";
+        }
+        if (utf8_in.bad()) {
+            std::cout << "\n\tError: Read/writing error on i/o operation (badbit)";
+        }
+
+        std::cout << "\n\tany null";
+      }
+      utf8_in.clear(); // Clear the error state to enable seekg to work
 			utf8_in.seekg(pos);
 			return {};
 		}
@@ -8898,15 +8945,21 @@ BAS::MetaEntry to_entry(SIE::Ver const& ver) {
 }
 
 OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path) {
+  if (false) {
+    std::cout << "\nfrom_sie_file(" << sie_file_path << ")";
+  }
 	OptionalSIEEnvironment result{};
 	std::ifstream ifs{sie_file_path};
-  encoding::CP437::istream is{ifs};
-	if (is) {
+  encoding::CP437::istream cp437_in{ifs};
+	if (cp437_in) {
     // Read in the SIE file and transcode it to UTF8
     std::string s_utf8{};
-    while (auto entry = is.getline(encoding::unicode::to_utf8{})) {
+    while (auto entry = cp437_in.getline(encoding::unicode::to_utf8{})) {
       s_utf8 += *entry;
       s_utf8 += "\n";
+      if (false) {
+        std::cout << "\nfrom cp437_in: " << std::quoted(*entry);
+      }
     }
     // Create a stream with the UTF8 encoded SIE file entries for internal parsing
     std::istringstream utf8_in{s_utf8};
@@ -8960,10 +9013,20 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 				SIE::AnonymousLine al = std::get<SIE::AnonymousLine>(*opt_entry);
 				// std::cout << "\n\tANY=" << al.str;
 			}
-			else break;
+			else {
+        if (false) {
+          std::cout << "\nfrom_sie_file(" << sie_file_path << ") FILE PARSED";
+        }
+        break;
+      }
 		}
 		result = std::move(sie_environment);
 	}
+  else {
+    if (true) {
+      std::cout << " NO SUCH FILE ";
+    }
+  }
 	return result;
 }
 
@@ -8975,7 +9038,10 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now = std::chrono::system_clock::now();
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
-	sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
+  // NOTE: 240706 - The parse_any_line fails if the sie-file starts with an emoty line.
+  //                It is std::getline that fails and I have NO F** idea why :(
+	// sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
+	sieos.os << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	for (auto const& entry : sie.unposted()) {
 		std::cout << "\nUnposted:" << entry; 
 		sieos << to_sie_t(entry);
