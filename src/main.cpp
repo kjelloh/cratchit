@@ -12909,7 +12909,7 @@ private:
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (false) {
+    if (true) {
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
