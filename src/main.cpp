@@ -38,7 +38,7 @@ template<typename T>
 concept PointerToClassType = std::is_pointer_v<T> && std::is_class_v<std::remove_pointer_t<T>>;
 template<PointerToClassType T>
 std::ostream& operator<<(std::ostream& os, T ptr) {
-    os << " memory[" << std::hex << std::showbase << reinterpret_cast<std::uintptr_t>(ptr) << "]";
+    os << " memory[" << std::hex << std::showbase << reinterpret_cast<std::uintptr_t>(ptr) << "]" << std::dec;
     return os;
 }
 
@@ -170,9 +170,9 @@ namespace charset {
 			});
       if (false) {
         std::cout << "\niso8859ToUnicode(";
-        for (auto ch : s8859) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        for (auto ch : s8859) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
         std::cout << ") --> ";
-        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
       }
 			return result;
 		}
@@ -199,7 +199,7 @@ namespace charset {
 			});
 			if (iter != cp437ToUnicodeMap.end()) result = iter->first;
       if (false) {
-        std::cout << "\nUnicodeToCP437(unicode:" << std::hex << static_cast<unsigned int>(unicode) << ") --> " << static_cast<unsigned int>(result); 
+        std::cout << "\nUnicodeToCP437(unicode:" << std::hex << static_cast<unsigned int>(unicode) << ") --> " << static_cast<unsigned int>(result) << std::dec;
       }
 			return result;
 		} 
@@ -214,9 +214,9 @@ namespace charset {
 			});
       if (false) {
         std::cout << "\ncp437ToUnicode(";
-        for (auto ch : s437) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        for (auto ch : s437) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
         std::cout << ") --> \"";
-        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
         std::cout << "\"";
       }
 
@@ -248,7 +248,7 @@ namespace std_overload {
   // Client namespace needs an 'using std_overload::operator<<' to 'see it'
   template <std::size_t N>
   std::ostream& operator<<(std::ostream& os, std::array<unsigned char, N> const& arr){
-    for (int b : arr) os << " " << std::hex << b; // Note: We need b to be an int to apply the appropriate integer output formatting
+    for (int b : arr) os << " " << std::hex << b << std::dec; // Note: We need b to be an int to apply the appropriate integer output formatting
     return os;
   }
 
@@ -461,7 +461,7 @@ namespace encoding {
 			for (auto cp : s) utf8_os << cp;
       if (false) {
         std::cout << "\nunicode_to_utf8(";
-        for (auto ch : s) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        for (auto ch : s) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
         std::cout << ") --> " << std::quoted(os.str());
       }
 			return os.str();
@@ -482,9 +482,9 @@ namespace encoding {
 				// U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
 				this->m_utf_8_buffer.push_back(b);
         if (false) {
-          std::cout << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")";
+          std::cout << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")" << std::dec;
           std::cout << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
-          for (auto ch : m_utf_8_buffer) std::cout << "[" << std::hex << static_cast<unsigned int>(ch) << "]";
+          for (auto ch : m_utf_8_buffer) std::cout << "[" << std::hex << static_cast<unsigned int>(ch) << "]" << std::dec;
         }
 				return this->to_unicode();
 			}
@@ -535,9 +535,9 @@ namespace encoding {
       }
       if (false) {
         std::cout << "\nutf8ToUnicode(";
-        for (auto ch : s_utf8) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        for (auto ch : s_utf8) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
         std::cout << ") --> ";
-        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch);
+        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
       }
 
       return result;
@@ -1454,7 +1454,7 @@ public:
   // tagged_amount::to_string ensures it does not override std::to_string(integral type) or any local one
   static std::string to_string(TaggedAmount::ValueId value_id) {
     std::ostringstream os{};
-    os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << value_id;
+    os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex << value_id << std::dec;
     return os.str();
   }
 
@@ -1775,7 +1775,7 @@ namespace tas {
 		}
 		for (auto const& [bas_account_no,tas] : bas_buckets) {
 			Date period_end_date{};
-			std::cout << "\n" << bas_account_no;
+			std::cout << "\n" << std::dec << bas_account_no;
 			auto cents_saldo = std::accumulate(tas.begin(),tas.end(),CentsAmount{0},[&period_end_date](auto acc, auto const& ta){
 				period_end_date = std::max(period_end_date,ta.date()); // Ensure we keep the latest date. NOTE: We expect they are in growing date order. But just in case...
 				acc += ta.cents_amount();
@@ -8261,7 +8261,7 @@ std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) 
   for (auto iter = id_ev_pairs.begin();iter!=id_ev_pairs.end();++iter) {
     auto const& [id,ev] = *iter;
     if (iter != id_ev_pairs.begin()) os << "\n";
-    os << key << ":" << std::hex << id << " " << std::quoted(to_string(ev));
+    os << key << ":" << std::hex << id << " " << std::quoted(to_string(ev)) << std::dec;
   }
 	return os;
 }
@@ -12645,7 +12645,7 @@ private:
                   ta_members += TaggedAmount::to_string(ev_id_to_ta_id[ev_id]);
                 }
                 else {
-                  std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id in members listing of ev value:" << ev << ". Member discarded!";
+                  std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id in members listing of ev value:" << ev << ". Member discarded!" << std::dec;
                 }
               }
             }
