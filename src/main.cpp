@@ -1811,7 +1811,7 @@ namespace BAS::K2::AR {
 
   namespace ar_online {
     // Code to operate on open data from URL:https://www.arsredovisning-online.se/bas_kontoplan
-  	extern char const* bas_2022_mapping_to_k2_ar_text;
+  	extern char const* bas_2024_mapping_to_k2_ar_text;
 
     namespace detail {
 
@@ -2548,8 +2548,8 @@ namespace BAS::K2::AR {
 	};
 	using AREntries = std::vector<AREntry>;
 
-	// A test function to parse the bas_2022_mapping_to_k2_ar_text into AREntries
-	AREntries parse(char const* bas_2022_mapping_to_k2_ar_text) {
+	// A test function to parse the bas_2024_mapping_to_k2_ar_text into AREntries
+	AREntries parse(char const* bas_2024_mapping_to_k2_ar_text) {
 		AREntries result{};
 		// Snippet from the text file to parse
 		/*				
@@ -2606,7 +2606,7 @@ namespace BAS::K2::AR {
 		CashedEntry cached_entry{};
 
 		// Parse using plain c++ stream
-		std::istringstream in{bas_2022_mapping_to_k2_ar_text};
+		std::istringstream in{bas_2024_mapping_to_k2_ar_text};
 		std::string line{};
 		while (std::getline(in,line)) {
 			if (tokenize::starts_with("Konto",line)) {
@@ -2653,7 +2653,7 @@ namespace BAS::K2::AR {
     }
 		if (true) {
 			std::cout << "\nParsed Entries {";
-			std::cout << "\n  From listing at URL https://www.arsredovisning-online.se/bas_kontoplan as of 221118";
+			std::cout << "\n  From listing at URL https://www.arsredovisning-online.se/bas_kontoplan";
 			int index{};
       bool all_are_parsed_ok{true};
 			for (auto const& entry : result) {
@@ -2673,16 +2673,16 @@ namespace BAS::K2::AR {
 
 	#if (__cpp_lib_ranges >= 201911L) // clang libstdc++ (experimental in clang15) does not support std::ranges::istream_view
 		// Check that we parsed all entries correct
-		std::istringstream words{bas_2022_mapping_to_k2_ar_text};
+		std::istringstream words{bas_2024_mapping_to_k2_ar_text};
 		auto count = std::ranges::count_if(std::ranges::istream_view<std::string>(words), [](std::string const& word) {return word == "Konto";});
 		std::cout << "\nCount of 'Konto' in source text:" << count << " and parsed entry count is:" << result.size();
 		if (count == result.size()) std::cout << " ==> OK!";
 		else std::cout << " ** ERROR (must be equal = all must be parsed) **";
 #else
 		// Warn that we have no code to check the input / parsed result correctness
-		std::cout << "\nWARNING: I Failed to check parse result of input bas_2022_mapping_to_k2_ar_text (Because this code is compiled with a compiler that does not support std::ranges)";
-		std::cout << "\nWARNING: If I have failed to parse bas_2022_mapping_to_k2_ar_text, I may generate an incorrect Annual Financial Statement (Swedish Årsredovisning)";
-		std::cout << "\nNOTE: I parse bas_2022_mapping_to_k2_ar_text to create a mapping between BAS accounts and fields on the Annual Financial Statement (Swedish Årsredovisning)";
+		std::cout << "\nWARNING: I Failed to check parse result of input bas_2024_mapping_to_k2_ar_text (Because this code is compiled with a compiler that does not support std::ranges)";
+		std::cout << "\nWARNING: If I have failed to parse bas_2024_mapping_to_k2_ar_text, I may generate an incorrect Annual Financial Statement (Swedish Årsredovisning)";
+		std::cout << "\nNOTE: I parse bas_2024_mapping_to_k2_ar_text to create a mapping between BAS accounts and fields on the Annual Financial Statement (Swedish Årsredovisning)";
 #endif
 		return result;
 	}
@@ -11663,17 +11663,17 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-plain_ar") {
       // Brute force an Annual Financial Statement as defined by Swedish Bolagsverket
-      // Parse BAS::K2::bas_2022_mapping_to_k2_ar_text to get mapping of BAS account saldos
+      // Parse BAS::K2::bas_2024_mapping_to_k2_ar_text to get mapping of BAS account saldos
       // to Swedish Bolagsverket Annual Financial Statement ("Årsredovisning") according to K2 rules
 
-      // So BAS::K2::bas_2022_mapping_to_k2_ar_text maps AR <--> BAS
+      // So BAS::K2::bas_2024_mapping_to_k2_ar_text maps AR <--> BAS
       // So we can use it to accumulate saldos for AR fields from the specified BAS accounts over the fiscal year
 
 
       // Create tagged amounts that aggregates BAS Accounts to a saldo and AR=<AR Field ID> ARTEXT=<AR Field Heading> ARCOMMENT=<AR Field Description>
       // and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
 
-      auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2022_mapping_to_k2_ar_text);
+      auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2024_mapping_to_k2_ar_text);
       auto financial_year_date_range = model->sie["-1"].financial_year_date_range();
 
       if (false and financial_year_date_range) {
@@ -14111,8 +14111,10 @@ Blad3: Table 1
       namespace ar_online {
 
         // From https://www.arsredovisning-online.se/bas_kontoplan as of 221118
+        // From https://www.arsredovisning-online.se/bas-kontoplan/ as of 240714
         // This text defines mapping between fields on the Swedish TAX Return form and ranges of BAS Accounts 
-        char const* bas_2022_mapping_to_k2_ar_text{R"(Resultaträkning
+        char const* bas_2024_mapping_to_k2_ar_text{R"(Resultaträkning
+
 Konto 3000-3799
 
 Fält: Nettoomsättning
@@ -14140,7 +14142,7 @@ Beskrivning: Årets inköp av handelsvaror +/- förändring av lagerposten ”Ha
 Konto 5000-6999
 
 Fält: Övriga externa kostnader
-Beskrivning: Normala kostnader som inte passar någon annan stans, t.ex. lokalhyra, konsultarvoden, telefon, porto, reklam och nedskrivning av kortfristiga fordringar.
+Beskrivning: Normala kostnader som inte passar någon annanstans. T.ex. lokalhyra, konsultarvoden, telefon, porto, reklam och nedskrivning av kortfristiga fordringar.
 Konto 7000-7699
 
 Fält: Personalkostnader
@@ -14154,11 +14156,11 @@ Beskrivning: Används mycket sällan. Ett exempel är om man gör ovanligt stora
 Konto 7900-7999
 
 Fält: Övriga rörelsekostnader
-Beskrivning: Kostnader som ligger utanför företagets normala verksamhet, t.ex. valutakursförluster och realisationsförlust vid försäljning av icke- finansiella anläggningstillgångar.
+Beskrivning: Kostnader som ligger utanför företagets normala verksamhet. T.ex. valutakursförluster och realisationsförlust vid försäljning av icke- finansiella anläggningstillgångar.
 Konto 8000-8099 (förutom 8070-8089)
 
 Fält: Resultat från andelar i koncernföretag
-Beskrivning: Nettot av företagets finansiella intäkter och kostnader från koncernföretag med undantag av räntor, koncernbidrag och nedskrivningar, t.ex. erhållna utdelningar, andel i handelsbolags resultat och realisationsresultat.
+Beskrivning: Nettot av företagets finansiella intäkter och kostnader från koncernföretag med undantag av räntor, koncernbidrag och nedskrivningar. T.ex. erhållna utdelningar, andel i handelsbolags resultat och realisationsresultat.
 Konto 8070-8089, 8170-8189, 8270-8289 eller 8370-8389
 
 Fält: Nedskrivningar av finansiella anläggningstillgångar och kortfristiga placeringar
@@ -14166,11 +14168,11 @@ Beskrivning: Nedskrivningar av och återföring av nedskrivningar på finansiell
 Konto 8100-8199 (förutom 8113, 8118, 8123, 8133 och 8170-8189)
 
 Fält: Resultat från andelar i intresseföretag och gemensamt styrda företag
-Beskrivning: Nettot av företagets finansiella intäkter och kostnader från intresseföretag och gemensamt styrda företag med undantag av räntor och nedskrivningar, t.ex. erhållna utdelningar, andel i handelsbolags resultat och realisationsresultat.
+Beskrivning: Nettot av företagets finansiella intäkter och kostnader från intresseföretag och gemensamt styrda företag med undantag av räntor och nedskrivningar. T.ex. erhållna utdelningar, andel i handelsbolags resultat och realisationsresultat.
 Konto 8113, 8118, 8123 eller 8133
 
 Fält: Resultat från övriga företag som det finns ett ägarintresse i
-Beskrivning: Nettot av företagets finansiella intäkter och kostnader från övriga företag som det finns ett ägarintresse i med undantag av räntor och nedskrivningar, t.ex. vissa erhållna vinstutdelningar, andel i handelsbolags resultat och realisationsresultat.
+Beskrivning: Nettot av företagets finansiella intäkter och kostnader från övriga företag som det finns ett ägarintresse i med undantag av räntor och nedskrivningar. T.ex. vissa erhållna vinstutdelningar, andel i handelsbolags resultat och realisationsresultat.
 Konto 8200-8299 (förutom 8270-8289)
 
 Fält: Resultat från övriga finansiella anläggningstillgångar
@@ -14214,7 +14216,10 @@ Konto 8980-8989
 
 Fält: Övriga skatter
 Beskrivning: Används sällan.
+­
+
 Balansräkning
+
 Konto 1020-1059 eller 1080-1089 (förutom 1088)
 
 Fält: Koncessioner, patent, licenser, varumärken samt liknande rättigheter
@@ -14231,7 +14236,7 @@ Beskrivning: Förskott i samband med förvärv, t.ex. handpenning och deposition
 Konto 1100-1199 (förutom 1120-1129 och 1180-1189)
 
 Fält: Byggnader och mark
-Beskrivning: Förutom byggnader och mark, även maskiner som är avsedda för byggnadens allmänna användning.
+Beskrivning: Fögnadens allmänna användning.
 Konto 1120-1129
 
 Fält: Förbättringsutgifter på annans fastighet
@@ -14461,7 +14466,7 @@ Konto 2500-2599
 Fält: Skatteskulder
 Konto 2900-2999
 
-Fält: Upplupna kostnader och förutbetalda intäkter)"}; // bas_2022_mapping_to_k2_ar_text
+Fält: Upplupna kostnader och förutbetalda intäkter)"}; // bas_2024_mapping_to_k2_ar_text
       } // namespace ar_online
 		} // namespace BAS::K2::AR
 	} // namespace BAS::K2
