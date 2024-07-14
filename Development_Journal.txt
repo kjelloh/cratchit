@@ -1,3 +1,53 @@
+2024-07-14
+
+  BUG:  SIE <-> Ta Synchronization old and new still shaky
+        The 'new' synchronization does not seem to import new SIE aggretae members into tagged amounts?
+        I changed to 'old' brute force reading of SIE environment -> tagged amounts.
+        At first this did also not seem to import new SIE aggregate members to tagged amounts?
+        Then, while debugging and adding trace logging - it did ?!
+        TODO: Track down this bug! We need SIE -> Tagged amounts synchronization to be water tight!
+
+2024-07-13
+
+          ? Consider a mechanism to create the yearly "write off" transaction "1229	Ackumulerade avskrivningar på inventarier och verktyg" <--> "7830	Avskrivningar på maskiner och inventarier"?
+            The Swedish rules stipulates that the company must keep the saldo on the inventory accounts unchanged but book Depreciation on 1229 <-> 7830 (reduced value as cost)
+            For my company I have accounts 1226 and 1227 as inventory accounts + a Numbers document to calculate the yearly Depreciation.
+            Then at the end of the year I must book all these depreciations on 1229 (reduced value) and 7830 (cost)
+
+          BUG: The command "-omslutning ..." logs the processing printing BAS account numbers in hex-format.
+          FIXED (all std::hex output directives are now reset with a matching std::dec to use as default)
+
+          DESIGN_INSUFFICIENCY: Cratchit does not include BAS accounts that has no activity in command '-omslutning...'
+
+          BUG: The '-omslutning' and '-huvudbok' seems to exclude transactions on the end date of the period?
+               No, the BUG is that newly imported I-aggregates refers to members that are not in tagged amounts.
+               See BUG: SIE <-> Ta Synchronization old and new still shaky 
+
+2024-07-07
+
+            ? Consider to implement a BAS / SIE mechanism to always balance VAT accounts 1650 (debit) and 2650 (credit)
+              to use only one?
+              If the total VAT balance is negative I owe SKV and cratchit should use a credit amount on 2650? 
+              If the total VAT balance is positive SKV owe me and cratchit should use a debit amount on 1650?
+
+            DESIGN_INSUFFICIENCY: For '-huvudbok <year_id>' accounts with no transactions but non-zero balance are NOT listed
+                    (Consider to make the mechanism list all non-zero-saldo-accounts?)
+
+            DESIGN_INSUFFICIENCY: Cratchit can't export unposted (changes) för 'previous year' (cratchit.se is for current year only)
+                (Consider to have cratchit_0.se and cratchit_1.se for current and previous year 'unposted'?)
+                (In this way we can exchange data with external application when we close previous fiscal year?)
+
+            BUG: Cratchit does not apply changes to tagged amounts when importing changed SIE entries (external app changes).
+            FIXED: Activated synchronize_tagged_amounts_with_sie and now external SIE changes ends up as tagged amount ok.
+
+            DESIGN_INSUFFIENCY: The synchronize_tagged_amounts_with_sie does NOT remove orphan BAS transactions 
+              (those left over from older SIE members when SIE aggregate with changed members are imported)
+
+            ? Consider a mechanism where cratchit can compare bank and skv statements for a whole fiscal year with current book entries?
+              (Could be used when closing the books to verify that all is booked ok?)
+
+            DESIGN_INSUFFICIENCY: Can't register entries on previous year to close the books.
+              (Consider to enable cratchit to operate on the previous year + correctly handle the cratchit_1.se addition to export -1 year changes)
 2024-07-06
 
             BUG: The generated sie-file cratchit.se now have error in its encoding again!
@@ -13,7 +63,7 @@
 
             ? Consider to add command '-sie -update' to update the sie year index to coincide with current date?
             ? Consider to make the environment file a rolling history of changed files?
-              (This would enable a backup to go back to if/when entrries are wrong or application malfunctions)
+              (This would enable a backup to go back to if/when entries are wrong or application malfunctions)
             ? Consider to 'import' sie-files in 'from_sie' by renaming the used on to its 'year id' e.g., theitfied_1.se for the -1 year id?
               Also consider to put a plain copy of the imported sie-file in to sub-folder 'consumed'?
             BUG: When importing a changed sie-file (in test an M1 verification was changed to an A1 one),

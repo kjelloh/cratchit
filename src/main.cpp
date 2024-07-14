@@ -3317,7 +3317,7 @@ using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsC
  * Return a list of tagged amounts if provided path is to a file with amount values (e.g., a bank account csv statements file)
  */
 OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
-  if (false) {
+  if (true) {
     std::cout << "\nto_tagged_amounts(" << path << ")";
   }
   OptionalDateOrderedTaggedAmounts result{};
@@ -4200,6 +4200,9 @@ TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransactio
 }
 
 TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
+  if (true) {
+    std::cout << "\nto_tagged_amounts(me)";
+  }
 	TaggedAmounts result{};
 	auto journal_id = me.meta.series;
 	auto verno = me.meta.verno;
@@ -12456,19 +12459,23 @@ private:
 	}
 
 	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_sie_environment(SIEEnvironment const& sie_env) {
-		// std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
+    if (true) {
+		  std::cout << "\ndate_ordered_tagged_amounts_from_sie_environment" << std::flush;
+    }
 		DateOrderedTaggedAmountsContainer result{};
     // Create / add opening balances for BAS accounts as tagged amounts
     auto financial_year_date_range = sie_env.financial_year_date_range();
     auto opening_saldo_date = financial_year_date_range->begin();
-    // std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
+    std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
     for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
       auto saldo_cents_amount = to_cents_amount(saldo);
       TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
       saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
       saldo_ta.tags()["IB"] = "True";
       result.insert(saldo_ta);
-      // std::cout << "\n\tsaldo_ta : " << saldo_ta;
+      if (true) {
+        std::cout << "\n\tsaldo_ta : " << saldo_ta;
+      }
     }
 		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
 			auto tagged_amounts = to_tagged_amounts(me);
@@ -12621,7 +12628,10 @@ private:
             auto const& [ta_id,iter] = result.insert(*o_ta);
             if (ta_id != ev_id) {
               // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
-              // std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id;
+              std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id << std::dec;
+            }
+            else {
+              std::cout << "\nev_id:" << std::hex << ev_id << " == ta_id:" << ta_id << std::dec;
             }
             ev_id_to_ta_id[ev_id] = ta_id; // record 'ev id' -> 'ta id'
           }
@@ -12841,6 +12851,9 @@ private:
 	}
 
 	Model model_from_environment(Environment const& environment) {
+    if (true) {
+      std::cout << "\nmodel_from_environment";
+    }
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
 
@@ -12909,7 +12922,7 @@ private:
        For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
        
     */
-    if (true) {
+    if (false) {
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
