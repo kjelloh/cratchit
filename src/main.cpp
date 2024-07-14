@@ -11661,6 +11661,16 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\nTry '-omslutning' with no argument for current year or enter a valid fiscal year id 'current','-1','-2',...";
       }
     }
+    else if (ast[0] == "-ar_vs_bas") {
+      auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2024_mapping_to_k2_ar_text);
+      std::cout << "\nÅR <--> BAS Accounts table {";
+      std::cout << "\n\tÅR\tBAS Range";
+      for (auto const& ar_entry : ar_entries) {
+        std::cout << "\n\t" << ar_entry.m_field_heading_text;
+        std::cout << "\t" << ar_entry.m_bas_accounts_text;
+      }
+      std::cout << "\n} // ÅR <--> BAS Accounts table";
+    }
     else if (ast[0] == "-plain_ar") {
       // Brute force an Annual Financial Statement as defined by Swedish Bolagsverket
       // Parse BAS::K2::bas_2024_mapping_to_k2_ar_text to get mapping of BAS account saldos
