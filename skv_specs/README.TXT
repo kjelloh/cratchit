@@ -1,0 +1,1 @@
+The folder "_Nyheter_from_beskattningsperiod_2024P4 (2)" is downloaded from the Swedish Tax Agency URL: https://www.skatteverket.se/foretag/inkomstdeklaration/forredovisningsbyraer/tekniskinformationomfiloverforing.4.13948c0e18e810bfa0cca8.html?q=SRU-fil+format 
