@@ -3,6 +3,32 @@
     "tasks": [
       {
         "type": "cppbuild",
+        "label": "clang++ 18 SPARSE SANITIZED build - llvm/18.1.8/lib/c++ macOS C/C++: Brew installed",
+        "command": "/usr/local/Cellar/llvm/18.1.8/bin/clang++",
+        "args": [
+          "-mmacosx-version-min=12.7",
+          "-fdiagnostics-color=always",
+          "-Wl,-rpath,/usr/local/Cellar/llvm/18.1.6/lib/c++",
+          "-std=c++23",
+          "-fsanitize=undefined",
+          "-fsanitize=address",
+          "-fsanitize=integer",
+          "-ferror-limit=3",
+          "-fno-caret-diagnostics",          
+          "-g",
+          "${file}",
+          "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
+          "-o",
+          "${workspaceFolder}/cratchit.out"
+        ],
+        "problemMatcher": [
+          "$cpp"
+        ],
+        "group": "build",
+        "detail": "compiler: /usr/local/Cellar/llvm/18.1.8/bin/clang++"
+      },
+      {
+        "type": "cppbuild",
         "label": "clang++ 18 SPARSE SANITIZED build - llvm/18.1.6/lib/c++ macOS C/C++: Brew installed",
         "command": "/usr/local/Cellar/llvm/18.1.6/bin/clang++",
         "args": [
