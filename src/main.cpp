@@ -1,5 +1,6 @@
-float const VERSION = 0.5;
+float const VERSION = 0.6;
 
+#include "cratchit.h"
 #include <iostream>
 #include <locale>
 #include <string>
@@ -31,7 +32,7 @@ void handle_winch(int sig) {
     // Do nothing
 }
 
-#include "../lib/macos/lua-5.2.4_MacOS1011_lib/include/lua.hpp"
+#include "lua.hpp"
 
 // Helpers to stream this pointer for logging purposes
 template<typename T>
@@ -13126,24 +13127,31 @@ private:
 
 int main(int argc, char *argv[])
 {
-  if (true) {
-    auto map = sie::current_date_to_year_id_map(std::chrono::month{5},7);
-  }
-  if (false) {
-    test_immutable_file_manager();
-  }
-  if (false) {
-    // test_directory_iterator();
-    // exit(0);
-  }
+	if (true) {
+		// Hard coded test as defined by 'conan new cmake_exe -d name=cratchit -d version=0.6'
+		cratchit();
+		std::vector<std::string> vec;
+		vec.push_back("test_package");
+		cratchit_print_vector(vec);
+	}
+	if (true) {
+		auto map = sie::current_date_to_year_id_map(std::chrono::month{5},7);
+	}
+	if (false) {
+		test_immutable_file_manager();
+	}
+	if (false) {
+		// test_directory_iterator();
+		// exit(0);
+	}
 	if (false) {
 		// Log current locale and test charachter encoding.
 		// TODO: Activate to adjust for cross platform handling 
 			std::cout << "\nDeafult (current) locale setting is " << std::locale().name().c_str();
 			std::string sHello{"Hallå Åland! Ömsom ödmjuk. Ärligt äkta."}; // This source file expected to be in UTF-8
-      std::cout << "\nUTF-8 sHello:" << std::quoted(sHello);
+		std::cout << "\nUTF-8 sHello:" << std::quoted(sHello);
 			// std::string sPATH{std::getenv("PATH")};
-      // std::cout << "\nPATH=" << sPATH;
+		// std::cout << "\nPATH=" << sPATH;
 	}
   
   std::signal(SIGWINCH, handle_winch); // We need a signal handler to not confuse std::cin on console window resize
