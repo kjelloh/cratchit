@@ -29,7 +29,8 @@ float const VERSION = 0.5;
 #include <concepts> // Requires C++23 support
 #include <csignal>
 #include <format>
-#include "lua.hpp" // Downloaded by Cmake as defined in CMakeLists.txt
+#define SOL_ALL_SAFETIES_ON 1
+#include <sol/sol.hpp>
 
 // Define a signal handler function that does nothing
 void handle_winch(int sig) {

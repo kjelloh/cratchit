@@ -21,7 +21,7 @@ class cratchitRecipe(ConanFile):
     exports_sources = "CMakeLists.txt", "src/*"
 
     def requirements(self):
-        self.requires("lua/5.4.7")
+        self.requires("sol2/3.3.1")
 
     def layout(self):
         cmake_layout(self)
