@@ -2,6 +2,104 @@
 An SIE based book keeping helper console in modern C++. SIE is a File Encoding format for exchange of book keeping data between applications.
 The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scrooge in Charles Dickens novel "A Christmas Carol".
 
+cratchit © 2025 by Kjell-Olov Högdal is licensed under Creative Commons Attribution 4.0 International. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/
+
+# Build
+
+This project supports Cmake and Conan package manager.
+
+If you have those installed - the following is the proposed build method.
+
+```
+conan install . --build=missing
+cmake --preset conan-release
+cmake --build build/Release
+```
+
+NOTE: Also see init_tool_chain.zsh if applicable to your platform
+
+# Tree (bare git repository)
+
+```
+.
+├── CMakeLists.txt
+├── Development_Journal.txt
+├── LICENSE
+├── README.md
+├── conanfile.py
+├── init_tool_chain.zsh
+├── sie_specs
+│   └── doc
+│       ├── SIE_filformat_ver_4B_080930.pdf
+│       ├── SIE_filformat_ver_4B_ENGLISH.pdf
+│       └── URL.txt
+├── skv_specs
+│   ├── README.TXT
+│   ├── _Nyheter_from_beskattningsperiod_2024P4 (2)
+│   │   ├── Filexempel_20XX.xls
+│   │   ├── Fritext_FO.xls
+│   │   ├── INK1_SKV2000-34-02-0024-02.xls
+│   │   ├── INK2R_SKV2002-33-01-24-04.xls
+│   │   ├── INK2S_SKV2002-33-01-24-04.xls
+│   │   ├── INK2_SKV2002-33-01-24-04.xls
+│   │   ├── INK3K_SKV2003-32-01-24-01.xls
+│   │   ├── INK3R_SKV2003-32-02-24-07.xls
+│   │   ├── INK3SUF_SKV2003-32-01-24-01.xls
+│   │   ├── INK3SUS_SKV2003-32-01-24-01.xls
+│   │   ├── INK3S_SKV2003-32-01-24-07.xls
+│   │   ├── INK4DU_SKV2004-32-01-24-01.xls
+│   │   ├── INK4R_SKV2004-32-02-24-01.xls
+│   │   ├── INK4S_SKV2004-32-01-24-06.xls
+│   │   ├── K10A_SKV2110a-19-02-24-01.xls
+│   │   ├── K10_SKV2110-37-04-24-01.xls
+│   │   ├── K11_SKV2111-03-01-18-02.xls
+│   │   ├── K12_SKV2112-23-01-23-01.xls
+│   │   ├── K13_SKV2113-08-02-15-01.xls
+│   │   ├── K15A_SKV2115-15-01-17-01.xls
+│   │   ├── K15B_SKV2116-17-01-17-01.xls
+│   │   ├── K2_SKV2102-18-02-24-02.xls
+│   │   ├── K4_SKV2104-27-02-19-01.xls
+│   │   ├── K5_SKV2105-33-02-22-01.xls
+│   │   ├── K6_SKV2106-33-02-22-01.xls
+│   │   ├── K7_SKV2107-27-01-22-01.xls
+│   │   ├── K8_SKV2108-12-01-22-01.xls
+│   │   ├── K9_SKV2119-05-02-22-01.xls
+│   │   ├── Landkoder_EES_2022.xls
+│   │   ├── Lokala_Skattekontor_for_anstan.xls
+│   │   ├── Medieleverantorsinfo_2022.xls
+│   │   ├── N3A_SKV2153-34-03-24-01.xls
+│   │   ├── N3B_SKV2167-23-01-18-01.xls
+│   │   ├── N4_SKV2154-17-01-15-01.xls
+│   │   ├── N7_SKV2170-11-01-19-02.xls
+│   │   ├── N8_SKV2155-10-01-19-01.xls
+│   │   ├── N9_SKV2158-04-06-23-03.xls
+│   │   ├── NEA_SKV2164-10-02-17-01.xls
+│   │   ├── NE_SKV2161-12-02-23-02.xls
+│   │   ├── T1_SKV2050-34-01-24-02.xls
+│   │   ├── T2_SKV2051-35-02-24-02.xls
+│   │   ├── Vardeforrad_2025 (002).xls
+│   │   ├── _Nyheter_from_beskattningsperiod_2024P4.pdf
+│   │   └── _SKV269 blankettbilder med fÑltnamn 2024P4.pdf
+│   └── fiscal_year_2022
+│       ├── INK1_SKV2000-32-02-0022-02_SKV269.csv
+│       ├── INK1_SKV2000-32-02-0022-02_SKV269.xls
+│       ├── K10_SKV2110-35-04-22-01.csv
+│       └── K10_SKV2110-35-04-22-01.xls
+├── src
+│   ├── cratchit.cpp
+│   ├── cratchit.h
+│   ├── main.cpp
+│   └── zeroth
+│       └── main.cpp
+└── test_package
+    └── conanfile.py
+```
+
+## version 0.6
+
+* Refactored to conan package manager directory structure and scaffolding
+* Changed License to CC BY 4.0 (Creative Commons Attribution 4.0 International)
+
 ## version 0.5
 
 * Cratchit operates in states as defined by the following prompts

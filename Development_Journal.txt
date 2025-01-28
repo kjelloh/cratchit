@@ -1,3 +1,9 @@
+2025-01-28  REFACTORED to enable 'next' architecture of cratchit.
+            + main.cpp moved to sub-folder 'zeroth'.
+            + Used 'conan new cmake_exe -d name=cratchit -d version=0.6' to
+              create cmake, conan and template cratchit.cpp, .h and main.cpp.
+            + Made new main.cpp include zeroth/main.cpp and call its main(...).
+
 2024-07-14
 
   BUG:  SIE <-> Ta Synchronization old and new still shaky

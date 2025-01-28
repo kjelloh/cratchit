@@ -8,17 +8,20 @@ class cratchitRecipe(ConanFile):
     package_type = "application"
 
     # Optional metadata
-    license = "<Put the package license here>"
-    author = "<Put your name here> <And your email here>"
-    url = "<Package recipe repository url here, for issues about the package>"
-    description = "<Description of cratchit package here>"
-    topics = ("<Put some tag here>", "<here>", "<and here>")
+    license = "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
+    author = "Kjell-Olov Högdahl kjell-olov.hogdahl@itfied.se"
+    url = "https://github.com/kjelloh/cratchit.git"
+    description = "C++ console app for Swedish book keeping"
+    topics = ("SIE", "BAS", "SKV","Finance", "Book keeping")
 
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
 
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "src/*"
+
+    def requirements(self):
+        self.requires("lua/5.4.7")
 
     def layout(self):
         cmake_layout(self)
