@@ -1,7 +1,19 @@
 #include <iostream>
 #include "cratchit.h"
 
-
+namespace first {
+  int main(int argc, char *argv[]) {
+    std::string entry{};
+    while (entry != "q" and entry != "-") {
+        std::cout << "Enter 'q' to quit, '-' to switch to zeroth cratchit";
+        std::cout << "\nfirst:>";
+        if (std::getline(std::cin,entry)) {
+            std::cout << entry;
+        }
+    }
+    return (entry=="-")?1:0;
+  }
+}
 
 void cratchit(){
     

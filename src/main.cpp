@@ -13,6 +13,12 @@ int main(int argc, char *argv[]) {
         cratchit_print_vector(vec);
     }
 
-    // Use zeroth source code until refactored into 'this' refactored version
-    return zeroth::main(argc, argv);
+    int result{};
+    while (true) {
+        // Toggle between zeroth (older) and first (this variant) of cratching
+        if (result = zeroth::main(argc, argv);result > 0) break;
+        if (result = first::main(argc,argv);result == 0) break;
+    }
+
+    return result;
 }
