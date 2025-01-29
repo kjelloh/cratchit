@@ -1,5 +1,6 @@
 #include <iostream>
 #include "cratchit.h"
+#include <ncurses.h>
 
 namespace first {
   int main(int argc, char *argv[]) {
