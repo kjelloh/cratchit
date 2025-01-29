@@ -3,16 +3,33 @@
 #include <ncurses.h>
 
 namespace first {
+  
   int main(int argc, char *argv[]) {
-    std::string entry{};
-    while (entry != "q" and entry != "-") {
-        std::cout << "Enter 'q' to quit, '-' to switch to zeroth cratchit";
-        std::cout << "\nfirst:>";
-        if (std::getline(std::cin,entry)) {
-            std::cout << entry;
-        }
+#ifdef __APPLE__
+    // Quick fix to make ncurses find the terminal setting on macOS
+    setenv("TERMINFO", "/usr/share/terminfo", 1);
+#endif
+    initscr();              // Start ncurses mode        
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);  // Enable special keys like arrow keys, etc.
+    
+    // Declare variables
+    char ch = ' ';  // Variable to store the user's input
+    std::string entry{};  // String to hold the user input
+
+    // Main loop
+    int loop_count{};
+    while (ch != 'q' && ch != '-') {
+        clear();
+        printw("Enter 'q' to quit, '-' to switch to zeroth cratchit");
+        printw("\n%d:first:>%c",loop_count++,ch);
+        refresh();
+        ch = getch();  // Get a character input from the user
     }
-    return (entry=="-")?1:0;
+
+    endwin();               // End ncurses mode
+    return (ch=='-')?1:0;
   }
 }
 

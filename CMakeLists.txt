@@ -11,7 +11,7 @@ find_package(Curses REQUIRED)
 
 add_executable(cratchit src/cratchit.cpp src/main.cpp)
 
-target_link_libraries(cratchit sol2::sol2 Curses::Curses)
+target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
 
 install(TARGETS cratchit DESTINATION "."
         RUNTIME DESTINATION bin
