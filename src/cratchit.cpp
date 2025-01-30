@@ -8,8 +8,22 @@ namespace first {
   struct Model {
     std::string top_content;
     std::string main_content;
-    std::string bottom_content;
+    std::string user_input;
   };
+
+  Model update(Model model, char ch) {
+    if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
+      if (!model.user_input.empty()) {
+        model.user_input.pop_back();
+      }
+    } else if (ch == '\n') {
+      // User pressed Enter: process command (optional)
+      model.user_input.clear(); // Reset input after submission
+    } else {
+      model.user_input += ch; // Append typed character
+    }
+    return model; // Return updated model
+  }
 
   pugi::xml_document view(const Model &model) {
     // Create a new pugi document
@@ -21,87 +35,114 @@ namespace first {
     // Create the body
     pugi::xml_node body = html.append_child("body");
 
-    // Create the top section
+    // Create the top section with class "content"
     pugi::xml_node top = body.append_child("div");
-    top.append_attribute("id") = "top";
+    top.append_attribute("class") = "content";
     top.text().set(model.top_content.c_str());
 
-    // Create the main section
+    // Create the main section with class "content"
     pugi::xml_node main = body.append_child("div");
-    main.append_attribute("id") = "main";
+    main.append_attribute("class") = "content";
     main.text().set(model.main_content.c_str());
 
-    // Create the bottom section
-    pugi::xml_node bottom = body.append_child("div");
-    bottom.append_attribute("id") = "bottom";
-    bottom.text().set(model.bottom_content.c_str());
+    // Create the user prompt section with class "user-prompt"
+    pugi::xml_node prompt = body.append_child("div");
+    prompt.append_attribute("class") = "user-prompt";
+    // Add a label element for the prompt text
+    pugi::xml_node label = prompt.append_child("label");
+    label.text().set((">" + model.user_input).c_str());
+
+    // Make prompt 'html-correct' (even though render does not care for now)
+    pugi::xml_node input = prompt.append_child("input");
+    input.append_attribute("type") = "text";
+    input.append_attribute("id") = "command";
+    input.append_attribute("name") = "command";
 
     return doc;
+  }
+
+  void render_section(WINDOW *win, const std::string &text, int start_y,
+                      int max_lines) {
+    int line_count = 0;
+    size_t pos = 0;
+    while (pos < text.size() && line_count < max_lines) {
+      size_t next_line_pos = text.find('\n', pos);
+      if (next_line_pos == std::string::npos) {
+        next_line_pos = text.size();
+      }
+
+      std::string line = text.substr(pos, next_line_pos - pos);
+      mvwprintw(win, start_y + line_count, 1, "%s",
+                line.c_str()); // Render inside window
+
+      line_count++;
+      pos = next_line_pos + 1; // Move to the next line
+    }
+    wrefresh(win); // Refresh to show changes in the window
+  }
+
+  void render_prompt(WINDOW *win, const pugi::xml_node &prompt_node) {
+    // User prompt at the bottom of the screen (in the last row)
+    const std::string prompt_text =
+        prompt_node.child("label").text().as_string();
+    mvwprintw(win, 1, 1, "%s", prompt_text.c_str());
+    wmove(win, 1, prompt_text.size() + 1); // Move cursor after the prompt
+    wrefresh(win);                         // Refresh to show prompt
   }
 
   void render(const pugi::xml_document &doc) {
     int screen_height, screen_width;
     getmaxyx(stdscr, screen_height, screen_width); // Get screen dimensions
 
-    // Parse the HTML structure
+    // Create a window for the app screen area (excluding the last row for the
+    // prompt)
+    int app_screen_height =
+        screen_height - 1; // Excluding the bottom row for the prompt
+    int section_height =
+        app_screen_height /
+        3; // Divide the remaining screen height into three sections
+
+    // Create windows for the app screen sections
+    WINDOW *top_win = newwin(section_height, screen_width, 0, 0);
+    box(top_win, 0, 0); // Draw border around the top section
+    wrefresh(top_win);  // Refresh to show the window
+
+    WINDOW *middle_win =
+        newwin(section_height, screen_width, section_height, 0);
+    box(middle_win, 0, 0); // Draw border around the middle section
+    wrefresh(middle_win);  // Refresh to show the window
+
+    WINDOW *bottom_win =
+        newwin(section_height, screen_width, 2 * section_height, 0);
+    box(bottom_win, 0, 0); // Draw border around the bottom section
+    wrefresh(bottom_win);  // Refresh to show the window
+
+    // Parse the HTML-like structure
     pugi::xml_node html = doc.child("html");
     pugi::xml_node body = html.child("body");
 
-    // First, count how many div elements we have
+    int current_y = 1; // Start from row 1 to leave space for the top border
     int num_divs = 0;
+
+    // Loop through divs directly and render them in sections
     for (auto const &div : body.children("div")) {
+      // Render the content of the div inside the windows
+      const std::string text = div.text().as_string();
+      const int max_lines = section_height - 2; // Accounting for borders
+
+      if (div.attribute("class").as_string() == std::string("content")) {
+        if (num_divs == 0) {
+          render_section(top_win, text, current_y, max_lines);
+        } else if (num_divs == 1) {
+          render_section(middle_win, text, current_y, max_lines);
+        }
+      } else if (div.attribute("class").as_string() ==
+                 std::string("user-prompt")) {
+        render_prompt(bottom_win, div);
+      }
+
       num_divs++;
     }
-
-    // Calculate the height for each section (divide evenly among divs)
-    int section_height = screen_height / num_divs;
-
-    // Function to render a section of text
-    auto render_section = [&](const std::string &text, int start_y,
-                              int max_lines) {
-      int line_count = 0;
-      size_t pos = 0; // Position within the text content (not the terminal row)
-      // Split the text into lines and render each line
-      while (pos < text.size() && line_count < max_lines) {
-        size_t next_line_pos = text.find('\n', pos);
-        if (next_line_pos == std::string::npos) {
-          next_line_pos = text.size();
-        }
-
-        // Extract the line of text
-        std::string line = text.substr(pos, next_line_pos - pos);
-
-        // Print the line at the current terminal row (start_y + line_count)
-        mvprintw(start_y + line_count, 0, "%s", line.c_str());
-
-        line_count++;
-        pos = next_line_pos + 1; // Move to the next line in the text
-      }
-    };
-
-    // Loop through divs directly and render them
-    int current_y =
-        0; // Track the current Y position (terminal row) for rendering
-    box(stdscr, 0, 0); // Draw border around the entire screen
-    for (auto const &div : body.children("div")) {
-      // Render the content of the div, filling `section_height` lines of the
-      // terminal
-      render_section(div.text().as_string(), current_y, section_height);
-      // Draw border around the current section (top-left corner at current_y,0)
-      mvhline(current_y - 1, 0, ACS_HLINE,
-              screen_width); // Top border of the section
-      mvvline(current_y, 0, ACS_VLINE, section_height); // Left border
-      mvvline(current_y, screen_width - 1, ACS_VLINE,
-              section_height); // Right border
-      mvhline(current_y + section_height, 0, ACS_HLINE,
-              screen_width); // Bottom border
-
-      current_y +=
-          section_height; // Update current Y position for the next section
-    }
-
-    // Refresh to show the rendered content
-    refresh();
   }
 
   int main(int argc, char *argv[]) {
@@ -118,19 +159,17 @@ namespace first {
     // Define the model with content for each section
     Model model = {"Welcome to the top section",
                    "This is the main content area",
-                   "This is the bottom section"};
+                   ""};
 
     char ch = ' '; // Variable to store the user's input
 
     // Main loop
     int loop_count{};
-    while (ch != 'q' && ch != '-') {
+    while (model.user_input.size() > 1 or (ch != 'q' && ch != '-')) {
       pugi::xml_document doc = view(model);
       render(doc);
-      printw("Enter 'q' to quit, '-' to switch to zeroth cratchit");
-      printw("\n%d:first:>%c", loop_count++, ch);
-      refresh();
-      ch = getch(); // Get a character input from the user
+      ch = getch();
+      model = update(model, ch);
     }
 
     endwin(); // End ncurses mode
