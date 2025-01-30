@@ -41,23 +41,54 @@ namespace first {
 
   void render(const pugi::xml_document &doc) {
     int screen_height, screen_width;
-    getmaxyx(stdscr, screen_height, screen_width);
+    getmaxyx(stdscr, screen_height, screen_width); // Get screen dimensions
 
     // Parse the HTML structure
     pugi::xml_node html = doc.child("html");
     pugi::xml_node body = html.child("body");
 
-    // Render the top section
-    pugi::xml_node top = body.child("div");
-    mvprintw(1, 0, "Top Section: %s", top.text().as_string());
+    // First, count how many div elements we have
+    int num_divs = 0;
+    for (auto const &div : body.children("div")) {
+      num_divs++;
+    }
 
-    // Render the main section
-    pugi::xml_node main = top.next_sibling("div");
-    mvprintw(3, 0, "Main Section: %s", main.text().as_string());
+    // Calculate the height for each section (divide evenly among divs)
+    int section_height = screen_height / num_divs;
 
-    // Render the bottom section
-    pugi::xml_node bottom = main.next_sibling("div");
-    mvprintw(5, 0, "Bottom Section: %s", bottom.text().as_string());
+    // Function to render a section of text
+    auto render_section = [&](const std::string &text, int start_y,
+                              int max_lines) {
+      int line_count = 0;
+      size_t pos = 0; // Position within the text content (not the terminal row)
+      // Split the text into lines and render each line
+      while (pos < text.size() && line_count < max_lines) {
+        size_t next_line_pos = text.find('\n', pos);
+        if (next_line_pos == std::string::npos) {
+          next_line_pos = text.size();
+        }
+
+        // Extract the line of text
+        std::string line = text.substr(pos, next_line_pos - pos);
+
+        // Print the line at the current terminal row (start_y + line_count)
+        mvprintw(start_y + line_count, 0, "%s", line.c_str());
+
+        line_count++;
+        pos = next_line_pos + 1; // Move to the next line in the text
+      }
+    };
+
+    // Loop through divs directly and render them
+    int current_y =
+        0; // Track the current Y position (terminal row) for rendering
+    for (auto const &div : body.children("div")) {
+      // Render the content of the div, filling `section_height` lines of the
+      // terminal
+      render_section(div.text().as_string(), current_y, section_height);
+      current_y +=
+          section_height; // Update current Y position for the next section
+    }
 
     // Refresh to show the rendered content
     refresh();
@@ -68,26 +99,24 @@ namespace first {
     // Quick fix to make ncurses find the terminal setting on macOS
     setenv("TERMINFO", "/usr/share/terminfo", 1);
 #endif
-    // 
+    //
     initscr();
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
 
     // Define the model with content for each section
-    Model model = {
-        "Welcome to the top section",
-        "This is the main content area",
-        "This is the bottom section"
-    };
+    Model model = {"Welcome to the top section",
+                   "This is the main content area",
+                   "This is the bottom section"};
 
-    char ch = ' ';       // Variable to store the user's input
+    char ch = ' '; // Variable to store the user's input
 
     // Main loop
     int loop_count{};
     while (ch != 'q' && ch != '-') {
       pugi::xml_document doc = view(model);
-      render(doc);    
+      render(doc);
       printw("Enter 'q' to quit, '-' to switch to zeroth cratchit");
       printw("\n%d:first:>%c", loop_count++, ch);
       refresh();
