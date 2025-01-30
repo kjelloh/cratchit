@@ -1,6 +1,7 @@
 #include <iostream>
 #include "cratchit.h"
 #include <ncurses.h>
+#include <pugixml.hpp>
 
 namespace first {
   
