@@ -12347,7 +12347,7 @@ The ITfied AB
 Cmd Updater::operator()(Quit const& quit) {
   // std::cout << "\noperator(Quit)";
   std::ostringstream os{};
-  os << "\nBy for now :)";
+  os << "\nBye for now :)";
   model->prompt = os.str();
   model->quit = true;
   return {};

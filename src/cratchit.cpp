@@ -1,7 +1,10 @@
 #include "cratchit.h"
 #include <iostream>
+#include <map>
+#include <memory>
 #include <ncurses.h>
 #include <pugixml.hpp>
+#include <stack>
 
 namespace first {
 
@@ -9,18 +12,78 @@ namespace first {
     std::string top_content;
     std::string main_content;
     std::string user_input;
+
+    std::map<int, std::map<char, int>> adj_list{};
+    std::vector<std::string> id2node{};
+    std::stack<int> stack{};
+
+    int id_of(std::string const &node) {
+      auto iter = std::find(id2node.begin(), id2node.end(), node);
+      if (iter != id2node.end())
+        return std::distance(id2node.begin(), iter);
+      int id = id2node.size();
+      id2node.push_back(node);
+      return id;
+    }
+
+    void add_transition(std::string const &from, char ch,
+                        std::string const &to) {
+      adj_list[id_of(from)][ch] = id_of(to);
+    }
   };
+
+  Model init() {
+    Model model = {"Welcome to the top section",
+                   "This is the main content area", ""};
+    model.add_transition("root", '1', "ITfied");
+    model.add_transition("ITfied", '1', "2024-2025");
+    model.add_transition("2024-2025", '1', "Rubrik Belopp Datum");
+    model.add_transition("2024-2025", '2', "Momsrapport");
+    model.add_transition("Momsrapport", '1', "Q1");
+    model.add_transition("Momsrapport", '2', "Q2");
+    model.add_transition("Momsrapport", '3', "Q3");
+    model.add_transition("Momsrapport", '4', "Q4");
+    model.stack.push(model.id_of("root"));
+    return model;
+  }
 
   Model update(Model model, char ch) {
     if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
       if (!model.user_input.empty()) {
         model.user_input.pop_back();
       }
-    } else if (ch == '\n') {
+    } 
+    else if (ch == '\n') {
       // User pressed Enter: process command (optional)
       model.user_input.clear(); // Reset input after submission
-    } else {
-      model.user_input += ch; // Append typed character
+    } 
+    else {
+      if (model.user_input.empty() and model.stack.size() > 0) {
+        if (ch == '-') {
+          model.stack.pop();
+        } 
+        else if (model.adj_list[model.stack.top()].contains(ch)) {
+          model.stack.push(model.adj_list[model.stack.top()][ch]);
+        }
+        else {
+          model.user_input += ch; // Append typed character
+        }
+      }
+      else {
+          model.user_input += ch; // Append typed character
+      }
+    }
+    if (model.stack.size() > 0) {
+      model.main_content.clear();
+      for (auto const &[ch, to] : model.adj_list[model.stack.top()]) {
+        std::string entry{};
+        entry.push_back(ch);
+        entry.append(" - ");
+        auto caption = model.id2node[to];
+        entry.append(caption);
+        entry.push_back('\n');
+        model.main_content.append(entry);
+      }
     }
     return model; // Return updated model
   }
@@ -28,6 +91,9 @@ namespace first {
   pugi::xml_document view(const Model &model) {
     // Create a new pugi document
     pugi::xml_document doc;
+
+    // Note: HTML doc may be tested for validity at:
+    // https://www.w3schools.com/html/tryit.asp?filename=tryhtml_intro
 
     // Create the root HTML element
     pugi::xml_node html = doc.append_child("html");
@@ -90,6 +156,9 @@ namespace first {
     wrefresh(win);                         // Refresh to show prompt
   }
 
+  // Renders doc as HTML to ncurses screen
+  // Note: HTML doc semantics may be tested at:
+  // https://www.w3schools.com/html/tryit.asp?filename=tryhtml_intro
   void render(const pugi::xml_document &doc) {
     int screen_height, screen_width;
     getmaxyx(stdscr, screen_height, screen_width); // Get screen dimensions
@@ -145,34 +214,39 @@ namespace first {
     }
   }
 
+  class Ncurses {
+  public:
+    Ncurses() {
+      initscr();
+      cbreak();
+      noecho();
+      keypad(stdscr, TRUE);
+    }
+    ~Ncurses() {
+      endwin(); // End ncurses mode
+    }
+  };
+
   int main(int argc, char *argv[]) {
 #ifdef __APPLE__
     // Quick fix to make ncurses find the terminal setting on macOS
     setenv("TERMINFO", "/usr/share/terminfo", 1);
 #endif
-    //
-    initscr();
-    cbreak();
-    noecho();
-    keypad(stdscr, TRUE);
-
-    // Define the model with content for each section
-    Model model = {"Welcome to the top section",
-                   "This is the main content area",
-                   ""};
 
     char ch = ' '; // Variable to store the user's input
+    // init ncurses
+    Ncurses ncurses{};
 
+    auto model = init();
     // Main loop
     int loop_count{};
-    while (model.user_input.size() > 1 or (ch != 'q' && ch != '-')) {
+    while (model.stack.size() > 0 and
+          not(model.user_input.size() == 1 and ch == 'q')) {
       pugi::xml_document doc = view(model);
       render(doc);
       ch = getch();
       model = update(model, ch);
     }
-
-    endwin(); // End ncurses mode
     return (ch == '-') ? 1 : 0;
   }
 } // namespace first
