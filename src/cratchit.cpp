@@ -5,24 +5,89 @@
 
 namespace first {
 
+  struct Model {
+    std::string top_content;
+    std::string main_content;
+    std::string bottom_content;
+  };
+
+  pugi::xml_document view(const Model &model) {
+    // Create a new pugi document
+    pugi::xml_document doc;
+
+    // Create the root HTML element
+    pugi::xml_node html = doc.append_child("html");
+
+    // Create the body
+    pugi::xml_node body = html.append_child("body");
+
+    // Create the top section
+    pugi::xml_node top = body.append_child("div");
+    top.append_attribute("id") = "top";
+    top.text().set(model.top_content.c_str());
+
+    // Create the main section
+    pugi::xml_node main = body.append_child("div");
+    main.append_attribute("id") = "main";
+    main.text().set(model.main_content.c_str());
+
+    // Create the bottom section
+    pugi::xml_node bottom = body.append_child("div");
+    bottom.append_attribute("id") = "bottom";
+    bottom.text().set(model.bottom_content.c_str());
+
+    return doc;
+  }
+
+  void render(const pugi::xml_document &doc) {
+    int screen_height, screen_width;
+    getmaxyx(stdscr, screen_height, screen_width);
+
+    // Parse the HTML structure
+    pugi::xml_node html = doc.child("html");
+    pugi::xml_node body = html.child("body");
+
+    // Render the top section
+    pugi::xml_node top = body.child("div");
+    mvprintw(1, 0, "Top Section: %s", top.text().as_string());
+
+    // Render the main section
+    pugi::xml_node main = top.next_sibling("div");
+    mvprintw(3, 0, "Main Section: %s", main.text().as_string());
+
+    // Render the bottom section
+    pugi::xml_node bottom = main.next_sibling("div");
+    mvprintw(5, 0, "Bottom Section: %s", bottom.text().as_string());
+
+    // Refresh to show the rendered content
+    refresh();
+  }
+
   int main(int argc, char *argv[]) {
 #ifdef __APPLE__
     // Quick fix to make ncurses find the terminal setting on macOS
     setenv("TERMINFO", "/usr/share/terminfo", 1);
 #endif
-    initscr(); // Start ncurses mode
+    // 
+    initscr();
     cbreak();
     noecho();
-    keypad(stdscr, TRUE); // Enable special keys like arrow keys, etc.
+    keypad(stdscr, TRUE);
 
-    // Declare variables
+    // Define the model with content for each section
+    Model model = {
+        "Welcome to the top section",
+        "This is the main content area",
+        "This is the bottom section"
+    };
+
     char ch = ' ';       // Variable to store the user's input
-    std::string entry{}; // String to hold the user input
 
     // Main loop
     int loop_count{};
     while (ch != 'q' && ch != '-') {
-      clear();
+      pugi::xml_document doc = view(model);
+      render(doc);    
       printw("Enter 'q' to quit, '-' to switch to zeroth cratchit");
       printw("\n%d:first:>%c", loop_count++, ch);
       refresh();
