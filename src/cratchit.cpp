@@ -1,151 +1,153 @@
-#include <iostream>
 #include "cratchit.h"
+#include <iostream>
 #include <ncurses.h>
 #include <pugixml.hpp>
 
 namespace first {
-  
+
   int main(int argc, char *argv[]) {
 #ifdef __APPLE__
     // Quick fix to make ncurses find the terminal setting on macOS
     setenv("TERMINFO", "/usr/share/terminfo", 1);
 #endif
-    initscr();              // Start ncurses mode        
+    initscr(); // Start ncurses mode
     cbreak();
     noecho();
-    keypad(stdscr, TRUE);  // Enable special keys like arrow keys, etc.
-    
+    keypad(stdscr, TRUE); // Enable special keys like arrow keys, etc.
+
     // Declare variables
-    char ch = ' ';  // Variable to store the user's input
-    std::string entry{};  // String to hold the user input
+    char ch = ' ';       // Variable to store the user's input
+    std::string entry{}; // String to hold the user input
 
     // Main loop
     int loop_count{};
     while (ch != 'q' && ch != '-') {
-        clear();
-        printw("Enter 'q' to quit, '-' to switch to zeroth cratchit");
-        printw("\n%d:first:>%c",loop_count++,ch);
-        refresh();
-        ch = getch();  // Get a character input from the user
+      clear();
+      printw("Enter 'q' to quit, '-' to switch to zeroth cratchit");
+      printw("\n%d:first:>%c", loop_count++, ch);
+      refresh();
+      ch = getch(); // Get a character input from the user
     }
 
-    endwin();               // End ncurses mode
-    return (ch=='-')?1:0;
+    endwin(); // End ncurses mode
+    return (ch == '-') ? 1 : 0;
   }
-}
+} // namespace first
 
-void cratchit(){
-    
+void cratchit() {
 
-    #ifdef NDEBUG
-    std::cout << "cratchit/0.6: Hello World Release!\n";
-    #else
-    std::cout << "cratchit/0.6: Hello World Debug!\n";
-    #endif
+#ifdef NDEBUG
+  std::cout << "cratchit/0.6: Hello World Release!\n";
+#else
+  std::cout << "cratchit/0.6: Hello World Debug!\n";
+#endif
 
-    // ARCHITECTURES
-    #ifdef _M_X64
-    std::cout << "  cratchit/0.6: _M_X64 defined\n";
-    #endif
+// ARCHITECTURES
+#ifdef _M_X64
+  std::cout << "  cratchit/0.6: _M_X64 defined\n";
+#endif
 
-    #ifdef _M_IX86
-    std::cout << "  cratchit/0.6: _M_IX86 defined\n";
-    #endif
+#ifdef _M_IX86
+  std::cout << "  cratchit/0.6: _M_IX86 defined\n";
+#endif
 
-    #ifdef _M_ARM64
-    std::cout << "  cratchit/0.6: _M_ARM64 defined\n";
-    #endif
+#ifdef _M_ARM64
+  std::cout << "  cratchit/0.6: _M_ARM64 defined\n";
+#endif
 
-    #if __i386__
-    std::cout << "  cratchit/0.6: __i386__ defined\n";
-    #endif
+#if __i386__
+  std::cout << "  cratchit/0.6: __i386__ defined\n";
+#endif
 
-    #if __x86_64__
-    std::cout << "  cratchit/0.6: __x86_64__ defined\n";
-    #endif
+#if __x86_64__
+  std::cout << "  cratchit/0.6: __x86_64__ defined\n";
+#endif
 
-    #if __aarch64__
-    std::cout << "  cratchit/0.6: __aarch64__ defined\n";
-    #endif
+#if __aarch64__
+  std::cout << "  cratchit/0.6: __aarch64__ defined\n";
+#endif
 
-    // Libstdc++
-    #if defined _GLIBCXX_USE_CXX11_ABI
-    std::cout << "  cratchit/0.6: _GLIBCXX_USE_CXX11_ABI "<< _GLIBCXX_USE_CXX11_ABI << "\n";
-    #endif
+// Libstdc++
+#if defined _GLIBCXX_USE_CXX11_ABI
+  std::cout << "  cratchit/0.6: _GLIBCXX_USE_CXX11_ABI "
+            << _GLIBCXX_USE_CXX11_ABI << "\n";
+#endif
 
-    // MSVC runtime
-    #if defined(_DEBUG)
-        #if defined(_MT) && defined(_DLL)
-        std::cout << "  cratchit/0.6: MSVC runtime: MultiThreadedDebugDLL\n";
-        #elif defined(_MT)
-        std::cout << "  cratchit/0.6: MSVC runtime: MultiThreadedDebug\n";
-        #endif
-    #else
-        #if defined(_MT) && defined(_DLL)
-        std::cout << "  cratchit/0.6: MSVC runtime: MultiThreadedDLL\n";
-        #elif defined(_MT)
-        std::cout << "  cratchit/0.6: MSVC runtime: MultiThreaded\n";
-        #endif
-    #endif
+// MSVC runtime
+#if defined(_DEBUG)
+#if defined(_MT) && defined(_DLL)
+  std::cout << "  cratchit/0.6: MSVC runtime: MultiThreadedDebugDLL\n";
+#elif defined(_MT)
+  std::cout << "  cratchit/0.6: MSVC runtime: MultiThreadedDebug\n";
+#endif
+#else
+#if defined(_MT) && defined(_DLL)
+  std::cout << "  cratchit/0.6: MSVC runtime: MultiThreadedDLL\n";
+#elif defined(_MT)
+  std::cout << "  cratchit/0.6: MSVC runtime: MultiThreaded\n";
+#endif
+#endif
 
-    // COMPILER VERSIONS
-    #if _MSC_VER
-    std::cout << "  cratchit/0.6: _MSC_VER" << _MSC_VER<< "\n";
-    #endif
+// COMPILER VERSIONS
+#if _MSC_VER
+  std::cout << "  cratchit/0.6: _MSC_VER" << _MSC_VER << "\n";
+#endif
 
-    #if _MSVC_LANG
-    std::cout << "  cratchit/0.6: _MSVC_LANG" << _MSVC_LANG<< "\n";
-    #endif
+#if _MSVC_LANG
+  std::cout << "  cratchit/0.6: _MSVC_LANG" << _MSVC_LANG << "\n";
+#endif
 
-    #if __cplusplus
-    std::cout << "  cratchit/0.6: __cplusplus" << __cplusplus<< "\n";
-    #endif
+#if __cplusplus
+  std::cout << "  cratchit/0.6: __cplusplus" << __cplusplus << "\n";
+#endif
 
-    #if __INTEL_COMPILER
-    std::cout << "  cratchit/0.6: __INTEL_COMPILER" << __INTEL_COMPILER<< "\n";
-    #endif
+#if __INTEL_COMPILER
+  std::cout << "  cratchit/0.6: __INTEL_COMPILER" << __INTEL_COMPILER << "\n";
+#endif
 
-    #if __GNUC__
-    std::cout << "  cratchit/0.6: __GNUC__" << __GNUC__<< "\n";
-    #endif
+#if __GNUC__
+  std::cout << "  cratchit/0.6: __GNUC__" << __GNUC__ << "\n";
+#endif
 
-    #if __GNUC_MINOR__
-    std::cout << "  cratchit/0.6: __GNUC_MINOR__" << __GNUC_MINOR__<< "\n";
-    #endif
+#if __GNUC_MINOR__
+  std::cout << "  cratchit/0.6: __GNUC_MINOR__" << __GNUC_MINOR__ << "\n";
+#endif
 
-    #if __clang_major__
-    std::cout << "  cratchit/0.6: __clang_major__" << __clang_major__<< "\n";
-    #endif
+#if __clang_major__
+  std::cout << "  cratchit/0.6: __clang_major__" << __clang_major__ << "\n";
+#endif
 
-    #if __clang_minor__
-    std::cout << "  cratchit/0.6: __clang_minor__" << __clang_minor__<< "\n";
-    #endif
+#if __clang_minor__
+  std::cout << "  cratchit/0.6: __clang_minor__" << __clang_minor__ << "\n";
+#endif
 
-    #if __apple_build_version__
-    std::cout << "  cratchit/0.6: __apple_build_version__" << __apple_build_version__<< "\n";
-    #endif
+#if __apple_build_version__
+  std::cout << "  cratchit/0.6: __apple_build_version__"
+            << __apple_build_version__ << "\n";
+#endif
 
-    // SUBSYSTEMS
+  // SUBSYSTEMS
 
-    #if __MSYS__
-    std::cout << "  cratchit/0.6: __MSYS__" << __MSYS__<< "\n";
-    #endif
+#if __MSYS__
+  std::cout << "  cratchit/0.6: __MSYS__" << __MSYS__ << "\n";
+#endif
 
-    #if __MINGW32__
-    std::cout << "  cratchit/0.6: __MINGW32__" << __MINGW32__<< "\n";
-    #endif
+#if __MINGW32__
+  std::cout << "  cratchit/0.6: __MINGW32__" << __MINGW32__ << "\n";
+#endif
 
-    #if __MINGW64__
-    std::cout << "  cratchit/0.6: __MINGW64__" << __MINGW64__<< "\n";
-    #endif
+#if __MINGW64__
+  std::cout << "  cratchit/0.6: __MINGW64__" << __MINGW64__ << "\n";
+#endif
 
-    #if __CYGWIN__
-    std::cout << "  cratchit/0.6: __CYGWIN__" << __CYGWIN__<< "\n";
-    #endif
+#if __CYGWIN__
+  std::cout << "  cratchit/0.6: __CYGWIN__" << __CYGWIN__ << "\n";
+#endif
 }
 
 void cratchit_print_vector(const std::vector<std::string> &strings) {
-    for(std::vector<std::string>::const_iterator it = strings.begin(); it != strings.end(); ++it) {
-        std::cout << "cratchit/0.6 " << *it << std::endl;
-    }
+  for (std::vector<std::string>::const_iterator it = strings.begin();
+       it != strings.end(); ++it) {
+    std::cout << "cratchit/0.6 " << *it << std::endl;
+  }
 }

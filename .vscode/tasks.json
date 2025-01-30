@@ -1,147 +1,29 @@
 {
-    "version": "2.0.0",
     "tasks": [
-      {
-        "type": "cppbuild",
-        "label": "clang++ 18 SPARSE SANITIZED build - llvm/18.1.8/lib/c++ macOS C/C++: Brew installed",
-        "command": "/usr/local/Cellar/llvm/18.1.8/bin/clang++",
-        "args": [
-          "-mmacosx-version-min=12.7",
-          "-fdiagnostics-color=always",
-          "-Wl,-rpath,/usr/local/Cellar/llvm/18.1.6/lib/c++",
-          "-std=c++23",
-          "-fsanitize=undefined",
-          "-fsanitize=address",
-          "-fsanitize=integer",
-          "-ferror-limit=3",
-          "-fno-caret-diagnostics",          
-          "-g",
-          "${file}",
-          "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
-          "-o",
-          "${workspaceFolder}/cratchit.out"
-        ],
-        "problemMatcher": [
-          "$cpp"
-        ],
-        "group": "build",
-        "detail": "compiler: /usr/local/Cellar/llvm/18.1.8/bin/clang++"
-      },
-      {
-        "type": "cppbuild",
-        "label": "clang++ 18 SPARSE SANITIZED build - llvm/18.1.6/lib/c++ macOS C/C++: Brew installed",
-        "command": "/usr/local/Cellar/llvm/18.1.6/bin/clang++",
-        "args": [
-          "-mmacosx-version-min=12.7",
-          "-fdiagnostics-color=always",
-          "-Wl,-rpath,/usr/local/Cellar/llvm/18.1.6/lib/c++",
-          "-std=c++23",
-          "-fsanitize=undefined",
-          "-fsanitize=address",
-          "-fsanitize=integer",
-          "-ferror-limit=3",
-          "-fno-caret-diagnostics",          
-          "-g",
-          "${file}",
-          "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
-          "-o",
-          "${workspaceFolder}/cratchit.out"
-        ],
-        "problemMatcher": [
-          "$cpp"
-        ],
-        "group": "build",
-        "detail": "compiler: /usr/local/Cellar/llvm/18.1.6/bin/clang++"
-      },
-      {
-        "type": "cppbuild",
-        "label": "clang++ 17 SPARSE SANITIZED build - llvm@17/17.0.6/lib/c++ macOS C/C++: Brew installed",
-        "command": "/usr/local/Cellar/llvm@17/17.0.6/bin/clang++",
-        "args": [
-            "-fdiagnostics-color=always",
-            "-Wl,-rpath,/usr/local/Cellar/llvm@17/17.0.6/lib/c++",
-            "-std=c++23",
-            "-fsanitize=undefined",
-            "-fsanitize=address",
-            "-fsanitize=integer",
-            "-ferror-limit=3",
-            "-fno-caret-diagnostics",
-            "-g",
-            "${file}",
-            "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
-            "-o",
-            "${workspaceFolder}/cratchit.out"
-        ],
-        "problemMatcher": [
-            "$cpp"
-        ],
-        "group": "build",
-        "detail": "compiler: /usr/local/Cellar/llvm@17/17.0.6/bin/clang++"
-      },
-      {
-        "type": "cppbuild",
-        "label": "clang++ 18 build - llvm/18.1.6/lib/c++ macOS C/C++: Brew installed",
-        "command": "/usr/local/Cellar/llvm/18.1.6/bin/clang++",
-        "args": [
-          "-mmacosx-version-min=12.7",
-          "-fdiagnostics-color=always",
-          "-Wl,-rpath,/usr/local/Cellar/llvm/18.1.6/lib/c++",
-          "-std=c++23",
-          "-ferror-limit=3",
-          "-g",
-          "${file}",
-          "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
-          "-o",
-          "${workspaceFolder}/cratchit.out"
-        ],
-        "problemMatcher": [
-          "$cpp"
-        ],
-        "group": "build",
-        "detail": "compiler: /usr/local/Cellar/llvm/18.1.6/bin/clang++"
-      },
-      {
-        "type": "cppbuild",
-        "label": "g++ 14 build - g++-14.1.0_1 macOS C/C++: Brew installed",
-        "command": "/usr/local/Cellar/gcc/14.1.0_1/bin/g++-14",
-        "args": [
-          "-fdiagnostics-color=always",
-          "-std=c++23",
-          "-fmax-errors=3",
-          "-g",
-          "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
-          "${file}",
-          "-o",
-          "${workspaceFolder}/cratchit.out"
-        ],
-        "problemMatcher": [
-          "$cpp"
-        ],
-        "group": "build",
-        "detail": "compiler:/usr/local/Cellar/gcc/14.1.0_1/bin/g++-14"
-      },
-      {
-        "type": "cppbuild",
-        "label": "g++ 13.3.0 Build",
-        "command": "/usr/local/Cellar/gcc@13/13.3.0/bin/g++-13",
-        "args": [
-            "-fdiagnostics-color=always",
-            "-std=c++23",
-            "-fmax-errors=3",
-            "-g",
-            "lib/macos/lua-5.2.4_MacOS1011_lib/liblua52.a",
-            "${file}",
-            "-o",
-            "${workspaceFolder}/cratchit.out"
-        ],
-        "problemMatcher": [
-            "$gcc"
-        ],
-        "group": {
-            "kind": "build",
-            "isDefault": false
-        },
-        "detail": "Build using /usr/local/Cellar/gcc@13/13.3.0/bin/g++-13"
-      }     
-  ]
+        {
+            "type": "cppbuild",
+            "label": "C/C++: clang++ build active file",
+            "command": "/usr/bin/clang++",
+            "args": [
+                "-fcolor-diagnostics",
+                "-fansi-escape-codes",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Task generated by Debugger."
+        }
+    ],
+    "version": "2.0.0"
 }
