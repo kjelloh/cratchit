@@ -82,10 +82,20 @@ namespace first {
     // Loop through divs directly and render them
     int current_y =
         0; // Track the current Y position (terminal row) for rendering
+    box(stdscr, 0, 0); // Draw border around the entire screen
     for (auto const &div : body.children("div")) {
       // Render the content of the div, filling `section_height` lines of the
       // terminal
       render_section(div.text().as_string(), current_y, section_height);
+      // Draw border around the current section (top-left corner at current_y,0)
+      mvhline(current_y - 1, 0, ACS_HLINE,
+              screen_width); // Top border of the section
+      mvvline(current_y, 0, ACS_VLINE, section_height); // Left border
+      mvvline(current_y, screen_width - 1, ACS_VLINE,
+              section_height); // Right border
+      mvhline(current_y + section_height, 0, ACS_HLINE,
+              screen_width); // Bottom border
+
       current_y +=
           section_height; // Update current Y position for the next section
     }
