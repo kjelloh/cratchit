@@ -5,8 +5,28 @@
 #include <ncurses.h>
 #include <pugixml.hpp>
 #include <stack>
+#include <functional>
+#include <queue>
 
 namespace first {
+
+  struct MsgImpl {
+    virtual ~MsgImpl() = default;
+  };
+  struct NCursesKey : public MsgImpl {
+    int key;
+    NCursesKey(int key) : key{key}, MsgImpl{} {}
+  };
+
+  struct Msg {
+    std::shared_ptr<MsgImpl> pimpl;   
+  };
+
+  using Cmd = std::function<std::optional<Msg>()>;
+
+  std::optional<Msg> Nop() {
+    return std::nullopt;
+  };
 
   struct Model {
     std::string top_content;
@@ -32,7 +52,7 @@ namespace first {
     }
   };
 
-  Model init() {
+  std::pair<Model,Cmd> init() {
     Model model = {"Welcome to the top section",
                    "This is the main content area", ""};
     model.add_transition("root", '1', "ITfied");
@@ -44,48 +64,53 @@ namespace first {
     model.add_transition("Momsrapport", '3', "Q3");
     model.add_transition("Momsrapport", '4', "Q4");
     model.stack.push(model.id_of("root"));
-    return model;
+    return {model,Nop};
   }
 
-  Model update(Model model, char ch) {
-    if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
-      if (!model.user_input.empty()) {
-        model.user_input.pop_back();
-      }
-    } 
-    else if (ch == '\n') {
-      // User pressed Enter: process command (optional)
-      model.user_input.clear(); // Reset input after submission
-    } 
-    else {
-      if (model.user_input.empty() and model.stack.size() > 0) {
-        if (ch == '-') {
-          model.stack.pop();
-        } 
-        else if (model.adj_list[model.stack.top()].contains(ch)) {
-          model.stack.push(model.adj_list[model.stack.top()][ch]);
+  std::pair<Model,Cmd> update(Model model, Msg msg) {
+    auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg.pimpl);
+    if (key_msg_ptr != nullptr) {
+      auto ch = key_msg_ptr->key; 
+      if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
+        if (!model.user_input.empty()) {
+          model.user_input.pop_back();
+        }
+      } 
+      else if (ch == '\n') {
+        // User pressed Enter: process command (optional)
+        model.user_input.clear(); // Reset input after submission
+      } 
+      else {
+        if (model.user_input.empty() and model.stack.size() > 0) {
+          if (ch == '-') {
+            model.stack.pop();
+          } 
+          else if (model.adj_list[model.stack.top()].contains(ch)) {
+            model.stack.push(model.adj_list[model.stack.top()][ch]);
+          }
+          else {
+            model.user_input += ch; // Append typed character
+          }
         }
         else {
-          model.user_input += ch; // Append typed character
+            model.user_input += ch; // Append typed character
         }
       }
-      else {
-          model.user_input += ch; // Append typed character
+      if (model.stack.size() > 0) {
+        model.main_content.clear();
+        for (auto const &[ch, to] : model.adj_list[model.stack.top()]) {
+          std::string entry{};
+          entry.push_back(ch);
+          entry.append(" - ");
+          auto caption = model.id2node[to];
+          entry.append(caption);
+          entry.push_back('\n');
+          model.main_content.append(entry);
+        }
       }
+
     }
-    if (model.stack.size() > 0) {
-      model.main_content.clear();
-      for (auto const &[ch, to] : model.adj_list[model.stack.top()]) {
-        std::string entry{};
-        entry.push_back(ch);
-        entry.append(" - ");
-        auto caption = model.id2node[to];
-        entry.append(caption);
-        entry.push_back('\n');
-        model.main_content.append(entry);
-      }
-    }
-    return model; // Return updated model
+    return {model,Nop}; // Return updated model
   }
 
   pugi::xml_document view(const Model &model) {
@@ -233,11 +258,13 @@ namespace first {
     setenv("TERMINFO", "/usr/share/terminfo", 1);
 #endif
 
-    char ch = ' '; // Variable to store the user's input
+    int ch = ' '; // Variable to store the user's input
     // init ncurses
     Ncurses ncurses{};
 
-    auto model = init();
+    std::queue<Msg> q{};
+    auto [model,cmd] = init();
+    if (auto msg = cmd()) q.push(*msg);
     // Main loop
     int loop_count{};
     while (model.stack.size() > 0 and
@@ -245,7 +272,11 @@ namespace first {
       pugi::xml_document doc = view(model);
       render(doc);
       ch = getch();
-      model = update(model, ch);
+      q.push(Msg{std::make_shared<NCursesKey>(ch)});
+      auto msg = q.front(); q.pop();
+      auto const& [m,cmd] = update(model,msg);
+      model = m;
+      if (auto msg = cmd()) q.push(*msg);
     }
     return (ch == '-') ? 1 : 0;
   }
