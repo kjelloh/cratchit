@@ -8,43 +8,6 @@
 #include <queue>
 #include <format>
 
-// Event is a key-value-pair
-using Event = std::map<std::string,std::string>;
-
-template <typename Msg>
-struct Html_Msg {
-    pugi::xml_document doc{};
-    std::map<std::string,std::function<std::optional<Msg>(Event)>> event_handlers{};
-};
-
-template <typename Model, typename Msg, typename Cmd>
-class Runtime {
-public:
-  using Html = Html_Msg<Msg>;
-  using init_fn = std::function<std::pair<Model, Cmd>()>;
-  using view_fn = std::function<Html(Model)>;
-  using update_fn = std::function<std::pair<Model, Cmd>(Model, Msg)>;
-  Runtime(init_fn, view_fn, update_fn);
-  ~Runtime();
-  int run(int argc, char *argv[]);
-private:
-  class RuntimeImpl;
-  std::unique_ptr<RuntimeImpl> m_pimpl;
-};
-
-class Ncurses {
-public:
-  Ncurses() {
-    initscr();
-    cbreak();
-    noecho();
-    keypad(stdscr, TRUE);
-  }
-  ~Ncurses() {
-    endwin(); // End ncurses mode
-  }
-};
-
 void render_section(WINDOW *win, const std::string &text, int start_y,
                     int max_lines) {
   int line_count = 0;
@@ -130,10 +93,36 @@ void render(const pugi::xml_document &doc) {
   }
 }
 
-template <typename Model, typename Msg, typename Cmd>
-class Runtime<Model, Msg, Cmd>::RuntimeImpl {
+class Ncurses {
 public:
-  RuntimeImpl(init_fn init, view_fn view, update_fn update)
+  Ncurses() {
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+  }
+  ~Ncurses() {
+    endwin(); // End ncurses mode
+  }
+};
+
+// Event is a key-value-pair
+using Event = std::map<std::string,std::string>;
+
+template <typename Msg>
+struct Html_Msg {
+    pugi::xml_document doc{};
+    std::map<std::string,std::function<std::optional<Msg>(Event)>> event_handlers{};
+};
+
+template <typename Model, typename Msg, typename Cmd>
+class Runtime {
+public:
+  using Html = Html_Msg<Msg>;
+  using init_fn = std::function<std::pair<Model, Cmd>()>;
+  using view_fn = std::function<Html(Model)>;
+  using update_fn = std::function<std::pair<Model, Cmd>(Model, Msg)>;
+  Runtime(init_fn init, view_fn view, update_fn update)
       : m_init(init), m_view(view), m_update(update) {};
   int run(int argc, char *argv[]) {
 #ifdef __APPLE__
@@ -178,15 +167,3 @@ private:
   view_fn m_view;
   update_fn m_update;
 };
-
-template <typename Model, typename Msg, typename Cmd>
-Runtime<Model, Msg, Cmd>::Runtime(init_fn init, view_fn view, update_fn update)
-    : m_pimpl(std::make_unique<RuntimeImpl>(init, view, update)) {}
-
-template <typename Model, typename Msg, typename Cmd>
-Runtime<Model, Msg, Cmd>::~Runtime() {/* Explcit destructor here where RuntimeImpl is fully defined */}
-
-template <typename Model, typename Msg, typename Cmd>
-int Runtime<Model, Msg, Cmd>::run(int argc, char *argv[]) {
-  return m_pimpl->run(argc, argv);
-}

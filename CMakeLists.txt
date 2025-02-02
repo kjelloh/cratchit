@@ -10,7 +10,7 @@ find_package(sol2 REQUIRED)
 find_package(Curses REQUIRED)
 find_package(pugixml REQUIRED)
 
-add_executable(cratchit src/runtime.cpp src/cratchit.cpp src/main.cpp)
+add_executable(cratchit src/cratchit.cpp src/main.cpp)
 
 target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
 target_link_libraries(cratchit PRIVATE Curses::Curses)
