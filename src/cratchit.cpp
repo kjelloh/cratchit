@@ -35,11 +35,10 @@ namespace first {
     return std::nullopt;
   };
 
-  struct Model {
-    std::string top_content;
-    std::string main_content;
-    std::string user_input;
-
+  class NavigationGraph {
+  public:
+    using Adj = std::map<char, int>;
+    using AdjList = std::map<int, Adj>;
     class Node {
     public:
       Node(std::string const& caption) : m_caption{caption} {}
@@ -51,37 +50,56 @@ namespace first {
       std::string m_caption;
     };
 
-    std::map<int, std::map<char, int>> adj_list{};
-    std::vector<Node> id2node{};
-    std::stack<int> stack{};
+    NavigationGraph() {}
 
-    int id_of(Node const& node) {
-      auto iter = std::find(id2node.begin(), id2node.end(), node);
-      if (iter != id2node.end())
-        return std::distance(id2node.begin(), iter);
-      int id = id2node.size();
-      id2node.push_back(node);
-      return id;
-    }
+    Adj const& adj(int id) const {return m_adj_list.at(id);}
 
     void add_transition(Node const &from, char ch,
                         Node const &to) {
-      adj_list[id_of(from)][ch] = id_of(to);
+      m_adj_list[id_of(from)][ch] = id_of(to);
     }
+
+    int id_of(Node const& node) {
+      auto iter = std::find(m_id2node.begin(), m_id2node.end(), node);
+      if (iter != m_id2node.end()) {
+        return std::distance(m_id2node.begin(), iter);
+      }
+      else {
+        int id = m_id2node.size();
+        m_id2node.push_back(node);
+        m_adj_list[id];
+        return id;
+      }
+    }
+
+    Node const& node_of(int id) const {return m_id2node[id];}
+
+  private:
+    AdjList m_adj_list{};
+    std::vector<Node> m_id2node{};
+  };
+
+  struct Model {
+    std::string top_content;
+    std::string main_content;
+    std::string user_input;
+    NavigationGraph possible{};
+    std::stack<int> stack{};
   };
 
   std::pair<Model,Cmd> init() {
     Model model = {"Welcome to the top section",
                    "This is the main content area", ""};
-    model.add_transition("root", '1', "ITfied");
-    model.add_transition("ITfied", '1', "2024-2025");
-    model.add_transition("2024-2025", '1', "Rubrik Belopp Datum");
-    model.add_transition("2024-2025", '2', "Momsrapport");
-    model.add_transition("Momsrapport", '1', "Q1");
-    model.add_transition("Momsrapport", '2', "Q2");
-    model.add_transition("Momsrapport", '3', "Q3");
-    model.add_transition("Momsrapport", '4', "Q4");
-    model.stack.push(model.id_of("root"));
+    NavigationGraph::Node root("root");
+    model.possible.add_transition(root, '1', "ITfied");
+    model.possible.add_transition("ITfied", '1', "2024-2025");
+    model.possible.add_transition("2024-2025", '1', "Rubrik Belopp Datum");
+    model.possible.add_transition("2024-2025", '2', "Momsrapport");
+    model.possible.add_transition("Momsrapport", '1', "Q1");
+    model.possible.add_transition("Momsrapport", '2', "Q2");
+    model.possible.add_transition("Momsrapport", '3', "Q3");
+    model.possible.add_transition("Momsrapport", '4', "Q4");
+    model.stack.push(model.possible.id_of(root));
     return {model,Nop};
   }
 
@@ -103,8 +121,8 @@ namespace first {
           if (ch == '-') {
             model.stack.pop();
           } 
-          else if (model.adj_list[model.stack.top()].contains(ch)) {
-            model.stack.push(model.adj_list[model.stack.top()][ch]);
+          else if (model.possible.adj(model.stack.top()).contains(ch)) {
+            model.stack.push(model.possible.adj(model.stack.top()).at(ch));
           }
           else {
             model.user_input += ch; // Append typed character
@@ -116,12 +134,12 @@ namespace first {
       }
       if (model.stack.size() > 0) {
         model.main_content.clear();
-        for (auto const &[ch, to] : model.adj_list[model.stack.top()]) {
+        for (auto const &[ch, to] : model.possible.adj(model.stack.top())) {
           std::string entry{};
           entry.push_back(ch);
           entry.append(" - ");
-          auto node = model.id2node[to];
-          entry.append(node.caption());
+          // auto node = model.possible.node_of(to);
+          // entry.append(node.caption());
           entry.push_back('\n');
           model.main_content.append(entry);
         }
