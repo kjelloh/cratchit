@@ -40,11 +40,22 @@ namespace first {
     std::string main_content;
     std::string user_input;
 
+    class Node {
+    public:
+      Node(std::string const& caption) : m_caption{caption} {}
+      Node(char const* caption) : m_caption{caption} {}
+      ~Node() {}
+      std::string const& caption() const {return m_caption;}
+      bool operator<=>(Node const& other) const = default;
+    private:
+      std::string m_caption;
+    };
+
     std::map<int, std::map<char, int>> adj_list{};
-    std::vector<std::string> id2node{};
+    std::vector<Node> id2node{};
     std::stack<int> stack{};
 
-    int id_of(std::string const &node) {
+    int id_of(Node const& node) {
       auto iter = std::find(id2node.begin(), id2node.end(), node);
       if (iter != id2node.end())
         return std::distance(id2node.begin(), iter);
@@ -53,8 +64,8 @@ namespace first {
       return id;
     }
 
-    void add_transition(std::string const &from, char ch,
-                        std::string const &to) {
+    void add_transition(Node const &from, char ch,
+                        Node const &to) {
       adj_list[id_of(from)][ch] = id_of(to);
     }
   };
@@ -109,8 +120,8 @@ namespace first {
           std::string entry{};
           entry.push_back(ch);
           entry.append(" - ");
-          auto caption = model.id2node[to];
-          entry.append(caption);
+          auto node = model.id2node[to];
+          entry.append(node.caption());
           entry.push_back('\n');
           model.main_content.append(entry);
         }
