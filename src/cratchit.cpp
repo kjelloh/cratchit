@@ -7,6 +7,7 @@
 #include <stack>
 #include <functional>
 #include <queue>
+#include <filesystem>
 
 namespace first {
 
@@ -59,11 +60,12 @@ namespace first {
       Node(char const* caption) : m_caption{caption} {}
       virtual ~Node() {}
       std::string const& caption() const {return m_caption;}
-      bool operator<=>(Node const& other) const = default;
+      bool operator<=>(Node const& other) const = default; // compare by value
       virtual State::pointer actual(int state_id,State::pointer current) const {
         return std::make_shared<State>(state_id,current);
       }
     private:
+      // Node instance identified by caption (for now)
       std::string m_caption;
     };
 
@@ -76,6 +78,7 @@ namespace first {
       m_adj_list[id_of(from)][ch] = id_of(to);
     }
 
+    // Return the integer node id of provided Node instance
     int id_of(Node const& node) {
       auto iter = std::find(m_id2node.begin(), m_id2node.end(), node);
       if (iter != m_id2node.end()) {
@@ -89,25 +92,44 @@ namespace first {
       }
     }
 
+    // return the 'actual' Node instance for provided integer node id.
     Node const& node_of(int id) const {return m_id2node[id];}
 
   private:
+    // The AdjList defines int nodes adjacency
     AdjList m_adj_list{};
+    // The id2node maps intger node to Node type instance
     std::vector<Node> m_id2node{};
+  }; // NavigationGraph
+
+  class PossibleWorkspace : public NavigationGraph::Node {
+  public:
+    PossibleWorkspace(char const* caption,std::filesystem::path path) 
+      :  Node(caption)
+        ,m_path{path} {}
+  private:
+    std::filesystem::path m_path;
   };
+
 
   struct Model {
     std::string top_content;
     std::string main_content;
     std::string user_input;
+    /*
+    The navigation  graph defines what states the user is able to visit. 
+    */
     NavigationGraph possible{};
+    /*
+    The stack contains the 'path of states' the user has navigated to.
+    */
     std::stack<State::pointer> stack{};
   };
 
   std::pair<Model,Cmd> init() {
     Model model = {"Welcome to the top section",
                    "This is the main content area", ""};
-    NavigationGraph::Node root("root");
+    PossibleWorkspace root("root",std::filesystem::current_path());
     model.possible.add_transition(root, '1', "ITfied");
     model.possible.add_transition("ITfied", '1', "2024-2025");
     model.possible.add_transition("2024-2025", '1', "Rubrik Belopp Datum");
