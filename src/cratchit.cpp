@@ -35,6 +35,20 @@ namespace first {
     return std::nullopt;
   };
 
+  class State {
+  public:
+    using pointer = std::shared_ptr<State>;
+    State(int state_id, State::pointer parent) 
+      :   m_state_id{state_id} 
+         ,m_parent{parent} {}
+
+    int id() const {return m_state_id;}
+        
+  private:
+    State::pointer m_parent;
+    int m_state_id;
+  };
+
   class NavigationGraph {
   public:
     using Adj = std::map<char, int>;
@@ -43,9 +57,12 @@ namespace first {
     public:
       Node(std::string const& caption) : m_caption{caption} {}
       Node(char const* caption) : m_caption{caption} {}
-      ~Node() {}
+      virtual ~Node() {}
       std::string const& caption() const {return m_caption;}
       bool operator<=>(Node const& other) const = default;
+      virtual State::pointer actual(int state_id,State::pointer current) const {
+        return std::make_shared<State>(state_id,current);
+      }
     private:
       std::string m_caption;
     };
@@ -84,7 +101,7 @@ namespace first {
     std::string main_content;
     std::string user_input;
     NavigationGraph possible{};
-    std::stack<int> stack{};
+    std::stack<State::pointer> stack{};
   };
 
   std::pair<Model,Cmd> init() {
@@ -99,7 +116,7 @@ namespace first {
     model.possible.add_transition("Momsrapport", '2', "Q2");
     model.possible.add_transition("Momsrapport", '3', "Q3");
     model.possible.add_transition("Momsrapport", '4', "Q4");
-    model.stack.push(model.possible.id_of(root));
+    model.stack.push(root.actual(model.possible.id_of(root),nullptr));
     return {model,Nop};
   }
 
@@ -121,8 +138,10 @@ namespace first {
           if (ch == '-') {
             model.stack.pop();
           } 
-          else if (model.possible.adj(model.stack.top()).contains(ch)) {
-            model.stack.push(model.possible.adj(model.stack.top()).at(ch));
+          else if (model.possible.adj(model.stack.top()->id()).contains(ch)) {
+            int next_id = model.possible.adj(model.stack.top()->id()).at(ch);
+            auto next = model.possible.node_of(next_id).actual(next_id,model.stack.top());
+            model.stack.push(next);
           }
           else {
             model.user_input += ch; // Append typed character
@@ -134,12 +153,12 @@ namespace first {
       }
       if (model.stack.size() > 0) {
         model.main_content.clear();
-        for (auto const &[ch, to] : model.possible.adj(model.stack.top())) {
+        for (auto const &[ch, to] : model.possible.adj(model.stack.top()->id())) {
           std::string entry{};
           entry.push_back(ch);
           entry.append(" - ");
-          // auto node = model.possible.node_of(to);
-          // entry.append(node.caption());
+          auto node = model.possible.node_of(to);
+          entry.append(node.caption());
           entry.push_back('\n');
           model.main_content.append(entry);
         }
