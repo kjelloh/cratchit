@@ -762,8 +762,36 @@ namespace tokenize {
 		else if (const std::regex amount_regex("^[+-]?\\d+([.,]\\d\\d?)?$"); std::regex_match(s,amount_regex)) result = TokenID::Amount;
 		// any string of characters in the set a-z,A-Z, and åäöÅÄÖ. NOTE: Requires the runtime locale to be set to UTF-8 encoding and that this source file is also UTF-8 encoded!
 		// else if (const std::regex caption_regex("[a-zA-ZåäöÅÄÖ ]+"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
-		else if (const std::regex caption_regex(R"([ -~]+)"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
-		else result = TokenID::Unknown;
+		// else if (const std::regex caption_regex(R"([ -~]+)"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
+		// else result = TokenID::Unknown;
+		else {
+			// Try the ICU library Unicode services
+
+			UErrorCode status = U_ZERO_ERROR;
+			// Match any printable Unicode text
+			std::unique_ptr<icu::RegexPattern> caption_regex(
+				icu::RegexPattern::compile(uR"([\p{Print}]+)", 0,
+											status));
+			if (U_FAILURE(status) || !caption_regex) {
+				std::cerr << "Failed to compile regex\n";
+				result = TokenID::Unknown;
+			}
+
+			// Assume UTF-8 encoding
+			icu::UnicodeString unicode_s =
+				icu::UnicodeString::fromUTF8(s);
+
+			std::unique_ptr<icu::RegexMatcher> matcher(
+				caption_regex->matcher(unicode_s, status));
+
+			if (U_FAILURE(status) || !matcher) {
+				std::cerr << "Failed to create matcher\n";
+				result = TokenID::Unknown;
+			}
+
+			result = matcher->matches(status) ? TokenID::Caption
+											  : result = TokenID::Unknown;
+        }
 
 		// std::cout << "\n\ttoken_id_of " << std::quoted(s) << " = " << result;
 
