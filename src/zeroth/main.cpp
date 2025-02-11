@@ -31,6 +31,8 @@ float const VERSION = 0.5;
 #include <format>
 #define SOL_ALL_SAFETIES_ON 1
 #include <sol/sol.hpp>
+#include <unicode/regex.h>
+#include <unicode/unistr.h>
 
 // Define a signal handler function that does nothing
 void handle_winch(int sig) {
@@ -759,7 +761,8 @@ namespace tokenize {
 		// '+','-' or none followed by nnn... (any number of digits) followed by an optional ',' or '.' followed by ate least and max two digits
 		else if (const std::regex amount_regex("^[+-]?\\d+([.,]\\d\\d?)?$"); std::regex_match(s,amount_regex)) result = TokenID::Amount;
 		// any string of characters in the set a-z,A-Z, and åäöÅÄÖ. NOTE: Requires the runtime locale to be set to UTF-8 encoding and that this source file is also UTF-8 encoded!
-		else if (const std::regex caption_regex("[a-zA-ZåäöÅÄÖ ]+"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
+		// else if (const std::regex caption_regex("[a-zA-ZåäöÅÄÖ ]+"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
+		else if (const std::regex caption_regex(R"([ -~]+)"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
 		else result = TokenID::Unknown;
 
 		// std::cout << "\n\ttoken_id_of " << std::quoted(s) << " = " << result;
@@ -1423,7 +1426,7 @@ namespace cas {
       return m_adj;
     }
   };
-}
+} // namespace cas
 
 class TaggedAmount {
 public:
