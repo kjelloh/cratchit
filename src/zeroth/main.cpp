@@ -10407,6 +10407,7 @@ Cmd Updater::operator()(Command const& command) {
           if (auto had_iter = model->selected_had()) {
             auto& had = **had_iter;
             if (ast.size() == 2) {
+			  // New (Account, Amount) entry input
               auto bas_account_no = BAS::to_account_no(ast[0]);
               auto amount = to_amount(ast[1]);
               if (bas_account_no and amount) {

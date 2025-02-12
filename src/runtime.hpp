@@ -25,7 +25,7 @@ void render_section(WINDOW *win, const std::string &text, int start_y,
     line_count++;
     pos = next_line_pos + 1; // Move to the next line
   }
-  wrefresh(win); // Refresh to show changes in the window
+  wnoutrefresh(win); // update to buffer
 }
 
 void render_prompt(WINDOW *win, const pugi::xml_node &prompt_node) {
@@ -33,7 +33,7 @@ void render_prompt(WINDOW *win, const pugi::xml_node &prompt_node) {
   const std::string prompt_text = prompt_node.child("label").text().as_string();
   mvwprintw(win, 1, 1, "%s", prompt_text.c_str());
   wmove(win, 1, prompt_text.size() + 1); // Move cursor after the prompt
-  wrefresh(win);                         // Refresh to show prompt
+  wnoutrefresh(win); // Update to buffer
 }
 
 // Renders doc as HTML to ncurses screen
@@ -54,16 +54,13 @@ void render(const pugi::xml_document &doc) {
   // Create windows for the app screen sections
   WINDOW *top_win = newwin(section_height, screen_width, 0, 0);
   box(top_win, 0, 0); // Draw border around the top section
-  wrefresh(top_win);  // Refresh to show the window
 
   WINDOW *middle_win = newwin(section_height, screen_width, section_height, 0);
   box(middle_win, 0, 0); // Draw border around the middle section
-  wrefresh(middle_win);  // Refresh to show the window
 
   WINDOW *bottom_win =
       newwin(section_height, screen_width, 2 * section_height, 0);
   box(bottom_win, 0, 0); // Draw border around the bottom section
-  wrefresh(bottom_win);  // Refresh to show the window
 
   // Parse the HTML-like structure
   pugi::xml_node html = doc.child("html");
@@ -88,9 +85,9 @@ void render(const pugi::xml_document &doc) {
                std::string("user-prompt")) {
       render_prompt(bottom_win, div);
     }
-
     num_divs++;
   }
+  doupdate();
 }
 
 class Ncurses {
@@ -100,6 +97,7 @@ public:
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
+    refresh();
   }
   ~Ncurses() {
     endwin(); // End ncurses mode

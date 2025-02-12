@@ -39,11 +39,16 @@ namespace first {
   class State {
   public:
     using pointer = std::shared_ptr<State>;
+    using UX = std::vector<std::string>;
     State(int state_id, State::pointer parent) 
       :   m_state_id{state_id} 
          ,m_parent{parent} {}
 
     int id() const {return m_state_id;}
+    virtual UX ux() const {
+      UX result{"This is the default UX for base State"};
+      return result;
+    }
         
   private:
     State::pointer m_parent;
@@ -107,6 +112,11 @@ namespace first {
     PossibleWorkspace(char const* caption,std::filesystem::path path) 
       :  Node(caption)
         ,m_path{path} {}
+
+      virtual State::pointer actual(int state_id,State::pointer current) const {
+        return std::make_shared<State>(state_id,current);
+      }
+
   private:
     std::filesystem::path m_path;
   };
@@ -127,8 +137,9 @@ namespace first {
   };
 
   std::pair<Model,Cmd> init() {
-    Model model = {"Welcome to the top section",
-                   "This is the main content area", ""};
+    Model model = { "Welcome to the top section"
+                   ,"This is the main content area"
+                   ,""};
     PossibleWorkspace root("root",std::filesystem::current_path());
     model.possible.add_transition(root, '1', "ITfied");
     model.possible.add_transition("ITfied", '1', "2024-2025");
@@ -158,11 +169,13 @@ namespace first {
       else {
         if (model.user_input.empty() and model.stack.size() > 0) {
           if (ch == '-') {
+            // (1) Transition back to old state
             model.stack.pop();
           } 
           else if (model.possible.adj(model.stack.top()->id()).contains(ch)) {
-            int next_id = model.possible.adj(model.stack.top()->id()).at(ch);
-            auto next = model.possible.node_of(next_id).actual(next_id,model.stack.top());
+            // (2) Transition to new state
+            int next_id = model.possible.adj(model.stack.top()->id()).at(ch); // Query for 'State Factory'
+            auto next = model.possible.node_of(next_id).actual(next_id,model.stack.top()); // Actuate 'State Factory'
             model.stack.push(next);
           }
           else {
@@ -174,7 +187,13 @@ namespace first {
         }
       }
       if (model.stack.size() > 0) {
+        model.top_content.clear();
+        for (std::size_t i=0;i<model.stack.top()->ux().size();++i) {
+          if (i>0) model.top_content.push_back('\n');
+          model.top_content += model.stack.top()->ux()[i];
+        }
         model.main_content.clear();
+        // (3) Render state transition options
         for (auto const &[ch, to] : model.possible.adj(model.stack.top()->id())) {
           std::string entry{};
           entry.push_back(ch);
