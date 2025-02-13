@@ -63,6 +63,26 @@ namespace first {
       Options const& options() const {return m_options;}
     };
 
+    struct FrameworkState : public State {
+      State::StateFactory workspace_0_factory = []() {
+        auto workspace_0_ux = poc::State::UX{
+          "Workspace UX"
+        };
+        return std::make_shared<poc::State>(workspace_0_ux);
+      };
+
+      FrameworkState(State::UX ux) : State{ux} {
+        this->add_option('0',{"Workspace:0",workspace_0_factory});        
+      }
+    };
+
+    auto framework_state_factory = []() {
+      auto framework_ux = poc::State::UX{
+        "Framework UX"
+      };
+      return std::make_shared<poc::FrameworkState>(framework_ux);
+    };
+
   }
 
   struct Model {
@@ -85,21 +105,8 @@ namespace first {
     Model model = { "Welcome to the top section"
                    ,"This is the main content area"
                    ,""};
-    auto root_ux = poc::State::UX{
-      "Root UX"
-    };
-    auto root = std::make_shared<poc::State>(root_ux);
 
-    auto workspace_0_factory = []() {
-      auto workspace_0_ux = poc::State::UX{
-        "Workspace UX"
-      };
-      return std::make_shared<poc::State>(workspace_0_ux);
-    };
-
-    root->add_option('0',{"Workspace:0",workspace_0_factory});
-
-    model.stack.push(root);
+    model.stack.push(poc::framework_state_factory());
     return {model,is_quit_msg,Nop};
   }
 
