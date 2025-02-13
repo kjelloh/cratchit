@@ -19,9 +19,14 @@ namespace first {
     NCursesKey(int key) : key{key}, MsgImpl{} {}
   };
 
+  struct Quit : public MsgImpl {};
+
   struct Msg {
-    std::shared_ptr<MsgImpl> pimpl;   
+    std::shared_ptr<MsgImpl> pimpl;
+    bool operator==(Msg const& other) const {return pimpl == other.pimpl;} 
   };
+
+  Msg const QUIT_MSG{std::make_shared<Quit>()};
 
   std::optional<Msg> onKey(Event event) {
     if (event.contains("Key")) {
@@ -36,124 +41,72 @@ namespace first {
     return std::nullopt;
   };
 
-  class State {
-  public:
-    using pointer = std::shared_ptr<State>;
-    using UX = std::vector<std::string>;
-    State(int state_id, State::pointer parent) 
-      :   m_state_id{state_id} 
-         ,m_parent{parent} {}
-
-    int id() const {return m_state_id;}
-    virtual UX ux() const {
-      UX result{"This is the default UX for base State"};
-      return result;
-    }
-        
-  private:
-    State::pointer m_parent;
-    int m_state_id;
+  std::optional<Msg> DO_QUIT() {
+    return QUIT_MSG;
   };
 
-  class NavigationGraph {
-  public:
-    using Adj = std::map<char, int>;
-    using AdjList = std::map<int, Adj>;
-    class Node {
-    public:
-      Node(std::string const& caption) : m_caption{caption} {}
-      Node(char const* caption) : m_caption{caption} {}
-      virtual ~Node() {}
-      std::string const& caption() const {return m_caption;}
-      bool operator<=>(Node const& other) const = default; // compare by value
-      virtual State::pointer actual(int state_id,State::pointer current) const {
-        return std::make_shared<State>(state_id,current);
+  namespace poc {
+    // Proof of concept namespace
+
+    struct State {
+      using pointer = std::shared_ptr<State>;
+      using StateFactory = std::function<pointer()>;
+      using UX = std::vector<std::string>;
+      using Options = std::map<char,std::pair<std::string,StateFactory>>;
+      UX m_ux;
+      Options m_options;
+      State(UX const& ux) : m_ux{ux},m_options{} {}
+      void add_option(char ch,std::pair<std::string,StateFactory> option) {
+        m_options[ch] = option;
       }
-    private:
-      // Node instance identified by caption (for now)
-      std::string m_caption;
+      UX const& ux() const {return m_ux;}
+      Options const& options() const {return m_options;}
     };
 
-    NavigationGraph() {}
-
-    Adj const& adj(int id) const {return m_adj_list.at(id);}
-
-    void add_transition(Node const &from, char ch,
-                        Node const &to) {
-      m_adj_list[id_of(from)][ch] = id_of(to);
-    }
-
-    // Return the integer node id of provided Node instance
-    int id_of(Node const& node) {
-      auto iter = std::find(m_id2node.begin(), m_id2node.end(), node);
-      if (iter != m_id2node.end()) {
-        return std::distance(m_id2node.begin(), iter);
-      }
-      else {
-        int id = m_id2node.size();
-        m_id2node.push_back(node);
-        m_adj_list[id];
-        return id;
-      }
-    }
-
-    // return the 'actual' Node instance for provided integer node id.
-    Node const& node_of(int id) const {return m_id2node[id];}
-
-  private:
-    // The AdjList defines int nodes adjacency
-    AdjList m_adj_list{};
-    // The id2node maps intger node to Node type instance
-    std::vector<Node> m_id2node{};
-  }; // NavigationGraph
-
-  class PossibleWorkspace : public NavigationGraph::Node {
-  public:
-    PossibleWorkspace(char const* caption,std::filesystem::path path) 
-      :  Node(caption)
-        ,m_path{path} {}
-
-      virtual State::pointer actual(int state_id,State::pointer current) const {
-        return std::make_shared<State>(state_id,current);
-      }
-
-  private:
-    std::filesystem::path m_path;
-  };
-
+  }
 
   struct Model {
     std::string top_content;
     std::string main_content;
     std::string user_input;
     /*
-    The navigation  graph defines what states the user is able to visit. 
-    */
-    NavigationGraph possible{};
-    /*
     The stack contains the 'path of states' the user has navigated to.
     */
-    std::stack<State::pointer> stack{};
+    std::stack<poc::State::pointer> stack{};
   };
 
-  std::pair<Model,Cmd> init() {
+  bool is_quit_msg(Msg const& msg) {
+    // std::cout << "\nis_quit_msg sais Hello" << std::flush;
+    return msg == QUIT_MSG;
+  }
+
+  std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
+    // std::cout << "\ninit sais Hello :)" << std::flush;
     Model model = { "Welcome to the top section"
                    ,"This is the main content area"
                    ,""};
-    PossibleWorkspace root("root",std::filesystem::current_path());
-    model.possible.add_transition(root, '1', "ITfied");
-    model.possible.add_transition("ITfied", '1', "2024-2025");
-    model.possible.add_transition("2024-2025", '1', "Rubrik Belopp Datum");
-    model.possible.add_transition("2024-2025", '2', "Momsrapport");
-    model.possible.add_transition("Momsrapport", '1', "Q1");
-    model.possible.add_transition("Momsrapport", '2', "Q2");
-    model.possible.add_transition("Momsrapport", '3', "Q3");
-    model.possible.add_transition("Momsrapport", '4', "Q4");
-    model.stack.push(root.actual(model.possible.id_of(root),nullptr));
-    return {model,Nop};
+    auto root_ux = poc::State::UX{
+      "Root UX"
+    };
+    auto root = std::make_shared<poc::State>(root_ux);
+
+    auto workspace_0_factory = []() {
+      auto workspace_0_ux = poc::State::UX{
+        "Workspace UX"
+      };
+      return std::make_shared<poc::State>(workspace_0_ux);
+    };
+
+    root->add_option('0',{"Workspace:0",workspace_0_factory});
+
+    model.stack.push(root);
+    return {model,is_quit_msg,Nop};
   }
 
   std::pair<Model,Cmd> update(Model model, Msg msg) {
+    // std::cout << "\nupdate sais Hello :)" << std::flush;
+    Cmd cmd = Nop;
+
     auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg.pimpl);
     if (key_msg_ptr != nullptr) {
       auto ch = key_msg_ptr->key; 
@@ -167,16 +120,18 @@ namespace first {
         model.user_input.clear(); // Reset input after submission
       } 
       else {
-        if (model.user_input.empty() and model.stack.size() > 0) {
+        if (model.user_input.empty() and ch == 'q' or model.stack.size()==0) {
+          // std::cout << "\nTime to QUIT!" << std::flush;
+          cmd = DO_QUIT;
+        }
+        else if (model.user_input.empty() and model.stack.size() > 0) {
           if (ch == '-') {
             // (1) Transition back to old state
             model.stack.pop();
           } 
-          else if (model.possible.adj(model.stack.top()->id()).contains(ch)) {
+          else if (model.stack.top()->options().contains(ch)) {
             // (2) Transition to new state
-            int next_id = model.possible.adj(model.stack.top()->id()).at(ch); // Query for 'State Factory'
-            auto next = model.possible.node_of(next_id).actual(next_id,model.stack.top()); // Actuate 'State Factory'
-            model.stack.push(next);
+            model.stack.push(model.stack.top()->options().at(ch).second());
           }
           else {
             model.user_input += ch; // Append typed character
@@ -194,22 +149,22 @@ namespace first {
         }
         model.main_content.clear();
         // (3) Render state transition options
-        for (auto const &[ch, to] : model.possible.adj(model.stack.top()->id())) {
+        for (auto const &[ch, option] : model.stack.top()->options()) {
           std::string entry{};
           entry.push_back(ch);
           entry.append(" - ");
-          auto node = model.possible.node_of(to);
-          entry.append(node.caption());
+          entry.append(option.first);
           entry.push_back('\n');
           model.main_content.append(entry);
         }
       }
-
     }
-    return {model,Nop}; // Return updated model
+    return {model,cmd}; // Return updated model
   }
 
   Html_Msg<Msg> view(const Model &model) {
+    // std::cout << "\nview sais Hello :)" << std::flush;
+
     // Create a new pugi document
     Html_Msg<Msg> ui{};
     auto& doc = ui.doc;
@@ -251,7 +206,9 @@ namespace first {
   }
 
   int main(int argc, char *argv[]) {
+    // std::cout << "\nFirst sais Hello :)" << std::flush;
     Runtime<Model,Msg,Cmd> app(init,view,update);
+    // std::cout << "\nFirst to call run :)" << std::flush;
     return app.run(argc,argv);
   }
 } // namespace first

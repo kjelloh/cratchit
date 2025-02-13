@@ -8,6 +8,11 @@
 #include <queue>
 #include <format>
 
+namespace runtime {
+  template <typename Msg>
+  using IsQuit = std::function<bool(Msg)>;
+}
+
 void render_section(WINDOW *win, const std::string &text, int start_y,
                     int max_lines) {
   int line_count = 0;
@@ -117,7 +122,7 @@ template <typename Model, typename Msg, typename Cmd>
 class Runtime {
 public:
   using Html = Html_Msg<Msg>;
-  using init_fn = std::function<std::pair<Model, Cmd>()>;
+  using init_fn = std::function<std::tuple<Model,runtime::IsQuit<Msg>,Cmd>()>;
   using view_fn = std::function<Html(Model)>;
   using update_fn = std::function<std::pair<Model, Cmd>(Model, Msg)>;
   Runtime(init_fn init, view_fn view, update_fn update)
@@ -133,13 +138,12 @@ public:
     Ncurses ncurses{};
 
     std::queue<Msg> q{};
-    auto [model, cmd] = m_init();
+    auto [model, is_quit_msg, cmd] = m_init();
     if (auto optional_msg = cmd())
       q.push(*optional_msg);
     // Main loop
     int loop_count{};
-    while (model.stack.size() > 0 and
-           not(model.user_input.size() == 1 and ch == 'q')) {
+    while (true) {
       auto ui = m_view(model);
       render(ui.doc);
       ch = getch();
@@ -154,8 +158,12 @@ public:
       q.pop();
       auto const &[m, cmd] = m_update(model, msg);
       model = m;
-      if (auto optional_msg = cmd())
-        q.push(*optional_msg);
+      if (auto optional_msg = cmd()) {
+        if (is_quit_msg(*optional_msg)) {
+          break;
+        }
+        else q.push(*optional_msg);
+      }
     }
     return (ch == '-') ? 1 : 0;
   }

@@ -17,8 +17,9 @@ int main(int argc, char *argv[]) {
     while (true) {
         // Toggle between zeroth (older) and first (this variant) of cratching
         if (result = zeroth::main(argc, argv);result > 0) break;
+        // std::cout << "\nCentral main sais Hello :)" << std::flush;
         if (result = first::main(argc,argv);result == 0) break;
     }
-
+    // std::cout << "\nCentral main sais Bye :)" << std::flush;
     return result;
 }
