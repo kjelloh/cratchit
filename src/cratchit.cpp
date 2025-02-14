@@ -63,16 +63,110 @@ namespace first {
       Options const& options() const {return m_options;}
     };
 
+    struct RBDState : public State {
+      State::StateFactory SIE_factory = []() {
+        auto SIE_ux = poc::State::UX{
+          "RBD to SIE UX goes here"
+        };
+        return std::make_shared<poc::State>(SIE_ux);
+      };
+      RBDState(State::UX ux) : State{ux} {
+        this->add_option('0',{"RBD -> SIE",SIE_factory});
+      }
+    };
+
+    struct RBDsState : public State {
+      State::StateFactory RBD_factory = []() {
+        auto RBD_ux = poc::State::UX{
+          "RBD UX goes here"
+        };
+        return std::make_shared<poc::RBDState>(RBD_ux);
+      };
+      RBDsState(State::UX ux) : State{ux} {
+        this->add_option('0',{"RBD",RBD_factory});
+      }
+    };
+
+    struct May2AprilState : public State {
+      State::StateFactory RBDs_factory = []() {
+        auto RBDs_ux = poc::State::UX{
+          "RBD:s listing goes here"
+        };
+        return std::make_shared<poc::RBDsState>(RBDs_ux);
+      };
+      May2AprilState(State::UX ux) : State{ux} {
+        this->add_option('0',{"RBD:s",RBDs_factory});
+      }
+    };
+
+    struct VATReturnsState : public State {
+      VATReturnsState(State::UX ux) : State{ux} {}
+    };
+
+    struct Q1State : public State {
+      State::StateFactory VATReturns_factory = []() {
+        auto VATReturns_ux = poc::State::UX{
+          "VAT Returns UX goes here"
+        };
+        return std::make_shared<poc::VATReturnsState>(VATReturns_ux);
+      };
+      Q1State(State::UX ux) : State{ux} {
+        this->add_option('0',{"VAT Returns",VATReturns_factory});
+      }
+    };
+
+    struct ProjectState : public State {
+      State::StateFactory may2april_factory = []() {
+        auto may2april_ux = poc::State::UX{
+          "May to April"
+        };
+        return std::make_shared<poc::May2AprilState>(may2april_ux);
+      };
+
+      State::StateFactory q1_factory = []() {
+        auto q1_ux = poc::State::UX{
+          "Q1 UX goes here"
+        };
+        return std::make_shared<poc::Q1State>(q1_ux);
+      };
+
+      ProjectState(State::UX ux) : State{ux} {
+        this->add_option('0',{"May to April",may2april_factory});
+        this->add_option('1',{"Q1",q1_factory});
+      }
+    };
+
+    struct WorkspaceState : public State {
+      State::StateFactory itfied_factory = []() {
+        auto itfied_ux = poc::State::UX{
+          "ITfied UX"
+        };
+        return std::make_shared<poc::ProjectState>(itfied_ux);
+      };
+
+      State::StateFactory orx_x_factory = []() {
+        auto org_x_ux = poc::State::UX{
+          "Other Organisation UX"
+        };
+        return std::make_shared<poc::ProjectState>(org_x_ux);
+      };
+
+      WorkspaceState(State::UX ux) : State{ux} {
+        this->add_option('0',{"ITfied AB",itfied_factory});        
+        this->add_option('1',{"Org x",orx_x_factory});        
+      }
+    };
+
     struct FrameworkState : public State {
       State::StateFactory workspace_0_factory = []() {
         auto workspace_0_ux = poc::State::UX{
           "Workspace UX"
         };
-        return std::make_shared<poc::State>(workspace_0_ux);
+        return std::make_shared<poc::WorkspaceState>(workspace_0_ux);
       };
 
       FrameworkState(State::UX ux) : State{ux} {
-        this->add_option('0',{"Workspace:0",workspace_0_factory});        
+        this->add_option('0',{"Workspace x",workspace_0_factory});        
       }
     };
 
