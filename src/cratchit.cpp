@@ -90,12 +90,10 @@ namespace first {
         RBDs_subrange_factory(int decimal_range_size,int range_index) {
           // Prepare for an RBDs State for subrange
           auto first = decimal_range_size*range_index;
-          for (int i=0;i<10;++i) {
-            auto last = first + decimal_range_size-1;
+          auto last = first + decimal_range_size-1;
+          for (int i=first;i<last;++i) {
             std::string entry{"RBD #"};
-            entry += std::to_string(first);
-            entry += " .. RBD #";
-            entry += std::to_string(last);
+            entry += std::to_string(i);
             RBDs_ux.push_back(entry);
           }     
         } 
@@ -112,9 +110,12 @@ namespace first {
             auto first = i*int_range;
             std::string caption{};
             caption += std::to_string(first);
-            caption += " .. ";
-            caption += std::to_string(first + int_range-1);
-            this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(int_range/10,i)});
+            auto last = first + int_range-1;
+            if (last > first) {
+              caption += " .. ";
+              caption += std::to_string(last);
+            }
+            this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(int_range,i)});
           }
         }
         else {
@@ -131,6 +132,14 @@ namespace first {
           ,"1. RBD #1"
           ,"2. RBD #2"
           ,"3. RBD #3"
+          ,"4. RBD #4"
+          ,"5. RBD #5"
+          ,"6. RBD #6"
+          ,"7. RBD #7"
+          ,"8. RBD #8"
+          ,"9. RBD #9"
+          ,"10. RBD #10"
+          ,"11. RBD #11"
         };
         return std::make_shared<poc::RBDsState>(RBDs_ux);
       };
