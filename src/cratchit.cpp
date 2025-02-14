@@ -8,6 +8,7 @@
 #include <functional>
 #include <queue>
 #include <filesystem>
+#include <cmath>  // std::pow,...
 
 namespace first {
 
@@ -76,21 +77,60 @@ namespace first {
     };
 
     struct RBDsState : public State {
+      int m_digital_exponent{};
       State::StateFactory RBD_factory = []() {
         auto RBD_ux = poc::State::UX{
           "RBD UX goes here"
         };
         return std::make_shared<poc::RBDState>(RBD_ux);
       };
+      struct RBDs_subrange_factory {
+        poc::State::UX RBDs_ux{};
+        auto operator()() {return std::make_shared<poc::RBDsState>(RBDs_ux);}
+        RBDs_subrange_factory(int decimal_range_size,int range_index) {
+          // Prepare for an RBDs State for subrange
+          auto first = decimal_range_size*range_index;
+          for (int i=0;i<10;++i) {
+            auto last = first + decimal_range_size-1;
+            std::string entry{"RBD #"};
+            entry += std::to_string(first);
+            entry += " .. RBD #";
+            entry += std::to_string(last);
+            RBDs_ux.push_back(entry);
+          }     
+        } 
+      };
+
       RBDsState(State::UX ux) : State{ux} {
-        this->add_option('0',{"RBD",RBD_factory});
+        m_digital_exponent = static_cast<int>(std::ceil(std::log10(ux.size())));
+        if (m_digital_exponent > 0) {
+          // More than 10 entries
+          // Split into sub-ranges of 10 (0..9,1..19,2..29,...)
+          auto exponent = m_digital_exponent-1;
+          auto int_range = static_cast<int>(std::pow(10, exponent));
+          for (int i=0;i<10;++i) {
+            auto first = i*int_range;
+            std::string caption{};
+            caption += std::to_string(first);
+            caption += " .. ";
+            caption += std::to_string(first + int_range-1);
+            this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(int_range/10,i)});
+          }
+        }
+        else {
+          // Show the single RBD to select
+          this->add_option('0',{"RBD",RBD_factory});
+        }
       }
     };
 
     struct May2AprilState : public State {
       State::StateFactory RBDs_factory = []() {
         auto RBDs_ux = poc::State::UX{
-          "RBD:s listing goes here"
+           "0. RBD #0"
+          ,"1. RBD #1"
+          ,"2. RBD #2"
+          ,"3. RBD #3"
         };
         return std::make_shared<poc::RBDsState>(RBDs_ux);
       };
