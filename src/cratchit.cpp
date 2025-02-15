@@ -49,6 +49,28 @@ namespace first {
   namespace poc {
     // Proof of concept namespace
 
+    struct Mod10View {
+      using Range = std::pair<size_t,size_t>;
+      Range m_range;
+      size_t m_subrange_size;
+
+      Mod10View(Range range)
+        :  m_range{range}
+          ,m_subrange_size{static_cast<size_t>(std::pow(10,std::ceil(std::log10(range.second-range.first))-1))} {}
+
+      template <class T>
+      Mod10View(T const& container) : Mod10View(Range(0,container.size())) {}
+
+      // return vector of [begin,end[
+      std::vector<Range> subranges() {
+        std::vector<std::pair<size_t,size_t>> result{};
+        for (size_t i=m_range.first;i<m_range.second;i += m_subrange_size) {
+          result.push_back(std::make_pair(i,std::min(i+m_subrange_size,m_range.second)));
+        }
+        return result;
+      }
+    };
+
     struct State {
       using pointer = std::shared_ptr<State>;
       using StateFactory = std::function<pointer()>;
@@ -61,6 +83,7 @@ namespace first {
         m_options[ch] = option;
       }
       UX const& ux() const {return m_ux;}
+      UX& ux() {return m_ux;}
       Options const& options() const {return m_options;}
     };
 
@@ -77,71 +100,93 @@ namespace first {
     };
 
     struct RBDsState : public State {
-      int m_digital_exponent{};
+
+      using RBDs = std::vector<std::string>;
+      RBDsState::RBDs m_all_rbds;
+      Mod10View m_mod10_view;
+
       State::StateFactory RBD_factory = []() {
+        // Single RBT factory
         auto RBD_ux = poc::State::UX{
           "RBD UX goes here"
         };
         return std::make_shared<poc::RBDState>(RBD_ux);
       };
+
       struct RBDs_subrange_factory {
-        poc::State::UX RBDs_ux{};
-        auto operator()() {return std::make_shared<poc::RBDsState>(RBDs_ux);}
-        RBDs_subrange_factory(int decimal_range_size,int range_index) {
-          // Prepare for an RBDs State for subrange
-          auto first = decimal_range_size*range_index;
-          auto last = first + decimal_range_size-1;
-          for (int i=first;i<last;++i) {
-            std::string entry{"RBD #"};
-            entry += std::to_string(i);
-            RBDs_ux.push_back(entry);
-          }     
-        } 
+        // RBD subrange state factory
+        RBDsState::RBDs m_all_rbds{};
+        Mod10View m_mod10_view;
+
+        auto operator()() {return std::make_shared<poc::RBDsState>(m_all_rbds,m_mod10_view);}
+
+        RBDs_subrange_factory(RBDsState::RBDs all_rbds, Mod10View mod10_view)
+          :  m_mod10_view{mod10_view}            
+            ,m_all_rbds{all_rbds} {} 
       };
 
-      RBDsState(State::UX ux) : State{ux} {
-        m_digital_exponent = static_cast<int>(std::ceil(std::log10(ux.size())));
-        if (m_digital_exponent > 0) {
-          // More than 10 entries
-          // Split into sub-ranges of 10 (0..9,1..19,2..29,...)
-          auto exponent = m_digital_exponent-1;
-          auto int_range = static_cast<int>(std::pow(10, exponent));
-          for (int i=0;i<10;++i) {
-            auto first = i*int_range;
-            std::string caption{};
-            caption += std::to_string(first);
-            auto last = first + int_range-1;
-            if (last > first) {
-              caption += " .. ";
-              caption += std::to_string(last);
-            }
-            this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(int_range,i)});
+      RBDsState(RBDs all_rbds,Mod10View mod10_view)
+        :  m_mod10_view{mod10_view}
+          ,m_all_rbds{all_rbds}
+          ,State({}) {
+
+        auto subranges = m_mod10_view.subranges();
+        for (size_t i=0;i<subranges.size();++i) {
+          auto const subrange = subranges[i];
+          auto const& [begin,end] = subrange;
+          auto caption = std::to_string(begin);
+          if (end-begin==1) {
+            // Single RBD in range option
+            this->add_option(static_cast<char>('0'+i),{caption,RBD_factory});
+          }
+          else {
+            caption += " .. ";
+            caption += std::to_string(end-1);
+            this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(m_all_rbds,subrange)});
           }
         }
-        else {
-          // Show the single RBD to select
-          this->add_option('0',{"RBD",RBD_factory});
+
+        // Initiate view UX
+        for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
+          auto entry = std::to_string(i);
+          entry += ". ";
+          entry += m_all_rbds[i];
+          this->ux().push_back(entry);
         }
       }
+      RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
+
     };
 
     struct May2AprilState : public State {
       State::StateFactory RBDs_factory = []() {
-        auto RBDs_ux = poc::State::UX{
-           "0. RBD #0"
-          ,"1. RBD #1"
-          ,"2. RBD #2"
-          ,"3. RBD #3"
-          ,"4. RBD #4"
-          ,"5. RBD #5"
-          ,"6. RBD #6"
-          ,"7. RBD #7"
-          ,"8. RBD #8"
-          ,"9. RBD #9"
-          ,"10. RBD #10"
-          ,"11. RBD #11"
-        };
-        return std::make_shared<poc::RBDsState>(RBDs_ux);
+        auto  all_rbds = poc::RBDsState::RBDs{
+           "RBD #0"
+          ,"RBD #1"
+          ,"RBD #2"
+          ,"RBD #3"
+          ,"RBD #4"
+          ,"RBD #5"
+          ,"RBD #6"
+          ,"RBD #7"
+          ,"RBD #8"
+          ,"RBD #9"
+          ,"RBD #10"
+          ,"RBD #11"
+          ,"RBD #12"
+          ,"RBD #13"
+          ,"RBD #14"
+          ,"RBD #15"
+          ,"RBD #16"
+          ,"RBD #17"
+          ,"RBD #18"
+          ,"RBD #19"
+          ,"RBD #20"
+          ,"RBD #21"
+          ,"RBD #22"
+          ,"RBD #23"
+        };        
+        return std::make_shared<poc::RBDsState>(all_rbds);
       };
       May2AprilState(State::UX ux) : State{ux} {
         this->add_option('0',{"RBD:s",RBDs_factory});
