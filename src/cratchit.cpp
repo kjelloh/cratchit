@@ -94,7 +94,11 @@ namespace first {
         };
         return std::make_shared<poc::State>(SIE_ux);
       };
-      RBDState(State::UX ux) : State{ux} {
+      using RBD = std::string;
+      RBD m_rbd;
+      RBDState(RBD rbd) : m_rbd{rbd} ,State({}) {
+        ux().clear();
+        ux().push_back(rbd);
         this->add_option('0',{"RBD -> SIE",SIE_factory});
       }
     };
@@ -104,14 +108,6 @@ namespace first {
       using RBDs = std::vector<std::string>;
       RBDsState::RBDs m_all_rbds;
       Mod10View m_mod10_view;
-
-      State::StateFactory RBD_factory = []() {
-        // Single RBT factory
-        auto RBD_ux = poc::State::UX{
-          "RBD UX goes here"
-        };
-        return std::make_shared<poc::RBDState>(RBD_ux);
-      };
 
       struct RBDs_subrange_factory {
         // RBD subrange state factory
@@ -137,7 +133,13 @@ namespace first {
           auto caption = std::to_string(begin);
           if (end-begin==1) {
             // Single RBD in range option
-            this->add_option(static_cast<char>('0'+i),{caption,RBD_factory});
+            this->add_option(static_cast<char>('0'+i),{caption,[rbd=m_all_rbds[begin]](){
+              // Single RBT factory
+              auto RBD_ux = poc::State::UX{
+                "RBD UX goes here"
+              };
+              return std::make_shared<poc::RBDState>(rbd);
+            }});
           }
           else {
             caption += " .. ";
@@ -157,6 +159,8 @@ namespace first {
       RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
 
     };
+
+
 
     struct May2AprilState : public State {
       State::StateFactory RBDs_factory = []() {
