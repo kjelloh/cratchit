@@ -9,6 +9,7 @@
 #include <queue>
 #include <filesystem>
 #include <cmath>  // std::pow,...
+#include <immer/vector.hpp>
 
 namespace first {
 
