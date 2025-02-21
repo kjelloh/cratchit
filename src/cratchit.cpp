@@ -73,6 +73,8 @@ namespace first {
     };
 
     struct State {
+    private:
+    public:
       using pointer = std::shared_ptr<State>;
       using StateFactory = std::function<pointer()>;
       using UX = std::vector<std::string>;
@@ -86,6 +88,9 @@ namespace first {
       UX const& ux() const {return m_ux;}
       UX& ux() {return m_ux;}
       Options const& options() const {return m_options;}
+      virtual std::pair<std::optional<State::pointer>,Cmd> update(Msg const& msg) {
+        return {std::nullopt,Nop}; // Default - no state mutation
+      }
     };
 
     struct RBDState : public State {
@@ -160,8 +165,6 @@ namespace first {
       RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
 
     };
-
-
 
     struct May2AprilState : public State {
       State::StateFactory RBDs_factory = []() {
@@ -254,7 +257,7 @@ namespace first {
         this->add_option('0',{"ITfied AB",itfied_factory});        
         this->add_option('1',{"Org x",orx_x_factory});        
       }
-    };
+    }; // Workspace State
 
     struct FrameworkState : public State {
       State::StateFactory workspace_0_factory = []() {
@@ -267,6 +270,20 @@ namespace first {
       FrameworkState(State::UX ux) : State{ux} {
         this->add_option('0',{"Workspace x",workspace_0_factory});        
       }
+
+      virtual std::pair<std::optional<State::pointer>,Cmd> update(Msg const& msg) {
+        std::optional<State::pointer> new_state{};
+        auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg.pimpl);
+        if (key_msg_ptr != nullptr) {
+          auto ch = key_msg_ptr->key;
+          if (ch == '+') {
+            this->m_ux.back().push_back('+');
+            new_state = std::make_shared<FrameworkState>(*this);          
+          }
+        }
+        return {new_state,Nop};
+      }
+  
     };
 
     auto framework_state_factory = []() {
@@ -275,7 +292,6 @@ namespace first {
       };
       return std::make_shared<poc::FrameworkState>(framework_ux);
     };
-
   }
 
   struct Model {
@@ -304,61 +320,76 @@ namespace first {
   }
 
   std::pair<Model,Cmd> update(Model model, Msg msg) {
-    // std::cout << "\nupdate sais Hello :)" << std::flush;
-    Cmd cmd = Nop;
 
-    auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg.pimpl);
-    if (key_msg_ptr != nullptr) {
-      auto ch = key_msg_ptr->key; 
-      if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
-        if (!model.user_input.empty()) {
-          model.user_input.pop_back();
-        }
-      } 
-      else if (ch == '\n') {
-        // User pressed Enter: process command (optional)
-        model.user_input.clear(); // Reset input after submission
-      } 
-      else {
-        if (model.user_input.empty() and ch == 'q' or model.stack.size()==0) {
-          // std::cout << "\nTime to QUIT!" << std::flush;
-          cmd = DO_QUIT;
-        }
-        else if (model.user_input.empty() and model.stack.size() > 0) {
-          if (ch == '-') {
-            // (1) Transition back to old state
-            model.stack.pop();
-          } 
-          else if (model.stack.top()->options().contains(ch)) {
-            // (2) Transition to new state
-            model.stack.push(model.stack.top()->options().at(ch).second());
+    Cmd cmd = Nop;
+    std::optional<poc::State::pointer> new_state{};
+    if (model.stack.size()>0) {
+      auto pp = model.stack.top()->update(msg);
+      new_state = pp.first;
+      cmd = pp.second;
+    }
+    if (new_state) {
+      // Let 'State' update itself
+      model.stack.top() = *new_state; // mutate
+    }
+    else {
+      // Process state transition or user input
+      auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg.pimpl);
+      if (key_msg_ptr != nullptr) {
+        auto ch = key_msg_ptr->key; 
+        if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
+          if (!model.user_input.empty()) {
+            model.user_input.pop_back();
+          }
+        } 
+        else if (ch == '\n') {
+          // User pressed Enter: process command (optional)
+          model.user_input.clear(); // Reset input after submission
+        } 
+        else {
+          if (model.user_input.empty() and ch == 'q' or model.stack.size()==0) {
+            // std::cout << "\nTime to QUIT!" << std::flush;
+            cmd = DO_QUIT;
+          }
+          else if (model.user_input.empty() and model.stack.size() > 0) {
+            if (ch == '-') {
+              // (1) Transition back to old state
+              model.stack.pop();
+            } 
+            else if (model.stack.top()->options().contains(ch)) {
+              // (2) Transition to new state
+              model.stack.push(model.stack.top()->options().at(ch).second());
+            }
+            else {
+              model.user_input += ch; // Append typed character
+            }
           }
           else {
-            model.user_input += ch; // Append typed character
+              model.user_input += ch; // Append typed character
           }
         }
-        else {
-            model.user_input += ch; // Append typed character
-        }
+      }        
+    }
+    // Update UX
+    if (model.stack.size() > 0) {
+      // State UX (top window)
+      model.top_content.clear();
+      for (std::size_t i=0;i<model.stack.top()->ux().size();++i) {
+        if (i>0) model.top_content.push_back('\n');
+        model.top_content += model.stack.top()->ux()[i];
       }
-      if (model.stack.size() > 0) {
-        model.top_content.clear();
-        for (std::size_t i=0;i<model.stack.top()->ux().size();++i) {
-          if (i>0) model.top_content.push_back('\n');
-          model.top_content += model.stack.top()->ux()[i];
-        }
-        model.main_content.clear();
-        // (3) Render state transition options
-        for (auto const &[ch, option] : model.stack.top()->options()) {
-          std::string entry{};
-          entry.push_back(ch);
-          entry.append(" - ");
-          entry.append(option.first);
-          entry.push_back('\n');
-          model.main_content.append(entry);
-        }
+      // State transition UX (Midle window)
+      model.main_content.clear();
+      for (auto const &[ch, option] : model.stack.top()->options()) {
+        std::string entry{};
+        entry.push_back(ch);
+        entry.append(" - ");
+        entry.append(option.first);
+        entry.push_back('\n');
+        model.main_content.append(entry);
       }
     }
+
     return {model,cmd}; // Return updated model
   }
 
