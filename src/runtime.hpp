@@ -137,32 +137,48 @@ public:
     // init ncurses
     Ncurses ncurses{};
 
-    std::queue<Msg> q{};
+    std::queue<Msg> msg_q{};
+    std::queue<Cmd> cmd_q{};
     auto [model, is_quit_msg, cmd] = m_init();
-    if (auto optional_msg = cmd())
-      q.push(*optional_msg);
+    cmd_q.push(cmd);
     // Main loop
     int loop_count{};
     while (true) {
+
+      // render the ux
       auto ui = m_view(model);
       render(ui.doc);
-      ch = getch();
-      if (ui.event_handlers.contains("OnKey")) {
-        Event key_event{{"Key",std::to_string(ch)}};
-        if (auto optional_msg = ui.event_handlers["OnKey"](key_event)) q.push(*optional_msg);
+
+      if (not cmd_q.empty()) {
+        // Execute a command
+        auto cmd = cmd_q.front(); cmd_q.pop();
+        if (auto msg = cmd()) {
+          msg_q.push(*msg);
+        }
       }
-      else {
-        throw std::runtime_error(std::format("DESIGN INSUFFICIENCY, Runtime::run failed to find a binding 'OnKey' from client 'view' function"));
-      }
-      auto msg = q.front();
-      q.pop();
-      auto const &[m, cmd] = m_update(model, msg);
-      model = m;
-      if (auto optional_msg = cmd()) {
-        if (is_quit_msg(*optional_msg)) {
+      else if (not msg_q.empty()) {
+        auto msg = msg_q.front(); msg_q.pop();
+
+        // Try client provided predicate to identify QUIT msg
+        if (is_quit_msg(msg)) {
           break;
         }
-        else q.push(*optional_msg);
+
+        // Run the message though the client
+        auto const &[m, cmd] = m_update(model, msg);
+        model = m;
+        cmd_q.push(cmd);
+      }
+      else {
+        // Wait for user input
+        ch = getch();
+        if (ui.event_handlers.contains("OnKey")) {
+          Event key_event{{"Key",std::to_string(ch)}};
+          if (auto optional_msg = ui.event_handlers["OnKey"](key_event)) msg_q.push(*optional_msg);
+        }
+        else {
+          throw std::runtime_error(std::format("DESIGN INSUFFICIENCY, Runtime::run failed to find a binding 'OnKey' from client 'view' function"));
+        }
       }
     }
     return (ch == '-') ? 1 : 0;

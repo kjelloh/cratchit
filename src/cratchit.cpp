@@ -37,6 +37,17 @@ namespace first {
   };
 
   // ----------------------------------
+  // Begin: Forward State
+  // ----------------------------------
+
+  struct StateImpl; // Forward
+  using State = std::shared_ptr<StateImpl>;
+
+  // ----------------------------------
+  // End: Forward State
+  // ----------------------------------
+
+  // ----------------------------------
   // Begin: Message
   // ----------------------------------
 
@@ -52,6 +63,14 @@ namespace first {
   };
 
   struct Quit : public MsgImpl {};
+
+  struct PushStateMsg : public MsgImpl {
+    State m_parent{};
+    State m_state{};
+    PushStateMsg(State const& parent,State const& state)
+      :  m_parent{parent}
+        ,m_state{state} {}
+  };
 
   Msg const QUIT_MSG{std::make_shared<Quit>()};
 
@@ -92,13 +111,11 @@ namespace first {
   // End: Command
   // ----------------------------------
 
+  using StateFactory = std::function<State()>;
+
   // ----------------------------------
   // Begin: Model
   // ----------------------------------
-
-  struct StateImpl; // Forward
-  using State = std::shared_ptr<StateImpl>;
-  using StateFactory = std::function<State()>;
 
   struct StateImpl {
   private:
@@ -367,8 +384,7 @@ namespace first {
     }
     else {
       // Process StateImpl transition or user input
-      auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
-      if (key_msg_ptr != nullptr) {
+      if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {
         auto ch = key_msg_ptr->key; 
         if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
           if (!model.user_input.empty()) {
@@ -391,7 +407,11 @@ namespace first {
             } 
             else if (model.stack.top()->options().contains(ch)) {
               // (2) Transition to new StateImpl
-              model.stack.push(model.stack.top()->options().at(ch).second());
+              cmd = [ch,parent = model.stack.top()]() -> Msg {
+                State new_state = parent->options().at(ch).second();
+                auto msg = std::make_shared<PushStateMsg>(parent,new_state);
+                return msg;
+              };
             }
             else {
               model.user_input += ch; // Append typed character
@@ -401,7 +421,16 @@ namespace first {
               model.user_input += ch; // Append typed character
           }
         }
-      }        
+      }    
+      else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg);pimpl != nullptr) {
+        if (model.stack.top() == pimpl->m_parent) {
+          // The transition matches
+          model.stack.push(pimpl->m_state);
+        }
+        else {
+          model.user_input.push_back('?');
+        }
+      }    
     }
     // Update UX
     if (model.stack.size() > 0) {
