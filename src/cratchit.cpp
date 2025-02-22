@@ -13,6 +13,10 @@
 
 namespace first {
 
+  // ----------------------------------
+  // Begin: Message
+  // ----------------------------------
+
   struct MsgImpl {
     virtual ~MsgImpl() = default;
   };
@@ -23,12 +27,21 @@ namespace first {
 
   struct Quit : public MsgImpl {};
 
-  struct Msg {
-    std::shared_ptr<MsgImpl> pimpl;
-    bool operator==(Msg const& other) const {return pimpl == other.pimpl;} 
-  };
+  // struct Msg {
+  //   std::shared_ptr<MsgImpl> pimpl;
+  //   bool operator==(Msg const& other) const {return pimpl == other.pimpl;} 
+  // };
+  using Msg = std::shared_ptr<MsgImpl>;
 
   Msg const QUIT_MSG{std::make_shared<Quit>()};
+
+  // ----------------------------------
+  // END: Message
+  // ----------------------------------
+
+  // ----------------------------------
+  // Begin: Subscription
+  // ----------------------------------
 
   std::optional<Msg> onKey(Event event) {
     if (event.contains("Key")) {
@@ -36,6 +49,14 @@ namespace first {
     }
     return std::nullopt;
   }
+
+  // ----------------------------------
+  // End: Subscription
+  // ----------------------------------
+
+  // ----------------------------------
+  // Begin: Command
+  // ----------------------------------
 
   using Cmd = std::function<std::optional<Msg>()>;
 
@@ -46,6 +67,10 @@ namespace first {
   std::optional<Msg> DO_QUIT() {
     return QUIT_MSG;
   };
+
+  // ----------------------------------
+  // End: Command
+  // ----------------------------------
 
   namespace poc {
     // Proof of concept namespace
@@ -71,6 +96,10 @@ namespace first {
         return result;
       }
     };
+
+  // ----------------------------------
+  // Begin: Model
+  // ----------------------------------
 
     struct State {
     private:
@@ -273,7 +302,7 @@ namespace first {
 
       virtual std::pair<std::optional<State::pointer>,Cmd> update(Msg const& msg) {
         std::optional<State::pointer> new_state{};
-        auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg.pimpl);
+        auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
         if (key_msg_ptr != nullptr) {
           auto ch = key_msg_ptr->key;
           if (ch == '+') {
@@ -304,10 +333,18 @@ namespace first {
     std::stack<poc::State::pointer> stack{};
   };
 
+  // ----------------------------------
+  // Begin: Model
+  // ----------------------------------
+
   bool is_quit_msg(Msg const& msg) {
     // std::cout << "\nis_quit_msg sais Hello" << std::flush;
     return msg == QUIT_MSG;
   }
+
+  // ----------------------------------
+  // Begin: init,update,view
+  // ----------------------------------
 
   std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
@@ -334,7 +371,7 @@ namespace first {
     }
     else {
       // Process state transition or user input
-      auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg.pimpl);
+      auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
       if (key_msg_ptr != nullptr) {
         auto ch = key_msg_ptr->key; 
         if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
@@ -435,6 +472,10 @@ namespace first {
     ui.event_handlers["OnKey"] = onKey;
     return ui;
   }
+
+  // ----------------------------------
+  // End: init,update,view
+  // ----------------------------------
 
   int main(int argc, char *argv[]) {
     // std::cout << "\nFirst sais Hello :)" << std::flush;
