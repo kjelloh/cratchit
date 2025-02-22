@@ -13,6 +13,29 @@
 
 namespace first {
 
+  // Splits a size_t range into mod10 sub-ranges
+  struct Mod10View {
+    using Range = std::pair<size_t,size_t>;
+    Range m_range;
+    size_t m_subrange_size;
+
+    Mod10View(Range range)
+      :  m_range{range}
+        ,m_subrange_size{static_cast<size_t>(std::pow(10,std::ceil(std::log10(range.second-range.first))-1))} {}
+
+    template <class T>
+    Mod10View(T const& container) : Mod10View(Range(0,container.size())) {}
+
+    // return vector of [begin,end[
+    std::vector<Range> subranges() {
+      std::vector<std::pair<size_t,size_t>> result{};
+      for (size_t i=m_range.first;i<m_range.second;i += m_subrange_size) {
+        result.push_back(std::make_pair(i,std::min(i+m_subrange_size,m_range.second)));
+      }
+      return result;
+    }
+  };
+
   // ----------------------------------
   // Begin: Message
   // ----------------------------------
@@ -20,18 +43,15 @@ namespace first {
   struct MsgImpl {
     virtual ~MsgImpl() = default;
   };
+
+  using Msg = std::shared_ptr<MsgImpl>;
+
   struct NCursesKey : public MsgImpl {
     int key;
     NCursesKey(int key) : key{key}, MsgImpl{} {}
   };
 
   struct Quit : public MsgImpl {};
-
-  // struct Msg {
-  //   std::shared_ptr<MsgImpl> pimpl;
-  //   bool operator==(Msg const& other) const {return pimpl == other.pimpl;} 
-  // };
-  using Msg = std::shared_ptr<MsgImpl>;
 
   Msg const QUIT_MSG{std::make_shared<Quit>()};
 
@@ -72,256 +92,232 @@ namespace first {
   // End: Command
   // ----------------------------------
 
-  namespace poc {
-    // Proof of concept namespace
-
-    struct Mod10View {
-      using Range = std::pair<size_t,size_t>;
-      Range m_range;
-      size_t m_subrange_size;
-
-      Mod10View(Range range)
-        :  m_range{range}
-          ,m_subrange_size{static_cast<size_t>(std::pow(10,std::ceil(std::log10(range.second-range.first))-1))} {}
-
-      template <class T>
-      Mod10View(T const& container) : Mod10View(Range(0,container.size())) {}
-
-      // return vector of [begin,end[
-      std::vector<Range> subranges() {
-        std::vector<std::pair<size_t,size_t>> result{};
-        for (size_t i=m_range.first;i<m_range.second;i += m_subrange_size) {
-          result.push_back(std::make_pair(i,std::min(i+m_subrange_size,m_range.second)));
-        }
-        return result;
-      }
-    };
-
   // ----------------------------------
   // Begin: Model
   // ----------------------------------
 
-    struct State {
-    private:
-    public:
-      using pointer = std::shared_ptr<State>;
-      using StateFactory = std::function<pointer()>;
-      using UX = std::vector<std::string>;
-      using Options = std::map<char,std::pair<std::string,StateFactory>>;
-      UX m_ux;
-      Options m_options;
-      State(UX const& ux) : m_ux{ux},m_options{} {}
-      void add_option(char ch,std::pair<std::string,StateFactory> option) {
-        m_options[ch] = option;
-      }
-      UX const& ux() const {return m_ux;}
-      UX& ux() {return m_ux;}
-      Options const& options() const {return m_options;}
-      virtual std::pair<std::optional<State::pointer>,Cmd> update(Msg const& msg) {
-        return {std::nullopt,Nop}; // Default - no state mutation
-      }
-    };
+  struct StateImpl; // Forward
+  using State = std::shared_ptr<StateImpl>;
+  using StateFactory = std::function<State()>;
 
-    struct RBDState : public State {
-      State::StateFactory SIE_factory = []() {
-        auto SIE_ux = poc::State::UX{
-          "RBD to SIE UX goes here"
-        };
-        return std::make_shared<poc::State>(SIE_ux);
+  struct StateImpl {
+  private:
+  public:
+    using UX = std::vector<std::string>;
+    using Options = std::map<char,std::pair<std::string,StateFactory>>;
+    UX m_ux;
+    Options m_options;
+    StateImpl(UX const& ux) : m_ux{ux},m_options{} {}
+    void add_option(char ch,std::pair<std::string,StateFactory> option) {
+      m_options[ch] = option;
+    }
+    UX const& ux() const {return m_ux;}
+    UX& ux() {return m_ux;}
+    Options const& options() const {return m_options;}
+    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg) {
+      return {std::nullopt,Nop}; // Default - no StateImpl mutation
+    }
+  };
+   
+  struct RBDState : public StateImpl {
+    StateFactory SIE_factory = []() {
+      auto SIE_ux = StateImpl::UX{
+        "RBD to SIE UX goes here"
       };
-      using RBD = std::string;
-      RBD m_rbd;
-      RBDState(RBD rbd) : m_rbd{rbd} ,State({}) {
-        ux().clear();
-        ux().push_back(rbd);
-        this->add_option('0',{"RBD -> SIE",SIE_factory});
-      }
+      return std::make_shared<StateImpl>(SIE_ux);
     };
+    using RBD = std::string;
+    RBD m_rbd;
+    RBDState(RBD rbd) : m_rbd{rbd} ,StateImpl({}) {
+      ux().clear();
+      ux().push_back(rbd);
+      this->add_option('0',{"RBD -> SIE",SIE_factory});
+    }
+  };
 
-    struct RBDsState : public State {
+  struct RBDsState : public StateImpl {
 
-      using RBDs = std::vector<std::string>;
-      RBDsState::RBDs m_all_rbds;
+    using RBDs = std::vector<std::string>;
+    RBDsState::RBDs m_all_rbds;
+    Mod10View m_mod10_view;
+
+    struct RBDs_subrange_factory {
+      // RBD subrange StateImpl factory
+      RBDsState::RBDs m_all_rbds{};
       Mod10View m_mod10_view;
 
-      struct RBDs_subrange_factory {
-        // RBD subrange state factory
-        RBDsState::RBDs m_all_rbds{};
-        Mod10View m_mod10_view;
+      auto operator()() {return std::make_shared<RBDsState>(m_all_rbds,m_mod10_view);}
 
-        auto operator()() {return std::make_shared<poc::RBDsState>(m_all_rbds,m_mod10_view);}
+      RBDs_subrange_factory(RBDsState::RBDs all_rbds, Mod10View mod10_view)
+        :  m_mod10_view{mod10_view}            
+          ,m_all_rbds{all_rbds} {} 
+    };
 
-        RBDs_subrange_factory(RBDsState::RBDs all_rbds, Mod10View mod10_view)
-          :  m_mod10_view{mod10_view}            
-            ,m_all_rbds{all_rbds} {} 
-      };
+    RBDsState(RBDs all_rbds,Mod10View mod10_view)
+      :  m_mod10_view{mod10_view}
+        ,m_all_rbds{all_rbds}
+        ,StateImpl({}) {
 
-      RBDsState(RBDs all_rbds,Mod10View mod10_view)
-        :  m_mod10_view{mod10_view}
-          ,m_all_rbds{all_rbds}
-          ,State({}) {
-
-        auto subranges = m_mod10_view.subranges();
-        for (size_t i=0;i<subranges.size();++i) {
-          auto const subrange = subranges[i];
-          auto const& [begin,end] = subrange;
-          auto caption = std::to_string(begin);
-          if (end-begin==1) {
-            // Single RBD in range option
-            this->add_option(static_cast<char>('0'+i),{caption,[rbd=m_all_rbds[begin]](){
-              // Single RBT factory
-              auto RBD_ux = poc::State::UX{
-                "RBD UX goes here"
-              };
-              return std::make_shared<poc::RBDState>(rbd);
-            }});
-          }
-          else {
-            caption += " .. ";
-            caption += std::to_string(end-1);
-            this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(m_all_rbds,subrange)});
-          }
+      auto subranges = m_mod10_view.subranges();
+      for (size_t i=0;i<subranges.size();++i) {
+        auto const subrange = subranges[i];
+        auto const& [begin,end] = subrange;
+        auto caption = std::to_string(begin);
+        if (end-begin==1) {
+          // Single RBD in range option
+          this->add_option(static_cast<char>('0'+i),{caption,[rbd=m_all_rbds[begin]](){
+            // Single RBT factory
+            auto RBD_ux = StateImpl::UX{
+              "RBD UX goes here"
+            };
+            return std::make_shared<RBDState>(rbd);
+          }});
         }
-
-        // Initiate view UX
-        for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
-          auto entry = std::to_string(i);
-          entry += ". ";
-          entry += m_all_rbds[i];
-          this->ux().push_back(entry);
+        else {
+          caption += " .. ";
+          caption += std::to_string(end-1);
+          this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(m_all_rbds,subrange)});
         }
       }
-      RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
 
+      // Initiate view UX
+      for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
+        auto entry = std::to_string(i);
+        entry += ". ";
+        entry += m_all_rbds[i];
+        this->ux().push_back(entry);
+      }
+    }
+    RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
+
+  };
+
+  struct May2AprilState : public StateImpl {
+    StateFactory RBDs_factory = []() {
+      auto  all_rbds = RBDsState::RBDs{
+         "RBD #0"
+        ,"RBD #1"
+        ,"RBD #2"
+        ,"RBD #3"
+        ,"RBD #4"
+        ,"RBD #5"
+        ,"RBD #6"
+        ,"RBD #7"
+        ,"RBD #8"
+        ,"RBD #9"
+        ,"RBD #10"
+        ,"RBD #11"
+        ,"RBD #12"
+        ,"RBD #13"
+        ,"RBD #14"
+        ,"RBD #15"
+        ,"RBD #16"
+        ,"RBD #17"
+        ,"RBD #18"
+        ,"RBD #19"
+        ,"RBD #20"
+        ,"RBD #21"
+        ,"RBD #22"
+        ,"RBD #23"
+      };        
+      return std::make_shared<RBDsState>(all_rbds);
+    };
+    May2AprilState(StateImpl::UX ux) : StateImpl{ux} {
+      this->add_option('0',{"RBD:s",RBDs_factory});
+    }
+  };
+
+  struct VATReturnsState : public StateImpl {
+    VATReturnsState(StateImpl::UX ux) : StateImpl{ux} {}
+  };
+
+  struct Q1State : public StateImpl {
+    StateFactory VATReturns_factory = []() {
+      auto VATReturns_ux = StateImpl::UX{
+        "VAT Returns UX goes here"
+      };
+      return std::make_shared<VATReturnsState>(VATReturns_ux);
+    };
+    Q1State(StateImpl::UX ux) : StateImpl{ux} {
+      this->add_option('0',{"VAT Returns",VATReturns_factory});
+    }
+  };
+
+  struct ProjectState : public StateImpl {
+    StateFactory may2april_factory = []() {
+      auto may2april_ux = StateImpl::UX{
+        "May to April"
+      };
+      return std::make_shared<May2AprilState>(may2april_ux);
     };
 
-    struct May2AprilState : public State {
-      State::StateFactory RBDs_factory = []() {
-        auto  all_rbds = poc::RBDsState::RBDs{
-           "RBD #0"
-          ,"RBD #1"
-          ,"RBD #2"
-          ,"RBD #3"
-          ,"RBD #4"
-          ,"RBD #5"
-          ,"RBD #6"
-          ,"RBD #7"
-          ,"RBD #8"
-          ,"RBD #9"
-          ,"RBD #10"
-          ,"RBD #11"
-          ,"RBD #12"
-          ,"RBD #13"
-          ,"RBD #14"
-          ,"RBD #15"
-          ,"RBD #16"
-          ,"RBD #17"
-          ,"RBD #18"
-          ,"RBD #19"
-          ,"RBD #20"
-          ,"RBD #21"
-          ,"RBD #22"
-          ,"RBD #23"
-        };        
-        return std::make_shared<poc::RBDsState>(all_rbds);
+    StateFactory q1_factory = []() {
+      auto q1_ux = StateImpl::UX{
+        "Q1 UX goes here"
       };
-      May2AprilState(State::UX ux) : State{ux} {
-        this->add_option('0',{"RBD:s",RBDs_factory});
-      }
+      return std::make_shared<Q1State>(q1_ux);
     };
 
-    struct VATReturnsState : public State {
-      VATReturnsState(State::UX ux) : State{ux} {}
+    ProjectState(StateImpl::UX ux) : StateImpl{ux} {
+      this->add_option('0',{"May to April",may2april_factory});
+      this->add_option('1',{"Q1",q1_factory});
+    }
+  };
+
+  struct WorkspaceState : public StateImpl {
+    StateFactory itfied_factory = []() {
+      auto itfied_ux = StateImpl::UX{
+        "ITfied UX"
+      };
+      return std::make_shared<ProjectState>(itfied_ux);
     };
 
-    struct Q1State : public State {
-      State::StateFactory VATReturns_factory = []() {
-        auto VATReturns_ux = poc::State::UX{
-          "VAT Returns UX goes here"
-        };
-        return std::make_shared<poc::VATReturnsState>(VATReturns_ux);
+    StateFactory orx_x_factory = []() {
+      auto org_x_ux = StateImpl::UX{
+        "Other Organisation UX"
       };
-      Q1State(State::UX ux) : State{ux} {
-        this->add_option('0',{"VAT Returns",VATReturns_factory});
-      }
+      return std::make_shared<ProjectState>(org_x_ux);
     };
 
-    struct ProjectState : public State {
-      State::StateFactory may2april_factory = []() {
-        auto may2april_ux = poc::State::UX{
-          "May to April"
-        };
-        return std::make_shared<poc::May2AprilState>(may2april_ux);
-      };
+    WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
+      this->add_option('0',{"ITfied AB",itfied_factory});        
+      this->add_option('1',{"Org x",orx_x_factory});        
+    }
+  }; // Workspace StateImpl
 
-      State::StateFactory q1_factory = []() {
-        auto q1_ux = poc::State::UX{
-          "Q1 UX goes here"
-        };
-        return std::make_shared<poc::Q1State>(q1_ux);
+  struct FrameworkState : public StateImpl {
+    StateFactory workspace_0_factory = []() {
+      auto workspace_0_ux = StateImpl::UX{
+        "Workspace UX"
       };
-
-      ProjectState(State::UX ux) : State{ux} {
-        this->add_option('0',{"May to April",may2april_factory});
-        this->add_option('1',{"Q1",q1_factory});
-      }
+      return std::make_shared<WorkspaceState>(workspace_0_ux);
     };
 
-    struct WorkspaceState : public State {
-      State::StateFactory itfied_factory = []() {
-        auto itfied_ux = poc::State::UX{
-          "ITfied UX"
-        };
-        return std::make_shared<poc::ProjectState>(itfied_ux);
-      };
+    FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
+      this->add_option('0',{"Workspace x",workspace_0_factory});        
+    }
 
-      State::StateFactory orx_x_factory = []() {
-        auto org_x_ux = poc::State::UX{
-          "Other Organisation UX"
-        };
-        return std::make_shared<poc::ProjectState>(org_x_ux);
-      };
-
-      WorkspaceState(State::UX ux) : State{ux} {
-        this->add_option('0',{"ITfied AB",itfied_factory});        
-        this->add_option('1',{"Org x",orx_x_factory});        
-      }
-    }; // Workspace State
-
-    struct FrameworkState : public State {
-      State::StateFactory workspace_0_factory = []() {
-        auto workspace_0_ux = poc::State::UX{
-          "Workspace UX"
-        };
-        return std::make_shared<poc::WorkspaceState>(workspace_0_ux);
-      };
-
-      FrameworkState(State::UX ux) : State{ux} {
-        this->add_option('0',{"Workspace x",workspace_0_factory});        
-      }
-
-      virtual std::pair<std::optional<State::pointer>,Cmd> update(Msg const& msg) {
-        std::optional<State::pointer> new_state{};
-        auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
-        if (key_msg_ptr != nullptr) {
-          auto ch = key_msg_ptr->key;
-          if (ch == '+') {
-            this->m_ux.back().push_back('+');
-            new_state = std::make_shared<FrameworkState>(*this);          
-          }
+    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg) {
+      std::optional<State> new_state{};
+      auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
+      if (key_msg_ptr != nullptr) {
+        auto ch = key_msg_ptr->key;
+        if (ch == '+') {
+          this->m_ux.back().push_back('+');
+          new_state = std::make_shared<FrameworkState>(*this);          
         }
-        return {new_state,Nop};
       }
-  
-    };
+      return {new_state,Nop};
+    }
 
-    auto framework_state_factory = []() {
-      auto framework_ux = poc::State::UX{
-        "Framework UX"
-      };
-      return std::make_shared<poc::FrameworkState>(framework_ux);
+  };
+
+  auto framework_state_factory = []() {
+    auto framework_ux = StateImpl::UX{
+      "Framework UX"
     };
-  }
+    return std::make_shared<FrameworkState>(framework_ux);
+  };
 
   struct Model {
     std::string top_content;
@@ -330,7 +326,7 @@ namespace first {
     /*
     The stack contains the 'path of states' the user has navigated to.
     */
-    std::stack<poc::State::pointer> stack{};
+    std::stack<State> stack{};
   };
 
   // ----------------------------------
@@ -352,25 +348,25 @@ namespace first {
                    ,"This is the main content area"
                    ,""};
 
-    model.stack.push(poc::framework_state_factory());
+    model.stack.push(framework_state_factory());
     return {model,is_quit_msg,Nop};
   }
 
   std::pair<Model,Cmd> update(Model model, Msg msg) {
 
     Cmd cmd = Nop;
-    std::optional<poc::State::pointer> new_state{};
+    std::optional<State> new_state{};
     if (model.stack.size()>0) {
       auto pp = model.stack.top()->update(msg);
       new_state = pp.first;
       cmd = pp.second;
     }
     if (new_state) {
-      // Let 'State' update itself
+      // Let 'StateImpl' update itself
       model.stack.top() = *new_state; // mutate
     }
     else {
-      // Process state transition or user input
+      // Process StateImpl transition or user input
       auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
       if (key_msg_ptr != nullptr) {
         auto ch = key_msg_ptr->key; 
@@ -390,11 +386,11 @@ namespace first {
           }
           else if (model.user_input.empty() and model.stack.size() > 0) {
             if (ch == '-') {
-              // (1) Transition back to old state
+              // (1) Transition back to old StateImpl
               model.stack.pop();
             } 
             else if (model.stack.top()->options().contains(ch)) {
-              // (2) Transition to new state
+              // (2) Transition to new StateImpl
               model.stack.push(model.stack.top()->options().at(ch).second());
             }
             else {
@@ -409,13 +405,13 @@ namespace first {
     }
     // Update UX
     if (model.stack.size() > 0) {
-      // State UX (top window)
+      // StateImpl UX (top window)
       model.top_content.clear();
       for (std::size_t i=0;i<model.stack.top()->ux().size();++i) {
         if (i>0) model.top_content.push_back('\n');
         model.top_content += model.stack.top()->ux()[i];
       }
-      // State transition UX (Midle window)
+      // StateImpl transition UX (Midle window)
       model.main_content.clear();
       for (auto const &[ch, option] : model.stack.top()->options()) {
         std::string entry{};
