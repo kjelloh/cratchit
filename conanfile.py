@@ -26,6 +26,7 @@ class cratchitRecipe(ConanFile):
         self.requires("pugixml/1.14")
         self.requires("icu/76.1")
         self.requires("immer/0.8.1")
+        self.requires("spdlog/1.15.0")
 
     def layout(self):
         cmake_layout(self)

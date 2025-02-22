@@ -7,6 +7,8 @@
 #include <ncurses.h>
 #include <queue>
 #include <format>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 
 namespace runtime {
   template <typename Msg>
@@ -133,6 +135,11 @@ public:
     setenv("TERMINFO", "/usr/share/terminfo", 1);
 #endif
 
+    auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 5 * 1024 * 1024, 3);
+    spdlog::set_default_logger(logger);
+
+    spdlog::info("This is a rotating log file example.");
+
     int ch = ' '; // Variable to store the user's input
     // init ncurses
     Ncurses ncurses{};
@@ -144,6 +151,8 @@ public:
     // Main loop
     int loop_count{};
     while (true) {
+
+      spdlog::info("Runtime::run: cmd_q size: {}, msg_q size: {}", cmd_q.size(), msg_q.size());
 
       // render the ux
       auto ui = m_view(model);
