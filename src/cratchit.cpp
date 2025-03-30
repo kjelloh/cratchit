@@ -297,9 +297,17 @@ namespace first {
     };
 
     WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
-      this->add_option('0',{"ITfied AB",itfied_factory});        
-      this->add_option('1',{"Org x",orx_x_factory});        
+      // this->add_option('0',{"ITfied AB",itfied_factory});        
+      // this->add_option('1',{"Org x",orx_x_factory});        
     }
+
+    virtual Options options() const {
+      Options result{};
+      result['0'] = {"ITfied AB",itfied_factory};
+      result['1'] = {"Org x",orx_x_factory};
+      return result;
+    }
+    
   }; // Workspace StateImpl
 
   struct FrameworkState : public StateImpl {
