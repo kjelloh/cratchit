@@ -130,7 +130,7 @@ namespace first {
     }
     UX const& ux() const {return m_ux;}
     UX& ux() {return m_ux;}
-    virtual Options options() const {return m_options;}
+    Options const& options() const {return m_options;}
     virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg) {
       return {std::nullopt,Nop}; // Default - no StateImpl mutation
     }
@@ -310,12 +310,8 @@ namespace first {
       return std::make_shared<WorkspaceState>(workspace_0_ux);
     };
 
-    FrameworkState(StateImpl::UX ux) : StateImpl{ux} {}
-
-    virtual Options options() const {
-      Options result{};
-      result['0'] = {"Workspace x",workspace_0_factory};
-      return result;
+    FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
+      this->add_option('0',{"Workspace x",workspace_0_factory});        
     }
 
     virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg) {
@@ -323,7 +319,6 @@ namespace first {
       auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
       if (key_msg_ptr != nullptr) {
         auto ch = key_msg_ptr->key;
-        // Test acting on key press
         if (ch == '+') {
           this->m_ux.back().push_back('+');
           new_state = std::make_shared<FrameworkState>(*this);          
