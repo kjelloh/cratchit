@@ -27,7 +27,7 @@ namespace first {
     Mod10View(T const& container) : Mod10View(Range(0,container.size())) {}
 
     // return vector of [begin,end[
-    std::vector<Range> subranges() {
+    std::vector<Range> subranges() const {
       std::vector<std::pair<size_t,size_t>> result{};
       for (size_t i=m_range.first;i<m_range.second;i += m_subrange_size) {
         result.push_back(std::make_pair(i,std::min(i+m_subrange_size,m_range.second)));
@@ -175,27 +175,27 @@ namespace first {
         ,m_all_rbds{all_rbds}
         ,StateImpl({}) {
 
-      auto subranges = m_mod10_view.subranges();
-      for (size_t i=0;i<subranges.size();++i) {
-        auto const subrange = subranges[i];
-        auto const& [begin,end] = subrange;
-        auto caption = std::to_string(begin);
-        if (end-begin==1) {
-          // Single RBD in range option
-          this->add_option(static_cast<char>('0'+i),{caption,[rbd=m_all_rbds[begin]](){
-            // Single RBT factory
-            auto RBD_ux = StateImpl::UX{
-              "RBD UX goes here"
-            };
-            return std::make_shared<RBDState>(rbd);
-          }});
-        }
-        else {
-          caption += " .. ";
-          caption += std::to_string(end-1);
-          this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(m_all_rbds,subrange)});
-        }
-      }
+      // auto subranges = m_mod10_view.subranges();
+      // for (size_t i=0;i<subranges.size();++i) {
+      //   auto const subrange = subranges[i];
+      //   auto const& [begin,end] = subrange;
+      //   auto caption = std::to_string(begin);
+      //   if (end-begin==1) {
+      //     // Single RBD in range option
+      //     this->add_option(static_cast<char>('0'+i),{caption,[rbd=m_all_rbds[begin]](){
+      //       // Single RBT factory
+      //       auto RBD_ux = StateImpl::UX{
+      //         "RBD UX goes here"
+      //       };
+      //       return std::make_shared<RBDState>(rbd);
+      //     }});
+      //   }
+      //   else {
+      //     caption += " .. ";
+      //     caption += std::to_string(end-1);
+      //     this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(m_all_rbds,subrange)});
+      //   }
+      // }
 
       // Initiate view UX
       for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
@@ -206,6 +206,33 @@ namespace first {
       }
     }
     RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
+
+    virtual Options options() const {
+      Options result{};
+
+      auto subranges = m_mod10_view.subranges();
+      for (size_t i=0;i<subranges.size();++i) {
+        auto const subrange = subranges[i];
+        auto const& [begin,end] = subrange;
+        auto caption = std::to_string(begin);
+        if (end-begin==1) {
+          // Single RBD in range option
+          result[static_cast<char>('0'+i)] = {
+             caption
+            ,[rbd=m_all_rbds[begin]](){
+              // Single RBT factory
+              return std::make_shared<RBDState>(rbd);
+          }};
+        }
+        else {
+          caption += " .. ";
+          caption += std::to_string(end-1);
+          result[static_cast<char>('0'+i)] = {caption,RBDs_subrange_factory(m_all_rbds,subrange)};
+        }
+      }
+
+      return result;
+    }
 
   };
 
