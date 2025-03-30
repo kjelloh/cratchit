@@ -359,14 +359,19 @@ namespace first {
   // Begin: init,update,view
   // ----------------------------------
 
+  // init
   std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
     Model model = { "Welcome to the top section"
                    ,"This is the main content area"
                    ,""};
 
-    model.stack.push(framework_state_factory());
-    return {model,is_quit_msg,Nop};
+    // model.stack.push(framework_state_factory());
+    auto new_framework_state_cmd = []() -> Msg {
+      auto msg = std::make_shared<PushStateMsg>(nullptr,framework_state_factory());
+      return msg;
+    };
+    return {model,is_quit_msg,new_framework_state_cmd};
   }
 
   std::pair<Model,Cmd> update(Model model, Msg msg) {
@@ -423,7 +428,11 @@ namespace first {
         }
       }    
       else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg);pimpl != nullptr) {
-        if (model.stack.top() == pimpl->m_parent) {
+        if (model.stack.size() == 0) {
+          // Always 'match'
+          model.stack.push(pimpl->m_state);
+        }
+        else if (model.stack.top() == pimpl->m_parent) {
           // The transition matches
           model.stack.push(pimpl->m_state);
         }
