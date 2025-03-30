@@ -276,17 +276,9 @@ namespace first {
     };
 
     ProjectState(StateImpl::UX ux) : StateImpl{ux} {
-      // this->add_option('0',{"May to April",may2april_factory});
-      // this->add_option('1',{"Q1",q1_factory});
+      this->add_option('0',{"May to April",may2april_factory});
+      this->add_option('1',{"Q1",q1_factory});
     }
-
-    virtual Options options() const {
-      Options result{};
-      result['0'] = {"May to April",may2april_factory};
-      result['1'] = {"Q1",q1_factory};
-      return result;
-    }
-    
   };
 
   struct WorkspaceState : public StateImpl {
@@ -304,7 +296,10 @@ namespace first {
       return std::make_shared<ProjectState>(org_x_ux);
     };
 
-    WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {}
+    WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
+      // this->add_option('0',{"ITfied AB",itfied_factory});        
+      // this->add_option('1',{"Org x",orx_x_factory});        
+    }
 
     virtual Options options() const {
       Options result{};
