@@ -1,6 +1,8 @@
 #include "cratchit.h"
 #include <vector>
 #include <string>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include "zeroth/main.cpp" // zeroth variant while refactoring into 'this' variant
 
 int main(int argc, char *argv[]) {
@@ -12,6 +14,10 @@ int main(int argc, char *argv[]) {
         vec.push_back("test_package");
         cratchit_print_vector(vec);
     }
+
+    // See https://github.com/gabime/spdlog
+    auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 5 * 1024 * 1024, 3);
+    spdlog::set_default_logger(logger);
 
     int result{};
     while (true) {

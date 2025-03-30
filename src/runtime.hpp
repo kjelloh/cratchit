@@ -8,7 +8,6 @@
 #include <queue>
 #include <format>
 #include <spdlog/spdlog.h> 
-#include <spdlog/sinks/rotating_file_sink.h>
 
 namespace runtime {
   template <typename Msg>
@@ -135,9 +134,6 @@ public:
     setenv("TERMINFO", "/usr/share/terminfo", 1);
 #endif
 
-    // See https://github.com/gabime/spdlog
-    auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 5 * 1024 * 1024, 3);
-    spdlog::set_default_logger(logger);
     spdlog::info("Runtime::run - BEGIN");
 
     int ch = ' '; // Variable to store the user's input
