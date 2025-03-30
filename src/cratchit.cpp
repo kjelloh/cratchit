@@ -240,15 +240,8 @@ namespace first {
       return std::make_shared<RBDsState>(all_rbds);
     };
     May2AprilState(StateImpl::UX ux) : StateImpl{ux} {
-      // this->add_option('0',{"RBD:s",RBDs_factory});
+      this->add_option('0',{"RBD:s",RBDs_factory});
     }
-
-    virtual Options options() const {
-      Options result{};
-      result['0'] = {"RBD:s",RBDs_factory};
-      return result;
-    }
-    
   };
 
   struct VATReturnsState : public StateImpl {
