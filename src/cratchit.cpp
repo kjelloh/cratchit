@@ -72,6 +72,14 @@ namespace first {
         ,m_state{state} {}
   };
 
+  struct PoppedStateCargoMsg : public MsgImpl {
+    State m_top{};
+    std::string m_cargo{};
+    PoppedStateCargoMsg(State const& top,std::string cargo)
+      :  m_top{top}
+        ,m_cargo{cargo} {}
+  };
+
   Msg const QUIT_MSG{std::make_shared<Quit>()};
 
   // ----------------------------------
@@ -300,6 +308,11 @@ namespace first {
       this->add_option('0',{"ITfied AB",itfied_factory});        
       this->add_option('1',{"Org x",orx_x_factory});        
     }
+
+    ~WorkspaceState() {
+      spdlog::info("WorkspaceState destructor executed");
+    }
+
   }; // Workspace StateImpl
 
   struct FrameworkState : public StateImpl {
@@ -312,6 +325,10 @@ namespace first {
 
     FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
       this->add_option('0',{"Workspace x",workspace_0_factory});        
+    }
+
+    ~FrameworkState() {
+      spdlog::info("FrameworkState destructor executed");
     }
 
     virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg) {
@@ -407,8 +424,23 @@ namespace first {
           }
           else if (model.user_input.empty() and model.stack.size() > 0) {
             if (ch == '-') {
-              // (1) Transition back to old StateImpl
+              // (1) Transition back to previous state
+              auto popped_state = model.stack.top(); // share popped state for command to free
               model.stack.pop();
+              cmd = [popped_state,top = (model.stack.size()>0)?model.stack.top():nullptr]() mutable -> Msg {
+                if (popped_state.use_count() != 1) {
+                  // Design insufficiency (We should be the only user)
+                  spdlog::error("DESIGN_INSUFFICIENCY: Failed to execute State destructor in command (user count {} != 1)",popped_state.use_count());
+                }
+                else {
+                  spdlog::info("State destructor executed in command (user count {} == 1)",popped_state.use_count());
+                }
+                // TODO: Consider to provide actual 'cargo' produced by state into message
+                std::string dummy_cargo{"Dummy cargo"}; 
+                auto msg = std::make_shared<PoppedStateCargoMsg>(top,dummy_cargo);
+                popped_state.reset(); // Free popped state
+                return msg;
+              };
             } 
             else if (model.stack.top()->options().contains(ch)) {
               // (2) Transition to new StateImpl
@@ -438,6 +470,13 @@ namespace first {
         }
         else {
           model.user_input.push_back('?');
+        }
+      }
+      else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg);pimpl != nullptr) {
+        if (model.stack.size()>0 and model.stack.top() == pimpl->m_top) {
+          // the cargo is targeted to current top ok.
+          // TODO: Handle cargo
+          spdlog::info("PoppedStateCargoMsg: {}",pimpl->m_cargo);
         }
       }    
     }
