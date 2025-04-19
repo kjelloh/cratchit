@@ -14,7 +14,9 @@
 namespace first {
 
   // ----------------------------------
+  // ----------------------------------
   // h-file parts
+  // ----------------------------------
   // ----------------------------------
 
   struct Mod10View {
@@ -37,7 +39,33 @@ namespace first {
   using State = std::shared_ptr<StateImpl>;
 
   // ----------------------------------
+  struct MsgImpl {
+    virtual ~MsgImpl() = default;
+  };
+
+  // ----------------------------------
+  using Msg = std::shared_ptr<MsgImpl>;
+
+  // ----------------------------------
+  struct NCursesKey : public MsgImpl {
+    int key;
+    NCursesKey(int key);
+  };
+
+  // ----------------------------------
+  struct Quit : public MsgImpl {};
+
+  // ----------------------------------
+  struct PushStateMsg : public MsgImpl {
+    State m_parent{};
+    State m_state{};
+    PushStateMsg(State const& parent,State const& state);
+  };
+
+  // ----------------------------------
+  // ----------------------------------
   // cpp-file parts
+  // ----------------------------------
   // ----------------------------------
 
   Mod10View::Mod10View(Mod10View::Range const& range)
@@ -58,40 +86,20 @@ namespace first {
   }
 
   // ----------------------------------
-  // ----------------------------------
-  
-  struct MsgImpl {
-    virtual ~MsgImpl() = default;
-  };
-
-  using Msg = std::shared_ptr<MsgImpl>;
-
-  // ----------------------------------
-  // ----------------------------------
-
-  struct NCursesKey : public MsgImpl {
-    int key;
-    NCursesKey(int key);
-  };
-
   NCursesKey::NCursesKey(int key) : key{key}, MsgImpl{} {}
 
   // ----------------------------------
-  // ----------------------------------
-
-  struct Quit : public MsgImpl {};
-
-  // ----------------------------------
-
-  struct PushStateMsg : public MsgImpl {
-    State m_parent{};
-    State m_state{};
-    PushStateMsg(State const& parent,State const& state);
-  };
-
   PushStateMsg::PushStateMsg(State const& parent,State const& state)
   :  m_parent{parent}
     ,m_state{state} {}
+
+
+  // ----------------------------------
+  // ----------------------------------
+  // not yet split into h-parts and cpp-parts
+  // ----------------------------------
+  // ----------------------------------
+
 
   // ----------------------------------
   // ----------------------------------
