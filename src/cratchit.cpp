@@ -14,9 +14,9 @@
 namespace first {
 
   // ----------------------------------
+  // h-file parts
   // ----------------------------------
-  
-  // Splits a size_t range into mod10 sub-ranges
+
   struct Mod10View {
     using Range = std::pair<size_t,size_t>;
     Range m_range;
@@ -31,6 +31,15 @@ namespace first {
   }; // struct Mod10View
 
   // ----------------------------------
+  struct StateImpl; // Forward
+
+  // ----------------------------------
+  using State = std::shared_ptr<StateImpl>;
+
+  // ----------------------------------
+  // cpp-file parts
+  // ----------------------------------
+
   Mod10View::Mod10View(Mod10View::Range const& range)
   :  m_range{range}
     ,m_subrange_size{static_cast<size_t>(std::pow(10,std::ceil(std::log10(range.second-range.first))-1))} {}
@@ -47,12 +56,6 @@ namespace first {
     }
     return result;
   }
-
-  // ----------------------------------
-  // ----------------------------------
-
-  struct StateImpl; // Forward
-  using State = std::shared_ptr<StateImpl>;
 
   // ----------------------------------
   // ----------------------------------
