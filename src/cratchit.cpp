@@ -1,4 +1,5 @@
 #include "mod10view.hpp"
+#include "cross_dependent.hpp"
 #include "cratchit.h"
 #include "runtime.hpp"
 #include <iostream>
@@ -20,23 +21,16 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
+  // ----------------------------------
+  extern std::optional<Msg> onKey(Event event);
 
   // ----------------------------------
-  struct StateImpl; // Forward
+  using Cmd = std::function<std::optional<Msg>()>;
 
   // ----------------------------------
-  using State = std::shared_ptr<StateImpl>;
-
+  extern std::optional<Msg> Nop();
   // ----------------------------------
-  using StateFactory = std::function<State()>;
-  
-  // ----------------------------------
-  struct MsgImpl {
-    virtual ~MsgImpl() = default;
-  };
-
-  // ----------------------------------
-  using Msg = std::shared_ptr<MsgImpl>;
+  extern std::optional<Msg> DO_QUIT();
 
   // ----------------------------------
   struct NCursesKey : public MsgImpl {
@@ -63,17 +57,6 @@ namespace first {
 
   // ----------------------------------
   extern Msg const QUIT_MSG;
-
-  // ----------------------------------
-  extern std::optional<Msg> onKey(Event event);
-
-  // ----------------------------------
-  using Cmd = std::function<std::optional<Msg>()>;
-
-  // ----------------------------------
-  extern std::optional<Msg> Nop();
-  // ----------------------------------
-  extern std::optional<Msg> DO_QUIT();
 
   // ----------------------------------
   struct StateImpl {
