@@ -13,7 +13,7 @@ find_package(icu REQUIRED)
 find_package(immer REQUIRED)
 find_package(spdlog REQUIRED)
 
-add_executable(cratchit src/cratchit.cpp src/main.cpp)
+add_executable(cratchit src/cratchit.cpp src/main.cpp src/mod10view.cpp)
 
 target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
 target_link_libraries(cratchit PRIVATE Curses::Curses)

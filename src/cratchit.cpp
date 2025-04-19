@@ -1,3 +1,4 @@
+#include "mod10view.hpp"
 #include "cratchit.h"
 #include "runtime.hpp"
 #include <iostream>
@@ -19,18 +20,6 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
-  struct Mod10View {
-    using Range = std::pair<size_t,size_t>;
-    Range m_range;
-    size_t m_subrange_size;
-
-    Mod10View(Range const& range);
-
-    template <class T>
-    Mod10View(T const& container);
-
-    std::vector<Range> subranges();
-  }; // struct Mod10View
 
   // ----------------------------------
   struct StateImpl; // Forward
@@ -275,23 +264,6 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
-
-  Mod10View::Mod10View(Mod10View::Range const& range)
-  :  m_range{range}
-    ,m_subrange_size{static_cast<size_t>(std::pow(10,std::ceil(std::log10(range.second-range.first))-1))} {}
-
-  // ----------------------------------
-  template <class T>
-  Mod10View::Mod10View(T const& container) : Mod10View(Range(0,container.size())) {}
-
-  // ----------------------------------
-  std::vector<Mod10View::Range> Mod10View::subranges() {
-    std::vector<std::pair<size_t,size_t>> result{};
-    for (size_t i=m_range.first;i<m_range.second;i += m_subrange_size) {
-      result.push_back(std::make_pair(i,std::min(i+m_subrange_size,m_range.second)));
-    }
-    return result;
-  }
 
   // ----------------------------------
   NCursesKey::NCursesKey(int key) : key{key}, MsgImpl{} {}
