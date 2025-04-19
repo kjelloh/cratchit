@@ -86,6 +86,7 @@ namespace first {
   // ----------------------------------
   using StateFactory = std::function<State()>;
 
+  // ----------------------------------
   struct StateImpl {
   private:
   public:
@@ -100,6 +101,92 @@ namespace first {
     UX &ux();
     Options const &options() const;
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
+  };
+
+  // ----------------------------------
+  struct RBDState : public StateImpl {
+    StateFactory SIE_factory = []() {
+      auto SIE_ux = StateImpl::UX{
+        "RBD to SIE UX goes here"
+      };
+      return std::make_shared<StateImpl>(SIE_ux);
+    };
+    using RBD = std::string;
+    RBD m_rbd;
+    RBDState(RBD rbd);
+  };
+
+  // ----------------------------------
+  struct RBDsState : public StateImpl {
+    using RBDs = std::vector<std::string>;
+    RBDsState::RBDs m_all_rbds;
+    Mod10View m_mod10_view;
+
+    struct RBDs_subrange_factory {
+      // RBD subrange StateImpl factory
+      RBDsState::RBDs m_all_rbds{};
+      Mod10View m_mod10_view;
+
+      auto operator()() {return std::make_shared<RBDsState>(m_all_rbds,m_mod10_view);}
+
+      RBDs_subrange_factory(RBDsState::RBDs all_rbds, Mod10View mod10_view)
+        :  m_mod10_view{mod10_view}            
+          ,m_all_rbds{all_rbds} {} 
+    };
+
+    RBDsState(RBDs all_rbds,Mod10View mod10_view);
+    RBDsState(RBDs all_rbds);
+
+  }; // struct RBDsState
+
+  // ----------------------------------
+  struct May2AprilState : public StateImpl {
+    StateFactory RBDs_factory = []() {
+      auto  all_rbds = RBDsState::RBDs{
+         "RBD #0"
+        ,"RBD #1"
+        ,"RBD #2"
+        ,"RBD #3"
+        ,"RBD #4"
+        ,"RBD #5"
+        ,"RBD #6"
+        ,"RBD #7"
+        ,"RBD #8"
+        ,"RBD #9"
+        ,"RBD #10"
+        ,"RBD #11"
+        ,"RBD #12"
+        ,"RBD #13"
+        ,"RBD #14"
+        ,"RBD #15"
+        ,"RBD #16"
+        ,"RBD #17"
+        ,"RBD #18"
+        ,"RBD #19"
+        ,"RBD #20"
+        ,"RBD #21"
+        ,"RBD #22"
+        ,"RBD #23"
+      };        
+      return std::make_shared<RBDsState>(all_rbds);
+    };
+    May2AprilState(StateImpl::UX ux);
+  }; // struct May2AprilState
+
+  // ----------------------------------
+  struct VATReturnsState : public StateImpl {
+    VATReturnsState(StateImpl::UX ux);
+  }; // struct VATReturnsState
+
+  // ----------------------------------
+  struct Q1State : public StateImpl {
+    StateFactory VATReturns_factory = []() {
+      auto VATReturns_ux = StateImpl::UX{
+        "VAT Returns UX goes here"
+      };
+      return std::make_shared<VATReturnsState>(VATReturns_ux);
+    };
+    Q1State(StateImpl::UX ux);
   };
 
   // ----------------------------------
@@ -188,54 +275,11 @@ namespace first {
   }
 
   // ----------------------------------
-  // ----------------------------------
-  // not yet split into h-parts and cpp-parts
-  // ----------------------------------
-  // ----------------------------------
-
-  struct RBDState : public StateImpl {
-    StateFactory SIE_factory = []() {
-      auto SIE_ux = StateImpl::UX{
-        "RBD to SIE UX goes here"
-      };
-      return std::make_shared<StateImpl>(SIE_ux);
-    };
-    using RBD = std::string;
-    RBD m_rbd;
-    RBDState(RBD rbd);
-  };
-
-  // ----------------------------------
   RBDState::RBDState(RBD rbd) : m_rbd{rbd} ,StateImpl({}) {
     ux().clear();
     ux().push_back(rbd);
     this->add_option('0',{"RBD -> SIE",SIE_factory});
   }
-
-  // ----------------------------------
-  // ----------------------------------
-  struct RBDsState : public StateImpl {
-
-    using RBDs = std::vector<std::string>;
-    RBDsState::RBDs m_all_rbds;
-    Mod10View m_mod10_view;
-
-    struct RBDs_subrange_factory {
-      // RBD subrange StateImpl factory
-      RBDsState::RBDs m_all_rbds{};
-      Mod10View m_mod10_view;
-
-      auto operator()() {return std::make_shared<RBDsState>(m_all_rbds,m_mod10_view);}
-
-      RBDs_subrange_factory(RBDsState::RBDs all_rbds, Mod10View mod10_view)
-        :  m_mod10_view{mod10_view}            
-          ,m_all_rbds{all_rbds} {} 
-    };
-
-    RBDsState(RBDs all_rbds,Mod10View mod10_view);
-    RBDsState(RBDs all_rbds);
-
-  }; // struct RBDsState
 
   // ----------------------------------
   RBDsState::RBDsState(RBDs all_rbds,Mod10View mod10_view)
@@ -278,71 +322,23 @@ namespace first {
   RBDsState::RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
 
   // ----------------------------------
-  // ----------------------------------
-
-  struct May2AprilState : public StateImpl {
-    StateFactory RBDs_factory = []() {
-      auto  all_rbds = RBDsState::RBDs{
-         "RBD #0"
-        ,"RBD #1"
-        ,"RBD #2"
-        ,"RBD #3"
-        ,"RBD #4"
-        ,"RBD #5"
-        ,"RBD #6"
-        ,"RBD #7"
-        ,"RBD #8"
-        ,"RBD #9"
-        ,"RBD #10"
-        ,"RBD #11"
-        ,"RBD #12"
-        ,"RBD #13"
-        ,"RBD #14"
-        ,"RBD #15"
-        ,"RBD #16"
-        ,"RBD #17"
-        ,"RBD #18"
-        ,"RBD #19"
-        ,"RBD #20"
-        ,"RBD #21"
-        ,"RBD #22"
-        ,"RBD #23"
-      };        
-      return std::make_shared<RBDsState>(all_rbds);
-    };
-    May2AprilState(StateImpl::UX ux);
-  };
-
-  // ----------------------------------
   May2AprilState::May2AprilState(StateImpl::UX ux) : StateImpl{ux} {
     this->add_option('0',{"RBD:s",RBDs_factory});
   }
 
   // ----------------------------------
-  // ----------------------------------
-
-  struct VATReturnsState : public StateImpl {
-    VATReturnsState(StateImpl::UX ux);
-  };
-
   VATReturnsState::VATReturnsState(StateImpl::UX ux) : StateImpl{ux} {}
-
-  // ----------------------------------
-  // ----------------------------------
-  struct Q1State : public StateImpl {
-    StateFactory VATReturns_factory = []() {
-      auto VATReturns_ux = StateImpl::UX{
-        "VAT Returns UX goes here"
-      };
-      return std::make_shared<VATReturnsState>(VATReturns_ux);
-    };
-    Q1State(StateImpl::UX ux);
-  };
 
   // ----------------------------------
   Q1State::Q1State(StateImpl::UX ux) : StateImpl{ux} {
     this->add_option('0',{"VAT Returns",VATReturns_factory});
   }
+
+  // ----------------------------------
+  // ----------------------------------
+  // not yet split into h-parts and cpp-parts
+  // ----------------------------------
+  // ----------------------------------
 
   // ----------------------------------
   // ----------------------------------
