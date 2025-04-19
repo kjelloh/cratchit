@@ -190,6 +190,60 @@ namespace first {
   };
 
   // ----------------------------------
+  struct ProjectState : public StateImpl {
+    StateFactory may2april_factory = []() {
+      auto may2april_ux = StateImpl::UX{
+        "May to April"
+      };
+      return std::make_shared<May2AprilState>(may2april_ux);
+    };
+
+    StateFactory q1_factory = []() {
+      auto q1_ux = StateImpl::UX{
+        "Q1 UX goes here"
+      };
+      return std::make_shared<Q1State>(q1_ux);
+    };
+
+    ProjectState(StateImpl::UX ux);
+  };
+
+  // ----------------------------------
+  struct WorkspaceState : public StateImpl {
+    StateFactory itfied_factory = []() {
+      auto itfied_ux = StateImpl::UX{
+        "ITfied UX"
+      };
+      return std::make_shared<ProjectState>(itfied_ux);
+    };
+
+    StateFactory orx_x_factory = []() {
+      auto org_x_ux = StateImpl::UX{
+        "Other Organisation UX"
+      };
+      return std::make_shared<ProjectState>(org_x_ux);
+    };
+
+    WorkspaceState(StateImpl::UX ux);
+    ~WorkspaceState();
+  }; // Workspace StateImpl
+
+  // ----------------------------------
+  struct FrameworkState : public StateImpl {
+    StateFactory workspace_0_factory = []() {
+      auto workspace_0_ux = StateImpl::UX{
+        "Workspace UX"
+      };
+      return std::make_shared<WorkspaceState>(workspace_0_ux);
+    };
+
+    FrameworkState(StateImpl::UX ux);
+    ~FrameworkState();
+    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg);
+  }; // struct FrameworkState
+
+
+  // ----------------------------------
   // ----------------------------------
   // cpp-file parts
   // ----------------------------------
@@ -335,57 +389,10 @@ namespace first {
   }
 
   // ----------------------------------
-  // ----------------------------------
-  // not yet split into h-parts and cpp-parts
-  // ----------------------------------
-  // ----------------------------------
-
-  // ----------------------------------
-  // ----------------------------------
-  struct ProjectState : public StateImpl {
-    StateFactory may2april_factory = []() {
-      auto may2april_ux = StateImpl::UX{
-        "May to April"
-      };
-      return std::make_shared<May2AprilState>(may2april_ux);
-    };
-
-    StateFactory q1_factory = []() {
-      auto q1_ux = StateImpl::UX{
-        "Q1 UX goes here"
-      };
-      return std::make_shared<Q1State>(q1_ux);
-    };
-
-    ProjectState(StateImpl::UX ux);
-  };
-
-  // ----------------------------------
   ProjectState::ProjectState(StateImpl::UX ux) : StateImpl{ux} {
     this->add_option('0',{"May to April",may2april_factory});
     this->add_option('1',{"Q1",q1_factory});
   }
-
-  // ----------------------------------
-  // ----------------------------------
-  struct WorkspaceState : public StateImpl {
-    StateFactory itfied_factory = []() {
-      auto itfied_ux = StateImpl::UX{
-        "ITfied UX"
-      };
-      return std::make_shared<ProjectState>(itfied_ux);
-    };
-
-    StateFactory orx_x_factory = []() {
-      auto org_x_ux = StateImpl::UX{
-        "Other Organisation UX"
-      };
-      return std::make_shared<ProjectState>(org_x_ux);
-    };
-
-    WorkspaceState(StateImpl::UX ux);
-    ~WorkspaceState();
-  }; // Workspace StateImpl
 
   // ----------------------------------
   WorkspaceState::WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
@@ -397,22 +404,6 @@ namespace first {
   WorkspaceState::~WorkspaceState() {
     spdlog::info("WorkspaceState destructor executed");
   }
-
-  // ----------------------------------
-  // ----------------------------------
-
-  struct FrameworkState : public StateImpl {
-    StateFactory workspace_0_factory = []() {
-      auto workspace_0_ux = StateImpl::UX{
-        "Workspace UX"
-      };
-      return std::make_shared<WorkspaceState>(workspace_0_ux);
-    };
-
-    FrameworkState(StateImpl::UX ux);
-    ~FrameworkState();
-    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg);
-  }; // struct FrameworkState
 
   // ----------------------------------
   FrameworkState::FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
@@ -440,7 +431,15 @@ namespace first {
 
   // ----------------------------------
   // ----------------------------------
+  // not yet split into h-parts and cpp-parts
+  // ----------------------------------
+  // ----------------------------------
 
+
+
+  // ----------------------------------
+  // ----------------------------------
+  
   auto framework_state_factory = []() {
     auto framework_ux = StateImpl::UX{
       "Framework UX"
