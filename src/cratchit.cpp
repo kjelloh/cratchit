@@ -13,44 +13,50 @@
 
 namespace first {
 
+  // ----------------------------------
+  // ----------------------------------
+  
   // Splits a size_t range into mod10 sub-ranges
   struct Mod10View {
     using Range = std::pair<size_t,size_t>;
     Range m_range;
     size_t m_subrange_size;
 
-    Mod10View(Range range)
-      :  m_range{range}
-        ,m_subrange_size{static_cast<size_t>(std::pow(10,std::ceil(std::log10(range.second-range.first))-1))} {}
+    Mod10View(Range const& range);
 
     template <class T>
-    Mod10View(T const& container) : Mod10View(Range(0,container.size())) {}
+    Mod10View(T const& container);
 
-    // return vector of [begin,end[
-    std::vector<Range> subranges() {
-      std::vector<std::pair<size_t,size_t>> result{};
-      for (size_t i=m_range.first;i<m_range.second;i += m_subrange_size) {
-        result.push_back(std::make_pair(i,std::min(i+m_subrange_size,m_range.second)));
-      }
-      return result;
-    }
-  };
+    std::vector<Range> subranges();
+  }; // struct Mod10View
 
   // ----------------------------------
-  // Begin: Forward State
+  Mod10View::Mod10View(Mod10View::Range const& range)
+  :  m_range{range}
+    ,m_subrange_size{static_cast<size_t>(std::pow(10,std::ceil(std::log10(range.second-range.first))-1))} {}
+
+  // ----------------------------------
+  template <class T>
+  Mod10View::Mod10View(T const& container) : Mod10View(Range(0,container.size())) {}
+
+  // ----------------------------------
+  std::vector<Mod10View::Range> Mod10View::subranges() {
+    std::vector<std::pair<size_t,size_t>> result{};
+    for (size_t i=m_range.first;i<m_range.second;i += m_subrange_size) {
+      result.push_back(std::make_pair(i,std::min(i+m_subrange_size,m_range.second)));
+    }
+    return result;
+  }
+
+  // ----------------------------------
   // ----------------------------------
 
   struct StateImpl; // Forward
   using State = std::shared_ptr<StateImpl>;
 
   // ----------------------------------
-  // End: Forward State
   // ----------------------------------
-
-  // ----------------------------------
-  // Begin: Message
-  // ----------------------------------
-
+  
   struct MsgImpl {
     virtual ~MsgImpl() = default;
   };
@@ -85,6 +91,7 @@ namespace first {
     ,m_state{state} {}
 
   // ----------------------------------
+  // ----------------------------------
 
   struct PoppedStateCargoMsg : public MsgImpl {
     State m_top{};
@@ -97,11 +104,6 @@ namespace first {
   Msg const QUIT_MSG{std::make_shared<Quit>()};
 
   // ----------------------------------
-  // END: Message
-  // ----------------------------------
-
-  // ----------------------------------
-  // Begin: Subscription
   // ----------------------------------
 
   std::optional<Msg> onKey(Event event) {
@@ -112,11 +114,6 @@ namespace first {
   }
 
   // ----------------------------------
-  // End: Subscription
-  // ----------------------------------
-
-  // ----------------------------------
-  // Begin: Command
   // ----------------------------------
 
   using Cmd = std::function<std::optional<Msg>()>;
@@ -130,13 +127,11 @@ namespace first {
   };
 
   // ----------------------------------
-  // End: Command
   // ----------------------------------
 
   using StateFactory = std::function<State()>;
 
   // ----------------------------------
-  // Begin: Model
   // ----------------------------------
 
   struct StateImpl {
