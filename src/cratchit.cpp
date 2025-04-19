@@ -39,6 +39,9 @@ namespace first {
   using State = std::shared_ptr<StateImpl>;
 
   // ----------------------------------
+  using StateFactory = std::function<State()>;
+  
+  // ----------------------------------
   struct MsgImpl {
     virtual ~MsgImpl() = default;
   };
@@ -82,9 +85,6 @@ namespace first {
   extern std::optional<Msg> Nop();
   // ----------------------------------
   extern std::optional<Msg> DO_QUIT();
-
-  // ----------------------------------
-  using StateFactory = std::function<State()>;
 
   // ----------------------------------
   struct StateImpl {
