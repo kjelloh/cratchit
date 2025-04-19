@@ -57,20 +57,34 @@ namespace first {
 
   using Msg = std::shared_ptr<MsgImpl>;
 
+  // ----------------------------------
+  // ----------------------------------
+
   struct NCursesKey : public MsgImpl {
     int key;
-    NCursesKey(int key) : key{key}, MsgImpl{} {}
+    NCursesKey(int key);
   };
 
+  NCursesKey::NCursesKey(int key) : key{key}, MsgImpl{} {}
+
+  // ----------------------------------
+  // ----------------------------------
+
   struct Quit : public MsgImpl {};
+
+  // ----------------------------------
 
   struct PushStateMsg : public MsgImpl {
     State m_parent{};
     State m_state{};
-    PushStateMsg(State const& parent,State const& state)
-      :  m_parent{parent}
-        ,m_state{state} {}
+    PushStateMsg(State const& parent,State const& state);
   };
+
+  PushStateMsg::PushStateMsg(State const& parent,State const& state)
+  :  m_parent{parent}
+    ,m_state{state} {}
+
+  // ----------------------------------
 
   struct PoppedStateCargoMsg : public MsgImpl {
     State m_top{};
@@ -129,21 +143,49 @@ namespace first {
   private:
   public:
     using UX = std::vector<std::string>;
-    using Options = std::map<char,std::pair<std::string,StateFactory>>;
+    using Option = std::pair<std::string,StateFactory>;
+    using Options = std::map<char,Option>;
     UX m_ux;
     Options m_options;
-    StateImpl(UX const& ux) : m_ux{ux},m_options{} {}
-    void add_option(char ch,std::pair<std::string,StateFactory> option) {
-      m_options[ch] = option;
-    }
-    UX const& ux() const {return m_ux;}
-    UX& ux() {return m_ux;}
-    Options const& options() const {return m_options;}
-    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg) {
-      return {std::nullopt,Nop}; // Default - no StateImpl mutation
-    }
+    StateImpl(UX const& ux);
+    void add_option(char ch,Option const& option);
+    UX const& ux() const;
+    UX& ux();
+    Options const& options() const;
+    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg);
   };
-   
+
+  // ----------------------------------
+  StateImpl::StateImpl(UX const& ux) : m_ux{ux},m_options{} {}
+
+  // ----------------------------------
+  void StateImpl::add_option(char ch,StateImpl::Option const& option) {
+    m_options[ch] = option;
+  }
+
+  // ----------------------------------
+  StateImpl::UX const& StateImpl::ux() const {
+    return m_ux;
+  }
+
+  // ----------------------------------
+  StateImpl::UX& StateImpl::ux() {
+    return m_ux;
+  }
+
+  // ----------------------------------
+  StateImpl::Options const& StateImpl::options() const {
+    return m_options;
+  }
+
+  // ----------------------------------
+  std::pair<std::optional<State>,Cmd> StateImpl::update(Msg const& msg) {
+    return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  }
+
+  // ----------------------------------
+  // ----------------------------------
+
   struct RBDState : public StateImpl {
     StateFactory SIE_factory = []() {
       auto SIE_ux = StateImpl::UX{
@@ -153,13 +195,18 @@ namespace first {
     };
     using RBD = std::string;
     RBD m_rbd;
-    RBDState(RBD rbd) : m_rbd{rbd} ,StateImpl({}) {
-      ux().clear();
-      ux().push_back(rbd);
-      this->add_option('0',{"RBD -> SIE",SIE_factory});
-    }
+    RBDState(RBD rbd);
   };
 
+  // ----------------------------------
+  RBDState::RBDState(RBD rbd) : m_rbd{rbd} ,StateImpl({}) {
+    ux().clear();
+    ux().push_back(rbd);
+    this->add_option('0',{"RBD -> SIE",SIE_factory});
+  }
+
+  // ----------------------------------
+  // ----------------------------------
   struct RBDsState : public StateImpl {
 
     using RBDs = std::vector<std::string>;
@@ -178,44 +225,53 @@ namespace first {
           ,m_all_rbds{all_rbds} {} 
     };
 
-    RBDsState(RBDs all_rbds,Mod10View mod10_view)
-      :  m_mod10_view{mod10_view}
-        ,m_all_rbds{all_rbds}
-        ,StateImpl({}) {
+    RBDsState(RBDs all_rbds,Mod10View mod10_view);
+    RBDsState(RBDs all_rbds);
 
-      auto subranges = m_mod10_view.subranges();
-      for (size_t i=0;i<subranges.size();++i) {
-        auto const subrange = subranges[i];
-        auto const& [begin,end] = subrange;
-        auto caption = std::to_string(begin);
-        if (end-begin==1) {
-          // Single RBD in range option
-          this->add_option(static_cast<char>('0'+i),{caption,[rbd=m_all_rbds[begin]](){
-            // Single RBT factory
-            auto RBD_ux = StateImpl::UX{
-              "RBD UX goes here"
-            };
-            return std::make_shared<RBDState>(rbd);
-          }});
-        }
-        else {
-          caption += " .. ";
-          caption += std::to_string(end-1);
-          this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(m_all_rbds,subrange)});
-        }
+  }; // struct RBDsState
+
+  // ----------------------------------
+  RBDsState::RBDsState(RBDs all_rbds,Mod10View mod10_view)
+    :  m_mod10_view{mod10_view}
+      ,m_all_rbds{all_rbds}
+      ,StateImpl({}) {
+
+    auto subranges = m_mod10_view.subranges();
+    for (size_t i=0;i<subranges.size();++i) {
+      auto const subrange = subranges[i];
+      auto const& [begin,end] = subrange;
+      auto caption = std::to_string(begin);
+      if (end-begin==1) {
+        // Single RBD in range option
+        this->add_option(static_cast<char>('0'+i),{caption,[rbd=m_all_rbds[begin]](){
+          // Single RBT factory
+          auto RBD_ux = StateImpl::UX{
+            "RBD UX goes here"
+          };
+          return std::make_shared<RBDState>(rbd);
+        }});
       }
-
-      // Initiate view UX
-      for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
-        auto entry = std::to_string(i);
-        entry += ". ";
-        entry += m_all_rbds[i];
-        this->ux().push_back(entry);
+      else {
+        caption += " .. ";
+        caption += std::to_string(end-1);
+        this->add_option(static_cast<char>('0'+i),{caption,RBDs_subrange_factory(m_all_rbds,subrange)});
       }
     }
-    RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
 
-  };
+    // Initiate view UX
+    for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
+      auto entry = std::to_string(i);
+      entry += ". ";
+      entry += m_all_rbds[i];
+      this->ux().push_back(entry);
+    }
+  }
+
+  // ----------------------------------
+  RBDsState::RBDsState(RBDs all_rbds) : RBDsState(all_rbds,Mod10View(all_rbds)) {}
+
+  // ----------------------------------
+  // ----------------------------------
 
   struct May2AprilState : public StateImpl {
     StateFactory RBDs_factory = []() {
@@ -247,15 +303,25 @@ namespace first {
       };        
       return std::make_shared<RBDsState>(all_rbds);
     };
-    May2AprilState(StateImpl::UX ux) : StateImpl{ux} {
-      this->add_option('0',{"RBD:s",RBDs_factory});
-    }
+    May2AprilState(StateImpl::UX ux);
   };
+
+  // ----------------------------------
+  May2AprilState::May2AprilState(StateImpl::UX ux) : StateImpl{ux} {
+    this->add_option('0',{"RBD:s",RBDs_factory});
+  }
+
+  // ----------------------------------
+  // ----------------------------------
 
   struct VATReturnsState : public StateImpl {
-    VATReturnsState(StateImpl::UX ux) : StateImpl{ux} {}
+    VATReturnsState(StateImpl::UX ux);
   };
 
+  VATReturnsState::VATReturnsState(StateImpl::UX ux) : StateImpl{ux} {}
+
+  // ----------------------------------
+  // ----------------------------------
   struct Q1State : public StateImpl {
     StateFactory VATReturns_factory = []() {
       auto VATReturns_ux = StateImpl::UX{
@@ -263,11 +329,16 @@ namespace first {
       };
       return std::make_shared<VATReturnsState>(VATReturns_ux);
     };
-    Q1State(StateImpl::UX ux) : StateImpl{ux} {
-      this->add_option('0',{"VAT Returns",VATReturns_factory});
-    }
+    Q1State(StateImpl::UX ux);
   };
 
+  // ----------------------------------
+  Q1State::Q1State(StateImpl::UX ux) : StateImpl{ux} {
+    this->add_option('0',{"VAT Returns",VATReturns_factory});
+  }
+
+  // ----------------------------------
+  // ----------------------------------
   struct ProjectState : public StateImpl {
     StateFactory may2april_factory = []() {
       auto may2april_ux = StateImpl::UX{
@@ -283,12 +354,17 @@ namespace first {
       return std::make_shared<Q1State>(q1_ux);
     };
 
-    ProjectState(StateImpl::UX ux) : StateImpl{ux} {
-      this->add_option('0',{"May to April",may2april_factory});
-      this->add_option('1',{"Q1",q1_factory});
-    }
+    ProjectState(StateImpl::UX ux);
   };
 
+  // ----------------------------------
+  ProjectState::ProjectState(StateImpl::UX ux) : StateImpl{ux} {
+    this->add_option('0',{"May to April",may2april_factory});
+    this->add_option('1',{"Q1",q1_factory});
+  }
+
+  // ----------------------------------
+  // ----------------------------------
   struct WorkspaceState : public StateImpl {
     StateFactory itfied_factory = []() {
       auto itfied_ux = StateImpl::UX{
@@ -304,16 +380,23 @@ namespace first {
       return std::make_shared<ProjectState>(org_x_ux);
     };
 
-    WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
-      this->add_option('0',{"ITfied AB",itfied_factory});        
-      this->add_option('1',{"Org x",orx_x_factory});        
-    }
-
-    ~WorkspaceState() {
-      spdlog::info("WorkspaceState destructor executed");
-    }
-
+    WorkspaceState(StateImpl::UX ux);
+    ~WorkspaceState();
   }; // Workspace StateImpl
+
+  // ----------------------------------
+  WorkspaceState::WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
+    this->add_option('0',{"ITfied AB",itfied_factory});        
+    this->add_option('1',{"Org x",orx_x_factory});        
+  }
+
+  // ----------------------------------
+  WorkspaceState::~WorkspaceState() {
+    spdlog::info("WorkspaceState destructor executed");
+  }
+
+  // ----------------------------------
+  // ----------------------------------
 
   struct FrameworkState : public StateImpl {
     StateFactory workspace_0_factory = []() {
@@ -323,28 +406,37 @@ namespace first {
       return std::make_shared<WorkspaceState>(workspace_0_ux);
     };
 
-    FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
-      this->add_option('0',{"Workspace x",workspace_0_factory});        
-    }
+    FrameworkState(StateImpl::UX ux);
+    ~FrameworkState();
+    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg);
+  }; // struct FrameworkState
 
-    ~FrameworkState() {
-      spdlog::info("FrameworkState destructor executed");
-    }
+  // ----------------------------------
+  FrameworkState::FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
+    this->add_option('0',{"Workspace x",workspace_0_factory});        
+  }
 
-    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg) {
-      std::optional<State> new_state{};
-      auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
-      if (key_msg_ptr != nullptr) {
-        auto ch = key_msg_ptr->key;
-        if (ch == '+') {
-          this->m_ux.back().push_back('+');
-          new_state = std::make_shared<FrameworkState>(*this);          
-        }
+  // ----------------------------------
+  FrameworkState::~FrameworkState() {
+    spdlog::info("FrameworkState destructor executed");
+  }
+
+  // ----------------------------------
+  std::pair<std::optional<State>,Cmd> FrameworkState::update(Msg const& msg) {
+    std::optional<State> new_state{};
+    auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
+    if (key_msg_ptr != nullptr) {
+      auto ch = key_msg_ptr->key;
+      if (ch == '+') {
+        this->m_ux.back().push_back('+');
+        new_state = std::make_shared<FrameworkState>(*this);          
       }
-      return {new_state,Nop};
     }
+    return {new_state,Nop};
+  }
 
-  };
+  // ----------------------------------
+  // ----------------------------------
 
   auto framework_state_factory = []() {
     auto framework_ux = StateImpl::UX{
@@ -352,6 +444,9 @@ namespace first {
     };
     return std::make_shared<FrameworkState>(framework_ux);
   };
+
+  // ----------------------------------
+  // ----------------------------------
 
   struct Model {
     std::string top_content;
