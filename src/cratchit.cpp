@@ -242,6 +242,33 @@ namespace first {
     virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg);
   }; // struct FrameworkState
 
+  // ----------------------------------
+  auto framework_state_factory = []() {
+    auto framework_ux = StateImpl::UX{
+      "Framework UX"
+    };
+    return std::make_shared<FrameworkState>(framework_ux);
+  };
+
+  // ----------------------------------
+  struct Model {
+    std::string top_content;
+    std::string main_content;
+    std::string user_input;
+    /*
+    The stack contains the 'path of states' the user has navigated to.
+    */
+    std::stack<State> stack{};
+  };
+
+  // ----------------------------------
+  extern bool is_quit_msg(Msg const& msg);
+
+  // ----------------------------------
+  extern std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init();
+  extern std::pair<Model,Cmd> update(Model model, Msg msg);
+  extern Html_Msg<Msg> view(const Model &model);
+
 
   // ----------------------------------
   // ----------------------------------
@@ -430,50 +457,12 @@ namespace first {
   }
 
   // ----------------------------------
-  // ----------------------------------
-  // not yet split into h-parts and cpp-parts
-  // ----------------------------------
-  // ----------------------------------
-
-
-
-  // ----------------------------------
-  // ----------------------------------
-  
-  auto framework_state_factory = []() {
-    auto framework_ux = StateImpl::UX{
-      "Framework UX"
-    };
-    return std::make_shared<FrameworkState>(framework_ux);
-  };
-
-  // ----------------------------------
-  // ----------------------------------
-
-  struct Model {
-    std::string top_content;
-    std::string main_content;
-    std::string user_input;
-    /*
-    The stack contains the 'path of states' the user has navigated to.
-    */
-    std::stack<State> stack{};
-  };
-
-  // ----------------------------------
-  // Begin: Model
-  // ----------------------------------
-
   bool is_quit_msg(Msg const& msg) {
     // std::cout << "\nis_quit_msg sais Hello" << std::flush;
     return msg == QUIT_MSG;
   }
 
   // ----------------------------------
-  // Begin: init,update,view
-  // ----------------------------------
-
-  // init
   std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
     Model model = { "Welcome to the top section"
@@ -488,8 +477,8 @@ namespace first {
     return {model,is_quit_msg,new_framework_state_cmd};
   }
 
+  // ----------------------------------
   std::pair<Model,Cmd> update(Model model, Msg msg) {
-
     Cmd cmd = Nop;
     std::optional<State> new_state{};
     if (model.stack.size()>0) {
@@ -600,6 +589,7 @@ namespace first {
     return {model,cmd}; // Return updated model
   }
 
+  // ----------------------------------
   Html_Msg<Msg> view(const Model &model) {
     // std::cout << "\nview sais Hello :)" << std::flush;
 
@@ -644,7 +634,6 @@ namespace first {
   }
 
   // ----------------------------------
-  // End: init,update,view
   // ----------------------------------
 
   int main(int argc, char *argv[]) {
