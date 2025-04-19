@@ -84,6 +84,25 @@ namespace first {
   extern std::optional<Msg> DO_QUIT();
 
   // ----------------------------------
+  using StateFactory = std::function<State()>;
+
+  struct StateImpl {
+  private:
+  public:
+    using UX = std::vector<std::string>;
+    using Option = std::pair<std::string, StateFactory>;
+    using Options = std::map<char, Option>;
+    UX m_ux;
+    Options m_options;
+    StateImpl(UX const &ux);
+    void add_option(char ch, Option const &option);
+    UX const &ux() const;
+    UX &ux();
+    Options const &options() const;
+    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
+  };
+
+  // ----------------------------------
   // ----------------------------------
   // cpp-file parts
   // ----------------------------------
@@ -141,36 +160,6 @@ namespace first {
   };
 
   // ----------------------------------
-  // ----------------------------------
-  // not yet split into h-parts and cpp-parts
-  // ----------------------------------
-  // ----------------------------------
-
-  // ----------------------------------
-  // ----------------------------------
-
-  using StateFactory = std::function<State()>;
-
-  // ----------------------------------
-  // ----------------------------------
-
-  struct StateImpl {
-  private:
-  public:
-    using UX = std::vector<std::string>;
-    using Option = std::pair<std::string,StateFactory>;
-    using Options = std::map<char,Option>;
-    UX m_ux;
-    Options m_options;
-    StateImpl(UX const& ux);
-    void add_option(char ch,Option const& option);
-    UX const& ux() const;
-    UX& ux();
-    Options const& options() const;
-    virtual std::pair<std::optional<State>,Cmd> update(Msg const& msg);
-  };
-
-  // ----------------------------------
   StateImpl::StateImpl(UX const& ux) : m_ux{ux},m_options{} {}
 
   // ----------------------------------
@@ -198,6 +187,9 @@ namespace first {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
 
+  // ----------------------------------
+  // ----------------------------------
+  // not yet split into h-parts and cpp-parts
   // ----------------------------------
   // ----------------------------------
 
