@@ -63,6 +63,27 @@ namespace first {
   };
 
   // ----------------------------------
+  struct PoppedStateCargoMsg : public MsgImpl {
+    State m_top{};
+    std::string m_cargo{};
+    PoppedStateCargoMsg(State const& top,std::string cargo);
+  };
+
+  // ----------------------------------
+  extern Msg const QUIT_MSG;
+
+  // ----------------------------------
+  extern std::optional<Msg> onKey(Event event);
+
+  // ----------------------------------
+  using Cmd = std::function<std::optional<Msg>()>;
+
+  // ----------------------------------
+  extern std::optional<Msg> Nop();
+  // ----------------------------------
+  extern std::optional<Msg> DO_QUIT();
+
+  // ----------------------------------
   // ----------------------------------
   // cpp-file parts
   // ----------------------------------
@@ -93,30 +114,15 @@ namespace first {
   :  m_parent{parent}
     ,m_state{state} {}
 
+  // ----------------------------------
+  PoppedStateCargoMsg::PoppedStateCargoMsg(State const& top,std::string cargo)
+  :  m_top{top}
+    ,m_cargo{cargo} {}
 
   // ----------------------------------
-  // ----------------------------------
-  // not yet split into h-parts and cpp-parts
-  // ----------------------------------
-  // ----------------------------------
-
-
-  // ----------------------------------
-  // ----------------------------------
-
-  struct PoppedStateCargoMsg : public MsgImpl {
-    State m_top{};
-    std::string m_cargo{};
-    PoppedStateCargoMsg(State const& top,std::string cargo)
-      :  m_top{top}
-        ,m_cargo{cargo} {}
-  };
-
   Msg const QUIT_MSG{std::make_shared<Quit>()};
 
   // ----------------------------------
-  // ----------------------------------
-
   std::optional<Msg> onKey(Event event) {
     if (event.contains("Key")) {
       return Msg{std::make_shared<NCursesKey>(std::stoi(event["Key"]))};
@@ -125,17 +131,20 @@ namespace first {
   }
 
   // ----------------------------------
-  // ----------------------------------
-
-  using Cmd = std::function<std::optional<Msg>()>;
-
   std::optional<Msg> Nop() {
     return std::nullopt;
   };
 
+  // ----------------------------------
   std::optional<Msg> DO_QUIT() {
     return QUIT_MSG;
   };
+
+  // ----------------------------------
+  // ----------------------------------
+  // not yet split into h-parts and cpp-parts
+  // ----------------------------------
+  // ----------------------------------
 
   // ----------------------------------
   // ----------------------------------
