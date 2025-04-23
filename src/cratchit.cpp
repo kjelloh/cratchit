@@ -22,12 +22,6 @@ namespace first {
   // ----------------------------------
 
   // ----------------------------------
-  extern std::optional<Msg> onKey(Event event);
-
-  // ----------------------------------
-  using Cmd = std::function<std::optional<Msg>()>;
-
-  // ----------------------------------
   extern std::optional<Msg> Nop();
   // ----------------------------------
   extern std::optional<Msg> DO_QUIT();
@@ -57,6 +51,14 @@ namespace first {
 
   // ----------------------------------
   extern Msg const QUIT_MSG;
+
+  // Subscription: Event -> std::optional<Msg>
+  // ----------------------------------
+  extern std::optional<Msg> onKey(Event event);
+
+  // Cmd: () -> std::optional<Msg>
+  // ----------------------------------
+  using Cmd = std::function<std::optional<Msg>()>;
 
   // ----------------------------------
   struct StateImpl {
@@ -272,6 +274,7 @@ namespace first {
     return std::nullopt;
   }
 
+  // Commands
   // ----------------------------------
   std::optional<Msg> Nop() {
     return std::nullopt;
@@ -282,6 +285,8 @@ namespace first {
     return QUIT_MSG;
   };
 
+
+  // State
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) : m_ux{ux},m_options{} {}
 
