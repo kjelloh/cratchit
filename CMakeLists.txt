@@ -19,7 +19,8 @@ add_executable(cratchit
         src/mod10view.cpp
         src/msg.cpp
         src/cmd.cpp
-        src/sub.cpp)
+        src/sub.cpp
+        src/states/StateImpl.cpp)
 
 target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
 target_link_libraries(cratchit PRIVATE Curses::Curses)
