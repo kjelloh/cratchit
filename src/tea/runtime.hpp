@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tea/event.hpp" // Event
+#include "event.hpp" // Event
 #include <functional>
 #include <memory>
 #include <pugixml.hpp>
