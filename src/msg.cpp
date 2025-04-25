@@ -1,0 +1,18 @@
+#include "msg.hpp"
+
+namespace first {
+  // ----------------------------------
+  NCursesKey::NCursesKey(int key) : key{key}, MsgImpl{} {}
+
+  // ----------------------------------
+  PushStateMsg::PushStateMsg(State const &parent, State const &state)
+      : m_parent{parent}, m_state{state} {}
+
+  // ----------------------------------
+  PoppedStateCargoMsg::PoppedStateCargoMsg(State const &top, std::string cargo)
+      : m_top{top}, m_cargo{cargo} {}
+
+  // ----------------------------------
+  Msg const QUIT_MSG{std::make_shared<Quit>()};
+
+} // namespace first

@@ -1,6 +1,7 @@
+#include "cratchit.h"
 #include "mod10view.hpp"
 #include "cross_dependent.hpp"
-#include "cratchit.h"
+#include "cmd.hpp"
 #include "runtime.hpp"
 #include <iostream>
 #include <map>
@@ -21,36 +22,7 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
-  // ----------------------------------
-  extern std::optional<Msg> Nop();
-  // ----------------------------------
-  extern std::optional<Msg> DO_QUIT();
 
-  // ----------------------------------
-  struct NCursesKey : public MsgImpl {
-    int key;
-    NCursesKey(int key);
-  };
-
-  // ----------------------------------
-  struct Quit : public MsgImpl {};
-
-  // ----------------------------------
-  struct PushStateMsg : public MsgImpl {
-    State m_parent{};
-    State m_state{};
-    PushStateMsg(State const& parent,State const& state);
-  };
-
-  // ----------------------------------
-  struct PoppedStateCargoMsg : public MsgImpl {
-    State m_top{};
-    std::string m_cargo{};
-    PoppedStateCargoMsg(State const& top,std::string cargo);
-  };
-
-  // ----------------------------------
-  extern Msg const QUIT_MSG;
 
   // Subscription: Event -> std::optional<Msg>
   // ----------------------------------
@@ -250,21 +222,6 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
-  // ----------------------------------
-  NCursesKey::NCursesKey(int key) : key{key}, MsgImpl{} {}
-
-  // ----------------------------------
-  PushStateMsg::PushStateMsg(State const& parent,State const& state)
-  :  m_parent{parent}
-    ,m_state{state} {}
-
-  // ----------------------------------
-  PoppedStateCargoMsg::PoppedStateCargoMsg(State const& top,std::string cargo)
-  :  m_top{top}
-    ,m_cargo{cargo} {}
-
-  // ----------------------------------
-  Msg const QUIT_MSG{std::make_shared<Quit>()};
 
   // ----------------------------------
   std::optional<Msg> onKey(Event event) {
@@ -273,18 +230,6 @@ namespace first {
     }
     return std::nullopt;
   }
-
-  // Commands
-  // ----------------------------------
-  std::optional<Msg> Nop() {
-    return std::nullopt;
-  };
-
-  // ----------------------------------
-  std::optional<Msg> DO_QUIT() {
-    return QUIT_MSG;
-  };
-
 
   // State
   // ----------------------------------
