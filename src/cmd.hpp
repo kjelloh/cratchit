@@ -4,6 +4,11 @@
 #include "msg.hpp" // Msg
 
 namespace first {
+
+  // Cmd: () -> std::optional<Msg>
+  // ----------------------------------
+  using Cmd = std::function<std::optional<Msg>()>;
+
   // Cmd: () -> std::optional<Msg>
   // ----------------------------------
   extern std::optional<Msg> Nop();
