@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tea/event.hpp" // Event
 #include <functional>
 #include <memory>
 #include <pugixml.hpp>
@@ -109,9 +110,6 @@ public:
     endwin(); // End ncurses mode
   }
 };
-
-// Event is a key-value-pair
-using Event = std::map<std::string,std::string>;
 
 template <typename Msg>
 struct Html_Msg {

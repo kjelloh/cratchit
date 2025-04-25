@@ -2,6 +2,7 @@
 #include "mod10view.hpp"
 #include "cross_dependent.hpp"
 #include "cmd.hpp"
+#include "sub.hpp"
 #include "runtime.hpp"
 #include <iostream>
 #include <map>
@@ -21,16 +22,6 @@ namespace first {
   // h-file parts
   // ----------------------------------
   // ----------------------------------
-
-
-
-  // Subscription: Event -> std::optional<Msg>
-  // ----------------------------------
-  extern std::optional<Msg> onKey(Event event);
-
-  // Cmd: () -> std::optional<Msg>
-  // ----------------------------------
-  using Cmd = std::function<std::optional<Msg>()>;
 
   // ----------------------------------
   struct StateImpl {
@@ -221,15 +212,6 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
-
-
-  // ----------------------------------
-  std::optional<Msg> onKey(Event event) {
-    if (event.contains("Key")) {
-      return Msg{std::make_shared<NCursesKey>(std::stoi(event["Key"]))};
-    }
-    return std::nullopt;
-  }
 
   // State
   // ----------------------------------
