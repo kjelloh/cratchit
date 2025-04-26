@@ -24,16 +24,6 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
-  // ----------------------------------
-  struct RBDState : public StateImpl {
-    StateFactory SIE_factory = []() {
-      auto SIE_ux = StateImpl::UX{"RBD to SIE UX goes here"};
-      return std::make_shared<StateImpl>(SIE_ux);
-    };
-    using RBD = std::string;
-    RBD m_rbd;
-    RBDState(RBD rbd);
-  };
 
   // ----------------------------------
   struct RBDsState : public StateImpl {
@@ -160,13 +150,6 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
-
-  // ----------------------------------
-  RBDState::RBDState(RBD rbd) : m_rbd{rbd} ,StateImpl({}) {
-    ux().clear();
-    ux().push_back(rbd);
-    this->add_option('0',{"RBD -> SIE",SIE_factory});
-  }
 
   // ----------------------------------
   RBDsState::RBDsState(RBDs all_rbds,Mod10View mod10_view)
