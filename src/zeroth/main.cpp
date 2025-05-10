@@ -6028,8 +6028,8 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	}
   else if (tme.defacto.account_transactions.size() == 2 and std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[](auto const& tat){
       auto const& [at,props] = tat;
-      return (at.account_no == 1630 or at.account_no == 2650); // SKV account updated with VAT, i.e., cleared
-      // Note: Sometimes BAS account 1650 is used to book (and clear) VAT to be paied to SKV (or maybe yhen it is paied when the VAT Returns is created)?
+      return (at.account_no == 1630 or at.account_no == 2650 or at.account_no == 1650); // SKV account updated with VAT, i.e., cleared
+	  // 1630 = SKV tax account, 1650 = SKV tax receivable, 2650 = SKV tax payable
     })) {
 		result = JournalEntryVATType::VATClearing; // SKV account cleared against 2650
   }
@@ -9614,11 +9614,10 @@ Cmd Updater::operator()(Command const& command) {
                     // std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
 
                     // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
-                    // Book this on BAS 2650
-                    // NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
+                    // Book this on BAS 1650 for now (1650 = "VAT to receive")
                     if (account_no==0) {
                       me.defacto.account_transactions.push_back({
-                        .account_no = 2650
+                        .account_no = 1650
                         ,.amount = trunc(-amount)
                       });
                       me.defacto.account_transactions.push_back({
