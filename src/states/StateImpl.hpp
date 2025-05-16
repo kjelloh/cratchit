@@ -4,8 +4,8 @@
 #include <string>
 #include <utility> // std::pair
 #include <map>
-#include "../cross_dependent.hpp"
-#include "../cmd.hpp"
+#include "cross_dependent.hpp"
+#include "cmd.hpp"
 
 namespace first {
 

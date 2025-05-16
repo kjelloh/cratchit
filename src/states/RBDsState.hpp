@@ -2,7 +2,7 @@
 
 #include "StateImpl.hpp"
 #include "RBDState.hpp"
-#include "../mod10view.hpp"
+#include "mod10view.hpp"
 
 namespace first {
   struct RBDsState : public StateImpl {

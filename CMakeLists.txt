@@ -22,7 +22,10 @@ add_executable(cratchit
         src/sub.cpp
         src/states/StateImpl.cpp
         src/states/RBDState.cpp
-        src/states/RBDsState.cpp)
+        src/states/RBDsState.cpp
+        src/states/May2AprilState.cpp)
+
+target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
 target_link_libraries(cratchit PRIVATE Curses::Curses)
