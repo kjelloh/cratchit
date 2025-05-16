@@ -21,7 +21,8 @@ add_executable(cratchit
         src/cmd.cpp
         src/sub.cpp
         src/states/StateImpl.cpp
-        src/states/RBDState.cpp)
+        src/states/RBDState.cpp
+        src/states/RBDsState.cpp)
 
 target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
 target_link_libraries(cratchit PRIVATE Curses::Curses)
