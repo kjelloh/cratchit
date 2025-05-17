@@ -23,10 +23,6 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
-  // ----------------------------------
-  struct VATReturnsState : public StateImpl {
-    VATReturnsState(StateImpl::UX ux);
-  }; // struct VATReturnsState
 
   // ----------------------------------
   struct Q1State : public StateImpl {
@@ -111,9 +107,6 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
-
-  // ----------------------------------
-  VATReturnsState::VATReturnsState(StateImpl::UX ux) : StateImpl{ux} {}
 
   // ----------------------------------
   Q1State::Q1State(StateImpl::UX ux) : StateImpl{ux} {

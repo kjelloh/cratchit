@@ -23,7 +23,8 @@ add_executable(cratchit
         src/states/StateImpl.cpp
         src/states/RBDState.cpp
         src/states/RBDsState.cpp
-        src/states/May2AprilState.cpp)
+        src/states/May2AprilState.cpp
+        src/states/VATReturnsState.cpp)
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
