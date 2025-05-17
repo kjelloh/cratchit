@@ -23,19 +23,6 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
-
-  // ----------------------------------
-  struct FrameworkState : public StateImpl {
-    StateFactory workspace_0_factory = []() {
-      auto workspace_0_ux = StateImpl::UX{"Workspace UX"};
-      return std::make_shared<WorkspaceState>(workspace_0_ux);
-    };
-
-    FrameworkState(StateImpl::UX ux);
-    ~FrameworkState();
-    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
-  }; // struct FrameworkState
-
   // ----------------------------------
   auto framework_state_factory = []() {
     auto framework_ux = StateImpl::UX{"Framework UX"};
@@ -67,30 +54,6 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
-
-  // ----------------------------------
-  FrameworkState::FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
-    this->add_option('0',{"Workspace x",workspace_0_factory});        
-  }
-
-  // ----------------------------------
-  FrameworkState::~FrameworkState() {
-    spdlog::info("FrameworkState destructor executed");
-  }
-
-  // ----------------------------------
-  std::pair<std::optional<State>,Cmd> FrameworkState::update(Msg const& msg) {
-    std::optional<State> new_state{};
-    auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);
-    if (key_msg_ptr != nullptr) {
-      auto ch = key_msg_ptr->key;
-      if (ch == '+') {
-        this->m_ux.back().push_back('+');
-        new_state = std::make_shared<FrameworkState>(*this);          
-      }
-    }
-    return {new_state,Nop};
-  }
 
   // ----------------------------------
   bool is_quit_msg(Msg const& msg) {
