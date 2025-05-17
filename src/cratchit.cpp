@@ -23,21 +23,6 @@ namespace first {
   // ----------------------------------
   // ----------------------------------
 
-  // ----------------------------------
-  struct WorkspaceState : public StateImpl {
-    StateFactory itfied_factory = []() {
-      auto itfied_ux = StateImpl::UX{"ITfied UX"};
-      return std::make_shared<ProjectState>(itfied_ux);
-    };
-
-    StateFactory orx_x_factory = []() {
-      auto org_x_ux = StateImpl::UX{"Other Organisation UX"};
-      return std::make_shared<ProjectState>(org_x_ux);
-    };
-
-    WorkspaceState(StateImpl::UX ux);
-    ~WorkspaceState();
-  }; // Workspace StateImpl
 
   // ----------------------------------
   struct FrameworkState : public StateImpl {
@@ -82,17 +67,6 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
-
-  // ----------------------------------
-  WorkspaceState::WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
-    this->add_option('0',{"ITfied AB",itfied_factory});        
-    this->add_option('1',{"Org x",orx_x_factory});        
-  }
-
-  // ----------------------------------
-  WorkspaceState::~WorkspaceState() {
-    spdlog::info("WorkspaceState destructor executed");
-  }
 
   // ----------------------------------
   FrameworkState::FrameworkState(StateImpl::UX ux) : StateImpl{ux} {
