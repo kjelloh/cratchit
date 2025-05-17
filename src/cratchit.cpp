@@ -24,21 +24,6 @@ namespace first {
   // ----------------------------------
 
   // ----------------------------------
-  struct ProjectState : public StateImpl {
-    StateFactory may2april_factory = []() {
-      auto may2april_ux = StateImpl::UX{"May to April"};
-      return std::make_shared<May2AprilState>(may2april_ux);
-    };
-
-    StateFactory q1_factory = []() {
-      auto q1_ux = StateImpl::UX{"Q1 UX goes here"};
-      return std::make_shared<Q1State>(q1_ux);
-    };
-
-    ProjectState(StateImpl::UX ux);
-  };
-
-  // ----------------------------------
   struct WorkspaceState : public StateImpl {
     StateFactory itfied_factory = []() {
       auto itfied_ux = StateImpl::UX{"ITfied UX"};
@@ -97,12 +82,6 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
-
-  // ----------------------------------
-  ProjectState::ProjectState(StateImpl::UX ux) : StateImpl{ux} {
-    this->add_option('0',{"May to April",may2april_factory});
-    this->add_option('1',{"Q1",q1_factory});
-  }
 
   // ----------------------------------
   WorkspaceState::WorkspaceState(StateImpl::UX ux) : StateImpl{ux} {
