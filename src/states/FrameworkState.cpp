@@ -8,9 +8,10 @@ namespace first {
   FrameworkState::FrameworkState(StateImpl::UX ux, std::filesystem::path root_path)
       :  StateImpl{ux}
         ,m_root_path{root_path} { 
-    StateFactory workspace_0_factory = []() {
+    StateFactory workspace_0_factory = [this]() {
       auto workspace_0_ux = StateImpl::UX{"Workspace UX"};
-      return std::make_shared<WorkspaceState>(workspace_0_ux);
+      std::filesystem::path workspace_0_path = this->m_root_path;;
+      return std::make_shared<WorkspaceState>(workspace_0_ux,workspace_0_path);
     };
 
     this->m_ux.push_back(m_root_path.string());

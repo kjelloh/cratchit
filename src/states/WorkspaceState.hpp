@@ -1,22 +1,15 @@
 #pragma once
 
 #include "StateImpl.hpp"
-#include "ProjectState.hpp"
+#include <filesystem>
 
 namespace first {
   // ----------------------------------
-  struct WorkspaceState : public StateImpl {
-    StateFactory itfied_factory = []() {
-      auto itfied_ux = StateImpl::UX{"ITfied UX"};
-      return std::make_shared<ProjectState>(itfied_ux);
-    };
-
-    StateFactory orx_x_factory = []() {
-      auto org_x_ux = StateImpl::UX{"Other Organisation UX"};
-      return std::make_shared<ProjectState>(org_x_ux);
-    };
-
-    WorkspaceState(StateImpl::UX ux);
+  class WorkspaceState : public StateImpl {
+  private:
+    std::filesystem::path m_root_path;    
+  public:
+    WorkspaceState(StateImpl::UX ux,std::filesystem::path root_path);
     ~WorkspaceState();
   }; // Workspace StateImpl
 }
