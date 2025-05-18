@@ -24,12 +24,6 @@ namespace first {
   // ----------------------------------
 
   // ----------------------------------
-  auto framework_state_factory = []() {
-    auto framework_ux = StateImpl::UX{"Framework UX"};
-    return std::make_shared<FrameworkState>(framework_ux);
-  };
-
-  // ----------------------------------
   struct Model {
     std::string top_content;
     std::string main_content;
@@ -54,6 +48,13 @@ namespace first {
   // cpp-file parts
   // ----------------------------------
   // ----------------------------------
+
+  // ----------------------------------
+  auto framework_state_factory = []() {
+    auto framework_ux = StateImpl::UX{"Framework UX"};
+    std::filesystem::path root_path = std::filesystem::current_path();
+    return std::make_shared<FrameworkState>(framework_ux,root_path);
+  };
 
   // ----------------------------------
   bool is_quit_msg(Msg const& msg) {
