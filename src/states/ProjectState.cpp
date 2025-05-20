@@ -6,7 +6,9 @@
 namespace first {
 
   // ----------------------------------
-  ProjectState::ProjectState(StateImpl::UX ux) : StateImpl{ux} {
+  ProjectState::ProjectState(StateImpl::UX ux,std::filesystem::path root_path) 
+    :  StateImpl{ux}
+      ,m_root_path{root_path} {
 
     StateFactory may2april_factory = []() {
       auto may2april_ux = StateImpl::UX{"May to April"};
