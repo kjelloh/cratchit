@@ -10,6 +10,9 @@ namespace first {
     :  StateImpl{ux}
       ,m_root_path{root_path} {
 
+    // Integrate Zeroth: Environment environment_from_file(...) here.
+    // It is ok as this constructor is run as a command by the tea runtime (side effects allowed)
+
     StateFactory may2april_factory = []() {
       auto may2april_ux = StateImpl::UX{"May to April"};
       return std::make_shared<May2AprilState>(may2april_ux);
