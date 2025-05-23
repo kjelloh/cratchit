@@ -4,6 +4,8 @@
 
 float const VERSION = 0.5;
 
+#include "tokenize.hpp"
+#include "environment.hpp"
 #include <iostream>
 #include <locale>
 #include <string>
@@ -303,7 +305,7 @@ namespace std_overload {
 
     } // namespace ranges  
 
-}
+} 
 
 
 namespace encoding {
@@ -618,231 +620,6 @@ namespace encoding {
   } // namespace unicode
 
 } // namespace encoding
-
-namespace tokenize {
-
-  std::string trim(std::string const& s) {
-    return std_overload::ranges::to<std::string>(
-        s 
-      | std::views::drop_while(::isspace) 
-      | std::views::reverse 
-      | std::views::drop_while(::isspace) 
-      | std::views::reverse
-    );
-  }
-
-	bool contains(std::string const& key,std::string const& s) {
-		return (s.find(key) != std::string::npos);
-	}
-
-	bool starts_with(std::string const& key,std::string const& s) {
-		return s.starts_with(key);
-	}
-
-	std::string without_front_word(std::string_view sv) {
-    sv.remove_prefix(std::min(sv.find_first_not_of(" "), sv.size()));
-    sv.remove_prefix(std::min(sv.find_first_of(" "), sv.size()));
-    sv.remove_prefix(std::min(sv.find_first_not_of(" "), sv.size()));
-		return std::string{sv};
-	}
-
-	// returns s split into first,second on provided delimiter delim.
-	// split fail returns first = "" and second = s
-	std::pair<std::string,std::string> split(std::string s,char delim) {
-		auto pos = s.find(delim);
-		if (pos<s.size()) return {s.substr(0,pos),s.substr(pos+1)};
-		else return {"",s}; // split failed (return right = the unsplit string)
-	}
-
-	enum class eAllowEmptyTokens {
-		unknown
-		,no
-		,YES
-		,undefined
-	};
-
-	std::vector<std::string> splits(std::string s,char delim,eAllowEmptyTokens allow_empty_tokens = eAllowEmptyTokens::no) {
-		std::vector<std::string> result;
-		try {
-			// TODO: Refactor code so default is allowing for split into empty tokens and make skip whitespace a special case
-			if (allow_empty_tokens == eAllowEmptyTokens::no) {
-				auto head_tail = split(s,delim);
-				// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
-				while (head_tail.first.size()>0) {
-					auto const& [head,tail] = head_tail;
-					result.push_back(head);
-					head_tail = split(tail,delim);
-					// std::cout << "\nhead" << head_tail.first << " tail:" << head_tail.second;
-				}
-				if (head_tail.second.size()>0) {
-					result.push_back(head_tail.second);
-					// std::cout << "\ntail:" << head_tail.second;
-				}
-			}
-			else {
-				size_t first{},delim_pos{};
-				do {
-					delim_pos = s.find(delim,first);
-          if (delim_pos != std::string::npos) {
-            result.push_back(s.substr(first,delim_pos-first));
-            first = delim_pos+1;
-          }
-          else {
-            auto tail = s.substr(first);
-            if (tail.size() > 0) result.push_back(tail); // add non empty tail
-          }
-				} while (delim_pos<s.size());
-			}
-		}
-		catch (std::exception const& e) {
-			std::cout << "\nDESIGN INSUFFICIENCY: splits(s,delim,allow_empty_tokens) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
-		}
-    if (result.size()==1 and result[0].size()==0) {
-      // Quick Fix that tokenize::splits will return one element of zero length for an empty string :\
-      // 240623 - Log this path to detect where in Cratchit this may occur and potentially cause unwanted behaviour
-      result.clear();
-      std::cout << "\ntokensize::splits(" << std::quoted(s) << ") PATCHED to empty path result";
-    }
-
-		return result;
-	}
-
-	std::vector<std::string> splits(std::string const& s) {
-		std::vector<std::string> result{};
-		try {
-			std::istringstream is{s};
-			std::string token{};
-			while (is >> std::quoted(token)) {
-				result.push_back(token);
-				token.clear();
-			}
-		}
-		catch (std::exception const& e) {
-			std::cout << "\nDESIGN INSUFFICIENCY: splits(s) failed for s=" << std::quoted(s) << ". Expception=" << std::quoted(e.what());
-		}
-		
-		// for (auto const& token : result) std::cout << "\n\tsplits token: " << std::quoted(token);
-
-		return result; 
-	}
-
-	enum class SplitOn {
-		Undefined
-		,TextAndAmount
-		,TextAmountAndDate
-		,Unknown
-	};
-
-	enum class TokenID {
-		Undefined
-		,Caption
-		,Amount
-		,Date
-		,Unknown
-	};
-
-	std::ostream& operator<<(std::ostream& os,TokenID const& id) {
-		switch (id) {
-			case TokenID::Undefined: os << "Undefined"; break;
-			case TokenID::Caption: os << "Caption"; break;
-			case TokenID::Amount: os << "Amount";  break;
-			case TokenID::Date: os << "Date";  break;
-			case TokenID::Unknown: os << "Unknown";  break;
-		}
-		return os;
-	}
-
-	TokenID token_id_of(std::string const& s) {
-		// NOTE: The order of matching below matters (matches from least permissive (date) to most permissive (any text))
-		// If you put the most permissive first the less permissive tokens will never be matched.
-		TokenID result{TokenID::Undefined};
-		// YYYYMMDD, YYYY-MM-DD
-		if (const std::regex date_regex("([2-9]\\d{3})-?([0]\\d|[1][0-2])-?([0-2]\\d|[3][0-1])"); std::regex_match(s,date_regex)) result = TokenID::Date;
-		// '+','-' or none followed by nnn... (any number of digits) followed by an optional ',' or '.' followed by ate least and max two digits
-		else if (const std::regex amount_regex("^[+-]?\\d+([.,]\\d\\d?)?$"); std::regex_match(s,amount_regex)) result = TokenID::Amount;
-		// any string of characters in the set a-z,A-Z, and åäöÅÄÖ. NOTE: Requires the runtime locale to be set to UTF-8 encoding and that this source file is also UTF-8 encoded!
-		// else if (const std::regex caption_regex("[a-zA-ZåäöÅÄÖ ]+"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
-		// else if (const std::regex caption_regex(R"([ -~]+)"); std::regex_match(s,caption_regex)) result = TokenID::Caption;
-		// else result = TokenID::Unknown;
-		else {
-			// Try the ICU library Unicode services
-
-			UErrorCode status = U_ZERO_ERROR;
-			// Match any printable Unicode text
-			std::unique_ptr<icu::RegexPattern> caption_regex(
-				icu::RegexPattern::compile(uR"([\p{Print}]+)", 0,
-											status));
-			if (U_FAILURE(status) || !caption_regex) {
-				std::cerr << "Failed to compile regex\n";
-				result = TokenID::Unknown;
-			}
-
-			// Assume UTF-8 encoding
-			icu::UnicodeString unicode_s =
-				icu::UnicodeString::fromUTF8(s);
-
-			std::unique_ptr<icu::RegexMatcher> matcher(
-				caption_regex->matcher(unicode_s, status));
-
-			if (U_FAILURE(status) || !matcher) {
-				std::cerr << "Failed to create matcher\n";
-				result = TokenID::Unknown;
-			}
-
-			result = matcher->matches(status) ? TokenID::Caption
-											  : result = TokenID::Unknown;
-        }
-
-		// std::cout << "\n\ttoken_id_of " << std::quoted(s) << " = " << result;
-
-		return result;
-	}
-
-	std::vector<std::string> splits(std::string const& s,SplitOn split_on) {
-		// std::cout << "\nsplits(std::string const& s,SplitOn split_on)";
-		std::vector<std::string> result{};
-		auto spaced_tokens = splits(s);
-		std::vector<TokenID> ids{};
-		for (auto const& s : spaced_tokens) {
-			ids.push_back(token_id_of(s));
-		}
-
-		for (int i=0;i<spaced_tokens.size();++i) {
-			std::cout << "\n" << spaced_tokens[i] << " id:" << static_cast<int>(ids[i]) << std::flush;
-		}
-
-		switch (split_on) {
-			case SplitOn::TextAmountAndDate: {
-				std::vector<TokenID> expected_id{TokenID::Caption,TokenID::Amount,TokenID::Date};
-				int state{0};
-				std::string s{};
-				for (int i=0;i<ids.size();) {
-					if (ids[i] == expected_id[state]) {
-						if (s.size() > 0) s += " ";
-						s += spaced_tokens[i++];
-					}
-					else {
-						if (s.size()>0) result.push_back(s);
-            ++state;
-						s.clear();					
-					}
-          if (state+1 > expected_id.size()) {
-            std::cout << "\nDESIGN INSUFFICIENCY: Error, unable to process state:" << state;
-            break;
-          }
-				}
-				if (s.size()>0) result.push_back(s); // add any tail
-			} break;
-			default: {
-				std::cout << "\nERROR - Unknown split_on value " << static_cast<int>(split_on);
-			} break;
-		}
-
-		// for (auto const& token : result) std::cout << "\n\tsplits token: " << std::quoted(token);
-
-		return result;
-	}
-} // namespace tokenize
 
 namespace Key {
 		class Path {
@@ -1431,30 +1208,7 @@ namespace sie {
 }
 
 // Content Addressable Storage namespace
-namespace cas {
-
-  template <typename Key,typename Value>
-  class repository {
-  private:
-    using KeyValueMap = std::map<Key,Value>;
-    KeyValueMap m_map{};
-    using Keys = std::vector<Key>;
-    using AdjacencyList = std::map<Key,Keys>;
-    AdjacencyList m_adj{};
-  public:
-    using value_type = KeyValueMap::value_type;
-    bool contains(Key const& key) const {return m_map.contains(key);}
-    Value const& at(Key const& key) const {return m_map.at(key);}
-    void clear() {return m_map.clear();}
-    KeyValueMap& the_map() {
-      // std::cout << "\nDESIGN_INSUFFICIENCY: called cas::repository::the_map() to gain access to aggregated map (Developer should extend repository services to protect internal map handling.)";
-      return m_map;
-    }
-    AdjacencyList& the_adjacency_list() {
-      return m_adj;
-    }
-  };
-} // namespace cas
+// namespace cas now in environment unit
 
 class TaggedAmount {
 public:
@@ -8069,47 +7823,14 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 	return result;
 }
 
-using EnvironmentValue = std::map<std::string,std::string>; // name-value-pairs
-using EnvironmentValueName = std::string;
-using EnvironmentValueId = std::size_t;
-
-// using EnvironmentIdValueMap = std::map<EnvironmentValueId,EnvironmentValue>;
-using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
-
-using EnvironmentCasEntryVector = std::vector<EnvironmentValues_cas_repository::value_type>;
-// using EnvironmentValues = std::vector<EnvironmentValue>;
-// using Environment = std::multimap<std::string,EnvironmentValue>;
-// using Environment = std::map<std::string,EnvironmentValues>;
-using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
-
-// Split <key> on ':' into <name> and <id>
-// <name> is 'type' or 'category' (e.g., 'HeadingAmountDateTransEntry', 'TaggedAmount', 'contact', 'employee', 'sie_file'))
-// <id> is basically a hash of the <value> following the key (to identify duplicate values based on same id)
-std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key) {
-  if (false) {
-    std::cout << "\nto_name_and_id(" << std::quoted(key) << ")";
-  }
-  if (auto pos = key.find(':'); pos != std::string::npos) {
-    auto name = key.substr(0, pos);
-    auto id_string = key.substr(pos + 1);
-    // std::cout << "\n\tname:" << std::quoted(name) << " id_string:" <<
-    // std::quoted(id_string);
-    std::istringstream is{id_string};
-    EnvironmentValueId id{};
-    if (is >> std::hex >> id) {
-      // std::cout << " ok id:" << std::hex << id;
-      return {name, id};
-    } else {
-      std::cout << "\nDESIGN_INSUFFICIENCY: Failed to parse the value id after "
-                   "':' in "
-                << std::quoted(key);
-      return {name, std::nullopt};
-    }
-  } else {
-    // std::cout << " NO id in name";
-    return {key, std::nullopt};
-  }
-}
+// Now in environment unit
+// using EnvironmentValue = std::map<std::string,std::string>; // name-value-pairs
+// using EnvironmentValueName = std::string;
+// using EnvironmentValueId = std::size_t;
+// using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
+// using EnvironmentCasEntryVector = std::vector<EnvironmentValues_cas_repository::value_type>;
+// using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+// std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key);
 
 class ImmutableFileManager {
 private:    
@@ -8320,16 +8041,9 @@ std::ostream& operator<<(std::ostream& os,Environment const& env) {
 	return os;
 }
 
-// "belopp=1389,50;datum=20221023;rubrik=Klarna"
-EnvironmentValue to_environment_value(std::string const s) {
-	EnvironmentValue result{};
-	auto kvps = tokenize::splits(s,';');
-	for (auto const& kvp : kvps) {
-		auto const& [name,value] = tokenize::split(kvp,'=');
-		result[name] = value;
-	}
-	return result;
-}
+// Now in environment unit
+// EnvironmentValue to_environment_value(std::string const s);
+
 std::string to_string(Environment::value_type const& entry) {
 	std::ostringstream os{};
 	os << entry;
@@ -12897,7 +12611,9 @@ private:
 	}
 
 	bool is_value_line(std::string const& line) {
-		return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
+		// return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
+		// Now in environment unit
+		return ::is_value_line(line);
 	}
 
 	Model model_from_environment(Environment const& environment) {
@@ -13051,64 +12767,10 @@ private:
 
 	// HeadingAmountDateTransEntry "belopp=1389,50;datum=20221023;rubrik=Klarna"
 	Environment environment_from_file(std::filesystem::path const &p) {
-		Environment result{};
-		try {
-		std::ifstream in{p};
-		std::string line{};
-		std::map<std::string, std::size_t> index{};
-		while (std::getline(in, line)) {
-			if (is_value_line(line)) {
-			std::istringstream in{line};
-			std::string key{}, value_string{};
-			in >> std::hex >> key >> std::quoted(value_string);
-			// result.insert({key,to_environment_value(value)});
-			auto const &[name, id] = to_name_and_id(key);
-			if (id) {
-				index[name] = *id;
-				// std::cout << "\nRead name:index " << name << ":" <<
-				// std::hex << index[name] << " for environment file entry "
-				// << std::quoted(line);
-			} else {
-				index[name] = result[key].size();
-				// std::cout << "\nNo index in environment file for name: " <<
-				// name << ". Created index:" << ":" << index[name] << " for
-				// environment file entry " << std::quoted(line);
-			}
-			// Each <name> maps to a list of pairs <index,environment value>
-			// Where <index> is the index recorded in the file (to preserve order to and from persisten storage in file)
-			// Also, <index> is basicvally the hash of the value (expected to be unique cross all <names> (types) of values)
-			// And No, I don't think this is a nice solution... but it works for now.
-			result[name].push_back(
-				// EnvironmentValue is key-value-pairs as a map <key,value>
-				// result is Environment, i.e., 
-				{index[name], to_environment_value(value_string)});
-			}
-			/*
-				TaggedAmount:b648074203011604 "SIE=E19;_members=7480a07d8d1d605a^566b0d67be34b960;cents_amount=108375;type=aggregate;vertext=Account:NORDEA Text:LOOPIA AB (WEBSUPPORT) Message:62500003193947 To:5343-2795;yyyymmdd_date=20250331"
-
-				Environment['TaggedAmount']
-				       |
-					   |--> [b648074203011604]
-					               |
-								   |--> ['SIE] = 'E19'
-								   |--> ['_members'] = '7480a07d8d1d605a^566b0d67be34b960'
-								   |--> ['cents_amount'] = '108375'
-								   ...
-
-			*/
-		}
-		} catch (std::runtime_error const &e) {
-		std::cout << "\nDESIGN_INSUFFICIENCY:ERROR - Read from " << p
-					<< " failed. Exception:" << e.what();
-		}
-		if (false) {
-		std::cout << "\nenvironment_from_file(" << p << ")";
-		for (auto const &[key, entry] : result) {
-			std::cout << "\n\tkey:" << key << " count:" << entry.size();
-		}
-		}
-		return result;
+		// Now in environment unit
+		return ::environment_from_file(p);
 	}
+
 	void environment_to_file(Environment const &environment,
                                  std::filesystem::path const &p) {
           try {
