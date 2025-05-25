@@ -12787,7 +12787,7 @@ private:
                       << " failed. Exception:" << e.what();
           }
         }
-};
+}; // class Cratchit
 
 class REPL {
 public:

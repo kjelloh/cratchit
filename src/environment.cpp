@@ -1,6 +1,6 @@
 #include "environment.hpp"
 #include "tokenize.hpp"
-#include <iostream>
+#include "spdlog/spdlog.h"
 #include <fstream>
 #include <sstream>
 
@@ -15,26 +15,24 @@ bool is_value_line(std::string const& line) {
 // id)
 std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key) {
   if (false) {
-    std::cout << "\nto_name_and_id(" << std::quoted(key) << ")";
+    // std::cout << "\nto_name_and_id(" << std::quoted(key) << ")";
+    spdlog::info(R"(to_name_and_id("{}"))", key);
   }
   if (auto pos = key.find(':'); pos != std::string::npos) {
     auto name = key.substr(0, pos);
     auto id_string = key.substr(pos + 1);
-    // std::cout << "\n\tname:" << std::quoted(name) << " id_string:" <<
-    // std::quoted(id_string);
     std::istringstream is{id_string};
     EnvironmentValueId id{};
     if (is >> std::hex >> id) {
-      // std::cout << " ok id:" << std::hex << id;
       return {name, id};
     } else {
-      std::cout << "\nDESIGN_INSUFFICIENCY: Failed to parse the value id after "
-                   "':' in "
-                << std::quoted(key);
+      // std::cout << "\nDESIGN_INSUFFICIENCY: Failed to parse the value id after "
+      //              "':' in "
+      //           << std::quoted(key);
+      spdlog::error(R"(DESIGN_INSUFFICIENCY: Failed to parse the value id after ':' in "{}")", key);
       return {name, std::nullopt};
     }
   } else {
-    // std::cout << " NO id in name";
     return {key, std::nullopt};
   }
 }
@@ -65,14 +63,8 @@ Environment environment_from_file(std::filesystem::path const &p) {
         auto const &[name, id] = to_name_and_id(key);
         if (id) {
           index[name] = *id;
-          // std::cout << "\nRead name:index " << name << ":" <<
-          // std::hex << index[name] << " for environment file entry "
-          // << std::quoted(line);
         } else {
           index[name] = result[key].size();
-          // std::cout << "\nNo index in environment file for name: " <<
-          // name << ". Created index:" << ":" << index[name] << " for
-          // environment file entry " << std::quoted(line);
         }
         // Each <name> maps to a list of pairs <index,environment value>
         // Where <index> is the index recorded in the file (to preserve order
@@ -105,13 +97,16 @@ Environment environment_from_file(std::filesystem::path const &p) {
       */
     }
   } catch (std::runtime_error const &e) {
-    std::cout << "\nDESIGN_INSUFFICIENCY:ERROR - Read from " << p
-              << " failed. Exception:" << e.what();
+    // std::cout << "\nDESIGN_INSUFFICIENCY:ERROR - Read from " << p
+    //           << " failed. Exception:" << e.what();
+    spdlog::error(R"(DESIGN_INSUFFICIENCY:ERROR - Read from {} failed. Exception: {})", p.string(), e.what());
   }
-  if (false) {
-    std::cout << "\nenvironment_from_file(" << p << ")";
+  if (true) {
+    // std::cout << "\nenvironment_from_file(" << p << ")";
+    spdlog::info(R"(environment_from_file("{}"))", p.string());
     for (auto const &[key, entry] : result) {
-      std::cout << "\n\tkey:" << key << " count:" << entry.size();
+      // std::cout << "\n\tkey:" << key << " count:" << entry.size();
+      spdlog::info(R"(key:"{}" count:{})", key, entry.size());
     }
   }
   return result;
