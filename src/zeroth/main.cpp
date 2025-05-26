@@ -7999,56 +7999,17 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 	return result;
 }
 
-std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev) {
-	bool not_first{false};
-	std::for_each(ev.begin(),ev.end(),[&not_first,&os](auto const& entry){
-		if (not_first) {
-			os << ";"; // separator
-		}
-		os <<  entry.first;
-		os <<  "=";
-		os <<  entry.second;
-		not_first = true;
-	});
-	return os;
-}
-
-// "belopp=1389,50;datum=20221023;rubrik=Klarna"
-std::string to_string(EnvironmentValue const& ev) {
-	std::ostringstream os{};
-	os << ev;
-	return os.str();
-}
-
-std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
-  auto const& [key,id_ev_pairs] = entry;
-  for (auto iter = id_ev_pairs.begin();iter!=id_ev_pairs.end();++iter) {
-    auto const& [id,ev] = *iter;
-    if (iter != id_ev_pairs.begin()) os << "\n";
-    os << key << ":" << std::hex << id << " " << std::quoted(to_string(ev)) << std::dec;
-  }
-	return os;
-}
-
-std::ostream& operator<<(std::ostream& os,Environment const& env) {
-  // 240618 - Environment::value_type changed from map<string,value> to map<string,vector<value>
-	// for (auto const& entry : env) {
-	// 	os << "\n\t" << entry;
-	// }	
-	for (auto const& entry : env) {
-		os << "\n" << entry;
-	}	
-	return os;
-}
+// Now in environment unit
+// std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev);
+// std::string to_string(EnvironmentValue const& ev);
+// std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry);
+// std::ostream& operator<<(std::ostream& os,Environment const& env);
 
 // Now in environment unit
 // EnvironmentValue to_environment_value(std::string const s);
 
-std::string to_string(Environment::value_type const& entry) {
-	std::ostringstream os{};
-	os << entry;
-	return os.str();
-}
+// Now in environment unit
+// std::string to_string(Environment::value_type const& entry);
 
 EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
 	// std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
@@ -12706,7 +12667,7 @@ private:
       model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
     }
 
-    // TODO: 240216: Is skv_specs_mapping_from_csv_files still of intereset to use for something?
+    // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
     auto dummy = this->skv_specs_mapping_from_csv_files(environment);
 
 		model->prompt = prompt.str();
@@ -12771,22 +12732,10 @@ private:
 		return ::environment_from_file(p);
 	}
 
-	void environment_to_file(Environment const &environment,
-                                 std::filesystem::path const &p) {
-          try {
-            std::ofstream out{p};
-            for (auto iter = environment.begin(); iter != environment.end();
-                 ++iter) {
-              if (iter == environment.begin())
-                out << to_string(*iter);
-              else
-                out << "\n" << to_string(*iter);
-            }
-          } catch (std::runtime_error const &e) {
-            std::cout << "\nERROR - Write to " << p
-                      << " failed. Exception:" << e.what();
-          }
-        }
+	void environment_to_file(Environment const &environment,std::filesystem::path const &p) {
+		// Now in environment unit
+		::environment_to_file(environment,p);
+	}
 }; // class Cratchit
 
 class REPL {

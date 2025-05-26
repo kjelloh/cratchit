@@ -3,6 +3,7 @@
 #include "spdlog/spdlog.h"
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 bool is_value_line(std::string const& line) {
     return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
@@ -110,4 +111,67 @@ Environment environment_from_file(std::filesystem::path const &p) {
     }
   }
   return result;
+}
+
+std::ostream &operator<<(std::ostream &os, EnvironmentValue const &ev) {
+  bool not_first{false};
+  std::for_each(ev.begin(), ev.end(), [&not_first, &os](auto const &entry) {
+    if (not_first) {
+      os << ";"; // separator
+    }
+    os << entry.first;
+    os << "=";
+    os << entry.second;
+    not_first = true;
+  });
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,Environment::value_type const &entry) {
+  auto const &[key, id_ev_pairs] = entry;
+  for (auto iter = id_ev_pairs.begin(); iter != id_ev_pairs.end(); ++iter) {
+    auto const &[id, ev] = *iter;
+    if (iter != id_ev_pairs.begin()) {
+      os << "\n";
+    }
+    // Use to_string on environment value to be able to use std::quoted
+    os << key << ":" << std::hex << id << " " << std::quoted(to_string(ev)) << std::dec;
+  }
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, Environment const &env) {
+  for (auto const &entry : env) {
+    os << "\n" << entry;
+  }
+  return os;
+}
+
+// Note that 'EnvironmentValue' is actually a vector of name-value-pairs for a cratchit environment entry.
+// E.g., "belopp=1389,50;datum=20221023;rubrik=Klarna"
+std::string to_string(EnvironmentValue const &ev) {
+  std::ostringstream os{};
+  os << ev;
+  return os.str();
+}
+
+std::string to_string(Environment::value_type const &entry) {
+  std::ostringstream os{};
+  os << entry;
+  return os.str();
+}
+
+void environment_to_file(Environment const &environment,
+                         std::filesystem::path const &p) {
+  try {
+    std::ofstream out{p};
+    for (auto iter = environment.begin(); iter != environment.end(); ++iter) {
+      if (iter == environment.begin())
+        out << to_string(*iter);
+      else
+        out << "\n" << to_string(*iter);
+    }
+  } catch (std::runtime_error const &e) {
+    spdlog::error(R"(ERROR - Write to {} failed. Exception: {})", p.string(), e.what());
+  }
 }
