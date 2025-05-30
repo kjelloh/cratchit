@@ -30,7 +30,8 @@ add_executable(cratchit
         src/states/WorkspaceState.cpp
         src/states/FrameworkState.cpp
         src/tokenize.cpp
-        src/environment.cpp)
+        src/environment.cpp
+        src/FiscalPeriod.cpp)
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 

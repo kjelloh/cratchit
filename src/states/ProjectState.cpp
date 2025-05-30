@@ -21,9 +21,9 @@ namespace first {
       m_ux.push_back("Error initializing environment: " + std::string(e.what()));
     }
 
-    StateFactory may2april_factory = []() {
-      auto may2april_ux = StateImpl::UX{"May to April"};
-      return std::make_shared<May2AprilState>(may2april_ux);
+    StateFactory may2april_factory = [this]() {
+      auto may2april_ux = StateImpl::UX{"May 2024 to April 2025"};
+      return std::make_shared<May2AprilState>(may2april_ux,FiscalPeriod::Year{2024}, this->m_environment);
     };
 
     StateFactory q1_factory = []() {
@@ -31,7 +31,7 @@ namespace first {
       return std::make_shared<Q1State>(q1_ux);
     };
 
-    this->add_option('0',{"May to April",may2april_factory});
+    this->add_option('0',{"May 2024 to April 2025",may2april_factory});
     this->add_option('1',{"Q1",q1_factory});
   }
 }
