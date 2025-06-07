@@ -1,3 +1,98 @@
+2025-06-07 REFACTORED
+    + AmountFramework and TaggedAmountFramework now more code in cpp-part to linking
+
+2025-06-07  BACKLOG
+    2025-06-07 AmountFramework, TaggedAmountFramework linking + inlining and clang-format config added
+    2025-06-07 Introduced AmountFramework and TaggedAmountFramework units with used helpers not yet in separate units
+    2025-05-30 Added FiscalPeriod and made May2AprilState take a year and imply the correct period
+    2025-05-26 Now environment_to_file is in environment unit
+    2025-05-25 ProjectState now reads Environment from file (std::cout replaced with spdlog output)
+    2025-05-23 Refactored units tokenize and environmt from old 'zeroth' main
+    2025-05-22 Formatted and commented code for reading Envrinment file content
+    2025-05-20 ProjectState now takes root path to sub-folder and WorkspaceState creates option for '.' subfolder (interaction with zeroth version of cratchit)
+    2025-05-20 ProjectState sub-state factories now in cpp unit
+    2025-05-18 made WorkspaceState substate mechanism local to cpp and added root path
+    2025-05-18 FrameworkState now takes and holds root path and cpp-local sub-state factory
+    2025-05-17 Added FrameworkState unit
+    2025-05-17 Added WorkspaceState unit
+    2025-05-17 Added ProjectState unit
+    2025-05-17 Added Q1State unit
+    2025-05-17 Added VATReturnsState unit
+    2025-05-16 Added May2AprilState unit and include dir 'src' to avoid relative #include paths for parent folders
+    2025-05-16 Created RBDsState unit
+    2025-05-10 Now default VAT Returns to BAS 1650 (assume receive from SKV)
+    2025-04-26 Added RBDState unit
+    2025-04-25 Added 'states' folder and StateImpl unit
+    2025-04-25 made runtime and event units in 'tea' sub-folder
+    2025-04-25 Added unit sub (subscription)
+    2025-04-25 using Cmd now in cmd.hpp
+    2025-04-25 Now always calls MsgImpl base calss constructor
+    2025-04-25 Added msg amd cmd units
+    2025-04-23 Enhandced hpp-parts and cpp-parts ordrning.
+    2025-04-19 Added cross_dependent.hpp
+    2025-04-19 Created mod10view header and unit
+    2025-04-19 StateFactory moved to base h-part
+    2025-04-19 h-patrs and cpp-parts done
+    2025-04-19 h-parts and cpp-parts up to FrameworkState
+    2025-04-19 h-parts and cpp-parts up to Q1State
+    2025-04-19 StateImpl h-part and cpp-part
+    2025-04-19 More h-parts and cpp-parts
+    2025-04-19 More h-parts, cpp-parts split
+    2025-04-19 Began splitting into h-parts and cpp-parts
+    2025-04-19 Refatored for split into h-,cpp-file design
+    2025-04-19 Refactored into declarations + definitons
+    2025-03-31 State destructor now executed as (in) command ok (dummy cargo mechanism)
+    2025-03-30 Revert "root FrameworkState now creates its own options"
+    2025-03-30 Revert "WorkspaceState now creates its own options"
+    2025-03-30 Revert "ProjectState now creates its own options"
+    2025-03-30 Revert "May2AprilState now create options on demand"
+    2025-03-30 Revert "Q1 State now create options on demand"
+    2025-03-30 Revert "RBDsState now create options on demand"
+    2025-03-30 RBDsState now create options on demand
+    2025-03-30 Q1 State now create options on demand
+    2025-03-30 May2AprilState now create options on demand
+    2025-03-30 ProjectState now creates its own options
+    2025-03-30 WorkspaceState now creates its own options
+    2025-03-30 root FrameworkState now creates its own options
+    2025-03-30 init returns cmd that creates initial state
+    2025-03-30 Moved spdlog logger to main
+    2025-02-22 Now logs 'BEGIN' and 'END' and the user input ncurses char value when read
+    2025-02-22 Added spdlog through conan package manager and Runtime::run of the queue sizes
+    2025-02-22 Now processed copmmand and messages before blocking for new user input
+    2025-02-22 Renamed State to StateImpl and introduced State as shared_ptr to impl
+    2025-02-22 Made Msg into a 'simple' std::shared_ptr
+    2025-02-21 Implemented State mutation through virtual State::update and base 'update' logic
+    2025-02-18 Added immutable C++ types library 'Immer' using Conan package manager and CMake build
+    2025-02-15 Added RBD to RBDState constructor and ux
+    2025-02-15 Added Mod10View to manage split RBD range in mod 10 ranges down to single element
+    2025-02-14 Range reduction modulo 10 for RBDs test works in principal
+    2025-02-14 Added experimental 'range breakdown' user interface for RBD:s (Hads)
+    2025-02-14 Added Proof of concept states for RBD and VAT Returns processing
+    2025-02-13 Each state now creates options on call to options()
+    2025-02-13 Refactored into 'proof of concept' State and runtime
+    2025-02-12 Added experimental State provided content for top window
+    2025-02-11 Now uses ICU UTF-8 decoding and regex to match text in 'had'
+    2025-02-11 Added unicode library from ICU using conan package manager
+    2025-02-08 Expanded navigation nodes with PossibleWorkspace (root)
+    2025-02-08 The UI stack is now actual State instances created by navigation Nodes
+    2025-02-07 Now uses NavigationGraph type in model for UI navigation
+    2025-02-07 State navigation now based on graph ov type 'Node'
+    2025-02-02 Removed pimpl idiom (can't hide impl of template class members anyways)
+    2025-02-02 Now uses Elm architecture in runtime.hpp
+    2025-02-02 added runtime (but not in use yet)
+    2025-02-02 Added Cmd and Msg types for Elm Architecture
+    2025-01-30 Added POC single key state navigation up and down
+    2025-01-30 Added user prompt and update(model)
+    2025-01-30 Added screen border and section borders
+    2025-01-30 Now divides available screen estate in three parts
+    2025-01-30 Dummy POC use of HTML -> ncurses screen
+    2025-01-30 Added and applied clang-format + removed IDE files
+    2025-01-30 Added pugi XML library consumed through conan package manager
+    2025-01-29 first::cratchit uses ncurses + run.zsh builds and runs ion workspace folder
+    2025-01-29 Added ncurses to conan dependanc and include by first::cratchit
+    2025-01-29 Now toggles between 'first' and 'zeroth' cratchit app
+    2025-01-28 Switched from lua to sol2 package for modern lua bindings
+
 2025-01-28  REFACTORED to enable 'next' architecture of cratchit.
             + main.cpp moved to sub-folder 'zeroth'.
             + Used 'conan new cmake_exe -d name=cratchit -d version=0.6' to

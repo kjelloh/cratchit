@@ -2,8 +2,12 @@
 
 #include "AmountFramework.hpp"
 #include "environment.hpp" // namespace cas,
-#include <iostream> // std::ostream,
-#include <map> // std::map,
+#include <ostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <optional>
+#include <limits> // std::numeric_limits
 
 class TaggedAmount {
 public:
@@ -14,9 +18,8 @@ public:
   using OptionalValueId = std::optional<ValueId>;
   using ValueIds = std::vector<ValueId>;
   using OptionalValueIds = std::optional<ValueIds>;
-  TaggedAmount(Date const &date, CentsAmount const &cents_amount,
-               Tags &&tags = Tags{})
-      : m_date{date}, m_cents_amount{cents_amount}, m_tags{tags} {}
+
+  TaggedAmount(Date const &date, CentsAmount const &cents_amount,Tags &&tags = Tags{});
 
   // Getters
   Date const &date() const { return m_date; }
@@ -37,12 +40,7 @@ public:
 
   // tagged_amount::to_string ensures it does not override
   // std::to_string(integral type) or any local one
-  static std::string to_string(TaggedAmount::ValueId value_id) {
-    std::ostringstream os{};
-    os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex
-       << value_id << std::dec;
-    return os.str();
-  }
+  static std::string to_string(TaggedAmount::ValueId value_id);
 
 private:
   Date m_date;
@@ -92,56 +90,13 @@ namespace std {
   };
 } // namespace std
 
-inline TaggedAmount::ValueId to_value_id(TaggedAmount const &ta) {
-  return std::hash<TaggedAmount>{}(ta);
-}
-
-inline bool TaggedAmount::operator==(TaggedAmount const &other) const {
-  auto result =
-      this->date() == other.date() and
-      this->cents_amount() == other.cents_amount() and
-      std::all_of(m_tags.begin(), m_tags.end(),
-                  [&other](Tags::value_type const &entry) {
-                    return ((entry.first.starts_with("_")) or
-                            (other.tags().contains(entry.first) and
-                             other.tags().at(entry.first) == entry.second));
-                  });
-
-  // std::cout << "\nTaggedAmountClass::operator== ";
-  // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
-  return result;
-}
-
-inline std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta) {
-  // os << TaggedAmount::to_string(to_value_id(ta));
-  os << " " << ::to_string(ta.date());
-  os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
-  for (auto const &tag : ta.tags()) {
-    os << "\n\t|--> \"" << tag.first << "=" << tag.second << "\"";
-  }
-  return os;
-}
-
-inline TaggedAmount::OptionalValueId to_value_id(std::string const &s) {
-  // std::cout << "\nto_value_id()" << std::flush;
-  TaggedAmount::OptionalValueId result{};
-  TaggedAmount::ValueId value_id{};
-  std::istringstream is{s};
-  try {
-    is >> std::hex >> value_id;
-    result = value_id;
-  } catch (...) {
-    std::cout << "\nto_value_id(" << std::quoted(s)
-              << ") failed. General Exception caught." << std::flush;
-  }
-  return result;
-}
-
+TaggedAmount::ValueId to_value_id(TaggedAmount const &ta);
+std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta);
+TaggedAmount::OptionalValueId to_value_id(std::string const &s);
 TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids);
 
 // using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>;
-// using TaggedAmountValueIdMap =
-// cas::repository<TaggedAmount::ValueId,TaggedAmount>;
+// using TaggedAmountValueIdMap = cas::repository<TaggedAmount::ValueId,TaggedAmount>;
 using TaggedAmountsCasRepository = cas::repository<TaggedAmount::ValueId, TaggedAmount>;
 
 // Behaves more or less as a vector of tagged amounts in date order.
@@ -159,6 +114,8 @@ public:
 
   using iterator = TaggedAmounts::iterator;
   using const_iterator = TaggedAmounts::const_iterator;
+  using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
+
   TaggedAmounts const &tagged_amounts() {
     return m_date_ordered_tagged_amounts;
   }
@@ -167,69 +124,10 @@ public:
   iterator end() { return m_date_ordered_tagged_amounts.end(); }
   const_iterator begin() const { return m_date_ordered_tagged_amounts.begin(); }
   const_iterator end() const { return m_date_ordered_tagged_amounts.end(); }
-  auto in_date_range(DateRange const &date_period) {
-    auto first = std::find_if(this->begin(), this->end(),
-                              [&date_period](auto const &ta) {
-                                return (ta.date() >= date_period.begin());
-                              });
-    auto last = std::find_if(this->begin(), this->end(),
-                             [&date_period](auto const &ta) {
-                               return (ta.date() > date_period.end());
-                             });
-    return std::ranges::subrange(first, last);
-  }
-
-  OptionalTaggedAmount at(ValueId const &value_id) {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::at("
-              << TaggedAmount::to_string(value_id) << ")" << std::flush;
-    OptionalTaggedAmount result{};
-    if (m_tagged_amount_cas_repository.contains(value_id)) {
-      result = m_tagged_amount_cas_repository.at(value_id);
-    } else {
-      std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a "
-                   "mapping to value_id="
-                << TaggedAmount::to_string(value_id) << std::flush;
-    }
-    return result;
-  }
-
-  OptionalTaggedAmount operator[](ValueId const &value_id) {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
-              << TaggedAmount::to_string(value_id) << ")" << std::flush;
-    OptionalTaggedAmount result{};
-    if (auto o_ptr = this->at(value_id)) {
-      result = o_ptr;
-    } else {
-      std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not "
-                   "find a mapping to value_id="
-                << TaggedAmount::to_string(value_id) << std::flush;
-    }
-    return result;
-  }
-
-  OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids) {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()"
-              << std::flush;
-    OptionalTaggedAmounts result{};
-    TaggedAmounts tas{};
-    for (auto const &value_id : value_ids) {
-      if (auto o_ta = (*this)[value_id]) {
-        tas.push_back(*o_ta);
-      } else {
-        std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() "
-                     "failed. No instance found for value_id="
-                  << TaggedAmount::to_string(value_id) << std::flush;
-      }
-    }
-    if (tas.size() == value_ids.size()) {
-      result = tas;
-    } else {
-      std::cout << "\nto_tagged_amounts() Failed. tas.size() = " << tas.size()
-                << " IS NOT provided value_ids.size() = " << value_ids.size()
-                << std::flush;
-    }
-    return result;
-  }
+  const_subrange in_date_range(DateRange const &date_period);
+  OptionalTaggedAmount at(ValueId const &value_id);
+  OptionalTaggedAmount operator[](ValueId const &value_id);
+  OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
 
   DateOrderedTaggedAmountsContainer &clear() {
     m_tagged_amount_cas_repository.clear();
@@ -237,8 +135,7 @@ public:
     return *this;
   }
 
-  DateOrderedTaggedAmountsContainer &
-  operator=(DateOrderedTaggedAmountsContainer const &other) {
+  DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const &other) {
     this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
     this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
     return *this;
@@ -248,55 +145,9 @@ public:
   // (internal CAS map is hidden from client)
   // But the internally used key (the ValueId) is returned for environment vs
   // tagged amounts key transformation purposes (to and from Environment)
-  std::pair<ValueId, iterator> insert(TaggedAmount const &ta) {
-    auto result = m_date_ordered_tagged_amounts.end();
-    auto value_id = to_value_id(ta);
-    if (m_tagged_amount_cas_repository.contains(value_id) == false) {
-      if (false) {
-        std::cout << "\nthis:" << this << " Inserted new " << ta;
-      }
-      // Find the last element with a date less than the date of ta
-      auto end = std::upper_bound(
-          m_date_ordered_tagged_amounts.begin(),
-          m_date_ordered_tagged_amounts.end(), ta,
-          [](TaggedAmount const &ta1, TaggedAmount const &ta2) {
-            return ta1.date() < ta2.date();
-          });
+  std::pair<ValueId, iterator> insert(TaggedAmount const &ta);
 
-      m_tagged_amount_cas_repository.the_map().insert(
-          {value_id, ta}); // id -> ta
-      result = m_date_ordered_tagged_amounts.insert(
-          end, ta); // place after all with date less than the one of ta
-    } else {
-      // std::cout << "\nthis:" << this;
-      // std::cout << "\n\tDESIGN_INSUFFICIENCY: Error, Skipped new[" <<
-      // TaggedAmount::to_string(value_id) << "] " << ta; std::cout << "\n\t
-      // same as old[" <<
-      // TaggedAmount::TaggedAmount::to_string(to_value_id(m_tagged_amount_cas_repository.at(value_id)))
-      // << "] " << m_tagged_amount_cas_repository.at(value_id);
-    }
-    return {value_id, result};
-  }
-
-  DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id) {
-    if (auto o_ptr = this->at(value_id)) {
-      m_tagged_amount_cas_repository.the_map().erase(value_id);
-      auto iter = std::ranges::find(m_date_ordered_tagged_amounts, *o_ptr);
-      if (iter != m_date_ordered_tagged_amounts.end()) {
-        m_date_ordered_tagged_amounts.erase(iter);
-      } else {
-        std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in "
-                     "map but not in date-ordered-vector, value_id "
-                  << value_id;
-      }
-    } else {
-      std::cout
-          << "nDESIGN INSUFFICIENCY: DateOrderedTaggedAmountsContainer::at "
-             "failed to find value_id "
-          << value_id;
-    }
-    return *this;
-  }
+  DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
 
   DateOrderedTaggedAmountsContainer const &for_each(auto f) const {
     for (auto const &ta : m_date_ordered_tagged_amounts) {
@@ -305,8 +156,7 @@ public:
     return *this;
   }
 
-  DateOrderedTaggedAmountsContainer &
-  operator+=(DateOrderedTaggedAmountsContainer const &other) {
+  DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const &other) {
     other.for_each([this](TaggedAmount const &ta) {
       // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
       // preceedence (overwrite any existing tagged amounts reflecting the same
@@ -331,10 +181,9 @@ private:
   // Note: Each tagged amount pointer instance is stored twice. Once in a
   // mapping between value_id and tagged amount pointer and once in a vector
   // ordered by date.
-  TaggedAmountsCasRepository
-      m_tagged_amount_cas_repository{}; // map <instance id> -> <tagged amount>
-                                        // as content addressable storage
-                                        // repository
+  TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
+                                                                // as content addressable storage
+                                                                // repository
   TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ptrs
                                                  // ordered by date
 }; // class DateOrderedTaggedAmountsContainer
@@ -355,55 +204,6 @@ namespace tas {
   // Generic for parsing a range or container of tagged amount pointers into a
   // vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas
   // account)
-  inline TaggedAmounts to_bas_omslutning(auto const &tas) {
-    TaggedAmounts result{};
-    using BASBuckets = std::map<BAS::AccountNo, TaggedAmounts>;
-    BASBuckets bas_buckets{};
-    auto is_valid_bas_account_transaction = [](TaggedAmount const &ta) {
-      if (ta.tags().contains("BAS") and
-          !(BAS::to_account_no(ta.tags().at("BAS")))) {
-        // Whine about invalid tagging of 'BAS' tag!
-        // It is vital we do NOT have any badly tagged BAS account transactions
-        // as this will screw up the saldo calculation!
-        std::cout << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to "
-                     "create a valid BAS account no from tag 'BAS' with value "
-                  << std::quoted(ta.tags().at("BAS"));
-        return false;
-      } else
-        return ((ta.tags().contains("BAS")) and
-                (BAS::to_account_no(ta.tags().at("BAS"))) and
-                (((ta.tags().contains("type") == false)) or
-                 ((ta.tags().contains("type") == true) and
-                  (ta.tags().at("type") != "saldo"))));
-    };
-    for (auto const &ta : tas) {
-      if (is_valid_bas_account_transaction(ta)) {
-        bas_buckets[*BAS::to_account_no(ta.tags().at("BAS"))].push_back(ta);
-      }
-    }
-    for (auto const &[bas_account_no, tas] : bas_buckets) {
-      Date period_end_date{};
-      std::cout << "\n" << std::dec << bas_account_no;
-      auto cents_saldo = std::accumulate(
-          tas.begin(), tas.end(), CentsAmount{0},
-          [&period_end_date](auto acc, auto const &ta) {
-            period_end_date =
-                std::max(period_end_date,
-                         ta.date()); // Ensure we keep the latest date. NOTE: We
-                                     // expect they are in growing date order.
-                                     // But just in case...
-            acc += ta.cents_amount();
-            std::cout << "\n\t" << period_end_date << " "
-                      << to_string(to_units_and_cents(ta.cents_amount()))
-                      << " ackumulerat:" << to_string(to_units_and_cents(acc));
-            return acc;
-          });
+  TaggedAmounts to_bas_omslutning(DateOrderedTaggedAmountsContainer::const_subrange const& tas);
 
-      TaggedAmount saldo_ta{period_end_date, cents_saldo};
-      saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
-      saldo_ta.tags()["type"] = "saldo";
-      result.push_back(saldo_ta);
-    }
-    return result;
-  }
 } // namespace tas
