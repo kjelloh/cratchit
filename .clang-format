@@ -1,3 +1,6 @@
 BasedOnStyle: LLVM
 IndentWidth: 2
+ColumnLimit: 0
+ReflowComments: false
+BreakBeforeBinaryOperators: NonAssignment
 NamespaceIndentation: All

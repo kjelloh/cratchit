@@ -1,6 +1,9 @@
 #pragma once
 
 #include "AmountFramework.hpp"
+#include "environment.hpp" // namespace cas,
+#include <iostream> // std::ostream,
+#include <map> // std::map,
 
 class TaggedAmount {
 public:
@@ -89,11 +92,11 @@ namespace std {
   };
 } // namespace std
 
-TaggedAmount::ValueId to_value_id(TaggedAmount const &ta) {
+inline TaggedAmount::ValueId to_value_id(TaggedAmount const &ta) {
   return std::hash<TaggedAmount>{}(ta);
 }
 
-bool TaggedAmount::operator==(TaggedAmount const &other) const {
+inline bool TaggedAmount::operator==(TaggedAmount const &other) const {
   auto result =
       this->date() == other.date() and
       this->cents_amount() == other.cents_amount() and
@@ -109,7 +112,7 @@ bool TaggedAmount::operator==(TaggedAmount const &other) const {
   return result;
 }
 
-std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta) {
+inline std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta) {
   // os << TaggedAmount::to_string(to_value_id(ta));
   os << " " << ::to_string(ta.date());
   os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
@@ -119,7 +122,7 @@ std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta) {
   return os;
 }
 
-TaggedAmount::OptionalValueId to_value_id(std::string const &s) {
+inline TaggedAmount::OptionalValueId to_value_id(std::string const &s) {
   // std::cout << "\nto_value_id()" << std::flush;
   TaggedAmount::OptionalValueId result{};
   TaggedAmount::ValueId value_id{};
@@ -134,35 +137,12 @@ TaggedAmount::OptionalValueId to_value_id(std::string const &s) {
   return result;
 }
 
-TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
-  // std::cout << "\nto_value_ids()" << std::flush;
-  TaggedAmount::OptionalValueIds result{};
-  TaggedAmount::ValueIds value_ids{};
-  for (auto const &sid : sids) {
-    if (auto value_id = to_value_id(sid)) {
-      // std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
-      value_ids.push_back(*value_id);
-    } else {
-      std::cout << "\nDESIGN_INSUFFICIENCY: to_value_ids: Not a valid instance "
-                   "id string sid="
-                << std::quoted(sid) << std::flush;
-    }
-  }
-  if (value_ids.size() == sids.size()) {
-    result = value_ids;
-  } else {
-    std::cout << "\nDESIGN_INSUFFICIENCY: to_value_ids(Key::Path const& "
-              << sids.to_string() << ") Failed. Created" << value_ids.size()
-              << " out of " << sids.size() << " possible.";
-  }
-  return result;
-}
+TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids);
 
 // using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>;
 // using TaggedAmountValueIdMap =
 // cas::repository<TaggedAmount::ValueId,TaggedAmount>;
-using TaggedAmountsCasRepository =
-    cas::repository<TaggedAmount::ValueId, TaggedAmount>;
+using TaggedAmountsCasRepository = cas::repository<TaggedAmount::ValueId, TaggedAmount>;
 
 // Behaves more or less as a vector of tagged amounts in date order.
 // But uses a map <Key,Value> as the mechanism to look up a value based on its
@@ -375,7 +355,7 @@ namespace tas {
   // Generic for parsing a range or container of tagged amount pointers into a
   // vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas
   // account)
-  TaggedAmounts to_bas_omslutning(auto const &tas) {
+  inline TaggedAmounts to_bas_omslutning(auto const &tas) {
     TaggedAmounts result{};
     using BASBuckets = std::map<BAS::AccountNo, TaggedAmounts>;
     BASBuckets bas_buckets{};
