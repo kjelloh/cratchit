@@ -12,6 +12,7 @@ find_package(pugixml REQUIRED)
 find_package(icu REQUIRED)
 find_package(immer REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(GTest REQUIRED)
 
 add_executable(cratchit 
         src/cratchit.cpp 
@@ -33,7 +34,9 @@ add_executable(cratchit
         src/environment.cpp
         src/FiscalPeriod.cpp
         src/fiscal/amount/AmountFramework.cpp 
-        src/fiscal/amount/TaggedAmountFramework.cpp)
+        src/fiscal/amount/TaggedAmountFramework.cpp
+        src/fiscal/amount/functional.cpp
+        src/tests/tests.cpp)
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
@@ -43,6 +46,7 @@ target_link_libraries(cratchit PRIVATE pugixml::pugixml)
 target_link_libraries(cratchit PRIVATE ICU::i18n ICU::uc)
 target_link_libraries(cratchit PRIVATE immer::immer)
 target_link_libraries(cratchit PRIVATE spdlog::spdlog)
+target_link_libraries(cratchit PRIVATE gtest::gtest)
 
 install(TARGETS cratchit DESTINATION "."
         RUNTIME DESTINATION bin

@@ -25,4 +25,4 @@ cp "$BUILD_DIR/cratchit" "$WORKSPACE_DIR/"
 # Change to the workspace directory
 cd "$WORKSPACE_DIR"
 
-./cratchit
+./cratchit "$@"
