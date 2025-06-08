@@ -203,6 +203,28 @@ namespace test {
             EXPECT_EQ(odds, std::vector<int>({1, 3, 5}));
         }
 
+        TEST(GroupByTest, GroupsItemsByCategory) {
+            struct Item {
+                std::string category;
+                int amount;
+
+                bool operator==(const Item&) const = default;
+            };
+
+            std::vector<Item> items = {
+                {"food", 10}, {"transport", 20}, {"food", 15}, {"books", 5}
+            };
+
+            auto grouped = cratchit::functional::groupBy([](const Item& item) {
+                return item.category;
+            })(items);
+
+            EXPECT_EQ(grouped["food"], (std::vector<Item>{{"food", 10}, {"food", 15}}));
+            EXPECT_EQ(grouped["transport"], (std::vector<Item>{{"transport", 20}}));
+            EXPECT_EQ(grouped["books"], (std::vector<Item>{{"books", 5}}));
+        }
+
+
     } // namespace functional_suite
 
     namespace tafw_suite {

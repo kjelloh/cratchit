@@ -139,6 +139,11 @@ namespace cratchit {
         // Stronger form of key, where you actually group values into maps/lists.
         // Example: Group all transactions by month or by category.
         // map<string, vector<TaggedAmount>> grouped = groupBy([](auto t) { return t.tag; }, transactions);
+        inline constexpr auto groupBy = [](auto&& keyFunc) {
+            return [=, f = std::forward<decltype(keyFunc)>(keyFunc)](auto&& range) {
+                return key(std::forward<decltype(range)>(range), f);
+            };
+        };
 
         // 9. sortBy
         // Sorting is often needed by date, amount, etc.
