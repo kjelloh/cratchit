@@ -117,6 +117,23 @@ namespace cratchit {
         // Split a list into two based on a predicate.
         // Example: Separate income and expenses.
         // auto [expenses, income] = partition([](auto t) { return t.amount < 0; }, taggedAmounts);
+        inline constexpr auto partition = [](auto&& pred) {
+            return [=, p = std::forward<decltype(pred)>(pred)](auto&& range) {
+                using ValueType = std::ranges::range_value_t<std::remove_reference_t<decltype(range)>>;
+                std::vector<ValueType> true_partition;
+                std::vector<ValueType> false_partition;
+
+                for (auto&& elem : range) {
+                    if (p(elem)) {
+                        true_partition.push_back(std::forward<decltype(elem)>(elem));
+                    } else {
+                        false_partition.push_back(std::forward<decltype(elem)>(elem));
+                    }
+                }
+
+                return std::pair{std::move(true_partition), std::move(false_partition)};
+            };
+        };
 
         // 8. groupBy (or bucketBy)
         // Stronger form of key, where you actually group values into maps/lists.

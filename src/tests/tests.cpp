@@ -190,6 +190,19 @@ namespace test {
             EXPECT_EQ(result, expected);
         }
 
+        TEST(PartitionTest, SeparatesEvenAndOdd) {
+            std::vector<int> input = {1, 2, 3, 4, 5, 6};
+
+            auto even_odd = cratchit::functional::partition([](int x) {
+                return x % 2 == 0;
+            });
+
+            auto [evens, odds] = even_odd(input);
+
+            EXPECT_EQ(evens, std::vector<int>({2, 4, 6}));
+            EXPECT_EQ(odds, std::vector<int>({1, 3, 5}));
+        }
+
     } // namespace functional_suite
 
     namespace tafw_suite {
