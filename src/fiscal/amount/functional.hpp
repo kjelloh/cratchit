@@ -161,7 +161,68 @@ namespace cratchit {
         // 10. zip / zipWith
         // Combine two lists element-wise.
         // Useful if merging two accounts, aligning monthly budget vs actual spend.
+        inline constexpr auto zip = [](auto&& range1, auto&& range2) {
+            using std::ranges::begin, std::ranges::end;
+            auto it1 = begin(range1), end1 = end(range1);
+            auto it2 = begin(range2), end2 = end(range2);
 
+            using T1 = std::remove_cvref_t<decltype(*it1)>;
+            using T2 = std::remove_cvref_t<decltype(*it2)>;
+
+            std::vector<std::pair<T1, T2>> result;
+
+            for (; it1 != end1 && it2 != end2; ++it1, ++it2) {
+                result.emplace_back(*it1, *it2);
+            }
+
+            return result;
+        };
+
+        namespace detail {
+            // Helper to dereference all iterators in a tuple into a tuple of references
+            template <typename Tuple, std::size_t... I>
+            auto deref_tuple_impl(Tuple& t, std::index_sequence<I...>) {
+                return std::make_tuple((*std::get<I>(t))...);
+            }
+
+            template <typename Tuple>
+            auto deref_tuple(Tuple& t) {
+                return deref_tuple_impl(t, std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+            }
+
+            // Helper to increment all iterators in a tuple
+            template <typename Tuple, std::size_t... I>
+            void increment_tuple_impl(Tuple& t, std::index_sequence<I...>) {
+                (..., ++std::get<I>(t));
+            }
+
+            template <typename Tuple>
+            void increment_tuple(Tuple& t) {
+                increment_tuple_impl(t, std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+            }
+
+        } // namespace detail
+
+        inline constexpr auto nzip = [](auto&&... ranges) {
+            using std::begin;
+            using std::end;
+
+            // Compute minimum size among input ranges
+            std::size_t min_size = std::min({std::ranges::size(ranges)...});
+
+            using ValueType = std::tuple<std::ranges::range_value_t<std::remove_reference_t<decltype(ranges)>>...>;
+            std::vector<ValueType> result;
+            result.reserve(min_size);
+
+            auto its = std::make_tuple(begin(ranges)...);
+
+            for (std::size_t i = 0; i < min_size; ++i) {
+                result.push_back(detail::deref_tuple(its));
+                detail::increment_tuple(its);
+            }
+
+            return result;
+        };
 
     } // namespace functional
 } // namespace cratchit

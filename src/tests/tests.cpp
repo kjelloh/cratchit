@@ -274,6 +274,43 @@ namespace test {
             EXPECT_EQ(sorted[3], (Transaction{"2023-01-03", 75}));
         }
 
+        TEST(ZipTest, ZipsTwoVectorsCorrectly) {
+            using cratchit::functional::zip;
+
+            std::vector<int> a = {1, 2, 3};
+            std::vector<char> b = {'a', 'b'};
+
+            auto zipped = zip(a, b);
+
+            ASSERT_EQ(zipped.size(), 2);
+            EXPECT_EQ(zipped[0], std::make_pair(1, 'a'));
+            EXPECT_EQ(zipped[1], std::make_pair(2, 'b'));
+        }
+
+        TEST(FunctionalZipTest, ZipThreeVectors) {
+            std::vector<int> v1{1, 2, 3, 4};
+            std::vector<char> v2{'a', 'b', 'c'};
+            std::vector<std::string> v3{"x", "y", "z", "w"};
+
+            auto zipped = cratchit::functional::nzip(v1, v2, v3);
+
+            // Should truncate to shortest vector size = 3
+            ASSERT_EQ(zipped.size(), 3);
+
+            EXPECT_EQ(zipped[0], std::make_tuple(1, 'a', std::string("x")));
+            EXPECT_EQ(zipped[1], std::make_tuple(2, 'b', std::string("y")));
+            EXPECT_EQ(zipped[2], std::make_tuple(3, 'c', std::string("z")));
+        }
+
+        TEST(FunctionalZipTest, ZipEmpty) {
+            std::vector<int> v1{};
+            std::vector<int> v2{1, 2, 3};
+
+            auto zipped = cratchit::functional::nzip(v1, v2);
+
+            EXPECT_TRUE(zipped.empty());
+        }
+
     } // namespace functional_suite
 
     namespace tafw_suite {
