@@ -109,6 +109,9 @@ namespace cratchit {
         // 6. filter
         // Select based on predicates (e.g., tag, date, amount thresholds).
         // Example: Only expenses over $100.
+        inline constexpr auto filter = [](auto&& pred) {
+            return std::views::filter(std::forward<decltype(pred)>(pred));
+        };
 
         // 7. partition
         // Split a list into two based on a predicate.

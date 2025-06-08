@@ -174,6 +174,22 @@ namespace test {
             EXPECT_EQ(result, input);
         }
 
+        TEST(FilterCombinatorTest, FiltersValuesGreaterThanThree) {
+            std::vector<int> input = {1, 2, 3, 4, 5};
+
+            auto only_greater_than_3 = cratchit::functional::filter(
+                [](int x) { return std::ranges::greater{}(x, 3); }
+            );
+
+            std::vector<int> result;
+            for (int x : input | only_greater_than_3) {
+                result.push_back(x);
+            }
+
+            std::vector<int> expected = {4, 5};
+            EXPECT_EQ(result, expected);
+        }
+
     } // namespace functional_suite
 
     namespace tafw_suite {
