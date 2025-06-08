@@ -7,6 +7,8 @@
 #include <ranges>
 #include <string>
 #include <type_traits>
+#include <vector>
+#include <map>
 
 // map, fold, scan, key, stencil, filter, reduce, etc.
 
@@ -55,11 +57,28 @@ namespace cratchit {
             };
         };
 
-
-
         // 4. key
         // Critical for grouping operations — think of it like SQL’s GROUP BY.
         // Example: Group amounts by tag or by month.
+        template <
+            typename Range,
+            typename KeyFunc,
+            typename MapType = std::map<
+                std::invoke_result_t<KeyFunc, std::ranges::range_reference_t<Range>>,
+                std::vector<std::ranges::range_value_t<Range>>
+            >
+        >
+        MapType key(Range&& range, KeyFunc keyFunc) {
+            MapType groups;
+
+            for (auto&& elem : range) {
+                auto k = keyFunc(elem);
+                groups[k].push_back(std::forward<decltype(elem)>(elem));
+            }
+
+            return groups;
+        }
+
 
         // 5. stencil
         // Usually used in numerical computations (e.g., neighborhoods), but in bookkeeping could model temporal patterns.

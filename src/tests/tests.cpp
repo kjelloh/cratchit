@@ -1,6 +1,7 @@
 #include "tests.hpp"
 #include <gtest/gtest.h>
 #include <numeric> // std::accumulate,
+#include <vector>
 
 #include "fiscal/amount/functional.hpp"
 
@@ -71,6 +72,53 @@ namespace test {
             std::vector<int> expected = {1, 2, 6, 24};
 
             EXPECT_EQ(result, expected);
+        }
+
+        TEST(KeyCombinatorTest, GroupsByTag) {
+            struct Amount {
+                std::string tag;
+                int cents;
+
+                bool operator==(const Amount& other) const {
+                    return tag == other.tag && cents == other.cents;
+                }
+            };
+            std::vector<Amount> amounts = {
+                {"food", 1000},
+                {"rent", 50000},
+                {"food", 500},
+                {"utilities", 6000},
+                {"rent", 45000}
+            };
+
+            auto grouped = cratchit::functional::key(amounts, [](const Amount& a) {
+                return a.tag;
+            });
+
+            // Check keys (std::map orders keys)
+            std::vector<std::string> expected_keys = {"food", "rent", "utilities"};
+            std::vector<std::string> actual_keys;
+            for (const auto& [key, _] : grouped) {
+                actual_keys.push_back(key);
+            }
+            EXPECT_EQ(actual_keys, expected_keys);
+
+            // Check grouped contents for "food"
+            ASSERT_TRUE(grouped.contains("food"));
+            EXPECT_EQ(grouped.at("food").size(), 2);
+            EXPECT_EQ(grouped.at("food")[0], (Amount{"food", 1000}));
+            EXPECT_EQ(grouped.at("food")[1], (Amount{"food", 500}));
+
+            // Check grouped contents for "rent"
+            ASSERT_TRUE(grouped.contains("rent"));
+            EXPECT_EQ(grouped.at("rent").size(), 2);
+            EXPECT_EQ(grouped.at("rent")[0], (Amount{"rent", 50000}));
+            EXPECT_EQ(grouped.at("rent")[1], (Amount{"rent", 45000}));
+
+            // Check grouped contents for "utilities"
+            ASSERT_TRUE(grouped.contains("utilities"));
+            EXPECT_EQ(grouped.at("utilities").size(), 1);
+            EXPECT_EQ(grouped.at("utilities")[0], (Amount{"utilities", 6000}));
         }
 
 
