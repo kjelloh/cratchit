@@ -31,6 +31,31 @@ namespace cratchit {
         // 3. scan
         // Like fold, but keeps history — perfect for running totals or cumulative balances.
         // Example: Monthly balance progression.
+        namespace detail {
+            template <typename Range, typename T, typename BinaryOp>
+            auto scan_impl(Range&& input, T init, BinaryOp op) {
+                using ValueType = std::remove_cvref_t<T>;
+                std::vector<ValueType> results;
+                results.reserve(std::ranges::size(input) + 1);
+
+                ValueType acc = init;
+                results.push_back(acc);
+
+                for (auto&& elem : input) {
+                    acc = op(acc, elem);
+                    results.push_back(acc);
+                }
+                return results;
+            }
+        }
+
+        inline constexpr auto scan = [](auto init, auto&& func) {
+            return [=, f = std::forward<decltype(func)>(func)](auto&& range) {
+                return detail::scan_impl(std::forward<decltype(range)>(range), init, f);
+            };
+        };
+
+
 
         // 4. key
         // Critical for grouping operations — think of it like SQL’s GROUP BY.

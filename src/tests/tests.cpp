@@ -49,6 +49,29 @@ namespace test {
             EXPECT_EQ(result, 24);
         }
 
+        TEST(ScanCombinatorTest, RunningSum) {
+            std::vector<int> input = {1, 2, 3, 4};
+
+            auto running_sum = cratchit::functional::scan(0, std::plus<>{});
+
+            auto result = running_sum(input);
+
+            std::vector<int> expected = {0, 1, 3, 6, 10};
+
+            EXPECT_EQ(result, expected);
+        }
+
+        TEST(ScanCombinatorTest, RunningProduct) {
+            std::vector<int> input = {2, 3, 4};
+
+            auto running_product = cratchit::functional::scan(1, std::multiplies<>{});
+
+            auto result = running_product(input);
+
+            std::vector<int> expected = {1, 2, 6, 24};
+
+            EXPECT_EQ(result, expected);
+        }
 
 
     } // namespace functional_suite
