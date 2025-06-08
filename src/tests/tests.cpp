@@ -5,6 +5,32 @@
 
 namespace test {
 
+    namespace functional_suite {
+
+        TEST(MapCombinatorTest, BasicTransformation) {
+            std::vector<int> input = {1, 2, 3, 4, 5};
+
+            // Apply a map: multiply each value by 10
+            auto mapped = input 
+                        | cratchit::functional::map([](int x) { return x * 10; });
+
+            std::vector<int> expected = {10, 20, 30, 40, 50};
+
+            auto it_mapped = mapped.begin();
+            auto it_expected = expected.begin();
+
+            for (; it_mapped != mapped.end() && it_expected != expected.end(); ++it_mapped, ++it_expected) {
+                EXPECT_EQ(*it_mapped, *it_expected);
+            }
+
+            // Ensure both ranges are the same length
+            EXPECT_EQ(it_mapped, mapped.end());
+            EXPECT_EQ(it_expected, expected.end());
+        }
+
+
+    } // namespace functional_suite
+
     namespace tafw_suite {
 
         // Helper to create some example TaggedAmount objects for testing
