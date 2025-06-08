@@ -224,6 +224,55 @@ namespace test {
             EXPECT_EQ(grouped["books"], (std::vector<Item>{{"books", 5}}));
         }
 
+        TEST(SortByTest, SortsTransactionsByAmount) {
+            struct Transaction {
+                std::string date;
+                int amount;
+
+                bool operator==(const Transaction&) const = default;
+            };
+
+            std::vector<Transaction> transactions = {
+                {"2023-01-02", 100},
+                {"2023-01-01", 50},
+                {"2023-01-03", 75}
+            };
+
+            auto sorted = cratchit::functional::sortBy([](const Transaction& t) {
+                return t.amount;
+            })(transactions);
+
+            ASSERT_EQ(sorted.size(), 3);
+            EXPECT_EQ(sorted[0].amount, 50);
+            EXPECT_EQ(sorted[1].amount, 75);
+            EXPECT_EQ(sorted[2].amount, 100);
+        }
+
+        TEST(SortByTest, SortsByDateThenAmount) {
+            struct Transaction {
+                std::string date;
+                int amount;
+
+                bool operator==(const Transaction&) const = default;
+            };
+
+            std::vector<Transaction> transactions = {
+                {"2023-01-02", 200},
+                {"2023-01-01", 100},
+                {"2023-01-01", 50},
+                {"2023-01-03", 75}
+            };
+
+            auto sorted = cratchit::functional::sortBy([](const Transaction& t) {
+                return std::make_tuple(t.date, t.amount); // Lexicographic sort: date then amount
+            })(transactions);
+
+            ASSERT_EQ(sorted.size(), 4);
+            EXPECT_EQ(sorted[0], (Transaction{"2023-01-01", 50}));
+            EXPECT_EQ(sorted[1], (Transaction{"2023-01-01", 100}));
+            EXPECT_EQ(sorted[2], (Transaction{"2023-01-02", 200}));
+            EXPECT_EQ(sorted[3], (Transaction{"2023-01-03", 75}));
+        }
 
     } // namespace functional_suite
 

@@ -148,6 +148,15 @@ namespace cratchit {
         // 9. sortBy
         // Sorting is often needed by date, amount, etc.
         // Can be combined with groupBy for reporting.
+        inline constexpr auto sortBy = [](auto&& keyFunc) {
+            return [=, f = std::forward<decltype(keyFunc)>(keyFunc)](auto&& range) {
+                using ValueType = std::ranges::range_value_t<std::remove_reference_t<decltype(range)>>;
+
+                std::vector<ValueType> result(std::ranges::begin(range), std::ranges::end(range));
+                std::ranges::sort(result, std::less<>{}, f);
+                return result;
+            };
+        };
 
         // 10. zip / zipWith
         // Combine two lists element-wise.
