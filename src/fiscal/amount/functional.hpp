@@ -83,6 +83,28 @@ namespace cratchit {
         // 5. stencil
         // Usually used in numerical computations (e.g., neighborhoods), but in bookkeeping could model temporal patterns.
         // Possible use: Detect "outlier" days or smoothing transactions (e.g., moving average).
+        inline constexpr auto stencil = [](std::size_t window_size, auto&& func) {
+            return [=, f = std::forward<decltype(func)>(func)](auto&& range) {
+                using std::ranges::begin, std::ranges::end;
+
+                auto first = begin(range);
+                auto last = end(range);
+                std::vector<std::ranges::range_value_t<decltype(range)>> result;
+
+                const std::size_t n = std::ranges::distance(first, last);
+                if (window_size == 0 || n < window_size)
+                    return result;  // empty output
+
+                for (std::size_t i = 0; i <= n - window_size; ++i) {
+                    auto win_first = std::next(first, i);
+                    auto win_last = std::next(first, i + window_size);
+                    result.push_back(f(std::ranges::subrange(win_first, win_last)));
+                }
+
+                return result;
+            };
+        };
+
 
         // 6. filter
         // Select based on predicates (e.g., tag, date, amount thresholds).

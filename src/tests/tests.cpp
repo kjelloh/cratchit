@@ -121,6 +121,58 @@ namespace test {
             EXPECT_EQ(grouped.at("utilities")[0], (Amount{"utilities", 6000}));
         }
 
+        TEST(StencilCombinatorTest, MovingSumWithWindowSize3) {
+            std::vector<int> input = {1, 2, 3, 4, 5};
+
+            // auto moving_sum = cratchit::functional::stencil(3, [](auto window) {
+            //     return std::accumulate(window.begin(), window.end(), 0);
+            // });
+            auto moving_sum = cratchit::functional::stencil(
+                3,
+                [](auto window) {
+                    return cratchit::functional::fold(0, std::plus<>{})(window);
+                }
+            );
+
+            auto result = moving_sum(input);
+
+            std::vector<int> expected = {
+                1 + 2 + 3,
+                2 + 3 + 4,
+                3 + 4 + 5
+            };
+
+            EXPECT_EQ(result, expected);
+        }
+
+        TEST(StencilCombinatorTest, EmptyOnTooShortRange) {
+            std::vector<int> input = {1, 2};
+
+            // auto moving_sum = cratchit::functional::stencil(3, [](auto window) {
+            //     return std::accumulate(window.begin(), window.end(), 0);
+            // });
+            auto moving_sum = cratchit::functional::stencil(
+                3,
+                [](auto window) {
+                    return cratchit::functional::fold(0, std::plus<>{})(window);
+                }
+            );
+
+            auto result = moving_sum(input);
+
+            EXPECT_TRUE(result.empty());
+        }
+
+        TEST(StencilCombinatorTest, SingleElementWindows) {
+            std::vector<int> input = {5, 6, 7};
+
+            auto identity = cratchit::functional::stencil(1, [](auto window) {
+                return *window.begin();  // single element
+            });
+
+            auto result = identity(input);
+            EXPECT_EQ(result, input);
+        }
 
     } // namespace functional_suite
 
