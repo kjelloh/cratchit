@@ -22,6 +22,11 @@ namespace cratchit {
         // 2. fold (reduce)
         // Aggregate data (e.g., sum totals, compute balances).
         // Example: Sum all amounts with tag "food".
+        inline constexpr auto fold = [](auto init, auto&& func) {
+            return [=, f = std::forward<decltype(func)>(func)](auto&& range) {
+                return std::accumulate(std::ranges::begin(range), std::ranges::end(range), init, f);
+            };
+        };
 
         // 3. scan
         // Like fold, but keeps history — perfect for running totals or cumulative balances.

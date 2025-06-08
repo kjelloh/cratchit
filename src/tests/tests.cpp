@@ -1,5 +1,6 @@
 #include "tests.hpp"
 #include <gtest/gtest.h>
+#include <numeric> // std::accumulate,
 
 #include "fiscal/amount/functional.hpp"
 
@@ -27,6 +28,27 @@ namespace test {
             EXPECT_EQ(it_mapped, mapped.end());
             EXPECT_EQ(it_expected, expected.end());
         }
+
+        TEST(FoldCombinatorTest, WorksWithStdSum) {
+            std::vector<int> values = {2, 3, 4};
+
+            auto sum = cratchit::functional::fold(0, std::plus<>{});
+
+            int result = sum(values);
+
+            EXPECT_EQ(result, 9);
+        }
+
+        TEST(FoldCombinatorTest, WorksWithStdMultiplies) {
+            std::vector<int> values = {2, 3, 4};
+
+            auto product = cratchit::functional::fold(1, std::multiplies<>{});
+
+            int result = product(values);
+
+            EXPECT_EQ(result, 24);
+        }
+
 
 
     } // namespace functional_suite
