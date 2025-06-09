@@ -1,7 +1,11 @@
+2025-06-09 Coded towards HADS -> SIE for next VAT report (and annual report)
+    + ProjectState now adds fiscal year entries based on year argument
+    + All Date functionality now in FiscalPeriod unit.
+    + Added FiscalPeriod::to_fiscal_year and used for user option caption.
 2025-06-07 REFACTORED
     + AmountFramework and TaggedAmountFramework now more code in cpp-part to linking
 
-2025-06-07  BACKLOG
+2025-06-07  Added missing log entries from 2025-01-28 (git log used)
     2025-06-07 AmountFramework, TaggedAmountFramework linking + inlining and clang-format config added
     2025-06-07 Introduced AmountFramework and TaggedAmountFramework units with used helpers not yet in separate units
     2025-05-30 Added FiscalPeriod and made May2AprilState take a year and imply the correct period

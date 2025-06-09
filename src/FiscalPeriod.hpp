@@ -6,9 +6,10 @@ namespace first {
 
     class FiscalPeriod {
     public:
-        using Year = std::chrono::year;
         using Date = std::chrono::year_month_day;
         using Days = std::chrono::sys_days;
+        using Year = std::chrono::year;
+        using Month = std::chrono::month;
 
         FiscalPeriod(Date start, Date end);
 
@@ -17,6 +18,10 @@ namespace first {
 
         bool contains(Date date) const noexcept;
         bool is_valid() const noexcept;
+
+        static FiscalPeriod to_fiscal_year(Year fiscal_start_year,Month fiscal_start_month);
+
+        std::string to_string() const;
 
     private:
         Date m_start;

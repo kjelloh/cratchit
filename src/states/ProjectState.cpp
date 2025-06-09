@@ -29,7 +29,9 @@ namespace first {
             : m_environment(environment) {}
 
         Option operator()(std::chrono::year fiscal_start_year) const {
-            std::string caption = std::format("Fiscal Year {} to {}", fiscal_start_year, fiscal_start_year + std::chrono::years{1});
+            auto fiscal_period = FiscalPeriod::to_fiscal_year(fiscal_start_year, std::chrono::month{5}); // May to April
+
+            std::string caption = fiscal_period.to_string();
             auto fiscal_ux = StateImpl::UX{caption};
             return {caption, [fiscal_start_year, fiscal_ux, this]() {
                 return std::make_shared<May2AprilState>(fiscal_ux, FiscalPeriod::Year{fiscal_start_year}, this->m_environment);
@@ -67,11 +69,11 @@ namespace first {
     };
 
     this->add_option('0',FiscalYearOptionFactory{m_environment}(
-        std::chrono::year{2023}));
+        std::chrono::year{2025}));
     this->add_option('1',FiscalYearOptionFactory{m_environment}(
         std::chrono::year{2024}));
     this->add_option('2',FiscalYearOptionFactory{m_environment}(
-        std::chrono::year{2025}));
+        std::chrono::year{2023}));
     this->add_option('3',Q1Optionfactory{m_environment}(
         std::chrono::year{2025}));
     // TODO: We need a dynamic QuarterState to handle quarets 1..4 (only Q1 possible now)
