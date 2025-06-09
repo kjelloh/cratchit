@@ -24,7 +24,7 @@ add_executable(cratchit
         src/states/StateImpl.cpp
         src/states/RBDState.cpp
         src/states/RBDsState.cpp
-        src/states/May2AprilState.cpp
+        src/states/FiscalYearState.cpp
         src/states/VATReturnsState.cpp
         src/states/Q1State.cpp
         src/states/ProjectState.cpp

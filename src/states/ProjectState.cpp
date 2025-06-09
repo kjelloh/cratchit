@@ -1,5 +1,5 @@
 #include "ProjectState.hpp"
-#include "May2AprilState.hpp" // TODO: We need a FiscalYerState with dynamic FiscalPeriod
+#include "FiscalYearState.hpp" // TODO: We need a FiscalYerState with dynamic FiscalPeriod
 #include "Q1State.hpp" // We need a dynamic QuarterState
 #include "FiscalPeriod.hpp" // Quarter,
 #include <format>
@@ -29,12 +29,12 @@ namespace first {
             : m_environment(environment) {}
 
         Option operator()(std::chrono::year fiscal_start_year) const {
-            auto fiscal_period = FiscalPeriod::to_fiscal_year(fiscal_start_year, std::chrono::month{5}); // May to April
+            auto fiscal_year = FiscalPeriod::to_fiscal_year(fiscal_start_year, std::chrono::month{5}); // May to April
 
-            std::string caption = fiscal_period.to_string();
+            std::string caption = fiscal_year.to_string();
             auto fiscal_ux = StateImpl::UX{caption};
-            return {caption, [fiscal_start_year, fiscal_ux, this]() {
-                return std::make_shared<May2AprilState>(fiscal_ux, FiscalPeriod::Year{fiscal_start_year}, this->m_environment);
+            return {caption, [fiscal_ux, this,fiscal_year]() {
+                return std::make_shared<FiscalYearState>(fiscal_ux, fiscal_year, this->m_environment);
             }};
         }
     }; // struct FiscalYearOptionFactory

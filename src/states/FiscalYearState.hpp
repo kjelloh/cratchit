@@ -6,10 +6,10 @@
 #include "FiscalPeriod.hpp"
 
 namespace first {
-  class May2AprilState : public StateImpl {
+  class FiscalYearState : public StateImpl {
   private:
     Environment const& m_parent_environment_ref;
-    FiscalPeriod m_fiscal_period;
+    FiscalPeriod m_fiscal_year;
 
   public:
     StateFactory RBDs_factory = []() {
@@ -20,8 +20,7 @@ namespace first {
           "RBD #18", "RBD #19", "RBD #20", "RBD #21", "RBD #22", "RBD #23"};
       return std::make_shared<RBDsState>(all_rbds);
     };
-    May2AprilState(StateImpl::UX ux,FiscalPeriod::Year fiscal_start_year,Environment const& parent_environment_ref);
-    FiscalPeriod const& fiscal_period();
+    FiscalYearState(StateImpl::UX ux,FiscalPeriod fiscal_year,Environment const& parent_environment_ref);
 
-  }; // struct May2AprilState
+  }; // struct FiscalYearState
 }

@@ -2,6 +2,8 @@
     + ProjectState now adds fiscal year entries based on year argument
     + All Date functionality now in FiscalPeriod unit.
     + Added FiscalPeriod::to_fiscal_year and used for user option caption.
+    + Renamed May2AprilState to FiscalYearState
+
 2025-06-07 REFACTORED
     + AmountFramework and TaggedAmountFramework now more code in cpp-part to linking
 
