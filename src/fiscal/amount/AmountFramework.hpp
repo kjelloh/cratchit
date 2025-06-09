@@ -7,6 +7,7 @@
 #include <algorithm> // std::copy_if
 #include <iomanip> // std::setprecision,
 #include <chrono> // std::chrono::year_month_day
+#include "FiscalPeriod.hpp" // fiscal Date and period classes 
 
 std::string filtered(std::string const& s,auto filter) {
 	std::string result{};;
@@ -45,62 +46,7 @@ namespace Key {
   std::string to_string(Key::Path const &key_path);
 } // namespace Key
 
-// BEGIN -- Date framework
-using Date = std::chrono::year_month_day;
-using OptionalDate = std::optional<Date>;
-
-std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd);
-std::string to_string(Date const& yyyymmdd);
-Date to_date(int year,unsigned month,unsigned day);
-OptionalDate to_date(std::string const& sYYYYMMDD);
-Date to_today();
-
-class DateRange {
-public:
-	DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
-	DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-		OptionalDate begin{to_date(yyyymmdd_begin)};
-		OptionalDate end{to_date(yyyymmdd_end)};
-		if (begin and end) {
-			m_valid = true;
-			m_begin = *begin;
-			m_end = *end;
-		}
-	}
-	Date begin() const {return m_begin;}
-	Date end() const {return m_end;}
-	bool contains(Date const& date) const { return begin() <= date and date <= end();}
-	operator bool() const {return m_valid;}
-private:
-	bool m_valid{};
-	Date m_begin{};
-	Date m_end{};
-};
-using OptionalDateRange = std::optional<DateRange>;
-
-struct Quarter {
-	unsigned ix;
-};
-
-Quarter to_quarter(Date const& a_period_date);
-std::chrono::month to_quarter_begin(Quarter const& quarter);
-std::chrono::month to_quarter_end(Quarter const& quarter);
-DateRange to_quarter_range(Date const& a_period_date);
-DateRange to_three_months_earlier(DateRange const& quarter);
-std::ostream& operator<<(std::ostream& os,DateRange const& dr);
-
-struct IsPeriod {
-	DateRange period;
-	bool operator()(Date const& date) const {
-		return period.contains(date);
-	}
-};
-
-IsPeriod to_is_period(DateRange const& period);
-std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end);
-
-// END -- Date framework
-
+// All date related classes and functions are now in FiscalPerdiod unit
 
 namespace WrappedCentsAmount {
 
