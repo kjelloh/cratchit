@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fiscal/BAS.hpp" // BAS::AccountNo,
 #include "AmountFramework.hpp"
 #include "environment.hpp" // namespace cas,
 #include <ostream>
@@ -188,15 +189,7 @@ private:
                                                  // ordered by date
 }; // class DateOrderedTaggedAmountsContainer
 
-// Forward declaration of data and members of namespaces
-namespace BAS {
-  using AccountNo = unsigned int;
-  using OptionalAccountNo = std::optional<AccountNo>;
-  using AccountNos = std::vector<AccountNo>;
-  using OptionalAccountNos = std::optional<AccountNos>;
-
-  OptionalAccountNo to_account_no(std::string const &s);
-} // namespace BAS
+// namespace BAS with 'forwards' now in BAS.hpp
 
 namespace tas {
   // namespace for processing that produces tagged amounts and tagged amounts
