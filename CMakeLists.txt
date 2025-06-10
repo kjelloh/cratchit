@@ -35,7 +35,8 @@ add_executable(cratchit
         src/FiscalPeriod.cpp
         src/fiscal/amount/AmountFramework.cpp 
         src/fiscal/amount/TaggedAmountFramework.cpp
-        src/tests/tests.cpp)
+        src/tests/tests.cpp
+        src/fiscal/amount/HeadingAmountDateFramework.cpp)
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 

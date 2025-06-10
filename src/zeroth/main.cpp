@@ -3145,6 +3145,11 @@ private:
 	int m_sign;
 };
 
+/**
+    ---------------------------------------------------------------
+    BEGIN HeadingAmountDate framework hpp
+ */
+
 struct HeadingAmountDateTransEntry {
 	struct Optional {
 		std::optional<char> series{};
@@ -3158,6 +3163,21 @@ struct HeadingAmountDateTransEntry {
 	Date date{};
 	Optional optional{};
 };
+using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
+using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
+
+std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had);
+
+/**
+    END HeadingAmountDate framework hpp
+    ---------------------------------------------------------------
+ */
+
+
+/**
+    ---------------------------------------------------------------
+    BEGIN HeadingAmountDate framework cpp
+ */
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
 	if (auto me = had.optional.current_candidate) {
@@ -3187,9 +3207,11 @@ std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had
 	return os;
 }
 
-using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
 
-using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
+/**
+    END HeadingAmountDate framework cpp
+    ---------------------------------------------------------------
+ */
 
 namespace CSV {
 
