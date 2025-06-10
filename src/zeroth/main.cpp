@@ -7,6 +7,7 @@ float const VERSION = 0.5;
 #include "tokenize.hpp"
 #include "environment.hpp"
 #include "fiscal/amount/TaggedAmountFramework.hpp"
+#include "MetaDefacto.hpp" // MetaDefacto<Meta,Defacto>
 #include <iostream>
 #include <locale>
 #include <string>
@@ -2294,13 +2295,7 @@ unsigned first_digit(BAS::AccountNo account_no) {
 }
 
 
-template <typename Meta,typename Defacto>
-class MetaDefacto {
-public:
-	Meta meta;
-	Defacto defacto;
-private:
-};
+// MetaDefacto now in MetaDefacto.hpp
 
 namespace BAS {
 
@@ -7134,6 +7129,7 @@ EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
 	return ev;
 }
 
+OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);
 OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	OptionalHeadingAmountDateTransEntry result{};
 	HeadingAmountDateTransEntry had{};
@@ -11211,6 +11207,24 @@ std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState 
   return {prompt.str(),to_state};
 }
 
+HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);
+HeadingAmountDateTransEntries hads_from_environment(Environment const &environment) {
+  HeadingAmountDateTransEntries result{};
+  // auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
+  // std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+  // 	return *to_had(entry.second); // Assume success
+  // });
+  if (environment.contains("HeadingAmountDateTransEntry")) {
+    auto const id_ev_pairs = environment.at("HeadingAmountDateTransEntry");
+    std::transform(id_ev_pairs.begin(), id_ev_pairs.end(), std::back_inserter(result), [](auto const &id_ev_pair) {
+      auto const &[id, ev] = id_ev_pair;
+      return *to_had(ev); // Assume success
+    });
+  } else {
+    // Nop
+  }
+  return result;
+}
 
 class Cratchit {
 public:
@@ -11664,24 +11678,7 @@ private:
 		return result;
 	}
 	
-	HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
-		HeadingAmountDateTransEntries result{};
-		// auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
-		// std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-		// 	return *to_had(entry.second); // Assume success
-		// });
-    if (environment.contains("HeadingAmountDateTransEntry")) {
-      auto const id_ev_pairs = environment.at("HeadingAmountDateTransEntry");
-      std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
-        auto const& [id,ev] = id_ev_pair;
-        return *to_had(ev); // Assume success
-      });
-    }
-    else {
-      // Nop
-    }
-		return result;
-	}
+    // Now stand-alone: HeadingAmountDateTransEntries hads_from_environment(Environment const& environment)
 
 	bool is_value_line(std::string const& line) {
 		// return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
@@ -11743,7 +11740,7 @@ private:
 				prompt << "\nnow posted " << je; 
 			}
 		}
-		model->heading_amount_date_entries = this->hads_from_environment(environment);
+		model->heading_amount_date_entries = hads_from_environment(environment);
 		model->organisation_contacts = this->contacts_from_environment(environment);
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
 		model->sru = this->srus_from_environment(environment);
