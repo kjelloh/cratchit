@@ -1,5 +1,7 @@
 #pragma once
 
+#include "fiscal/BAS_SKV_Crossdependencies.hpp" // SKV types consumed by BAS and us
+#include "fiscal/BASFramework.hpp" // BAS::MetaAccountTransactions,
 #include <optional>
 #include <string>
 #include <map>
@@ -30,16 +32,11 @@ std::optional<unsigned int> to_four_digit_positive_int(std::string const& s);
 namespace SKV {
 	namespace SRU {
 
-		using AccountNo = unsigned int;
-		using OptionalAccountNo = std::optional<AccountNo>;
+        // SRU AccountNo, etc. now in BAS_SKV_Crossdependencies.hpp to break circular dependency
+        //     SKVFramework can consume BASFramework while BASFramework consumes BAS_SKV_Crossdependencies.hpp
 
 		OptionalAccountNo to_account_no(std::string const& s) {
 			return to_four_digit_positive_int(s);
 		}
-
-		using SRUValueMap = std::map<AccountNo,std::optional<std::string>>;
-		using OptionalSRUValueMap = std::optional<SRUValueMap>;
-		using SRUValueMaps = std::vector<SRUValueMap>;
-
 	} // namespace SRU
 } // namespace SKV

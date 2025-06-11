@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fiscal/BAS_SKV_Crossdependencies.hpp" 
 #include "KEY.hpp"
 #include "fiscal/amount/AmountFramework.hpp" // Amount,
 #include "MetaDefacto.hpp"
