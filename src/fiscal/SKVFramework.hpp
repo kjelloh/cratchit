@@ -6,6 +6,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <set>
 
 namespace SKV { 
 	namespace XML {
@@ -19,6 +20,9 @@ namespace SKV {
 			BoxNos const VAT_BOX_NOS{10,11,12,30,31,32,60,61,62,48,49};
 
 			Amount to_box_49_amount(FormBoxMap const& box_map);
+
+			BAS::AccountNos to_accounts(BoxNo box_no);
+			std::set<BAS::AccountNo> to_accounts(BoxNos const& box_nos);
 
 		} // namespace VATReturns 
 	} // namespace XML 
@@ -35,7 +39,7 @@ namespace SKV {
         // SRU AccountNo, etc. now in BAS_SKV_Crossdependencies.hpp to break circular dependency
         //     SKVFramework can consume BASFramework while BASFramework consumes BAS_SKV_Crossdependencies.hpp
 
-		OptionalAccountNo to_account_no(std::string const& s) {
+		inline OptionalAccountNo to_account_no(std::string const& s) {
 			return to_four_digit_positive_int(s);
 		}
 	} // namespace SRU

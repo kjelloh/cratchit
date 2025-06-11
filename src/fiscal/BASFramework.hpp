@@ -1,11 +1,14 @@
 #pragma once
 
 #include "fiscal/BAS_SKV_Crossdependencies.hpp" 
-#include "KEY.hpp"
+#include "Key.hpp"
 #include "fiscal/amount/AmountFramework.hpp" // Amount,
 #include "MetaDefacto.hpp"
 #include <optional>
 #include <vector>
+
+// NOTE: namespace snippets reflecting refactoring from zeroth/main.cpp
+// TODO: Clean up when conveniant
 
 namespace BAS {
 	extern char const* bas_2022_account_plan_csv;
@@ -34,8 +37,8 @@ namespace BAS {
 
 	namespace detail {
 		// "hidden" poor mans singleton instance creation
-		Key::Paths bas_2022_account_plan_paths{};
-		Key::Paths to_bas_2022_account_plan_paths() {
+		inline Key::Paths bas_2022_account_plan_paths{};
+		inline Key::Paths to_bas_2022_account_plan_paths() {
 			Key::Paths result;
 			std::istringstream in{bas_2022_account_plan_csv};
 			// TODO: Parse in and assemble a path with nodes:
@@ -48,7 +51,7 @@ namespace BAS {
 			return result;
 		}
 	}
-	Key::Paths const& to_bas_2022_account_plan_paths() {
+	inline Key::Paths const& to_bas_2022_account_plan_paths() {
 		// Poor mans "singleton" instance
 		static auto const& result = detail::to_bas_2022_account_plan_paths();
 		return result;
@@ -56,7 +59,7 @@ namespace BAS {
 
 	void parse_bas_account_plan_csv(std::istream& in,std::ostream& prompt);
 
-	Amount to_cents_amount(Amount const& amount) {
+	inline Amount to_cents_amount(Amount const& amount) {
 		return round((amount*100.0)/Amount{100.0}); // Amount / Amount = real number 
 	}
 
@@ -73,7 +76,7 @@ namespace BAS {
 	};
 	using OptionalAccountKind = std::optional<AccountKind>;
 
-	OptionalAccountKind to_account_kind(BAS::AccountNo const& bas_account_no) {
+	inline OptionalAccountKind to_account_kind(BAS::AccountNo const& bas_account_no) {
 		OptionalAccountKind result{};
 		auto s_account_no = std::to_string(bas_account_no);
 		if (s_account_no.size() == 4) {
@@ -93,7 +96,7 @@ namespace BAS {
 	}
 
 	using BASAccountNumberPath = Key::Path;
-	BASAccountNumberPath to_bas__account_number_path(BAS::AccountNo const& bas_account_no) {
+	inline BASAccountNumberPath to_bas__account_number_path(BAS::AccountNo const& bas_account_no) {
 		BASAccountNumberPath result{};
 		// TODO: Search 
 		return result;
@@ -109,10 +112,10 @@ namespace BAS {
 	namespace detail {
 		// "Hidden" Global mapping between BAS account no and its registered meta data like name, SRU code etc (from SIE file(s) imported)
 		// See accessor global_account_metas().
-		AccountMetas global_account_metas{};
+		inline AccountMetas global_account_metas{};
 	}
 
-	AccountMetas const& global_account_metas() {return detail::global_account_metas;}
+	inline AccountMetas const& global_account_metas() {return detail::global_account_metas;}
 
 	namespace anonymous {
 
@@ -165,6 +168,10 @@ namespace BAS {
 	using MetaAccountTransaction = MetaDefacto<BAS::MetaEntry,BAS::anonymous::AccountTransaction>;
 	using OptionalMetaAccountTransaction = std::optional<MetaAccountTransaction>;
 	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
+} // namespace BAS
+
+namespace BAS {
+	Amount mats_sum(BAS::MetaAccountTransactions const& mats);
 } // namespace BAS
 
 

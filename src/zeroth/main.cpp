@@ -9,6 +9,8 @@ float const VERSION = 0.5;
 #include "fiscal/amount/TaggedAmountFramework.hpp"
 #include "MetaDefacto.hpp" // MetaDefacto<Meta,Defacto>
 #include "fiscal/amount/HADFramework.hpp"
+#include "fiscal/BASFramework.hpp"
+#include "fiscal/SKVFramework.hpp"
 #include <iostream>
 #include <locale>
 #include <string>
@@ -1571,43 +1573,20 @@ namespace BAS::K2::AR {
 }
 
 // BAS::bas_2022_account_plan_csv now in BASFramework unit
+
 namespace SKV::XML {
 	using XMLMap = std::map<std::string,std::string>;
 }
 namespace SKV::XML::TAXReturns {
 	extern SKV::XML::XMLMap tax_returns_template; // See bottom of this file
 }
-namespace SKV::XML::VATReturns {
-	extern char const* ACCOUNT_VAT_CSV; // See bottom of this source file
-}
 
-template <typename I>
-std::vector<std::pair<I,I>> to_ranges(std::vector<I> line_nos) {
-	std::vector<std::pair<I,I>> result{};
-	if (line_nos.size()>0) {
-		I begin{line_nos[0]}; 
-		I previous{begin};
-		for (auto line_ix : line_nos) {
-			if (line_ix > previous+1) {
-				// Broken sequence - push previous one
-				result.push_back({begin,previous});
-				begin = line_ix;
-			}
-			previous = line_ix;
-		}
-		if (previous > begin) result.push_back({begin,previous});
-	}
-	return result;
-}
+// SKV::XML::VatReturns::ACCOUNT_VAT_CSV now in SKVFramework unit
 
-template <typename I>
-std::ostream& operator<<(std::ostream& os,std::vector<std::pair<I,I>> const& rr) {
-	for (auto const& r : rr) {
-		if (r.first == r.second) os << " " << r.first;
-		else os << " [" << r.first << ".." << r.second << "]";
-	}
-	return os;
-}
+// Now in BASFramework unit:
+// template <typename I>
+// std::vector<std::pair<I,I>> to_ranges(std::vector<I> line_nos) ...
+// operator<<(std::ostream& os,std::vector<std::pair<I,I>> const& ranges) ...
 
 namespace doc {
 
@@ -2277,12 +2256,8 @@ void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& 
 
 namespace BAS {
 
-	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
-		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
-			acc += mat.defacto.amount;
-			return acc;
-		});
-	}
+    // Now in BASFramework unit
+    // 	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
 
 	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
 
@@ -5793,44 +5768,11 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			Key::Paths account_vat_form_mapping() {
-				Key::Paths result{};
-				std::istringstream is{ACCOUNT_VAT_CSV};
-				std::string row{};
-				while (std::getline(is,row)) {
-					result.push_back(Key::Path{row,';'});
-				}
-				return result;
-			}
-
-			BAS::AccountNos to_accounts(BoxNo box_no) {
-				static auto const ps = account_vat_form_mapping();
-				BAS::AccountNos result{};
-				return std::accumulate(ps.begin(),ps.end(),BAS::AccountNos{},[&box_no](auto acc,Key::Path const& p){
-					try {
-						std::ostringstream os{};
-						os << std::setfill('0') << std::setw(2) << box_no;
-						if (p[2].find(os.str()) != std::string::npos) acc.push_back(std::stoi(p[0]));
-
-					}
-					catch (std::exception const& e) { std::cout << "\nDESIGN INSUFFICIENCY: to_accounts::lambda failed. Exception=" << std::quoted(e.what());}					
-					return acc;
-				});
-				return result;
-			}
-
-			std::set<BAS::AccountNo> to_accounts(BoxNos const& box_nos) {
-				std::set<BAS::AccountNo> result{};
-				for (auto const& box_no : box_nos) {
-					auto vat_account_nos = to_accounts(box_no);
-					std::copy(vat_account_nos.begin(),vat_account_nos.end(),std::inserter(result,result.end()));
-				}
-				return result;
-			}
-
-			std::set<BAS::AccountNo> to_vat_accounts() {
-				return to_accounts({10,11,12,30,31,32,60,61,62,48,49});
-			}			
+            // Now in SKVFramework unit
+            // Key::Paths account_vat_form_mapping() {
+            // BAS::AccountNos to_accounts(BoxNo box_no) {
+			// std::set<BAS::AccountNo> to_accounts(BoxNos const& box_nos) {
+            // std::set<BAS::AccountNo> to_vat_accounts() {
 
 			BAS::MetaAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
 				BAS::MetaAccountTransactions result{};
@@ -6627,7 +6569,7 @@ error: invalid operands to binary expression (
             auto file_count_before = files_.size();
             files_[{ymd, tod}] = filePath;
             std::cout << "\n\t\tfile_count_before:" << file_count_before << " file_count_after:" << files_.size();
-            if (files_.size() == file_count_before) std::cout << " KEY CONFLICT!!";
+            if (files_.size() == file_count_before) std::cout << " Key CONFLICT!!";
           }              
         }
       }      
@@ -6776,22 +6718,8 @@ EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
 	return ev;
 }
 
-OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);
-OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
-	OptionalHeadingAmountDateTransEntry result{};
-	HeadingAmountDateTransEntry had{};
-	while (true) {
-		if (auto iter = ev.find("rubrik");iter != ev.end()) had.heading = iter->second;
-		else break;
-		if (auto iter = ev.find("belopp");iter != ev.end()) had.amount = *to_amount(iter->second); // assume success
-		else break;
-		if (auto iter = ev.find("datum");iter != ev.end()) had.date = *to_date(iter->second); // assume success
-		else break;
-		result = had;
-		break;
-	}
-	return result;
-}
+// Now in HADFramework unit
+// OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);
 
 OptionalHeadingAmountDateTransEntry to_had(BAS::MetaEntry const& me) {
 	OptionalHeadingAmountDateTransEntry result{};
@@ -11582,90 +11510,8 @@ namespace zeroth {
 
 }
 
-namespace SKV { // SKV
-	namespace XML { // SKV::XML
-		namespace VATReturns { // SKV::XML::VATReturns
-// Mapping between BAS Account numbers and VAT Returns form designation codes (SRU Codes as "bonus")
-char const* ACCOUNT_VAT_CSV = R"(KONTO;BENÄMNING;MOMSKOD (MOMSRUTA);SRU
-3305;Försäljning tjänster till land utanför EU;ÖTEU (40);7410
-3521;Fakturerade frakter, EU-land;VTEU (35);7410
-3108;Försäljning varor till annat EU-land, momsfri;VTEU (35);7410
-2634;Utgående moms omvänd skattskyldighet, 6 %;UTFU3 (32);7369
-2624;Utgående moms omvänd skattskyldighet, 12 %;UTFU2 (31);7369
-2614;Utgående moms omvänd skattskyldighet, 25 %;UOS1 (30);7369
-2635;Utgående moms import av varor, 6 %;UI6 (62);7369
-2615;Utgående moms import av varor, 25 %;UI25 (60);7369
-2625;Utgående moms import av varor, 12 %;UI12 (61);7369
-2636;Utgående moms VMB 6 %;U3 (12);7369
-2631;Utgående moms på försäljning inom Sverige, 6 %;U3 (12);7369
-2630;Utgående moms, 6 %;U3 (12);7369
-2633;Utgående moms för uthyrning, 6 %;U3 (12);7369
-2632;Utgående moms på egna uttag, 6 %;U3 (12);7369
-2626;Utgående moms VMB 12 %;U2 (11);7369
-2622;Utgående moms på egna uttag, 12 %;U2 (11);7369
-2621;Utgående moms på försäljning inom Sverige, 12 %;U2 (11);7369
-2620;Utgående moms, 12 %;U2 (11);7369
-2623;Utgående moms för uthyrning, 12 %;U2 (11);7369
-2612;Utgående moms på egna uttag, 25 %;U1 (10);7369
-2610;Utgående moms, 25 %;U1 (10);7369
-2611;Utgående moms på försäljning inom Sverige, 25 %;U1 (10);7369
-2616;Utgående moms VMB 25 %;U1 (10);7369
-2613;Utgående moms för uthyrning, 25 %;U1 (10);7369
-2650;Redovisningskonto för moms;R2 (49);7369
-1650;Momsfordran;R1 (49);7261
-3231;Försäljning inom byggsektorn, omvänd skattskyldighet moms;OTTU (41);7410
-3003;Försäljning inom Sverige, 6 % moms;MP3 (05);7410
-3403;Egna uttag momspliktiga, 6 %;MP3 (05);7410
-3402;Egna uttag momspliktiga, 12 %;MP2 (05);7410
-3002;Försäljning inom Sverige, 12 % moms;MP2 (05);7410
-3401;Egna uttag momspliktiga, 25 %;MP1 (05);7410
-3510;Fakturerat emballage;MP1 (05);7410
-3600;Rörelsens sidointäkter (gruppkonto);MP1 (05);7410
-3530;Fakturerade tull- och speditionskostnader m.m.;MP1 (05);7410
-3520;Fakturerade frakter;MP1 (05);7410
-3001;Försäljning inom Sverige, 25 % moms;MP1 (05);7410
-3540;Faktureringsavgifter;MP1 (05);7410
-3106;Försäljning varor till annat EU-land, momspliktig;MP1 (05);7410
-3990;Övriga ersättningar och intäkter;MF (42);7413
-3404;Egna uttag, momsfria;MF (42);7410
-3004;Försäljning inom Sverige, momsfri;MF (42);7410
-3980;Erhållna offentliga stöd m.m.;MF (42);7413
-4516;Inköp av varor från annat EU-land, 12 %;IVEU (20);7512
-4515;Inköp av varor från annat EU-land, 25 %;IVEU (20);7512
-9021;Varuvärde Inlöp annat EG-land (Momsrapport ruta 20);IVEU (20);
-4517;Inköp av varor från annat EU-land, 6 %;IVEU (20);7512
-4415;Inköpta varor i Sverige, omvänd skattskyldighet, 25 % moms;IV (23);7512
-4531;Inköp av tjänster från ett land utanför EU, 25 % moms;ITGLOB (22);7512
-4532;Inköp av tjänster från ett land utanför EU, 12 % moms;ITGLOB (22);7512
-4533;Inköp av tjänster från ett land utanför EU, 6 % moms;ITGLOB (22);7512
-4537;Inköp av tjänster från annat EU-land, 6 %;ITEU (21);7512
-4536;Inköp av tjänster från annat EU-land, 12 %;ITEU (21);7512
-4535;Inköp av tjänster från annat EU-land, 25 %;ITEU (21);7512
-4427;Inköpta tjänster i Sverige, omvänd skattskyldighet, 6 %;IT (24);7512
-4426;Inköpta tjänster i Sverige, omvänd skattskyldighet, 12 %;IT (24);7512
-2642;Debiterad ingående moms i anslutning till frivillig skattskyldighet;I (48);7369
-2640;Ingående moms;I (48);7369
-2647;Ingående moms omvänd skattskyldighet varor och tjänster i Sverige;I (48);7369
-2641;Debiterad ingående moms;I (48);7369
-2649;Ingående moms, blandad verksamhet;I (48);7369
-2646;Ingående moms på uthyrning;I (48);7369
-2645;Beräknad ingående moms på förvärv från utlandet;I (48);7369
-3913;Frivilligt momspliktiga hyresintäkter;HFS (08);7413
-3541;Faktureringsavgifter, EU-land;FTEU (39);7410
-3308;Försäljning tjänster till annat EU-land;FTEU (39);7410
-3542;Faktureringsavgifter, export;E (36);7410
-3522;Fakturerade frakter, export;E (36);7410
-3105;Försäljning varor till land utanför EU;E (36);7410
-3211;Försäljning positiv VMB 25 %;BVMB (07);7410
-3212;Försäljning negativ VMB 25 %;BVMB (07);7410
-9022;Beskattningsunderlag vid import (Momsrapport Ruta 50);BI (50);
-4545;Import av varor, 25 % moms;BI (50);7512
-4546;Import av varor, 12 % moms;BI (50);7512
-4547;Import av varor, 6 % moms;BI (50);7512
-3740;Öres- och kronutjämning;A;7410)";
-		} // namespace VATReturns
-	} // namespace XML
-} // namespace SKV 
+// char const* ACCOUNT_VAT_CSV now in SKVFramework unit
+
 
 namespace charset {
 	namespace CP437 {

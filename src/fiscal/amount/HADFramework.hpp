@@ -2,6 +2,7 @@
 
 #include "environment.hpp"
 #include "fiscal/BASFramework.hpp"
+#include "fiscal/SKVFramework.hpp"
 #include <string>
 #include <optional>
 
@@ -18,9 +19,11 @@ struct HeadingAmountDateTransEntry {
 	Date date{};
 	Optional optional{};
 };
-using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
-using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
-
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had);
+
+using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
+OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);
+
+using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
 HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);

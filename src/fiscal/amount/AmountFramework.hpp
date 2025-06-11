@@ -15,7 +15,7 @@ std::string filtered(std::string const& s,auto filter) {
 	return result;
 }
 
-// namespace KEY now in KEY unit
+// namespace Key now in Key unit
 
 // All date related classes and functions are now in FiscalPerdiod unit
 

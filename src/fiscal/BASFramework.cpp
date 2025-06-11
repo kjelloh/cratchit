@@ -1,9 +1,47 @@
 #include "BASFramework.hpp"
+#include "tokenize.hpp"
+#include <numeric> // std::accumulate,
 
 namespace BAS {
+	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
+		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
+			acc += mat.defacto.amount;
+			return acc;
+		});
+	}
 } // namespace BAS
 
 namespace BAS {
+
+    // Creates pairs of iterators for ranges of unbroken lines
+    template <typename I>
+    std::vector<std::pair<I,I>> to_ranges(std::vector<I> line_nos) {
+        std::vector<std::pair<I,I>> result{};
+        if (line_nos.size()>0) {
+            I begin{line_nos[0]}; 
+            I previous{begin};
+            for (auto line_ix : line_nos) {
+                if (line_ix > previous+1) {
+                    // Broken sequence - push previous one
+                    result.push_back({begin,previous});
+                    begin = line_ix;
+                }
+                previous = line_ix;
+            }
+            if (previous > begin) result.push_back({begin,previous});
+        }
+        return result;
+    }
+
+    template <typename I>
+    std::ostream& operator<<(std::ostream& os,std::vector<std::pair<I,I>> const& rr) {
+        for (auto const& r : rr) {
+            if (r.first == r.second) os << " " << r.first;
+            else os << " [" << r.first << ".." << r.second << "]";
+        }
+        return os;
+    }
+
 	void parse_bas_account_plan_csv(std::istream& in,std::ostream& prompt) {
 		std::string entry{};
 		int line_ix{0};

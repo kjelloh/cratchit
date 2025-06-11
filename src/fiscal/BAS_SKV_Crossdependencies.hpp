@@ -1,5 +1,10 @@
 #pragma once
 
+#include <optional>
+#include <map>
+#include <vector>
+#include <string>
+
 namespace SKV {
 	namespace SRU {
 		using AccountNo = unsigned int;
