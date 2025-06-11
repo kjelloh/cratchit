@@ -6,6 +6,17 @@ set(CMAKE_CXX_STANDARD 23)  # or 20, 23, etc.
 set(CMAKE_CXX_STANDARD_REQUIRED ON)  # Ensures that the compiler supports the requested version
 set(CMAKE_CXX_EXTENSIONS OFF)  # Disable compiler-specific extensions (e.g., -std=c++11 or -std=gnu++11)
 
+message(STATUS "C++ Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "C++ Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-fmax-errors=5)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-ferror-limit=5)
+else()
+    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}. Cannot set error limit.")
+endif()
+
 find_package(sol2 REQUIRED)
 find_package(Curses REQUIRED)
 find_package(pugixml REQUIRED)
@@ -36,7 +47,10 @@ add_executable(cratchit
         src/fiscal/amount/AmountFramework.cpp 
         src/fiscal/amount/TaggedAmountFramework.cpp
         src/tests/tests.cpp
-        src/fiscal/amount/HeadingAmountDateFramework.cpp)
+        src/fiscal/BASFramework.cpp
+        src/fiscal/amount/HADFramework.cpp
+        src/KEY.cpp
+        src/fiscal/SKVFramework.cpp)
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 

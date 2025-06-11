@@ -1,0 +1,45 @@
+#pragma once
+
+#include <optional>
+#include <string>
+#include <map>
+#include <vector>
+
+namespace SKV { 
+	namespace XML {
+		namespace VATReturns {
+            using BoxNo = unsigned int;
+            using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
+            using BoxNos = std::vector<BoxNo>;
+
+			BoxNos const EU_VAT_BOX_NOS{30,31,32};
+			BoxNos const EU_PURCHASE_BOX_NOS{20,21};
+			BoxNos const VAT_BOX_NOS{10,11,12,30,31,32,60,61,62,48,49};
+
+			Amount to_box_49_amount(FormBoxMap const& box_map);
+
+		} // namespace VATReturns 
+	} // namespace XML 
+} // namespace SKV 
+
+std::set<BAS::AccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos);
+std::set<BAS::AccountNo> const& to_vat_accounts();
+
+std::optional<unsigned int> to_four_digit_positive_int(std::string const& s);
+
+namespace SKV {
+	namespace SRU {
+
+		using AccountNo = unsigned int;
+		using OptionalAccountNo = std::optional<AccountNo>;
+
+		OptionalAccountNo to_account_no(std::string const& s) {
+			return to_four_digit_positive_int(s);
+		}
+
+		using SRUValueMap = std::map<AccountNo,std::optional<std::string>>;
+		using OptionalSRUValueMap = std::optional<SRUValueMap>;
+		using SRUValueMaps = std::vector<SRUValueMap>;
+
+	} // namespace SRU
+} // namespace SKV
