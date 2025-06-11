@@ -8,16 +8,20 @@
 // Content Addressable Storage namespace
 namespace cas {
 
-  template <typename Key, typename Value> class repository {
+  template <typename Key, typename Value>
+  class repository {
   private:
     using KeyValueMap = std::map<Key, Value>;
     KeyValueMap m_map{};
     using Keys = std::vector<Key>;
     using AdjacencyList = std::map<Key, Keys>;
-    AdjacencyList m_adj{};
+    // AdjacencyList m_adj{};
 
   public:
-    using value_type = KeyValueMap::value_type;
+    // Tricky! We need EnvironmentCasEntryVector to be assignable, so we cannot
+    // use KeyValueMap::value_type directly as this would make the Key type const...
+    // using value_type = KeyValueMap::value_type;
+    using value_type = std::pair<Key, Value>;
     bool contains(Key const &key) const { return m_map.contains(key); }
     Value const &at(Key const &key) const { return m_map.at(key); }
     void clear() { return m_map.clear(); }
@@ -27,7 +31,13 @@ namespace cas {
       // services to protect internal map handling.)";
       return m_map;
     }
-    AdjacencyList &the_adjacency_list() { return m_adj; }
+    // AdjacencyList &the_adjacency_list() { return m_adj; }
+    repository& operator=(const repository &other) {
+      if (this != &other) {
+        m_map = other.m_map; // OK: std::map is assignable
+      }
+      return *this;
+    }
   };
 } // namespace cas
 
