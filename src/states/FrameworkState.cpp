@@ -20,11 +20,6 @@ namespace first {
   }
 
   // ----------------------------------
-  FrameworkState::~FrameworkState() {
-    spdlog::info("FrameworkState destructor executed");
-  }
-
-  // ----------------------------------
   std::pair<std::optional<State>,Cmd> FrameworkState::update(Msg const& msg) {
     std::optional<State> new_state{};
     auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);

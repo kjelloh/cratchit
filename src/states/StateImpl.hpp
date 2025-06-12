@@ -19,6 +19,7 @@ namespace first {
     UX m_ux;
     Options m_options;
     StateImpl(UX const &ux);
+    virtual ~StateImpl();
     void add_option(char ch, Option const &option);
     UX const &ux() const;
     UX &ux();

@@ -1,10 +1,23 @@
 #include "StateImpl.hpp"
+#include <spdlog/spdlog.h>
 
 namespace first {
 
   // State
   // ----------------------------------
-  StateImpl::StateImpl(UX const& ux) : m_ux{ux},m_options{} {}
+  StateImpl::StateImpl(UX const& ux) : m_ux{ux},m_options{} {
+      if (true) {
+        spdlog::info("StateImpl constructor called for {}", static_cast<const void*>(this));
+        spdlog::default_logger()->flush();
+      }
+  }
+
+  StateImpl::~StateImpl() {
+      if (true) {
+        spdlog::info("StateImpl destructor called for {}", static_cast<const void*>(this));
+        spdlog::default_logger()->flush();
+      }
+  }
 
   // ----------------------------------
   void StateImpl::add_option(char ch,StateImpl::Option const& option) {

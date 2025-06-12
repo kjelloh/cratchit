@@ -1,4 +1,5 @@
 #include "HADFramework.hpp"
+#include <spdlog/spdlog.h>
 #include <algorithm> // std::transform
 #include <iterator> // std::back_inserter
 #include <stdexcept> // std::runtime_error
@@ -49,12 +50,20 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 }
 
 HeadingAmountDateTransEntries hads_from_environment(Environment const &environment) {
+  if (true) {
+    spdlog::info("BEGIN hads_from_environment");
+    spdlog::default_logger()->flush();;
+  }
   HeadingAmountDateTransEntries result{};
   // auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
   // std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
   // 	return *to_had(entry.second); // Assume success
   // });
   if (environment.contains("HeadingAmountDateTransEntry")) {
+    if (true) {
+      spdlog::info(R"(if (environment.contains("HeadingAmountDateTransEntry")) ok)");
+      spdlog::default_logger()->flush();;
+    }
     auto const id_ev_pairs = environment.at("HeadingAmountDateTransEntry");
     std::transform(id_ev_pairs.begin(), id_ev_pairs.end(), std::back_inserter(result), [](auto const &id_ev_pair) {
       auto const &[id, ev] = id_ev_pair;

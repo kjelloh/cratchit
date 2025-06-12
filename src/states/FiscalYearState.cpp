@@ -13,6 +13,11 @@ namespace first {
       ,m_parent_environment_ref{parent_environment_ref} {
 
     try {
+        spdlog::info("Before accessing parent_environment_ref");
+        spdlog::default_logger()->flush();;
+        m_parent_environment_ref.at("dummy");
+        spdlog::info("Before calling hads_from_environment with parent_environment_ref");
+        spdlog::default_logger()->flush();;
         auto hads = hads_from_environment(m_parent_environment_ref);
         // TODO: Use hads to expose HAD options to the user
 

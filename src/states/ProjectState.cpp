@@ -2,6 +2,7 @@
 #include "FiscalYearState.hpp" // TODO: We need a FiscalYerState with dynamic FiscalPeriod
 #include "Q1State.hpp" // We need a dynamic QuarterState
 #include "FiscalPeriod.hpp" // Quarter,
+#include <spdlog/spdlog.h>
 #include <format>
 
 namespace first {
@@ -12,8 +13,6 @@ namespace first {
       ,m_root_path{root_path}
       ,m_environment{} {
 
-    // Integrate Zeroth: Environment environment_from_file(...) here.
-    // It is ok as this constructor is run as a command by the tea runtime (side effects allowed)
     try {
       m_environment = environment_from_file(m_root_path / "cratchit.env");
       m_ux.push_back(std::format("Environment size is: {}", m_environment.size()));
@@ -33,8 +32,11 @@ namespace first {
 
             std::string caption = fiscal_year.to_string();
             auto fiscal_ux = StateImpl::UX{caption};
-            return {caption, [fiscal_ux, this,fiscal_year]() {
-                return std::make_shared<FiscalYearState>(fiscal_ux, fiscal_year, this->m_environment);
+            // BEWARE: Don't capture the this pointer as FiscalYearOptionFactory is used only as a temporary
+            //         to create this lambda. So we must ensure the lampda captures stuff that is actually there
+            //         when the lambda is called (The user selects the option).
+            return {caption, [fiscal_ux, &env = this->m_environment,fiscal_year]() {
+                return std::make_shared<FiscalYearState>(fiscal_ux, fiscal_year, env);
             }};
         }
     }; // struct FiscalYearOptionFactory
@@ -68,14 +70,11 @@ namespace first {
       return std::make_shared<Q1State>(q1_ux);
     };
 
-    this->add_option('0',FiscalYearOptionFactory{m_environment}(
-        std::chrono::year{2025}));
-    this->add_option('1',FiscalYearOptionFactory{m_environment}(
-        std::chrono::year{2024}));
-    this->add_option('2',FiscalYearOptionFactory{m_environment}(
-        std::chrono::year{2023}));
-    this->add_option('3',Q1Optionfactory{m_environment}(
-        std::chrono::year{2025}));
+    this->add_option('0',FiscalYearOptionFactory{m_environment}(std::chrono::year{2025}));
+    this->add_option('1',FiscalYearOptionFactory{m_environment}(std::chrono::year{2024}));
+    this->add_option('2',FiscalYearOptionFactory{m_environment}(std::chrono::year{2023}));
+    this->add_option('3',Q1Optionfactory{m_environment}(std::chrono::year{2025}));
     // TODO: We need a dynamic QuarterState to handle quarets 1..4 (only Q1 possible now)
-  }
+  } // ProjectState::ProjectState
+
 }

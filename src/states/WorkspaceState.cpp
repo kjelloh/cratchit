@@ -36,9 +36,4 @@ namespace first {
     this->add_option('1',{"ITfied AB",project_factory_factory("ITfied AB")});
     this->add_option('2',{"Org x",project_factory_factory("Org x")});        
   }
-
-  // ----------------------------------
-  WorkspaceState::~WorkspaceState() {
-    spdlog::info("WorkspaceState destructor executed");
-  }
 }
