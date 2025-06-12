@@ -6173,9 +6173,9 @@ namespace SKV { // SKV
 			}
 
 			Quarter to_eu_list_quarter(Date const& date) {
-				auto quarter = to_quarter(date);
+				auto quarter_ix = to_quarter_index(date);
 				std::ostringstream os{};
-				os << (static_cast<int>(date.year()) % 100u) << "-" << quarter.ix;
+				os << (static_cast<int>(date.year()) % 100u) << "-" << quarter_ix.m_ix;
 				return {os.str()};
 			}
 

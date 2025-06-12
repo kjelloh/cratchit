@@ -56,64 +56,6 @@ Date to_today() {
 	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
 }
 
-// class DateRange here
-
-Quarter to_quarter(Date const& a_period_date) {
-	return {((static_cast<unsigned>(a_period_date.month())-1) / 3u)+ 1u}; // ((0..3) + 1
-}
-std::chrono::month to_quarter_begin(Quarter const& quarter) {
-	unsigned begin_month_no = (quarter.ix-1u) * 3u + 1u; // [0..3]*3 = [0,3,6,9] + 1 = [1,4,7,10]
-	return std::chrono::month{begin_month_no};
-}
-std::chrono::month to_quarter_end(Quarter const& quarter) {
-	return (to_quarter_begin(quarter) + std::chrono::months{2});
-}
-
-DateRange to_quarter_range(Date const& a_period_date) {
-// std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
-	auto quarter = to_quarter(a_period_date);
-	auto begin_month = to_quarter_begin(quarter);
-	auto end_month = to_quarter_end(quarter);
-	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
-	auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
-  if (false) {
-    std::cout << "\nto_quarter_range(" << a_period_date << ") --> " << begin << ".." << end;
-  }
-	return {begin,end};
-}
-
-DateRange to_three_months_earlier(DateRange const& quarter) {
-	auto const quarter_duration = std::chrono::months{3};
-  // get the year and month for the date range to return
-  auto ballpark_end = quarter.end() - quarter_duration;
-  // Adjust the end day to the correct one for the range end month
-  auto end = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
-  // Note: We do not need to adjust the begin day as all month starts on day 1
-	return {quarter.begin() - quarter_duration,end};
-}
-
-std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
-	os << dr.begin() << "..." << dr.end();
-	return os;
-}
-
-// class IsPeriod here
-
-IsPeriod to_is_period(DateRange const& period) {
-	return {period};
-}
-
-std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-	std::optional<IsPeriod> result{};
-	if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
-	else {
-		std::cout << "\nERROR, to_is_period failed. Invalid period " << std::quoted(yyyymmdd_begin) << " ... " << std::quoted(yyyymmdd_begin);
-	}
-	return result;
-}
-
-// END -- Date framework
-
 namespace WrappedCentsAmount {
   std::string to_string(CentsAmount const &cents_amount) {
     std::ostringstream oss{};
