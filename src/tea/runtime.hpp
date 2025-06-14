@@ -1,6 +1,7 @@
 #pragma once
 
 #include "event.hpp" // Event
+#include "to_type_name.hpp"
 #include <functional>
 #include <memory>
 #include <pugixml.hpp>
@@ -8,7 +9,7 @@
 #include <ncurses.h>
 #include <queue>
 #include <format>
-#include <spdlog/spdlog.h> 
+#include <spdlog/spdlog.h>
 
 namespace runtime {
   template <typename Msg>
@@ -162,9 +163,13 @@ public:
       else if (not msg_q.empty()) {
         auto msg = msg_q.front(); msg_q.pop();
 
+        if (true) {
+          spdlog::info("Processing Msg type {}",to_type_name(typeid(*msg)));
+        }
+
         // Try client provided predicate to identify QUIT msg
         if (is_quit_msg(msg)) {
-          break;
+          break; // quit :)
         }
 
         // Run the message though the client

@@ -5,6 +5,7 @@
 #include "tea/runtime.hpp"
 #include "states/StateImpl.hpp"
 #include "states/FrameworkState.hpp"
+#include "to_type_name.hpp"
 #include <iostream>
 #include <map>
 #include <memory>
@@ -121,6 +122,9 @@ namespace first {
                 }
                 else {
                   spdlog::info("State destructor executed in command (user count {} == 1)",popped_state.use_count());
+                  auto& ref = *popped_state; // Consume anu shared pointer dereference side effects here.
+                  // Then log the type name of the referenced state
+                  spdlog::info("Destructing State type {}",to_type_name(typeid(ref)));
                 }
                 // TODO: Consider to provide actual 'cargo' produced by state into message
                 std::string dummy_cargo{"Dummy cargo"}; 
