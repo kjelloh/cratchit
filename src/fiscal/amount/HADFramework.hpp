@@ -20,6 +20,7 @@ struct HeadingAmountDateTransEntry {
 	Optional optional{};
 };
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had);
+std::string to_string(HeadingAmountDateTransEntry const& had);
 
 using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
 OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);

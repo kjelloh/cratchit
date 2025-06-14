@@ -48,9 +48,10 @@ namespace first {
     for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
       auto entry = std::to_string(i);
       entry += ". ";
-      entry += m_all_hads[i];
+      entry += to_string(m_all_hads[i]);
       this->ux().push_back(entry);
     }
+
   }
 
   // ----------------------------------

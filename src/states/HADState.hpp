@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StateImpl.hpp"
+#include "fiscal/amount/HADFramework.hpp"
 
 namespace first {
   // ----------------------------------
@@ -9,7 +10,7 @@ namespace first {
       auto SIE_ux = StateImpl::UX{"HAD to SIE UX goes here"};
       return std::make_shared<StateImpl>(SIE_ux);
     };
-    using HAD = std::string;
+    using HAD = HeadingAmountDateTransEntry;
     HAD m_had;
     HADState(HAD had);
   };

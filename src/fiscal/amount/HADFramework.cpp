@@ -33,6 +33,12 @@ std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had
 	return os;
 }
 
+std::string to_string(HeadingAmountDateTransEntry const& had) {
+  std::ostringstream oss{};
+  oss << had;
+  return oss.str();
+}
+
 OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	OptionalHeadingAmountDateTransEntry result{};
 	HeadingAmountDateTransEntry had{};
