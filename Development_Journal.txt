@@ -1,3 +1,6 @@
+2025-06-14 REFACTORED
+    + Renamed RBD to HAD (established english Heading Amout Date)
+    + Now processes environment for HADs ok (test code for non existing key removed)
 2025-06-09 Coded towards HADS -> SIE for next VAT report (and annual report)
     + ProjectState now adds fiscal year entries based on year argument
     + All Date functionality now in FiscalPeriod unit.

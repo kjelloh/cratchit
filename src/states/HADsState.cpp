@@ -1,0 +1,59 @@
+#include "HADsState.hpp"
+#include "HADState.hpp"
+
+namespace first {
+  // ----------------------------------
+  HADsState::HADsState(HADs all_hads,Mod10View mod10_view)
+    :  m_mod10_view{mod10_view}
+      ,m_all_hads{all_hads}
+      ,StateImpl({}) {
+
+
+    struct HADs_subrange_factory {
+      // HAD subrange StateImpl factory
+      HADsState::HADs m_all_hads{};
+      Mod10View m_mod10_view;
+
+      auto operator()() {
+        return std::make_shared<HADsState>(m_all_hads, m_mod10_view);
+      }
+
+      HADs_subrange_factory(HADsState::HADs all_hads, Mod10View mod10_view)
+          : m_mod10_view{mod10_view}, m_all_hads{all_hads} {}
+    };
+
+    auto subranges = m_mod10_view.subranges();
+    for (size_t i=0;i<subranges.size();++i) {
+      auto const subrange = subranges[i];
+      auto const& [begin,end] = subrange;
+      auto caption = std::to_string(begin);
+      if (end-begin==1) {
+        // Single HAD in range option
+        this->add_option(static_cast<char>('0'+i),{caption,[had=m_all_hads[begin]](){
+          // Single RBT factory
+          auto HAD_ux = StateImpl::UX{
+            "HAD UX goes here"
+          };
+          return std::make_shared<HADState>(had);
+        }});
+      }
+      else {
+        caption += " .. ";
+        caption += std::to_string(end-1);
+        this->add_option(static_cast<char>('0'+i),{caption,HADs_subrange_factory(m_all_hads,subrange)});
+      }
+    }
+
+    // Initiate view UX
+    for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
+      auto entry = std::to_string(i);
+      entry += ". ";
+      entry += m_all_hads[i];
+      this->ux().push_back(entry);
+    }
+  }
+
+  // ----------------------------------
+  HADsState::HADsState(HADs all_hads) : HADsState(all_hads,Mod10View(all_hads)) {}
+
+}

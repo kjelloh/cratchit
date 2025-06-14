@@ -33,8 +33,8 @@ add_executable(cratchit
         src/cmd.cpp
         src/sub.cpp
         src/states/StateImpl.cpp
-        src/states/RBDState.cpp
-        src/states/RBDsState.cpp
+        src/states/HADState.cpp
+        src/states/HADsState.cpp
         src/states/FiscalYearState.cpp
         src/states/VATReturnsState.cpp
         src/states/QuarterState.cpp
