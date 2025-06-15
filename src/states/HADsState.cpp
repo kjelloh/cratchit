@@ -1,6 +1,7 @@
 #include "HADsState.hpp"
 #include "HADState.hpp"
 #include "tokenize.hpp"
+#include <spdlog/spdlog.h>
 
 namespace first {
   // ----------------------------------
@@ -10,6 +11,7 @@ namespace first {
       ,StateImpl({}) {
 
 
+    spdlog::info("HADsState::HADsState(HADs all_hads:size={},Mod10View mod10_view)",m_all_hads.size());
     struct HADs_subrange_factory {
       // HAD subrange StateImpl factory
       HADsState::HADs m_all_hads{};
@@ -65,8 +67,9 @@ namespace first {
         std::string command(entry_msg_ptr->m_entry);
         auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
         if (auto had = to_had(tokens)) {
-          auto mutated_state = std::make_shared<HADsState>(*this); // clone
-          mutated_state->m_all_hads.push_back(*had);
+          auto mutated_hads = this->m_all_hads;
+          mutated_hads.push_back(*had);
+          auto mutated_state = std::make_shared<HADsState>(mutated_hads);
           state = mutated_state;
         }
 

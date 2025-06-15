@@ -80,6 +80,10 @@ namespace first {
   }
 
   // ----------------------------------
+  // TODO: Consider if model by value (as immutable) is actually a good thing?
+  //       I mean, immutable is good and all that. But is it practical?
+  //       At least I trust we get return value optimization?
+  //       Fun to explore though...
   std::pair<Model,Cmd> update(Model model, Msg msg) {
     Cmd cmd = Nop;
     std::optional<State> new_state{};
@@ -91,6 +95,7 @@ namespace first {
     }
     if (new_state) {
       // Let 'StateImpl' update itself
+      spdlog::info("New state:{}",to_type_name(typeid(**new_state)));
       model.stack.top() = *new_state; // mutate
     }
     else {
