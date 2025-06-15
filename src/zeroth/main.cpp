@@ -6757,17 +6757,8 @@ OptionalHeadingAmountDateTransEntry to_had(TaggedAmount const& ta) {
   return result;
 }
 
-OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& tokens) {
-  if (tokens.size()==3) {
-    HeadingAmountDateTransEntry had {
-      .heading = tokens[0]
-      ,.amount = *to_amount(tokens[1]) // Assume success
-      ,.date = *to_date(tokens[2]) // Assume success
-    };
-    return had;
-  }
-  return std::nullopt;
-}
+// Now in HADFramework unit
+// OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& tokens)
 
 EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	EnvironmentValue ev{};

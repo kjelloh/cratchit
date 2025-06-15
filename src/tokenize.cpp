@@ -1,18 +1,18 @@
 #include "tokenize.hpp"
+#include <iomanip> // std::quoted,
 #include <iostream>
 #include <ranges>
-#include <iomanip> // std::quoted,
-#include <sstream> // std::istringstream,
 #include <regex>
+#include <sstream>         // std::istringstream,
 #include <unicode/regex.h> // icu::RegexPattern, U_ZERO_ERROR
+#include <spdlog/spdlog.h>
 
 
 namespace tokenize {
 
   std::string trim(std::string const &s) {
     return std::ranges::to<std::string>(
-        s | std::views::drop_while(::isspace) | std::views::reverse |
-        std::views::drop_while(::isspace) | std::views::reverse);
+        s | std::views::drop_while(::isspace) | std::views::reverse | std::views::drop_while(::isspace) | std::views::reverse);
   }
 
   bool contains(std::string const &key, std::string const &s) {
@@ -196,10 +196,9 @@ namespace tokenize {
       ids.push_back(token_id_of(s));
     }
 
+    spdlog::info("splits({})", s);
     for (int i = 0; i < spaced_tokens.size(); ++i) {
-      std::cout << "\n"
-                << spaced_tokens[i] << " id:" << static_cast<int>(ids[i])
-                << std::flush;
+      spdlog::info("\t{} -> id:{}", spaced_tokens[i], static_cast<int>(ids[i]));
     }
 
     switch (split_on) {
@@ -220,8 +219,9 @@ namespace tokenize {
           s.clear();
         }
         if (state + 1 > expected_id.size()) {
-          std::cout << "\nDESIGN INSUFFICIENCY: Error, unable to process state:"
-                    << state;
+          // std::cout << "\nDESIGN INSUFFICIENCY: Error, unable to process state:"
+          //           << state;
+          spdlog::error("DESIGN INSUFFICIENCY: Error, unable to process state:{}", state);
           break;
         }
       }
@@ -231,6 +231,7 @@ namespace tokenize {
     default: {
       std::cout << "\nERROR - Unknown split_on value "
                 << static_cast<int>(split_on);
+      spdlog::error("ERROR - Unknown split_on value:{}", static_cast<int>(split_on));
     } break;
     }
 

@@ -13,5 +13,8 @@ namespace first {
     HADsState(HADs all_hads, Mod10View mod10_view);
     HADsState(HADs all_hads);
 
+    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
+
+
   }; // struct HADsState
 }

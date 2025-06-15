@@ -23,8 +23,14 @@ std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had
 std::string to_string(HeadingAmountDateTransEntry const& had);
 
 using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
+
+// Environment Entry -> HAD
 OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);
 
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
+// Environment -> HADs
 HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);
+
+// Tokens -> HAD
+OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& tokens);

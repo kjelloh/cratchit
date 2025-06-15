@@ -1,5 +1,6 @@
 #include "HADsState.hpp"
 #include "HADState.hpp"
+#include "tokenize.hpp"
 
 namespace first {
   // ----------------------------------
@@ -57,4 +58,20 @@ namespace first {
   // ----------------------------------
   HADsState::HADsState(HADs all_hads) : HADsState(all_hads,Mod10View(all_hads)) {}
 
-}
+  std::pair<std::optional<State>, Cmd> HADsState::update(Msg const &msg) {
+      std::optional<State> state{};
+      Cmd cmd = Nop;
+      if (auto entry_msg_ptr = std::dynamic_pointer_cast<UserEntryMsg>(msg);entry_msg_ptr != nullptr) {
+        std::string command(entry_msg_ptr->m_entry);
+        auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
+        if (auto had = to_had(tokens)) {
+          auto mutated_state = std::make_shared<HADsState>(*this); // clone
+          mutated_state->m_all_hads.push_back(*had);
+          state = mutated_state;
+        }
+
+      }
+      return {state,cmd};
+  }
+
+} // namespace first
