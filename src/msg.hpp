@@ -26,6 +26,11 @@ namespace first {
     PoppedStateCargoMsg(State const &top, std::string cargo);
   };
 
+  struct UserEntryMsg : public MsgImpl {
+    std::string m_entry;
+    UserEntryMsg(std::string entry);
+  };
+
   // ----------------------------------
   extern Msg const QUIT_MSG;
 

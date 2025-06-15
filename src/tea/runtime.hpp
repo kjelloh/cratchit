@@ -156,15 +156,26 @@ public:
       if (not cmd_q.empty()) {
         // Execute a command
         auto cmd = cmd_q.front(); cmd_q.pop();
-        if (auto msg = cmd()) {
-          msg_q.push(*msg);
+        if (auto opt_msg = cmd()) {
+            spdlog::info("Cmd() produced  Msg");
+            const Msg& msg = *opt_msg;
+            if (msg) {
+                msg_q.push(msg);
+                spdlog::info("Msg pushed");
+            } else {
+                spdlog::warn("Command returned null message!");
+            }
         }
       }
       else if (not msg_q.empty()) {
         auto msg = msg_q.front(); msg_q.pop();
 
         if (true) {
-          spdlog::info("Processing Msg type {}",to_type_name(typeid(*msg)));
+          if (msg) {
+              spdlog::info("Processing Msg type {}",to_type_name(typeid(*msg)));
+          } else {
+              spdlog::warn("Attempted to log null Msg pointer");
+          }
         }
 
         // Try client provided predicate to identify QUIT msg

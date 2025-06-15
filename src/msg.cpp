@@ -12,6 +12,9 @@ namespace first {
   PoppedStateCargoMsg::PoppedStateCargoMsg(State const &top, std::string cargo)
       : m_top{top}, m_cargo{cargo}, MsgImpl{} {}
 
+  UserEntryMsg::UserEntryMsg(std::string entry)
+    : m_entry{entry} {}
+
   // ----------------------------------
   Msg const QUIT_MSG{std::make_shared<Quit>()};
 

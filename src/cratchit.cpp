@@ -84,6 +84,7 @@ namespace first {
     Cmd cmd = Nop;
     std::optional<State> new_state{};
     if (model.stack.size()>0) {
+      // Pass msg to state for state update
       auto pp = model.stack.top()->update(msg);
       new_state = pp.first;
       cmd = pp.second;
@@ -95,7 +96,7 @@ namespace first {
     else {
       // Process StateImpl transition or user input
       if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {
-        auto ch = key_msg_ptr->key; 
+        auto ch = key_msg_ptr->key;
         if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
           if (!model.user_input.empty()) {
             model.user_input.pop_back();
@@ -103,7 +104,11 @@ namespace first {
         } 
         else if (ch == '\n') {
           // User pressed Enter: process command (optional)
-          model.user_input.clear(); // Reset input after submission
+          cmd = [entry = model.user_input]() {
+            auto msg = std::make_shared<UserEntryMsg>(entry);
+            return msg;
+          };
+          model.user_input.clear(); // Reset input after capture to command
         } 
         else {
           if (model.user_input.empty() and ch == 'q' or model.stack.size()==0) {
