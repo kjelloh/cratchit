@@ -95,7 +95,8 @@ namespace first {
     }
     if (new_state) {
       // Let 'StateImpl' update itself
-      spdlog::info("New state:{}",to_type_name(typeid(**new_state)));
+      auto& ref = *new_state; // Consume any shared pointer dereference side effects here.
+      spdlog::info("New state:{}",to_type_name(typeid(ref)));
       model.stack.top() = *new_state; // mutate
     }
     else {
@@ -132,13 +133,13 @@ namespace first {
                 }
                 else {
                   spdlog::info("State destructor executed in command (user count {} == 1)",popped_state.use_count());
-                  auto& ref = *popped_state; // Consume anu shared pointer dereference side effects here.
+                  auto& ref = *popped_state; // Consume any shared pointer dereference side effects here.
                   // Then log the type name of the referenced state
                   spdlog::info("Destructing State type {}",to_type_name(typeid(ref)));
                 }
                 // TODO: Consider to provide actual 'cargo' produced by state into message
-                std::string dummy_cargo{"Dummy cargo"}; 
-                auto msg = std::make_shared<PoppedStateCargoMsg>(top,dummy_cargo);
+                auto dummy_cargo = to_cargo(std::string{"Dummy cargo"}); 
+                auto msg = std::make_shared<PoppedStateCargoMsg>(top,std::move(dummy_cargo));
                 popped_state.reset(); // Free popped state
                 return msg;
               };
@@ -177,7 +178,13 @@ namespace first {
         if (model.stack.size()>0 and model.stack.top() == pimpl->m_top) {
           // the cargo is targeted to current top ok.
           // TODO: Handle cargo
-          spdlog::info("PoppedStateCargoMsg: {}",pimpl->m_cargo);
+          if (pimpl->m_cargo != nullptr) {
+            auto& ref = *pimpl->m_cargo; // Consume any shared pointer dereference side effects here.
+            spdlog::info("PoppedStateCargoMsg: {}",to_type_name(typeid(ref)));
+          }
+          else {
+            spdlog::info("PoppedStateCargoMsg: NULL cargo");
+          }
         }
       }    
     }

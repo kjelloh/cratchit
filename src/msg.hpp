@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cross_dependent.hpp" // MsgImpl
+#include "cargo/CargoBase.hpp"
 
 namespace first {
   // ----------------------------------
@@ -22,8 +23,8 @@ namespace first {
   // ----------------------------------
   struct PoppedStateCargoMsg : public MsgImpl {
     State m_top{};
-    std::string m_cargo{};
-    PoppedStateCargoMsg(State const &top, std::string cargo);
+    Cargo m_cargo{};
+    PoppedStateCargoMsg(State const &top, Cargo&& cargo);
   };
 
   struct UserEntryMsg : public MsgImpl {

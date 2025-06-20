@@ -1,6 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
-
+from conan.errors import ConanInvalidConfiguration
 
 class cratchitRecipe(ConanFile):
     name = "cratchit"
@@ -14,11 +14,22 @@ class cratchitRecipe(ConanFile):
     description = "C++ console app for Swedish book keeping"
     topics = ("SIE", "BAS", "SKV","Finance", "Book keeping")
 
-    # Binary configuration
+    # Binary configuration (defile the keys we want to access)
     settings = "os", "compiler", "build_type", "arch"
 
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "src/*"
+    
+    def configure(self):
+        # Override C++ std if not already set to 23
+        cppstd = getattr(self.settings.compiler, "cppstd", None)
+        if cppstd != "23":
+            self.output.info(f"Overriding compiler.cppstd from {cppstd} to 23")
+            self.settings.compiler.cppstd = "23"
+    
+    def validate(self):
+      if self.settings.compiler.cppstd != "23":
+        raise ConanInvalidConfiguration("cratchit requires C++23.")
 
     def requirements(self):
         self.requires("sol2/3.3.1")
@@ -33,11 +44,14 @@ class cratchitRecipe(ConanFile):
         cmake_layout(self)
 
     def generate(self):
+        cppstd = self.settings.get_safe("compiler.cppstd")
+        self.output.info(f"cratchit (conanfile.py) Compiler C++ standard (from profile/settings): {cppstd}")        
         deps = CMakeDeps(self)
         deps.generate()
         tc = CMakeToolchain(self)
+        tc.cache_variables["CMAKE_EXPORT_COMPILE_COMMANDS"] = "ON"        
         tc.generate()
-
+        
     def build(self):
         cmake = CMake(self)
         cmake.configure()

@@ -67,3 +67,10 @@ install(TARGETS cratchit DESTINATION "."
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         )
+
+# Try to log the actual compiler options
+get_target_property(cxx_flags cratchit COMPILE_OPTIONS)
+message(STATUS "Compile options for target cratchit: ${cxx_flags}")
+get_target_property(cxx_features cratchit INTERFACE_COMPILE_FEATURES)
+message(STATUS "Compile features for target cratchit: ${cxx_features}")
+message(STATUS "CMake C++ Standard: ${CMAKE_CXX_STANDARD}")
