@@ -4,5 +4,5 @@
 #include "fiscal/amount/HADFramework.hpp"
 
 namespace first {
-  using HADsCargo = Cargo<HeadingAmountDateTransEntries>;
+  using HADsCargo = ConcreteCargo<HeadingAmountDateTransEntries>;
 } // namespace first

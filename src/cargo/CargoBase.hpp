@@ -10,14 +10,17 @@ namespace first {
 
   template <typename T>
   struct CargoImpl : public CargoBase {
-    T m_cargo;
+    T m_payload;
 
     // Constructor for lvalue and rvalue
     // NOTE: See to_cargo regarding brace initialisation not available / possible
     template<typename U>
-    CargoImpl(U&& cargo) : m_cargo(std::forward<U>(cargo)) {}
+    CargoImpl(U&& payload) : m_payload(std::forward<U>(payload)) {}
 
   };
+
+  template <typename T>
+  using ConcreteCargo = std::unique_ptr<CargoImpl<T>>;
 
   using Cargo = std::unique_ptr<CargoBase>;
 
@@ -29,4 +32,5 @@ namespace first {
       using DecayedT = std::decay_t<T>;
       return std::make_unique<CargoImpl<DecayedT>>(std::forward<T>(t));
   }
+
 } // namespae first

@@ -26,7 +26,7 @@ namespace first {
     UX &ux();
     Options const &options() const;
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
-    virtual Cargo const  get_cargo() const;
+    virtual Cargo get_cargo() const;
   };
 
 } // namespace first

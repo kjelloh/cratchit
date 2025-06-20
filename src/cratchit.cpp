@@ -137,9 +137,7 @@ namespace first {
                   // Then log the type name of the referenced state
                   spdlog::info("Destructing State type {}",to_type_name(typeid(ref)));
                 }
-                // TODO: Consider to provide actual 'cargo' produced by state into message
-                auto dummy_cargo = to_cargo(std::string{"Dummy cargo"}); 
-                auto msg = std::make_shared<PoppedStateCargoMsg>(top,std::move(dummy_cargo));
+                auto msg = std::make_shared<PoppedStateCargoMsg>(top,popped_state->get_cargo());
                 popped_state.reset(); // Free popped state
                 return msg;
               };

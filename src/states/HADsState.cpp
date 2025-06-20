@@ -77,4 +77,9 @@ namespace first {
       return {state,cmd};
   }
 
+  Cargo HADsState::get_cargo() const {
+    return to_cargo(this->m_all_hads);
+  }
+
+
 } // namespace first

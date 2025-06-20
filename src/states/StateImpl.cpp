@@ -44,7 +44,7 @@ namespace first {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
 
-  Cargo const  StateImpl::get_cargo() const {
+  Cargo StateImpl::get_cargo() const {
     return to_cargo(NoCargo{});
   }
 

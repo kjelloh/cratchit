@@ -12,6 +12,6 @@ namespace first {
 
   public:
     FiscalYearState(StateImpl::UX ux,FiscalPeriod fiscal_year,Environment const& parent_environment_ref);
-
+    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
   }; // struct FiscalYearState
 }

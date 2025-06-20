@@ -14,7 +14,6 @@ namespace first {
     HADsState(HADs all_hads);
 
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
-
-
+    virtual Cargo get_cargo() const;
   }; // struct HADsState
 }
