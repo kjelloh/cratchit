@@ -13,8 +13,8 @@ namespace cas {
   private:
     using KeyValueMap = std::map<Key, Value>;
     KeyValueMap m_map{};
-    using Keys = std::vector<Key>;
-    using AdjacencyList = std::map<Key, Keys>;
+    // using Keys = std::vector<Key>;
+    // using AdjacencyList = std::map<Key, Keys>;
     // AdjacencyList m_adj{};
 
   public:
@@ -45,7 +45,8 @@ using EnvironmentValue = std::map<std::string,std::string>; // vector of name-va
 using EnvironmentValueName = std::string;
 using EnvironmentValueId = std::size_t;
 using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
-using EnvironmentCasEntryVector = std::vector<EnvironmentValues_cas_repository::value_type>;
+using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type;
+using EnvironmentCasEntryVector = std::vector<EnvironmentIdValuePair>;
 using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 
 // parsing environment in

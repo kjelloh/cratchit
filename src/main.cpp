@@ -27,7 +27,12 @@ int main(int argc, char *argv[]) {
     }
 
     int result{0};
-    if (argc > 1 && std::string(argv[1]) == "--version") {
+    if (argc > 1 && std::string(argv[1]) == "--nop") {
+        spdlog::info("Cratchit - Compiles and runs");
+        std::print("Cratchit - Compiles and runs");
+      return 0;
+    }
+    else if (argc > 1 && std::string(argv[1]) == "--version") {
         spdlog::info("Cratchit version 0.1.0");
     }
     else if (argc > 1 && std::string(argv[1]) == "--test") {
