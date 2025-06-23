@@ -6,10 +6,10 @@
 
 namespace first {
 
-
   // Cmd: () -> std::optional<Msg>
   // ----------------------------------
-  extern std::optional<Msg> Nop();
+  // Nop-command declaration now in cross_dependent unit
+  // extern std::optional<Msg> Nop();
   // ----------------------------------
   extern std::optional<Msg> DO_QUIT();
 

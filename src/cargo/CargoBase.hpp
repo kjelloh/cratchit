@@ -9,8 +9,8 @@ namespace first {
 
     struct AbstractCargo {
       virtual ~AbstractCargo() = default;
-      virtual Cmd /* std::pair<std::optional<State>, Cmd> */ visit(State const& state) const {
-        return {};
+      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const {
+        return {std::nullopt,Nop};
       }; // default no-op
     };
 

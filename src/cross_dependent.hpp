@@ -25,4 +25,7 @@ namespace first {
   // ----------------------------------
   using Cmd = std::function<std::optional<Msg>()>;
 
+  // Declared here, defined in cmd unit
+  extern std::optional<Msg> Nop();
+
 } // namespace first

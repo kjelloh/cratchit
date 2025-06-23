@@ -3,9 +3,8 @@
 
 namespace first {
   namespace cargo {
-    Cmd HADsCargo::visit(State const& state) const {
-      state->apply(*this);
-      return {};
+    std::pair<std::optional<State>, Cmd> HADsCargo::visit(State const& state) const {
+      return state->apply(*this);
     }
   }
 }

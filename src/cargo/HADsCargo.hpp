@@ -6,7 +6,7 @@
 namespace first {
   namespace cargo {
     struct HADsCargo : public ConcreteCargo<HeadingAmountDateTransEntries> {
-      virtual Cmd /* std::pair<std::optional<State>, Cmd> */ visit(State const& state) const override;
+      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const override;
     };
   } // namespace cargo
 } // namespace first
