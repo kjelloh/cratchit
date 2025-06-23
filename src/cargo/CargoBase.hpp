@@ -8,7 +8,9 @@ namespace first {
 
     struct AbstractCargo {
       virtual ~AbstractCargo() = default;
-      virtual void visit(State const& state) const = 0;
+      virtual State /* std::pair<std::optional<State>, Cmd> */ visit(State const& state) const {
+        return {};
+      }; // default no-op
     };
 
     // Concrete Cargo struct for Payload P
@@ -24,9 +26,6 @@ namespace first {
       template <typename U>
       explicit ConcreteCargo(U &&payload) : m_payload(std::forward<U>(payload)) {}
 
-      virtual void visit(State const& state) const override {
-      }
-
     };
 
     using Cargo = std::unique_ptr<AbstractCargo>;
@@ -40,7 +39,6 @@ namespace first {
       return std::make_unique<ConcreteCargo<DecayedP>>(std::forward<P>(payload));
     }
 
-    // dynamic_cast<cargo::HADsCargo::pointer_type>(popped_state_msg_ptr->m_cargo.get())
     template <typename C>
     struct to_raw {
       using payload_type = typename C::payload_type;
