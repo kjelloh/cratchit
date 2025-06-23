@@ -44,6 +44,11 @@ namespace first {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
 
+  // ----------------------------------
+  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::HADsCargo const& cargo) const {
+    return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  }
+
   Cargo StateImpl::get_cargo() const {
     return {};
   }

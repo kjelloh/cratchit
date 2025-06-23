@@ -64,9 +64,11 @@ namespace first {
     return {mutated_state, cmd};
   }
 
-  void FiscalYearState::apply(cargo::HADsCargo const& cargo) const {
-    spdlog::info("FiscalYearState::update - Received HADsCargo ok");
+  std::pair<std::optional<State>, Cmd> FiscalYearState::apply(cargo::HADsCargo const& cargo) const {
+    std::optional<State> mutated_state{};
+    Cmd cmd{Nop};
+    spdlog::info("FiscalYearState::apply(cargo::HADsCargo)");
+    return {mutated_state, cmd};
   }
-
 
 } // namespace first
