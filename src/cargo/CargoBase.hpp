@@ -2,32 +2,51 @@
 
 namespace first {
 
-  struct AbstractCargo {
-    virtual ~AbstractCargo() = default;
-  };
+  namespace cargo {
+    struct AbstractCargo {
+      virtual ~AbstractCargo() = default;
+    };
 
-  struct NoCargo : public AbstractCargo {
-  };
+    struct NoCargo : public AbstractCargo {
+    };
 
-  template <typename T>
-  struct ConcreteCargo : public AbstractCargo {
-    T m_payload;
+    // Concrete Cargo struct for Payload P
+    template <typename P>
+    struct ConcreteCargo : public AbstractCargo {
+      using payload_type = P;
+      using pointer_type = ConcreteCargo<P>*;
 
-    // Constructor for lvalue and rvalue
-    // NOTE: See to_cargo regarding brace initialisation not available (possible)
-    template <typename U>
-    explicit ConcreteCargo(U &&payload) : m_payload(std::forward<U>(payload)) {}
-  };
+      payload_type m_payload;
 
-  using Cargo = std::unique_ptr<AbstractCargo>;
+      // Constructor for lvalue and rvalue
+      // NOTE: See to_cargo regarding brace initialisation not available (possible)
+      template <typename U>
+      explicit ConcreteCargo(U &&payload) : m_payload(std::forward<U>(payload)) {}
+    };
 
-  template <typename T>
-  Cargo to_cargo(T &&payload) {
-      // NOTE 1: make_unique can't use brace initialisation (ConcreteCargo needs constructor from T)
-      // NOTE 2: ConcreteCargo inherits from base class with virtual member = can't brace construct anyways...
-      //         This bit me hard!!
-    using DecayedT = std::decay_t<T>;
-    return std::make_unique<ConcreteCargo<DecayedT>>(std::forward<T>(payload));
-  }
+    using Cargo = std::unique_ptr<AbstractCargo>;
+
+    template <typename P>
+    Cargo to_cargo(P &&payload) {
+        // NOTE 1: make_unique can't use brace initialisation ==> ConcreteCargo needs constructor from T
+        // NOTE 2: ConcreteCargo inherits from base class with virtual member = can't brace construct anyways...
+        //         This bit me hard!!
+      using DecayedP = std::decay_t<P>;
+      return std::make_unique<ConcreteCargo<DecayedP>>(std::forward<P>(payload));
+    }
+
+    // dynamic_cast<cargo::HADsCargo::pointer_type>(popped_state_msg_ptr->m_cargo.get())
+    template <typename C>
+    struct to_raw {
+      using payload_type = typename C::payload_type;
+      using pointer_type = typename C::pointer_type;
+      pointer_type operator()(Cargo const& cargo) {
+        return dynamic_cast<pointer_type>(cargo.get());
+      }
+    };
+
+  } // namespace cargo
+
+  using Cargo = cargo::Cargo;
 
 } // namespae first
