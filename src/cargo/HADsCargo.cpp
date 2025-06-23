@@ -3,7 +3,11 @@
 
 namespace first {
   namespace cargo {
-    std::pair<std::optional<State>, Cmd> HADsCargo::visit(State const& state) const {
+
+    // 'visit' for HADsCargo
+    template<>
+    std::pair<std::optional<State>, Cmd>
+    ConcreteCargo<HeadingAmountDateTransEntries>::visit(State const& state) const {
       return state->apply(*this);
     }
   }

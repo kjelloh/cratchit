@@ -5,8 +5,6 @@
 
 namespace first {
   namespace cargo {
-    struct HADsCargo : public ConcreteCargo<HeadingAmountDateTransEntries> {
-      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const override;
-    };
+    using HADsCargo = ConcreteCargo<HeadingAmountDateTransEntries>;    
   } // namespace cargo
 } // namespace first

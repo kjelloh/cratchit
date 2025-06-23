@@ -87,12 +87,33 @@ namespace first {
   std::pair<Model,Cmd> update(Model model, Msg msg) {
     Cmd cmd = Nop;
     std::optional<State> new_state{};
+
+    // State stack top processing
     if (model.stack.size()>0) {
       // Pass msg to state for state update
-      auto pp = model.stack.top()->update(msg);
-      new_state = pp.first;
-      cmd = pp.second;
+      if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg);pimpl != nullptr) {
+        if (model.stack.top() == pimpl->m_top) {
+          // the cargo is targeted to current top ok.
+          if (pimpl->m_cargo != nullptr) {
+            auto& cargo = *pimpl->m_cargo; // Consume any shared pointer dereference side effects here.
+            spdlog::info("PoppedStateCargoMsg: {}",to_type_name(typeid(cargo)));
+            auto [maybe_new_state,state_cmd] = cargo.visit(model.stack.top());
+            new_state = maybe_new_state;
+            cmd = state_cmd;
+          }
+          else {
+            spdlog::info("PoppedStateCargoMsg: NULL cargo");
+          }
+        }
+      }    
+      else {
+        auto pp = model.stack.top()->update(msg);
+        new_state = pp.first;
+        cmd = pp.second;
+      }
     }
+
+
     if (new_state) {
       // Let 'StateImpl' update itself
       auto& ref = *new_state; // Consume any shared pointer dereference side effects here.
@@ -100,7 +121,11 @@ namespace first {
       model.stack.top() = *new_state; // mutate
     }
     else {
+
       // Process StateImpl transition or user input
+      // TODO: How much of this can we migrate into State::update?
+
+      // Process keyboard input
       if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {
         auto ch = key_msg_ptr->key;
         if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
@@ -158,7 +183,9 @@ namespace first {
               model.user_input += ch; // Append typed character
           }
         }
-      }    
+      }
+
+      // Process Push of new state
       else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg);pimpl != nullptr) {
         if (model.stack.size() == 0) {
           // Always 'match'
@@ -172,19 +199,30 @@ namespace first {
           model.user_input.push_back('?');
         }
       }
-      else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg);pimpl != nullptr) {
-        if (model.stack.size()>0 and model.stack.top() == pimpl->m_top) {
-          // the cargo is targeted to current top ok.
-          // TODO: Handle cargo
-          if (pimpl->m_cargo != nullptr) {
-            auto& ref = *pimpl->m_cargo; // Consume any shared pointer dereference side effects here.
-            spdlog::info("PoppedStateCargoMsg: {}",to_type_name(typeid(ref)));
-          }
-          else {
-            spdlog::info("PoppedStateCargoMsg: NULL cargo");
-          }
-        }
-      }    
+
+      // Process Cargo from popped state
+      // 20250623 - Now in State processing above
+      // else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg);pimpl != nullptr) {
+      //   if (model.stack.size()>0 and model.stack.top() == pimpl->m_top) {
+      //     // the cargo is targeted to current top ok.
+      //     // TODO: Handle cargo
+      //     if (pimpl->m_cargo != nullptr) {
+      //       auto& cargo = *pimpl->m_cargo; // Consume any shared pointer dereference side effects here.
+      //       spdlog::info("PoppedStateCargoMsg: {}",to_type_name(typeid(cargo)));
+      //       auto [maybe_new_state,state_cmd] = cargo.visit(model.stack.top());
+      //       if (maybe_new_state) {
+      //         model.stack.top() = *maybe_new_state; // mutate
+      //       }
+      //       cmd = state_cmd;
+      //     }
+      //     else {
+      //       spdlog::info("PoppedStateCargoMsg: NULL cargo");
+      //     }
+      //   }
+      // } 
+
+      // ------------...
+
     }
     // Update UX
     if (model.stack.size() > 0) {

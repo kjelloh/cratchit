@@ -9,9 +9,7 @@ namespace first {
 
     struct AbstractCargo {
       virtual ~AbstractCargo() = default;
-      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const {
-        return {std::nullopt,Nop};
-      }; // default no-op
+      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const = 0;
     };
 
     // Concrete Cargo struct for Payload P
@@ -26,6 +24,10 @@ namespace first {
       // NOTE: See to_cargo regarding brace initialisation not available (possible)
       template <typename U>
       explicit ConcreteCargo(U &&payload) : m_payload(std::forward<U>(payload)) {}
+
+      // visit declaration.
+      // See definition(s) = specialisation for each concrete cargo type (e.g., HADsCargo)
+      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const;
 
     };
 
