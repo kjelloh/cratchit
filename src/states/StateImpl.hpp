@@ -7,6 +7,7 @@
 #include "cross_dependent.hpp"
 #include "cmd.hpp"
 #include "cargo/CargoBase.hpp"
+#include "cargo/HADsCargo.hpp"
 
 namespace first {
 
@@ -27,6 +28,7 @@ namespace first {
     Options const &options() const;
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
     virtual Cargo get_cargo() const;
+    virtual void apply(cargo::HADsCargo const& cargo) {}; // default no-op
   };
 
 } // namespace first

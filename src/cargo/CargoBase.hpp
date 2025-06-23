@@ -1,13 +1,14 @@
 #pragma once
 
+#include "cross_dependent.hpp"
+
 namespace first {
 
   namespace cargo {
+
     struct AbstractCargo {
       virtual ~AbstractCargo() = default;
-    };
-
-    struct NoCargo : public AbstractCargo {
+      virtual void visit(State const& state) const = 0;
     };
 
     // Concrete Cargo struct for Payload P
@@ -22,6 +23,10 @@ namespace first {
       // NOTE: See to_cargo regarding brace initialisation not available (possible)
       template <typename U>
       explicit ConcreteCargo(U &&payload) : m_payload(std::forward<U>(payload)) {}
+
+      virtual void visit(State const& state) const override {
+      }
+
     };
 
     using Cargo = std::unique_ptr<AbstractCargo>;

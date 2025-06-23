@@ -5,6 +5,8 @@
 
 namespace first {
   namespace cargo {
-    using HADsCargo = ConcreteCargo<HeadingAmountDateTransEntries>;
+    struct HADsCargo : public ConcreteCargo<HeadingAmountDateTransEntries> {
+      virtual void visit(State const& state) const override;
+    };
   } // namespace cargo
 } // namespace first

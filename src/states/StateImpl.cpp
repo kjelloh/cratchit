@@ -45,7 +45,7 @@ namespace first {
   }
 
   Cargo StateImpl::get_cargo() const {
-    return to_cargo(cargo::NoCargo{});
+    return {};
   }
 
 } // namespace first
