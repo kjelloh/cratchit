@@ -50,7 +50,8 @@ add_executable(cratchit
         src/fiscal/BASFramework.cpp
         src/fiscal/amount/HADFramework.cpp
         src/Key.cpp
-        src/fiscal/SKVFramework.cpp)
+        src/fiscal/SKVFramework.cpp
+        src/cargo/HADsCargo.cpp)
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 

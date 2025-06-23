@@ -52,7 +52,7 @@ namespace first {
 
   std::pair<std::optional<State>, Cmd> FiscalYearState::update(Msg const &msg) {
     spdlog::info("FiscalYearState::update - BEGIN");
-    std::optional<State> muated_state{};
+    std::optional<State> mutated_state{};
     Cmd cmd{Nop};
     if (auto popped_state_msg_ptr = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg); popped_state_msg_ptr != nullptr) {
       spdlog::info("FiscalYearState::update - PoppedStateCargoMsg ok");
@@ -61,7 +61,12 @@ namespace first {
       }
     }
     spdlog::info("FiscalYearState::update - END");
-    return {muated_state, cmd};
+    return {mutated_state, cmd};
   }
+
+  void FiscalYearState::apply(cargo::HADsCargo const& cargo) const {
+    spdlog::info("FiscalYearState::update - Received HADsCargo ok");
+  }
+
 
 } // namespace first
