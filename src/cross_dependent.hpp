@@ -21,4 +21,8 @@ namespace first {
   // ----------------------------------
   using Msg = std::shared_ptr<MsgImpl>;
 
+  // Cmd: () -> std::optional<Msg>
+  // ----------------------------------
+  using Cmd = std::function<std::optional<Msg>()>;
+
 } // namespace first

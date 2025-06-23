@@ -1,13 +1,11 @@
 #pragma once
 
+#include "cross_dependent.hpp" // Cmd,
 #include <memory> // std::shared_ptr
 #include "msg.hpp" // Msg
 
 namespace first {
 
-  // Cmd: () -> std::optional<Msg>
-  // ----------------------------------
-  using Cmd = std::function<std::optional<Msg>()>;
 
   // Cmd: () -> std::optional<Msg>
   // ----------------------------------

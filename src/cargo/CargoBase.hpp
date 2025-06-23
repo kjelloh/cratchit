@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cross_dependent.hpp"
+#include <utility> // std::pair
 
 namespace first {
 
@@ -8,7 +9,7 @@ namespace first {
 
     struct AbstractCargo {
       virtual ~AbstractCargo() = default;
-      virtual State /* std::pair<std::optional<State>, Cmd> */ visit(State const& state) const {
+      virtual Cmd /* std::pair<std::optional<State>, Cmd> */ visit(State const& state) const {
         return {};
       }; // default no-op
     };
