@@ -56,7 +56,7 @@ namespace first {
     Cmd cmd{Nop};
     if (auto popped_state_msg_ptr = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg); popped_state_msg_ptr != nullptr) {
       spdlog::info("FiscalYearState::update - PoppedStateCargoMsg ok");
-      if (auto hads_cargo_ptr = dynamic_cast<CargoImpl<HeadingAmountDateTransEntries>*>(popped_state_msg_ptr->m_cargo.get()); hads_cargo_ptr != nullptr) {
+      if (auto hads_cargo_ptr = dynamic_cast<ConcreteCargo<HeadingAmountDateTransEntries>*>(popped_state_msg_ptr->m_cargo.get()); hads_cargo_ptr != nullptr) {
         spdlog::info("FiscalYearState::update - Received HADsCargo ok");
       }
     }

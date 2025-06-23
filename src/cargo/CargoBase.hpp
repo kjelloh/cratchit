@@ -1,36 +1,33 @@
 #pragma once
 
 namespace first {
-  struct CargoBase {
-    virtual ~CargoBase() = default;
+
+  struct AbstractCargo {
+    virtual ~AbstractCargo() = default;
   };
 
-  struct NoCargo : public CargoBase {
+  struct NoCargo : public AbstractCargo {
   };
 
   template <typename T>
-  struct CargoImpl : public CargoBase {
+  struct ConcreteCargo : public AbstractCargo {
     T m_payload;
 
     // Constructor for lvalue and rvalue
-    // NOTE: See to_cargo regarding brace initialisation not available / possible
-    template<typename U>
-    CargoImpl(U&& payload) : m_payload(std::forward<U>(payload)) {}
-
+    // NOTE: See to_cargo regarding brace initialisation not available (possible)
+    template <typename U>
+    explicit ConcreteCargo(U &&payload) : m_payload(std::forward<U>(payload)) {}
   };
 
-  template <typename T>
-  using ConcreteCargo = std::unique_ptr<CargoImpl<T>>;
-
-  using Cargo = std::unique_ptr<CargoBase>;
+  using Cargo = std::unique_ptr<AbstractCargo>;
 
   template <typename T>
-  Cargo to_cargo(T&& t) {
-      // NOTE 1: make_unique can't use brace initialisation (CargoImpl needs construct from T)
-      // NOTE 2: CargoImpl inherits from base class with virtual member = can't brace construct anyways...
+  Cargo to_cargo(T &&payload) {
+      // NOTE 1: make_unique can't use brace initialisation (ConcreteCargo needs constructor from T)
+      // NOTE 2: ConcreteCargo inherits from base class with virtual member = can't brace construct anyways...
       //         This bit me hard!!
-      using DecayedT = std::decay_t<T>;
-      return std::make_unique<CargoImpl<DecayedT>>(std::forward<T>(t));
+    using DecayedT = std::decay_t<T>;
+    return std::make_unique<ConcreteCargo<DecayedT>>(std::forward<T>(payload));
   }
 
 } // namespae first
