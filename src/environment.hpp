@@ -13,10 +13,6 @@ namespace cas {
   private:
     using KeyValueMap = std::map<Key, Value>;
     KeyValueMap m_map{};
-    // using Keys = std::vector<Key>;
-    // using AdjacencyList = std::map<Key, Keys>;
-    // AdjacencyList m_adj{};
-
   public:
     // Tricky! We need EnvironmentCasEntryVector to be assignable, so we cannot
     // use KeyValueMap::value_type directly as this would make the Key type const...
@@ -26,12 +22,8 @@ namespace cas {
     Value const &at(Key const &key) const { return m_map.at(key); }
     void clear() { return m_map.clear(); }
     KeyValueMap &the_map() {
-      // std::cout << "\nDESIGN_INSUFFICIENCY: called cas::repository::the_map()
-      // to gain access to aggregated map (Developer should extend repository
-      // services to protect internal map handling.)";
       return m_map;
     }
-    // AdjacencyList &the_adjacency_list() { return m_adj; }
     repository& operator=(const repository &other) {
       if (this != &other) {
         m_map = other.m_map; // OK: std::map is assignable
