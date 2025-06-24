@@ -4,6 +4,12 @@
 #include <iterator> // std::back_inserter
 #include <stdexcept> // std::runtime_error
 #include <format> // std::format
+#include <tuple> // std::tie
+
+bool HeadingAmountDateTransEntry::operator==(HeadingAmountDateTransEntry const& other) const {
+  // spdlog::info("NOTE: HeadingAmountDateTransEntry::operator== compares only heading, amount and date (Options ignored)");
+  return std::tie(heading,amount,date) == std::tie(other.heading,other.amount,other.date);
+}
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
 	if (auto me = had.optional.current_candidate) {

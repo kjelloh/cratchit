@@ -15,9 +15,10 @@ struct HeadingAmountDateTransEntry {
 		std::optional<SKV::XML::VATReturns::FormBoxMap> vat_returns_form_box_map_candidate{};
 	};
 	std::string heading{};
-	Amount amount;
+	Amount amount{};
 	Date date{};
 	Optional optional{};
+  bool operator==(HeadingAmountDateTransEntry const& other) const;
 };
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had);
 std::string to_string(HeadingAmountDateTransEntry const& had);

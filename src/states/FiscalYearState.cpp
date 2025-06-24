@@ -51,23 +51,21 @@ namespace first {
   }
 
   std::pair<std::optional<State>, Cmd> FiscalYearState::update(Msg const &msg) {
+    // Not used for now ( See apply for update on child state Cargo)
     spdlog::info("FiscalYearState::update - BEGIN");
-    std::optional<State> mutated_state{};
-    Cmd cmd{Nop};
-    if (auto popped_state_msg_ptr = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg); popped_state_msg_ptr != nullptr) {
-      spdlog::info("FiscalYearState::update - PoppedStateCargoMsg ok");
-      if (auto hads_cargo_ptr = cargo::to_raw<cargo::HADsCargo>{}(popped_state_msg_ptr->m_cargo); hads_cargo_ptr != nullptr) {
-        spdlog::info("FiscalYearState::update - Received HADsCargo ok");
-      }
-    }
+    spdlog::info("FiscalYearState::update - No Operation");
     spdlog::info("FiscalYearState::update - END");
-    return {mutated_state, cmd};
+    return {std::nullopt, Nop};
   }
 
   std::pair<std::optional<State>, Cmd> FiscalYearState::apply(cargo::HADsCargo const& cargo) const {
     std::optional<State> mutated_state{};
     Cmd cmd{Nop};
     spdlog::info("FiscalYearState::apply(cargo::HADsCargo)");
+    if (cargo.m_payload != this->m_period_hads) {
+      // Changes has been made
+      spdlog::info("FiscalYearState::apply(cargo::HADsCargo) - HADs has changed");
+    }
     return {mutated_state, cmd};
   }
 
