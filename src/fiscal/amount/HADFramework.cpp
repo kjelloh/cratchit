@@ -102,3 +102,25 @@ OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& token
   return std::nullopt;
 }
 
+// ----------------------------------------------
+// <-- HAD(s)
+
+EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
+	// std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
+	std::ostringstream os{};
+	os << had.amount;
+	EnvironmentValue ev{};
+	ev["rubrik"] = had.heading;
+	ev["belopp"] = os.str();
+	ev["datum"] = to_string(had.date);
+	return ev;
+}
+
+std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {
+    size_t index = 0;
+    for (const auto& entry : entries) {
+        co_yield {index++, to_environment_value(entry)};
+    }
+}
+
+

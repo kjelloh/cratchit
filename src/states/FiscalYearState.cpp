@@ -65,8 +65,22 @@ namespace first {
     if (cargo.m_payload != this->m_period_hads) {
       // Changes has been made
       spdlog::info("FiscalYearState::apply(cargo::HADsCargo) - HADs has changed");
+      auto new_state = std::make_shared<FiscalYearState>(*this);
+      new_state->m_period_hads = cargo.m_payload;
+      // TODO: Decide on wheter we merge HADs into mutaed Envirnment here and pass on as CArgo?
+      //       Or pass HADs as cargo and merge in parent (e.g., ProjectState) state?
+      //       It seems we (FiscalYearState) should have our Environment slice to mutate and pass as Cargo?
+      for (auto const& [index, env_val] : indexed_env_entries_from(this->m_period_hads)) {
+          spdlog::info("\t HAD: {}",index);
+          // result["HeadingAmountDateTransEntry"].push_back({index, env_val});
+      }
+      mutated_state = new_state;
     }
     return {mutated_state, cmd};
+  }
+
+  Cargo FiscalYearState::get_cargo() const {
+    return cargo::to_cargo(this->m_period_hads);
   }
 
 } // namespace first

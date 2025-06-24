@@ -35,6 +35,7 @@ float const VERSION = 0.5;
 #include <set>
 #include <ranges> // requires c++ compiler with c++20 support
 #include <concepts> // Requires C++23 support
+#include <coroutine> // Requires C++23 support
 #include <csignal>
 #include <format>
 #define SOL_ALL_SAFETIES_ON 1
@@ -241,78 +242,7 @@ namespace charset {
 
 } // namespace CharSet
 
-// Namespace that overloads on std types ()
-namespace std_overload {
-  // Note: We could have placed these overloads in either the global namespace or the std namespace.
-
-  //       But placing them in the std namespace is considered bad practice as we would potentially pollute std with declarations with unknown conflicts as a result.
-  //       And placing these in the global namespace renders these overloads to NOT be considered by the compiler is used in another (not global) namespace.
-
-  //       Explanation: The compiler will apply C++ argument dependant lookup (ADL), i.e., look for overloads in the std namespace for arguments of std namespace types
-  //       This means it will fail to consider this overload as it is not in the std namespace (and it will not look in teh global namespace)
-
-  //       E.g., any 'std::istream >> array-type-variable' will fail to find this overload (fails to compile)
-
-  //       Solution 1: Have the client use the call syntax ::operator>>(stream,array-type-variable)
-  //       Solution 2: Place 'using std_overload::operator>>' in the namespace (class or function scope) where we want to use it
-  //       Solution 3: Pre-create here the namespaces where we want to use this overload and inject them with 'using ::operator>>' so that the using code don't have to
-
-  // None of the alternatives is fully satisfactory but in Cratchit we have chose alternative 2 for now.
-
-  // Helper to  write an std::array of predefined size to a stream
-  // Client namespace needs an 'using std_overload::operator<<' to 'see it'
-  template <std::size_t N>
-  std::ostream& operator<<(std::ostream& os, std::array<unsigned char, N> const& arr){
-    for (int b : arr) os << " " << std::hex << b << std::dec; // Note: We need b to be an int to apply the appropriate integer output formatting
-    return os;
-  }
-
-  // Helper to read from a stream into an std::array of predefined size
-  // Client namespace needs an 'using std_overload::operator>>' to 'see it'
-  template<std::size_t N>
-  std::istream& operator>>(std::istream& is, std::array<unsigned char, N>& arr) {
-      is.read(reinterpret_cast<char*>(arr.data()), arr.size());
-      // if (is) {
-      //   std::cout << "\noperator>> read array:" << arr;
-      // }
-      return is;
-  }
-
-    // std::ranges replacement (overload) until used with a tool-chain that supports what cratchit requires
-    namespace ranges {
-
-        // Helper traits to check if a type is a container
-        template<typename T, typename = void>
-        struct is_container : std::false_type {};
-
-        template<typename T>
-        struct is_container<T, std::void_t<typename T::value_type,
-                                           decltype(std::begin(std::declval<T>())),
-                                           decltype(std::end(std::declval<T>()))>>
-            : std::true_type {};
-
-        template<typename T>
-        inline constexpr bool is_container_v = is_container<T>::value;
-
-        // A concept to check if the type is a range
-        template<typename T>
-        concept range = requires(T t) {
-            std::ranges::begin(t);
-            std::ranges::end(t);
-        };
-
-        // Custom implementation of std::ranges::to
-        template<typename Container, range R>
-        requires is_container_v<Container>
-        Container to(R&& r) {
-            using std::ranges::begin, std::ranges::end;
-            return Container(begin(r), end(r));
-        }
-
-    } // namespace ranges  
-
-} // namespace std_overload
-
+// namespace std_overload now in std_overload unit
 
 namespace encoding {
 
@@ -6708,16 +6638,8 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 // Now in environment unit
 // std::string to_string(Environment::value_type const& entry);
 
-EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
-	// std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
-	std::ostringstream os{};
-	os << had.amount;
-	EnvironmentValue ev{};
-	ev["rubrik"] = had.heading;
-	ev["belopp"] = os.str();
-	ev["datum"] = to_string(had.date);
-	return ev;
-}
+// Now in HADFramework unit
+// EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
 
 // Now in HADFramework unit
 // OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);
@@ -11345,6 +11267,10 @@ private:
 		model->prompt = prompt.str();
 		return model;
 	}
+
+  // indexed_env_entries_from now in HADFramework
+  // std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {
+
 	Environment environment_from_model(Model const& model) {
 		Environment result{};
 		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
@@ -11362,10 +11288,13 @@ private:
 		};
 		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
 
-		for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {
-			// result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
-			result["HeadingAmountDateTransEntry"].push_back({index,to_environment_value(entry)});
-		}
+		// for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {
+		// 	// result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
+		// 	result["HeadingAmountDateTransEntry"].push_back({index,to_environment_value(entry)});
+		// }
+    for (auto const& [index, env_val] : indexed_env_entries_from(model->heading_amount_date_entries)) {
+        result["HeadingAmountDateTransEntry"].push_back({index, env_val});
+    }
 
 		std::string sev = std::accumulate(model->sie_file_path.begin(),model->sie_file_path.end(),std::string{},[](auto acc,auto const& entry){
 			std::ostringstream os{};

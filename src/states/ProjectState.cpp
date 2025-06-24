@@ -85,4 +85,28 @@ namespace first {
     this->add_option('3',fiscal_quarter_option_factory(current_fiscal_quarter));
     this->add_option('4',fiscal_quarter_option_factory(current_fiscal_quarter.to_relative_fiscal_quarter(-1)));
   } // ProjectState::ProjectState
+
+  ProjectState::~ProjectState() {
+    // TODO: Save environment to file here
+    // NOTE: cratchit update(model) will defer destructor as Cmd invoked by runtime (i.e., side effects ok)
+    spdlog::info("ProjectState::~ProjectState");
+  }
+
+  std::pair<std::optional<State>, Cmd> ProjectState::update(Msg const& msg) {
+      spdlog::info("ProjectState::update");
+      return {std::nullopt, Nop};
+  }
+
+  std::pair<std::optional<State>, Cmd> ProjectState::apply(cargo::HADsCargo const& cargo) const {
+      spdlog::info("ProjectState::apply - Received HADsCargo but should receive EnvirnmentCargo?");
+      // TODO: Consider to receive Environment slice as cargo?      
+      //       Then merge into a mutated Environment here?
+      return {std::nullopt, Nop};
+  }
+
+  Cargo ProjectState::get_cargo() const {
+      spdlog::info("ProjectState::get_cargo");
+      return Cargo{}; // Null cargo
+  }
+
 }

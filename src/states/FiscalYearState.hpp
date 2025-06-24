@@ -14,7 +14,8 @@ namespace first {
 
   public:
     FiscalYearState(StateImpl::UX ux,FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
-    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
-    virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const;
+    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg) override;
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const override;
+    virtual Cargo get_cargo() const override;
   }; // struct FiscalYearState
 }

@@ -12,5 +12,9 @@ namespace first {
     Environment m_environment;
   public:
     ProjectState(StateImpl::UX ux, std::filesystem::path root_path);
+    virtual ~ProjectState() override;
+    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg) override;
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const override;
+    virtual Cargo get_cargo() const override;
   };
 } // namespace first
