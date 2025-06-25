@@ -4,6 +4,10 @@
 #include "FiscalPeriod.hpp" // QuarterIndex,
 #include <spdlog/spdlog.h>
 #include <format>
+#include <vector>
+#include <set>
+#include <ranges> // std::views::transform,
+#include <algorithm> // std::ranges::find,
 
 namespace first {
 
@@ -97,11 +101,80 @@ namespace first {
       return {std::nullopt, Nop};
   }
 
-  std::pair<std::optional<State>, Cmd> ProjectState::apply(cargo::HADsCargo const& cargo) const {
-      spdlog::info("ProjectState::apply - Received HADsCargo but should receive EnvirnmentCargo?");
-      // TODO: Consider to receive Environment slice as cargo?      
-      //       Then merge into a mutated Environment here?
-      return {std::nullopt, Nop};
+  // A non owning diff = lhs - rhs
+  template <typename T>
+  class diff_view {
+  public:
+    diff_view(T const &lhs, T const &rhs)
+        : m_lhs(lhs), m_rhs(rhs) {
+      spdlog::info("diff_view - lhs size: {}, rhs size: {}", m_lhs.size(), m_rhs.size());
+      for (auto it = std::ranges::begin(m_lhs); it != std::ranges::end(m_lhs); ++it) {
+        if (std::ranges::find(m_rhs, *it) == std::ranges::end(m_rhs)) {
+          m_removed.insert(it);
+        }
+      }
+      for (auto it = std::ranges::begin(m_rhs); it != std::ranges::end(m_rhs); ++it) {
+        if (std::ranges::find(m_lhs, *it) == std::ranges::end(m_lhs)) {
+          m_inserted.insert(it);
+        }
+      }
+    }
+
+    explicit operator bool() const {
+      return !m_inserted.empty() || !m_removed.empty();
+    }
+
+    auto inserted() const {
+      return m_inserted | std::views::transform([](auto it) { return *it; });
+    }
+
+    auto removed() const {
+      return m_removed | std::views::transform([](auto it) { return *it; });
+    }
+
+  private:
+    T const& m_lhs;
+    T const& m_rhs;
+    std::set<typename T::const_iterator> m_inserted; // refs into rhd
+    std::set<typename T::const_iterator> m_removed; // refs into lhs
+  };
+
+  std::pair<std::optional<State>, Cmd> ProjectState::apply(cargo::EnvironmentCargo const& cargo) const {
+      std::optional<State> mutated_state{};
+      Cmd cmd{Nop};
+      spdlog::info("ProjectState::apply - Received EnvironmentCargo");
+      // Update the environment with the cargo of environment slice
+      std::string section{"HeadingAmountDateTransEntry"};
+      if (m_environment.contains(section) and cargo.m_payload.contains(section)) {
+        diff_view<EnvironmentCasEntryVector> difference{m_environment.at(section), cargo.m_payload.at(section)};
+        if (difference) {
+          auto new_state = std::make_shared<ProjectState>(*this); // Create a new state
+          auto& mutated_environment = new_state->m_environment; // Make a copy to mutate
+          auto& mutated_section = mutated_environment[section];
+          // Remove entriers in mutated section
+          for (auto const& [index,ev] : difference.removed()) {
+            if ( auto iter = std::ranges::find(mutated_section, ev,[](auto const& pair) {return pair.second;})
+                ;iter != mutated_section.end()) {
+              spdlog::info("ProjectState::apply - Removing entry {}:{}", index,to_string(ev));
+              mutated_section.erase(iter); // Remove the entry
+            } else {
+              spdlog::warn("ProjectState::apply - Entry not found for removal: {}", to_string(ev));
+            }
+            mutated_state = new_state; // Set the mutated state
+          }
+          // Insert entries in mutated section
+          for (auto const& [index,ev] : difference.inserted()) {
+            if (auto iter = std::ranges::find(mutated_section, ev, [](auto const& pair) { return pair.second; });
+                iter == mutated_section.end()) {
+              spdlog::info("ProjectState::apply - Inserting entry {}:{}", index,to_string(ev));
+              mutated_section.push_back({mutated_section.size(),ev}); // Insert the entry
+            } else {
+              spdlog::warn("ProjectState::apply - Entry already exists for insertion: {}", to_string(ev));
+            }
+        }
+      }
+    }
+    return {mutated_state, cmd};
   }
 
   Cargo ProjectState::get_cargo() const {

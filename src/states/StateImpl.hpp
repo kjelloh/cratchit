@@ -8,6 +8,7 @@
 #include "cmd.hpp"
 #include "cargo/CargoBase.hpp"
 #include "cargo/HADsCargo.hpp"
+#include "cargo/EnvironmentCargo.hpp"
 
 namespace first {
 
@@ -28,6 +29,7 @@ namespace first {
     Options const &options() const;
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const; // default no-op
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const; // default no-op
     virtual Cargo get_cargo() const;
   };
 
