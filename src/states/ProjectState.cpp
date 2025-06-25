@@ -102,19 +102,45 @@ namespace first {
   }
 
   // A non owning diff = lhs - rhs
-  template <typename T>
+  template <typename T, typename DateProj, typename ValueProj>
   class diff_view {
   public:
-    diff_view(T const &lhs, T const &rhs)
-        : m_lhs(lhs), m_rhs(rhs) {
-      spdlog::info("diff_view - lhs size: {}, rhs size: {}", m_lhs.size(), m_rhs.size());
+    diff_view(
+        T const &lhs,
+        T const &rhs,
+        FiscalPeriod period,
+        DateProj date_projection,
+        ValueProj value_projection)
+        : m_lhs(lhs), m_rhs(rhs),
+          m_period(period),
+          m_date_projection(date_projection),
+          m_value_projection(value_projection) {
+
+      auto in_period = [&](auto const &it) {
+        auto date = m_date_projection(*it);
+        bool result = m_period.contains(date);
+        spdlog::info("in_period? {} -> {}", to_string(date), result);
+        return result;
+      };
+
+      spdlog::info("diff_view - lhs size: {}, rhs size: {}, period: {}", m_lhs.size(), m_rhs.size(), m_period.to_string());
+
+      auto contains_ev = [&](auto const r,auto const& ev) {
+        return std::ranges::any_of(r, [&](auto const& pair) {
+          spdlog::info("contains_ev - checking: {} == {}", to_string(m_value_projection(pair)), to_string(ev));
+          return m_value_projection(pair) == ev;
+        });
+      };
+
       for (auto it = std::ranges::begin(m_lhs); it != std::ranges::end(m_lhs); ++it) {
-        if (std::ranges::find(m_rhs, *it) == std::ranges::end(m_rhs)) {
+        if (in_period(it) && !contains_ev(m_rhs, m_value_projection(*it))) {
+          spdlog::info("diff_view - lhs removed: {}", to_string(m_value_projection(*it)));
           m_removed.insert(it);
         }
       }
       for (auto it = std::ranges::begin(m_rhs); it != std::ranges::end(m_rhs); ++it) {
-        if (std::ranges::find(m_lhs, *it) == std::ranges::end(m_lhs)) {
+        if (in_period(it) && !contains_ev(m_lhs, m_value_projection(*it))) {
+          spdlog::info("diff_view - rhs inserted: {}", to_string(m_value_projection(*it)));
           m_inserted.insert(it);
         }
       }
@@ -132,22 +158,45 @@ namespace first {
       return m_removed | std::views::transform([](auto it) { return *it; });
     }
 
-  private:
-    T const& m_lhs;
-    T const& m_rhs;
-    std::set<typename T::const_iterator> m_inserted; // refs into rhd
-    std::set<typename T::const_iterator> m_removed; // refs into lhs
-  };
+    private:
+      T const &m_lhs;
+      T const &m_rhs;
+      FiscalPeriod m_period;
+      DateProj m_date_projection;
+      ValueProj m_value_projection;
+      std::set<typename T::const_iterator> m_inserted;
+      std::set<typename T::const_iterator> m_removed;
+    };
 
-  std::pair<std::optional<State>, Cmd> ProjectState::apply(cargo::EnvironmentCargo const& cargo) const {
+    std::pair<std::optional<State>, Cmd> ProjectState::apply(cargo::EnvironmentCargo const &cargo) const {
       std::optional<State> mutated_state{};
       Cmd cmd{Nop};
       spdlog::info("ProjectState::apply - Received EnvironmentCargo");
       // Update the environment with the cargo of environment slice
       std::string section{"HeadingAmountDateTransEntry"};
       if (m_environment.contains(section) and cargo.m_payload.contains(section)) {
-        diff_view<EnvironmentCasEntryVector> difference{m_environment.at(section), cargo.m_payload.at(section)};
+        spdlog::info("ProjectState::apply - Processing section: {}", section);
+
+        auto to_date = [](EnvironmentIdValuePair const& pair) -> Date {
+          // Ok, so EnvironmentIdValuePair is not type safe regarding we asume it represents a HAD.
+          // For now, this follows only from processing section 'HeadingAmountDateTransEntry'.
+          if (auto had = to_had(pair.second)) {
+            spdlog::info("by_date date: {}", to_string(had->date));
+            return had->date;
+          }
+          spdlog::warn("ProjectState::apply::by_date - Invalid HAD in EnvironmentIdValuePair: {}", to_string(pair.second));
+          return Date{}; // Return a default date if HAD is invalid
+        };
+
+        auto to_ev = [](EnvironmentIdValuePair const& pair) {return pair.second;};
+
+        // TODO: Have the child state define the slice period for provided environment cargo
+        FiscalPeriod slice_period = FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period();
+
+        diff_view<EnvironmentCasEntryVector,decltype(to_date), decltype(to_ev)> 
+          difference{m_environment.at(section), cargo.m_payload.at(section),slice_period, to_date,to_ev};
         if (difference) {
+          spdlog::info("ProjectState::apply - Difference found in section: {}", section);
           auto new_state = std::make_shared<ProjectState>(*this); // Create a new state
           auto& mutated_environment = new_state->m_environment; // Make a copy to mutate
           auto& mutated_section = mutated_environment[section];
@@ -181,5 +230,4 @@ namespace first {
       spdlog::info("ProjectState::get_cargo");
       return Cargo{}; // Null cargo
   }
-
-}
+} // namespace first
