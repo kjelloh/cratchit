@@ -10706,51 +10706,50 @@ public:
 		: cratchit_file_path{p}
           ,m_persistent_environment_file{p,::environment_from_file,::environment_to_file} {}
 
-	Model init(Command const& command) {
-		std::ostringstream prompt{};
-		prompt << "\nInit from ";
-		prompt << cratchit_file_path;
-        m_persistent_environment_file.init();
-        if (auto const& cached_env = m_persistent_environment_file.cached()) {
+        Model init(Command const &command) {
+          std::ostringstream prompt{};
+          prompt << "\nInit from ";
+          prompt << cratchit_file_path;
+          m_persistent_environment_file.init();
+          if (auto const &cached_env = m_persistent_environment_file.cached()) {
             auto model = this->model_from_environment(*cached_env);
             model->prompt_state = PromptState::Root;
             prompt << "\n" << prompt_line(model->prompt_state);
-    		model->prompt += prompt.str();
+            model->prompt += prompt.str();
             return model;
-        }
-        else {
+          } else {
             prompt << "\nSorry, Failed to load environment from " << cratchit_file_path;
             auto model = std::make_unique<ConcreteModel>();
             model->prompt = prompt.str();
             model->prompt_state = PromptState::Root;
             return model;
+          }
         }
-	}
-	std::pair<Model,Cmd> update(Msg const& msg,Model&& model) {
-		// std::cout << "\nupdate" << std::flush;
-		Cmd cmd{};
-		{
-			// Scope to ensure correct move of model in and out of updater
-			model->prompt.clear();
-			Updater updater{std::move(model)};
-			cmd = std::visit(updater,msg);
-			model = std::move(updater.model);
-		}
-		// std::cout << "\nCratchit::update updater visit ok" << std::flush;
-		if (model->quit) {
-			// std::cout << "\nCratchit::update if (updater.model->quit) {" << std::flush;
-			auto model_environment = environment_from_model(model);
-			auto cratchit_environment = this->add_cratchit_environment(model_environment);
+        std::pair<Model, Cmd> update(Msg const &msg, Model &&model) {
+          // std::cout << "\nupdate" << std::flush;
+          Cmd cmd{};
+          {
+            // Scope to ensure correct move of model in and out of updater
+            model->prompt.clear();
+            Updater updater{std::move(model)};
+            cmd = std::visit(updater, msg);
+            model = std::move(updater.model);
+          }
+          // std::cout << "\nCratchit::update updater visit ok" << std::flush;
+          if (model->quit) {
+            // std::cout << "\nCratchit::update if (updater.model->quit) {" << std::flush;
+            auto model_environment = environment_from_model(model);
+            auto cratchit_environment = this->add_cratchit_environment(model_environment);
             this->m_persistent_environment_file.update(cratchit_environment);
-			unposted_to_sie_file(model->sie["current"],model->staged_sie_file_path);
-			// Update/create the skv xml-file (employer monthly tax declaration)
-// std::cout << R"(\nmodel->sie["current"].organisation_no.CIN=)" << model->sie["current"].organisation_no.CIN;
-		}
-		// std::cout << "\nCratchit::update before prompt update" << std::flush;
-		// std::cout << "\nCratchit::update before return" << std::flush;
-		return {std::move(model),cmd};
-	}
-	Ux view(Model const& model) {
+            unposted_to_sie_file(model->sie["current"], model->staged_sie_file_path);
+            // Update/create the skv xml-file (employer monthly tax declaration)
+            // std::cout << R"(\nmodel->sie["current"].organisation_no.CIN=)" << model->sie["current"].organisation_no.CIN;
+          }
+          // std::cout << "\nCratchit::update before prompt update" << std::flush;
+          // std::cout << "\nCratchit::update before return" << std::flush;
+          return {std::move(model), cmd};
+        }
+        Ux view(Model const& model) {
 		// std::cout << "\nview" << std::flush;
 		Ux ux{};
 		ux.push_back(model->prompt);
