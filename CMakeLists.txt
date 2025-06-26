@@ -52,7 +52,12 @@ add_executable(cratchit
         src/Key.cpp
         src/fiscal/SKVFramework.cpp
         src/cargo/HADsCargo.cpp
-        src/cargo/EnvironmentCargo.cpp)
+        src/cargo/EnvironmentCargo.cpp
+        src/cargo/CargoBase.cpp)
+
+# TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
+# target_compile_options(cratchit PRIVATE -fsanitize=address)
+# target_link_options(cratchit PRIVATE -fsanitize=address)
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 

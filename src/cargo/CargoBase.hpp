@@ -31,6 +31,10 @@ namespace first {
 
     };
 
+    // Dummy payload and cargo (placeholder during development and test)
+    using DummyPayload = std::string;
+    using DummyCargo = ConcreteCargo<DummyPayload>;
+
     using Cargo = std::unique_ptr<AbstractCargo>;
 
     template <typename P>

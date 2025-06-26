@@ -28,8 +28,12 @@ namespace first {
     UX &ux();
     Options const &options() const;
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
+
+
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::DummyCargo const& cargo) const; // default no-op
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const; // default no-op
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const; // default no-op
+
     virtual Cargo get_cargo() const;
   };
 

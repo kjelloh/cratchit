@@ -10,6 +10,7 @@
 #include <queue>
 #include <format>
 #include <spdlog/spdlog.h>
+#include <csignal> // std::signal
 
 namespace runtime {
   template <typename Msg>
@@ -98,9 +99,18 @@ void render(const pugi::xml_document &doc) {
   doupdate();
 }
 
+void ncurses_cleanup_on_crash(int sig) {
+    endwin();  // Reset terminal to normal
+    // 20250616/KOH: This will NOT restore any ASAN linked machinery
+    std::signal(sig, SIG_DFL); // Restore default handler
+    std::raise(sig);           // Re-raise signal
+}
+
 class Ncurses {
 public:
   Ncurses() {
+    // 20250616/KOH: Registring this signal handler disables any ASAN linked machinery
+    // std::signal(SIGSEGV, ncurses_cleanup_on_crash);
     initscr();
     cbreak();
     noecho();
@@ -155,18 +165,26 @@ public:
 
       if (not cmd_q.empty()) {
         // Execute a command
-        auto cmd = cmd_q.front(); cmd_q.pop();
-        if (auto opt_msg = cmd()) {
-            spdlog::info("Cmd() produced  Msg");
-            const Msg& msg = *opt_msg;
+        auto cmd = cmd_q.front();
+        cmd_q.pop();
+        if (cmd) {
+          spdlog::info("Runtime::run: Processing Cmd type {}", to_type_name(typeid(cmd)));
+          spdlog::default_logger()->flush();
+          if (auto opt_msg = cmd()) {
+            spdlog::info("Runtime::run: Cmd() produced  Msg");
+            spdlog::default_logger()->flush();
+            const Msg &msg = *opt_msg;
             if (msg) {
-                msg_q.push(msg);
-                spdlog::info("Msg pushed");
+              msg_q.push(msg);
+              spdlog::info("Runtime::run: Msg pushed");
             } else {
-                spdlog::warn("Command returned null message!");
+              spdlog::warn("Runtime::run: Command returned null message!");
             }
+          }
+        } else {
+          spdlog::warn("Runtime::run: DESIGN_INSUFFICIENCY - runtime queue poisoned with null (default constructed?) Cmd");
         }
-      }
+      } 
       else if (not msg_q.empty()) {
         auto msg = msg_q.front(); msg_q.pop();
 
@@ -187,8 +205,7 @@ public:
         auto const &[m, cmd] = m_update(model, msg);
         model = m;
         cmd_q.push(cmd);
-      }
-      else {
+      } else {
         // Wait for user input
         ch = getch();
         spdlog::info("Runtime::run ch={}",ch);

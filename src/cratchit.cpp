@@ -91,28 +91,26 @@ namespace first {
     // State stack top processing
     if (model.stack.size()>0) {
       // Pass msg to state for state update
-      if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg);pimpl != nullptr) {
+      if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
         if (model.stack.top() == pimpl->m_top) {
-          // the cargo is targeted to current top ok.
-          if (pimpl->m_cargo != nullptr) {
-            auto& cargo = *pimpl->m_cargo; // Consume any shared pointer dereference side effects here.
-            spdlog::info("PoppedStateCargoMsg: {}",to_type_name(typeid(cargo)));
-            auto [maybe_new_state,state_cmd] = cargo.visit(model.stack.top());
+          if (pimpl->m_cargo) {
+            const auto &cargo = *pimpl->m_cargo;
+            spdlog::info("PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
+            auto [maybe_new_state, state_cmd] = cargo.visit(model.stack.top());
             new_state = maybe_new_state;
             cmd = state_cmd;
-          }
-          else {
+          } else {
             spdlog::info("PoppedStateCargoMsg: NULL cargo");
           }
         }
-      }    
+      }
+
       else {
         auto pp = model.stack.top()->update(msg);
         new_state = pp.first;
         cmd = pp.second;
       }
     }
-
 
     if (new_state) {
       // Let 'StateImpl' update itself
@@ -151,7 +149,7 @@ namespace first {
               // (1) Transition back to previous state
               auto popped_state = model.stack.top(); // share popped state for command to free
               model.stack.pop();
-              cmd = [popped_state,top = (model.stack.size()>0)?model.stack.top():nullptr]() mutable -> Msg {
+              cmd = [popped_state,rx_state = (model.stack.size()>0)?model.stack.top():nullptr]() mutable -> Msg {
                 if (popped_state.use_count() != 1) {
                   // Design insufficiency (We should be the only user)
                   spdlog::error("DESIGN_INSUFFICIENCY: Failed to execute State destructor in command (user count {} != 1)",popped_state.use_count());
@@ -162,7 +160,7 @@ namespace first {
                   // Then log the type name of the referenced state
                   spdlog::info("Destructing State type {}",to_type_name(typeid(ref)));
                 }
-                auto msg = std::make_shared<PoppedStateCargoMsg>(top,popped_state->get_cargo());
+                auto msg = std::make_shared<PoppedStateCargoMsg>(rx_state,popped_state->get_cargo());
                 popped_state.reset(); // Free popped state
                 return msg;
               };

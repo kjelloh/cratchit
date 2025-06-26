@@ -67,10 +67,6 @@ HeadingAmountDateTransEntries hads_from_environment(Environment const &environme
     spdlog::default_logger()->flush();;
   }
   HeadingAmountDateTransEntries result{};
-  // auto [begin,end] = environment.equal_range("HeadingAmountDateTransEntry");
-  // std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-  // 	return *to_had(entry.second); // Assume success
-  // });
   if (environment.contains("HeadingAmountDateTransEntry")) {
     if (true) {
       spdlog::info(R"(if (environment.contains("HeadingAmountDateTransEntry")) ok)");
@@ -116,11 +112,9 @@ EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
 	return ev;
 }
 
-std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {
-    size_t index = 0;
-    for (const auto& entry : entries) {
-        co_yield {index++, to_environment_value(entry)};
-    }
-}
-
-
+// std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {
+//     size_t index = 0;
+//     for (const auto& entry : entries) {
+//         co_yield {index++, to_environment_value(entry)};
+//     }
+// }

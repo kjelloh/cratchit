@@ -6,6 +6,7 @@
 #include "fiscal/SKVFramework.hpp"
 #include <string>
 #include <optional>
+#include <ranges> // std::views::zip,
 
 struct HeadingAmountDateTransEntry {
 	struct Optional {
@@ -47,5 +48,11 @@ OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& token
 
 EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had);
 
-std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries);
-
+// std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries);
+inline auto indexed_env_entries_from(HeadingAmountDateTransEntries const& hads) {
+  return std::views::zip(
+     std::views::iota(0)
+    ,hads | std::views::transform(
+      [](HeadingAmountDateTransEntry const& had){return to_environment_value(had);}
+    ));
+}

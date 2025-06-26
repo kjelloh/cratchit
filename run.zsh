@@ -26,3 +26,5 @@ cp "$BUILD_DIR/cratchit" "$WORKSPACE_DIR/"
 cd "$WORKSPACE_DIR"
 
 ./cratchit "$@"
+#ASAN_OPTIONS=log_path=asan_log ./cratchit "$@" 2>stderr.log
+
