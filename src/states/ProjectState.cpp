@@ -15,11 +15,20 @@ namespace first {
   ProjectState::ProjectState(StateImpl::UX ux,std::filesystem::path root_path) 
     :  StateImpl{ux}
       ,m_root_path{root_path}
+      ,m_persistent_environment_file{m_root_path / "cratchit.env",environment_from_file,environment_to_file}
       ,m_environment{} {
 
     try {
-      m_environment = environment_from_file(m_root_path / "cratchit.env");
-      m_ux.push_back(std::format("Environment size is: {}", m_environment.size()));
+      // m_environment = environment_from_file(m_root_path / "cratchit.env");
+      m_persistent_environment_file.init();
+      if (auto const &cached_env = m_persistent_environment_file.cached()) {
+        m_environment = *cached_env;
+        m_ux.push_back(std::format("Environment {}: {} entries.",m_persistent_environment_file.path().string(), m_environment.size()));
+      }
+      else {
+        m_environment = Environment{}; // Initialize with an empty environment if no cached environment
+        m_ux.push_back(std::format("Null Environment {}",m_persistent_environment_file.path().string()));
+      }
     }
     catch (const std::exception& e) {
       m_ux.push_back("Error initializing environment: " + std::string(e.what()));
@@ -94,6 +103,7 @@ namespace first {
     // TODO: Save environment to file here
     // NOTE: cratchit update(model) will defer destructor as Cmd invoked by runtime (i.e., side effects ok)
     spdlog::info("ProjectState::~ProjectState");
+    m_persistent_environment_file.update(m_environment); // Save the environment to file
   }
 
   std::pair<std::optional<State>, Cmd> ProjectState::update(Msg const& msg) {
@@ -101,7 +111,7 @@ namespace first {
       return {std::nullopt, Nop};
   }
 
-  // A non owning diff = lhs - rhs
+  // A non owning diff of period sliced ranges = lhs - rhs
   template <typename T, typename DateProj, typename ValueProj>
   class diff_view {
   public:
@@ -173,8 +183,10 @@ namespace first {
       Cmd cmd{Nop};
       spdlog::info("ProjectState::apply - Received EnvironmentCargo");
       // Update the environment with the cargo of environment slice
+      auto [env_slice,slice_period] = cargo.m_payload;
+      spdlog::info("ProjectState::apply - Period: {}, Slice size: {}", slice_period.to_string(), env_slice.size());
       std::string section{"HeadingAmountDateTransEntry"};
-      if (m_environment.contains(section) and cargo.m_payload.contains(section)) {
+      if (m_environment.contains(section) and env_slice.contains(section)) {
         spdlog::info("ProjectState::apply - Processing section: {}", section);
 
         auto to_date = [](EnvironmentIdValuePair const& pair) -> Date {
@@ -190,11 +202,8 @@ namespace first {
 
         auto to_ev = [](EnvironmentIdValuePair const& pair) {return pair.second;};
 
-        // TODO: Have the child state define the slice period for provided environment cargo
-        FiscalPeriod slice_period = FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period();
-
         diff_view<EnvironmentCasEntryVector,decltype(to_date), decltype(to_ev)> 
-          difference{m_environment.at(section), cargo.m_payload.at(section),slice_period, to_date,to_ev};
+          difference{m_environment.at(section), env_slice.at(section),slice_period, to_date,to_ev};
         if (difference) {
           spdlog::info("ProjectState::apply - Difference found in section: {}", section);
           auto new_state = std::make_shared<ProjectState>(*this); // Create a new state

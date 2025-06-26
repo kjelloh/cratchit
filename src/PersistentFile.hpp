@@ -34,6 +34,10 @@ public:
         return cached_;
     }
 
+    std::filesystem::path path() const {
+        return path_;
+    }
+
 private:
     std::filesystem::path path_;
     LoadFunc load_func_;

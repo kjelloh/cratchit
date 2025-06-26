@@ -5,6 +5,6 @@
 
 namespace first {
   namespace cargo {
-    using EnvironmentCargo = ConcreteCargo<Environment>;    
+    using EnvironmentCargo = ConcreteCargo<EnvironmentPeriodSlice>;    
   } // namespace cargo
 } // namespace first

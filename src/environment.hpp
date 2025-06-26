@@ -1,5 +1,6 @@
 #pragma once
 
+#include "FiscalPeriod.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -54,3 +55,12 @@ std::ostream& operator<<(std::ostream& os,Environment const& env);
 std::string to_string(EnvironmentValue const& ev);
 std::string to_string(Environment::value_type const& entry);
 void environment_to_file(Environment const &environment,std::filesystem::path const &p);
+
+struct EnvironmentPeriodSlice {
+  Environment m_environment;
+  FiscalPeriod m_period;
+  EnvironmentPeriodSlice(Environment env,FiscalPeriod period) : m_environment(std::move(env)),m_period(period) {}
+  FiscalPeriod const period() const { return m_period; }
+  Environment const& environment() const { return m_environment; }
+  Environment& environment() { return m_environment; }
+}; // EnvironmentPeriodSlice

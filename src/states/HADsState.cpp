@@ -68,7 +68,7 @@ namespace first {
         auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
         if (auto had = to_had(tokens)) {
           auto mutated_hads = this->m_all_hads;
-          mutated_hads.push_back(*had);
+          mutated_hads.push_back(*had); // TODO: Check that new HAD is in period
           auto mutated_state = std::make_shared<HADsState>(mutated_hads);
           state = mutated_state;
         }
