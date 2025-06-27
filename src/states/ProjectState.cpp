@@ -74,18 +74,18 @@ namespace first {
         Option operator()(FiscalQuarter fiscal_quarter) const {
             std::string caption = std::format("Quarter {}", fiscal_quarter.to_string());
             auto ux = StateImpl::UX{caption};
-            return {caption, [ux,fiscal_quarter]() {
-                return std::make_shared<QuarterState>(ux,fiscal_quarter.period());
+            return {caption, [&environment = m_environment,ux,fiscal_quarter]() {
+                return std::make_shared<QuarterState>(ux,fiscal_quarter.period(),environment);
             }};
         }
 
-        Option operator()(FiscalPeriod fiscal_quarter) const {
-            std::string caption = std::format("Quarter {}", fiscal_quarter.to_string());
-            auto ux = StateImpl::UX{"Quarter UX goes here"};
-            return {caption, [ux,fiscal_quarter]() {
-                return std::make_shared<QuarterState>(ux,fiscal_quarter);
-            }};
-        }
+        // Option operator()(FiscalPeriod fiscal_period) const {
+        //     std::string caption = std::format("Quarter {}", fiscal_period.to_string());
+        //     auto ux = StateImpl::UX{"Quarter UX goes here"};
+        //     return {caption, [ux,fiscal_period]() {
+        //         return std::make_shared<QuarterState>(ux,fiscal_period);
+        //     }};
+        // }
     }; // struct QuarterOptionFactory
 
     FiscalYearOptionFactory fiscal_year_option_factory{m_environment};

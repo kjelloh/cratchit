@@ -5,49 +5,52 @@
 
 namespace first {
   // ----------------------------------
-  HADsState::HADsState(HADs all_hads,Mod10View mod10_view)
-    :  m_mod10_view{mod10_view}
-      ,m_all_hads{all_hads}
+  HADsState::HADsState(HADs all_hads,FiscalPeriod fiscal_period,Mod10View mod10_view)
+    :  m_all_hads{all_hads}
+      ,m_fiscal_period{fiscal_period}
+      ,m_mod10_view{mod10_view}
       ,StateImpl({}) {
 
-
     spdlog::info("HADsState::HADsState(HADs all_hads:size={},Mod10View mod10_view)",m_all_hads.size());
+
+    // HAD subrange StateImpl factory
+    // Enable 'drill down' modulo 10 into HADs
     struct HADs_subrange_factory {
-      // HAD subrange StateImpl factory
+      HADs_subrange_factory(HADsState::HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view)
+          : m_all_hads{all_hads},m_fiscal_period{fiscal_period},m_mod10_view{mod10_view} {}
+
       HADsState::HADs m_all_hads{};
+      FiscalPeriod m_fiscal_period;
       Mod10View m_mod10_view;
 
       auto operator()() {
-        return std::make_shared<HADsState>(m_all_hads, m_mod10_view);
+        return std::make_shared<HADsState>(m_all_hads, m_fiscal_period,m_mod10_view);
       }
 
-      HADs_subrange_factory(HADsState::HADs all_hads, Mod10View mod10_view)
-          : m_mod10_view{mod10_view}, m_all_hads{all_hads} {}
+    };
+
+    auto option_from = [this](Mod10View::Range const& subrange) -> StateImpl::Option {
+      auto caption = std::to_string(subrange.first);
+      caption += " .. ";
+      caption += std::to_string(subrange.second-1);
+      return {caption, HADs_subrange_factory(m_all_hads,m_fiscal_period,subrange)};
     };
 
     auto subranges = m_mod10_view.subranges();
     for (size_t i=0;i<subranges.size();++i) {
       auto const subrange = subranges[i];
       auto const& [begin,end] = subrange;
-      auto caption = std::to_string(begin);
       if (end-begin==1) {
         // Single HAD in range option
-        this->add_option(static_cast<char>('0'+i),{caption,[had=m_all_hads[begin]](){
-          // Single RBT factory
-          auto HAD_ux = StateImpl::UX{
-            "HAD UX goes here"
-          };
-          return std::make_shared<HADState>(had);
-        }});
+        this->add_option(static_cast<char>('0'+i),HADState::option_from(m_all_hads[begin]));
       }
       else {
-        caption += " .. ";
-        caption += std::to_string(end-1);
-        this->add_option(static_cast<char>('0'+i),{caption,HADs_subrange_factory(m_all_hads,subrange)});
+        this->add_option(static_cast<char>('0'+i),option_from(subrange));
       }
     }
 
     // Initiate view UX
+    this->ux().push_back(std::format("{}", m_fiscal_period.to_string()));
     for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
       auto entry = std::to_string(i);
       entry += ". ";
@@ -58,7 +61,8 @@ namespace first {
   }
 
   // ----------------------------------
-  HADsState::HADsState(HADs all_hads) : HADsState(all_hads,Mod10View(all_hads)) {}
+  HADsState::HADsState(HADs all_hads,FiscalPeriod fiscal_period) 
+    : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
 
   std::pair<std::optional<State>, Cmd> HADsState::update(Msg const &msg) {
       std::optional<State> state{};
@@ -69,7 +73,7 @@ namespace first {
         if (auto had = to_had(tokens)) {
           auto mutated_hads = this->m_all_hads;
           mutated_hads.push_back(*had); // TODO: Check that new HAD is in period
-          auto mutated_state = std::make_shared<HADsState>(mutated_hads);
+          auto mutated_state = std::make_shared<HADsState>(mutated_hads,m_fiscal_period);
           state = mutated_state;
         }
 
@@ -81,5 +85,15 @@ namespace first {
     return cargo::to_cargo(this->m_all_hads);
   }
 
+  StateFactory HADsState::factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period) {
+    // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
+    return [&all_hads,fiscal_period]() {
+      auto ux = StateImpl::UX{"HADs UX goes here"};
+      return std::make_shared<HADsState>(all_hads,fiscal_period);
+    };
+  }
 
+  StateImpl::Option HADsState::option_from(HADs const& all_hads,FiscalPeriod fiscal_period) {
+    return {std::format("HADs - count:{}",all_hads.size()), factory_from(all_hads,fiscal_period)};
+  }
 } // namespace first

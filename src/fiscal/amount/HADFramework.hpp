@@ -40,6 +40,32 @@ using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 // Environment -> HADs
 HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);
 
+inline auto to_period_hads(FiscalPeriod period, const Environment &env) -> HeadingAmountDateTransEntries {
+
+  auto ev_to_maybe_had = [](EnvironmentValue const &ev) -> OptionalHeadingAmountDateTransEntry { return to_had(ev); };
+
+  auto in_period = [](HeadingAmountDateTransEntry const &had, FiscalPeriod const &period) -> bool { return period.contains(had.date); };
+
+  auto id_ev_pair_to_ev = [](EnvironmentIdValuePair const &id_ev_pair) { return id_ev_pair.second; };
+
+  static constexpr auto section = "HeadingAmountDateTransEntry";
+
+  if (!env.contains(section)) {
+    return {}; // No entries of this type
+  }
+
+  auto const &id_ev_pairs = env.at(section);
+
+  return id_ev_pairs
+          | std::views::transform(id_ev_pair_to_ev)
+          | std::views::transform(ev_to_maybe_had)
+          | std::views::filter([](auto const &maybe_had) { return maybe_had.has_value(); })
+          | std::views::transform([](auto const &maybe_had) { return *maybe_had; })
+          | std::views::filter([&](auto const &had) { return in_period(had, period); })
+          | std::ranges::to<std::vector>();
+}
+
+
 // Tokens -> HAD
 OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& tokens);
 
