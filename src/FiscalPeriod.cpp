@@ -94,27 +94,21 @@ namespace first {
   }
 
   FiscalQuarter FiscalQuarter::to_relative_fiscal_quarter(int offset) const {
-    using namespace std::chrono;
 
     const Date start_date = m_period.start();
     const Year base_year = start_date.year();
 
     QuarterIndex current_ix = to_quarter_index(start_date);
+
     if (!current_ix.m_valid) {
-      return *this; // or handle error
+      spdlog::error("to_relative_fiscal_quarter: Invalid quarter index: {}. Returns unchanged", current_ix.m_ix);
+      return *this; // TODO: Silent Nop ok?
     }
 
-    // Calculate new quarter index (1-based) by wrapping offset
-    int new_index = ((static_cast<int>(current_ix.m_ix) - 1 + offset) % 4 + 4) % 4 + 1;
-
-    // Calculate year delta purely from offset
-    int year_delta = offset / 4;
-    if (offset < 0 && (offset % 4 != 0)) {
-      year_delta -= 1;
-    }
-
-    Year new_year = base_year + years{year_delta};
-    QuarterIndex new_quarter(static_cast<unsigned>(new_index));
+    // year 0 based quarter count
+    int total_quarters = (static_cast<int>(base_year) * 4 + (current_ix.m_ix - 1)) + offset;
+    Year new_year = Year{total_quarters / 4};
+    QuarterIndex new_quarter = QuarterIndex{static_cast<unsigned>((total_quarters % 4) + 1)};
 
     return FiscalQuarter(new_quarter, new_year);
   }
