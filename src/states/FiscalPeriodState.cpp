@@ -56,4 +56,17 @@ namespace first {
     return cargo::to_cargo(result);
   }
 
+  StateFactory FiscalPeriodState::factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
+    return [fiscal_period, &parent_environment_ref]() {
+      StateImpl::UX ux{"Fiscal Period: " + fiscal_period.to_string()};
+      return std::make_shared<FiscalPeriodState>(ux, fiscal_period, parent_environment_ref);
+    };
+  }
+  StateImpl::Option FiscalPeriodState::option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref) {
+    return {std::format("Fiscal Year: {}",fiscal_year.to_string()), factory_from(fiscal_year.period(), parent_environment_ref)};
+  }
+  StateImpl::Option FiscalPeriodState::option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref) {
+    return {std::format("Fiscal Quarter: {}",fiscal_quarter.to_string()), factory_from(fiscal_quarter.period(), parent_environment_ref)};
+  }
+
 } // namespace first

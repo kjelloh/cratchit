@@ -1,6 +1,5 @@
 #include "ProjectState.hpp"
-#include "FiscalYearState.hpp" // TODO: We need a FiscalYerState with dynamic FiscalPeriod
-#include "QuarterState.hpp" // We need a dynamic QuarterState
+#include "FiscalPeriodState.hpp"
 #include "FiscalPeriod.hpp" // QuarterIndex,
 #include <spdlog/spdlog.h>
 #include <format>
@@ -34,69 +33,13 @@ namespace first {
       m_ux.push_back("Error initializing environment: " + std::string(e.what()));
     }
 
-    struct FiscalYearOptionFactory {
-        using StateFactory = std::function<std::shared_ptr<StateImpl>()>;
-        Environment const& m_environment;
-        FiscalYearOptionFactory(Environment const& environment)
-            : m_environment(environment) {}
-
-        Option operator()(FiscalYear fiscal_year) const {
-            std::string caption = fiscal_year.to_string();
-            auto fiscal_ux = StateImpl::UX{caption};
-            // BEWARE: Don't capture the this pointer as FiscalYearOptionFactory is used only as a temporary
-            //         to create this lambda. So we must ensure the lampda captures stuff that is actually there
-            //         when the lambda is called (The user selects the option).
-            return {caption, [fiscal_ux, &env = this->m_environment,fiscal_year]() {
-                return std::make_shared<FiscalYearState>(fiscal_ux, fiscal_year.period(), env);
-            }};
-        }
-
-        Option operator()(std::chrono::year fiscal_start_year) const {
-            auto fiscal_year = FiscalPeriod::to_fiscal_year(fiscal_start_year, std::chrono::month{5}); // May to April
-
-            std::string caption = fiscal_year.to_string();
-            auto fiscal_ux = StateImpl::UX{caption};
-            // BEWARE: Don't capture the this pointer as FiscalYearOptionFactory is used only as a temporary
-            //         to create this lambda. So we must ensure the lampda captures stuff that is actually there
-            //         when the lambda is called (The user selects the option).
-            return {caption, [fiscal_ux, &env = this->m_environment,fiscal_year]() {
-                return std::make_shared<FiscalYearState>(fiscal_ux, fiscal_year, env);
-            }};
-        }
-    }; // struct FiscalYearOptionFactory
-
-    struct QuarterOptionFactory {
-        using StateFactory = std::function<std::shared_ptr<StateImpl>()>;
-        Environment const& m_environment;
-        QuarterOptionFactory(Environment const& environment)
-            : m_environment(environment) {}
-
-        Option operator()(FiscalQuarter fiscal_quarter) const {
-            std::string caption = std::format("Quarter {}", fiscal_quarter.to_string());
-            auto ux = StateImpl::UX{caption};
-            return {caption, [&environment = m_environment,ux,fiscal_quarter]() {
-                return std::make_shared<QuarterState>(ux,fiscal_quarter.period(),environment);
-            }};
-        }
-
-        // Option operator()(FiscalPeriod fiscal_period) const {
-        //     std::string caption = std::format("Quarter {}", fiscal_period.to_string());
-        //     auto ux = StateImpl::UX{"Quarter UX goes here"};
-        //     return {caption, [ux,fiscal_period]() {
-        //         return std::make_shared<QuarterState>(ux,fiscal_period);
-        //     }};
-        // }
-    }; // struct QuarterOptionFactory
-
-    FiscalYearOptionFactory fiscal_year_option_factory{m_environment};
-    QuarterOptionFactory fiscal_quarter_option_factory{m_environment};
     auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
     auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
-    this->add_option('0',fiscal_year_option_factory(current_fiscal_year));
-    this->add_option('1',fiscal_year_option_factory(current_fiscal_year.to_relative_fiscal_year(-1)));
-    this->add_option('2',fiscal_year_option_factory(current_fiscal_year.to_relative_fiscal_year(-2)));
-    this->add_option('3',fiscal_quarter_option_factory(current_fiscal_quarter));
-    this->add_option('4',fiscal_quarter_option_factory(current_fiscal_quarter.to_relative_fiscal_quarter(-1)));
+    this->add_option('0',FiscalPeriodState::option_from(current_fiscal_year,m_environment));    
+    this->add_option('1',FiscalPeriodState::option_from(current_fiscal_year.to_relative_fiscal_year(-1),m_environment));
+    this->add_option('2',FiscalPeriodState::option_from(current_fiscal_year.to_relative_fiscal_year(-2),m_environment));
+    this->add_option('3',FiscalPeriodState::option_from(current_fiscal_quarter,m_environment));
+    this->add_option('4',FiscalPeriodState::option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
   } // ProjectState::ProjectState
 
   ProjectState::~ProjectState() {
