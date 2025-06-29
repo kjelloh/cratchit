@@ -1,5 +1,6 @@
 
 #include "HADState.hpp"
+#include "DeleteItemState.hpp"
 
 namespace first {
 // ----------------------------------
@@ -13,6 +14,12 @@ namespace first {
     ux().clear();
     ux().push_back(to_string(had));
     this->add_option('0',{"HAD -> SIE",sie_factory});
+
+    this->add_cmd_option('d', {"Delete",[had = this->m_had]() -> std::optional<Msg> {
+        State new_state = DeleteItemState<HAD>::factory_from(had)();
+        auto msg = std::make_shared<PushStateMsg>(new_state);
+        return msg;
+    }});
   }
 
   StateFactory HADState::factory_from(HADState::HAD const& had) {

@@ -27,6 +27,9 @@ namespace first {
     void add_cmd_option(char ch, CmdOption const &option) {
       m_cmd_options[ch] = option;
     }
+    CmdOptions const &cmd_options() const {
+      return m_cmd_options;
+    }
 
     UX m_ux;
     Options m_options;

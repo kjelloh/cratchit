@@ -241,6 +241,14 @@ namespace first {
         entry.push_back('\n');
         model.main_content.append(entry);
       }
+      for (auto const& [ch, cmd_option] : model.stack.top()->cmd_options()) {
+        std::string entry{};
+        entry.push_back(ch);
+        entry.append(" = ");
+        entry.append(cmd_option.first);
+        entry.push_back('\n');
+        model.main_content.append(entry);
+      }
     }
 
     return {model,cmd}; // Return updated model

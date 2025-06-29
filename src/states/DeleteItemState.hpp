@@ -7,19 +7,20 @@ namespace first {
   // ----------------------------------
   template <typename T>
   struct DeleteItemState : public StateImpl {
-    StateFactory SIE_factory = []() {
-      auto SIE_ux = StateImpl::UX{"Item to SIE UX goes here"};
-      return std::make_shared<StateImpl>(SIE_ux);
-    };
     using Item = T;
     Item m_item;
+
     DeleteItemState(Item item)
       : m_item{item}, StateImpl({}) {
       ux().clear();
       ux().push_back(std::format("Delete {} ?", to_string(item)));
     }
 
-    static StateFactory factory_from(DeleteItemState::Item const& item);
+    static StateFactory factory_from(DeleteItemState::Item const& item) {
+      return [item]() {
+        return std::make_shared<DeleteItemState<Item>>(item);
+      };
+    }
     static StateImpl::Option option_from(DeleteItemState::Item const& item);
   };
 } // namespace first
