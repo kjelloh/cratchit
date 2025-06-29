@@ -5,8 +5,8 @@ namespace first {
   NCursesKey::NCursesKey(int key) : key{key}, MsgImpl{} {}
 
   // ----------------------------------
-  PushStateMsg::PushStateMsg(State const &parent, State const &state)
-      : m_parent{parent}, m_state{state}, MsgImpl{} {}
+  PushStateMsg::PushStateMsg(State const &state)
+      : m_state{state}, MsgImpl{} {}
 
   // ----------------------------------
   PoppedStateCargoMsg::PoppedStateCargoMsg(State const &top, Cargo&& cargo)

@@ -15,9 +15,8 @@ namespace first {
 
   // ----------------------------------
   struct PushStateMsg : public MsgImpl {
-    State m_parent{};
     State m_state{};
-    PushStateMsg(State const &parent, State const &state);
+    PushStateMsg(State const &state);
   };
 
   // ----------------------------------

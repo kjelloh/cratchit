@@ -73,7 +73,7 @@ namespace first {
 
     // model.stack.push(framework_state_factory());
     auto new_framework_state_cmd = []() -> Msg {
-      auto msg = std::make_shared<PushStateMsg>(nullptr,framework_state_factory());
+      auto msg = std::make_shared<PushStateMsg>(framework_state_factory());
       return msg;
     };
     return {model,is_quit_msg,new_framework_state_cmd};
@@ -174,14 +174,15 @@ namespace first {
                   return msg;
                 };
               } 
-              else if (model.stack.top()->options().contains(ch)) {
-                // (2) Transition to new StateImpl
-                cmd = [ch,parent = model.stack.top()]() -> Msg {
-                  State new_state = parent->options().at(ch).second();
-                  auto msg = std::make_shared<PushStateMsg>(parent,new_state);
-                  return msg;
-                };
-              }
+              // Moved to State::cmd_from_key
+              // else if (model.stack.top()->options().contains(ch)) {
+              //   // (2) Transition to new StateImpl
+              //   cmd = [ch,parent = model.stack.top()]() -> Msg {
+              //     State new_state = parent->options().at(ch).second();
+              //     auto msg = std::make_shared<PushStateMsg>(parent,new_state);
+              //     return msg;
+              //   };
+              // }
               else {
                 model.user_input += ch; // Append typed character
               }
@@ -195,17 +196,7 @@ namespace first {
 
       // Process Push of new state
       else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg);pimpl != nullptr) {
-        if (model.stack.size() == 0) {
-          // Always 'match'
-          model.stack.push(pimpl->m_state);
-        }
-        else if (model.stack.top() == pimpl->m_parent) {
-          // The transition matches
-          model.stack.push(pimpl->m_state);
-        }
-        else {
-          model.user_input.push_back('?');
-        }
+        model.stack.push(pimpl->m_state);
       }
 
       // Process Cargo from popped state

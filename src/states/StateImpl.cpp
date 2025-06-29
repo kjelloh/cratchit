@@ -64,8 +64,17 @@ namespace first {
 
   // TODO: Refactor key procesing into this method, step-by-step
   //       When done, move into update above (and remove this refactoring step)
-  std::optional<Cmd> StateImpl::cmd_from_key(char key) const {
-    return std::nullopt; // default no-op
+  std::optional<Cmd> StateImpl::cmd_from_key(char ch) const {
+    std::optional<Cmd> result{};
+    if (this->options().contains(ch)) {
+      auto cmd = [state_factory = this->options().at(ch).second]() -> std::optional<Msg> {
+        State new_state = state_factory();
+        auto msg = std::make_shared<PushStateMsg>(new_state);
+        return msg;
+      };
+      result = cmd;      
+    }
+    return result;
   }
 
 
