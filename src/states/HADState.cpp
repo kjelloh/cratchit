@@ -4,9 +4,15 @@
 namespace first {
 // ----------------------------------
   HADState::HADState(HAD had) : m_had{had} ,StateImpl({}) {
+
+    StateFactory sie_factory = []() {
+      auto SIE_ux = StateImpl::UX{"HAD to SIE UX goes here"};
+      return std::make_shared<StateImpl>(SIE_ux);
+    };
+
     ux().clear();
     ux().push_back(to_string(had));
-    this->add_option('0',{"HAD -> SIE",SIE_factory});
+    this->add_option('0',{"HAD -> SIE",sie_factory});
   }
 
   StateFactory HADState::factory_from(HADState::HAD const& had) {
