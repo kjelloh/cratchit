@@ -124,61 +124,71 @@ namespace first {
       // TODO: How much of this can we migrate into State::update?
 
       // Process keyboard input
-      if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {
+      if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {      
         auto ch = key_msg_ptr->key;
-        if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
-          if (!model.user_input.empty()) {
-            model.user_input.pop_back();
-          }
-        } 
-        else if (ch == '\n') {
-          // User pressed Enter: process command (optional)
-          cmd = [entry = model.user_input]() {
-            auto msg = std::make_shared<UserEntryMsg>(entry);
-            return msg;
-          };
-          model.user_input.clear(); // Reset input after capture to command
-        } 
+
+        // Use refactoring path to move key processing into state
+        auto maybe_cmd = (model.stack.size() > 0) ? model.stack.top()->cmd_from_key(ch) : std::nullopt;
+        if (maybe_cmd) {
+          cmd = *maybe_cmd; // cirrent state acted on key and returned a cmd
+        }
         else {
-          if (model.user_input.empty() and ch == 'q' or model.stack.size()==0) {
-            // std::cout << "\nTime to QUIT!" << std::flush;
-            cmd = DO_QUIT;
-          }
-          else if (model.user_input.empty() and model.stack.size() > 0) {
-            if (ch == '-') {
-              // (1) Transition back to previous state
-              auto popped_state = model.stack.top(); // share popped state for command to free
-              model.stack.pop();
-              cmd = [popped_state,rx_state = (model.stack.size()>0)?model.stack.top():nullptr]() mutable -> Msg {
-                if (popped_state.use_count() != 1) {
-                  // Design insufficiency (We should be the only user)
-                  spdlog::error("DESIGN_INSUFFICIENCY: Failed to execute State destructor in command (user count {} != 1)",popped_state.use_count());
-                }
-                else {
-                  spdlog::info("State destructor executed in command (user count {} == 1)",popped_state.use_count());
-                  auto& ref = *popped_state; // Consume any shared pointer dereference side effects here.
-                  // Then log the type name of the referenced state
-                  spdlog::info("Destructing State type {}",to_type_name(typeid(ref)));
-                }
-                auto msg = std::make_shared<PoppedStateCargoMsg>(rx_state,popped_state->get_cargo());
-                popped_state.reset(); // Free popped state
-                return msg;
-              };
-            } 
-            else if (model.stack.top()->options().contains(ch)) {
-              // (2) Transition to new StateImpl
-              cmd = [ch,parent = model.stack.top()]() -> Msg {
-                State new_state = parent->options().at(ch).second();
-                auto msg = std::make_shared<PushStateMsg>(parent,new_state);
-                return msg;
-              };
+          // Process key here in model
+          // TODO: Refactor step by step into State::cmd_from_key
+          if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
+            if (!model.user_input.empty()) {
+              model.user_input.pop_back();
+            }
+          } 
+          else if (ch == '\n') {
+            // User pressed Enter: process command (optional)
+            cmd = [entry = model.user_input]() {
+              auto msg = std::make_shared<UserEntryMsg>(entry);
+              return msg;
+            };
+            model.user_input.clear(); // Reset input after capture to command
+          } 
+          else {
+            if (model.user_input.empty() and ch == 'q' or model.stack.size()==0) {
+              // std::cout << "\nTime to QUIT!" << std::flush;
+              cmd = DO_QUIT;
+            }
+            else if (model.user_input.empty() and model.stack.size() > 0) {
+              if (ch == '-') {
+                // (1) Transition back to previous state
+                auto popped_state = model.stack.top(); // share popped state for command to free
+                model.stack.pop();
+                cmd = [popped_state,rx_state = (model.stack.size()>0)?model.stack.top():nullptr]() mutable -> Msg {
+                  if (popped_state.use_count() != 1) {
+                    // Design insufficiency (We should be the only user)
+                    spdlog::error("DESIGN_INSUFFICIENCY: Failed to execute State destructor in command (user count {} != 1)",popped_state.use_count());
+                  }
+                  else {
+                    spdlog::info("State destructor executed in command (user count {} == 1)",popped_state.use_count());
+                    auto& ref = *popped_state; // Consume any shared pointer dereference side effects here.
+                    // Then log the type name of the referenced state
+                    spdlog::info("Destructing State type {}",to_type_name(typeid(ref)));
+                  }
+                  auto msg = std::make_shared<PoppedStateCargoMsg>(rx_state,popped_state->get_cargo());
+                  popped_state.reset(); // Free popped state
+                  return msg;
+                };
+              } 
+              else if (model.stack.top()->options().contains(ch)) {
+                // (2) Transition to new StateImpl
+                cmd = [ch,parent = model.stack.top()]() -> Msg {
+                  State new_state = parent->options().at(ch).second();
+                  auto msg = std::make_shared<PushStateMsg>(parent,new_state);
+                  return msg;
+                };
+              }
+              else {
+                model.user_input += ch; // Append typed character
+              }
             }
             else {
-              model.user_input += ch; // Append typed character
+                model.user_input += ch; // Append typed character
             }
-          }
-          else {
-              model.user_input += ch; // Append typed character
           }
         }
       }

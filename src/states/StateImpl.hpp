@@ -35,6 +35,10 @@ namespace first {
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const; // default no-op
 
     virtual Cargo get_cargo() const;
+
+    // TODO: Refactor key procesing into this method, step-by-step
+    //       When done, move into update above (and remove this refactoring step)
+    virtual std::optional<Cmd> cmd_from_key(char key) const;
   };
 
 } // namespace first

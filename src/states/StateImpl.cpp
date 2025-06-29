@@ -62,4 +62,11 @@ namespace first {
     return {};
   }
 
+  // TODO: Refactor key procesing into this method, step-by-step
+  //       When done, move into update above (and remove this refactoring step)
+  std::optional<Cmd> StateImpl::cmd_from_key(char key) const {
+    return std::nullopt; // default no-op
+  }
+
+
 } // namespace first
