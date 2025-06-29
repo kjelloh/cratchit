@@ -26,4 +26,11 @@ namespace first {
   StateImpl::Option HADState::option_from(HADState::HAD const& had) {
     return {to_string(had), factory_from(had)};
   }
+
+  // TODO: Refactor key procesing into this method, step-by-step
+  //       When done, move into update above (and remove this refactoring step)
+  std::optional<Cmd> HADState::cmd_from_key(char key) const {
+    return StateImpl::cmd_from_key(key);
+  }
+
 } // namespace first

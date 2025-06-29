@@ -19,6 +19,15 @@ namespace first {
     using UX = std::vector<std::string>;
     using Option = std::pair<std::string, StateFactory>;
     using Options = std::map<char, Option>;
+
+    // Refactoring into CmdOptions
+    using CmdOption = std::pair<std::string, Cmd>;    
+    using CmdOptions = std::map<char, CmdOption>;
+    CmdOptions m_cmd_options;
+    void add_cmd_option(char ch, CmdOption const &option) {
+      m_cmd_options[ch] = option;
+    }
+
     UX m_ux;
     Options m_options;
     StateImpl(UX const &ux);

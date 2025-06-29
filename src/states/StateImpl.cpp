@@ -66,7 +66,12 @@ namespace first {
   //       When done, move into update above (and remove this refactoring step)
   std::optional<Cmd> StateImpl::cmd_from_key(char ch) const {
     std::optional<Cmd> result{};
-    if (this->options().contains(ch)) {
+    if (this->m_cmd_options.contains(ch)) {
+      // Refactored State uses CmdOptions
+      auto cmd = this->m_cmd_options.at(ch).second;
+      result = cmd;
+    }
+    else if (this->options().contains(ch)) {
       auto cmd = [state_factory = this->options().at(ch).second]() -> std::optional<Msg> {
         State new_state = state_factory();
         auto msg = std::make_shared<PushStateMsg>(new_state);
@@ -76,6 +81,5 @@ namespace first {
     }
     return result;
   }
-
 
 } // namespace first
