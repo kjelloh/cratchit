@@ -241,7 +241,16 @@ namespace first {
         entry.push_back('\n');
         model.main_content.append(entry);
       }
-      for (auto const& [ch, cmd_option] : model.stack.top()->cmd_options()) {
+
+      // iterate as defined by CmdOptions.first (vector of chars)
+      auto ordered_cmd_options_view = [](StateImpl::CmdOptions const& cmd_options) {
+        return cmd_options.first
+          | std::views::transform([&cmd_options](char ch) -> std::pair<char,StateImpl::CmdOption> {
+            return std::make_pair(ch,cmd_options.second.at(ch));
+          });
+      };
+
+      for (auto const& [ch, cmd_option] : ordered_cmd_options_view(model.stack.top()->cmd_options())) {
         std::string entry{};
         entry.push_back(ch);
         entry.append(" = ");

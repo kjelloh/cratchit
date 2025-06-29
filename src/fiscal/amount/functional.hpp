@@ -10,7 +10,8 @@
 #include <vector>
 #include <map>
 
-// map, fold, scan, key, stencil, filter, reduce, etc.
+// 1. map 2. fold (reduce) 3. scan 4. key 5. stencil 6. filter 7. partition
+// 8. groupBy (or bucketBy) 9. sortBy 10. zip / zipWith
 
 namespace cratchit {
     namespace functional {

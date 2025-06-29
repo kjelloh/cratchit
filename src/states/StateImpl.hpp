@@ -11,7 +11,7 @@
 #include "cargo/EnvironmentCargo.hpp"
 
 namespace first {
-
+  
   // ----------------------------------
   struct StateImpl {
   private:
@@ -19,17 +19,6 @@ namespace first {
     using UX = std::vector<std::string>;
     using Option = std::pair<std::string, StateFactory>;
     using Options = std::map<char, Option>;
-
-    // Refactoring into CmdOptions
-    using CmdOption = std::pair<std::string, Cmd>;    
-    using CmdOptions = std::map<char, CmdOption>;
-    CmdOptions m_cmd_options;
-    void add_cmd_option(char ch, CmdOption const &option) {
-      m_cmd_options[ch] = option;
-    }
-    CmdOptions const &cmd_options() const {
-      return m_cmd_options;
-    }
 
     UX m_ux;
     Options m_options;
@@ -41,12 +30,18 @@ namespace first {
     Options const &options() const;
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
 
-
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::DummyCargo const& cargo) const; // default no-op
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const; // default no-op
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const; // default no-op
 
     virtual Cargo get_cargo() const;
+
+    // Refactoring into CmdOptions
+    using CmdOption = std::pair<std::string, Cmd>;    
+    using CmdOptions = std::pair<std::vector<char>,std::map<char, CmdOption>>;
+    CmdOptions m_cmd_options;
+    void add_cmd_option(char ch, CmdOption const &option);
+    CmdOptions const &cmd_options() const;
 
     // TODO: Refactor key procesing into this method, step-by-step
     //       When done, move into update above (and remove this refactoring step)

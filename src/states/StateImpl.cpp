@@ -62,13 +62,34 @@ namespace first {
     return {};
   }
 
+  // ----------------------------------
+  // Refactoring into CmdOptions
+
+  // ----------------------------------
+  void StateImpl::add_cmd_option(char ch, CmdOption const &option) {
+    if (auto iter = std::ranges::find(m_cmd_options.first,ch); iter == m_cmd_options.first.end()) {
+      // Allow insertion of same option only once
+      m_cmd_options.first.push_back(ch);
+      m_cmd_options.second[ch] = option;
+    }
+    else {
+      spdlog::warn("StateImpl::add_cmd_option: Ignored add of existing command option '{}'", ch);
+    }
+  }
+
+  // ----------------------------------
+  StateImpl::CmdOptions const& StateImpl::cmd_options() const {
+    return m_cmd_options;
+  }
+
+  // ----------------------------------
   // TODO: Refactor key procesing into this method, step-by-step
   //       When done, move into update above (and remove this refactoring step)
   std::optional<Cmd> StateImpl::cmd_from_key(char ch) const {
     std::optional<Cmd> result{};
-    if (this->m_cmd_options.contains(ch)) {
+    if (this->m_cmd_options.second.contains(ch)) {
       // Refactored State uses CmdOptions
-      auto cmd = this->m_cmd_options.at(ch).second;
+      auto cmd = this->m_cmd_options.second.at(ch).second;
       result = cmd;
     }
     else if (this->options().contains(ch)) {
