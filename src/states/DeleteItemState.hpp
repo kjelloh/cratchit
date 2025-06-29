@@ -13,7 +13,10 @@ namespace first {
     DeleteItemState(Item item)
       : m_item{item}, StateImpl({}) {
       ux().clear();
-      ux().push_back(std::format("Delete {} ?", to_string(item)));
+      ux().push_back(std::format("Delete: {} ?", to_string(item)));
+
+      this->add_cmd_option('y', {"Yes", Nop});
+      this->add_cmd_option('n', {"No", Nop});
     }
 
     static StateFactory factory_from(DeleteItemState::Item const& item) {
