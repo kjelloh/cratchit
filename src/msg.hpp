@@ -19,11 +19,14 @@ namespace first {
     PushStateMsg(State const &state);
   };
 
+  struct PopStateMsg : public MsgImpl {
+    PopStateMsg() = default;
+  };
+
   // ----------------------------------
   struct PoppedStateCargoMsg : public MsgImpl {
-    State m_top{};
     Cargo m_cargo{};
-    PoppedStateCargoMsg(State const &top, Cargo&& cargo);
+    PoppedStateCargoMsg(Cargo const& cargo);
   };
 
   struct UserEntryMsg : public MsgImpl {

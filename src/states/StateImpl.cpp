@@ -1,20 +1,26 @@
 #include "StateImpl.hpp"
+#include "to_type_name.hpp"
 #include <spdlog/spdlog.h>
 
 namespace first {
 
   // State
   // ----------------------------------
-  StateImpl::StateImpl(UX const& ux) : m_ux{ux},m_options{} {
+  StateImpl::StateImpl(UX const& ux) 
+    :  m_ux{ux}
+      ,m_options{}
+      ,m_cmd_options{{},{}} {
+
       if (true) {
-        spdlog::info("StateImpl constructor called for {}", static_cast<const void*>(this));
+        spdlog::info("StateImpl constructor called for {}", static_cast<void*>(this));
         spdlog::default_logger()->flush();
       }
+
   }
 
   StateImpl::~StateImpl() {
       if (true) {
-        spdlog::info("StateImpl destructor called for {}", static_cast<const void*>(this));
+        spdlog::info("StateImpl destructor called for {}", static_cast<void*>(this));
         spdlog::default_logger()->flush();
       }
   }
@@ -87,19 +93,25 @@ namespace first {
   //       When done, move into update above (and remove this refactoring step)
   std::optional<Cmd> StateImpl::cmd_from_key(char ch) const {
     std::optional<Cmd> result{};
-    if (this->m_cmd_options.second.contains(ch)) {
-      // Refactored State uses CmdOptions
-      auto cmd = this->m_cmd_options.second.at(ch).second;
-      result = cmd;
+    if (ch == 'q') {
+      result = DO_QUIT;
+    }
+    else if (ch == '-') {
+      result = []() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>();
+      };
     }
     else if (this->options().contains(ch)) {
-      auto cmd = [state_factory = this->options().at(ch).second]() -> std::optional<Msg> {
+      result = [state_factory = this->options().at(ch).second]() -> std::optional<Msg> {
         State new_state = state_factory();
         auto msg = std::make_shared<PushStateMsg>(new_state);
         return msg;
       };
-      result = cmd;      
     }
+    else if (this->cmd_options ().second.contains(ch)) {
+      result = this->cmd_options().second.at(ch).second;
+    }
+    
     return result;
   }
 

@@ -190,9 +190,9 @@ public:
 
         if (true) {
           if (msg) {
-              spdlog::info("Processing Msg type {}",to_type_name(typeid(*msg)));
+              spdlog::info("Runtime::Processing Msg type {}",to_type_name(typeid(*msg)));
           } else {
-              spdlog::warn("Attempted to log null Msg pointer");
+              spdlog::warn("Runtime::Attempted to log null Msg pointer");
           }
         }
 
@@ -214,7 +214,7 @@ public:
           if (auto optional_msg = ui.event_handlers["OnKey"](key_event)) msg_q.push(*optional_msg);
         }
         else {
-          throw std::runtime_error(std::format("DESIGN INSUFFICIENCY, Runtime::run failed to find a binding 'OnKey' from client 'view' function"));
+          throw std::runtime_error(std::format("Runtime::DESIGN INSUFFICIENCY, Runtime::run failed to find a binding 'OnKey' from client 'view' function"));
         }
       }
       ++loop_count;

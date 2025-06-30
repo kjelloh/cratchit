@@ -10,12 +10,13 @@
 #include <map>
 #include <memory>
 #include <ncurses.h>
-#include <stack>
 #include <functional>
 #include <queue>
 #include <filesystem>
 #include <cmath>  // std::pow,...
 #include <immer/vector.hpp>
+#include <unicode/uchar.h>  // for u_isprint
+#include <ranges>
 
 namespace first {
 
@@ -30,10 +31,7 @@ namespace first {
     std::string top_content;
     std::string main_content;
     std::string user_input;
-    /*
-    The stack contains the 'path of states' the user has navigated to.
-    */
-    std::stack<State> stack{};
+    std::vector<State> ui_states{};
   };
 
   // ----------------------------------
@@ -68,10 +66,8 @@ namespace first {
   std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
     Model model = { "Welcome to the top section"
-                   ,"This is the main content area"
-                   ,""};
+                   ,"This is the main content area"};
 
-    // model.stack.push(framework_state_factory());
     auto new_framework_state_cmd = []() -> Msg {
       auto msg = std::make_shared<PushStateMsg>(framework_state_factory());
       return msg;
@@ -84,156 +80,113 @@ namespace first {
   //       I mean, immutable is good and all that. But is it practical?
   //       At least I trust we get return value optimization?
   //       Fun to explore though...
+  //       250630/KoH - use_count for shared_ptrs (e.g., states) will show 2 (passed model + our copy)
   std::pair<Model,Cmd> update(Model model, Msg msg) {
     Cmd cmd = Nop;
-    std::optional<State> new_state{};
+    std::optional<State> mutated_top{};
 
     // State stack top processing
-    if (model.stack.size()>0) {
-      // Pass msg to state for state update
-      if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
-        if (model.stack.top() == pimpl->m_top) {
-          if (pimpl->m_cargo) {
-            const auto &cargo = *pimpl->m_cargo;
-            spdlog::info("PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
-            auto [maybe_new_state, state_cmd] = cargo.visit(model.stack.top());
-            new_state = maybe_new_state;
-            cmd = state_cmd;
-          } else {
-            spdlog::info("PoppedStateCargoMsg: NULL cargo");
-          }
-        }
-      }
-
-      else {
-        auto pp = model.stack.top()->update(msg);
-        new_state = pp.first;
-        cmd = pp.second;
-      }
+    if (model.ui_states.size()>0) {
+      auto pp = model.ui_states.back()->update(msg);
+      mutated_top = pp.first;
+      cmd = pp.second;
     }
 
-    if (new_state) {
-      // Let 'StateImpl' update itself
-      auto& ref = *new_state; // Consume any shared pointer dereference side effects here.
-      spdlog::info("New state:{}",to_type_name(typeid(ref)));
-      model.stack.top() = *new_state; // mutate
+    if (mutated_top) {
+      auto& ref = *mutated_top;
+      spdlog::info("update(model,msg): Mutated state:{}[{}] <- use_count: {}"
+        ,to_type_name(typeid(ref))
+        ,static_cast<void*>(mutated_top->get())
+        ,mutated_top->use_count());
+      model.ui_states.back() = mutated_top.value(); // replace
+    }
+    else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {      
+      auto ch = key_msg_ptr->key;
+
+      // Use refactoring path to move key processing into state
+      auto maybe_cmd = (model.user_input.empty() and model.ui_states.size() > 0) ? model.ui_states.back()->cmd_from_key(ch) : std::nullopt;
+      if (maybe_cmd) {
+        cmd = *maybe_cmd; // current state acted on key and returned a cmd
+      }
+      else if (not model.user_input.empty() and ch == 127) {
+        model.user_input.pop_back();
+      } 
+      else if (not model.user_input.empty() and ch == '\n') {
+        cmd = [entry = model.user_input]() {
+          auto msg = std::make_shared<UserEntryMsg>(entry);
+          return msg;
+        };
+        model.user_input.clear(); // Reset input after capture to command
+      } 
+      // TODO: Refactor to take Unicode code point when/if we implement code point processing
+      //       For now, we use u_isprint on Ascii unicode code point (lowest byte = ascii)
+      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
+        model.user_input.push_back(ch);
+      }
+      else {
+        // No cmd from key, so we just log the key
+        spdlog::info("update(model,msg): Ignored key with decimal value: {}", static_cast<int>(ch));
+      }
+    }
+    else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg);pimpl != nullptr) {
+      model.ui_states.push_back(pimpl->m_state);
+    }
+    else if (auto pimpl = std::dynamic_pointer_cast<PopStateMsg>(msg);pimpl != nullptr) {
+      if (model.ui_states.size() > 0) {
+        spdlog::info("update(model,msg): Popping top state with use_count: {}", model.ui_states.back().use_count());
+        auto popped_state = model.ui_states.back();
+        model.ui_states.pop_back();
+
+        if (true) {
+          auto const& ref = *popped_state.get();
+          spdlog::info("update(model,msg): Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
+        }
+
+        cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
+          auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
+          return msg;
+        };
+      }
     }
     else {
-
-      // Process StateImpl transition or user input
-      // TODO: How much of this can we migrate into State::update?
-
-      // Process keyboard input
-      if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {      
-        auto ch = key_msg_ptr->key;
-
-        // Use refactoring path to move key processing into state
-        auto maybe_cmd = (model.stack.size() > 0) ? model.stack.top()->cmd_from_key(ch) : std::nullopt;
-        if (maybe_cmd) {
-          cmd = *maybe_cmd; // cirrent state acted on key and returned a cmd
-        }
-        else {
-          // Process key here in model
-          // TODO: Refactor step by step into State::cmd_from_key
-          if (ch == KEY_BACKSPACE || ch == 127) { // Handle backspace
-            if (!model.user_input.empty()) {
-              model.user_input.pop_back();
-            }
-          } 
-          else if (ch == '\n') {
-            // User pressed Enter: process command (optional)
-            cmd = [entry = model.user_input]() {
-              auto msg = std::make_shared<UserEntryMsg>(entry);
-              return msg;
-            };
-            model.user_input.clear(); // Reset input after capture to command
-          } 
-          else {
-            if (model.user_input.empty() and ch == 'q' or model.stack.size()==0) {
-              // std::cout << "\nTime to QUIT!" << std::flush;
-              cmd = DO_QUIT;
-            }
-            else if (model.user_input.empty() and model.stack.size() > 0) {
-              if (ch == '-') {
-                // (1) Transition back to previous state
-                auto popped_state = model.stack.top(); // share popped state for command to free
-                model.stack.pop();
-                cmd = [popped_state,rx_state = (model.stack.size()>0)?model.stack.top():nullptr]() mutable -> Msg {
-                  if (popped_state.use_count() != 1) {
-                    // Design insufficiency (We should be the only user)
-                    spdlog::error("DESIGN_INSUFFICIENCY: Failed to execute State destructor in command (user count {} != 1)",popped_state.use_count());
-                  }
-                  else {
-                    spdlog::info("State destructor executed in command (user count {} == 1)",popped_state.use_count());
-                    auto& ref = *popped_state; // Consume any shared pointer dereference side effects here.
-                    // Then log the type name of the referenced state
-                    spdlog::info("Destructing State type {}",to_type_name(typeid(ref)));
-                  }
-                  auto msg = std::make_shared<PoppedStateCargoMsg>(rx_state,popped_state->get_cargo());
-                  popped_state.reset(); // Free popped state
-                  return msg;
-                };
-              } 
-              // Moved to State::cmd_from_key
-              // else if (model.stack.top()->options().contains(ch)) {
-              //   // (2) Transition to new StateImpl
-              //   cmd = [ch,parent = model.stack.top()]() -> Msg {
-              //     State new_state = parent->options().at(ch).second();
-              //     auto msg = std::make_shared<PushStateMsg>(parent,new_state);
-              //     return msg;
-              //   };
-              // }
-              else {
-                model.user_input += ch; // Append typed character
-              }
-            }
-            else {
-                model.user_input += ch; // Append typed character
-            }
-          }
-        }
-      }
-
-      // Process Push of new state
-      else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg);pimpl != nullptr) {
-        model.stack.push(pimpl->m_state);
-      }
-
-      // Process Cargo from popped state
-      // 20250623 - Now in State processing above
-      // else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg);pimpl != nullptr) {
-      //   if (model.stack.size()>0 and model.stack.top() == pimpl->m_top) {
-      //     // the cargo is targeted to current top ok.
-      //     // TODO: Handle cargo
-      //     if (pimpl->m_cargo != nullptr) {
-      //       auto& cargo = *pimpl->m_cargo; // Consume any shared pointer dereference side effects here.
-      //       spdlog::info("PoppedStateCargoMsg: {}",to_type_name(typeid(cargo)));
-      //       auto [maybe_new_state,state_cmd] = cargo.visit(model.stack.top());
-      //       if (maybe_new_state) {
-      //         model.stack.top() = *maybe_new_state; // mutate
-      //       }
-      //       cmd = state_cmd;
-      //     }
-      //     else {
-      //       spdlog::info("PoppedStateCargoMsg: NULL cargo");
-      //     }
-      //   }
-      // } 
-
-      // ------------...
-
+      // Trace ignored messages
+      spdlog::warn("update(model,msg): Ignored message type: {}", to_type_name(typeid(msg)));
     }
+
+    // Dump stack to log
+    if (true) {
+      spdlog::info("update(model,msg): State stack size:{}",model.ui_states.size());
+
+      auto enumerated_view = [](auto && range) {
+        return std::views::zip(
+          std::views::iota(0)
+          ,std::forward<decltype(range)>(range));
+      };
+
+      // for (auto const& [index,m] :  enumerated_view(model.ui_states)) {
+      //   auto& ref = *m; // Silence typeid(*m) warning about side effects
+      //   spdlog::info("   {}: {} <- use_count: {}", index,to_type_name(typeid(ref)),m.use_count());
+      // }
+
+      int index {};
+      for (auto const& m : model.ui_states) {
+        // 250630/KoH - use_count will show 2 for our mutated model (copy) and passed model (previous)
+        auto& ref = *m; // Silence typeid(*m) warning about side effects
+        spdlog::info("   {}: {}[{}] <- use_count: {}", index++,to_type_name(typeid(ref)), static_cast<void*>(m.get()),m.use_count());
+      }
+    }
+
     // Update UX
-    if (model.stack.size() > 0) {
+    if (model.ui_states.size() > 0) {
       // StateImpl UX (top window)
       model.top_content.clear();
-      for (std::size_t i=0;i<model.stack.top()->ux().size();++i) {
+      for (std::size_t i=0;i<model.ui_states.back()->ux().size();++i) {
         if (i>0) model.top_content.push_back('\n');
-        model.top_content += model.stack.top()->ux()[i];
+        model.top_content += model.ui_states.back()->ux()[i];
       }
       // StateImpl transition UX (Midle window)
       model.main_content.clear();
-      for (auto const &[ch, option] : model.stack.top()->options()) {
+      for (auto const &[ch, option] : model.ui_states.back()->options()) {
         std::string entry{};
         entry.push_back(ch);
         entry.append(" - ");
@@ -250,7 +203,7 @@ namespace first {
           });
       };
 
-      for (auto const& [ch, cmd_option] : ordered_cmd_options_view(model.stack.top()->cmd_options())) {
+      for (auto const& [ch, cmd_option] : ordered_cmd_options_view(model.ui_states.back()->cmd_options())) {
         std::string entry{};
         entry.push_back(ch);
         entry.append(" = ");
