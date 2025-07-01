@@ -30,7 +30,6 @@ namespace first {
   struct Model {
     std::string top_content;
     std::string main_content;
-    std::string user_input;
     std::vector<State> ui_states{};
   };
 
@@ -104,7 +103,7 @@ namespace first {
       auto ch = key_msg_ptr->key;
 
       // Use refactoring path to move key processing into state
-      auto const& [mutated_state, update_cmd] = (model.user_input.empty() and model.ui_states.size() > 0) ? model.ui_states.back()->update(ch) : std::make_pair(std::optional<State>{}, Cmd{});
+      auto const& [mutated_state, update_cmd] = model.ui_states.size() > 0 ? model.ui_states.back()->update(ch) : std::make_pair(std::optional<State>{}, Cmd{});
       if (mutated_state or update_cmd) {
         // current state acted on key (returned a mutated state and or a cmd)
         if (mutated_state) {
@@ -113,21 +112,6 @@ namespace first {
         if (update_cmd) {
           cmd = update_cmd;
         }
-      }
-      else if (not model.user_input.empty() and ch == 127) {
-        model.user_input.pop_back();
-      } 
-      else if (not model.user_input.empty() and ch == '\n') {
-        cmd = [entry = model.user_input]() {
-          auto msg = std::make_shared<UserEntryMsg>(entry);
-          return msg;
-        };
-        model.user_input.clear(); // Reset input after capture to command
-      } 
-      // TODO: Refactor to take Unicode code point when/if we implement code point processing
-      //       For now, we use u_isprint on Ascii unicode code point (lowest byte = ascii)
-      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-        model.user_input.push_back(ch);
       }
       else {
         // No cmd from key, so we just log the key
@@ -254,7 +238,8 @@ namespace first {
     prompt.append_attribute("class") = "user-prompt";
     // Add a label element for the prompt text
     pugi::xml_node label = prompt.append_child("label");
-    label.text().set((">" + model.user_input).c_str());
+    std::string input_text = model.ui_states.size() > 0 ? model.ui_states.back()->input_buffer() : "";
+    label.text().set((">" + input_text).c_str());
 
     // Make prompt 'html-correct' (even though render does not care for now)
     pugi::xml_node input = prompt.append_child("input");

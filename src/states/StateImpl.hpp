@@ -22,6 +22,7 @@ namespace first {
 
     UX m_ux;
     Options m_options;
+    std::string m_input_buffer;
 
     // Refactoring into CmdOptions
     using CmdOption = std::pair<std::string, Cmd>;    
@@ -45,6 +46,9 @@ namespace first {
     // Refactoring into CmdOptions
     void add_cmd_option(char ch, CmdOption const &option);
     CmdOptions const &cmd_options() const;
+
+    // Input buffer access
+    std::string const& input_buffer() const;
 
     // TODO: Refactor key procesing into this method, step-by-step
     //       When done, move into update above (and remove this refactoring step)
