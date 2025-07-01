@@ -34,10 +34,4 @@ namespace first {
     return {to_string(had), factory_from(had)};
   }
 
-  // TODO: Refactor key procesing into this method, step-by-step
-  //       When done, move into update above (and remove this refactoring step)
-  std::pair<std::optional<State>, Cmd> HADState::update(char key) const {
-    return StateImpl::update(key);
-  }
-
 } // namespace first

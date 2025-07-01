@@ -82,46 +82,30 @@ namespace first {
   //       250630/KoH - use_count for shared_ptrs (e.g., states) will show 2 (passed model + our copy)
   std::pair<Model,Cmd> update(Model model, Msg msg) {
     Cmd cmd = Nop;
-    std::optional<State> mutated_top{};
 
-    // State stack top processing
-    if (model.ui_states.size()>0) {
-      auto pp = model.ui_states.back()->update(msg);
-      mutated_top = pp.first;
-      cmd = pp.second;
-    }
-
-    if (mutated_top) {
-      auto& ref = *mutated_top;
-      spdlog::info("update(model,msg): Mutated state:{}[{}] <- use_count: {}"
-        ,to_type_name(typeid(ref))
-        ,static_cast<void*>(mutated_top->get())
-        ,mutated_top->use_count());
-      model.ui_states.back() = mutated_top.value(); // replace
-    }
-    else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKey>(msg);key_msg_ptr != nullptr) {      
-      auto ch = key_msg_ptr->key;
-
-      // Use refactoring path to move key processing into state
-      auto const& [mutated_state, update_cmd] = model.ui_states.size() > 0 ? model.ui_states.back()->update(ch) : std::make_pair(std::optional<State>{}, Cmd{});
-      if (mutated_state or update_cmd) {
-        // current state acted on key (returned a mutated state and or a cmd)
-        if (mutated_state) {
-          model.ui_states.back() = *mutated_state; // replace with mutated state
-        }
-        if (update_cmd) {
-          cmd = update_cmd;
-        }
+    auto [mutated_top, state_cmd] = (model.ui_states.size() > 0)
+      ?(model.ui_states.back()->dispatch(msg))
+      :(std::make_pair<std::optional<State>,Cmd>({},{}));
+    
+    if (mutated_top or state_cmd) {
+      // State handled the message - apply the changes
+      if (mutated_top) {
+        auto& ref = *mutated_top;
+        spdlog::info("update(model,msg): state::update -> state:{}[{}] <- use_count: {}"
+          ,to_type_name(typeid(ref))
+          ,static_cast<void*>(mutated_top->get())
+          ,mutated_top->use_count());
+        model.ui_states.back() = mutated_top.value(); // replace
       }
-      else {
-        // No cmd from key, so we just log the key
-        spdlog::info("update(model,msg): Ignored key with decimal value: {}", static_cast<int>(ch));
+      if (state_cmd) {
+        spdlog::info("update(model,msg): state::update -> cmd");
+        cmd = state_cmd;
       }
     }
-    else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg);pimpl != nullptr) {
+    else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
       model.ui_states.push_back(pimpl->m_state);
     }
-    else if (auto pimpl = std::dynamic_pointer_cast<PopStateMsg>(msg);pimpl != nullptr) {
+    else if (auto pimpl = std::dynamic_pointer_cast<PopStateMsg>(msg); pimpl != nullptr) {
       if (model.ui_states.size() > 0) {
         spdlog::info("update(model,msg): Popping top state with use_count: {}", model.ui_states.back().use_count());
         auto popped_state = model.ui_states.back();
@@ -140,7 +124,8 @@ namespace first {
     }
     else {
       // Trace ignored messages
-      spdlog::warn("update(model,msg): Ignored message type: {}", to_type_name(typeid(msg)));
+      auto const& ref = *msg;
+      spdlog::info("update(model,msg): Ignored message type: {}", to_type_name(typeid(ref)));
     }
 
     // Dump stack to log
@@ -153,16 +138,13 @@ namespace first {
           ,std::forward<decltype(range)>(range));
       };
 
-      // for (auto const& [index,m] :  enumerated_view(model.ui_states)) {
-      //   auto& ref = *m; // Silence typeid(*m) warning about side effects
-      //   spdlog::info("   {}: {} <- use_count: {}", index,to_type_name(typeid(ref)),m.use_count());
-      // }
-
-      int index {};
-      for (auto const& m : model.ui_states) {
-        // 250630/KoH - use_count will show 2 for our mutated model (copy) and passed model (previous)
+      for (auto const& [index,m] :  enumerated_view(model.ui_states)) {
         auto& ref = *m; // Silence typeid(*m) warning about side effects
-        spdlog::info("   {}: {}[{}] <- use_count: {}", index++,to_type_name(typeid(ref)), static_cast<void*>(m.get()),m.use_count());
+        spdlog::info("   {}: {}[{}] <- use_count: {}"
+          ,index
+          ,to_type_name(typeid(ref))
+          ,static_cast<void*>(m.get())
+          ,m.use_count());
       }
     }
 

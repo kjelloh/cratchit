@@ -5,9 +5,9 @@
 
 namespace first {
   // ----------------------------------
-  struct NCursesKey : public MsgImpl {
+  struct NCursesKeyMsg : public MsgImpl {
     int key;
-    NCursesKey(int key);
+    NCursesKeyMsg(int key);
   };
 
   // ----------------------------------

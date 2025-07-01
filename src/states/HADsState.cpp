@@ -65,20 +65,23 @@ namespace first {
     : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
 
   std::pair<std::optional<State>, Cmd> HADsState::update(Msg const &msg) {
-      std::optional<State> state{};
-      Cmd cmd = Nop;
       if (auto entry_msg_ptr = std::dynamic_pointer_cast<UserEntryMsg>(msg);entry_msg_ptr != nullptr) {
+        spdlog::info("HADsState::update - handling UserEntryMsg");
         std::string command(entry_msg_ptr->m_entry);
         auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
         if (auto had = to_had(tokens)) {
           auto mutated_hads = this->m_all_hads;
           mutated_hads.push_back(*had); // TODO: Check that new HAD is in period
           auto mutated_state = std::make_shared<HADsState>(mutated_hads,m_fiscal_period);
-          state = mutated_state;
+          return {mutated_state, Cmd{}};
         }
-
+        else {
+          spdlog::info("HADsState::update - not a had");
+        }
       }
-      return {state,cmd};
+      
+      // Didn't handle - fall through to base dispatch
+      return {std::nullopt, Cmd{}};
   }
 
   Cargo HADsState::get_cargo() const {

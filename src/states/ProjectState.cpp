@@ -50,8 +50,8 @@ namespace first {
   }
 
   std::pair<std::optional<State>, Cmd> ProjectState::update(Msg const& msg) {
-      spdlog::info("ProjectState::update");
-      return {std::nullopt, Nop};
+      spdlog::info("ProjectState::update - didn't handle message");
+      return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
 
   // A non owning diff of period sliced ranges = lhs - rhs

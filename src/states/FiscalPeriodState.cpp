@@ -26,10 +26,8 @@ namespace first {
 
   std::pair<std::optional<State>, Cmd> FiscalPeriodState::update(Msg const &msg) {
     // Not used for now ( See apply for update on child state Cargo)
-    spdlog::info("FiscalPeriodState::update - BEGIN");
-    spdlog::info("FiscalPeriodState::update - No Operation");
-    spdlog::info("FiscalPeriodState::update - END");
-    return {std::nullopt, Nop};
+    spdlog::info("FiscalPeriodState::update - didn't handle message");
+    return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
 
   std::pair<std::optional<State>, Cmd> FiscalPeriodState::apply(cargo::HADsCargo const& cargo) const {

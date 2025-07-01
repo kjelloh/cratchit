@@ -2,7 +2,7 @@
 
 namespace first {
   // ----------------------------------
-  NCursesKey::NCursesKey(int key) : key{key}, MsgImpl{} {}
+  NCursesKeyMsg::NCursesKeyMsg(int key) : key{key}, MsgImpl{} {}
 
   // ----------------------------------
   PushStateMsg::PushStateMsg(State const &state)

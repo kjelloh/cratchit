@@ -2,6 +2,7 @@
 #include "to_type_name.hpp"
 #include <spdlog/spdlog.h>
 #include <unicode/uchar.h>  // for u_isprint
+#include "msg.hpp"  // for NCursesKeyMsg
 
 namespace first {
 
@@ -48,8 +49,26 @@ namespace first {
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::update(Msg const& msg) {
-    return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  std::pair<std::optional<State>, Cmd> StateImpl::dispatch(Msg const& msg) {
+    spdlog::info("StateImpl::dispatch(msg) - BEGIN");
+    
+    // Try virtual update first
+    auto result = this->update(msg);
+    if (result.first or result.second) {
+      // Derived state handled the message
+      spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
+      return result;
+    }
+    
+    // Derived didn't handle it - use base default logic
+    spdlog::info("StateImpl::dispatch(msg) - Using default_update fallback");
+    return this->default_update(msg);
+  }
+
+  // ----------------------------------
+  std::pair<std::optional<State>, Cmd> StateImpl::update(Msg const& msg) {
+    spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
+    return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
   // ----------------------------------
@@ -96,29 +115,44 @@ namespace first {
   }
 
   // ----------------------------------
-  // TODO: Refactor key procesing into this method, step-by-step
-  //       When done, move into update above (and remove this refactoring step)
-  std::pair<std::optional<State>, Cmd> StateImpl::update(char ch) const {
-    Cmd result{};
-    std::optional<State> mutated_state{};
+  std::pair<std::optional<State>,Cmd> StateImpl::default_update(Msg const& msg) {
+    spdlog::info("StateImpl::default_update(msg) - BEGIN");
+
+    // Handle NCursesKeyMsg messages by delegating to update(char)
+    if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
+      spdlog::info("StateImpl::default_update(msg) - NCursesKeyMsg");
+      return this->default_update(key_msg_ptr->key);
+    }
+    
+    return {std::nullopt,Cmd{}}; // fallback - no StateImpl mutation
+  }
+
+  // ----------------------------------
+  std::pair<std::optional<State>, Cmd> StateImpl::default_update(char ch) const {
+    spdlog::info("StateImpl::default_update(key) - BEGIN");
+
+    Cmd cmd{}; // null
+    std::optional<State> mutated_state{}; // None
     
     if (m_input_buffer.empty() and ch == 'q') {
-      result = DO_QUIT;
+      cmd = DO_QUIT;
     }
     else if (m_input_buffer.empty() and ch == '-') {
-      result = []() -> std::optional<Msg> {
+      cmd = []() -> std::optional<Msg> {
         return std::make_shared<PopStateMsg>();
       };
     }
     else if (m_input_buffer.empty() and this->options().contains(ch)) {
-      result = [state_factory = this->options().at(ch).second]() -> std::optional<Msg> {
+      spdlog::info("StateImpl::update - User option select");
+      cmd = [state_factory = this->options().at(ch).second]() -> std::optional<Msg> {
+        spdlog::info("StateImpl::update - User option lamda run");
         State new_state = state_factory();
         auto msg = std::make_shared<PushStateMsg>(new_state);
         return msg;
       };
     }
     else if (m_input_buffer.empty() and this->cmd_options().second.contains(ch)) {
-      result = this->cmd_options().second.at(ch).second;
+      cmd = this->cmd_options().second.at(ch).second;
     }
     else if (not m_input_buffer.empty() and ch == 127) { // Backspace
       auto new_state = std::make_shared<StateImpl>(*this);
@@ -126,7 +160,7 @@ namespace first {
       mutated_state = new_state;
     }
     else if (not m_input_buffer.empty() and ch == '\n') { // Enter - submit input
-      result = [entry = m_input_buffer]() -> std::optional<Msg> {
+      cmd = [entry = m_input_buffer]() -> std::optional<Msg> {
         return std::make_shared<UserEntryMsg>(entry);
       };
       // Clear input buffer
@@ -140,8 +174,11 @@ namespace first {
       new_state->m_input_buffer.push_back(ch);
       mutated_state = new_state;
     }
+    else {
+      spdlog::info("StateImpl::update - ignored message");
+    }
     
-    return {mutated_state, result};
+    return {mutated_state, cmd};
   }
 
 } // namespace first

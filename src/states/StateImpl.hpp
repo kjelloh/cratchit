@@ -14,45 +14,42 @@ namespace first {
   
   // ----------------------------------
   class StateImpl {
-  private:
   public:
     using UX = std::vector<std::string>;
     using Option = std::pair<std::string, StateFactory>;
     using Options = std::map<char, Option>;
-
-    UX m_ux;
-    Options m_options;
-    std::string m_input_buffer;
-
     // Refactoring into CmdOptions
     using CmdOption = std::pair<std::string, Cmd>;    
     using CmdOptions = std::pair<std::vector<char>,std::map<char, CmdOption>>;
-    CmdOptions m_cmd_options;
 
+    // Members
     StateImpl(UX const &ux);
     virtual ~StateImpl();
     void add_option(char ch, Option const &option);
+    void add_cmd_option(char ch, CmdOption const &option); // // Refactoring into CmdOptions
     UX const &ux() const;
     UX &ux();
+    std::string const& input_buffer() const;
     Options const &options() const;
-    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
-
-    virtual std::pair<std::optional<State>, Cmd> apply(cargo::DummyCargo const& cargo) const; // default no-op
-    virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const; // default no-op
-    virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const; // default no-op
-
+    CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
+    std::pair<std::optional<State>, Cmd> dispatch(Msg const& msg);    
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::DummyCargo const& cargo) const;
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const;
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const;
     virtual Cargo get_cargo() const;
 
-    // Refactoring into CmdOptions
-    void add_cmd_option(char ch, CmdOption const &option);
-    CmdOptions const &cmd_options() const;
+  protected:
+    UX m_ux;
 
-    // Input buffer access
-    std::string const& input_buffer() const;
+  private:
+    Options m_options;
+    CmdOptions m_cmd_options; // // Refactoring into CmdOptions
+    std::string m_input_buffer;
 
-    // TODO: Refactor key procesing into this method, step-by-step
-    //       When done, move into update above (and remove this refactoring step)
-    virtual std::pair<std::optional<State>, Cmd> update(char key) const;
+    virtual std::pair<std::optional<State>, Cmd> update(Msg const& msg);
+    std::pair<std::optional<State>, Cmd> default_update(Msg const& msg);
+    std::pair<std::optional<State>, Cmd> default_update(char key) const;
+
   }; // StateImpl
 
 } // namespace first
