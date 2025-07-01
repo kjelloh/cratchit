@@ -36,8 +36,8 @@ namespace first {
 
   // TODO: Refactor key procesing into this method, step-by-step
   //       When done, move into update above (and remove this refactoring step)
-  std::optional<Cmd> HADState::cmd_from_key(char key) const {
-    return StateImpl::cmd_from_key(key);
+  std::pair<std::optional<State>, Cmd> HADState::update(char key) const {
+    return StateImpl::update(key);
   }
 
 } // namespace first

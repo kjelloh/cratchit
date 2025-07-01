@@ -48,7 +48,7 @@ namespace first {
 
     // TODO: Refactor key procesing into this method, step-by-step
     //       When done, move into update above (and remove this refactoring step)
-    virtual std::optional<Cmd> cmd_from_key(char key) const;
+    virtual std::pair<std::optional<State>, Cmd> update(char key) const;
   }; // StateImpl
 
 } // namespace first

@@ -104,9 +104,15 @@ namespace first {
       auto ch = key_msg_ptr->key;
 
       // Use refactoring path to move key processing into state
-      auto maybe_cmd = (model.user_input.empty() and model.ui_states.size() > 0) ? model.ui_states.back()->cmd_from_key(ch) : std::nullopt;
-      if (maybe_cmd) {
-        cmd = *maybe_cmd; // current state acted on key and returned a cmd
+      auto const& [mutated_state, update_cmd] = (model.user_input.empty() and model.ui_states.size() > 0) ? model.ui_states.back()->update(ch) : std::make_pair(std::optional<State>{}, Cmd{});
+      if (mutated_state or update_cmd) {
+        // current state acted on key (returned a mutated state and or a cmd)
+        if (mutated_state) {
+          model.ui_states.back() = *mutated_state; // replace with mutated state
+        }
+        if (update_cmd) {
+          cmd = update_cmd;
+        }
       }
       else if (not model.user_input.empty() and ch == 127) {
         model.user_input.pop_back();

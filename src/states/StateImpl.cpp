@@ -91,8 +91,8 @@ namespace first {
   // ----------------------------------
   // TODO: Refactor key procesing into this method, step-by-step
   //       When done, move into update above (and remove this refactoring step)
-  std::optional<Cmd> StateImpl::cmd_from_key(char ch) const {
-    std::optional<Cmd> result{};
+  std::pair<std::optional<State>, Cmd> StateImpl::update(char ch) const {
+    Cmd result{};
     if (ch == 'q') {
       result = DO_QUIT;
     }
@@ -112,7 +112,7 @@ namespace first {
       result = this->cmd_options().second.at(ch).second;
     }
     
-    return result;
+    return {std::nullopt, result};
   }
 
 } // namespace first
