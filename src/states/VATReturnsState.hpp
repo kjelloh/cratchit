@@ -8,7 +8,7 @@ namespace first {
     VATReturnsState(StateImpl::UX ux);
 
     static StateFactory factory_from();
-    static StateImpl::Option option_from();
+    static StateImpl::CmdOption cmd_option_from();
 
   }; // struct VATReturnsState
 }

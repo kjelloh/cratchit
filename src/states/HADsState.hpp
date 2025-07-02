@@ -17,7 +17,7 @@ namespace first {
     virtual Cargo get_cargo() const;
 
     static StateFactory factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period);
-    static StateImpl::Option option_from(HADs const& all_hads,FiscalPeriod fiscal_period);
+    static StateImpl::CmdOption cmd_option_from(HADs const& all_hads,FiscalPeriod fiscal_period);
   private:
     HADsState::HADs m_all_hads;
     FiscalPeriod m_fiscal_period;

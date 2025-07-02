@@ -10,5 +10,7 @@ namespace first {
     std::filesystem::path m_root_path;    
   public:
     WorkspaceState(StateImpl::UX ux,std::filesystem::path root_path);
+    
+    static StateImpl::CmdOption cmd_option_from(std::filesystem::path workspace_path);
   }; // Workspace StateImpl
 }

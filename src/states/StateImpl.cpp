@@ -10,7 +10,6 @@ namespace first {
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
-      ,m_options{}
       ,m_input_buffer{}
       ,m_cmd_options{{},{}} {
 
@@ -28,10 +27,6 @@ namespace first {
       }
   }
 
-  // ----------------------------------
-  void StateImpl::add_option(char ch,StateImpl::Option const& option) {
-    m_options[ch] = option;
-  }
 
   // ----------------------------------
   StateImpl::UX const& StateImpl::ux() const {
@@ -43,10 +38,6 @@ namespace first {
     return m_ux;
   }
 
-  // ----------------------------------
-  StateImpl::Options const& StateImpl::options() const {
-    return m_options;
-  }
 
   // ----------------------------------
   std::pair<std::optional<State>, Cmd> StateImpl::dispatch(Msg const& msg) {
@@ -142,15 +133,6 @@ namespace first {
         return std::make_shared<PopStateMsg>();
       };
     }
-    else if (m_input_buffer.empty() and this->options().contains(ch)) {
-      spdlog::info("StateImpl::update - User option select");
-      cmd = [state_factory = this->options().at(ch).second]() -> std::optional<Msg> {
-        spdlog::info("StateImpl::update - User option lamda run");
-        State new_state = state_factory();
-        auto msg = std::make_shared<PushStateMsg>(new_state);
-        return msg;
-      };
-    }
     else if (m_input_buffer.empty() and this->cmd_options().second.contains(ch)) {
       cmd = this->cmd_options().second.at(ch).second;
     }
@@ -179,6 +161,15 @@ namespace first {
     }
     
     return {mutated_state, cmd};
+  }
+
+  // ----------------------------------
+  // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)
+  Cmd StateImpl::cmd_from_state_factory(StateFactory factory) {
+    return [factory]() -> std::optional<Msg> {
+      State new_state = factory();
+      return std::make_shared<PushStateMsg>(new_state);
+    };
   }
 
 } // namespace first

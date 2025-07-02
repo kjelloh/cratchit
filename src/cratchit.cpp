@@ -156,16 +156,8 @@ namespace first {
         if (i>0) model.top_content.push_back('\n');
         model.top_content += model.ui_states.back()->ux()[i];
       }
-      // StateImpl transition UX (Midle window)
+      // StateImpl transition UX (Middle window)
       model.main_content.clear();
-      for (auto const &[ch, option] : model.ui_states.back()->options()) {
-        std::string entry{};
-        entry.push_back(ch);
-        entry.append(" - ");
-        entry.append(option.first);
-        entry.push_back('\n');
-        model.main_content.append(entry);
-      }
 
       // iterate as defined by CmdOptions.first (vector of chars)
       auto ordered_cmd_options_view = [](StateImpl::CmdOptions const& cmd_options) {

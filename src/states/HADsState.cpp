@@ -29,11 +29,11 @@ namespace first {
 
     };
 
-    auto option_from = [this](Mod10View::Range const& subrange) -> StateImpl::Option {
+    auto cmd_option_from_subrange = [this](Mod10View::Range const& subrange) -> StateImpl::CmdOption {
       auto caption = std::to_string(subrange.first);
       caption += " .. ";
       caption += std::to_string(subrange.second-1);
-      return {caption, HADs_subrange_factory(m_all_hads,m_fiscal_period,subrange)};
+      return {caption, cmd_from_state_factory(HADs_subrange_factory(m_all_hads,m_fiscal_period,subrange))};
     };
 
     auto subranges = m_mod10_view.subranges();
@@ -42,10 +42,10 @@ namespace first {
       auto const& [begin,end] = subrange;
       if (end-begin==1) {
         // Single HAD in range option
-        this->add_option(static_cast<char>('0'+i),HADState::option_from(m_all_hads[begin]));
+        this->add_cmd_option(static_cast<char>('0'+i), HADState::cmd_option_from(m_all_hads[begin]));
       }
       else {
-        this->add_option(static_cast<char>('0'+i),option_from(subrange));
+        this->add_cmd_option(static_cast<char>('0'+i), cmd_option_from_subrange(subrange));
       }
     }
 
@@ -96,7 +96,8 @@ namespace first {
     };
   }
 
-  StateImpl::Option HADsState::option_from(HADs const& all_hads,FiscalPeriod fiscal_period) {
-    return {std::format("HADs - count:{}",all_hads.size()), factory_from(all_hads,fiscal_period)};
+  StateImpl::CmdOption HADsState::cmd_option_from(HADs const& all_hads,FiscalPeriod fiscal_period) {
+    return {std::format("HADs - count:{}",all_hads.size()), cmd_from_state_factory(factory_from(all_hads,fiscal_period))};
   }
+
 } // namespace first

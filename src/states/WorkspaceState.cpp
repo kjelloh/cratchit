@@ -22,18 +22,22 @@ namespace first {
 
     this->m_ux.push_back(m_root_path.string());
 
-    auto project_factory_factory = [root_path = m_root_path](std::string name) {
-      auto folder_name = to_underscored_spaces(name);
-      auto project_path = root_path / folder_name;
-      return [project_path]() {
-        auto project_ux = StateImpl::UX{project_path.string()};
+    this->add_cmd_option('0', ProjectState::cmd_option_from(".", m_root_path));
+    this->add_cmd_option('1', ProjectState::cmd_option_from("ITfied AB", m_root_path));
+    this->add_cmd_option('2', ProjectState::cmd_option_from("Org x", m_root_path));        
+  }
 
-        return std::make_shared<ProjectState>(project_ux,project_path);
-      };
+  StateImpl::CmdOption WorkspaceState::cmd_option_from(std::filesystem::path workspace_path) {
+    auto caption = workspace_path.filename().string();
+    if (caption.empty()) {
+      caption = workspace_path.string(); // Use full path if filename is empty
+    }
+    
+    auto factory = [workspace_path]() {
+      auto workspace_ux = StateImpl::UX{"Workspace UX"};
+      return std::make_shared<WorkspaceState>(workspace_ux, workspace_path);
     };
-
-    this->add_option('0',{".",project_factory_factory(".")});
-    this->add_option('1',{"ITfied AB",project_factory_factory("ITfied AB")});
-    this->add_option('2',{"Org x",project_factory_factory("Org x")});        
+    
+    return {caption, cmd_from_state_factory(factory)};
   }
 }

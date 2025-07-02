@@ -16,8 +16,8 @@ namespace first {
 
     try {
       // Options
-      this->add_option('h', HADsState::option_from(this->m_period_hads,this->m_fiscal_period));
-      this->add_option('v', VATReturnsState::option_from());
+      this->add_cmd_option('h', HADsState::cmd_option_from(this->m_period_hads,this->m_fiscal_period));
+      this->add_cmd_option('v', VATReturnsState::cmd_option_from());
 
     } catch (std::exception const &e) {
       spdlog::error("Error initializing FiscalPeriodState: {}", e.what());
@@ -60,11 +60,14 @@ namespace first {
       return std::make_shared<FiscalPeriodState>(ux, fiscal_period, parent_environment_ref);
     };
   }
-  StateImpl::Option FiscalPeriodState::option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref) {
-    return {std::format("Fiscal Year: {}",fiscal_year.to_string()), factory_from(fiscal_year.period(), parent_environment_ref)};
+  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
+    return {"Fiscal Period: " + fiscal_period.to_string(), cmd_from_state_factory(factory_from(fiscal_period, parent_environment_ref))};
   }
-  StateImpl::Option FiscalPeriodState::option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref) {
-    return {std::format("Fiscal Quarter: {}",fiscal_quarter.to_string()), factory_from(fiscal_quarter.period(), parent_environment_ref)};
+  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref) {
+    return {std::format("Fiscal Year: {}", fiscal_year.to_string()), cmd_from_state_factory(factory_from(fiscal_year.period(), parent_environment_ref))};
+  }
+  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref) {
+    return {std::format("Fiscal Quarter: {}", fiscal_quarter.to_string()), cmd_from_state_factory(factory_from(fiscal_quarter.period(), parent_environment_ref))};
   }
 
 } // namespace first

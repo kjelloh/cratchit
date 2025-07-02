@@ -18,5 +18,8 @@ namespace first {
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg) override;
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const override;
     virtual Cargo get_cargo() const override;
+    
+    static StateFactory factory_from(std::filesystem::path project_path);
+    static StateImpl::CmdOption cmd_option_from(std::string org_name, std::filesystem::path root_path);
   };
 } // namespace first

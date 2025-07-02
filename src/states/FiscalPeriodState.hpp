@@ -19,8 +19,9 @@ namespace first {
     virtual Cargo get_cargo() const override;
 
     static StateFactory factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
-    static StateImpl::Option option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref);
-    static StateImpl::Option option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref);
+    static StateImpl::CmdOption cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
+    static StateImpl::CmdOption cmd_option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref);
+    static StateImpl::CmdOption cmd_option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref);
 
   }; // FiscalPeriodState
 }

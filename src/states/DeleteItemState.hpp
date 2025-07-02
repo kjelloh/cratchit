@@ -24,6 +24,5 @@ namespace first {
         return std::make_shared<DeleteItemState<Item>>(item);
       };
     }
-    static StateImpl::Option option_from(DeleteItemState::Item const& item);
   };
 } // namespace first

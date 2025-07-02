@@ -35,11 +35,11 @@ namespace first {
 
     auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
     auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
-    this->add_option('0',FiscalPeriodState::option_from(current_fiscal_year,m_environment));    
-    this->add_option('1',FiscalPeriodState::option_from(current_fiscal_year.to_relative_fiscal_year(-1),m_environment));
-    this->add_option('2',FiscalPeriodState::option_from(current_fiscal_year.to_relative_fiscal_year(-2),m_environment));
-    this->add_option('3',FiscalPeriodState::option_from(current_fiscal_quarter,m_environment));
-    this->add_option('4',FiscalPeriodState::option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
+    this->add_cmd_option('0', FiscalPeriodState::cmd_option_from(current_fiscal_year,m_environment));    
+    this->add_cmd_option('1', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-1),m_environment));
+    this->add_cmd_option('2', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-2),m_environment));
+    this->add_cmd_option('3', FiscalPeriodState::cmd_option_from(current_fiscal_quarter,m_environment));
+    this->add_cmd_option('4', FiscalPeriodState::cmd_option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
   } // ProjectState::ProjectState
 
   ProjectState::~ProjectState() {
@@ -180,5 +180,26 @@ namespace first {
   Cargo ProjectState::get_cargo() const {
       spdlog::info("ProjectState::get_cargo");
       return Cargo{}; // Null cargo
+  }
+
+  static std::string to_underscored_spaces(const std::string &name) {
+    std::string result;
+    result.reserve(name.size());
+    std::ranges::transform(name, std::back_inserter(result),
+                           [](char c) { return c == ' ' ? '_' : c; });
+    return result;
+  }
+
+  StateFactory ProjectState::factory_from(std::filesystem::path project_path) {
+    return [project_path]() {
+      auto project_ux = StateImpl::UX{project_path.string()};
+      return std::make_shared<ProjectState>(project_ux, project_path);
+    };
+  }
+
+  StateImpl::CmdOption ProjectState::cmd_option_from(std::string org_name, std::filesystem::path root_path) {
+    auto folder_name = to_underscored_spaces(org_name);
+    auto project_path = root_path / folder_name;
+    return {org_name, cmd_from_state_factory(factory_from(project_path))};
   }
 } // namespace first

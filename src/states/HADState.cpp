@@ -13,7 +13,7 @@ namespace first {
 
     ux().clear();
     ux().push_back(to_string(had));
-    this->add_option('0',{"HAD -> SIE",sie_factory});
+    this->add_cmd_option('0',{"HAD -> SIE", cmd_from_state_factory(sie_factory)});
 
     this->add_cmd_option('d', {"Delete",[had = this->m_had]() -> std::optional<Msg> {
         State new_state = DeleteItemState<HAD>::factory_from(had)();
@@ -30,8 +30,9 @@ namespace first {
       return std::make_shared<HADState>(had);
     };
   }
-  StateImpl::Option HADState::option_from(HADState::HAD const& had) {
-    return {to_string(had), factory_from(had)};
+  
+  StateImpl::CmdOption HADState::cmd_option_from(HADState::HAD const& had) {
+    return {to_string(had), cmd_from_state_factory(factory_from(had))};
   }
 
 } // namespace first
