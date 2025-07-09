@@ -86,7 +86,24 @@ namespace first {
     auto [mutated_top, state_cmd] = (model.ui_states.size() > 0)
       ?(model.ui_states.back()->dispatch(msg))
       :(std::make_pair<std::optional<State>,Cmd>({},{}));
-    
+
+    // 250709 - HACK! / KoH
+    // The cargo::visit still takes State (shared_ptr) so we cant move it to StateImpl::default_update just yet
+    if (not (mutated_top or state_cmd)) {
+      if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
+        if (pimpl->m_cargo) {
+          const auto &cargo = *pimpl->m_cargo;
+          spdlog::info("PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
+          auto [maybe_new_state, maybe_cmd] = cargo.visit(model.ui_states.back());
+          mutated_top = maybe_new_state;
+          state_cmd = maybe_cmd;
+        } else {
+          spdlog::info("PoppedStateCargoMsg: NULL cargo");
+        }
+      }
+    }
+    // HACK - End.
+
     if (mutated_top or state_cmd) {
       // State handled the message - apply the changes
       if (mutated_top) {
@@ -172,6 +189,23 @@ namespace first {
         entry.push_back(ch);
         entry.append(" = ");
         entry.append(cmd_option.first);
+        entry.push_back('\n');
+        model.main_content.append(entry);
+      }
+
+      // Also process UpdateOptions (similar to cmd_options)
+      auto ordered_update_options_view = [](StateImpl::UpdateOptions const& update_options) {
+        return update_options.first
+          | std::views::transform([&update_options](char ch) -> std::pair<char,StateImpl::UpdateOption> {
+            return std::make_pair(ch,update_options.second.at(ch));
+          });
+      };
+
+      for (auto const& [ch, update_option] : ordered_update_options_view(model.ui_states.back()->update_options())) {
+        std::string entry{};
+        entry.push_back(ch);
+        entry.append(" = ");
+        entry.append(update_option.first);
         entry.push_back('\n');
         model.main_content.append(entry);
       }

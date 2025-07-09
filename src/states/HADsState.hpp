@@ -8,12 +8,14 @@
 namespace first {
   class HADsState : public StateImpl {
   public:
+    using HAD = HeadingAmountDateTransEntry;
     using HADs = HeadingAmountDateTransEntries;
 
     HADsState(HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view);
     HADsState(HADs all_hads,FiscalPeriod fiscal_period);
 
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::EditedItemCargo<HAD> const& cargo) const;
     virtual Cargo get_cargo() const;
 
     static StateFactory factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period);

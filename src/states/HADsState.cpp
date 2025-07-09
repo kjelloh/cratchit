@@ -84,6 +84,23 @@ namespace first {
       return {std::nullopt, Cmd{}};
   }
 
+  std::pair<std::optional<State>, Cmd> HADsState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
+    if (cargo.m_payload.mutation == cargo::ItemMutation::DELETED) {
+      spdlog::info("HADsState::apply - deleting HAD");
+      auto mutated_state = std::make_shared<HADsState>(*this);
+      
+      // Remove the HAD from the collection in the mutated state
+      mutated_state->m_all_hads.erase(
+        std::remove_if(mutated_state->m_all_hads.begin(), mutated_state->m_all_hads.end(),
+          [&cargo](const auto& had) { return had == cargo.m_payload.item; }),
+        mutated_state->m_all_hads.end());
+      
+      return {mutated_state, Nop};
+    }
+    
+    return StateImpl::apply(cargo);
+  }
+
   Cargo HADsState::get_cargo() const {
     return cargo::to_cargo(this->m_all_hads);
   }

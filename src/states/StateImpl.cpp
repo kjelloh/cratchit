@@ -11,7 +11,8 @@ namespace first {
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
       ,m_input_buffer{}
-      ,m_cmd_options{{},{}} {
+      ,m_cmd_options{{},{}}
+      ,m_update_options{{},{}} {
 
       if (true) {
         spdlog::info("StateImpl constructor called for {}", static_cast<void*>(this));
@@ -76,6 +77,11 @@ namespace first {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
 
+  // ----------------------------------
+  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
+    return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  }
+
   Cargo StateImpl::get_cargo() const {
     return {};
   }
@@ -96,8 +102,25 @@ namespace first {
   }
 
   // ----------------------------------
+  void StateImpl::add_update_option(char ch, UpdateOption const &option) {
+    if (auto iter = std::ranges::find(m_update_options.first,ch); iter == m_update_options.first.end()) {
+      // Allow insertion of same option only once
+      m_update_options.first.push_back(ch);
+      m_update_options.second[ch] = option;
+    }
+    else {
+      spdlog::warn("StateImpl::add_update_option: Ignored add of existing update option '{}'", ch);
+    }
+  }
+
+  // ----------------------------------
   StateImpl::CmdOptions const& StateImpl::cmd_options() const {
     return m_cmd_options;
+  }
+
+  // ----------------------------------
+  StateImpl::UpdateOptions const& StateImpl::update_options() const {
+    return m_update_options;
   }
 
   // ----------------------------------
@@ -114,7 +137,7 @@ namespace first {
       spdlog::info("StateImpl::default_update(msg) - NCursesKeyMsg");
       return this->default_update(key_msg_ptr->key);
     }
-    
+
     return {std::nullopt,Cmd{}}; // fallback - no StateImpl mutation
   }
 
@@ -132,6 +155,13 @@ namespace first {
       cmd = []() -> std::optional<Msg> {
         return std::make_shared<PopStateMsg>();
       };
+    }
+    else if (m_input_buffer.empty() and this->m_update_options.second.contains(ch)) {
+      // Execute UpdateOption function and extract result
+      auto update_option = this->m_update_options.second.at(ch);
+      auto [new_state, new_cmd] = update_option.second();
+      mutated_state = new_state;
+      cmd = new_cmd;
     }
     else if (m_input_buffer.empty() and this->cmd_options().second.contains(ch)) {
       cmd = this->cmd_options().second.at(ch).second;

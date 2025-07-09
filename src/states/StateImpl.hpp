@@ -9,6 +9,7 @@
 #include "cargo/CargoBase.hpp"
 #include "cargo/HADsCargo.hpp"
 #include "cargo/EnvironmentCargo.hpp"
+#include "cargo/EditedItemCargo.hpp"
 
 namespace first {
   
@@ -20,6 +21,15 @@ namespace first {
     using CmdOption = std::pair<std::string, Cmd>;    
     using CmdOptions = std::pair<std::vector<char>,std::map<char, CmdOption>>;
 
+    // Refactor into UpdateOptions - BEGIN
+    using UpdateResult = std::pair<std::optional<State>, Cmd>;
+    using UpdateOptionFunction = std::function<UpdateResult()>;
+    using UpdateOption = std::pair<std::string,UpdateOptionFunction>;
+    using UpdateOptions = std::pair<std::vector<char>,std::map<char, UpdateOption>>;
+    void add_update_option(char ch, UpdateOption const &option);
+    UpdateOptions m_update_options;
+    // Refactor into UpdateOptions - END
+
     // Members
     StateImpl(UX const &ux);
     virtual ~StateImpl();
@@ -28,10 +38,12 @@ namespace first {
     UX &ux();
     std::string const& input_buffer() const;
     CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
+    UpdateOptions const &update_options() const;
     std::pair<std::optional<State>, Cmd> dispatch(Msg const& msg);    
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::DummyCargo const& cargo) const;
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::HADsCargo const& cargo) const;
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const;
+    virtual std::pair<std::optional<State>, Cmd> apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const;
     virtual Cargo get_cargo() const;
 
     // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)
