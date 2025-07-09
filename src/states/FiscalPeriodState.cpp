@@ -9,11 +9,13 @@
 
 namespace first {
 
-  FiscalPeriodState::FiscalPeriodState(StateImpl::UX ux, FiscalPeriod fiscal_period, Environment const &parent_environment_ref)
+  FiscalPeriodState::FiscalPeriodState(
+     StateImpl::UX ux
+    ,FiscalPeriod fiscal_period
+    ,HeadingAmountDateTransEntries period_hads)
       :  StateImpl{ux}
         ,m_fiscal_period{fiscal_period}
-        ,m_period_hads{to_period_hads(fiscal_period,parent_environment_ref)} {
-
+        ,m_period_hads{period_hads} {
     try {
       // Options
       this->add_cmd_option('h', HADsState::cmd_option_from(this->m_period_hads,this->m_fiscal_period));
@@ -23,6 +25,12 @@ namespace first {
       spdlog::error("Error initializing FiscalPeriodState: {}", e.what());
     }
   }
+
+  FiscalPeriodState::FiscalPeriodState(
+     StateImpl::UX ux
+    ,FiscalPeriod fiscal_period
+    ,Environment const &parent_environment_ref)
+      : FiscalPeriodState(ux,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
 
   std::pair<std::optional<State>, Cmd> FiscalPeriodState::update(Msg const &msg) {
     // Not used for now ( See apply for update on child state Cargo)
@@ -38,9 +46,10 @@ namespace first {
       // Changes has been made
       spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo) - HADs has changed. payload size: {}",
                    cargo.m_payload.size());
-      auto new_state = std::make_shared<FiscalPeriodState>(*this);
-      new_state->m_period_hads = cargo.m_payload; // mutate HADs
-      mutated_state = new_state;
+      mutated_state = std::make_shared<FiscalPeriodState>(
+         UX{}
+        ,this->m_fiscal_period
+        ,cargo.m_payload);
     }
     return {mutated_state, cmd};
   }
@@ -48,6 +57,7 @@ namespace first {
   Cargo FiscalPeriodState::get_cargo() const {
     EnvironmentPeriodSlice result{{},m_fiscal_period};
     // Represent current HADs into the environment slice
+    result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
     for (auto const& [index, env_val] : indexed_env_entries_from(this->m_period_hads)) {
         result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
     }

@@ -10,7 +10,6 @@ namespace first {
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
-      ,m_input_buffer{}
       ,m_cmd_options{{},{}}
       ,m_update_options{{},{}} {
 
@@ -124,11 +123,6 @@ namespace first {
   }
 
   // ----------------------------------
-  std::string const& StateImpl::input_buffer() const {
-    return m_input_buffer;
-  }
-
-  // ----------------------------------
   std::pair<std::optional<State>,Cmd> StateImpl::default_update(Msg const& msg) {
     spdlog::info("StateImpl::default_update(msg) - BEGIN");
 
@@ -148,46 +142,46 @@ namespace first {
     Cmd cmd{}; // null
     std::optional<State> mutated_state{}; // None
     
-    if (m_input_buffer.empty() and ch == 'q') {
+    if (ch == 'q') {
       cmd = DO_QUIT;
     }
-    else if (m_input_buffer.empty() and ch == '-') {
+    else if (ch == '-') {
       cmd = []() -> std::optional<Msg> {
         return std::make_shared<PopStateMsg>();
       };
     }
-    else if (m_input_buffer.empty() and this->m_update_options.second.contains(ch)) {
+    else if (this->m_update_options.second.contains(ch)) {
       // Execute UpdateOption function and extract result
       auto update_option = this->m_update_options.second.at(ch);
       auto [new_state, new_cmd] = update_option.second();
       mutated_state = new_state;
       cmd = new_cmd;
     }
-    else if (m_input_buffer.empty() and this->cmd_options().second.contains(ch)) {
+    else if (this->cmd_options().second.contains(ch)) {
       cmd = this->cmd_options().second.at(ch).second;
     }
-    else if (not m_input_buffer.empty() and ch == 127) { // Backspace
-      auto new_state = std::make_shared<StateImpl>(*this);
-      new_state->m_input_buffer.pop_back();
-      mutated_state = new_state;
-    }
-    else if (not m_input_buffer.empty() and ch == '\n') { // Enter - submit input
-      cmd = [entry = m_input_buffer]() -> std::optional<Msg> {
-        return std::make_shared<UserEntryMsg>(entry);
-      };
-      // Clear input buffer
-      auto new_state = std::make_shared<StateImpl>(*this);
-      new_state->m_input_buffer.clear();
-      mutated_state = new_state;
-    }
-    else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-      // Add character to input buffer (works for both empty and non-empty buffer)
-      auto new_state = std::make_shared<StateImpl>(*this);
-      new_state->m_input_buffer.push_back(ch);
-      mutated_state = new_state;
-    }
+    // else if (not m_input_buffer.empty() and ch == 127) { // Backspace
+    //   auto new_state = std::make_shared<StateImpl>(*this);
+    //   new_state->m_input_buffer.pop_back();
+    //   mutated_state = new_state;
+    // }
+    // else if (not m_input_buffer.empty() and ch == '\n') { // Enter - submit input
+    //   cmd = [entry = m_input_buffer]() -> std::optional<Msg> {
+    //     return std::make_shared<UserEntryMsg>(entry);
+    //   };
+    //   // Clear input buffer
+    //   auto new_state = std::make_shared<StateImpl>(*this);
+    //   new_state->m_input_buffer.clear();
+    //   mutated_state = new_state;
+    // }
+    // else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
+    //   // Add character to input buffer (works for both empty and non-empty buffer)
+    //   auto new_state = std::make_shared<StateImpl>(*this);
+    //   new_state->m_input_buffer.push_back(ch);
+    //   mutated_state = new_state;
+    // }
     else {
-      spdlog::info("StateImpl::update - ignored message");
+      spdlog::info("StateImpl::update(ch) - ignored message");
     }
     
     return {mutated_state, cmd};

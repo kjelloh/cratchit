@@ -13,6 +13,7 @@ namespace first {
 
     HADsState(HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view);
     HADsState(HADs all_hads,FiscalPeriod fiscal_period);
+    HADsState(HADsState const&) = delete; // Force construct from data = ux ok
 
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::EditedItemCargo<HAD> const& cargo) const;
@@ -24,5 +25,6 @@ namespace first {
     HADsState::HADs m_all_hads;
     FiscalPeriod m_fiscal_period;
     first::Mod10View m_mod10_view;
+    void refresh_ux();
   }; // struct HADsState
 }

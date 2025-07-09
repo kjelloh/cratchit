@@ -10,6 +10,32 @@
 
 namespace first {
 
+  void ProjectState::update_options() {
+    auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
+    auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
+    this->add_cmd_option('0', FiscalPeriodState::cmd_option_from(current_fiscal_year,m_environment));    
+    this->add_cmd_option('1', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-1),m_environment));
+    this->add_cmd_option('2', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-2),m_environment));
+    this->add_cmd_option('3', FiscalPeriodState::cmd_option_from(current_fiscal_quarter,m_environment));
+    this->add_cmd_option('4', FiscalPeriodState::cmd_option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
+  }
+
+  void ProjectState::update_ux() {
+    m_ux.push_back(std::format("Environment {}: {} entries.",m_persistent_environment_file.path().string(), m_environment.size()));
+  }
+
+  ProjectState::ProjectState(
+     StateImpl::UX ux
+    ,PersistentFile<Environment> persistent_environment_file
+    ,Environment environment)
+    :  StateImpl{ux}
+      ,m_root_path{persistent_environment_file.root_path()}
+      ,m_persistent_environment_file{persistent_environment_file}
+      ,m_environment{environment} {
+    update_options();
+    update_ux();
+  }
+
   // ----------------------------------
   ProjectState::ProjectState(StateImpl::UX ux,std::filesystem::path root_path) 
     :  StateImpl{ux}
@@ -18,11 +44,9 @@ namespace first {
       ,m_environment{} {
 
     try {
-      // m_environment = environment_from_file(m_root_path / "cratchit.env");
       m_persistent_environment_file.init();
       if (auto const &cached_env = m_persistent_environment_file.cached()) {
         m_environment = *cached_env;
-        m_ux.push_back(std::format("Environment {}: {} entries.",m_persistent_environment_file.path().string(), m_environment.size()));
       }
       else {
         m_environment = Environment{}; // Initialize with an empty environment if no cached environment
@@ -33,13 +57,8 @@ namespace first {
       m_ux.push_back("Error initializing environment: " + std::string(e.what()));
     }
 
-    auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
-    auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
-    this->add_cmd_option('0', FiscalPeriodState::cmd_option_from(current_fiscal_year,m_environment));    
-    this->add_cmd_option('1', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-1),m_environment));
-    this->add_cmd_option('2', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-2),m_environment));
-    this->add_cmd_option('3', FiscalPeriodState::cmd_option_from(current_fiscal_quarter,m_environment));
-    this->add_cmd_option('4', FiscalPeriodState::cmd_option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
+    update_options();
+    update_ux();
   } // ProjectState::ProjectState
 
   ProjectState::~ProjectState() {
@@ -149,8 +168,7 @@ namespace first {
           difference{m_environment.at(section), env_slice.at(section),slice_period, to_date,to_ev};
         if (difference) {
           spdlog::info("ProjectState::apply - Difference found in section: {}", section);
-          auto new_state = std::make_shared<ProjectState>(*this); // Create a new state
-          auto &mutated_environment = new_state->m_environment;   // Make a copy to mutate
+          auto mutated_environment = this->m_environment;   // Make a copy to mutate
           auto &mutated_section = mutated_environment[section];
           // Remove entriers in mutated section
           for (auto const &[index, ev] : difference.removed()) {
@@ -163,16 +181,22 @@ namespace first {
           }
           // Insert entries in mutated section
           for (auto const &[index, ev] : difference.inserted()) {
-            if (auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; });
-                iter == mutated_section.end()) {
+            if ( auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; })
+                ;iter == mutated_section.end()) {
               spdlog::info("ProjectState::apply - Inserting entry {}:{}", index, to_string(ev));
               mutated_section.push_back({mutated_section.size(), ev}); // Insert the entry
             } else {
               spdlog::warn("ProjectState::apply - Entry already exists for insertion: {}", to_string(ev));
             }
           }
-          mutated_state = new_state; // Set the mutated state
+          mutated_state = std::make_shared<ProjectState>(
+             UX{} // no ux (se update_ux())
+            ,this->m_persistent_environment_file
+            ,mutated_environment);
         }
+      }
+      else {
+        spdlog::info("ProjectState::apply - Ignored, because m_environment.contains(section):{} and env_slice.contains(section):{}",m_environment.contains(section),env_slice.contains(section));
       }
       return {mutated_state, cmd};
     }

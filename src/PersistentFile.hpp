@@ -38,6 +38,10 @@ public:
         return path_;
     }
 
+    std::filesystem::path root_path() const {
+        return path_.parent_path();
+    }
+
 private:
     std::filesystem::path path_;
     LoadFunc load_func_;

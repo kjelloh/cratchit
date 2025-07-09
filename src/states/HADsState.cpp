@@ -2,6 +2,7 @@
 #include "HADState.hpp"
 #include "tokenize.hpp"
 #include <spdlog/spdlog.h>
+#include <algorithm> // std::ranges::find,
 
 namespace first {
   // ----------------------------------
@@ -49,7 +50,14 @@ namespace first {
       }
     }
 
+    this->refresh_ux();
+  }
+
+  // ----------------------------------
+
+  void HADsState::refresh_ux() {
     // Initiate view UX
+    this->ux().clear();
     this->ux().push_back(std::format("{}", m_fiscal_period.to_string()));
     for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
       auto entry = std::to_string(i);
@@ -57,7 +65,6 @@ namespace first {
       entry += to_string(m_all_hads[i]);
       this->ux().push_back(entry);
     }
-
   }
 
   // ----------------------------------
@@ -86,18 +93,23 @@ namespace first {
 
   std::pair<std::optional<State>, Cmd> HADsState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
     if (cargo.m_payload.mutation == cargo::ItemMutation::DELETED) {
-      spdlog::info("HADsState::apply - deleting HAD");
-      auto mutated_state = std::make_shared<HADsState>(*this);
-      
+      spdlog::info("HADsState::apply - deleting HAD {}",to_string(cargo.m_payload.item));
+      auto mutated_hads = this->m_all_hads;
+      State maybe_state{}; // default none
       // Remove the HAD from the collection in the mutated state
-      mutated_state->m_all_hads.erase(
-        std::remove_if(mutated_state->m_all_hads.begin(), mutated_state->m_all_hads.end(),
-          [&cargo](const auto& had) { return had == cargo.m_payload.item; }),
-        mutated_state->m_all_hads.end());
+      if (auto iter = std::ranges::find(mutated_hads,cargo.m_payload.item);iter != mutated_hads.end()) {
+        spdlog::info("HADsState::apply - HAD {} DELETED ok",to_string(*iter));
+        mutated_hads.erase(iter);
+        maybe_state = std::make_shared<HADsState>(mutated_hads,this->m_fiscal_period);
+      }
+      else {
+        spdlog::error("DESIGN_INSUFFICIENCY: HADsState::apply(cargo::EditedItemCargo<HAD>) failed to find HAD {} to delete",to_string(cargo.m_payload.item));
+      }
       
-      return {mutated_state, Nop};
+      return {maybe_state, Cmd{}};
     }
-    
+
+    // fallback if not handled
     return StateImpl::apply(cargo);
   }
 

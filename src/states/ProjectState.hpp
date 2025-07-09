@@ -11,9 +11,17 @@ namespace first {
   private:
     std::filesystem::path m_root_path;
     PersistentFile<Environment> m_persistent_environment_file; 
-   Environment m_environment;
+    Environment m_environment;
+    void update_options();
+    void update_ux();
+
   public:
-    ProjectState(StateImpl::UX ux, std::filesystem::path root_path);
+    ProjectState(ProjectState const&) = delete; // Force create from fresh data (file)
+    ProjectState(StateImpl::UX ux, std::filesystem::path root_path); // 'Initial' state
+    ProjectState(
+       StateImpl::UX ux
+      ,PersistentFile<Environment> persistent_environment_file
+      ,Environment environment);
     virtual ~ProjectState() override;
     virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg) override;
     virtual std::pair<std::optional<State>, Cmd> apply(cargo::EnvironmentCargo const& cargo) const override;

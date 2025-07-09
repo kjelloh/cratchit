@@ -36,7 +36,6 @@ namespace first {
     void add_cmd_option(char ch, CmdOption const &option); // // Refactoring into CmdOptions
     UX const &ux() const;
     UX &ux();
-    std::string const& input_buffer() const;
     CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
     UpdateOptions const &update_options() const;
     std::pair<std::optional<State>, Cmd> dispatch(Msg const& msg);    
@@ -54,7 +53,6 @@ namespace first {
 
   private:
     CmdOptions m_cmd_options; // // Refactoring into CmdOptions
-    std::string m_input_buffer;
 
     virtual std::pair<std::optional<State>, Cmd> update(Msg const& msg);
     std::pair<std::optional<State>, Cmd> default_update(Msg const& msg);

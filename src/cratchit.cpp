@@ -30,6 +30,8 @@ namespace first {
   struct Model {
     std::string top_content;
     std::string main_content;
+    std::string m_input_buffer;
+
     std::vector<State> ui_states{};
   };
 
@@ -83,7 +85,14 @@ namespace first {
   std::pair<Model,Cmd> update(Model model, Msg msg) {
     Cmd cmd = Nop;
 
-    auto [mutated_top, state_cmd] = (model.ui_states.size() > 0)
+    auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
+
+    bool ask_state_first =
+          (model.ui_states.size() > 0)
+      and (    (key_msg_ptr == nullptr)
+            or (model.m_input_buffer.size() == 0));
+
+    auto [mutated_top, state_cmd] = (ask_state_first)
       ?(model.ui_states.back()->dispatch(msg))
       :(std::make_pair<std::optional<State>,Cmd>({},{}));
 
@@ -117,6 +126,27 @@ namespace first {
       if (state_cmd) {
         spdlog::info("update(model,msg): state::update -> cmd");
         cmd = state_cmd;
+      }
+    }
+    else if (key_msg_ptr != nullptr) {
+      // handle user input text
+      auto ch = key_msg_ptr->key;
+      if (not model.m_input_buffer.empty() and ch == 127) { // Backspace
+        model.m_input_buffer.pop_back();
+      }
+      else if (not model.m_input_buffer.empty() and ch == '\n') { // Enter - submit input
+        cmd = [entry = model.m_input_buffer]() -> std::optional<Msg> {
+          return std::make_shared<UserEntryMsg>(entry);
+        };
+        // Clear input buffer
+        model.m_input_buffer.clear();
+      }
+      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
+        // Add character to input buffer (works for both empty and non-empty buffer)
+        model.m_input_buffer.push_back(ch);
+      }
+      else {
+        spdlog::info("update(model,msg): Ignored key {}",static_cast<uint>(ch));
       }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
@@ -246,7 +276,7 @@ namespace first {
     prompt.append_attribute("class") = "user-prompt";
     // Add a label element for the prompt text
     pugi::xml_node label = prompt.append_child("label");
-    std::string input_text = model.ui_states.size() > 0 ? model.ui_states.back()->input_buffer() : "";
+    std::string input_text = model.m_input_buffer;
     label.text().set((">" + input_text).c_str());
 
     // Make prompt 'html-correct' (even though render does not care for now)
