@@ -74,6 +74,14 @@ namespace first {
     immer::box<std::string> m_buffer;
     State m_state;
     
+    static UpdateResult make_result(std::optional<UserInputBufferState> state) {
+      return {.maybe_state = state};
+    }
+        
+    static UpdateResult no_result() {
+      return {.maybe_state = std::nullopt};
+    }
+    
     UserInputBufferState with_buffer(immer::box<std::string> buffer) const {
       UserInputBufferState result = *this;
       result.m_buffer = buffer;
@@ -89,16 +97,16 @@ namespace first {
     UpdateResult handle_char_input(int ch) const {
       if (!m_buffer->empty() && ch == 127) { // Backspace
         auto new_buffer = m_buffer->substr(0, m_buffer->length() - 1);
-        return {with_buffer(immer::box<std::string>(new_buffer))};
+        return make_result(with_buffer(immer::box<std::string>(new_buffer)));
       }
       else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
         auto new_buffer = *m_buffer + static_cast<char>(ch);
-        return {with_buffer(immer::box<std::string>(new_buffer))};
+        return make_result(with_buffer(immer::box<std::string>(new_buffer)));
       }
       else if (!m_buffer->empty() && ch == '\n') {
-        return {commit()};
+        return make_result(commit());
       }
-      return {std::nullopt}; // Didn't handle this input
+      return no_result(); // Didn't handle this input
     }
     
   };
