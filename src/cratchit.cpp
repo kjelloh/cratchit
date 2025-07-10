@@ -48,18 +48,32 @@ namespace first {
     std::string input_buffer() const {
       return *m_input_buffer;
     }
-    
+
+    std::string committed_buffer() const {
+      return *m_committed_buffer;
+    }
+
     UserInputBufferState clear_input() const {
       return with_input_buffer(immer::box<std::string>(""));
     }
 
   private:
     immer::box<std::string> m_input_buffer;
+    immer::box<std::string> m_committed_buffer;
     
     UserInputBufferState with_input_buffer(immer::box<std::string> buffer) const {
-      return UserInputBufferState{buffer};
+      UserInputBufferState result = *this;
+      result.m_input_buffer = buffer;
+      result.m_committed_buffer = "";
+      return result;
     }
-    
+
+    UserInputBufferState with_committed_buffer(immer::box<std::string> buffer) const {
+      UserInputBufferState result = *this;
+      result.m_committed_buffer = buffer;
+      result.m_input_buffer = "";
+      return result;
+    }
 
     std::optional<UserInputBufferState> handle_char_input(int ch) const {
       if (!m_input_buffer->empty() && ch == 127) { // Backspace
@@ -67,9 +81,11 @@ namespace first {
         return with_input_buffer(immer::box<std::string>(new_buffer));
       }
       else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-        // Add character to buffer (works for both empty and non-empty buffer)
         auto new_buffer = *m_input_buffer + static_cast<char>(ch);
         return with_input_buffer(immer::box<std::string>(new_buffer));
+      }
+      else if (!m_input_buffer->empty() && ch == '\n') {
+        return with_committed_buffer(*m_input_buffer);        
       }
       return std::nullopt; // Didn't handle this input
     }
@@ -181,13 +197,13 @@ namespace first {
       auto ch = key_msg_ptr->key;
       if (auto new_input_state = model.user_input_state.update(msg)) {
         model.user_input_state = *new_input_state;
+        if (!model.user_input_state.committed_buffer().empty()) {
+          cmd = [entry = model.user_input_state.committed_buffer()]() -> std::optional<Msg> {
+            return std::make_shared<UserEntryMsg>(entry);
+          };
+          model.user_input_state = model.user_input_state.clear_input();
+        }
       }      
-      else if (!model.user_input_state.input_buffer().empty() && ch == '\n') {
-        cmd = [entry = model.user_input_state.input_buffer()]() -> std::optional<Msg> {
-          return std::make_shared<UserEntryMsg>(entry);
-        };
-        model.user_input_state = model.user_input_state.clear_input();
-      }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
       model.ui_states.push_back(pimpl->m_state);
