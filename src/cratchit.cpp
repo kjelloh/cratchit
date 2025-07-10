@@ -39,6 +39,17 @@ namespace first {
       return UserInputBufferState{buffer};
     }
     
+    std::optional<UserInputBufferState> update(Msg const& msg) const {
+      // Only handle NCursesKeyMsg
+      auto key_msg = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
+      if (!key_msg) {
+        return std::nullopt; // Not our concern
+      }
+      
+      auto ch = key_msg->key;
+      return handle_char_input(ch);
+    }
+
     std::optional<UserInputBufferState> handle_char_input(int ch) const {
       if (!input_buffer->empty() && ch == 127) { // Backspace
         auto new_buffer = input_buffer->substr(0, input_buffer->length() - 1);
@@ -163,21 +174,15 @@ namespace first {
       }
     }
     else if (key_msg_ptr != nullptr) {
-      // Handle user input - clean and isolated
       auto ch = key_msg_ptr->key;
-      
-      // Special handling for Enter - submit input
-      if (!model.user_input_state.input_buffer->empty() && ch == '\n') {
+      if (auto new_input_state = model.user_input_state.handle_char_input(ch)) {
+        model.user_input_state = *new_input_state;
+      }      
+      else if (!model.user_input_state.input_buffer->empty() && ch == '\n') {
         cmd = [entry = model.user_input_state.submit_input()]() -> std::optional<Msg> {
           return std::make_shared<UserEntryMsg>(entry);
         };
         model.user_input_state = model.user_input_state.clear_input();
-      }
-      else {
-        // Handle other input (typing, backspace) - monadic processing
-        if (auto new_input_state = model.user_input_state.handle_char_input(ch)) {
-          model.user_input_state = *new_input_state;
-        }
       }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
