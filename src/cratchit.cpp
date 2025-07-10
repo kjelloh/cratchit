@@ -34,7 +34,8 @@ namespace first {
     template <class S>
     struct UpdateResultT {
       std::optional<S> maybe_state;
-      operator bool() const {return maybe_state.has_value();}
+      Cmd maybe_null_cmd;
+      operator bool() const {return maybe_state.has_value() or maybe_null_cmd != nullptr;}
     };
     using UpdateResult = UpdateResultT<UserInputBufferState>;
 
@@ -74,8 +75,12 @@ namespace first {
     immer::box<std::string> m_buffer;
     State m_state;
     
-    static UpdateResult make_result(std::optional<UserInputBufferState> state) {
-      return {.maybe_state = state};
+    static UpdateResult make_result(std::optional<UserInputBufferState> state, Cmd cmd = {}) {
+      return {.maybe_state = state, .maybe_null_cmd = cmd};
+    }
+    
+    static UpdateResult make_result(UserInputBufferState state, Cmd cmd = {}) {
+      return {.maybe_state = state, .maybe_null_cmd = cmd};
     }
         
     UserInputBufferState with_buffer(immer::box<std::string> buffer) const {
@@ -100,7 +105,10 @@ namespace first {
         return make_result(with_buffer(immer::box<std::string>(new_buffer)));
       }
       else if (!m_buffer->empty() && ch == '\n') {
-        return make_result(commit());
+        auto cmd = [entry = *m_buffer]() -> std::optional<Msg> {
+          return std::make_shared<UserEntryMsg>(entry);
+        };
+        return make_result(clear(), cmd);
       }
       return make_result(std::nullopt); // Didn't handle this input
     }
@@ -211,12 +219,11 @@ namespace first {
     else if (key_msg_ptr != nullptr) {
       auto ch = key_msg_ptr->key;
       if (auto update_result = model.user_input_state.update(msg)) {
-        model.user_input_state = *update_result.maybe_state;
-        if (model.user_input_state.is_committed()) {
-          cmd = [entry = model.user_input_state.buffer()]() -> std::optional<Msg> {
-            return std::make_shared<UserEntryMsg>(entry);
-          };
-          model.user_input_state = model.user_input_state.clear();
+        if (update_result.maybe_state) {
+          model.user_input_state = *update_result.maybe_state;
+        }
+        if (update_result.maybe_null_cmd) {
+          cmd = update_result.maybe_null_cmd;
         }
       }      
     }
