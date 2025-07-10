@@ -220,12 +220,9 @@ namespace first {
         cmd = state_cmd;
       }
     }
-    else if (key_msg_ptr != nullptr) {
-      auto ch = key_msg_ptr->key;
-      if (auto update_result = model.user_input_state.update(msg)) {
-        update_result.apply(model.user_input_state,cmd);
-      }      
-    }
+    else if (auto update_result = model.user_input_state.update(msg)) {
+      update_result.apply(model.user_input_state,cmd);
+    }      
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
       model.ui_states.push_back(pimpl->m_state);
     }
