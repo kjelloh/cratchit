@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <cmath>  // std::pow,...
 #include <immer/vector.hpp>
+#include <immer/box.hpp>
 #include <unicode/uchar.h>  // for u_isprint
 #include <ranges>
 
@@ -30,7 +31,7 @@ namespace first {
   struct Model {
     std::string top_content;
     std::string main_content;
-    std::string m_input_buffer;
+    immer::box<std::string> m_input_buffer;
 
     std::vector<State> ui_states{};
   };
@@ -67,7 +68,8 @@ namespace first {
   std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
     Model model = { "Welcome to the top section"
-                   ,"This is the main content area"};
+                   ,"This is the main content area"
+                   ,immer::box<std::string>("")};
 
     auto new_framework_state_cmd = []() -> Msg {
       auto msg = std::make_shared<PushStateMsg>(framework_state_factory());
@@ -90,7 +92,7 @@ namespace first {
     bool ask_state_first =
           (model.ui_states.size() > 0)
       and (    (key_msg_ptr == nullptr)
-            or (model.m_input_buffer.size() == 0));
+            or (model.m_input_buffer->size() == 0));
 
     auto [mutated_top, state_cmd] = (ask_state_first)
       ?(model.ui_states.back()->dispatch(msg))
@@ -131,19 +133,21 @@ namespace first {
     else if (key_msg_ptr != nullptr) {
       // handle user input text
       auto ch = key_msg_ptr->key;
-      if (not model.m_input_buffer.empty() and ch == 127) { // Backspace
-        model.m_input_buffer.pop_back();
+      if (not model.m_input_buffer->empty() and ch == 127) { // Backspace
+        auto new_buffer = model.m_input_buffer->substr(0, model.m_input_buffer->length() - 1);
+        model.m_input_buffer = immer::box<std::string>(new_buffer);
       }
-      else if (not model.m_input_buffer.empty() and ch == '\n') { // Enter - submit input
-        cmd = [entry = model.m_input_buffer]() -> std::optional<Msg> {
+      else if (not model.m_input_buffer->empty() and ch == '\n') { // Enter - submit input
+        cmd = [entry = *model.m_input_buffer]() -> std::optional<Msg> {
           return std::make_shared<UserEntryMsg>(entry);
         };
         // Clear input buffer
-        model.m_input_buffer.clear();
+        model.m_input_buffer = immer::box<std::string>("");
       }
       else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
         // Add character to input buffer (works for both empty and non-empty buffer)
-        model.m_input_buffer.push_back(ch);
+        auto new_buffer = *model.m_input_buffer + static_cast<char>(ch);
+        model.m_input_buffer = immer::box<std::string>(new_buffer);
       }
       else {
         spdlog::info("update(model,msg): Ignored key {}",static_cast<uint>(ch));
@@ -276,7 +280,7 @@ namespace first {
     prompt.append_attribute("class") = "user-prompt";
     // Add a label element for the prompt text
     pugi::xml_node label = prompt.append_child("label");
-    std::string input_text = model.m_input_buffer;
+    std::string input_text = *model.m_input_buffer;
     label.text().set((">" + input_text).c_str());
 
     // Make prompt 'html-correct' (even though render does not care for now)
