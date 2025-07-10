@@ -30,16 +30,24 @@ namespace first {
   // ----------------------------------
   class UserInputBufferState {
   public:
+
+    template <class S>
+    struct UpdateResultT {
+      std::optional<S> maybe_state;
+      operator bool() const {return maybe_state.has_value();}
+    };
+    using UpdateResult = UpdateResultT<UserInputBufferState>;
+
     enum class State { Editing, Committed };
     
     UserInputBufferState() : m_buffer(""), m_state(State::Editing) {}
     explicit UserInputBufferState(immer::box<std::string> buffer) : m_buffer(buffer), m_state(State::Editing) {}
 
-    std::optional<UserInputBufferState> update(Msg const& msg) const {
+    UpdateResult update(Msg const& msg) const {
       // Only handle NCursesKeyMsg
       auto key_msg = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
       if (!key_msg) {
-        return std::nullopt; // Not our concern
+        return {std::nullopt}; // Not our concern
       }
       
       auto ch = key_msg->key;
@@ -78,19 +86,19 @@ namespace first {
       return result;
     }
 
-    std::optional<UserInputBufferState> handle_char_input(int ch) const {
+    UpdateResult handle_char_input(int ch) const {
       if (!m_buffer->empty() && ch == 127) { // Backspace
         auto new_buffer = m_buffer->substr(0, m_buffer->length() - 1);
-        return with_buffer(immer::box<std::string>(new_buffer));
+        return {with_buffer(immer::box<std::string>(new_buffer))};
       }
       else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
         auto new_buffer = *m_buffer + static_cast<char>(ch);
-        return with_buffer(immer::box<std::string>(new_buffer));
+        return {with_buffer(immer::box<std::string>(new_buffer))};
       }
       else if (!m_buffer->empty() && ch == '\n') {
-        return commit();
+        return {commit()};
       }
-      return std::nullopt; // Didn't handle this input
+      return {std::nullopt}; // Didn't handle this input
     }
     
   };
@@ -198,8 +206,8 @@ namespace first {
     }
     else if (key_msg_ptr != nullptr) {
       auto ch = key_msg_ptr->key;
-      if (auto new_input_state = model.user_input_state.update(msg)) {
-        model.user_input_state = *new_input_state;
+      if (auto update_result = model.user_input_state.update(msg)) {
+        model.user_input_state = *update_result.maybe_state;
         if (model.user_input_state.is_committed()) {
           cmd = [entry = model.user_input_state.buffer()]() -> std::optional<Msg> {
             return std::make_shared<UserEntryMsg>(entry);
