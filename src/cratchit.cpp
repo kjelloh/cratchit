@@ -174,8 +174,10 @@ namespace first {
         model.user_input_state = model.user_input_state.clear_input();
       }
       else {
-        // Handle other input (typing, backspace) - delegated to UserInputBufferState
-        model.user_input_state = model.user_input_state.handle_char_input(ch);
+        // Handle other input (typing, backspace) - monadic processing
+        if (auto new_input_state = model.user_input_state.handle_char_input(ch)) {
+          model.user_input_state = *new_input_state;
+        }
       }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
