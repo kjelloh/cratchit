@@ -29,10 +29,7 @@ namespace first {
 
   // ----------------------------------
   struct Model {
-    std::string top_content;
-    std::string main_content;
     immer::box<std::string> m_input_buffer;
-
     std::vector<State> ui_states{};
   };
 
@@ -67,9 +64,7 @@ namespace first {
   // ----------------------------------
   std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
-    Model model = { "Welcome to the top section"
-                   ,"This is the main content area"
-                   ,immer::box<std::string>("")};
+    Model model = { immer::box<std::string>("")};
 
     auto new_framework_state_cmd = []() -> Msg {
       auto msg = std::make_shared<PushStateMsg>(framework_state_factory());
@@ -199,51 +194,7 @@ namespace first {
       }
     }
 
-    // Update UX
-    if (model.ui_states.size() > 0) {
-      // StateImpl UX (top window)
-      model.top_content.clear();
-      for (std::size_t i=0;i<model.ui_states.back()->ux().size();++i) {
-        if (i>0) model.top_content.push_back('\n');
-        model.top_content += model.ui_states.back()->ux()[i];
-      }
-      // StateImpl transition UX (Middle window)
-      model.main_content.clear();
-
-      // iterate as defined by CmdOptions.first (vector of chars)
-      auto ordered_cmd_options_view = [](StateImpl::CmdOptions const& cmd_options) {
-        return cmd_options.first
-          | std::views::transform([&cmd_options](char ch) -> std::pair<char,StateImpl::CmdOption> {
-            return std::make_pair(ch,cmd_options.second.at(ch));
-          });
-      };
-
-      for (auto const& [ch, cmd_option] : ordered_cmd_options_view(model.ui_states.back()->cmd_options())) {
-        std::string entry{};
-        entry.push_back(ch);
-        entry.append(" = ");
-        entry.append(cmd_option.first);
-        entry.push_back('\n');
-        model.main_content.append(entry);
-      }
-
-      // Also process UpdateOptions (similar to cmd_options)
-      auto ordered_update_options_view = [](StateImpl::UpdateOptions const& update_options) {
-        return update_options.first
-          | std::views::transform([&update_options](char ch) -> std::pair<char,StateImpl::UpdateOption> {
-            return std::make_pair(ch,update_options.second.at(ch));
-          });
-      };
-
-      for (auto const& [ch, update_option] : ordered_update_options_view(model.ui_states.back()->update_options())) {
-        std::string entry{};
-        entry.push_back(ch);
-        entry.append(" = ");
-        entry.append(update_option.first);
-        entry.push_back('\n');
-        model.main_content.append(entry);
-      }
-    }
+    // UI generation moved to view() - proper TEA separation
 
     return {model,cmd}; // Return updated model
   }
@@ -265,15 +216,62 @@ namespace first {
     // Create the body
     pugi::xml_node body = html.append_child("body");
 
+    // Generate UI content from current state (TEA-style)
+    std::string top_content;
+    std::string main_content;
+    
+    if (model.ui_states.size() > 0) {
+      // StateImpl UX (top window)
+      for (std::size_t i=0;i<model.ui_states.back()->ux().size();++i) {
+        if (i>0) top_content.push_back('\n');
+        top_content += model.ui_states.back()->ux()[i];
+      }
+      
+      // StateImpl transition UX (Middle window)
+      // iterate as defined by CmdOptions.first (vector of chars)
+      auto ordered_cmd_options_view = [](StateImpl::CmdOptions const& cmd_options) {
+        return cmd_options.first
+          | std::views::transform([&cmd_options](char ch) -> std::pair<char,StateImpl::CmdOption> {
+            return std::make_pair(ch,cmd_options.second.at(ch));
+          });
+      };
+
+      for (auto const& [ch, cmd_option] : ordered_cmd_options_view(model.ui_states.back()->cmd_options())) {
+        std::string entry{};
+        entry.push_back(ch);
+        entry.append(" = ");
+        entry.append(cmd_option.first);
+        entry.push_back('\n');
+        main_content.append(entry);
+      }
+
+      // Also process UpdateOptions (similar to cmd_options)
+      auto ordered_update_options_view = [](StateImpl::UpdateOptions const& update_options) {
+        return update_options.first
+          | std::views::transform([&update_options](char ch) -> std::pair<char,StateImpl::UpdateOption> {
+            return std::make_pair(ch,update_options.second.at(ch));
+          });
+      };
+
+      for (auto const& [ch, update_option] : ordered_update_options_view(model.ui_states.back()->update_options())) {
+        std::string entry{};
+        entry.push_back(ch);
+        entry.append(" = ");
+        entry.append(update_option.first);
+        entry.push_back('\n');
+        main_content.append(entry);
+      }
+    }
+
     // Create the top section with class "content"
     pugi::xml_node top = body.append_child("div");
     top.append_attribute("class") = "content";
-    top.text().set(model.top_content.c_str());
+    top.text().set(top_content.c_str());
 
     // Create the main section with class "content"
     pugi::xml_node main = body.append_child("div");
     main.append_attribute("class") = "content";
-    main.text().set(model.main_content.c_str());
+    main.text().set(main_content.c_str());
 
     // Create the user prompt section with class "user-prompt"
     pugi::xml_node prompt = body.append_child("div");
