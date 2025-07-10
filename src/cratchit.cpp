@@ -36,6 +36,10 @@ namespace first {
       std::optional<S> maybe_state;
       Cmd maybe_null_cmd;
       operator bool() const {return maybe_state.has_value() or maybe_null_cmd != nullptr;}
+      void apply(S& state,Cmd& cmd) const {
+        if (maybe_state) state = *maybe_state;
+        if (maybe_null_cmd) cmd = maybe_null_cmd;
+      }
     };
     using UpdateResult = UpdateResultT<UserInputBufferState>;
 
@@ -219,12 +223,7 @@ namespace first {
     else if (key_msg_ptr != nullptr) {
       auto ch = key_msg_ptr->key;
       if (auto update_result = model.user_input_state.update(msg)) {
-        if (update_result.maybe_state) {
-          model.user_input_state = *update_result.maybe_state;
-        }
-        if (update_result.maybe_null_cmd) {
-          cmd = update_result.maybe_null_cmd;
-        }
+        update_result.apply(model.user_input_state,cmd);
       }      
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
