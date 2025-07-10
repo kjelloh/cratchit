@@ -78,10 +78,6 @@ namespace first {
       return {.maybe_state = state};
     }
         
-    static UpdateResult no_result() {
-      return {.maybe_state = std::nullopt};
-    }
-    
     UserInputBufferState with_buffer(immer::box<std::string> buffer) const {
       UserInputBufferState result = *this;
       result.m_buffer = buffer;
@@ -106,7 +102,7 @@ namespace first {
       else if (!m_buffer->empty() && ch == '\n') {
         return make_result(commit());
       }
-      return no_result(); // Didn't handle this input
+      return make_result(std::nullopt); // Didn't handle this input
     }
     
   };
