@@ -12,6 +12,28 @@
 #include "cargo/EditedItemCargo.hpp"
 
 namespace first {
+
+  namespace tea {
+    template <class S>
+    struct UpdateResultT {
+      std::optional<S> maybe_state;
+      Cmd maybe_null_cmd;
+      operator bool() const {return maybe_state.has_value() or (maybe_null_cmd != nullptr);}
+      void apply(S& target_state,Cmd& target_cmd) {
+        if (maybe_state) target_state = *maybe_state;
+        if (maybe_null_cmd) target_cmd = maybe_null_cmd;
+      }
+    };
+
+    template <class S>
+    UpdateResultT<S> make_update_result(std::pair<std::optional<S>,Cmd> pp) {
+      return {
+         .maybe_state = pp.first
+        ,.maybe_null_cmd = pp.second
+      };
+    }
+
+  }
   
   // ----------------------------------
   class StateImpl {
@@ -20,7 +42,7 @@ namespace first {
     // Refactoring into CmdOptions
     using CmdOption = std::pair<std::string, Cmd>;    
     using CmdOptions = std::pair<std::vector<char>,std::map<char, CmdOption>>;
-
+    
     // Refactor into UpdateOptions - BEGIN
     using UpdateResult = std::pair<std::optional<State>, Cmd>;
     using UpdateOptionFunction = std::function<UpdateResult()>;

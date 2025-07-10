@@ -174,32 +174,30 @@ namespace first {
   std::pair<Model,Cmd> update(Model model, Msg msg) {
     Cmd cmd = Nop;
 
-
-    // HACK /KoH
-    // Convoluted way to call state::dispatch if:
-    //    Input inactive (buffer empty)
-    //    There is a state on the stack
-    //    else terniary -> (null,null)
-    // Then Apply the result if state acted on the msg
-    // Otherwise false (note initializer and bool expression if-construct)
-    // TODO: Try to refactor into something cleaner?
-    bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
-    if (auto [mutated_top, state_cmd] = 
-       (ask_state_to_update) 
-      ?(model.ui_states.back()->dispatch(msg)) /* Do dispatch */
-      :(std::make_pair(std::nullopt,Cmd{}))    /* null */ ; mutated_top or state_cmd) {
-      // State handled the message - apply the changes
-      if (mutated_top) {
-        auto& ref = *mutated_top;
-        spdlog::info("update(model,msg): state::update -> state:{}[{}] <- use_count: {}"
-          ,to_type_name(typeid(ref))
-          ,static_cast<void*>(mutated_top->get())
-          ,mutated_top->use_count());
-        model.ui_states.back() = mutated_top.value(); // replace
+    using TryStateUpdateResult = first::tea::UpdateResultT<State>;
+    auto try_state_update = [&model](Msg const& msg) -> TryStateUpdateResult {
+      bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
+      if (ask_state_to_update) {
+        return tea::make_update_result(model.ui_states.back()->dispatch(msg));
       }
-      if (state_cmd) {
-        spdlog::info("update(model,msg): state::update -> cmd");
-        cmd = state_cmd;
+      return {std::nullopt,Cmd{}};
+    };
+
+    if (auto update_result = try_state_update(msg)) {
+      update_result.apply(model.ui_states.back(),cmd);
+
+      // Logging
+      if (true) {
+        if (update_result.maybe_state) {
+          auto& ref = *update_result.maybe_state;
+          spdlog::info("cratchit::update:  state::update -> state:{}[{}] <- use_count: {}"
+            ,to_type_name(typeid(ref))
+            ,static_cast<void*>(update_result.maybe_state->get())
+            ,update_result.maybe_state->use_count());
+        }
+        if (update_result.maybe_null_cmd) {
+          spdlog::info("cratchit::update:  state::update -> cmd");
+        }
       }
     }
     else if (auto update_result = model.user_input_state.update(msg)) {
@@ -210,12 +208,12 @@ namespace first {
       if (pimpl->m_cargo) {
         // Double dispatch cargo to top state
         const auto &cargo = *pimpl->m_cargo;
-        spdlog::info("PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
-        auto [maybe_new_state, maybe_cmd] = cargo.visit(model.ui_states.back());
-        mutated_top = maybe_new_state;
-        state_cmd = maybe_cmd;
+        spdlog::info("cratchit::update:  PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
+        if (auto update_result = tea::make_update_result(cargo.visit(model.ui_states.back()))) {
+          update_result.apply(model.ui_states.back(),cmd);
+        }
       } else {
-        spdlog::info("PoppedStateCargoMsg: NULL cargo");
+        spdlog::info("cratchit::update:  PoppedStateCargoMsg: NULL cargo");
       }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
@@ -223,13 +221,13 @@ namespace first {
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PopStateMsg>(msg); pimpl != nullptr) {
       if (model.ui_states.size() > 0) {
-        spdlog::info("update(model,msg): Popping top state with use_count: {}", model.ui_states.back().use_count());
+        spdlog::info("cratchit::update:  Popping top state with use_count: {}", model.ui_states.back().use_count());
         auto popped_state = model.ui_states.back();
         model.ui_states.pop_back();
 
         if (true) {
           auto const& ref = *popped_state.get();
-          spdlog::info("update(model,msg): Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
+          spdlog::info("cratchit::update:  Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
         }
 
         cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
@@ -241,12 +239,12 @@ namespace first {
     else {
       // Trace ignored messages
       auto const& ref = *msg;
-      spdlog::info("update(model,msg): Ignored message type: {}", to_type_name(typeid(ref)));
+      spdlog::info("cratchit::update:  Ignored message type: {}", to_type_name(typeid(ref)));
     }
 
     // Dump stack to log
     if (true) {
-      spdlog::info("update(model,msg): State stack size:{}",model.ui_states.size());
+      spdlog::info("cratchit::update:  State stack size:{}",model.ui_states.size());
 
       auto enumerated_view = [](auto && range) {
         return std::views::zip(
