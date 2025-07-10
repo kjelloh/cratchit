@@ -174,38 +174,20 @@ namespace first {
   std::pair<Model,Cmd> update(Model model, Msg msg) {
     Cmd cmd = Nop;
 
-    // HACK - 250709 / KoH
-    // This mechanism helps us know if to ask the state to process the message forst os not.
-    // TODO: Consider to find a cleaner way to separate 'our' model update from state-conscern update? 
-    auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
-    bool ask_state_first =
-          (model.ui_states.size() > 0)
-      and (    (key_msg_ptr == nullptr)
-            or (model.user_input_state.buffer().size() == 0));
 
-    auto [mutated_top, state_cmd] = 
-       (ask_state_first)
-      ?(model.ui_states.back()->dispatch(msg))
-      :(std::make_pair<std::optional<State>,Cmd>({},{}));
-
-    // 250709 - HACK! / KoH
-    // The cargo::visit still takes State (shared_ptr) so we cant move it to StateImpl::default_update just yet
-    if (not (mutated_top or state_cmd)) {
-      if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
-        if (pimpl->m_cargo) {
-          const auto &cargo = *pimpl->m_cargo;
-          spdlog::info("PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
-          auto [maybe_new_state, maybe_cmd] = cargo.visit(model.ui_states.back());
-          mutated_top = maybe_new_state;
-          state_cmd = maybe_cmd;
-        } else {
-          spdlog::info("PoppedStateCargoMsg: NULL cargo");
-        }
-      }
-    }
-
-    // Apply result - if any
-    if (mutated_top or state_cmd) {
+    // HACK /KoH
+    // Convoluted way to call state::dispatch if:
+    //    Input inactive (buffer empty)
+    //    There is a state on the stack
+    //    else terniary -> (null,null)
+    // Then Apply the result if state acted on the msg
+    // Otherwise false (note initializer and bool expression if-construct)
+    // TODO: Try to refactor into something cleaner?
+    bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
+    if (auto [mutated_top, state_cmd] = 
+       (ask_state_to_update) 
+      ?(model.ui_states.back()->dispatch(msg)) /* Do dispatch */
+      :(std::make_pair(std::nullopt,Cmd{}))    /* null */ ; mutated_top or state_cmd) {
       // State handled the message - apply the changes
       if (mutated_top) {
         auto& ref = *mutated_top;
@@ -221,8 +203,21 @@ namespace first {
       }
     }
     else if (auto update_result = model.user_input_state.update(msg)) {
+      // user input state handled the message - apply the changes
       update_result.apply(model.user_input_state,cmd);
-    }      
+    }
+    else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
+      if (pimpl->m_cargo) {
+        // Double dispatch cargo to top state
+        const auto &cargo = *pimpl->m_cargo;
+        spdlog::info("PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
+        auto [maybe_new_state, maybe_cmd] = cargo.visit(model.ui_states.back());
+        mutated_top = maybe_new_state;
+        state_cmd = maybe_cmd;
+      } else {
+        spdlog::info("PoppedStateCargoMsg: NULL cargo");
+      }
+    }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
       model.ui_states.push_back(pimpl->m_state);
     }
