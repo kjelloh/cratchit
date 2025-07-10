@@ -30,15 +30,10 @@ namespace first {
   // ----------------------------------
   class UserInputBufferState {
   public:
-    immer::box<std::string> input_buffer;
     
-    UserInputBufferState() : input_buffer{""} {}
-    explicit UserInputBufferState(immer::box<std::string> buffer) : input_buffer{buffer} {}
-    
-    UserInputBufferState with_input_buffer(immer::box<std::string> buffer) const {
-      return UserInputBufferState{buffer};
-    }
-    
+    UserInputBufferState() : m_input_buffer{""} {}
+    explicit UserInputBufferState(immer::box<std::string> buffer) : m_input_buffer{buffer} {}
+
     std::optional<UserInputBufferState> update(Msg const& msg) const {
       // Only handle NCursesKeyMsg
       auto key_msg = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
@@ -50,26 +45,35 @@ namespace first {
       return handle_char_input(ch);
     }
 
-    std::optional<UserInputBufferState> handle_char_input(int ch) const {
-      if (!input_buffer->empty() && ch == 127) { // Backspace
-        auto new_buffer = input_buffer->substr(0, input_buffer->length() - 1);
-        return with_input_buffer(immer::box<std::string>(new_buffer));
-      }
-      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-        // Add character to buffer (works for both empty and non-empty buffer)
-        auto new_buffer = *input_buffer + static_cast<char>(ch);
-        return with_input_buffer(immer::box<std::string>(new_buffer));
-      }
-      return std::nullopt; // Didn't handle this input
-    }
-    
-    std::string submit_input() const {
-      return *input_buffer;
+    std::string input_buffer() const {
+      return *m_input_buffer;
     }
     
     UserInputBufferState clear_input() const {
       return with_input_buffer(immer::box<std::string>(""));
     }
+
+  private:
+    immer::box<std::string> m_input_buffer;
+    
+    UserInputBufferState with_input_buffer(immer::box<std::string> buffer) const {
+      return UserInputBufferState{buffer};
+    }
+    
+
+    std::optional<UserInputBufferState> handle_char_input(int ch) const {
+      if (!m_input_buffer->empty() && ch == 127) { // Backspace
+        auto new_buffer = m_input_buffer->substr(0, m_input_buffer->length() - 1);
+        return with_input_buffer(immer::box<std::string>(new_buffer));
+      }
+      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
+        // Add character to buffer (works for both empty and non-empty buffer)
+        auto new_buffer = *m_input_buffer + static_cast<char>(ch);
+        return with_input_buffer(immer::box<std::string>(new_buffer));
+      }
+      return std::nullopt; // Didn't handle this input
+    }
+    
   };
 
   // ----------------------------------
@@ -134,7 +138,7 @@ namespace first {
     bool ask_state_first =
           (model.ui_states.size() > 0)
       and (    (key_msg_ptr == nullptr)
-            or (model.user_input_state.input_buffer->size() == 0));
+            or (model.user_input_state.input_buffer().size() == 0));
 
     auto [mutated_top, state_cmd] = 
        (ask_state_first)
@@ -175,11 +179,11 @@ namespace first {
     }
     else if (key_msg_ptr != nullptr) {
       auto ch = key_msg_ptr->key;
-      if (auto new_input_state = model.user_input_state.handle_char_input(ch)) {
+      if (auto new_input_state = model.user_input_state.update(msg)) {
         model.user_input_state = *new_input_state;
       }      
-      else if (!model.user_input_state.input_buffer->empty() && ch == '\n') {
-        cmd = [entry = model.user_input_state.submit_input()]() -> std::optional<Msg> {
+      else if (!model.user_input_state.input_buffer().empty() && ch == '\n') {
+        cmd = [entry = model.user_input_state.input_buffer()]() -> std::optional<Msg> {
           return std::make_shared<UserEntryMsg>(entry);
         };
         model.user_input_state = model.user_input_state.clear_input();
@@ -315,7 +319,7 @@ namespace first {
     prompt.append_attribute("class") = "user-prompt";
     // Add a label element for the prompt text
     pugi::xml_node label = prompt.append_child("label");
-    std::string input_text = *model.user_input_state.input_buffer;
+    std::string input_text = model.user_input_state.input_buffer();
     label.text().set((">" + input_text).c_str());
 
     // Make prompt 'html-correct' (even though render does not care for now)
