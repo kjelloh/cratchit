@@ -148,7 +148,17 @@ namespace first {
       auto [env_slice,slice_period] = cargo.m_payload;
       spdlog::info("ProjectState::apply - Period: {}, Slice size: {}", slice_period.to_string(), env_slice.size());
       std::string section{"HeadingAmountDateTransEntry"};
-      if (m_environment.contains(section) and env_slice.contains(section)) {
+      if ((not m_environment.contains(section)) and env_slice.contains(section)) {
+        spdlog::info("ProjectState::apply - mutated_environment[section] = env_slice.at(section for section:{})", section);
+
+        auto mutated_environment = m_environment;
+        mutated_environment[section] = env_slice.at(section);
+        mutated_state = std::make_shared<ProjectState>(
+            UX{} // no ux (se update_ux())
+          ,this->m_persistent_environment_file
+          ,mutated_environment);
+      }
+      else if (m_environment.contains(section) and env_slice.contains(section)) {
         spdlog::info("ProjectState::apply - Processing section: {}", section);
 
         auto to_date = [](EnvironmentIdValuePair const& pair) -> Date {
