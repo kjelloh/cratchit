@@ -42,7 +42,7 @@ namespace first {
 
       // visit declaration.
       // See definition(s) = specialisation for each concrete cargo type (e.g., HADsCargo)
-      virtual StateUpdateResult visit(State const& state) const;
+      virtual StateUpdateResult visit(State const& state) const override;
 
     };
 

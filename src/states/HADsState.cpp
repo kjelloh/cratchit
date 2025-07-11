@@ -72,46 +72,61 @@ namespace first {
     : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
 
   StateUpdateResult HADsState::update(Msg const& msg) const {
-      if (auto entry_msg_ptr = std::dynamic_pointer_cast<UserEntryMsg>(msg);entry_msg_ptr != nullptr) {
-        spdlog::info("HADsState::update - handling UserEntryMsg");
-        std::string command(entry_msg_ptr->m_entry);
-        auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
-        if (auto had = to_had(tokens)) {
-          auto mutated_hads = this->m_all_hads;
-          mutated_hads.push_back(*had); // TODO: Check that new HAD is in period
-          auto mutated_state = std::make_shared<HADsState>(mutated_hads,m_fiscal_period);
-          return {mutated_state, Cmd{}};
-        }
-        else {
-          spdlog::info("HADsState::update - not a had");
-        }
+    using EditedHADMsg = ItemMsgT<cargo::EditedItem<HAD>>;
+    if (auto entry_msg_ptr = std::dynamic_pointer_cast<UserEntryMsg>(msg);entry_msg_ptr != nullptr) {
+      spdlog::info("HADsState::update - handling UserEntryMsg");
+      std::string command(entry_msg_ptr->m_entry);
+      auto tokens = tokenize::splits(command,tokenize::SplitOn::TextAmountAndDate);
+      if (auto had = to_had(tokens)) {
+        auto mutated_hads = this->m_all_hads;
+        mutated_hads.push_back(*had); // TODO: Check that new HAD is in period
+        auto mutated_state = std::make_shared<HADsState>(mutated_hads,m_fiscal_period);
+        return {mutated_state, Cmd{}};
       }
-      
-      // Didn't handle - fall through to base dispatch
-      return {std::nullopt, Cmd{}};
-  }
-
-  StateUpdateResult HADsState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
-    if (cargo.m_payload.mutation == cargo::ItemMutation::DELETED) {
-      spdlog::info("HADsState::apply - deleting HAD {}",to_string(cargo.m_payload.item));
+      else {
+        spdlog::info("HADsState::update - not a had");
+      }
+    }
+    else if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
+      spdlog::info("HADsState::update - handling EditedHADMsg");
       auto mutated_hads = this->m_all_hads;
       State maybe_state{}; // default none
       // Remove the HAD from the collection in the mutated state
-      if (auto iter = std::ranges::find(mutated_hads,cargo.m_payload.item);iter != mutated_hads.end()) {
-        spdlog::info("HADsState::apply - HAD {} DELETED ok",to_string(*iter));
+      if (auto iter = std::ranges::find(mutated_hads,pimpl->payload.item);iter != mutated_hads.end()) {
         mutated_hads.erase(iter);
+        spdlog::info("HADsState::update - HAD {} DELETED ok",to_string(*iter));
         maybe_state = std::make_shared<HADsState>(mutated_hads,this->m_fiscal_period);
       }
       else {
-        spdlog::error("DESIGN_INSUFFICIENCY: HADsState::apply(cargo::EditedItemCargo<HAD>) failed to find HAD {} to delete",to_string(cargo.m_payload.item));
-      }
-      
+        spdlog::error("DESIGN_INSUFFICIENCY: HADsState::update() for EditedHADMsg failed to find HAD {} to delete",to_string(pimpl->payload.item));
+      }      
       return {maybe_state, Cmd{}};
     }
-
-    // fallback if not handled
-    return StateImpl::apply(cargo);
+ 
+    return {};
   }
+
+  // StateUpdateResult HADsState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
+  //   if (cargo.m_payload.mutation == cargo::ItemMutation::DELETED) {
+  //     spdlog::info("HADsState::apply - deleting HAD {}",to_string(cargo.m_payload.item));
+  //     auto mutated_hads = this->m_all_hads;
+  //     State maybe_state{}; // default none
+  //     // Remove the HAD from the collection in the mutated state
+  //     if (auto iter = std::ranges::find(mutated_hads,cargo.m_payload.item);iter != mutated_hads.end()) {
+  //       spdlog::info("HADsState::apply - HAD {} DELETED ok",to_string(*iter));
+  //       mutated_hads.erase(iter);
+  //       maybe_state = std::make_shared<HADsState>(mutated_hads,this->m_fiscal_period);
+  //     }
+  //     else {
+  //       spdlog::error("DESIGN_INSUFFICIENCY: HADsState::apply(cargo::EditedItemCargo<HAD>) failed to find HAD {} to delete",to_string(cargo.m_payload.item));
+  //     }
+      
+  //     return {maybe_state, Cmd{}};
+  //   }
+
+  //   // fallback if not handled
+  //   return StateImpl::apply(cargo);
+  // }
 
   Cargo HADsState::get_cargo() const {
     return cargo::to_cargo(this->m_all_hads);

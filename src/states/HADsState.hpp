@@ -15,9 +15,10 @@ namespace first {
     HADsState(HADs all_hads,FiscalPeriod fiscal_period);
     HADsState(HADsState const&) = delete; // Force construct from data = ux ok
 
-    virtual StateUpdateResult update(Msg const& msg) const;
-    virtual StateUpdateResult apply(cargo::EditedItemCargo<HAD> const& cargo) const;
-    virtual Cargo get_cargo() const;
+    virtual StateUpdateResult update(Msg const& msg) const override;
+
+    // virtual StateUpdateResult apply(cargo::EditedItemCargo<HAD> const& cargo) const override;
+    virtual Cargo get_cargo() const override;
 
     static StateFactory factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period);
     static StateImpl::CmdOption cmd_option_from(HADs const& all_hads,FiscalPeriod fiscal_period);
