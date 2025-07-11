@@ -12,7 +12,7 @@ namespace first {
     cargo::EditedItem<HAD> m_edited_had;
     HADState(HAD had);
 
-    virtual StateUpdateResult apply(cargo::EditedItemCargo<HAD> const& cargo) const override;
+    // virtual StateUpdateResult apply(cargo::EditedItemCargo<HAD> const& cargo) const override;
     virtual StateUpdateResult update(Msg const& msg) const override;
 
     virtual Cargo get_cargo() const override;

@@ -35,12 +35,12 @@ namespace first {
     return {to_string(had), cmd_from_state_factory(factory_from(had))};
   }
 
-  StateUpdateResult HADState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
-    auto new_state = std::make_shared<HADState>(*this);
-    new_state->m_edited_had = cargo.m_payload;  // Direct assignment!
-    new_state->update_ux();
-    return {new_state, Nop};
-  }
+  // StateUpdateResult HADState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
+  //   auto new_state = std::make_shared<HADState>(*this);
+  //   new_state->m_edited_had = cargo.m_payload;  // Direct assignment!
+  //   new_state->update_ux();
+  //   return {new_state, Nop};
+  // }
   StateUpdateResult HADState::update(Msg const& msg) const {
     using EditedHADMsg = ItemMsgT<cargo::EditedItem<HAD>>;
     if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
