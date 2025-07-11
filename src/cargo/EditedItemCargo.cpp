@@ -7,7 +7,7 @@ namespace first {
 
     // 'visit' specialization for EditedItemCargo<HAD>
     template<>
-    std::pair<std::optional<State>, Cmd>
+    StateUpdateResult
     ConcreteCargo<EditedItem<HeadingAmountDateTransEntry>>::visit(State const& state) const {
       return state->apply(*this);
     }

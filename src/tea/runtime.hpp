@@ -131,10 +131,12 @@ struct Html_Msg {
 template <typename Model, typename Msg, typename Cmd>
 class Runtime {
 public:
-  using Html = Html_Msg<Msg>;
-  using init_fn = std::function<std::tuple<Model,runtime::IsQuit<Msg>,Cmd>()>;
-  using view_fn = std::function<Html(Model)>;
-  using update_fn = std::function<std::pair<Model, Cmd>(Model, Msg)>;
+  using init_result = std::tuple<Model,runtime::IsQuit<Msg>,Cmd>;
+  using init_fn = std::function<init_result()>;
+  using view_result = Html_Msg<Msg>;
+  using view_fn = std::function<view_result(Model)>;
+  using model_update_result = std::pair<Model, Cmd>;
+  using update_fn = std::function<model_update_result(Model, Msg)>;
   Runtime(init_fn init, view_fn view, update_fn update)
       : m_init(init), m_view(view), m_update(update) {};
   int run(int argc, char *argv[]) {

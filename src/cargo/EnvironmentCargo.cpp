@@ -6,7 +6,7 @@ namespace first {
 
     // 'visit' for EnvironmentCargo
     template<>
-    std::pair<std::optional<State>, Cmd>
+    StateUpdateResult
     ConcreteCargo<EnvironmentPeriodSlice>::visit(State const& state) const {
       return state->apply(*this);
     }

@@ -15,8 +15,8 @@ namespace first {
     HADsState(HADs all_hads,FiscalPeriod fiscal_period);
     HADsState(HADsState const&) = delete; // Force construct from data = ux ok
 
-    virtual std::pair<std::optional<State>, Cmd> update(Msg const &msg);
-    virtual std::pair<std::optional<State>, Cmd> apply(cargo::EditedItemCargo<HAD> const& cargo) const;
+    virtual StateUpdateResult update(Msg const &msg);
+    virtual StateUpdateResult apply(cargo::EditedItemCargo<HAD> const& cargo) const;
     virtual Cargo get_cargo() const;
 
     static StateFactory factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period);

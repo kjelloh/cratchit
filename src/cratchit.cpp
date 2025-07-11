@@ -125,14 +125,18 @@ namespace first {
     std::vector<State> ui_states{};
   };
 
+  using CratchitRuntime = Runtime<Model,Msg,Cmd>;
+  using InitResult = CratchitRuntime::init_result;
+  using ModelUpdateResult = CratchitRuntime::model_update_result;
+  using ViewResult = CratchitRuntime::view_result;
+
   // ----------------------------------
   extern bool is_quit_msg(Msg const& msg);
 
   // ----------------------------------
-  extern std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init();
-  extern std::pair<Model,Cmd> update(Model model, Msg msg);
-  extern Html_Msg<Msg> view(const Model &model);
-
+  extern InitResult init();
+  extern ModelUpdateResult update(Model model, Msg msg);
+  extern ViewResult view(const Model &model);
 
   // ----------------------------------
   // ----------------------------------
@@ -171,7 +175,7 @@ namespace first {
   //       At least I trust we get return value optimization?
   //       Fun to explore though...
   //       250630/KoH - use_count for shared_ptrs (e.g., states) will show 2 (passed model + our copy)
-  std::pair<Model,Cmd> update(Model model, Msg msg) {
+  ModelUpdateResult update(Model model, Msg msg) {
     Cmd cmd = Nop;
 
     using TryStateUpdateResult = first::tea::UpdateResultT<State>;
@@ -268,11 +272,10 @@ namespace first {
   }
 
   // ----------------------------------
-  Html_Msg<Msg> view(const Model &model) {
+  ViewResult view(const Model &model) {
     // std::cout << "\nview sais Hello :)" << std::flush;
 
-    // Create a new pugi document
-    Html_Msg<Msg> ui{};
+    ViewResult ui{};
     auto& doc = ui.doc;
 
     // Note: HTML doc may be tested for validity at:

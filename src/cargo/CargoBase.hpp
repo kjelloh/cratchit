@@ -9,7 +9,7 @@ namespace first {
 
     struct AbstractCargo {
       virtual ~AbstractCargo() = default;
-      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const = 0;
+      virtual StateUpdateResult visit(State const& state) const = 0;
     };
 
     // Concrete Cargo struct for Payload P
@@ -27,7 +27,7 @@ namespace first {
 
       // visit declaration.
       // See definition(s) = specialisation for each concrete cargo type (e.g., HADsCargo)
-      virtual std::pair<std::optional<State>, Cmd> visit(State const& state) const;
+      virtual StateUpdateResult visit(State const& state) const;
 
     };
 

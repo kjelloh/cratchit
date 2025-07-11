@@ -71,7 +71,7 @@ namespace first {
   HADsState::HADsState(HADs all_hads,FiscalPeriod fiscal_period) 
     : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
 
-  std::pair<std::optional<State>, Cmd> HADsState::update(Msg const &msg) {
+  StateUpdateResult HADsState::update(Msg const &msg) {
       if (auto entry_msg_ptr = std::dynamic_pointer_cast<UserEntryMsg>(msg);entry_msg_ptr != nullptr) {
         spdlog::info("HADsState::update - handling UserEntryMsg");
         std::string command(entry_msg_ptr->m_entry);
@@ -91,7 +91,7 @@ namespace first {
       return {std::nullopt, Cmd{}};
   }
 
-  std::pair<std::optional<State>, Cmd> HADsState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
+  StateUpdateResult HADsState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
     if (cargo.m_payload.mutation == cargo::ItemMutation::DELETED) {
       spdlog::info("HADsState::apply - deleting HAD {}",to_string(cargo.m_payload.item));
       auto mutated_hads = this->m_all_hads;

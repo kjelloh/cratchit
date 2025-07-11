@@ -40,7 +40,7 @@ namespace first {
 
 
   // ----------------------------------
-  std::pair<std::optional<State>, Cmd> StateImpl::dispatch(Msg const& msg) {
+  StateUpdateResult StateImpl::dispatch(Msg const& msg) {
     spdlog::info("StateImpl::dispatch(msg) - BEGIN");
     
     // Try virtual update first
@@ -57,27 +57,27 @@ namespace first {
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>, Cmd> StateImpl::update(Msg const& msg) {
+  StateUpdateResult StateImpl::update(Msg const& msg) {
     spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
     return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::DummyCargo const& cargo) const {
+  StateUpdateResult StateImpl::apply(cargo::DummyCargo const& cargo) const {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::HADsCargo const& cargo) const {
+  StateUpdateResult StateImpl::apply(cargo::HADsCargo const& cargo) const {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::EnvironmentCargo const& cargo) const {
+  StateUpdateResult StateImpl::apply(cargo::EnvironmentCargo const& cargo) const {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
+  StateUpdateResult StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
     return {std::nullopt,Nop}; // Default - no StateImpl mutation
   }
 
@@ -123,7 +123,7 @@ namespace first {
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::default_update(Msg const& msg) {
+  StateUpdateResult StateImpl::default_update(Msg const& msg) {
     spdlog::info("StateImpl::default_update(msg) - BEGIN");
 
     // Handle NCursesKeyMsg messages by delegating to update(char)
@@ -136,7 +136,7 @@ namespace first {
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>, Cmd> StateImpl::default_update(char ch) const {
+  StateUpdateResult StateImpl::default_update(char ch) const {
     spdlog::info("StateImpl::default_update(key) - BEGIN");
 
     Cmd cmd{}; // null

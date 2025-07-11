@@ -35,7 +35,7 @@ namespace first {
     return {to_string(had), cmd_from_state_factory(factory_from(had))};
   }
 
-  std::pair<std::optional<State>, Cmd> HADState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
+  StateUpdateResult HADState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
     auto new_state = std::make_shared<HADState>(*this);
     new_state->m_edited_had = cargo.m_payload;  // Direct assignment!
     new_state->update_ux();

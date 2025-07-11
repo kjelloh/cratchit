@@ -68,7 +68,7 @@ namespace first {
     m_persistent_environment_file.update(m_environment); // Save the environment to file
   }
 
-  std::pair<std::optional<State>, Cmd> ProjectState::update(Msg const& msg) {
+  StateUpdateResult ProjectState::update(Msg const& msg) {
       spdlog::info("ProjectState::update - didn't handle message");
       return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
@@ -140,7 +140,7 @@ namespace first {
       std::set<typename T::const_iterator> m_removed;
     };
 
-    std::pair<std::optional<State>, Cmd> ProjectState::apply(cargo::EnvironmentCargo const &cargo) const {
+    StateUpdateResult ProjectState::apply(cargo::EnvironmentCargo const &cargo) const {
       std::optional<State> mutated_state{};
       Cmd cmd{Nop};
       spdlog::info("ProjectState::apply - Received EnvironmentCargo");
