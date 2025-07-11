@@ -125,7 +125,7 @@ namespace first {
     std::vector<State> ui_states{};
   };
 
-  using CratchitRuntime = Runtime<Model,Msg,Cmd>;
+  using CratchitRuntime = TEA::Runtime<Model,Msg,Cmd>;
   using InitResult = CratchitRuntime::init_result;
   using ModelUpdateResult = CratchitRuntime::model_update_result;
   using ViewResult = CratchitRuntime::view_result;
@@ -158,7 +158,7 @@ namespace first {
   }
 
   // ----------------------------------
-  std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
+  InitResult init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
     Model model{}; // Default initialization
 
@@ -366,9 +366,7 @@ namespace first {
   // ----------------------------------
 
   int main(int argc, char *argv[]) {
-    // std::cout << "\nFirst sais Hello :)" << std::flush;
-    Runtime<Model,Msg,Cmd> app(init,view,update);
-    // std::cout << "\nFirst to call run :)" << std::flush;
+    TEA::Runtime<Model,Msg,Cmd> app(init,view,update);
     return app.run(argc,argv);
   }
 } // namespace first
