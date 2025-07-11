@@ -178,11 +178,11 @@ namespace first {
   ModelUpdateResult update(Model model, Msg msg) {
     Cmd cmd = Nop;
 
-    using TryStateUpdateResult = first::tea::UpdateResultT<State>;
+    using TryStateUpdateResult = TEA::UpdateResultT<State,Cmd>;
     auto try_state_update = [&model](Msg const& msg) -> TryStateUpdateResult {
       bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
       if (ask_state_to_update) {
-        return tea::make_update_result(model.ui_states.back()->dispatch(msg));
+        return TEA::make_update_result(model.ui_states.back()->dispatch(msg));
       }
       return {std::nullopt,Cmd{}};
     };
@@ -213,7 +213,7 @@ namespace first {
         // Double dispatch cargo to top state
         const auto &cargo = *pimpl->m_cargo;
         spdlog::info("cratchit::update:  PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
-        if (auto update_result = tea::make_update_result(cargo.visit(model.ui_states.back()))) {
+        if (auto update_result = TEA::make_update_result(cargo.visit(model.ui_states.back()))) {
           update_result.apply(model.ui_states.back(),cmd);
         }
       } else {
