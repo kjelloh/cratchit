@@ -1,6 +1,6 @@
 #pragma once
 #include "tea/event.hpp" // Event
-#include "msg.hpp"  // Msg
+#include "msgs/msg.hpp"  // Msg
 
 namespace first {
 

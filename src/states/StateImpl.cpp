@@ -2,7 +2,7 @@
 #include "to_type_name.hpp"
 #include <spdlog/spdlog.h>
 #include <unicode/uchar.h>  // for u_isprint
-#include "msg.hpp"  // for NCursesKeyMsg
+#include "msgs/msg.hpp"  // for NCursesKeyMsg
 
 namespace first {
 

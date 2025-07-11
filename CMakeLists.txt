@@ -38,7 +38,7 @@ add_executable(cratchit
         src/cratchit.cpp 
         src/main.cpp 
         src/mod10view.cpp
-        src/msg.cpp
+        src/msgs/msg.cpp
         src/cmd.cpp
         src/sub.cpp
         src/states/StateImpl.cpp
