@@ -62,8 +62,7 @@ add_executable(cratchit
         src/cargo/EnvironmentCargo.cpp
         src/cargo/EditedItemCargo.cpp
         src/cargo/CargoBase.cpp
-        src/states/FiscalPeriodState.cpp
-        src/states/DeleteItemState.cpp)
+        src/states/FiscalPeriodState.cpp)
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)

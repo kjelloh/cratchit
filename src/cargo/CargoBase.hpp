@@ -7,6 +7,21 @@ namespace first {
 
   namespace cargo {
 
+    enum class ItemMutation {
+      UNCHANGED,
+      MODIFIED, 
+      DELETED
+    };
+    
+    template<typename T>
+    struct EditedItem {
+      T item;
+      ItemMutation mutation;
+      
+      EditedItem(T item, ItemMutation mutation) 
+        : item(item), mutation(mutation) {}
+    };
+
     struct AbstractCargo {
       virtual ~AbstractCargo() = default;
       virtual StateUpdateResult visit(State const& state) const = 0;

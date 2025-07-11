@@ -23,6 +23,12 @@ namespace first {
     PopStateMsg() = default;
   };
 
+  template<class Payload>
+  struct ItemMsgT : public MsgImpl {
+    Payload payload;
+    ItemMsgT(Payload const& payload) : payload(payload) {}
+  };
+
   // ----------------------------------
   struct PoppedStateCargoMsg : public MsgImpl {
     Cargo m_cargo{};

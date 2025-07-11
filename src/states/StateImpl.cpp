@@ -40,7 +40,7 @@ namespace first {
 
 
   // ----------------------------------
-  StateUpdateResult StateImpl::dispatch(Msg const& msg) {
+  StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
     spdlog::info("StateImpl::dispatch(msg) - BEGIN");
     
     // Try virtual update first
@@ -56,7 +56,7 @@ namespace first {
   }
 
   // ----------------------------------
-  StateUpdateResult StateImpl::update(Msg const& msg) {
+  StateUpdateResult StateImpl::update(Msg const& msg) const {
     spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
     return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
@@ -128,7 +128,7 @@ namespace first {
   }
 
   // ----------------------------------
-  StateUpdateResult StateImpl::default_update(Msg const& msg) {
+  StateUpdateResult StateImpl::default_update(Msg const& msg) const {
     spdlog::info("StateImpl::default_update(msg) - BEGIN");
 
     // Handle NCursesKeyMsg messages by delegating to update(char)

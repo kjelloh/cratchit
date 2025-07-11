@@ -41,6 +41,16 @@ namespace first {
     new_state->update_ux();
     return {new_state, Nop};
   }
+  StateUpdateResult HADState::update(Msg const& msg) const {
+    using EditedHADMsg = ItemMsgT<cargo::EditedItem<HAD>>;
+    if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
+      auto new_state = std::make_shared<HADState>(*this);
+      new_state->m_edited_had = pimpl->payload;
+      new_state->update_ux();
+      return {new_state, Nop};
+    }
+    return {};
+  }
 
   Cargo HADState::get_cargo() const {
     return cargo::to_cargo(m_edited_had);

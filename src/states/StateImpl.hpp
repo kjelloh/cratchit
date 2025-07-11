@@ -37,7 +37,7 @@ namespace first {
     UX &ux();
     CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
     UpdateOptions const &update_options() const;
-    StateUpdateResult dispatch(Msg const& msg);    
+    StateUpdateResult dispatch(Msg const& msg) const;    
     virtual StateUpdateResult apply(cargo::DummyCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
@@ -56,8 +56,8 @@ namespace first {
   private:
     CmdOptions m_cmd_options; // // Refactoring into CmdOptions
 
-    virtual StateUpdateResult update(Msg const& msg);
-    StateUpdateResult default_update(Msg const& msg);
+    virtual StateUpdateResult update(Msg const& msg) const;
+    StateUpdateResult default_update(Msg const& msg) const;
     StateUpdateResult default_update(char key) const;
 
   }; // StateImpl

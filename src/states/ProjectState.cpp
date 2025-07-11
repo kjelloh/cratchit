@@ -68,7 +68,7 @@ namespace first {
     m_persistent_environment_file.update(m_environment); // Save the environment to file
   }
 
-  StateUpdateResult ProjectState::update(Msg const& msg) {
+  StateUpdateResult ProjectState::update(Msg const& msg) const {
       spdlog::info("ProjectState::update - didn't handle message");
       return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }

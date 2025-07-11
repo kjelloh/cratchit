@@ -16,7 +16,7 @@ namespace first {
     FiscalPeriodState(FiscalPeriodState const&) = delete; // Force to clone from actual data
     FiscalPeriodState(StateImpl::UX ux,FiscalPeriod fiscal_period,HeadingAmountDateTransEntries period_hads);
     FiscalPeriodState(StateImpl::UX ux,FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
-    virtual StateUpdateResult update(Msg const &msg) override;
+    virtual StateUpdateResult update(Msg const& msg) const override;
     virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const override;
     virtual Cargo get_cargo() const override;
 

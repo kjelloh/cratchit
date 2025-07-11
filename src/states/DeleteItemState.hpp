@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StateImpl.hpp"
+#include "msgs/msg.hpp"
 #include <format>
 
 namespace first {
@@ -8,7 +9,8 @@ namespace first {
   template <typename T>
   struct DeleteItemState : public StateImpl {
     using Item = T;
-    cargo::EditedItem<Item> m_edited_item;
+    using EditedItem = cargo::EditedItem<Item>;
+    EditedItem m_edited_item;
 
     DeleteItemState(Item item)
       : m_edited_item{item, cargo::ItemMutation::UNCHANGED}, StateImpl({}) {
@@ -27,6 +29,9 @@ namespace first {
 
     virtual Cargo get_cargo() const override {
       return cargo::to_cargo(m_edited_item);
+    }
+    virtual std::optional<Msg> get_on_destruct_msg() const override {
+      return std::make_shared<ItemMsgT<cargo::EditedItem<Item>>>(m_edited_item);
     }
 
     static StateFactory factory_from(DeleteItemState::Item const& item) {

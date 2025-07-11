@@ -178,6 +178,13 @@ namespace first {
   ModelUpdateResult update(Model model, Msg msg) {
     Cmd cmd = Nop;
 
+    if (model.ui_states.size()>0 and model.ui_states.back() == nullptr) {
+      spdlog::error("cratchit::update: DESIGN_INSUFFICIENCY - nullptr on stack!");
+      model.ui_states.pop_back();
+      spdlog::error("cratchit::update: nullptr popped");
+      return {model,Nop};
+    }
+
     auto try_state_update = [&model](Msg const& msg) -> StateUpdateResult {
       bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
       if (ask_state_to_update) {
@@ -220,7 +227,12 @@ namespace first {
       }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
-      model.ui_states.push_back(pimpl->m_state);
+      if (pimpl->m_state != nullptr) {
+        model.ui_states.push_back(pimpl->m_state);
+      }
+      else {
+        spdlog::error("cratchit::update: DESIGN_INSUFFICIENCY - PushStateMsg carried new_state == nullptr");
+      }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PopStateMsg>(msg); pimpl != nullptr) {
       if (model.ui_states.size() > 0) {
@@ -235,6 +247,9 @@ namespace first {
 
         // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
         if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
+          auto const& ref = *(*on_destruct_msg).get();
+          spdlog::info("cratchit::update: popped_state provided on_destruct_msg {}", to_type_name(typeid(ref)));
+
           cmd = [on_destruct_msg]() {
             return on_destruct_msg;
           };
@@ -265,12 +280,21 @@ namespace first {
       };
 
       for (auto const& [index,m] :  enumerated_view(model.ui_states)) {
-        auto& ref = *m; // Silence typeid(*m) warning about side effects
-        spdlog::info("   {}: {}[{}] <- use_count: {}"
-          ,index
-          ,to_type_name(typeid(ref))
-          ,static_cast<void*>(m.get())
-          ,m.use_count());
+        if (m != nullptr) {
+          auto& ref = *m; // Silence typeid(*m) warning about side effects
+          spdlog::info("   {}: {}[{}] <- use_count: {}"
+            ,index
+            ,to_type_name(typeid(ref))
+            ,static_cast<void*>(m.get())
+            ,m.use_count());
+        }
+        else {
+          spdlog::info("   {}: {}[{}] <- use_count: {}"
+            ,index
+            ,"NULL"
+            ,static_cast<void*>(nullptr)
+            ,-1);
+        }
       }
     }
 
@@ -298,8 +322,12 @@ namespace first {
     // Generate UI content from current state (TEA-style)
     std::string top_content;
     std::string main_content;
-    
-    if (model.ui_states.size() > 0) {
+        
+    if (model.ui_states.size() > 0 and model.ui_states.back() == nullptr) {
+      spdlog::error("cratchit::view: DESIGN_INSUFFICIENCY - No view for nullptr on stack!");
+    }
+    else if (model.ui_states.size() > 0) {
+
       // StateImpl UX (top window)
       for (std::size_t i=0;i<model.ui_states.back()->ux().size();++i) {
         if (i>0) top_content.push_back('\n');

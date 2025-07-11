@@ -32,7 +32,7 @@ namespace first {
     ,Environment const &parent_environment_ref)
       : FiscalPeriodState(ux,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
 
-  StateUpdateResult FiscalPeriodState::update(Msg const &msg) {
+  StateUpdateResult FiscalPeriodState::update(Msg const& msg) const {
     // Not used for now ( See apply for update on child state Cargo)
     spdlog::info("FiscalPeriodState::update - didn't handle message");
     return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback

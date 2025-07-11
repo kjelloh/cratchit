@@ -15,7 +15,7 @@ namespace first {
     HADsState(HADs all_hads,FiscalPeriod fiscal_period);
     HADsState(HADsState const&) = delete; // Force construct from data = ux ok
 
-    virtual StateUpdateResult update(Msg const &msg);
+    virtual StateUpdateResult update(Msg const& msg) const;
     virtual StateUpdateResult apply(cargo::EditedItemCargo<HAD> const& cargo) const;
     virtual Cargo get_cargo() const;
 

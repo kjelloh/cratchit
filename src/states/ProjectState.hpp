@@ -23,7 +23,7 @@ namespace first {
       ,PersistentFile<Environment> persistent_environment_file
       ,Environment environment);
     virtual ~ProjectState() override;
-    virtual StateUpdateResult update(Msg const &msg) override;
+    virtual StateUpdateResult update(Msg const& msg) const override;
     virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const override;
     virtual Cargo get_cargo() const override;
     
