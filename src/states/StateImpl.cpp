@@ -44,8 +44,7 @@ namespace first {
     spdlog::info("StateImpl::dispatch(msg) - BEGIN");
     
     // Try virtual update first
-    auto result = this->update(msg);
-    if (result.first or result.second) {
+    if (auto result = this->update(msg)) {
       // Derived state handled the message
       spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
       return result;
@@ -160,26 +159,6 @@ namespace first {
     else if (this->cmd_options().second.contains(ch)) {
       cmd = this->cmd_options().second.at(ch).second;
     }
-    // else if (not m_input_buffer.empty() and ch == 127) { // Backspace
-    //   auto new_state = std::make_shared<StateImpl>(*this);
-    //   new_state->m_input_buffer.pop_back();
-    //   mutated_state = new_state;
-    // }
-    // else if (not m_input_buffer.empty() and ch == '\n') { // Enter - submit input
-    //   cmd = [entry = m_input_buffer]() -> std::optional<Msg> {
-    //     return std::make_shared<UserEntryMsg>(entry);
-    //   };
-    //   // Clear input buffer
-    //   auto new_state = std::make_shared<StateImpl>(*this);
-    //   new_state->m_input_buffer.clear();
-    //   mutated_state = new_state;
-    // }
-    // else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-    //   // Add character to input buffer (works for both empty and non-empty buffer)
-    //   auto new_state = std::make_shared<StateImpl>(*this);
-    //   new_state->m_input_buffer.push_back(ch);
-    //   mutated_state = new_state;
-    // }
     else {
       spdlog::info("StateImpl::update(ch) - ignored message");
     }

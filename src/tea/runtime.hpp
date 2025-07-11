@@ -129,25 +129,6 @@ namespace TEA {
 
 namespace TEA {
 
-  template <class S, class MaybeNullC>
-  struct UpdateResultT {
-    std::optional<S> maybe_state;
-    MaybeNullC maybe_null_cmd;
-    operator bool() const {return maybe_state.has_value() or (maybe_null_cmd != nullptr);}
-    void apply(S& target_state_ref,MaybeNullC& target_cmd_ref) {
-      if (maybe_state) target_state_ref = *maybe_state;
-      if (maybe_null_cmd) target_cmd_ref = maybe_null_cmd;
-    }
-  };
-
-  template <class S, class MaybeNullC>
-  UpdateResultT<S,MaybeNullC> make_update_result(std::pair<std::optional<S>,MaybeNullC> pp) {
-    return {
-        .maybe_state = pp.first
-      ,.maybe_null_cmd = pp.second
-    };
-  }
-
   namespace runtime {
     template <typename Msg>
     using IsQuit = std::function<bool(Msg)>;
