@@ -15,7 +15,7 @@ namespace first {
       ux().clear();
       ux().push_back(std::format("Delete: {} ?", to_string(item)));
 
-      this->add_update_option('y', {"Yes", [this]() -> UpdateResult {
+      this->add_update_option('y', {"Yes", [this]() -> StateUpdateResult {
         auto new_state = std::make_shared<DeleteItemState<Item>>(*this);
         new_state->m_edited_item.mutation = cargo::ItemMutation::DELETED;
         return {new_state, []() -> std::optional<Msg> { 

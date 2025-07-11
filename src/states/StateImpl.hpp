@@ -22,8 +22,7 @@ namespace first {
     using CmdOptions = std::pair<std::vector<char>,std::map<char, CmdOption>>;
     
     // Refactor into UpdateOptions - BEGIN
-    using UpdateResult = StateUpdateResult;
-    using UpdateOptionFunction = std::function<UpdateResult()>;
+    using UpdateOptionFunction = std::function<StateUpdateResult()>;
     using UpdateOption = std::pair<std::string,UpdateOptionFunction>;
     using UpdateOptions = std::pair<std::vector<char>,std::map<char, UpdateOption>>;
     void add_update_option(char ch, UpdateOption const &option);
