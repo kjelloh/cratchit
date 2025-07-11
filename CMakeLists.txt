@@ -9,12 +9,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)  # Disable compiler-specific extensions (e.g., -st
 message(STATUS "C++ Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "C++ Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(-fmax-errors=5)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    add_compile_options(-ferror-limit=5)
+# Add a cache variable with default value (empty means no limit)
+set(MAX_COMPILE_ERRORS "" CACHE STRING "Maximum number of compilation errors to show")
+
+# Apply the flag if the variable is set
+if(MAX_COMPILE_ERRORS)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-fmax-errors=${MAX_COMPILE_ERRORS})
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-ferror-limit=${MAX_COMPILE_ERRORS})
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        add_compile_options(/errorReport:${MAX_COMPILE_ERRORS})
+    endif()
+    message(STATUS "Compile error limit set to: ${MAX_COMPILE_ERRORS}")
 else()
-    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}. Cannot set error limit.")
+    message(STATUS "No compile error limit set (unlimited errors)")
 endif()
 
 find_package(sol2 REQUIRED)
