@@ -42,7 +42,10 @@ namespace first {
     virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const;
+
+    // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
     virtual Cargo get_cargo() const;
+    virtual std::optional<Msg> get_on_destruct_msg() const;
 
     // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)
     static Cmd cmd_from_state_factory(StateFactory factory);

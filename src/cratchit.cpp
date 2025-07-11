@@ -233,10 +233,19 @@ namespace first {
           spdlog::info("cratchit::update:  Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
         }
 
-        cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
-          auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
-          return msg;
-        };
+        // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
+        if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
+          cmd = [on_destruct_msg]() {
+            return on_destruct_msg;
+          };
+        }
+        else {
+          cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
+            auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
+            return msg;
+          };
+        }
+
       }
     }
     else {
