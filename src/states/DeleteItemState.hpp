@@ -27,9 +27,9 @@ namespace first {
       this->add_cmd_option('n', {"No", Nop});
     }
 
-    virtual Cargo get_cargo() const override {
-      return cargo::to_cargo(m_edited_item);
-    }
+    // virtual Cargo get_cargo() const override {
+    //   return cargo::to_cargo(m_edited_item);
+    // }
     virtual std::optional<Msg> get_on_destruct_msg() const override {
       return std::make_shared<ItemMsgT<cargo::EditedItem<Item>>>(m_edited_item);
     }

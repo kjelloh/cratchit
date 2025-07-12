@@ -52,9 +52,9 @@ namespace first {
     return {};
   }
 
-  Cargo HADState::get_cargo() const {
-    return cargo::to_cargo(m_edited_had);
-  }
+  // Cargo HADState::get_cargo() const {
+  //   return cargo::to_cargo(m_edited_had);
+  // }
   std::optional<Msg> HADState::get_on_destruct_msg() const {
     using EditedHADMsg = ItemMsgT<cargo::EditedItem<HAD>>;
     return std::make_shared<EditedHADMsg>(m_edited_had);
