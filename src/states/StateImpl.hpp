@@ -9,7 +9,6 @@
 #include "cargo/CargoBase.hpp"
 #include "cargo/HADsCargo.hpp"
 #include "cargo/EnvironmentCargo.hpp"
-#include "cargo/EditedItemCargo.hpp"
 
 namespace first {  
 
@@ -41,7 +40,7 @@ namespace first {
     virtual StateUpdateResult apply(cargo::DummyCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
-    virtual StateUpdateResult apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const;
+    // virtual StateUpdateResult apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const;
 
     // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
     virtual Cargo get_cargo() const;

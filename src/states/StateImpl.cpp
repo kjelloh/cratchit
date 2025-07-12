@@ -76,9 +76,9 @@ namespace first {
   }
 
   // ----------------------------------
-  StateUpdateResult StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
-    return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  }
+  // StateUpdateResult StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
+  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  // }
 
   // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
   Cargo StateImpl::get_cargo() const {

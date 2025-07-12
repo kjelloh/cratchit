@@ -60,7 +60,6 @@ add_executable(cratchit
         src/fiscal/SKVFramework.cpp
         src/cargo/HADsCargo.cpp
         src/cargo/EnvironmentCargo.cpp
-        src/cargo/EditedItemCargo.cpp
         src/cargo/CargoBase.cpp
         src/states/FiscalPeriodState.cpp)
 
