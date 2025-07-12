@@ -42,6 +42,7 @@ namespace first {
   struct PopStateMsg : public MsgImpl {
     Msg m_maybe_null_cargo_msg;
     PopStateMsg() = default;
+    PopStateMsg(Msg const& cargo_msg);
   };
 
 

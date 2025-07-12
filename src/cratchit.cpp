@@ -251,7 +251,7 @@ namespace first {
         // TODO: Consider PopStateMsg::m_maybe_null_cargo_msg mechanism?
         if (auto maybe_null_cargo_msg = pimpl->m_maybe_null_cargo_msg) {
           auto const& ref = *maybe_null_cargo_msg;
-          spdlog::info("cratchit::update: popped_state provided maybe_null_cargo_msg {}", to_type_name(typeid(ref)));
+          spdlog::info("cratchit::update: PopStateMsg provided maybe_null_cargo_msg {}", to_type_name(typeid(ref)));
 
           cmd = [maybe_null_cargo_msg]() {
             return maybe_null_cargo_msg;

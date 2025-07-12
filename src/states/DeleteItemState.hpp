@@ -18,10 +18,13 @@ namespace first {
       ux().push_back(std::format("Delete: {} ?", to_string(item)));
 
       this->add_update_option('y', {"Yes", [this]() -> StateUpdateResult {
+        using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
         auto new_state = std::make_shared<DeleteItemState<Item>>(*this);
         new_state->m_edited_item.mutation = cargo::ItemMutation::DELETED;
-        return {new_state, []() -> std::optional<Msg> { 
-          return std::make_shared<PopStateMsg>(); 
+        return {new_state, [payload = new_state->m_edited_item]() -> std::optional<Msg> { 
+          return std::make_shared<PopStateMsg>(
+            std::make_shared<EditedHADMsg>(payload)
+          ); 
         }};
       }});
       this->add_cmd_option('n', {"No", Nop});
@@ -30,9 +33,9 @@ namespace first {
     // virtual Cargo get_cargo() const override {
     //   return cargo::to_cargo(m_edited_item);
     // }
-    virtual std::optional<Msg> get_on_destruct_msg() const override {
-      return std::make_shared<CargoMsgT<cargo::EditedItem<Item>>>(m_edited_item);
-    }
+    // virtual std::optional<Msg> get_on_destruct_msg() const override {
+    //   return std::make_shared<CargoMsgT<cargo::EditedItem<Item>>>(m_edited_item);
+    // }
 
     static StateFactory factory_from(DeleteItemState::Item const& item) {
       return [item]() {
