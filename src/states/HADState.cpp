@@ -42,7 +42,7 @@ namespace first {
   //   return {new_state, Nop};
   // }
   StateUpdateResult HADState::update(Msg const& msg) const {
-    using EditedHADMsg = ItemMsgT<cargo::EditedItem<HAD>>;
+    using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
     if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
       auto new_state = std::make_shared<HADState>(*this);
       new_state->m_edited_had = pimpl->payload;
@@ -56,7 +56,7 @@ namespace first {
   //   return cargo::to_cargo(m_edited_had);
   // }
   std::optional<Msg> HADState::get_on_destruct_msg() const {
-    using EditedHADMsg = ItemMsgT<cargo::EditedItem<HAD>>;
+    using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
     return std::make_shared<EditedHADMsg>(m_edited_had);
   }
 

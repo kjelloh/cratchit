@@ -31,7 +31,7 @@ namespace first {
     //   return cargo::to_cargo(m_edited_item);
     // }
     virtual std::optional<Msg> get_on_destruct_msg() const override {
-      return std::make_shared<ItemMsgT<cargo::EditedItem<Item>>>(m_edited_item);
+      return std::make_shared<CargoMsgT<cargo::EditedItem<Item>>>(m_edited_item);
     }
 
     static StateFactory factory_from(DeleteItemState::Item const& item) {

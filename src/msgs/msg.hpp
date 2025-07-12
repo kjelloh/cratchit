@@ -14,19 +14,10 @@ namespace first {
   struct Quit : public MsgImpl {};
 
   // ----------------------------------
-  struct PushStateMsg : public MsgImpl {
-    State m_state{};
-    PushStateMsg(State const &state);
-  };
-
-  struct PopStateMsg : public MsgImpl {
-    PopStateMsg() = default;
-  };
-
   template<class Payload>
-  struct ItemMsgT : public MsgImpl {
+  struct CargoMsgT : public MsgImpl {
     Payload payload;
-    ItemMsgT(Payload const& payload) : payload(payload) {}
+    CargoMsgT(Payload const& payload) : payload(payload) {}
   };
 
   // ----------------------------------
@@ -35,10 +26,24 @@ namespace first {
     PoppedStateCargoMsg(Cargo const& cargo);
   };
 
+  // ----------------------------------
   struct UserEntryMsg : public MsgImpl {
     std::string m_entry;
     UserEntryMsg(std::string entry);
   };
+
+  // ----------------------------------
+  struct PushStateMsg : public MsgImpl {
+    State m_state{};
+    PushStateMsg(State const &state);
+  };
+
+  // ----------------------------------
+  struct PopStateMsg : public MsgImpl {
+    Msg m_maybe_null_cargo_msg;
+    PopStateMsg() = default;
+  };
+
 
   // ----------------------------------
   extern Msg const QUIT_MSG;

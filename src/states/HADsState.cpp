@@ -72,7 +72,7 @@ namespace first {
     : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
 
   StateUpdateResult HADsState::update(Msg const& msg) const {
-    using EditedHADMsg = ItemMsgT<cargo::EditedItem<HAD>>;
+    using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
     if (auto entry_msg_ptr = std::dynamic_pointer_cast<UserEntryMsg>(msg);entry_msg_ptr != nullptr) {
       spdlog::info("HADsState::update - handling UserEntryMsg");
       std::string command(entry_msg_ptr->m_entry);

@@ -245,8 +245,20 @@ namespace first {
           spdlog::info("cratchit::update:  Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
         }
 
-        // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
-        if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
+        // 20250712/KoH - We have three candidates in flight for passing cargo child -> parent state
+        //                Decide on one and refactor the others away
+
+        // TODO: Consider PopStateMsg::m_maybe_null_cargo_msg mechanism?
+        if (auto maybe_null_cargo_msg = pimpl->m_maybe_null_cargo_msg) {
+          auto const& ref = *maybe_null_cargo_msg;
+          spdlog::info("cratchit::update: popped_state provided maybe_null_cargo_msg {}", to_type_name(typeid(ref)));
+
+          cmd = [maybe_null_cargo_msg]() {
+            return maybe_null_cargo_msg;
+          };
+        }
+        // TODO: Consider get_on_destruct_msg mechanism?
+        else if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
           auto const& ref = *(*on_destruct_msg).get();
           spdlog::info("cratchit::update: popped_state provided on_destruct_msg {}", to_type_name(typeid(ref)));
 
@@ -254,6 +266,7 @@ namespace first {
             return on_destruct_msg;
           };
         }
+        // TODO: Consider to replace 'Cargo' double dispatch (visit/apply) with cargo message passing?
         else {
           cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
             auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
