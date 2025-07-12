@@ -46,10 +46,7 @@ namespace first {
       // Changes has been made
       spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo) - HADs has changed. payload size: {}",
                    cargo.m_payload.size());
-      mutated_state = std::make_shared<FiscalPeriodState>(
-         UX{}
-        ,this->m_fiscal_period
-        ,cargo.m_payload);
+      mutated_state = to_cloned(*this, UX{}, this->m_fiscal_period, cargo.m_payload);
     }
     return {mutated_state, cmd};
   }

@@ -80,7 +80,7 @@ namespace first {
       if (auto had = to_had(tokens)) {
         auto mutated_hads = this->m_all_hads;
         mutated_hads.push_back(*had); // TODO: Check that new HAD is in period
-        auto mutated_state = std::make_shared<HADsState>(mutated_hads,m_fiscal_period);
+        std::shared_ptr<HADsState> mutated_state = to_cloned(*this, mutated_hads, m_fiscal_period);
         return {mutated_state, Cmd{}};
       }
       else {
@@ -95,7 +95,7 @@ namespace first {
       if (auto iter = std::ranges::find(mutated_hads,pimpl->payload.item);iter != mutated_hads.end()) {
         mutated_hads.erase(iter);
         spdlog::info("HADsState::update - HAD {} DELETED ok",to_string(*iter));
-        maybe_state = std::make_shared<HADsState>(mutated_hads,this->m_fiscal_period);
+        maybe_state = to_cloned(*this, mutated_hads, this->m_fiscal_period);
       }
       else {
         spdlog::error("DESIGN_INSUFFICIENCY: HADsState::update() for EditedHADMsg failed to find HAD {} to delete",to_string(pimpl->payload.item));
