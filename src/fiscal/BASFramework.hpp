@@ -142,7 +142,7 @@ namespace BAS {
 		struct JournalEntry_t {
 			std::string caption{};
 			Date date{};
-			T account_transactions;
+			T account_transactions{};
 		};
 		using JournalEntry = JournalEntry_t<AccountTransactions>;
 		using OptionalJournalEntry = std::optional<JournalEntry>;

@@ -13,6 +13,11 @@
 namespace first {  
 
   // ----------------------------------
+  // TODO: Consider to make it more explicit that States are NOT copyable.
+  //       For now this base class has the copy constructor deleted.
+  //       The reason is that UpdateOptions (and as long as they exist CmdOptions)
+  //       must be 'refreshed' for each new instance. This is beacuse they
+  //       are allowed to define lambdas that captures 'this'.
   class StateImpl {
   public:
     using UX = std::vector<std::string>;
@@ -29,6 +34,10 @@ namespace first {
     // Refactor into UpdateOptions - END
 
     // Members
+    StateImpl(StateImpl const&) = delete; // As Immutable = copy not allowed
+    StateImpl(StateImpl&&) = delete; // As Immutable = move from not allowed
+    StateImpl& operator=(StateImpl const&) = delete; // As Immutable = copy assignment not allowed
+    StateImpl& operator=(StateImpl&&) = delete; // As Immutable = move assignment not allowed
     StateImpl(UX const &ux);
     virtual ~StateImpl();
     void add_cmd_option(char ch, CmdOption const &option); // // Refactoring into CmdOptions
@@ -51,6 +60,11 @@ namespace first {
 
   protected:
     UX m_ux;
+
+    template <typename Derived, typename... Args>
+    static std::unique_ptr<Derived> to_cloned(const Derived&, Args&&... args) {
+        return std::make_unique<Derived>(std::forward<Args>(args)...);
+    }    
 
   private:
     CmdOptions m_cmd_options; // // Refactoring into CmdOptions

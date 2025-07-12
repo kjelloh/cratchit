@@ -3,6 +3,7 @@
 #include "StateImpl.hpp"
 #include "msgs/msg.hpp"
 #include <format>
+#include "spdlog/spdlog.h"
 
 namespace first {
   // ----------------------------------
@@ -19,9 +20,11 @@ namespace first {
 
       this->add_update_option('y', {"Yes", [this]() -> StateUpdateResult {
         using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
-        auto new_state = std::make_shared<DeleteItemState<Item>>(*this);
+        std::shared_ptr<DeleteItemState<Item>> new_state = to_cloned(*this, this->m_edited_item.item);
         new_state->m_edited_item.mutation = cargo::ItemMutation::DELETED;
+        spdlog::info("DeleteItemState::m_update_options['y'] captures payload {}",to_string(new_state->m_edited_item.item));
         return {new_state, [payload = new_state->m_edited_item]() -> std::optional<Msg> { 
+          spdlog::info("DeleteItemState::m_update_options['y'] lambda forwards payload {}",to_string(payload.item));
           return std::make_shared<PopStateMsg>(
             std::make_shared<EditedHADMsg>(payload)
           ); 

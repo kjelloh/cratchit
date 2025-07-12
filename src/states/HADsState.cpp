@@ -90,7 +90,7 @@ namespace first {
     else if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
       spdlog::info("HADsState::update - handling EditedHADMsg");
       auto mutated_hads = this->m_all_hads;
-      State maybe_state{}; // default none
+      MaybeState maybe_state{}; // default 'none'
       // Remove the HAD from the collection in the mutated state
       if (auto iter = std::ranges::find(mutated_hads,pimpl->payload.item);iter != mutated_hads.end()) {
         mutated_hads.erase(iter);

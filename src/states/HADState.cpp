@@ -2,6 +2,8 @@
 #include "HADState.hpp"
 #include "DeleteItemState.hpp"
 #include "msgs/msg.hpp"
+#include "spdlog/spdlog.h"
+
 
 namespace first {
 // ----------------------------------
@@ -20,6 +22,16 @@ namespace first {
         auto msg = std::make_shared<PushStateMsg>(new_state);
         return msg;
     }});
+    this->add_update_option('o', {"Ok", [this]() -> StateUpdateResult {
+      spdlog::info("HADState 'o' lambda: capturing m_edited_had: {}", to_string(this->m_edited_had.item));
+      using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+      return {std::nullopt, [payload = this->m_edited_had]() -> std::optional<Msg> {
+        spdlog::info("HADState 'o' lambda execution: payload: {}", to_string(payload.item));
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<EditedHADMsg>(payload)
+        );
+      }};
+    }});    
   }
 
   StateFactory HADState::factory_from(HADState::HAD const& had) {
@@ -44,8 +56,11 @@ namespace first {
   StateUpdateResult HADState::update(Msg const& msg) const {
     using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
     if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
-      auto new_state = std::make_shared<HADState>(*this);
+      std::shared_ptr<HADState> new_state = to_cloned(*this, pimpl->payload.item);
       new_state->m_edited_had = pimpl->payload;
+      spdlog::info("HADState::update - Received EditedHADMsg with payload {}, new_state->m_edited_had {} "
+        ,to_string(pimpl->payload.item)
+        ,to_string(new_state->m_edited_had.item));
       new_state->update_ux();
       return {new_state, Nop};
     }
