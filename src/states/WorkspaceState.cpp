@@ -31,7 +31,6 @@ namespace first {
   StateImpl::UpdateOptions WorkspaceState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     
-    // Convert ProjectState::cmd_option_from to update options
     result.add('0', {".", [root_path = m_root_path]() -> StateUpdateResult {
       return {std::nullopt, [root_path]() -> std::optional<Msg> {
         auto folder_name = to_underscored_spaces(".");
@@ -62,17 +61,17 @@ namespace first {
     return result;
   }
 
-  StateImpl::CmdOption WorkspaceState::cmd_option_from(std::filesystem::path workspace_path) {
-    auto caption = workspace_path.filename().string();
-    if (caption.empty()) {
-      caption = workspace_path.string(); // Use full path if filename is empty
-    }
+  // StateImpl::CmdOption WorkspaceState::cmd_option_from(std::filesystem::path workspace_path) {
+  //   auto caption = workspace_path.filename().string();
+  //   if (caption.empty()) {
+  //     caption = workspace_path.string(); // Use full path if filename is empty
+  //   }
     
-    auto factory = [workspace_path]() {
-      auto workspace_ux = StateImpl::UX{"Workspace UX"};
-      return std::make_shared<WorkspaceState>(workspace_ux, workspace_path);
-    };
+  //   auto factory = [workspace_path]() {
+  //     auto workspace_ux = StateImpl::UX{"Workspace UX"};
+  //     return std::make_shared<WorkspaceState>(workspace_ux, workspace_path);
+  //   };
     
-    return {caption, cmd_from_state_factory(factory)};
-  }
+  //   return {caption, cmd_from_state_factory(factory)};
+  // }
 }

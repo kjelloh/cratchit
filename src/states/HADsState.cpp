@@ -140,9 +140,9 @@ namespace first {
     };
   }
 
-  StateImpl::CmdOption HADsState::cmd_option_from(HADs const& all_hads,FiscalPeriod fiscal_period) {
-    return {std::format("HADs - count:{}",all_hads.size()), cmd_from_state_factory(factory_from(all_hads,fiscal_period))};
-  }
+  // StateImpl::CmdOption HADsState::cmd_option_from(HADs const& all_hads,FiscalPeriod fiscal_period) {
+  //   return {std::format("HADs - count:{}",all_hads.size()), cmd_from_state_factory(factory_from(all_hads,fiscal_period))};
+  // }
 
   StateImpl::UpdateOptions HADsState::create_update_options() const {
     StateImpl::UpdateOptions result{};

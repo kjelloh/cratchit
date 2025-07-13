@@ -13,6 +13,6 @@ namespace first {
     
     virtual StateImpl::UpdateOptions create_update_options() const override;
     
-    static StateImpl::CmdOption cmd_option_from(std::filesystem::path workspace_path);
+    // static StateImpl::CmdOption cmd_option_from(std::filesystem::path workspace_path);
   }; // Workspace StateImpl
 }

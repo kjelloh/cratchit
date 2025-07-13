@@ -13,9 +13,9 @@ namespace first {
     };
   }
 
-  StateImpl::CmdOption VATReturnsState::cmd_option_from() {
-    return {std::format("VAT Returns"), cmd_from_state_factory(factory_from())};
-  }
+  // StateImpl::CmdOption VATReturnsState::cmd_option_from() {
+  //   return {std::format("VAT Returns"), cmd_from_state_factory(factory_from())};
+  // }
 
   StateImpl::UpdateOptions VATReturnsState::create_update_options() const {
     StateImpl::UpdateOptions result{};

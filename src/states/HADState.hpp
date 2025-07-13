@@ -21,7 +21,7 @@ namespace first {
     void update_ux();
 
     static StateFactory factory_from(HADState::HAD const& had);
-    static StateImpl::CmdOption cmd_option_from(HADState::HAD const& had);
+    // static StateImpl::CmdOption cmd_option_from(HADState::HAD const& had);
 
   };
 } // namespace first

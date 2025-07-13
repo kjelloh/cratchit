@@ -44,9 +44,9 @@ namespace first {
     };
   }
   
-  StateImpl::CmdOption HADState::cmd_option_from(HADState::HAD const& had) {
-    return {to_string(had), cmd_from_state_factory(factory_from(had))};
-  }
+  // StateImpl::CmdOption HADState::cmd_option_from(HADState::HAD const& had) {
+  //   return {to_string(had), cmd_from_state_factory(factory_from(had))};
+  // }
 
   // StateUpdateResult HADState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
   //   auto new_state = std::make_shared<HADState>(*this);

@@ -10,10 +10,10 @@ namespace first {
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
-      ,m_transient_maybe_update_options{}
-      ,m_transient_maybe_cmd_options{}
-      ,m_update_options_{}
-      ,m_cmd_options{} {
+      // ,m_transient_maybe_cmd_options{}
+      // ,m_update_options_{}
+      // ,m_cmd_options{} {
+      ,m_transient_maybe_update_options{} {
 
       if (true) {
         spdlog::info("StateImpl constructor called for {}", static_cast<void*>(this));
@@ -96,19 +96,19 @@ namespace first {
   // Refactoring into CmdOptions
 
   // ----------------------------------
-  void StateImpl::add_cmd_option(char ch, CmdOption const &option) {
-    this->m_cmd_options.add(ch,option);
-  }
+  // void StateImpl::add_cmd_option(char ch, CmdOption const &option) {
+  //   this->m_cmd_options.add(ch,option);
+  // }
 
   // ----------------------------------
-  void StateImpl::add_update_option(char ch, UpdateOption const &option) {
-    this->m_update_options_.add(ch,option);
-  }
+  // void StateImpl::add_update_option(char ch, UpdateOption const &option) {
+  //   this->m_update_options_.add(ch,option);
+  // }
 
   // ----------------------------------
-  StateImpl::CmdOptions const& StateImpl::cmd_options() const {
-    return m_cmd_options;
-  }
+  // StateImpl::CmdOptions const& StateImpl::cmd_options() const {
+  //   return m_cmd_options;
+  // }
 
   // ----------------------------------
 
@@ -120,7 +120,7 @@ namespace first {
     // Design: Mutate State -> nullopt options (StateImpl constructor)
     //         Client call + empty cache -> ask concrete state to create_update_options()
     //         Mutate cache with created instance
-    //         Whine if cache still does contain an instance
+    //         Whine if cache still does not contain an instance
     //         Return cache    
     if (!this->m_transient_maybe_update_options) {
       // mutable = Allow mutation of transient data although we are const
@@ -170,9 +170,9 @@ namespace first {
       mutated_state = new_state;
       cmd = new_cmd;
     }
-    else if (auto maybe_cmd = this->cmd_options()[ch]) {
-      cmd = *maybe_cmd;
-    }
+    // else if (auto maybe_cmd = this->cmd_options()[ch]) {
+    //   cmd = *maybe_cmd;
+    // }
     else {
       spdlog::info("StateImpl::update(ch) - ignored message");
     }
@@ -203,11 +203,11 @@ namespace first {
     return result;
   }
   
-  StateImpl::CmdOptions StateImpl::create_cmd_options() const {
-    StateImpl::CmdOptions result{};
-    result.add('?',CmdOption{"StateImpl::create_cmd_options",Nop});
-    return result;
-  }
+  // StateImpl::CmdOptions StateImpl::create_cmd_options() const {
+  //   StateImpl::CmdOptions result{};
+  //   result.add('?',CmdOption{"StateImpl::create_cmd_options",Nop});
+  //   return result;
+  // }
 
 
 } // namespace first

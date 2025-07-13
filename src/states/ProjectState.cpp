@@ -232,7 +232,6 @@ namespace first {
     auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
     auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
     
-    // Convert FiscalPeriodState::cmd_option_from to update options
     result.add('0', {std::format("Fiscal Year: {}", current_fiscal_year.to_string()), 
       [current_fiscal_year, env = m_environment]() -> StateUpdateResult {
         return {std::nullopt, [current_fiscal_year, env]() -> std::optional<Msg> {
@@ -279,9 +278,9 @@ namespace first {
     return result;
   }
 
-  StateImpl::CmdOption ProjectState::cmd_option_from(std::string org_name, std::filesystem::path root_path) {
-    auto folder_name = to_underscored_spaces(org_name);
-    auto project_path = root_path / folder_name;
-    return {org_name, cmd_from_state_factory(factory_from(project_path))};
-  }
+  // StateImpl::CmdOption ProjectState::cmd_option_from(std::string org_name, std::filesystem::path root_path) {
+  //   auto folder_name = to_underscored_spaces(org_name);
+  //   auto project_path = root_path / folder_name;
+  //   return {org_name, cmd_from_state_factory(factory_from(project_path))};
+  // }
 } // namespace first

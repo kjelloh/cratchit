@@ -67,15 +67,15 @@ namespace first {
       return std::make_shared<FiscalPeriodState>(ux, fiscal_period, parent_environment_ref);
     };
   }
-  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
-    return {"Fiscal Period: " + fiscal_period.to_string(), cmd_from_state_factory(factory_from(fiscal_period, parent_environment_ref))};
-  }
-  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref) {
-    return {std::format("Fiscal Year: {}", fiscal_year.to_string()), cmd_from_state_factory(factory_from(fiscal_year.period(), parent_environment_ref))};
-  }
-  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref) {
-    return {std::format("Fiscal Quarter: {}", fiscal_quarter.to_string()), cmd_from_state_factory(factory_from(fiscal_quarter.period(), parent_environment_ref))};
-  }
+  // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
+  //   return {"Fiscal Period: " + fiscal_period.to_string(), cmd_from_state_factory(factory_from(fiscal_period, parent_environment_ref))};
+  // }
+  // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref) {
+  //   return {std::format("Fiscal Year: {}", fiscal_year.to_string()), cmd_from_state_factory(factory_from(fiscal_year.period(), parent_environment_ref))};
+  // }
+  // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref) {
+  //   return {std::format("Fiscal Quarter: {}", fiscal_quarter.to_string()), cmd_from_state_factory(factory_from(fiscal_quarter.period(), parent_environment_ref))};
+  // }
 
   StateImpl::UpdateOptions FiscalPeriodState::create_update_options() const {
     StateImpl::UpdateOptions result{};
