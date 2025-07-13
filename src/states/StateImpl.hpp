@@ -24,12 +24,10 @@ namespace first {
   public:
     using UX = std::vector<std::string>;
 
-
-    // 'Latest' key -> (caption,UpdateFunction)
-
     template <typename F>
     class KeyToFunctionOptionsT {
     public:
+      using FReturnType = std::invoke_result_t<F>; // F is callable that takes no arguments
       using Caption = std::string;
       using Option = std::pair<Caption,F>; // (caption,F)
       using Key = char;
@@ -44,13 +42,37 @@ namespace first {
         }
       }
 
+      // iteratable (key,option),...
+      // for (auto const& [key,option] : KeyToFunctionOptionsT<MyFunc>{}.view()) {...}
+      auto view() const {
+        return m_options_map.first
+          | std::views::transform([this](char ch) -> std::pair<char,Option> {
+            return std::make_pair(ch,m_options_map.second.at(ch));
+        });
+      }
+
       using InsertOrderedOptionsMap = std::pair<std::vector<Key>,std::map<Key, Option>>;
-      InsertOrderedOptionsMap const& value() const {return m_options_map;}
+      // InsertOrderedOptionsMap const& value() const {return m_options_map;}
+
+      FReturnType apply(Key key) const {        
+        if (this->m_options_map.second.contains(key)) {
+          return this->m_options_map.second.at(key).second();
+        }
+        else return FReturnType{}; // default return type
+      }
+
+      std::optional<F> operator[](Key key) const {
+        if (m_options_map.second.contains(key)) {
+          return m_options_map.second.at(key).second;
+        }
+        else return std::nullopt;
+      }
 
     private:
       InsertOrderedOptionsMap m_options_map{};
     };
 
+    // 'Latest' key -> (caption,UpdateFunction)
     using OptionUpdateFunction = std::function<StateUpdateResult()>;
     using UpdateOptions = KeyToFunctionOptionsT<OptionUpdateFunction>;
     using UpdateOption = UpdateOptions::Option;
@@ -101,13 +123,18 @@ namespace first {
 
   private:
 
-    virtual UpdateOptions create_update_options();
-    virtual CmdOptions create_cmd_options();
+    virtual UpdateOptions create_update_options(); // Concrete state shall implement
+    virtual CmdOptions create_cmd_options(); // // Concrete state shall implement
 
     // 'Latest' key -> (caption,update) map
     UpdateOptions m_update_options;
     // 'Older' key -> (caption,Cmd) map
     CmdOptions m_cmd_options; // key -> Cmd (older mechanism)
+    
+    // 'Latest' key -> (caption,update) map
+    UpdateOptions m_transient_update_options;
+    // 'Older' key -> (caption,Cmd) map
+    CmdOptions m_transient_cmd_options; // key -> Cmd (older mechanism)
 
     // State TEA update mechanism
     virtual StateUpdateResult update(Msg const& msg) const;

@@ -347,16 +347,7 @@ namespace first {
         top_content += model.ui_states.back()->ux()[i];
       }
       
-      // StateImpl transition UX (Middle window)
-      // iterate as defined by CmdOptions.first (vector of chars)
-      auto ordered_cmd_options_view = [](StateImpl::CmdOptions const& cmd_options) {
-        return cmd_options.value().first
-          | std::views::transform([&cmd_options](char ch) -> std::pair<char,StateImpl::CmdOption> {
-            return std::make_pair(ch,cmd_options.value().second.at(ch));
-          });
-      };
-
-      for (auto const& [ch, cmd_option] : ordered_cmd_options_view(model.ui_states.back()->cmd_options())) {
+      for (auto const& [ch, cmd_option] : model.ui_states.back()->cmd_options().view()) {
         std::string entry{};
         entry.push_back(ch);
         entry.append(" = ");
@@ -365,15 +356,7 @@ namespace first {
         main_content.append(entry);
       }
 
-      // Also process UpdateOptions (similar to cmd_options)
-      auto ordered_update_options_view = [](StateImpl::UpdateOptions const& update_options) {
-        return update_options.value().first
-          | std::views::transform([&update_options](char ch) -> std::pair<char,StateImpl::UpdateOption> {
-            return std::make_pair(ch,update_options.value().second.at(ch));
-          });
-      };
-
-      for (auto const& [ch, update_option] : ordered_update_options_view(model.ui_states.back()->update_options())) {
+      for (auto const& [ch, update_option] : model.ui_states.back()->update_options().view()) {
         std::string entry{};
         entry.push_back(ch);
         entry.append(" = ");

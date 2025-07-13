@@ -141,15 +141,13 @@ namespace first {
         return std::make_shared<PopStateMsg>();
       };
     }
-    else if (this->m_update_options.value().second.contains(ch)) {
-      // Execute UpdateOption function and extract result
-      auto update_option = this->m_update_options.value().second.at(ch);
-      auto [new_state, new_cmd] = update_option.second();
+    else if (auto update_result = this->m_update_options.apply(ch)) {
+      auto const& [new_state, new_cmd] = update_result;
       mutated_state = new_state;
       cmd = new_cmd;
     }
-    else if (this->cmd_options().value().second.contains(ch)) {
-      cmd = this->cmd_options().value().second.at(ch).second;
+    else if (auto maybe_cmd = this->cmd_options()[ch]) {
+      cmd = *maybe_cmd;
     }
     else {
       spdlog::info("StateImpl::update(ch) - ignored message");
