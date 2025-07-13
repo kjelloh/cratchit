@@ -11,13 +11,14 @@
 namespace first {
 
   void ProjectState::update_options() {
-    auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
-    auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
-    this->add_cmd_option('0', FiscalPeriodState::cmd_option_from(current_fiscal_year,m_environment));    
-    this->add_cmd_option('1', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-1),m_environment));
-    this->add_cmd_option('2', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-2),m_environment));
-    this->add_cmd_option('3', FiscalPeriodState::cmd_option_from(current_fiscal_quarter,m_environment));
-    this->add_cmd_option('4', FiscalPeriodState::cmd_option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
+    // Moved to create_update_options()
+    // auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
+    // auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
+    // this->add_cmd_option('0', FiscalPeriodState::cmd_option_from(current_fiscal_year,m_environment));    
+    // this->add_cmd_option('1', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-1),m_environment));
+    // this->add_cmd_option('2', FiscalPeriodState::cmd_option_from(current_fiscal_year.to_relative_fiscal_year(-2),m_environment));
+    // this->add_cmd_option('3', FiscalPeriodState::cmd_option_from(current_fiscal_quarter,m_environment));
+    // this->add_cmd_option('4', FiscalPeriodState::cmd_option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
   }
 
   void ProjectState::update_ux() {
@@ -227,8 +228,54 @@ namespace first {
 
   StateImpl::UpdateOptions ProjectState::create_update_options() const {
     StateImpl::UpdateOptions result{};
-    // TODO: Refactor add_update_option in constructor to update options here
-    // TODO: Refactor add_cmd_option in constructor to update options here
+    
+    auto current_fiscal_year = FiscalYear::to_current_fiscal_year(std::chrono::month{5}); // month hard coded for now
+    auto current_fiscal_quarter = FiscalQuarter::to_current_fiscal_quarter();
+    
+    // Convert FiscalPeriodState::cmd_option_from to update options
+    result.add('0', {std::format("Fiscal Year: {}", current_fiscal_year.to_string()), 
+      [current_fiscal_year, env = m_environment]() -> StateUpdateResult {
+        return {std::nullopt, [current_fiscal_year, env]() -> std::optional<Msg> {
+          State new_state = FiscalPeriodState::factory_from(current_fiscal_year.period(), env)();
+          return std::make_shared<PushStateMsg>(new_state);
+        }};
+      }});
+      
+    result.add('1', {std::format("Fiscal Year: {}", current_fiscal_year.to_relative_fiscal_year(-1).to_string()), 
+      [current_fiscal_year, env = m_environment]() -> StateUpdateResult {
+        auto fiscal_year = current_fiscal_year.to_relative_fiscal_year(-1);
+        return {std::nullopt, [fiscal_year, env]() -> std::optional<Msg> {
+          State new_state = FiscalPeriodState::factory_from(fiscal_year.period(), env)();
+          return std::make_shared<PushStateMsg>(new_state);
+        }};
+      }});
+      
+    result.add('2', {std::format("Fiscal Year: {}", current_fiscal_year.to_relative_fiscal_year(-2).to_string()), 
+      [current_fiscal_year, env = m_environment]() -> StateUpdateResult {
+        auto fiscal_year = current_fiscal_year.to_relative_fiscal_year(-2);
+        return {std::nullopt, [fiscal_year, env]() -> std::optional<Msg> {
+          State new_state = FiscalPeriodState::factory_from(fiscal_year.period(), env)();
+          return std::make_shared<PushStateMsg>(new_state);
+        }};
+      }});
+      
+    result.add('3', {std::format("Fiscal Quarter: {}", current_fiscal_quarter.to_string()), 
+      [current_fiscal_quarter, env = m_environment]() -> StateUpdateResult {
+        return {std::nullopt, [current_fiscal_quarter, env]() -> std::optional<Msg> {
+          State new_state = FiscalPeriodState::factory_from(current_fiscal_quarter.period(), env)();
+          return std::make_shared<PushStateMsg>(new_state);
+        }};
+      }});
+      
+    result.add('4', {std::format("Fiscal Quarter: {}", current_fiscal_quarter.to_relative_fiscal_quarter(-1).to_string()), 
+      [current_fiscal_quarter, env = m_environment]() -> StateUpdateResult {
+        auto fiscal_quarter = current_fiscal_quarter.to_relative_fiscal_quarter(-1);
+        return {std::nullopt, [fiscal_quarter, env]() -> std::optional<Msg> {
+          State new_state = FiscalPeriodState::factory_from(fiscal_quarter.period(), env)();
+          return std::make_shared<PushStateMsg>(new_state);
+        }};
+      }});
+    
     return result;
   }
 
