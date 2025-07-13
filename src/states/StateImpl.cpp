@@ -180,15 +180,15 @@ namespace first {
     if (ch == 'q') {
       cmd = DO_QUIT;
     }
-    else if (ch == '-') {
-      cmd = []() -> std::optional<Msg> {
-        return std::make_shared<PopStateMsg>();
-      };
-    }
     else if (auto update_result = this->update_options().apply(ch)) {
       auto const& [new_state, new_cmd] = update_result;
       mutated_state = new_state;
       cmd = new_cmd;
+    }
+    else if (ch == '-') {
+      cmd = []() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>();
+      };
     }
     // else if (auto maybe_cmd = this->cmd_options()[ch]) {
     //   cmd = *maybe_cmd;

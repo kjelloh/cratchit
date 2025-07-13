@@ -33,7 +33,18 @@ namespace first {
       : FiscalPeriodState(ux,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
 
   StateUpdateResult FiscalPeriodState::update(Msg const& msg) const {
-    // Not used for now ( See apply for update on child state Cargo)
+    using HADsMsg = CargoMsgT<HeadingAmountDateTransEntries>;
+    if (auto pimpl = std::dynamic_pointer_cast<HADsMsg>(msg); pimpl != nullptr) {
+      std::optional<State> mutated_state{};
+      Cmd cmd{Nop};
+      spdlog::info("FiscalPeriodState::update - handling HADsMsg");
+      if (pimpl->payload != this->m_period_hads) {
+        // Changes has been made
+        spdlog::info("FiscalPeriodState::update - HADs has changed. payload size: {}", pimpl->payload.size());
+        mutated_state = to_cloned(*this, UX{}, this->m_fiscal_period, pimpl->payload);
+      }
+      return {mutated_state, cmd};
+    }
     spdlog::info("FiscalPeriodState::update - didn't handle message");
     return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
@@ -97,12 +108,18 @@ namespace first {
       }};
     }});
     
-    // Add '-' key option last - back with period HADs as payload
+    // Add '-' key option last - back with EnvironmentPeriodSlice as payload (matching get_cargo())
     result.add('-', {"Back", [this]() -> StateUpdateResult {
-      using HADsMsg = CargoMsgT<HeadingAmountDateTransEntries>;
-      return {std::nullopt, [period_hads = this->m_period_hads]() -> std::optional<Msg> {
+      using EnvironmentPeriodSliceMsg = CargoMsgT<EnvironmentPeriodSlice>;
+      return {std::nullopt, [period_hads = this->m_period_hads, fiscal_period = this->m_fiscal_period]() -> std::optional<Msg> {
+        // Create EnvironmentPeriodSlice matching get_cargo() logic
+        EnvironmentPeriodSlice result{{}, fiscal_period};
+        result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
+        for (auto const& [index, env_val] : indexed_env_entries_from(period_hads)) {
+          result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
+        }
         return std::make_shared<PopStateMsg>(
-          std::make_shared<HADsMsg>(period_hads)
+          std::make_shared<EnvironmentPeriodSliceMsg>(result)
         );
       }};
     }});
