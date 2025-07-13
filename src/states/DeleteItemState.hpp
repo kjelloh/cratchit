@@ -30,15 +30,16 @@ namespace first {
       //     ); 
       //   }};
       // }});
-      this->add_cmd_option('n', {"No", Nop});
+      // this->add_cmd_option('n', {"No", Nop});
     }
 
     virtual StateImpl::UpdateOptions create_update_options() const override {
       StateImpl::UpdateOptions result{};
+      using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+
       // TODO: Refactor add_update_option in constructor to update options here
 
       result.add('y', {"Yes", [this]() -> StateUpdateResult {
-        using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
         std::shared_ptr<DeleteItemState<Item>> new_state = to_cloned(*this, this->m_edited_item.item);
         new_state->m_edited_item.mutation = cargo::ItemMutation::DELETED;
         spdlog::info("DeleteItemState::m_update_options['y'] captures payload {}",to_string(new_state->m_edited_item.item));
@@ -51,6 +52,15 @@ namespace first {
       }});
 
       // TODO: Refactor add_cmd_option in constructor to update options here
+
+      result.add('n',{"No",[payload = this->m_edited_item]() -> StateUpdateResult {
+        return {std::nullopt,[payload]() -> std::optional<Msg>{
+          return std::make_shared<PopStateMsg>(
+            std::make_shared<EditedHADMsg>(payload)
+          ); 
+        }};
+      }});
+
       return result;
     }
 
