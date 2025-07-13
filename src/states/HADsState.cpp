@@ -144,4 +144,11 @@ namespace first {
     return {std::format("HADs - count:{}",all_hads.size()), cmd_from_state_factory(factory_from(all_hads,fiscal_period))};
   }
 
+  StateImpl::UpdateOptions HADsState::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // TODO: Refactor add_update_option in constructor to update options here
+    // TODO: Refactor add_cmd_option in constructor to update options here
+    return result;
+  }
+
 } // namespace first

@@ -225,6 +225,13 @@ namespace first {
     };
   }
 
+  StateImpl::UpdateOptions ProjectState::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // TODO: Refactor add_update_option in constructor to update options here
+    // TODO: Refactor add_cmd_option in constructor to update options here
+    return result;
+  }
+
   StateImpl::CmdOption ProjectState::cmd_option_from(std::string org_name, std::filesystem::path root_path) {
     auto folder_name = to_underscored_spaces(org_name);
     auto project_path = root_path / folder_name;

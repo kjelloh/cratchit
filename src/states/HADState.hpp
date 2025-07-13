@@ -16,6 +16,7 @@ namespace first {
 
     // virtual Cargo get_cargo() const override;
     virtual std::optional<Msg> get_on_destruct_msg() const override;
+    virtual StateImpl::UpdateOptions create_update_options() const override;
 
     void update_ux();
 

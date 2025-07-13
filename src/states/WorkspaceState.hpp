@@ -11,6 +11,8 @@ namespace first {
   public:
     WorkspaceState(StateImpl::UX ux,std::filesystem::path root_path);
     
+    virtual StateImpl::UpdateOptions create_update_options() const override;
+    
     static StateImpl::CmdOption cmd_option_from(std::filesystem::path workspace_path);
   }; // Workspace StateImpl
 }

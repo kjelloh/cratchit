@@ -27,6 +27,13 @@ namespace first {
     this->add_cmd_option('2', ProjectState::cmd_option_from("Org x", m_root_path));        
   }
 
+  StateImpl::UpdateOptions WorkspaceState::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // TODO: Refactor add_update_option in constructor to update options here
+    // TODO: Refactor add_cmd_option in constructor to update options here
+    return result;
+  }
+
   StateImpl::CmdOption WorkspaceState::cmd_option_from(std::filesystem::path workspace_path) {
     auto caption = workspace_path.filename().string();
     if (caption.empty()) {

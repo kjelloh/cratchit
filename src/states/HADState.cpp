@@ -94,4 +94,11 @@ namespace first {
     ux().push_back(status_prefix + to_string(m_edited_had.item));
   }
 
+  StateImpl::UpdateOptions HADState::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // TODO: Refactor add_update_option in constructor to update options here
+    // TODO: Refactor add_cmd_option in constructor to update options here
+    return result;
+  }
+
 } // namespace first

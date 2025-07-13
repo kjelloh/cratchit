@@ -18,7 +18,26 @@ namespace first {
       ux().clear();
       ux().push_back(std::format("Delete: {} ?", to_string(item)));
 
-      this->add_update_option('y', {"Yes", [this]() -> StateUpdateResult {
+      // this->add_update_option('y', {"Yes", [this]() -> StateUpdateResult {
+      //   using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+      //   std::shared_ptr<DeleteItemState<Item>> new_state = to_cloned(*this, this->m_edited_item.item);
+      //   new_state->m_edited_item.mutation = cargo::ItemMutation::DELETED;
+      //   spdlog::info("DeleteItemState::m_update_options['y'] captures payload {}",to_string(new_state->m_edited_item.item));
+      //   return {new_state, [payload = new_state->m_edited_item]() -> std::optional<Msg> { 
+      //     spdlog::info("DeleteItemState::m_update_options['y'] lambda forwards payload {}",to_string(payload.item));
+      //     return std::make_shared<PopStateMsg>(
+      //       std::make_shared<EditedHADMsg>(payload)
+      //     ); 
+      //   }};
+      // }});
+      this->add_cmd_option('n', {"No", Nop});
+    }
+
+    virtual StateImpl::UpdateOptions create_update_options() const override {
+      StateImpl::UpdateOptions result{};
+      // TODO: Refactor add_update_option in constructor to update options here
+
+      result.add('y', {"Yes", [this]() -> StateUpdateResult {
         using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
         std::shared_ptr<DeleteItemState<Item>> new_state = to_cloned(*this, this->m_edited_item.item);
         new_state->m_edited_item.mutation = cargo::ItemMutation::DELETED;
@@ -30,7 +49,9 @@ namespace first {
           ); 
         }};
       }});
-      this->add_cmd_option('n', {"No", Nop});
+
+      // TODO: Refactor add_cmd_option in constructor to update options here
+      return result;
     }
 
     // virtual Cargo get_cargo() const override {

@@ -26,6 +26,7 @@ namespace first {
     virtual StateUpdateResult update(Msg const& msg) const override;
     virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const override;
     virtual Cargo get_cargo() const override;
+    virtual StateImpl::UpdateOptions create_update_options() const override;
     
     static StateFactory factory_from(std::filesystem::path project_path);
     static StateImpl::CmdOption cmd_option_from(std::string org_name, std::filesystem::path root_path);

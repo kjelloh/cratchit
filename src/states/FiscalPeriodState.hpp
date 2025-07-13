@@ -19,6 +19,7 @@ namespace first {
     virtual StateUpdateResult update(Msg const& msg) const override;
     virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const override;
     virtual Cargo get_cargo() const override;
+    virtual StateImpl::UpdateOptions create_update_options() const override;
 
     static StateFactory factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
     static StateImpl::CmdOption cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);

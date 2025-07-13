@@ -77,4 +77,11 @@ namespace first {
     return {std::format("Fiscal Quarter: {}", fiscal_quarter.to_string()), cmd_from_state_factory(factory_from(fiscal_quarter.period(), parent_environment_ref))};
   }
 
+  StateImpl::UpdateOptions FiscalPeriodState::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // TODO: Refactor add_update_option in constructor to update options here
+    // TODO: Refactor add_cmd_option in constructor to update options here
+    return result;
+  }
+
 } // namespace first
