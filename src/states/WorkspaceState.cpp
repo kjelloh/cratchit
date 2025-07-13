@@ -22,15 +22,43 @@ namespace first {
 
     this->m_ux.push_back(m_root_path.string());
 
-    this->add_cmd_option('0', ProjectState::cmd_option_from(".", m_root_path));
-    this->add_cmd_option('1', ProjectState::cmd_option_from("ITfied AB", m_root_path));
-    this->add_cmd_option('2', ProjectState::cmd_option_from("Org x", m_root_path));        
+    // Moved to create_update_options()
+    // this->add_cmd_option('0', ProjectState::cmd_option_from(".", m_root_path));
+    // this->add_cmd_option('1', ProjectState::cmd_option_from("ITfied AB", m_root_path));
+    // this->add_cmd_option('2', ProjectState::cmd_option_from("Org x", m_root_path));        
   }
 
   StateImpl::UpdateOptions WorkspaceState::create_update_options() const {
     StateImpl::UpdateOptions result{};
-    // TODO: Refactor add_update_option in constructor to update options here
-    // TODO: Refactor add_cmd_option in constructor to update options here
+    
+    // Convert ProjectState::cmd_option_from to update options
+    result.add('0', {".", [root_path = m_root_path]() -> StateUpdateResult {
+      return {std::nullopt, [root_path]() -> std::optional<Msg> {
+        auto folder_name = to_underscored_spaces(".");
+        auto project_path = root_path / folder_name;
+        State new_state = ProjectState::factory_from(project_path)();
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
+    }});
+    
+    result.add('1', {"ITfied AB", [root_path = m_root_path]() -> StateUpdateResult {
+      return {std::nullopt, [root_path]() -> std::optional<Msg> {
+        auto folder_name = to_underscored_spaces("ITfied AB");
+        auto project_path = root_path / folder_name;
+        State new_state = ProjectState::factory_from(project_path)();
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
+    }});
+    
+    result.add('2', {"Org x", [root_path = m_root_path]() -> StateUpdateResult {
+      return {std::nullopt, [root_path]() -> std::optional<Msg> {
+        auto folder_name = to_underscored_spaces("Org x");
+        auto project_path = root_path / folder_name;
+        State new_state = ProjectState::factory_from(project_path)();
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
+    }});
+    
     return result;
   }
 
