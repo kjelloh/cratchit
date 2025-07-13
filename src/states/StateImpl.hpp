@@ -1,14 +1,16 @@
 #pragma once
 
-#include <vector>
-#include <string>
-#include <utility> // std::pair
-#include <map>
 #include "cross_dependent.hpp"
 #include "cmd.hpp"
 #include "cargo/CargoBase.hpp"
 #include "cargo/HADsCargo.hpp"
 #include "cargo/EnvironmentCargo.hpp"
+#include <vector>
+#include <string>
+#include <utility> // std::pair
+#include <map>
+#include <spdlog/spdlog.h>
+
 
 namespace first {  
 
@@ -22,16 +24,40 @@ namespace first {
   public:
     using UX = std::vector<std::string>;
 
-    using Caption = std::string;
 
     // 'Latest' key -> (caption,UpdateFunction)
-    using StateUpdateFunction = std::function<StateUpdateResult()>;
-    using UpdateOption = std::pair<Caption,StateUpdateFunction>; // (caption,update)
-    using UpdateOptions = std::pair<std::vector<char>,std::map<char, UpdateOption>>;
+
+    template <typename F>
+    class KeyToFunctionOptionsT {
+    public:
+      using Caption = std::string;
+      using Option = std::pair<Caption,F>; // (caption,F)
+      using Key = char;
+      void add(Key key,Option const& option) {
+        if (auto iter = std::ranges::find(m_options_map.first,key); iter == m_options_map.first.end()) {
+          // Allow insertion of same option only once
+          m_options_map.first.push_back(key); // remember insert order
+          m_options_map.second[key] = option; // remember mapped option
+        }
+        else {
+          spdlog::warn("KeyToFunctionOptionsT::add: Ignored add of existing update option '{}'", key);
+        }
+      }
+
+      using InsertOrderedOptionsMap = std::pair<std::vector<Key>,std::map<Key, Option>>;
+      InsertOrderedOptionsMap const& value() const {return m_options_map;}
+
+    private:
+      InsertOrderedOptionsMap m_options_map{};
+    };
+
+    using OptionUpdateFunction = std::function<StateUpdateResult()>;
+    using UpdateOptions = KeyToFunctionOptionsT<OptionUpdateFunction>;
+    using UpdateOption = UpdateOptions::Option;
 
     // 'Older' key -> (caption,Cmd)
-    using CmdOption = std::pair<std::string, Cmd>;    
-    using CmdOptions = std::pair<std::vector<char>,std::map<char, CmdOption>>;
+    using CmdOptions = KeyToFunctionOptionsT<Cmd>;
+    using CmdOption = CmdOptions::Option;
 
     // 'Latest' add of key -> (caption,update)
     void add_update_option(char ch, UpdateOption const &option);
@@ -74,6 +100,10 @@ namespace first {
     }    
 
   private:
+
+    virtual UpdateOptions create_update_options();
+    virtual CmdOptions create_cmd_options();
+
     // 'Latest' key -> (caption,update) map
     UpdateOptions m_update_options;
     // 'Older' key -> (caption,Cmd) map

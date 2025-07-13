@@ -350,9 +350,9 @@ namespace first {
       // StateImpl transition UX (Middle window)
       // iterate as defined by CmdOptions.first (vector of chars)
       auto ordered_cmd_options_view = [](StateImpl::CmdOptions const& cmd_options) {
-        return cmd_options.first
+        return cmd_options.value().first
           | std::views::transform([&cmd_options](char ch) -> std::pair<char,StateImpl::CmdOption> {
-            return std::make_pair(ch,cmd_options.second.at(ch));
+            return std::make_pair(ch,cmd_options.value().second.at(ch));
           });
       };
 
@@ -367,9 +367,9 @@ namespace first {
 
       // Also process UpdateOptions (similar to cmd_options)
       auto ordered_update_options_view = [](StateImpl::UpdateOptions const& update_options) {
-        return update_options.first
+        return update_options.value().first
           | std::views::transform([&update_options](char ch) -> std::pair<char,StateImpl::UpdateOption> {
-            return std::make_pair(ch,update_options.second.at(ch));
+            return std::make_pair(ch,update_options.value().second.at(ch));
           });
       };
 

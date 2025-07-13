@@ -10,8 +10,8 @@ namespace first {
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
-      ,m_cmd_options{{},{}}
-      ,m_update_options{{},{}} {
+      ,m_cmd_options{}
+      ,m_update_options{} {
 
       if (true) {
         spdlog::info("StateImpl constructor called for {}", static_cast<void*>(this));
@@ -95,26 +95,12 @@ namespace first {
 
   // ----------------------------------
   void StateImpl::add_cmd_option(char ch, CmdOption const &option) {
-    if (auto iter = std::ranges::find(m_cmd_options.first,ch); iter == m_cmd_options.first.end()) {
-      // Allow insertion of same option only once
-      m_cmd_options.first.push_back(ch);
-      m_cmd_options.second[ch] = option;
-    }
-    else {
-      spdlog::warn("StateImpl::add_cmd_option: Ignored add of existing command option '{}'", ch);
-    }
+    this->m_cmd_options.add(ch,option);
   }
 
   // ----------------------------------
   void StateImpl::add_update_option(char ch, UpdateOption const &option) {
-    if (auto iter = std::ranges::find(m_update_options.first,ch); iter == m_update_options.first.end()) {
-      // Allow insertion of same option only once
-      m_update_options.first.push_back(ch);
-      m_update_options.second[ch] = option;
-    }
-    else {
-      spdlog::warn("StateImpl::add_update_option: Ignored add of existing update option '{}'", ch);
-    }
+    this->m_update_options.add(ch,option);
   }
 
   // ----------------------------------
@@ -155,15 +141,15 @@ namespace first {
         return std::make_shared<PopStateMsg>();
       };
     }
-    else if (this->m_update_options.second.contains(ch)) {
+    else if (this->m_update_options.value().second.contains(ch)) {
       // Execute UpdateOption function and extract result
-      auto update_option = this->m_update_options.second.at(ch);
+      auto update_option = this->m_update_options.value().second.at(ch);
       auto [new_state, new_cmd] = update_option.second();
       mutated_state = new_state;
       cmd = new_cmd;
     }
-    else if (this->cmd_options().second.contains(ch)) {
-      cmd = this->cmd_options().second.at(ch).second;
+    else if (this->cmd_options().value().second.contains(ch)) {
+      cmd = this->cmd_options().value().second.at(ch).second;
     }
     else {
       spdlog::info("StateImpl::update(ch) - ignored message");
@@ -180,5 +166,25 @@ namespace first {
       return std::make_shared<PushStateMsg>(new_state);
     };
   }
+
+  // private:
+
+  StateImpl::UpdateOptions StateImpl::create_update_options() {
+    StateImpl::UpdateOptions result{};
+    result.add('?',UpdateOption{"StateImpl::create_update_options"
+      ,[]() -> StateUpdateResult {
+          return StateUpdateResult{}; // 'null'
+        }
+      }
+    );
+    return result;
+  }
+  
+  StateImpl::CmdOptions StateImpl::create_cmd_options() {
+    StateImpl::CmdOptions result{};
+    result.add('?',CmdOption{"StateImpl::create_cmd_options",Nop});
+    return result;
+  }
+
 
 } // namespace first
