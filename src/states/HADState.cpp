@@ -9,19 +9,20 @@ namespace first {
 // ----------------------------------
   HADState::HADState(HAD had) : m_edited_had{had, cargo::ItemMutation::UNCHANGED}, StateImpl({}) {
 
-    StateFactory sie_factory = []() {
-      auto SIE_ux = StateImpl::UX{"HAD to SIE UX goes here"};
-      return std::make_shared<StateImpl>(SIE_ux);
-    };
+    // StateFactory sie_factory = []() {
+    //   auto SIE_ux = StateImpl::UX{"HAD to SIE UX goes here"};
+    //   return std::make_shared<StateImpl>(SIE_ux);
+    // };
 
     update_ux();
-    this->add_cmd_option('0',{"HAD -> SIE", cmd_from_state_factory(sie_factory)});
 
-    this->add_cmd_option('d', {"Delete",[had = this->m_edited_had.item]() -> std::optional<Msg> {
-        State new_state = DeleteItemState<HAD>::factory_from(had)();
-        auto msg = std::make_shared<PushStateMsg>(new_state);
-        return msg;
-    }});
+    // this->add_cmd_option('0',{"HAD -> SIE", cmd_from_state_factory(sie_factory)});
+
+    // this->add_cmd_option('d', {"Delete",[had = this->m_edited_had.item]() -> std::optional<Msg> {
+    //     State new_state = DeleteItemState<HAD>::factory_from(had)();
+    //     auto msg = std::make_shared<PushStateMsg>(new_state);
+    //     return msg;
+    // }});
     // this->add_update_option('o', {"Ok", [this]() -> StateUpdateResult {
     //   spdlog::info("HADState 'o' lambda: capturing m_edited_had: {}", to_string(this->m_edited_had.item));
     //   using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
@@ -96,6 +97,23 @@ namespace first {
 
   StateImpl::UpdateOptions HADState::create_update_options() const {
     StateImpl::UpdateOptions result{};
+
+    StateFactory sie_factory = []() {
+      auto SIE_ux = StateImpl::UX{"HAD to SIE UX goes here"}; // Placeholder state
+      return std::make_shared<StateImpl>(SIE_ux);
+    };
+
+    result.add('0',{"HAD -> SIE",[sie_factory]() -> StateUpdateResult {
+      return {std::nullopt,cmd_from_state_factory(sie_factory)};
+    }});
+
+    result.add('d',{"Delete",[had = this->m_edited_had.item]() -> StateUpdateResult {
+      return {std::nullopt,[had]() -> std::optional<Msg> {
+        State new_state = DeleteItemState<HAD>::factory_from(had)();
+        auto msg = std::make_shared<PushStateMsg>(new_state);
+        return msg;
+      }};
+    }});
     
     result.add('o', {"Ok", [this]() -> StateUpdateResult {
       spdlog::info("HADState 'o' lambda: capturing m_edited_had: {}", to_string(this->m_edited_had.item));
