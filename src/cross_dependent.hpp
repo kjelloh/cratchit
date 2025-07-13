@@ -69,7 +69,7 @@ namespace first {
   // Declared here, defined in cmd unit
   extern std::optional<Msg> Nop();
 
-  // using StateUpdateResult = std::pair<std::optional<State>, Cmd>;
+  // cratchit TEA helper aliases
   using StateUpdateResult = TEA::UpdateResultT<MaybeState,MaybeNullCmd>;
 
 } // namespace first

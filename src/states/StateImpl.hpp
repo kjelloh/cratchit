@@ -21,17 +21,27 @@ namespace first {
   class StateImpl {
   public:
     using UX = std::vector<std::string>;
-    // Refactoring into CmdOptions
+
+    using Caption = std::string;
+
+    // 'Latest' key -> (caption,UpdateFunction)
+    using StateUpdateFunction = std::function<StateUpdateResult()>;
+    using UpdateOption = std::pair<Caption,StateUpdateFunction>; // (caption,update)
+    using UpdateOptions = std::pair<std::vector<char>,std::map<char, UpdateOption>>;
+
+    // 'Older' key -> (caption,Cmd)
     using CmdOption = std::pair<std::string, Cmd>;    
     using CmdOptions = std::pair<std::vector<char>,std::map<char, CmdOption>>;
-    
-    // Refactor into UpdateOptions - BEGIN
-    using UpdateOptionFunction = std::function<StateUpdateResult()>;
-    using UpdateOption = std::pair<std::string,UpdateOptionFunction>;
-    using UpdateOptions = std::pair<std::vector<char>,std::map<char, UpdateOption>>;
+
+    // 'Latest' add of key -> (caption,update)
     void add_update_option(char ch, UpdateOption const &option);
-    UpdateOptions m_update_options;
-    // Refactor into UpdateOptions - END
+    // 'Older' add of key -> (caption,cmd)
+    void add_cmd_option(char ch, CmdOption const &option);
+
+    // 'Latest': sccessor to update options (key -> (caption,update))
+    UpdateOptions const &update_options() const;
+    // 'Older': accessor to command options (key -> (caption,cmd)) 
+    CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
 
     // Members
     StateImpl(StateImpl const&) = delete; // As Immutable = copy not allowed
@@ -40,16 +50,13 @@ namespace first {
     StateImpl& operator=(StateImpl&&) = delete; // As Immutable = move assignment not allowed
     StateImpl(UX const &ux);
     virtual ~StateImpl();
-    void add_cmd_option(char ch, CmdOption const &option); // // Refactoring into CmdOptions
     UX const &ux() const;
     UX &ux();
-    CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
-    UpdateOptions const &update_options() const;
+
     StateUpdateResult dispatch(Msg const& msg) const;    
     virtual StateUpdateResult apply(cargo::DummyCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
-    // virtual StateUpdateResult apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const;
 
     // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
     virtual Cargo get_cargo() const;
@@ -67,8 +74,12 @@ namespace first {
     }    
 
   private:
-    CmdOptions m_cmd_options; // // Refactoring into CmdOptions
+    // 'Latest' key -> (caption,update) map
+    UpdateOptions m_update_options;
+    // 'Older' key -> (caption,Cmd) map
+    CmdOptions m_cmd_options; // key -> Cmd (older mechanism)
 
+    // State TEA update mechanism
     virtual StateUpdateResult update(Msg const& msg) const;
     StateUpdateResult default_update(Msg const& msg) const;
     StateUpdateResult default_update(char key) const;
