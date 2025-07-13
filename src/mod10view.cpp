@@ -8,7 +8,7 @@ namespace first {
         ,m_subrange_size{to_subrange_size(range)} {}
 
   // ----------------------------------
-  std::vector<Mod10View::Range> Mod10View::subranges() {
+  std::vector<Mod10View::Range> Mod10View::subranges() const {
     std::vector<std::pair<size_t, size_t>> result{};
     if (m_subrange_size > 0) {
       for (size_t i = m_range.first; i < m_range.second; i += m_subrange_size) {

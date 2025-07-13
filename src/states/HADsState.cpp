@@ -14,41 +14,41 @@ namespace first {
 
     spdlog::info("HADsState::HADsState(HADs all_hads:size={},Mod10View mod10_view)",m_all_hads.size());
 
-    // HAD subrange StateImpl factory
-    // Enable 'drill down' modulo 10 into HADs
-    struct HADs_subrange_factory {
-      HADs_subrange_factory(HADsState::HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view)
-          : m_all_hads{all_hads},m_fiscal_period{fiscal_period},m_mod10_view{mod10_view} {}
+    // HAD subrange StateImpl factory - moved to create_update_options()
+    // // Enable 'drill down' modulo 10 into HADs
+    // struct HADs_subrange_factory {
+    //   HADs_subrange_factory(HADsState::HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view)
+    //       : m_all_hads{all_hads},m_fiscal_period{fiscal_period},m_mod10_view{mod10_view} {}
 
-      HADsState::HADs m_all_hads{};
-      FiscalPeriod m_fiscal_period;
-      Mod10View m_mod10_view;
+    //   HADsState::HADs m_all_hads{};
+    //   FiscalPeriod m_fiscal_period;
+    //   Mod10View m_mod10_view;
 
-      auto operator()() {
-        return std::make_shared<HADsState>(m_all_hads, m_fiscal_period,m_mod10_view);
-      }
+    //   auto operator()() {
+    //     return std::make_shared<HADsState>(m_all_hads, m_fiscal_period,m_mod10_view);
+    //   }
 
-    };
+    // };
 
-    auto cmd_option_from_subrange = [this](Mod10View::Range const& subrange) -> StateImpl::CmdOption {
-      auto caption = std::to_string(subrange.first);
-      caption += " .. ";
-      caption += std::to_string(subrange.second-1);
-      return {caption, cmd_from_state_factory(HADs_subrange_factory(m_all_hads,m_fiscal_period,subrange))};
-    };
+    // auto cmd_option_from_subrange = [this](Mod10View::Range const& subrange) -> StateImpl::CmdOption {
+    //   auto caption = std::to_string(subrange.first);
+    //   caption += " .. ";
+    //   caption += std::to_string(subrange.second-1);
+    //   return {caption, cmd_from_state_factory(HADs_subrange_factory(m_all_hads,m_fiscal_period,subrange))};
+    // };
 
-    auto subranges = m_mod10_view.subranges();
-    for (size_t i=0;i<subranges.size();++i) {
-      auto const subrange = subranges[i];
-      auto const& [begin,end] = subrange;
-      if (end-begin==1) {
-        // Single HAD in range option
-        this->add_cmd_option(static_cast<char>('0'+i), HADState::cmd_option_from(m_all_hads[begin]));
-      }
-      else {
-        this->add_cmd_option(static_cast<char>('0'+i), cmd_option_from_subrange(subrange));
-      }
-    }
+    // auto subranges = m_mod10_view.subranges();
+    // for (size_t i=0;i<subranges.size();++i) {
+    //   auto const subrange = subranges[i];
+    //   auto const& [begin,end] = subrange;
+    //   if (end-begin==1) {
+    //     // Single HAD in range option
+    //     this->add_cmd_option(static_cast<char>('0'+i), HADState::cmd_option_from(m_all_hads[begin]));
+    //   }
+    //   else {
+    //     this->add_cmd_option(static_cast<char>('0'+i), cmd_option_from_subrange(subrange));
+    //   }
+    // }
 
     this->refresh_ux();
   }
@@ -146,8 +146,51 @@ namespace first {
 
   StateImpl::UpdateOptions HADsState::create_update_options() const {
     StateImpl::UpdateOptions result{};
-    // TODO: Refactor add_update_option in constructor to update options here
-    // TODO: Refactor add_cmd_option in constructor to update options here
+    
+    // HAD subrange StateImpl factory
+    // Enable 'drill down' modulo 10 into HADs
+    struct HADs_subrange_factory {
+      HADs_subrange_factory(HADsState::HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view)
+          : m_all_hads{all_hads},m_fiscal_period{fiscal_period},m_mod10_view{mod10_view} {}
+
+      HADsState::HADs m_all_hads{};
+      FiscalPeriod m_fiscal_period;
+      Mod10View m_mod10_view;
+
+      auto operator()() {
+        return std::make_shared<HADsState>(m_all_hads, m_fiscal_period,m_mod10_view);
+      }
+    };
+
+    auto subranges = m_mod10_view.subranges();
+    for (size_t i=0;i<subranges.size();++i) {
+      auto const subrange = subranges[i];
+      auto const& [begin,end] = subrange;
+      char key = static_cast<char>('0'+i);
+      
+      if (end-begin==1) {
+        // Single HAD in range option - convert to update option
+        auto caption = to_string(m_all_hads[begin]);
+        result.add(key, {caption, [had = m_all_hads[begin]]() -> StateUpdateResult {
+          return {std::nullopt, [had]() -> std::optional<Msg> {
+            State new_state = HADState::factory_from(had)();
+            return std::make_shared<PushStateMsg>(new_state);
+          }};
+        }});
+      }
+      else {
+        // Subrange option - convert to update option
+        auto caption = std::to_string(subrange.first) + " .. " + std::to_string(subrange.second-1);
+        result.add(key, {caption, [all_hads = m_all_hads, fiscal_period = m_fiscal_period, subrange]() -> StateUpdateResult {
+          return {std::nullopt, [all_hads, fiscal_period, subrange]() -> std::optional<Msg> {
+            auto factory = HADs_subrange_factory(all_hads, fiscal_period, subrange);
+            State new_state = factory();
+            return std::make_shared<PushStateMsg>(new_state);
+          }};
+        }});
+      }
+    }
+    
     return result;
   }
 

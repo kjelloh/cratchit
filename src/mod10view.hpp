@@ -16,7 +16,7 @@ namespace first {
     template <class T>
     Mod10View(T const &container);
 
-    std::vector<Range> subranges();
+    std::vector<Range> subranges() const;
 
   private:
     size_t to_subrange_size(Mod10View::Range const &range);
