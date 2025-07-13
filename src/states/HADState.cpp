@@ -22,16 +22,16 @@ namespace first {
         auto msg = std::make_shared<PushStateMsg>(new_state);
         return msg;
     }});
-    this->add_update_option('o', {"Ok", [this]() -> StateUpdateResult {
-      spdlog::info("HADState 'o' lambda: capturing m_edited_had: {}", to_string(this->m_edited_had.item));
-      using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
-      return {std::nullopt, [payload = this->m_edited_had]() -> std::optional<Msg> {
-        spdlog::info("HADState 'o' lambda execution: payload: {}", to_string(payload.item));
-        return std::make_shared<PopStateMsg>(
-          std::make_shared<EditedHADMsg>(payload)
-        );
-      }};
-    }});    
+    // this->add_update_option('o', {"Ok", [this]() -> StateUpdateResult {
+    //   spdlog::info("HADState 'o' lambda: capturing m_edited_had: {}", to_string(this->m_edited_had.item));
+    //   using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+    //   return {std::nullopt, [payload = this->m_edited_had]() -> std::optional<Msg> {
+    //     spdlog::info("HADState 'o' lambda execution: payload: {}", to_string(payload.item));
+    //     return std::make_shared<PopStateMsg>(
+    //       std::make_shared<EditedHADMsg>(payload)
+    //     );
+    //   }};
+    // }});    
   }
 
   StateFactory HADState::factory_from(HADState::HAD const& had) {
@@ -96,7 +96,18 @@ namespace first {
 
   StateImpl::UpdateOptions HADState::create_update_options() const {
     StateImpl::UpdateOptions result{};
-    // TODO: Refactor add_update_option in constructor to update options here
+    
+    result.add('o', {"Ok", [this]() -> StateUpdateResult {
+      spdlog::info("HADState 'o' lambda: capturing m_edited_had: {}", to_string(this->m_edited_had.item));
+      using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+      return {std::nullopt, [payload = this->m_edited_had]() -> std::optional<Msg> {
+        spdlog::info("HADState 'o' lambda execution: payload: {}", to_string(payload.item));
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<EditedHADMsg>(payload)
+        );
+      }};
+    }});
+    
     // TODO: Refactor add_cmd_option in constructor to update options here
     return result;
   }
