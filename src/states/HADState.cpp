@@ -148,6 +148,16 @@ namespace first {
       }};
     }});
     
+    // Add '-' key option last - back with current HAD state as cargo
+    result.add('-', {"Back", [this]() -> StateUpdateResult {
+      using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+      return {std::nullopt, [payload = this->m_edited_had]() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<EditedHADMsg>(payload)
+        );
+      }};
+    }});
+    
     // TODO: Refactor add_cmd_option in constructor to update options here
     return result;
   }

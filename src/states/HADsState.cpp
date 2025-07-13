@@ -193,6 +193,16 @@ namespace first {
       }
     }
     
+    // Add '-' key option last - back with HADs as payload
+    result.add('-', {"Back", [this]() -> StateUpdateResult {
+      using HADsMsg = CargoMsgT<HADsState::HADs>;
+      return {std::nullopt, [all_hads = this->m_all_hads]() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<HADsMsg>(all_hads)
+        );
+      }};
+    }});
+    
     return result;
   }
 

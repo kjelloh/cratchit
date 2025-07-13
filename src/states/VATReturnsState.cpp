@@ -21,6 +21,17 @@ namespace first {
     StateImpl::UpdateOptions result{};
     // TODO: Refactor add_update_option in constructor to update options here
     // TODO: Refactor add_cmd_option in constructor to update options here
+    
+    // Add '-' key option last - back with empty string as payload (VATReturnsState has no significant data)
+    result.add('-', {"Back", []() -> StateUpdateResult {
+      using StringMsg = CargoMsgT<std::string>;
+      return {std::nullopt, []() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<StringMsg>("VATReturnsState")
+        );
+      }};
+    }});
+    
     return result;
   }
 

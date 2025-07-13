@@ -277,6 +277,16 @@ namespace first {
         }};
       }});
     
+    // Add '-' key option last - back with environment as payload
+    result.add('-', {"Back", [this]() -> StateUpdateResult {
+      using EnvironmentMsg = CargoMsgT<Environment>;
+      return {std::nullopt, [env = this->m_environment]() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<EnvironmentMsg>(env)
+        );
+      }};
+    }});
+    
     return result;
   }
 

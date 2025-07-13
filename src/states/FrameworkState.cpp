@@ -32,6 +32,16 @@ namespace first {
       }};
     }});
     
+    // Add '-' key option last - back with root path as payload
+    result.add('-', {"Back", [this]() -> StateUpdateResult {
+      using PathMsg = CargoMsgT<std::filesystem::path>;
+      return {std::nullopt, [root_path = this->m_root_path]() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<PathMsg>(root_path)
+        );
+      }};
+    }});
+    
     return result;
   }
   

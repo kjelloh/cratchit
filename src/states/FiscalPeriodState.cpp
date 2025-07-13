@@ -97,6 +97,16 @@ namespace first {
       }};
     }});
     
+    // Add '-' key option last - back with period HADs as payload
+    result.add('-', {"Back", [this]() -> StateUpdateResult {
+      using HADsMsg = CargoMsgT<HeadingAmountDateTransEntries>;
+      return {std::nullopt, [period_hads = this->m_period_hads]() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<HADsMsg>(period_hads)
+        );
+      }};
+    }});
+    
     return result;
   }
 

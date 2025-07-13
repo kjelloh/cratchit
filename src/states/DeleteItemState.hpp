@@ -62,6 +62,15 @@ namespace first {
         }};
       }});
 
+      // Add '-' key option last - back with current state as cargo
+      result.add('-', {"Back", [payload = this->m_edited_item]() -> StateUpdateResult {
+        return {std::nullopt, [payload]() -> std::optional<Msg> {
+          return std::make_shared<PopStateMsg>(
+            std::make_shared<EditedHADMsg>(payload)
+          );
+        }};
+      }});
+
       return result;
     }
 
