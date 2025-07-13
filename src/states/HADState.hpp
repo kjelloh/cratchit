@@ -18,7 +18,9 @@ namespace first {
     virtual std::optional<Msg> get_on_destruct_msg() const override;
     virtual StateImpl::UpdateOptions create_update_options() const override;
 
-    void update_ux();
+    // void update_ux(); // Replaced by create_ux()
+    virtual UX create_ux() const override;
+
 
     static StateFactory factory_from(HADState::HAD const& had);
     // static StateImpl::CmdOption cmd_option_from(HADState::HAD const& had);

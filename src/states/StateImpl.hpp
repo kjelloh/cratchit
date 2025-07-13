@@ -99,7 +99,7 @@ namespace first {
     StateImpl(UX const &ux);
     virtual ~StateImpl();
     UX const &ux() const;
-    UX &ux();
+    // UX &ux();
 
     StateUpdateResult dispatch(Msg const& msg) const;    
     virtual StateUpdateResult apply(cargo::DummyCargo const& cargo) const;
@@ -124,10 +124,13 @@ namespace first {
   private:
     // 'Latest' key -> (caption,update) map
     mutable std::optional<StateImpl::UpdateOptions> m_transient_maybe_update_options;
+    // Lazy UX generation
+    mutable std::optional<UX> m_transient_maybe_ux;
     // // 'Older' key -> (caption,Cmd) map
     // std::optional<StateImpl::CmdOptions> m_transient_maybe_cmd_options;
 
     virtual UpdateOptions create_update_options() const; // Concrete state shall implement
+    virtual UX create_ux() const; // Concrete state shall implement
     // virtual CmdOptions create_cmd_options() const; // // Concrete state shall implement
 
     // // 'Latest' key -> (caption,update) map

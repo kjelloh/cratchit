@@ -21,9 +21,9 @@ namespace first {
     // this->add_cmd_option('4', FiscalPeriodState::cmd_option_from(current_fiscal_quarter.to_relative_fiscal_quarter(-1),m_environment));
   }
 
-  void ProjectState::update_ux() {
-    m_ux.push_back(std::format("Environment {}: {} entries.",m_persistent_environment_file.path().string(), m_environment.size()));
-  }
+  // void ProjectState::update_ux() {
+  //   m_ux.push_back(std::format("Environment {}: {} entries.",m_persistent_environment_file.path().string(), m_environment.size()));
+  // }
 
   ProjectState::ProjectState(
      StateImpl::UX ux
@@ -34,7 +34,8 @@ namespace first {
       ,m_persistent_environment_file{persistent_environment_file}
       ,m_environment{environment} {
     update_options();
-    update_ux();
+    // UX creation moved to create_ux()
+    // update_ux();
   }
 
   // ----------------------------------
@@ -51,15 +52,16 @@ namespace first {
       }
       else {
         m_environment = Environment{}; // Initialize with an empty environment if no cached environment
-        m_ux.push_back(std::format("Null Environment {}",m_persistent_environment_file.path().string()));
+        m_has_null_environment = true; // Track for UX creation
       }
     }
     catch (const std::exception& e) {
-      m_ux.push_back("Error initializing environment: " + std::string(e.what()));
+      m_init_error = e.what(); // Track for UX creation
     }
 
     update_options();
-    update_ux();
+    // UX creation moved to create_ux()
+    // update_ux();
   } // ProjectState::ProjectState
 
   ProjectState::~ProjectState() {
@@ -274,6 +276,26 @@ namespace first {
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});
+    
+    return result;
+  }
+
+  StateImpl::UX ProjectState::create_ux() const {
+    UX result{};
+    
+    // Base UX from constructor
+    if (!m_ux.empty()) {
+      result = m_ux;
+    }
+    
+    // Add dynamic content based on state
+    if (!m_init_error.empty()) {
+      result.push_back("Error initializing environment: " + m_init_error);
+    } else if (m_has_null_environment) {
+      result.push_back(std::format("Null Environment {}", m_persistent_environment_file.path().string()));
+    } else {
+      result.push_back(std::format("Environment {}: {} entries.", m_persistent_environment_file.path().string(), m_environment.size()));
+    }
     
     return result;
   }

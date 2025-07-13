@@ -10,10 +10,8 @@ namespace first {
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
-      // ,m_transient_maybe_cmd_options{}
-      // ,m_update_options_{}
-      // ,m_cmd_options{} {
-      ,m_transient_maybe_update_options{} {
+      ,m_transient_maybe_update_options{}
+      ,m_transient_maybe_ux{} {
 
       if (true) {
         spdlog::info("StateImpl constructor called for {}", static_cast<void*>(this));
@@ -32,13 +30,35 @@ namespace first {
 
   // ----------------------------------
   StateImpl::UX const& StateImpl::ux() const {
-    return m_ux;
+    // Lazy UX generation similar to update_options pattern
+    if (!m_transient_maybe_ux) {
+      m_transient_maybe_ux = create_ux();
+    }
+    
+    if (!m_transient_maybe_ux) {
+      spdlog::error("DESIGN_INSUFFICIENCY: StateImpl::ux() requires this->create_ux to return non-empty UX!");
+      static UX dummy{};
+      return dummy;
+    }
+    
+    return *m_transient_maybe_ux;
   }
 
   // ----------------------------------
-  StateImpl::UX& StateImpl::ux() {
-    return m_ux;
-  }
+  // StateImpl::UX& StateImpl::ux() {
+  //   // For mutable access, ensure UX is initialized
+  //   if (!m_transient_maybe_ux) {
+  //     m_transient_maybe_ux = create_ux();
+  //   }
+    
+  //   if (!m_transient_maybe_ux) {
+  //     spdlog::error("DESIGN_INSUFFICIENCY: StateImpl::ux() requires this->create_ux to return non-empty UX!");
+  //     static UX dummy{};
+  //     return dummy;
+  //   }
+    
+  //   return *m_transient_maybe_ux;
+  // }
 
 
   // ----------------------------------
@@ -200,6 +220,13 @@ namespace first {
         }
       }
     );
+    return result;
+  }
+  
+  StateImpl::UX StateImpl::create_ux() const {
+    // Default implementation - states should override this
+    UX result = m_ux; // Use the original UX from constructor as fallback
+    result.push_back("StateImpl::create_ux - override in concrete state");
     return result;
   }
   

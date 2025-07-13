@@ -15,8 +15,9 @@ namespace first {
 
     DeleteItemState(Item item)
       : m_edited_item{item, cargo::ItemMutation::UNCHANGED}, StateImpl({}) {
-      ux().clear();
-      ux().push_back(std::format("Delete: {} ?", to_string(item)));
+      // UX creation moved to create_ux()
+      // ux().clear();
+      // ux().push_back(std::format("Delete: {} ?", to_string(item)));
 
       // this->add_update_option('y', {"Yes", [this]() -> StateUpdateResult {
       //   using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
@@ -61,6 +62,12 @@ namespace first {
         }};
       }});
 
+      return result;
+    }
+
+    virtual StateImpl::UX create_ux() const override {
+      UX result{};
+      result.push_back(std::format("Delete: {} ?", to_string(m_edited_item.item)));
       return result;
     }
 

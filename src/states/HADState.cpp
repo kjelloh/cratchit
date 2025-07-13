@@ -14,7 +14,7 @@ namespace first {
     //   return std::make_shared<StateImpl>(SIE_ux);
     // };
 
-    update_ux();
+    // update_ux();
 
     // this->add_cmd_option('0',{"HAD -> SIE", cmd_from_state_factory(sie_factory)});
 
@@ -62,7 +62,7 @@ namespace first {
       spdlog::info("HADState::update - Received EditedHADMsg with payload {}, new_state->m_edited_had {} "
         ,to_string(pimpl->payload.item)
         ,to_string(new_state->m_edited_had.item));
-      new_state->update_ux();
+      // UX now lazy-generated via create_ux() - no need to call update_ux()
       return {new_state, Nop};
     }
     return {};
@@ -76,9 +76,27 @@ namespace first {
     return std::make_shared<EditedHADMsg>(m_edited_had);
   }
 
-  void HADState::update_ux() {
-    ux().clear();
+  // void HADState::update_ux() {
+  //   ux().clear();
     
+  //   std::string status_prefix;
+  //   switch (m_edited_had.mutation) {
+  //     case cargo::ItemMutation::UNCHANGED:
+  //       status_prefix = "";
+  //       break;
+  //     case cargo::ItemMutation::MODIFIED:
+  //       status_prefix = "[MODIFIED] ";
+  //       break;
+  //     case cargo::ItemMutation::DELETED:
+  //       status_prefix = "[MARKED FOR DELETION] ";
+  //       break;
+  //   }
+    
+  //   ux().push_back(status_prefix + to_string(m_edited_had.item));
+  // }
+
+  StateImpl::UX HADState::create_ux() const {
+    UX result{};
     std::string status_prefix;
     switch (m_edited_had.mutation) {
       case cargo::ItemMutation::UNCHANGED:
@@ -92,8 +110,12 @@ namespace first {
         break;
     }
     
-    ux().push_back(status_prefix + to_string(m_edited_had.item));
+    result.push_back(status_prefix + to_string(m_edited_had.item));
+
+    return result;
   }
+
+
 
   StateImpl::UpdateOptions HADState::create_update_options() const {
     StateImpl::UpdateOptions result{};

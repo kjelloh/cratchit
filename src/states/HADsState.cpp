@@ -50,21 +50,23 @@ namespace first {
     //   }
     // }
 
-    this->refresh_ux();
+    // UX creation moved to create_ux()
+    // this->refresh_ux();
   }
 
   // ----------------------------------
 
-  void HADsState::refresh_ux() {
-    // Initiate view UX
-    this->ux().clear();
-    this->ux().push_back(std::format("{}", m_fiscal_period.to_string()));
+  StateImpl::UX HADsState::create_ux() const {
+    // Create view UX
+    UX result{};
+    result.push_back(std::format("{}", m_fiscal_period.to_string()));
     for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
       auto entry = std::to_string(i);
       entry += ". ";
       entry += to_string(m_all_hads[i]);
-      this->ux().push_back(entry);
+      result.push_back(entry);
     }
+    return result;
   }
 
   // ----------------------------------

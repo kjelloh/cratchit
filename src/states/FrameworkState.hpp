@@ -11,6 +11,7 @@ namespace first {
   public:
     FrameworkState(StateImpl::UX ux,std::filesystem::path root_path);
     virtual UpdateOptions create_update_options() const override;
+    virtual UX create_ux() const override;
 
   }; // struct FrameworkState
 } // namespace first

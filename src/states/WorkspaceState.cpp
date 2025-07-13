@@ -20,7 +20,8 @@ namespace first {
     :  StateImpl{ux}
       ,m_root_path{root_path} {
 
-    this->m_ux.push_back(m_root_path.string());
+    // UX creation moved to create_ux()
+    // this->m_ux.push_back(m_root_path.string());
 
     // Moved to create_update_options()
     // this->add_cmd_option('0', ProjectState::cmd_option_from(".", m_root_path));
@@ -57,6 +58,20 @@ namespace first {
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
+    
+    return result;
+  }
+
+  StateImpl::UX WorkspaceState::create_ux() const {
+    UX result{};
+    
+    // Base UX from constructor
+    if (!m_ux.empty()) {
+      result = m_ux;
+    }
+    
+    // Add root path info
+    result.push_back(m_root_path.string());
     
     return result;
   }
