@@ -17,9 +17,9 @@ namespace first {
         ,m_fiscal_period{fiscal_period}
         ,m_period_hads{period_hads} {
     try {
-      // Options
-      this->add_cmd_option('h', HADsState::cmd_option_from(this->m_period_hads,this->m_fiscal_period));
-      this->add_cmd_option('v', VATReturnsState::cmd_option_from());
+      // Options - moved to create_update_options()
+      // this->add_cmd_option('h', HADsState::cmd_option_from(this->m_period_hads,this->m_fiscal_period));
+      // this->add_cmd_option('v', VATReturnsState::cmd_option_from());
 
     } catch (std::exception const &e) {
       spdlog::error("Error initializing FiscalPeriodState: {}", e.what());
@@ -79,8 +79,24 @@ namespace first {
 
   StateImpl::UpdateOptions FiscalPeriodState::create_update_options() const {
     StateImpl::UpdateOptions result{};
-    // TODO: Refactor add_update_option in constructor to update options here
-    // TODO: Refactor add_cmd_option in constructor to update options here
+    
+    // Convert HADsState::cmd_option_from to update option
+    result.add('h', {std::format("HADs - count:{}", m_period_hads.size()), 
+      [period_hads = m_period_hads, fiscal_period = m_fiscal_period]() -> StateUpdateResult {
+        return {std::nullopt, [period_hads, fiscal_period]() -> std::optional<Msg> {
+          State new_state = HADsState::factory_from(period_hads, fiscal_period)();
+          return std::make_shared<PushStateMsg>(new_state);
+        }};
+      }});
+    
+    // Convert VATReturnsState::cmd_option_from to update option  
+    result.add('v', {"VAT Returns", []() -> StateUpdateResult {
+      return {std::nullopt, []() -> std::optional<Msg> {
+        State new_state = VATReturnsState::factory_from()();
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
+    }});
+    
     return result;
   }
 
