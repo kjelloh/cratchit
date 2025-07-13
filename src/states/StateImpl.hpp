@@ -86,8 +86,8 @@ namespace first {
     // 'Older' add of key -> (caption,cmd)
     void add_cmd_option(char ch, CmdOption const &option);
 
-    // 'Latest': sccessor to update options (key -> (caption,update))
-    UpdateOptions const &update_options() const;
+    // 'Latest': accessor to update options (key -> (caption,update))
+    UpdateOptions const& update_options() const;
     // 'Older': accessor to command options (key -> (caption,cmd)) 
     CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
 
@@ -122,20 +122,19 @@ namespace first {
     }    
 
   private:
+    // 'Latest' key -> (caption,update) map
+    mutable std::optional<StateImpl::UpdateOptions> m_transient_maybe_update_options;
+    // 'Older' key -> (caption,Cmd) map
+    std::optional<StateImpl::CmdOptions> m_transient_maybe_cmd_options;
 
-    virtual UpdateOptions create_update_options(); // Concrete state shall implement
-    virtual CmdOptions create_cmd_options(); // // Concrete state shall implement
+    virtual UpdateOptions create_update_options() const; // Concrete state shall implement
+    virtual CmdOptions create_cmd_options() const; // // Concrete state shall implement
 
     // 'Latest' key -> (caption,update) map
-    UpdateOptions m_update_options;
+    UpdateOptions m_update_options_;
     // 'Older' key -> (caption,Cmd) map
     CmdOptions m_cmd_options; // key -> Cmd (older mechanism)
     
-    // 'Latest' key -> (caption,update) map
-    UpdateOptions m_transient_update_options;
-    // 'Older' key -> (caption,Cmd) map
-    CmdOptions m_transient_cmd_options; // key -> Cmd (older mechanism)
-
     // State TEA update mechanism
     virtual StateUpdateResult update(Msg const& msg) const;
     StateUpdateResult default_update(Msg const& msg) const;

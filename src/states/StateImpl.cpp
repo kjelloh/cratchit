@@ -10,8 +10,10 @@ namespace first {
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
-      ,m_cmd_options{}
-      ,m_update_options{} {
+      ,m_transient_maybe_update_options{}
+      ,m_transient_maybe_cmd_options{}
+      ,m_update_options_{}
+      ,m_cmd_options{} {
 
       if (true) {
         spdlog::info("StateImpl constructor called for {}", static_cast<void*>(this));
@@ -100,7 +102,7 @@ namespace first {
 
   // ----------------------------------
   void StateImpl::add_update_option(char ch, UpdateOption const &option) {
-    this->m_update_options.add(ch,option);
+    this->m_update_options_.add(ch,option);
   }
 
   // ----------------------------------
@@ -109,8 +111,30 @@ namespace first {
   }
 
   // ----------------------------------
+
   StateImpl::UpdateOptions const& StateImpl::update_options() const {
-    return m_update_options;
+
+    // Note: m_transient_maybe_update_options must be synchronised with actual state instance.
+    //       Then option lambdas may safelly capture 'this' (See UpdateOptions: key -> (caption,lambda))
+
+    // Design: Mutate State -> nullopt options (StateImpl constructor)
+    //         Client call + empty cache -> ask concrete state to create_update_options()
+    //         Mutate cache with created instance
+    //         Whine if cache still does contain an instance
+    //         Return cache    
+    if (!this->m_transient_maybe_update_options) {
+      // mutable = Allow mutation of transient data although we are const
+      this->m_transient_maybe_update_options = this->create_update_options();
+    }
+
+    // Whine?
+    if (!this->m_transient_maybe_update_options) {
+      spdlog::error("DESIGN_INSUFFICIENCY: StateImpl::update_options() requires this->create_update_options to return non std::nullopt value!");
+      static StateImpl::UpdateOptions dummy{};
+      return dummy; // Prohibit crach!
+    }
+
+    return this->m_transient_maybe_update_options.value();
   }
 
   // ----------------------------------
@@ -141,7 +165,7 @@ namespace first {
         return std::make_shared<PopStateMsg>();
       };
     }
-    else if (auto update_result = this->m_update_options.apply(ch)) {
+    else if (auto update_result = this->update_options().apply(ch)) {
       auto const& [new_state, new_cmd] = update_result;
       mutated_state = new_state;
       cmd = new_cmd;
@@ -167,8 +191,9 @@ namespace first {
 
   // private:
 
-  StateImpl::UpdateOptions StateImpl::create_update_options() {
+  StateImpl::UpdateOptions StateImpl::create_update_options() const {
     StateImpl::UpdateOptions result{};
+    // Add a dummy entry to show that state has to override this approprietly
     result.add('?',UpdateOption{"StateImpl::create_update_options"
       ,[]() -> StateUpdateResult {
           return StateUpdateResult{}; // 'null'
@@ -178,7 +203,7 @@ namespace first {
     return result;
   }
   
-  StateImpl::CmdOptions StateImpl::create_cmd_options() {
+  StateImpl::CmdOptions StateImpl::create_cmd_options() const {
     StateImpl::CmdOptions result{};
     result.add('?',CmdOption{"StateImpl::create_cmd_options",Nop});
     return result;

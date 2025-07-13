@@ -12,4 +12,12 @@ namespace first {
 
     this->add_cmd_option('0', WorkspaceState::cmd_option_from(m_root_path));
   }
+
+  StateImpl::UpdateOptions FrameworkState::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // TODO: Refactor add_update_option in constructor to update options here
+    // TODO: Refactor add_cmd_option in constructor to update options here
+    return result;
+  }
+
 }
