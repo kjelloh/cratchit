@@ -69,9 +69,9 @@ namespace first {
   }
 
   // ----------------------------------
-  StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
-    spdlog::info("StateImpl::dispatch(msg) - BEGIN");
-    return this->update(msg);
+  // StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
+  //   spdlog::info("StateImpl::dispatch(msg) - BEGIN");
+  //   return this->update(msg);
 
     // all-state scope key handling moved out to cratchit::update::try_state_update     
     // Try virtual update first
@@ -103,6 +103,12 @@ namespace first {
     // return this->default_update(msg);
 
     // return StateUpdateResult{}; // not handled    
+  // }
+
+  // ----------------------------------
+  StateUpdateResult StateImpl::update(Msg const& msg) const {
+    spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
+    return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
   // // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
@@ -138,12 +144,6 @@ namespace first {
     UX result = m_ux; // Use the original UX from constructor as fallback
     result.push_back("StateImpl::create_ux - override in concrete state");
     return result;
-  }
-
-  // ----------------------------------
-  StateUpdateResult StateImpl::update(Msg const& msg) const {
-    spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
-    return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
   // ----------------------------------

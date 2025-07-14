@@ -188,7 +188,7 @@ namespace first {
     auto try_state_update = [&model](Msg const& msg) -> StateUpdateResult {
       bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
       if (ask_state_to_update) {
-        if (auto update_result = model.ui_states.back()->dispatch(msg)) {
+        if (auto update_result = model.ui_states.back()->update(msg)) {
           return update_result;
         }
         else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
