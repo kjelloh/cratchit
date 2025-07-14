@@ -188,7 +188,27 @@ namespace first {
     auto try_state_update = [&model](Msg const& msg) -> StateUpdateResult {
       bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
       if (ask_state_to_update) {
-        return model.ui_states.back()->dispatch(msg);
+        if (auto update_result = model.ui_states.back()->dispatch(msg)) {
+          return update_result;
+        }
+        else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
+          spdlog::info("cratchit::update:::try_state_update: - NCursesKeyMsg");
+          auto ch = key_msg_ptr->key;
+          if (auto update_result = model.ui_states.back()->update_options().apply(ch)) {
+            return update_result;
+          }
+          else if (ch == 'q') {
+            return {std::nullopt,DO_QUIT};
+          }
+          else if (ch == '-') {
+            // Default pop-state (no payload child -> parent state)
+            // 250714 - Only required for 'dummy' state pushed as StateImpl instance (prototyping)
+            return {std::nullopt,[]() -> std::optional<Msg>{
+              return std::make_shared<PopStateMsg>();
+            }};
+          }
+          spdlog::info("try_state_update: NCursesKeyMsg - ignored message");
+        }
       }
       return {std::nullopt,Cmd{}};
     };

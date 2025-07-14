@@ -71,36 +71,38 @@ namespace first {
   // ----------------------------------
   StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
     spdlog::info("StateImpl::dispatch(msg) - BEGIN");
-    
+    return this->update(msg);
+
+    // all-state scope key handling moved out to cratchit::update::try_state_update     
     // Try virtual update first
-    if (auto result = this->update(msg)) {
-      // Derived state handled the message
-      spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
-      return result;
-    }
-    else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
-      spdlog::info("StateImpl::dispatch(msg) - NCursesKeyMsg");
-      auto ch = key_msg_ptr->key;
-      if (ch == 'q') {
-        return {std::nullopt,DO_QUIT};
-      }
-      else if (ch == '-') {
-        // Default pop-state (no payload child -> parent state)
-        return {std::nullopt,[]() -> std::optional<Msg>{
-          return std::make_shared<PopStateMsg>();
-        }};
-      }
-      else if (auto update_result = this->update_options().apply(ch)) {
-        return update_result;
-      }
-      spdlog::info("StateImpl::update(NCursesKeyMsg) - ignored message");
-    }
+    // if (auto result = this->update(msg)) {
+    //   // Derived state handled the message
+    //   spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
+    //   return result;
+    // }
+    // else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
+    //   spdlog::info("StateImpl::dispatch(msg) - NCursesKeyMsg");
+    //   auto ch = key_msg_ptr->key;
+    //   if (auto update_result = this->update_options().apply(ch)) {
+    //     return update_result;
+    //   }
+    //   else if (ch == 'q') {
+    //     return {std::nullopt,DO_QUIT};
+    //   }
+    //   else if (ch == '-') {
+    //     // Default pop-state (no payload child -> parent state)
+    //     return {std::nullopt,[]() -> std::optional<Msg>{
+    //       return std::make_shared<PopStateMsg>();
+    //     }};
+    //   }
+    //   spdlog::info("StateImpl::update(NCursesKeyMsg) - ignored message");
+    // }
 
     // // Derived didn't handle it - use base default logic
     // spdlog::info("StateImpl::dispatch(msg) - Using default_update fallback");
     // return this->default_update(msg);
 
-    return StateUpdateResult{}; // not handled    
+    // return StateUpdateResult{}; // not handled    
   }
 
   // // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
