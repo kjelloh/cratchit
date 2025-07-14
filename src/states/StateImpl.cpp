@@ -27,7 +27,6 @@ namespace first {
       }
   }
 
-
   // ----------------------------------
   StateImpl::UX const& StateImpl::ux() const {
     // Lazy UX generation similar to update_options pattern
@@ -43,38 +42,6 @@ namespace first {
     
     return *m_transient_maybe_ux;
   }
-
-
-
-  // ----------------------------------
-  StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
-    spdlog::info("StateImpl::dispatch(msg) - BEGIN");
-    
-    // Try virtual update first
-    if (auto result = this->update(msg)) {
-      // Derived state handled the message
-      spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
-      return result;
-    }
-    
-    // Derived didn't handle it - use base default logic
-    spdlog::info("StateImpl::dispatch(msg) - Using default_update fallback");
-    return this->default_update(msg);
-  }
-
-  // ----------------------------------
-  StateUpdateResult StateImpl::update(Msg const& msg) const {
-    spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
-    return {std::nullopt, Cmd{}}; // Base: "didn't handle"
-  }
-
-
-
-  // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
-  std::optional<Msg> StateImpl::get_on_destruct_msg() const {
-    return std::nullopt;
-  }
-
 
   StateImpl::UpdateOptions const& StateImpl::update_options() const {
 
@@ -99,6 +66,63 @@ namespace first {
     }
 
     return this->m_transient_maybe_update_options.value();
+  }
+
+  // ----------------------------------
+  StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
+    spdlog::info("StateImpl::dispatch(msg) - BEGIN");
+    
+    // Try virtual update first
+    if (auto result = this->update(msg)) {
+      // Derived state handled the message
+      spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
+      return result;
+    }
+    
+    // Derived didn't handle it - use base default logic
+    spdlog::info("StateImpl::dispatch(msg) - Using default_update fallback");
+    return this->default_update(msg);
+  }
+
+  // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
+  std::optional<Msg> StateImpl::get_on_destruct_msg() const {
+    return std::nullopt;
+  }
+
+  // ----------------------------------
+  // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)
+  Cmd StateImpl::cmd_from_state_factory(StateFactory factory) {
+    return [factory]() -> std::optional<Msg> {
+      State new_state = factory();
+      return std::make_shared<PushStateMsg>(new_state);
+    };
+  }
+
+  // private:
+
+  StateImpl::UpdateOptions StateImpl::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // Add a dummy entry to show that state has to override this approprietly
+    result.add('?',UpdateOption{"StateImpl::create_update_options"
+      ,[]() -> StateUpdateResult {
+          return StateUpdateResult{}; // 'null'
+        }
+      }
+    );
+    return result;
+  }
+  
+  StateImpl::UX StateImpl::create_ux() const {
+    // Default implementation - states should override this
+    UX result = m_ux; // Use the original UX from constructor as fallback
+    result.push_back("StateImpl::create_ux - override in concrete state");
+    return result;
+  }
+
+  // ----------------------------------
+  StateUpdateResult StateImpl::update(Msg const& msg) const {
+    spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
+    return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
   // ----------------------------------
@@ -140,37 +164,5 @@ namespace first {
     
     return {mutated_state, cmd};
   }
-
-  // ----------------------------------
-  // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)
-  Cmd StateImpl::cmd_from_state_factory(StateFactory factory) {
-    return [factory]() -> std::optional<Msg> {
-      State new_state = factory();
-      return std::make_shared<PushStateMsg>(new_state);
-    };
-  }
-
-  // private:
-
-  StateImpl::UpdateOptions StateImpl::create_update_options() const {
-    StateImpl::UpdateOptions result{};
-    // Add a dummy entry to show that state has to override this approprietly
-    result.add('?',UpdateOption{"StateImpl::create_update_options"
-      ,[]() -> StateUpdateResult {
-          return StateUpdateResult{}; // 'null'
-        }
-      }
-    );
-    return result;
-  }
-  
-  StateImpl::UX StateImpl::create_ux() const {
-    // Default implementation - states should override this
-    UX result = m_ux; // Use the original UX from constructor as fallback
-    result.push_back("StateImpl::create_ux - override in concrete state");
-    return result;
-  }
-  
-
 
 } // namespace first

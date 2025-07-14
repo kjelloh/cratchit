@@ -84,7 +84,7 @@ namespace first {
     StateImpl(StateImpl&&) = delete; // As Immutable = move from not allowed
     StateImpl& operator=(StateImpl const&) = delete; // As Immutable = copy assignment not allowed
     StateImpl& operator=(StateImpl&&) = delete; // As Immutable = move assignment not allowed
-    
+
     StateImpl(UX const &ux);
     virtual ~StateImpl();
     UX const &ux() const;
@@ -99,11 +99,11 @@ namespace first {
   protected:
     UX m_ux;
   private:
-    // 'Latest' key -> (caption,update) map
+    // 'Transient' data = not regarded as immutable
     mutable std::optional<StateImpl::UpdateOptions> m_transient_maybe_update_options;
-    // Lazy UX generation
     mutable std::optional<UX> m_transient_maybe_ux;
 
+    // Helper to 'refresh' update options and ux to current state instance
     virtual UpdateOptions create_update_options() const; // Concrete state shall implement
     virtual UX create_ux() const; // Concrete state shall implement
     
