@@ -114,14 +114,6 @@ namespace first {
     // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)
     static Cmd cmd_from_state_factory(StateFactory factory);
 
-    // Helper to create commands that return specific messages
-    template<typename MsgType, typename... Args>
-    static auto make_cmd(Args&&... args) {
-      return [args...]() -> std::optional<Msg> {
-        return std::make_shared<MsgType>(args...);
-      };
-    }
-
   protected:
     UX m_ux;
 

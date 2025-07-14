@@ -346,7 +346,9 @@ namespace first {
     
     // Add '-' key option last - back with environment as payload
     result.add('-', {"Back", [this]() -> StateUpdateResult {
-      return {std::nullopt, make_cmd<PopStateMsg>()};
+      return {std::nullopt, [env = this->m_environment]() -> std::optional<Msg> {
+        return std::make_shared<PopStateMsg>();
+      }};
     }});
     
     return result;
