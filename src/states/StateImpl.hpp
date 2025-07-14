@@ -3,7 +3,6 @@
 #include "cross_dependent.hpp"
 #include "cmd.hpp"
 #include "cargo/CargoBase.hpp"
-#include "cargo/EnvironmentCargo.hpp"
 #include <vector>
 #include <string>
 #include <utility> // std::pair
@@ -106,7 +105,7 @@ namespace first {
     virtual StateUpdateResult apply(cargo::DummyCargo const& cargo) const;
     // Cargo visit/apply double dispatch removed (cargo now message passed)
     // virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const;
-    virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
+    // virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
 
     // Cargo visit/apply double dispatch removed (cargo now message passed)
     // virtual Cargo get_cargo() const;

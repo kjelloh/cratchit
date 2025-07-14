@@ -208,72 +208,73 @@ namespace first {
     return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
 
-    StateUpdateResult ProjectState::apply(cargo::EnvironmentCargo const &cargo) const {
-      std::optional<State> mutated_state{};
-      Cmd cmd{Nop};
-      spdlog::info("ProjectState::apply - Received EnvironmentCargo");
-      // Update the environment with the cargo of environment slice
-      auto [env_slice,slice_period] = cargo.m_payload;
-      spdlog::info("ProjectState::apply - Period: {}, Slice size: {}", slice_period.to_string(), env_slice.size());
-      std::string section{"HeadingAmountDateTransEntry"};
-      if ((not m_environment.contains(section)) and env_slice.contains(section)) {
-        spdlog::info("ProjectState::apply - mutated_environment[section] = env_slice.at(section for section:{})", section);
-
-        auto mutated_environment = m_environment;
-        mutated_environment[section] = env_slice.at(section);
-        mutated_state = to_cloned(*this, UX{}, this->m_persistent_environment_file, mutated_environment);
-      }
-      else if (m_environment.contains(section) and env_slice.contains(section)) {
-        spdlog::info("ProjectState::apply - Processing section: {}", section);
-
-        auto to_date = [](EnvironmentIdValuePair const& pair) -> Date {
-          // Ok, so EnvironmentIdValuePair is not type safe regarding we asume it represents a HAD.
-          // For now, this follows only from processing section 'HeadingAmountDateTransEntry'.
-          if (auto had = to_had(pair.second)) {
-            spdlog::info("by_date date: {}", to_string(had->date));
-            return had->date;
-          }
-          spdlog::warn("ProjectState::apply::by_date - Invalid HAD in EnvironmentIdValuePair: {}", to_string(pair.second));
-          return Date{}; // Return a default date if HAD is invalid
-        };
-
-        auto to_ev = [](EnvironmentIdValuePair const& pair) {return pair.second;};
-
-        diff_view<EnvironmentCasEntryVector,decltype(to_date), decltype(to_ev)> 
-          difference{m_environment.at(section), env_slice.at(section),slice_period, to_date,to_ev};
-        if (difference) {
-          spdlog::info("ProjectState::apply - Difference found in section: {}", section);
-          auto mutated_environment = this->m_environment;   // Make a copy to mutate
-          auto &mutated_section = mutated_environment[section];
-          // Remove entriers in mutated section
-          for (auto const &[index, ev] : difference.removed()) {
-            if (auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; }); iter != mutated_section.end()) {
-              spdlog::info("ProjectState::apply - Removing entry {}:{}", index, to_string(ev));
-              mutated_section.erase(iter); // Remove the entry
-            } else {
-              spdlog::warn("ProjectState::apply - Entry not found for removal: {}", to_string(ev));
-            }
-          }
-          // Insert entries in mutated section
-          for (auto const &[index, ev] : difference.inserted()) {
-            if ( auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; })
-                ;iter == mutated_section.end()) {
-              spdlog::info("ProjectState::apply - Inserting entry {}:{}", index, to_string(ev));
-              mutated_section.push_back({mutated_section.size(), ev}); // Insert the entry
-            } else {
-              spdlog::warn("ProjectState::apply - Entry already exists for insertion: {}", to_string(ev));
-            }
-          }
-          mutated_state = to_cloned(*this, UX{}, this->m_persistent_environment_file, mutated_environment);
-        }
-      }
-      else {
-        spdlog::info("ProjectState::apply - Ignored, because m_environment.contains(section):{} and env_slice.contains(section):{}",m_environment.contains(section),env_slice.contains(section));
-      }
-      return {mutated_state, cmd};
-    }
-
   // Cargo visit/apply double dispatch removed (cargo now message passed)
+
+    // StateUpdateResult ProjectState::apply(cargo::EnvironmentCargo const &cargo) const {
+    //   std::optional<State> mutated_state{};
+    //   Cmd cmd{Nop};
+    //   spdlog::info("ProjectState::apply - Received EnvironmentCargo");
+    //   // Update the environment with the cargo of environment slice
+    //   auto [env_slice,slice_period] = cargo.m_payload;
+    //   spdlog::info("ProjectState::apply - Period: {}, Slice size: {}", slice_period.to_string(), env_slice.size());
+    //   std::string section{"HeadingAmountDateTransEntry"};
+    //   if ((not m_environment.contains(section)) and env_slice.contains(section)) {
+    //     spdlog::info("ProjectState::apply - mutated_environment[section] = env_slice.at(section for section:{})", section);
+
+    //     auto mutated_environment = m_environment;
+    //     mutated_environment[section] = env_slice.at(section);
+    //     mutated_state = to_cloned(*this, UX{}, this->m_persistent_environment_file, mutated_environment);
+    //   }
+    //   else if (m_environment.contains(section) and env_slice.contains(section)) {
+    //     spdlog::info("ProjectState::apply - Processing section: {}", section);
+
+    //     auto to_date = [](EnvironmentIdValuePair const& pair) -> Date {
+    //       // Ok, so EnvironmentIdValuePair is not type safe regarding we asume it represents a HAD.
+    //       // For now, this follows only from processing section 'HeadingAmountDateTransEntry'.
+    //       if (auto had = to_had(pair.second)) {
+    //         spdlog::info("by_date date: {}", to_string(had->date));
+    //         return had->date;
+    //       }
+    //       spdlog::warn("ProjectState::apply::by_date - Invalid HAD in EnvironmentIdValuePair: {}", to_string(pair.second));
+    //       return Date{}; // Return a default date if HAD is invalid
+    //     };
+
+    //     auto to_ev = [](EnvironmentIdValuePair const& pair) {return pair.second;};
+
+    //     diff_view<EnvironmentCasEntryVector,decltype(to_date), decltype(to_ev)> 
+    //       difference{m_environment.at(section), env_slice.at(section),slice_period, to_date,to_ev};
+    //     if (difference) {
+    //       spdlog::info("ProjectState::apply - Difference found in section: {}", section);
+    //       auto mutated_environment = this->m_environment;   // Make a copy to mutate
+    //       auto &mutated_section = mutated_environment[section];
+    //       // Remove entriers in mutated section
+    //       for (auto const &[index, ev] : difference.removed()) {
+    //         if (auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; }); iter != mutated_section.end()) {
+    //           spdlog::info("ProjectState::apply - Removing entry {}:{}", index, to_string(ev));
+    //           mutated_section.erase(iter); // Remove the entry
+    //         } else {
+    //           spdlog::warn("ProjectState::apply - Entry not found for removal: {}", to_string(ev));
+    //         }
+    //       }
+    //       // Insert entries in mutated section
+    //       for (auto const &[index, ev] : difference.inserted()) {
+    //         if ( auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; })
+    //             ;iter == mutated_section.end()) {
+    //           spdlog::info("ProjectState::apply - Inserting entry {}:{}", index, to_string(ev));
+    //           mutated_section.push_back({mutated_section.size(), ev}); // Insert the entry
+    //         } else {
+    //           spdlog::warn("ProjectState::apply - Entry already exists for insertion: {}", to_string(ev));
+    //         }
+    //       }
+    //       mutated_state = to_cloned(*this, UX{}, this->m_persistent_environment_file, mutated_environment);
+    //     }
+    //   }
+    //   else {
+    //     spdlog::info("ProjectState::apply - Ignored, because m_environment.contains(section):{} and env_slice.contains(section):{}",m_environment.contains(section),env_slice.contains(section));
+    //   }
+    //   return {mutated_state, cmd};
+    // }
+
   // Cargo ProjectState::get_cargo() const {
   //     spdlog::info("ProjectState::get_cargo");
   //     return Cargo{}; // Null cargo
