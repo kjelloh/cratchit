@@ -266,13 +266,13 @@ namespace first {
             return on_destruct_msg;
           };
         }
-        // TODO: Consider to replace 'Cargo' double dispatch (visit/apply) with cargo message passing?
-        else {
-          cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
-            auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
-            return msg;
-          };
-        }
+        // Cargo visit/apply double dispatch removed (cargo now message passed)
+        // else {
+        //   cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
+        //     auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
+        //     return msg;
+        //   };
+        // }
 
       }
     }

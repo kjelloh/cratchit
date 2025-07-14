@@ -273,10 +273,11 @@ namespace first {
       return {mutated_state, cmd};
     }
 
-  Cargo ProjectState::get_cargo() const {
-      spdlog::info("ProjectState::get_cargo");
-      return Cargo{}; // Null cargo
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // Cargo ProjectState::get_cargo() const {
+  //     spdlog::info("ProjectState::get_cargo");
+  //     return Cargo{}; // Null cargo
+  // }
 
   static std::string to_underscored_spaces(const std::string &name) {
     std::string result;

@@ -102,10 +102,10 @@ namespace first {
   //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
   // }
 
-  // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
-  Cargo StateImpl::get_cargo() const {
-    return {};
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // Cargo StateImpl::get_cargo() const {
+  //   return {};
+  // }
 
   // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
   std::optional<Msg> StateImpl::get_on_destruct_msg() const {

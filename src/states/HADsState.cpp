@@ -130,9 +130,10 @@ namespace first {
   //   return StateImpl::apply(cargo);
   // }
 
-  Cargo HADsState::get_cargo() const {
-    return cargo::to_cargo(this->m_all_hads);
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // Cargo HADsState::get_cargo() const {
+  //   return cargo::to_cargo(this->m_all_hads);
+  // }
 
   StateFactory HADsState::factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period) {
     // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)

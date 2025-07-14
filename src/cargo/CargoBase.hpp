@@ -52,14 +52,15 @@ namespace first {
 
     using Cargo = std::shared_ptr<AbstractCargo>;
 
-    template <typename P>
-    Cargo to_cargo(P &&payload) {
-        // NOTE 1: make_unique can't use brace initialisation ==> ConcreteCargo needs constructor from T
-        // NOTE 2: ConcreteCargo inherits from base class with virtual member = can't brace construct anyways...
-        //         This bit me hard!!
-      using DecayedP = std::decay_t<P>;
-      return std::make_unique<ConcreteCargo<DecayedP>>(std::forward<P>(payload));
-    }
+    // Cargo visit/apply double dispatch removed (cargo now message passed)
+    // template <typename P>
+    // Cargo to_cargo(P &&payload) {
+    //     // NOTE 1: make_unique can't use brace initialisation ==> ConcreteCargo needs constructor from T
+    //     // NOTE 2: ConcreteCargo inherits from base class with virtual member = can't brace construct anyways...
+    //     //         This bit me hard!!
+    //   using DecayedP = std::decay_t<P>;
+    //   return std::make_unique<ConcreteCargo<DecayedP>>(std::forward<P>(payload));
+    // }
 
     template <typename C>
     struct to_raw {

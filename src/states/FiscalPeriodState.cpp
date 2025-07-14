@@ -62,15 +62,16 @@ namespace first {
     return {mutated_state, cmd};
   }
 
-  Cargo FiscalPeriodState::get_cargo() const {
-    EnvironmentPeriodSlice result{{},m_fiscal_period};
-    // Represent current HADs into the environment slice
-    result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
-    for (auto const& [index, env_val] : indexed_env_entries_from(this->m_period_hads)) {
-        result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
-    }
-    return cargo::to_cargo(result);
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // Cargo FiscalPeriodState::get_cargo() const {
+  //   EnvironmentPeriodSlice result{{},m_fiscal_period};
+  //   // Represent current HADs into the environment slice
+  //   result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
+  //   for (auto const& [index, env_val] : indexed_env_entries_from(this->m_period_hads)) {
+  //       result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
+  //   }
+  //   return cargo::to_cargo(result);
+  // }
 
   StateFactory FiscalPeriodState::factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
     return [fiscal_period, &parent_environment_ref]() {

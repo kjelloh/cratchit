@@ -101,13 +101,13 @@ namespace first {
     UX const &ux() const;
     // UX &ux();
 
-    StateUpdateResult dispatch(Msg const& msg) const;    
+    StateUpdateResult dispatch(Msg const& msg) const;
     virtual StateUpdateResult apply(cargo::DummyCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const;
     virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
 
-    // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
-    virtual Cargo get_cargo() const;
+    // Cargo visit/apply double dispatch removed (cargo now message passed)
+    // virtual Cargo get_cargo() const;
     virtual std::optional<Msg> get_on_destruct_msg() const;
 
     // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)

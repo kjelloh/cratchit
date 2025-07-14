@@ -18,7 +18,8 @@ namespace first {
     virtual StateUpdateResult update(Msg const& msg) const override;
 
     // virtual StateUpdateResult apply(cargo::EditedItemCargo<HAD> const& cargo) const override;
-    virtual Cargo get_cargo() const override;
+    // Cargo visit/apply double dispatch removed (cargo now message passed)
+    // virtual Cargo get_cargo() const override;
     virtual StateImpl::UpdateOptions create_update_options() const override;
     virtual StateImpl::UX create_ux() const override;
 
