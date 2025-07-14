@@ -126,7 +126,9 @@ namespace first {
     };
 
     result.add('0',{"HAD -> SIE",[sie_factory]() -> StateUpdateResult {
-      return {std::nullopt,cmd_from_state_factory(sie_factory)};
+      return {std::nullopt,[new_state = sie_factory()]() -> std::optional<Msg> {
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
     }});
 
     result.add('d',{"Delete",[had = this->m_edited_had.item]() -> StateUpdateResult {

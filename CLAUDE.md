@@ -38,10 +38,10 @@ Cratchit is a Swedish bookkeeping console application that processes SIE (Standa
 - `StateImpl`: Base state implementation with lazy-evaluated options and UX system
 - **Lazy Update Options**: States define `create_update_options()` for on-demand option generation
 - **Lazy UX Generation**: States define `create_ux()` for on-demand UI content creation
-- **Message Dispatch**: Robust `dispatch()` → `update()` → `default_update()` pattern with guaranteed fallback
+- **Pure TEA Message Handling**: Single `update(msg)` entry point per state - no dispatch chain complexity
 - **Modern Option Architecture**: States use `KeyToFunctionOptionsT<F>` template for type-safe options
 - **Safe Lambda Captures**: Options and UX created when state is fully constructed, eliminating capture issues
-- **Input Processing**: User keyboard input and command entry handled at state level
+- **Application-Level Input Processing**: Keyboard input and common commands handled in main `cratchit::update()`
 - Specialized states: `HADState`, `ProjectState`, `WorkspaceState`, `VATReturnsState`, `FiscalPeriodState`, `HADsState`, etc.
 
 #### Fiscal Framework (`src/fiscal/`):
@@ -51,16 +51,18 @@ Cratchit is a Swedish bookkeeping console application that processes SIE (Standa
 - `HADFramework`: HAD (Heading-Amount-Date) transaction processing
 
 #### Core Processing:
-- `cratchit.cpp/h`: Main application logic and TEA implementation
+- `cratchit.cpp/h`: Main application logic and TEA implementation with `UserInputBufferState` for text entry
 - `cmd.cpp/hpp`: Command processing and execution
-- `msg.cpp/hpp`: Message handling system
+- `msg.cpp/hpp`: Message handling system with cargo message types (`CargoMsgT<T>`)
 - `tokenize.cpp/hpp`: Input parsing and tokenization
 
-#### Cargo System (`src/cargo/`):
-Data transport objects for moving information between components:
-- `CargoBase`: Base cargo functionality
-- `HADsCargo`: HAD transaction collections
-- `EnvironmentCargo`: Environment and workspace data
+#### Message-Based Cargo System:
+Modern message-passing architecture replaces visit/apply pattern:
+- **CargoMsgT<T>**: Template-based message wrapper for type-safe payload transport
+- **PopStateMsg**: State navigation with optional cargo payload
+- **PushStateMsg**: State stack push with new state
+- **UserEntryMsg**: String-based user input messages
+- **NCursesKeyMsg**: Keyboard input converted to messages at application level
 
 ### State Navigation Hierarchy:
 - **FrameworkState**: Root state showing workspace selection
@@ -86,10 +88,10 @@ Data transport objects for moving information between components:
 - **Dynamic Content**: UX generated based on current state data (environment status, errors, etc.)
 - **Constructor Separation**: UX generation completely separated from constructor logic
 
-#### Update Options vs Legacy Cmd Options:
+#### Update Options Architecture:
 - **Modern Approach**: Update options return `StateUpdateResult` with optional state changes and commands
-- **Legacy Support**: Old cmd options architecture commented out but preserved for reference
-- **Unified Interface**: Both systems use same `KeyToFunctionOptionsT` template foundation
+- **Clean Implementation**: Legacy cmd options and dispatch chains removed for pure TEA compliance
+- **Template Foundation**: `KeyToFunctionOptionsT<OptionUpdateFunction>` provides type-safe option handling
 
 ### Key Features:
 - SIE file parsing and processing
@@ -99,8 +101,9 @@ Data transport objects for moving information between components:
 - Integration with Swedish fiscal standards (BAS, SKV)
 - Persistent environment storage with file-based caching
 - HAD (Heading-Amount-Date) transaction processing and input
-- Real-time user input handling with backspace and command submission
+- Real-time user input handling with `UserInputBufferState` (backspace, commit via Enter)
 - Lazy-loaded UI components for optimal performance
+- Pure TEA message flow with application-level input processing
 
 ### Dependencies:
 - ncurses (console UI)
@@ -150,13 +153,14 @@ StateImpl::UX MyState::create_ux() const override {
 - **Template Safety**: `KeyToFunctionOptionsT<F>` ensures type-safe option handling
 
 #### Architecture Principles:
-- **TEA Compliance**: All commands return `Cmd` objects, not direct state mutations
-- **Immutable State**: States are copied-on-write with shared_ptr for efficiency
-- **Message-Driven**: NCurses input converted to messages, processed through dispatch chain
+- **Pure TEA Compliance**: Single `Model → update(msg) → Model` flow with no dispatch chains
+- **Immutable State**: States are copied-on-write with shared_ptr for efficiency  
+- **Message-Driven**: All input converted to messages, processed through clean TEA update loop
 - **Lazy Evaluation**: Options and UX created on-demand, cached for performance
 - **Safe Construction**: Constructors focus on data, presentation generated post-construction
 - **Template Safety**: Type-safe option handling through template-based architecture
-- **Separation of Concerns**: Data initialization, option creation, and UX generation are separate phases
+- **Separation of Concerns**: State logic, application logic, and input logic clearly separated
+- **Application-Level Input**: Keyboard processing and common commands ('q', '-') handled in main update loop
 
 ### Performance Optimizations:
 - **Caching**: Options and UX cached after first generation
@@ -164,4 +168,29 @@ StateImpl::UX MyState::create_ux() const override {
 - **Shared State**: Immutable states shared via shared_ptr
 - **Template Optimization**: Compile-time type safety with runtime efficiency
 
-The application operates as an interactive console where users navigate through different states to perform bookkeeping operations, process tax returns, and manage financial data according to Swedish accounting standards. The architecture follows strict TEA (The Elm Architecture) principles with modern lazy-evaluation patterns, ensuring both performance and safety through separation of construction and presentation concerns.
+The application operates as an interactive console where users navigate through different states to perform bookkeeping operations, process tax returns, and manage financial data according to Swedish accounting standards. The architecture follows strict TEA (The Elm Architecture) principles with pure message-driven updates, modern lazy-evaluation patterns, and clean separation between state-specific logic and application-level input processing, ensuring both performance and safety through proper architectural boundaries.
+
+### TEA Implementation Details:
+
+#### Message Flow:
+1. **Input Capture**: NCurses/keyboard input converted to `NCursesKeyMsg` 
+2. **User Buffer**: `UserInputBufferState` handles text entry (printable chars, backspace, Enter)
+3. **State Processing**: Each state's `update(msg)` handles only its specific message types
+4. **Application Processing**: `cratchit::update()` handles keyboard shortcuts via `update_options().apply(key)`
+5. **Common Commands**: Global commands ('q' quit, '-' back) processed at application level
+
+#### Current Message Types:
+- `NCursesKeyMsg`: Keyboard input (char)
+- `UserEntryMsg`: Committed text entry (string)  
+- `CargoMsgT<EditedItem<HAD>>`: HAD item changes
+- `CargoMsgT<HeadingAmountDateTransEntries>`: HAD collections
+- `CargoMsgT<EnvironmentPeriodSlice>`: Environment updates
+- `PushStateMsg`: Navigate to new state
+- `PopStateMsg`: Return to previous state (with optional cargo)
+
+#### State Responsibilities:
+- **States**: Handle domain-specific messages only (`EditedHADMsg`, `HADsMsg`, etc.)
+- **Application**: Handle input processing, navigation, and global commands
+- **User Buffer**: Handle text entry separately from state navigation
+
+This creates a clean, testable architecture where each component has a single, well-defined responsibility.

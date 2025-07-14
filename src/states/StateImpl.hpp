@@ -91,7 +91,8 @@ namespace first {
     UpdateOptions const& update_options() const;
 
     // State TEA update mechanism
-    StateUpdateResult dispatch(Msg const& msg) const;
+    // virtual StateUpdateResult dispatch(Msg const& msg) const;
+    virtual StateUpdateResult update(Msg const& msg) const;
 
     // virtual std::optional<Msg> get_on_destruct_msg() const;
     static Cmd cmd_from_state_factory(StateFactory factory);
@@ -108,9 +109,8 @@ namespace first {
     virtual UX create_ux() const; // Concrete state shall implement
     
     // State TEA update mechanism
-    virtual StateUpdateResult update(Msg const& msg) const;
-    StateUpdateResult default_update(Msg const& msg) const;
-    StateUpdateResult default_update(char key) const;
+    // StateUpdateResult default_update(Msg const& msg) const;
+    // StateUpdateResult default_update(char key) const;
 
   }; // StateImpl
 
