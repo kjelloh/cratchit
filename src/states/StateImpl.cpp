@@ -84,10 +84,10 @@ namespace first {
     return this->default_update(msg);
   }
 
-  // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
-  std::optional<Msg> StateImpl::get_on_destruct_msg() const {
-    return std::nullopt;
-  }
+  // // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
+  // std::optional<Msg> StateImpl::get_on_destruct_msg() const {
+  //   return std::nullopt;
+  // }
 
   // ----------------------------------
   // Helper to convert StateFactory to PushStateMsg Cmd (Phase 1)

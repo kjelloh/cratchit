@@ -257,15 +257,15 @@ namespace first {
             return maybe_null_cargo_msg;
           };
         }
-        // TODO: Consider get_on_destruct_msg mechanism?
-        else if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
-          auto const& ref = *(*on_destruct_msg).get();
-          spdlog::info("cratchit::update: popped_state provided on_destruct_msg {}", to_type_name(typeid(ref)));
+        // // TODO: Consider get_on_destruct_msg mechanism?
+        // else if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
+        //   auto const& ref = *(*on_destruct_msg).get();
+        //   spdlog::info("cratchit::update: popped_state provided on_destruct_msg {}", to_type_name(typeid(ref)));
 
-          cmd = [on_destruct_msg]() {
-            return on_destruct_msg;
-          };
-        }
+        //   cmd = [on_destruct_msg]() {
+        //     return on_destruct_msg;
+        //   };
+        // }
         // Cargo visit/apply double dispatch removed (cargo now message passed)
         // else {
         //   cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {

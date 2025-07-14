@@ -71,10 +71,10 @@ namespace first {
   // Cargo HADState::get_cargo() const {
   //   return cargo::to_cargo(m_edited_had);
   // }
-  std::optional<Msg> HADState::get_on_destruct_msg() const {
-    using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
-    return std::make_shared<EditedHADMsg>(m_edited_had);
-  }
+  // std::optional<Msg> HADState::get_on_destruct_msg() const {
+  //   using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+  //   return std::make_shared<EditedHADMsg>(m_edited_had);
+  // }
 
   // void HADState::update_ux() {
   //   ux().clear();

@@ -93,7 +93,7 @@ namespace first {
     // State TEA update mechanism
     StateUpdateResult dispatch(Msg const& msg) const;
 
-    virtual std::optional<Msg> get_on_destruct_msg() const;
+    // virtual std::optional<Msg> get_on_destruct_msg() const;
     static Cmd cmd_from_state_factory(StateFactory factory);
 
   protected:
