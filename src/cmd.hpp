@@ -2,7 +2,7 @@
 
 #include "cross_dependent.hpp" // Cmd,
 #include <memory> // std::shared_ptr
-#include "msg.hpp" // Msg
+#include "msgs/msg.hpp" // Msg
 
 namespace first {
 

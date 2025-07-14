@@ -28,22 +28,115 @@ namespace first {
   // ----------------------------------
 
   // ----------------------------------
-  struct Model {
-    std::string top_content;
-    std::string main_content;
-    immer::box<std::string> m_input_buffer;
+  class UserInputBufferState {
+  public:
 
+    template <class S>
+    struct UpdateResultT {
+      std::optional<S> maybe_state;
+      Cmd maybe_null_cmd;
+      operator bool() const {return maybe_state.has_value() or maybe_null_cmd != nullptr;}
+      void apply(S& state,Cmd& cmd) const {
+        if (maybe_state) state = *maybe_state;
+        if (maybe_null_cmd) cmd = maybe_null_cmd;
+      }
+    };
+    using UpdateResult = UpdateResultT<UserInputBufferState>;
+
+    enum class State { Editing, Committed };
+    
+    UserInputBufferState() : m_buffer(""), m_state(State::Editing) {}
+    explicit UserInputBufferState(immer::box<std::string> buffer) : m_buffer(buffer), m_state(State::Editing) {}
+
+    UpdateResult update(Msg const& msg) const {
+      // Only handle NCursesKeyMsg
+      auto key_msg = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
+      if (!key_msg) {
+        return {std::nullopt}; // Not our concern
+      }
+      
+      auto ch = key_msg->key;
+      return handle_char_input(ch);
+    }
+
+    std::string buffer() const {
+      return *m_buffer;
+    }
+
+    State state() const {
+      return m_state;
+    }
+
+    bool is_committed() const {
+      return m_state == State::Committed;
+    }
+
+    UserInputBufferState clear() const {
+      return UserInputBufferState();
+    }
+
+  private:
+    immer::box<std::string> m_buffer;
+    State m_state;
+    
+    static UpdateResult make_result(std::optional<UserInputBufferState> state, Cmd cmd = {}) {
+      return {.maybe_state = state, .maybe_null_cmd = cmd};
+    }
+    
+    static UpdateResult make_result(UserInputBufferState state, Cmd cmd = {}) {
+      return {.maybe_state = state, .maybe_null_cmd = cmd};
+    }
+        
+    UserInputBufferState with_buffer(immer::box<std::string> buffer) const {
+      UserInputBufferState result = *this;
+      result.m_buffer = buffer;
+      return result;
+    }
+
+    UserInputBufferState commit() const {
+      UserInputBufferState result = *this;
+      result.m_state = State::Committed;
+      return result;
+    }
+
+    UpdateResult handle_char_input(int ch) const {
+      if (!m_buffer->empty() && ch == 127) { // Backspace
+        auto new_buffer = m_buffer->substr(0, m_buffer->length() - 1);
+        return make_result(with_buffer(immer::box<std::string>(new_buffer)));
+      }
+      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
+        auto new_buffer = *m_buffer + static_cast<char>(ch);
+        return make_result(with_buffer(immer::box<std::string>(new_buffer)));
+      }
+      else if (!m_buffer->empty() && ch == '\n') {
+        auto cmd = [entry = *m_buffer]() -> std::optional<Msg> {
+          return std::make_shared<UserEntryMsg>(entry);
+        };
+        return make_result(clear(), cmd);
+      }
+      return make_result(std::nullopt); // Didn't handle this input
+    }
+    
+  };
+
+  // ----------------------------------
+  struct Model {
+    UserInputBufferState user_input_state;
     std::vector<State> ui_states{};
   };
+
+  using CratchitRuntime = TEA::Runtime<Model,Msg,Cmd>;
+  using InitResult = CratchitRuntime::init_result;
+  using ModelUpdateResult = CratchitRuntime::model_update_result;
+  using ViewResult = CratchitRuntime::view_result;
 
   // ----------------------------------
   extern bool is_quit_msg(Msg const& msg);
 
   // ----------------------------------
-  extern std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init();
-  extern std::pair<Model,Cmd> update(Model model, Msg msg);
-  extern Html_Msg<Msg> view(const Model &model);
-
+  extern InitResult init();
+  extern ModelUpdateResult update(Model model, Msg msg);
+  extern ViewResult view(const Model &model);
 
   // ----------------------------------
   // ----------------------------------
@@ -65,11 +158,9 @@ namespace first {
   }
 
   // ----------------------------------
-  std::tuple<Model,runtime::IsQuit<Msg>,Cmd> init() {
+  InitResult init() {
     // std::cout << "\ninit sais Hello :)" << std::flush;
-    Model model = { "Welcome to the top section"
-                   ,"This is the main content area"
-                   ,immer::box<std::string>("")};
+    Model model{}; // Default initialization
 
     auto new_framework_state_cmd = []() -> Msg {
       auto msg = std::make_shared<PushStateMsg>(framework_state_factory());
@@ -84,104 +175,116 @@ namespace first {
   //       At least I trust we get return value optimization?
   //       Fun to explore though...
   //       250630/KoH - use_count for shared_ptrs (e.g., states) will show 2 (passed model + our copy)
-  std::pair<Model,Cmd> update(Model model, Msg msg) {
+  ModelUpdateResult update(Model model, Msg msg) {
     Cmd cmd = Nop;
 
-    auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
+    if (model.ui_states.size()>0 and model.ui_states.back() == nullptr) {
+      spdlog::error("cratchit::update: DESIGN_INSUFFICIENCY - nullptr on stack!");
+      model.ui_states.pop_back();
+      spdlog::error("cratchit::update: nullptr popped");
+      return {model,Nop};
+    }
 
-    bool ask_state_first =
-          (model.ui_states.size() > 0)
-      and (    (key_msg_ptr == nullptr)
-            or (model.m_input_buffer->size() == 0));
+    auto try_state_update = [&model](Msg const& msg) -> StateUpdateResult {
+      bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
+      if (ask_state_to_update) {
+        return model.ui_states.back()->dispatch(msg);
+      }
+      return {std::nullopt,Cmd{}};
+    };
 
-    auto [mutated_top, state_cmd] = (ask_state_first)
-      ?(model.ui_states.back()->dispatch(msg))
-      :(std::make_pair<std::optional<State>,Cmd>({},{}));
+    if (auto update_result = try_state_update(msg)) {
+      update_result.apply(model.ui_states.back(),cmd);
 
-    // 250709 - HACK! / KoH
-    // The cargo::visit still takes State (shared_ptr) so we cant move it to StateImpl::default_update just yet
-    if (not (mutated_top or state_cmd)) {
-      if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
-        if (pimpl->m_cargo) {
-          const auto &cargo = *pimpl->m_cargo;
-          spdlog::info("PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
-          auto [maybe_new_state, maybe_cmd] = cargo.visit(model.ui_states.back());
-          mutated_top = maybe_new_state;
-          state_cmd = maybe_cmd;
-        } else {
-          spdlog::info("PoppedStateCargoMsg: NULL cargo");
+      // Logging
+      if (true) {
+        if (update_result.maybe_state) {
+          auto& ref = *update_result.maybe_state;
+          spdlog::info("cratchit::update:  state::update -> state:{}[{}] <- use_count: {}"
+            ,to_type_name(typeid(ref))
+            ,static_cast<void*>(update_result.maybe_state->get())
+            ,update_result.maybe_state->use_count());
+        }
+        if (update_result.maybe_null_cmd) {
+          spdlog::info("cratchit::update:  state::update -> cmd");
         }
       }
     }
-    // HACK - End.
-
-    if (mutated_top or state_cmd) {
-      // State handled the message - apply the changes
-      if (mutated_top) {
-        auto& ref = *mutated_top;
-        spdlog::info("update(model,msg): state::update -> state:{}[{}] <- use_count: {}"
-          ,to_type_name(typeid(ref))
-          ,static_cast<void*>(mutated_top->get())
-          ,mutated_top->use_count());
-        model.ui_states.back() = mutated_top.value(); // replace
-      }
-      if (state_cmd) {
-        spdlog::info("update(model,msg): state::update -> cmd");
-        cmd = state_cmd;
-      }
+    else if (auto update_result = model.user_input_state.update(msg)) {
+      // user input state handled the message - apply the changes
+      update_result.apply(model.user_input_state,cmd);
     }
-    else if (key_msg_ptr != nullptr) {
-      // handle user input text
-      auto ch = key_msg_ptr->key;
-      if (not model.m_input_buffer->empty() and ch == 127) { // Backspace
-        auto new_buffer = model.m_input_buffer->substr(0, model.m_input_buffer->length() - 1);
-        model.m_input_buffer = immer::box<std::string>(new_buffer);
-      }
-      else if (not model.m_input_buffer->empty() and ch == '\n') { // Enter - submit input
-        cmd = [entry = *model.m_input_buffer]() -> std::optional<Msg> {
-          return std::make_shared<UserEntryMsg>(entry);
-        };
-        // Clear input buffer
-        model.m_input_buffer = immer::box<std::string>("");
-      }
-      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-        // Add character to input buffer (works for both empty and non-empty buffer)
-        auto new_buffer = *model.m_input_buffer + static_cast<char>(ch);
-        model.m_input_buffer = immer::box<std::string>(new_buffer);
+    // else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
+    //   if (pimpl->m_cargo) {
+    //     // Double dispatch cargo to top state
+    //     const auto &cargo = *pimpl->m_cargo;
+    //     spdlog::info("cratchit::update:  PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
+    //     if (auto update_result = cargo.visit(model.ui_states.back())) {
+    //       update_result.apply(model.ui_states.back(),cmd);
+    //     }
+    //   } else {
+    //     spdlog::info("cratchit::update:  PoppedStateCargoMsg: NULL cargo");
+    //   }
+    // }
+    else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
+      if (pimpl->m_state != nullptr) {
+        model.ui_states.push_back(pimpl->m_state);
       }
       else {
-        spdlog::info("update(model,msg): Ignored key {}",static_cast<uint>(ch));
+        spdlog::error("cratchit::update: DESIGN_INSUFFICIENCY - PushStateMsg carried new_state == nullptr");
       }
-    }
-    else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
-      model.ui_states.push_back(pimpl->m_state);
     }
     else if (auto pimpl = std::dynamic_pointer_cast<PopStateMsg>(msg); pimpl != nullptr) {
       if (model.ui_states.size() > 0) {
-        spdlog::info("update(model,msg): Popping top state with use_count: {}", model.ui_states.back().use_count());
+        spdlog::info("cratchit::update:  Popping top state with use_count: {}", model.ui_states.back().use_count());
         auto popped_state = model.ui_states.back();
         model.ui_states.pop_back();
 
         if (true) {
           auto const& ref = *popped_state.get();
-          spdlog::info("update(model,msg): Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
+          spdlog::info("cratchit::update:  Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
         }
 
-        cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
-          auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
-          return msg;
-        };
+        // 20250712/KoH - We have three candidates in flight for passing cargo child -> parent state
+        //                Decide on one and refactor the others away
+
+        // TODO: Consider PopStateMsg::m_maybe_null_cargo_msg mechanism?
+        if (auto maybe_null_cargo_msg = pimpl->m_maybe_null_cargo_msg) {
+          auto const& ref = *maybe_null_cargo_msg;
+          spdlog::info("cratchit::update: PopStateMsg provided maybe_null_cargo_msg {}", to_type_name(typeid(ref)));
+
+          cmd = [maybe_null_cargo_msg]() {
+            return maybe_null_cargo_msg;
+          };
+        }
+        // TODO: Consider get_on_destruct_msg mechanism?
+        else if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
+          auto const& ref = *(*on_destruct_msg).get();
+          spdlog::info("cratchit::update: popped_state provided on_destruct_msg {}", to_type_name(typeid(ref)));
+
+          cmd = [on_destruct_msg]() {
+            return on_destruct_msg;
+          };
+        }
+        // Cargo visit/apply double dispatch removed (cargo now message passed)
+        // else {
+        //   cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
+        //     auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
+        //     return msg;
+        //   };
+        // }
+
       }
     }
     else {
       // Trace ignored messages
       auto const& ref = *msg;
-      spdlog::info("update(model,msg): Ignored message type: {}", to_type_name(typeid(ref)));
+      spdlog::info("cratchit::update:  Ignored message type: {}", to_type_name(typeid(ref)));
     }
 
     // Dump stack to log
     if (true) {
-      spdlog::info("update(model,msg): State stack size:{}",model.ui_states.size());
+      spdlog::info("cratchit::update:  State stack size:{}",model.ui_states.size());
 
       auto enumerated_view = [](auto && range) {
         return std::views::zip(
@@ -190,70 +293,34 @@ namespace first {
       };
 
       for (auto const& [index,m] :  enumerated_view(model.ui_states)) {
-        auto& ref = *m; // Silence typeid(*m) warning about side effects
-        spdlog::info("   {}: {}[{}] <- use_count: {}"
-          ,index
-          ,to_type_name(typeid(ref))
-          ,static_cast<void*>(m.get())
-          ,m.use_count());
+        if (m != nullptr) {
+          auto& ref = *m; // Silence typeid(*m) warning about side effects
+          spdlog::info("   {}: {}[{}] <- use_count: {}"
+            ,index
+            ,to_type_name(typeid(ref))
+            ,static_cast<void*>(m.get())
+            ,m.use_count());
+        }
+        else {
+          spdlog::info("   {}: {}[{}] <- use_count: {}"
+            ,index
+            ,"NULL"
+            ,static_cast<void*>(nullptr)
+            ,-1);
+        }
       }
     }
 
-    // Update UX
-    if (model.ui_states.size() > 0) {
-      // StateImpl UX (top window)
-      model.top_content.clear();
-      for (std::size_t i=0;i<model.ui_states.back()->ux().size();++i) {
-        if (i>0) model.top_content.push_back('\n');
-        model.top_content += model.ui_states.back()->ux()[i];
-      }
-      // StateImpl transition UX (Middle window)
-      model.main_content.clear();
-
-      // iterate as defined by CmdOptions.first (vector of chars)
-      auto ordered_cmd_options_view = [](StateImpl::CmdOptions const& cmd_options) {
-        return cmd_options.first
-          | std::views::transform([&cmd_options](char ch) -> std::pair<char,StateImpl::CmdOption> {
-            return std::make_pair(ch,cmd_options.second.at(ch));
-          });
-      };
-
-      for (auto const& [ch, cmd_option] : ordered_cmd_options_view(model.ui_states.back()->cmd_options())) {
-        std::string entry{};
-        entry.push_back(ch);
-        entry.append(" = ");
-        entry.append(cmd_option.first);
-        entry.push_back('\n');
-        model.main_content.append(entry);
-      }
-
-      // Also process UpdateOptions (similar to cmd_options)
-      auto ordered_update_options_view = [](StateImpl::UpdateOptions const& update_options) {
-        return update_options.first
-          | std::views::transform([&update_options](char ch) -> std::pair<char,StateImpl::UpdateOption> {
-            return std::make_pair(ch,update_options.second.at(ch));
-          });
-      };
-
-      for (auto const& [ch, update_option] : ordered_update_options_view(model.ui_states.back()->update_options())) {
-        std::string entry{};
-        entry.push_back(ch);
-        entry.append(" = ");
-        entry.append(update_option.first);
-        entry.push_back('\n');
-        model.main_content.append(entry);
-      }
-    }
+    // UI generation moved to view() - proper TEA separation
 
     return {model,cmd}; // Return updated model
   }
 
   // ----------------------------------
-  Html_Msg<Msg> view(const Model &model) {
+  ViewResult view(const Model &model) {
     // std::cout << "\nview sais Hello :)" << std::flush;
 
-    // Create a new pugi document
-    Html_Msg<Msg> ui{};
+    ViewResult ui{};
     auto& doc = ui.doc;
 
     // Note: HTML doc may be tested for validity at:
@@ -265,22 +332,56 @@ namespace first {
     // Create the body
     pugi::xml_node body = html.append_child("body");
 
+    // Generate UI content from current state (TEA-style)
+    std::string top_content;
+    std::string main_content;
+        
+    if (model.ui_states.size() > 0 and model.ui_states.back() == nullptr) {
+      spdlog::error("cratchit::view: DESIGN_INSUFFICIENCY - No view for nullptr on stack!");
+    }
+    else if (model.ui_states.size() > 0) {
+
+      // StateImpl UX (top window)
+      for (std::size_t i=0;i<model.ui_states.back()->ux().size();++i) {
+        if (i>0) top_content.push_back('\n');
+        top_content += model.ui_states.back()->ux()[i];
+      }
+      
+      // for (auto const& [ch, cmd_option] : model.ui_states.back()->cmd_options().view()) {
+      //   std::string entry{};
+      //   entry.push_back(ch);
+      //   entry.append(" = ");
+      //   entry.append(cmd_option.first);
+      //   entry.push_back('\n');
+      //   main_content.append(entry);
+      // }
+
+      for (auto const& [ch, update_option] : model.ui_states.back()->update_options().view()) {
+        std::string entry{};
+        entry.push_back(ch);
+        entry.append(" = ");
+        entry.append(update_option.first);
+        entry.push_back('\n');
+        main_content.append(entry);
+      }
+    }
+
     // Create the top section with class "content"
     pugi::xml_node top = body.append_child("div");
     top.append_attribute("class") = "content";
-    top.text().set(model.top_content.c_str());
+    top.text().set(top_content.c_str());
 
     // Create the main section with class "content"
     pugi::xml_node main = body.append_child("div");
     main.append_attribute("class") = "content";
-    main.text().set(model.main_content.c_str());
+    main.text().set(main_content.c_str());
 
     // Create the user prompt section with class "user-prompt"
     pugi::xml_node prompt = body.append_child("div");
     prompt.append_attribute("class") = "user-prompt";
     // Add a label element for the prompt text
     pugi::xml_node label = prompt.append_child("label");
-    std::string input_text = *model.m_input_buffer;
+    std::string input_text = model.user_input_state.buffer();
     label.text().set((">" + input_text).c_str());
 
     // Make prompt 'html-correct' (even though render does not care for now)
@@ -297,9 +398,7 @@ namespace first {
   // ----------------------------------
 
   int main(int argc, char *argv[]) {
-    // std::cout << "\nFirst sais Hello :)" << std::flush;
-    Runtime<Model,Msg,Cmd> app(init,view,update);
-    // std::cout << "\nFirst to call run :)" << std::flush;
+    TEA::Runtime<Model,Msg,Cmd> app(init,view,update);
     return app.run(argc,argv);
   }
 } // namespace first

@@ -23,6 +23,8 @@ struct HeadingAmountDateTransEntry {
   bool operator==(HeadingAmountDateTransEntry const& other) const;
 }; // HeadingAmountDateTransEntry
 
+// Shorthand Alias
+using HAD = HeadingAmountDateTransEntry;
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had);
 std::string to_string(HeadingAmountDateTransEntry const& had);
@@ -36,6 +38,9 @@ using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTrans
 OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev);
 
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
+
+// Shorthand Alias
+using HADs = HeadingAmountDateTransEntries;
 
 // Environment -> HADs
 HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);

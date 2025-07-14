@@ -2,7 +2,7 @@
 #include "to_type_name.hpp"
 #include <spdlog/spdlog.h>
 #include <unicode/uchar.h>  // for u_isprint
-#include "msg.hpp"  // for NCursesKeyMsg
+#include "msgs/msg.hpp"  // for NCursesKeyMsg
 
 namespace first {
 
@@ -10,8 +10,8 @@ namespace first {
   // ----------------------------------
   StateImpl::StateImpl(UX const& ux) 
     :  m_ux{ux}
-      ,m_cmd_options{{},{}}
-      ,m_update_options{{},{}} {
+      ,m_transient_maybe_update_options{}
+      ,m_transient_maybe_ux{} {
 
       if (true) {
         spdlog::info("StateImpl constructor called for {}", static_cast<void*>(this));
@@ -30,22 +30,43 @@ namespace first {
 
   // ----------------------------------
   StateImpl::UX const& StateImpl::ux() const {
-    return m_ux;
+    // Lazy UX generation similar to update_options pattern
+    if (!m_transient_maybe_ux) {
+      m_transient_maybe_ux = create_ux();
+    }
+    
+    if (!m_transient_maybe_ux) {
+      spdlog::error("DESIGN_INSUFFICIENCY: StateImpl::ux() requires this->create_ux to return non-empty UX!");
+      static UX dummy{};
+      return dummy;
+    }
+    
+    return *m_transient_maybe_ux;
   }
 
   // ----------------------------------
-  StateImpl::UX& StateImpl::ux() {
-    return m_ux;
-  }
+  // StateImpl::UX& StateImpl::ux() {
+  //   // For mutable access, ensure UX is initialized
+  //   if (!m_transient_maybe_ux) {
+  //     m_transient_maybe_ux = create_ux();
+  //   }
+    
+  //   if (!m_transient_maybe_ux) {
+  //     spdlog::error("DESIGN_INSUFFICIENCY: StateImpl::ux() requires this->create_ux to return non-empty UX!");
+  //     static UX dummy{};
+  //     return dummy;
+  //   }
+    
+  //   return *m_transient_maybe_ux;
+  // }
 
 
   // ----------------------------------
-  std::pair<std::optional<State>, Cmd> StateImpl::dispatch(Msg const& msg) {
+  StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
     spdlog::info("StateImpl::dispatch(msg) - BEGIN");
     
     // Try virtual update first
-    auto result = this->update(msg);
-    if (result.first or result.second) {
+    if (auto result = this->update(msg)) {
       // Derived state handled the message
       spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
       return result;
@@ -57,73 +78,86 @@ namespace first {
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>, Cmd> StateImpl::update(Msg const& msg) {
+  StateUpdateResult StateImpl::update(Msg const& msg) const {
     spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
     return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::DummyCargo const& cargo) const {
-    return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  }
+  // StateUpdateResult StateImpl::apply(cargo::DummyCargo const& cargo) const {
+  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  // }
+  // ----------------------------------
+  // StateUpdateResult StateImpl::apply(cargo::HADsCargo const& cargo) const {
+  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  // }
+  // ----------------------------------
+  // StateUpdateResult StateImpl::apply(cargo::EnvironmentCargo const& cargo) const {
+  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  // }
+  // ----------------------------------
+  // StateUpdateResult StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
+  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  // }
 
-  // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::HADsCargo const& cargo) const {
-    return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  }
-  // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::EnvironmentCargo const& cargo) const {
-    return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // Cargo StateImpl::get_cargo() const {
+  //   return {};
+  // }
 
-  // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
-    return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  }
-
-  Cargo StateImpl::get_cargo() const {
-    return {};
+  // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
+  std::optional<Msg> StateImpl::get_on_destruct_msg() const {
+    return std::nullopt;
   }
 
   // ----------------------------------
   // Refactoring into CmdOptions
 
   // ----------------------------------
-  void StateImpl::add_cmd_option(char ch, CmdOption const &option) {
-    if (auto iter = std::ranges::find(m_cmd_options.first,ch); iter == m_cmd_options.first.end()) {
-      // Allow insertion of same option only once
-      m_cmd_options.first.push_back(ch);
-      m_cmd_options.second[ch] = option;
-    }
-    else {
-      spdlog::warn("StateImpl::add_cmd_option: Ignored add of existing command option '{}'", ch);
-    }
-  }
+  // void StateImpl::add_cmd_option(char ch, CmdOption const &option) {
+  //   this->m_cmd_options.add(ch,option);
+  // }
 
   // ----------------------------------
-  void StateImpl::add_update_option(char ch, UpdateOption const &option) {
-    if (auto iter = std::ranges::find(m_update_options.first,ch); iter == m_update_options.first.end()) {
-      // Allow insertion of same option only once
-      m_update_options.first.push_back(ch);
-      m_update_options.second[ch] = option;
-    }
-    else {
-      spdlog::warn("StateImpl::add_update_option: Ignored add of existing update option '{}'", ch);
-    }
-  }
+  // void StateImpl::add_update_option(char ch, UpdateOption const &option) {
+  //   this->m_update_options_.add(ch,option);
+  // }
 
   // ----------------------------------
-  StateImpl::CmdOptions const& StateImpl::cmd_options() const {
-    return m_cmd_options;
-  }
+  // StateImpl::CmdOptions const& StateImpl::cmd_options() const {
+  //   return m_cmd_options;
+  // }
 
   // ----------------------------------
+
   StateImpl::UpdateOptions const& StateImpl::update_options() const {
-    return m_update_options;
+
+    // Note: m_transient_maybe_update_options must be synchronised with actual state instance.
+    //       Then option lambdas may safelly capture 'this' (See UpdateOptions: key -> (caption,lambda))
+
+    // Design: Mutate State -> nullopt options (StateImpl constructor)
+    //         Client call + empty cache -> ask concrete state to create_update_options()
+    //         Mutate cache with created instance
+    //         Whine if cache still does not contain an instance
+    //         Return cache    
+    if (!this->m_transient_maybe_update_options) {
+      // mutable = Allow mutation of transient data although we are const
+      this->m_transient_maybe_update_options = this->create_update_options();
+    }
+
+    // Whine?
+    if (!this->m_transient_maybe_update_options) {
+      spdlog::error("DESIGN_INSUFFICIENCY: StateImpl::update_options() requires this->create_update_options to return non std::nullopt value!");
+      static StateImpl::UpdateOptions dummy{};
+      return dummy; // Prohibit crach!
+    }
+
+    return this->m_transient_maybe_update_options.value();
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>,Cmd> StateImpl::default_update(Msg const& msg) {
+  StateUpdateResult StateImpl::default_update(Msg const& msg) const {
     spdlog::info("StateImpl::default_update(msg) - BEGIN");
 
     // Handle NCursesKeyMsg messages by delegating to update(char)
@@ -136,7 +170,7 @@ namespace first {
   }
 
   // ----------------------------------
-  std::pair<std::optional<State>, Cmd> StateImpl::default_update(char ch) const {
+  StateUpdateResult StateImpl::default_update(char ch) const {
     spdlog::info("StateImpl::default_update(key) - BEGIN");
 
     Cmd cmd{}; // null
@@ -145,40 +179,18 @@ namespace first {
     if (ch == 'q') {
       cmd = DO_QUIT;
     }
+    else if (auto update_result = this->update_options().apply(ch)) {
+      auto const& [new_state, new_cmd] = update_result;
+      mutated_state = new_state;
+      cmd = new_cmd;
+    }
     else if (ch == '-') {
       cmd = []() -> std::optional<Msg> {
         return std::make_shared<PopStateMsg>();
       };
     }
-    else if (this->m_update_options.second.contains(ch)) {
-      // Execute UpdateOption function and extract result
-      auto update_option = this->m_update_options.second.at(ch);
-      auto [new_state, new_cmd] = update_option.second();
-      mutated_state = new_state;
-      cmd = new_cmd;
-    }
-    else if (this->cmd_options().second.contains(ch)) {
-      cmd = this->cmd_options().second.at(ch).second;
-    }
-    // else if (not m_input_buffer.empty() and ch == 127) { // Backspace
-    //   auto new_state = std::make_shared<StateImpl>(*this);
-    //   new_state->m_input_buffer.pop_back();
-    //   mutated_state = new_state;
-    // }
-    // else if (not m_input_buffer.empty() and ch == '\n') { // Enter - submit input
-    //   cmd = [entry = m_input_buffer]() -> std::optional<Msg> {
-    //     return std::make_shared<UserEntryMsg>(entry);
-    //   };
-    //   // Clear input buffer
-    //   auto new_state = std::make_shared<StateImpl>(*this);
-    //   new_state->m_input_buffer.clear();
-    //   mutated_state = new_state;
-    // }
-    // else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-    //   // Add character to input buffer (works for both empty and non-empty buffer)
-    //   auto new_state = std::make_shared<StateImpl>(*this);
-    //   new_state->m_input_buffer.push_back(ch);
-    //   mutated_state = new_state;
+    // else if (auto maybe_cmd = this->cmd_options()[ch]) {
+    //   cmd = *maybe_cmd;
     // }
     else {
       spdlog::info("StateImpl::update(ch) - ignored message");
@@ -195,5 +207,33 @@ namespace first {
       return std::make_shared<PushStateMsg>(new_state);
     };
   }
+
+  // private:
+
+  StateImpl::UpdateOptions StateImpl::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    // Add a dummy entry to show that state has to override this approprietly
+    result.add('?',UpdateOption{"StateImpl::create_update_options"
+      ,[]() -> StateUpdateResult {
+          return StateUpdateResult{}; // 'null'
+        }
+      }
+    );
+    return result;
+  }
+  
+  StateImpl::UX StateImpl::create_ux() const {
+    // Default implementation - states should override this
+    UX result = m_ux; // Use the original UX from constructor as fallback
+    result.push_back("StateImpl::create_ux - override in concrete state");
+    return result;
+  }
+  
+  // StateImpl::CmdOptions StateImpl::create_cmd_options() const {
+  //   StateImpl::CmdOptions result{};
+  //   result.add('?',CmdOption{"StateImpl::create_cmd_options",Nop});
+  //   return result;
+  // }
+
 
 } // namespace first

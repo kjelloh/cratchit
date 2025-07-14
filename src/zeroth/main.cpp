@@ -10725,7 +10725,7 @@ public:
             return model;
           }
         }
-        std::pair<Model, Cmd> update(Msg const &msg, Model &&model) {
+        std::pair<Model, Cmd> update(Msg const& msg, Model &&model) {
           // std::cout << "\nupdate" << std::flush;
           Cmd cmd{};
           {

@@ -1,7 +1,6 @@
 #include "FiscalPeriodState.hpp"
 #include "HADsState.hpp"
 #include "fiscal/amount/HADFramework.hpp"
-#include "cargo/HADsCargo.hpp"
 #include "VATReturnsState.hpp"
 #include "environment.hpp"
 #include <spdlog/spdlog.h>
@@ -17,9 +16,9 @@ namespace first {
         ,m_fiscal_period{fiscal_period}
         ,m_period_hads{period_hads} {
     try {
-      // Options
-      this->add_cmd_option('h', HADsState::cmd_option_from(this->m_period_hads,this->m_fiscal_period));
-      this->add_cmd_option('v', VATReturnsState::cmd_option_from());
+      // Options - moved to create_update_options()
+      // this->add_cmd_option('h', HADsState::cmd_option_from(this->m_period_hads,this->m_fiscal_period));
+      // this->add_cmd_option('v', VATReturnsState::cmd_option_from());
 
     } catch (std::exception const &e) {
       spdlog::error("Error initializing FiscalPeriodState: {}", e.what());
@@ -32,37 +31,47 @@ namespace first {
     ,Environment const &parent_environment_ref)
       : FiscalPeriodState(ux,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
 
-  std::pair<std::optional<State>, Cmd> FiscalPeriodState::update(Msg const &msg) {
-    // Not used for now ( See apply for update on child state Cargo)
+  StateUpdateResult FiscalPeriodState::update(Msg const& msg) const {
+    using HADsMsg = CargoMsgT<HeadingAmountDateTransEntries>;
+    if (auto pimpl = std::dynamic_pointer_cast<HADsMsg>(msg); pimpl != nullptr) {
+      std::optional<State> mutated_state{};
+      Cmd cmd{Nop};
+      spdlog::info("FiscalPeriodState::update - handling HADsMsg");
+      if (pimpl->payload != this->m_period_hads) {
+        // Changes has been made
+        spdlog::info("FiscalPeriodState::update - HADs has changed. payload size: {}", pimpl->payload.size());
+        mutated_state = to_cloned(*this, UX{}, this->m_fiscal_period, pimpl->payload);
+      }
+      return {mutated_state, cmd};
+    }
     spdlog::info("FiscalPeriodState::update - didn't handle message");
     return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
 
-  std::pair<std::optional<State>, Cmd> FiscalPeriodState::apply(cargo::HADsCargo const& cargo) const {
-    std::optional<State> mutated_state{};
-    Cmd cmd{Nop};
-    spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo)");
-    if (cargo.m_payload != this->m_period_hads) {
-      // Changes has been made
-      spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo) - HADs has changed. payload size: {}",
-                   cargo.m_payload.size());
-      mutated_state = std::make_shared<FiscalPeriodState>(
-         UX{}
-        ,this->m_fiscal_period
-        ,cargo.m_payload);
-    }
-    return {mutated_state, cmd};
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // StateUpdateResult FiscalPeriodState::apply(cargo::HADsCargo const& cargo) const {
+  //   std::optional<State> mutated_state{};
+  //   Cmd cmd{Nop};
+  //   spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo)");
+  //   if (cargo.m_payload != this->m_period_hads) {
+  //     // Changes has been made
+  //     spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo) - HADs has changed. payload size: {}",
+  //                  cargo.m_payload.size());
+  //     mutated_state = to_cloned(*this, UX{}, this->m_fiscal_period, cargo.m_payload);
+  //   }
+  //   return {mutated_state, cmd};
+  // }
 
-  Cargo FiscalPeriodState::get_cargo() const {
-    EnvironmentPeriodSlice result{{},m_fiscal_period};
-    // Represent current HADs into the environment slice
-    result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
-    for (auto const& [index, env_val] : indexed_env_entries_from(this->m_period_hads)) {
-        result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
-    }
-    return cargo::to_cargo(result);
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // Cargo FiscalPeriodState::get_cargo() const {
+  //   EnvironmentPeriodSlice result{{},m_fiscal_period};
+  //   // Represent current HADs into the environment slice
+  //   result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
+  //   for (auto const& [index, env_val] : indexed_env_entries_from(this->m_period_hads)) {
+  //       result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
+  //   }
+  //   return cargo::to_cargo(result);
+  // }
 
   StateFactory FiscalPeriodState::factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
     return [fiscal_period, &parent_environment_ref]() {
@@ -70,14 +79,53 @@ namespace first {
       return std::make_shared<FiscalPeriodState>(ux, fiscal_period, parent_environment_ref);
     };
   }
-  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
-    return {"Fiscal Period: " + fiscal_period.to_string(), cmd_from_state_factory(factory_from(fiscal_period, parent_environment_ref))};
-  }
-  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref) {
-    return {std::format("Fiscal Year: {}", fiscal_year.to_string()), cmd_from_state_factory(factory_from(fiscal_year.period(), parent_environment_ref))};
-  }
-  StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref) {
-    return {std::format("Fiscal Quarter: {}", fiscal_quarter.to_string()), cmd_from_state_factory(factory_from(fiscal_quarter.period(), parent_environment_ref))};
+  // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
+  //   return {"Fiscal Period: " + fiscal_period.to_string(), cmd_from_state_factory(factory_from(fiscal_period, parent_environment_ref))};
+  // }
+  // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref) {
+  //   return {std::format("Fiscal Year: {}", fiscal_year.to_string()), cmd_from_state_factory(factory_from(fiscal_year.period(), parent_environment_ref))};
+  // }
+  // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref) {
+  //   return {std::format("Fiscal Quarter: {}", fiscal_quarter.to_string()), cmd_from_state_factory(factory_from(fiscal_quarter.period(), parent_environment_ref))};
+  // }
+
+  StateImpl::UpdateOptions FiscalPeriodState::create_update_options() const {
+    StateImpl::UpdateOptions result{};
+    
+    // Convert HADsState::cmd_option_from to update option
+    result.add('h', {std::format("HADs - count:{}", m_period_hads.size()), 
+      [period_hads = m_period_hads, fiscal_period = m_fiscal_period]() -> StateUpdateResult {
+        return {std::nullopt, [period_hads, fiscal_period]() -> std::optional<Msg> {
+          State new_state = HADsState::factory_from(period_hads, fiscal_period)();
+          return std::make_shared<PushStateMsg>(new_state);
+        }};
+      }});
+    
+    // Convert VATReturnsState::cmd_option_from to update option  
+    result.add('v', {"VAT Returns", []() -> StateUpdateResult {
+      return {std::nullopt, []() -> std::optional<Msg> {
+        State new_state = VATReturnsState::factory_from()();
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
+    }});
+    
+    // Add '-' key option last - back with EnvironmentPeriodSlice as payload (matching get_cargo())
+    result.add('-', {"Back", [this]() -> StateUpdateResult {
+      using EnvironmentPeriodSliceMsg = CargoMsgT<EnvironmentPeriodSlice>;
+      return {std::nullopt, [period_hads = this->m_period_hads, fiscal_period = this->m_fiscal_period]() -> std::optional<Msg> {
+        // Create EnvironmentPeriodSlice matching get_cargo() logic
+        EnvironmentPeriodSlice result{{}, fiscal_period};
+        result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
+        for (auto const& [index, env_val] : indexed_env_entries_from(period_hads)) {
+          result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
+        }
+        return std::make_shared<PopStateMsg>(
+          std::make_shared<EnvironmentPeriodSliceMsg>(result)
+        );
+      }};
+    }});
+    
+    return result;
   }
 
 } // namespace first
