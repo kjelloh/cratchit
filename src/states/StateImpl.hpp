@@ -109,7 +109,7 @@ namespace first {
     
     // State TEA update mechanism
     virtual StateUpdateResult update(Msg const& msg) const;
-    StateUpdateResult default_update(Msg const& msg) const;
+    // StateUpdateResult default_update(Msg const& msg) const;
     StateUpdateResult default_update(char key) const;
 
   }; // StateImpl

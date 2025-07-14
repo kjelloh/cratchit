@@ -78,10 +78,16 @@ namespace first {
       spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
       return result;
     }
-    
-    // Derived didn't handle it - use base default logic
-    spdlog::info("StateImpl::dispatch(msg) - Using default_update fallback");
-    return this->default_update(msg);
+    else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
+      spdlog::info("StateImpl::dispatch(msg) - NCursesKeyMsg");
+      return this->default_update(key_msg_ptr->key);
+    }
+
+    // // Derived didn't handle it - use base default logic
+    // spdlog::info("StateImpl::dispatch(msg) - Using default_update fallback");
+    // return this->default_update(msg);
+
+    return StateUpdateResult{}; // not handled    
   }
 
   // // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
@@ -126,17 +132,17 @@ namespace first {
   }
 
   // ----------------------------------
-  StateUpdateResult StateImpl::default_update(Msg const& msg) const {
-    spdlog::info("StateImpl::default_update(msg) - BEGIN");
+  // StateUpdateResult StateImpl::default_update(Msg const& msg) const {
+  //   spdlog::info("StateImpl::default_update(msg) - BEGIN");
 
-    // Handle NCursesKeyMsg messages by delegating to update(char)
-    if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
-      spdlog::info("StateImpl::default_update(msg) - NCursesKeyMsg");
-      return this->default_update(key_msg_ptr->key);
-    }
+  //   // Handle NCursesKeyMsg messages by delegating to update(char)
+  //   if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
+  //     spdlog::info("StateImpl::default_update(msg) - NCursesKeyMsg");
+  //     return this->default_update(key_msg_ptr->key);
+  //   }
 
-    return {std::nullopt,Cmd{}}; // fallback - no StateImpl mutation
-  }
+  //   return {std::nullopt,Cmd{}}; // fallback - no StateImpl mutation
+  // }
 
   // ----------------------------------
   StateUpdateResult StateImpl::default_update(char ch) const {
