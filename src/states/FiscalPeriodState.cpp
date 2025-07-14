@@ -49,18 +49,19 @@ namespace first {
     return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
 
-  StateUpdateResult FiscalPeriodState::apply(cargo::HADsCargo const& cargo) const {
-    std::optional<State> mutated_state{};
-    Cmd cmd{Nop};
-    spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo)");
-    if (cargo.m_payload != this->m_period_hads) {
-      // Changes has been made
-      spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo) - HADs has changed. payload size: {}",
-                   cargo.m_payload.size());
-      mutated_state = to_cloned(*this, UX{}, this->m_fiscal_period, cargo.m_payload);
-    }
-    return {mutated_state, cmd};
-  }
+  // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // StateUpdateResult FiscalPeriodState::apply(cargo::HADsCargo const& cargo) const {
+  //   std::optional<State> mutated_state{};
+  //   Cmd cmd{Nop};
+  //   spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo)");
+  //   if (cargo.m_payload != this->m_period_hads) {
+  //     // Changes has been made
+  //     spdlog::info("FiscalPeriodState::apply(cargo::HADsCargo) - HADs has changed. payload size: {}",
+  //                  cargo.m_payload.size());
+  //     mutated_state = to_cloned(*this, UX{}, this->m_fiscal_period, cargo.m_payload);
+  //   }
+  //   return {mutated_state, cmd};
+  // }
 
   // Cargo visit/apply double dispatch removed (cargo now message passed)
   // Cargo FiscalPeriodState::get_cargo() const {
