@@ -82,8 +82,13 @@ namespace first {
       spdlog::info("StateImpl::dispatch(msg) - NCursesKeyMsg");
       auto ch = key_msg_ptr->key;
       if (ch == 'q') {
-        auto cmd = DO_QUIT;
-        return {std::nullopt,cmd};
+        return {std::nullopt,DO_QUIT};
+      }
+      else if (ch == '-') {
+        // Default pop-state (no payload child -> parent state)
+        return {std::nullopt,[]() -> std::optional<Msg>{
+          return std::make_shared<PopStateMsg>();
+        }};
       }
       else if (auto update_result = this->update_options().apply(ch)) {
         return update_result;
