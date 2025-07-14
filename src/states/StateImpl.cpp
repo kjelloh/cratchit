@@ -80,7 +80,15 @@ namespace first {
     }
     else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
       spdlog::info("StateImpl::dispatch(msg) - NCursesKeyMsg");
-      return this->default_update(key_msg_ptr->key);
+      auto ch = key_msg_ptr->key;
+      if (ch == 'q') {
+        auto cmd = DO_QUIT;
+        return {std::nullopt,cmd};
+      }
+      else if (auto update_result = this->update_options().apply(ch)) {
+        return update_result;
+      }
+      spdlog::info("StateImpl::update(NCursesKeyMsg) - ignored message");
     }
 
     // // Derived didn't handle it - use base default logic
@@ -145,30 +153,30 @@ namespace first {
   // }
 
   // ----------------------------------
-  StateUpdateResult StateImpl::default_update(char ch) const {
-    spdlog::info("StateImpl::default_update(key) - BEGIN");
+  // StateUpdateResult StateImpl::default_update(char ch) const {
+  //   spdlog::info("StateImpl::default_update(key) - BEGIN");
 
-    Cmd cmd{}; // null
-    std::optional<State> mutated_state{}; // None
+  //   Cmd cmd{}; // null
+  //   std::optional<State> mutated_state{}; // None
     
-    if (ch == 'q') {
-      cmd = DO_QUIT;
-    }
-    else if (auto update_result = this->update_options().apply(ch)) {
-      auto const& [new_state, new_cmd] = update_result;
-      mutated_state = new_state;
-      cmd = new_cmd;
-    }
-    else if (ch == '-') {
-      cmd = []() -> std::optional<Msg> {
-        return std::make_shared<PopStateMsg>();
-      };
-    }
-    else {
-      spdlog::info("StateImpl::update(ch) - ignored message");
-    }
+  //   if (ch == 'q') {
+  //     cmd = DO_QUIT;
+  //   }
+  //   else if (auto update_result = this->update_options().apply(ch)) {
+  //     auto const& [new_state, new_cmd] = update_result;
+  //     mutated_state = new_state;
+  //     cmd = new_cmd;
+  //   }
+  //   else if (ch == '-') {
+  //     cmd = []() -> std::optional<Msg> {
+  //       return std::make_shared<PopStateMsg>();
+  //     };
+  //   }
+  //   else {
+  //     spdlog::info("StateImpl::update(ch) - ignored message");
+  //   }
     
-    return {mutated_state, cmd};
-  }
+  //   return {mutated_state, cmd};
+  // }
 
 } // namespace first
