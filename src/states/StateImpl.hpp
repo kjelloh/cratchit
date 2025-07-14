@@ -52,7 +52,6 @@ namespace first {
       }
 
       using InsertOrderedOptionsMap = std::pair<std::vector<Key>,std::map<Key, Option>>;
-      // InsertOrderedOptionsMap const& value() const {return m_options_map;}
 
       FReturnType apply(Key key) const {        
         if (this->m_options_map.second.contains(key)) {
@@ -77,19 +76,10 @@ namespace first {
     using UpdateOptions = KeyToFunctionOptionsT<OptionUpdateFunction>;
     using UpdateOption = UpdateOptions::Option;
 
-    // 'Older' key -> (caption,Cmd)
-    // using CmdOptions = KeyToFunctionOptionsT<Cmd>;
-    // using CmdOption = CmdOptions::Option;
 
-    // 'Latest' add of key -> (caption,update)
-    // void add_update_option(char ch, UpdateOption const &option);
-    // // 'Older' add of key -> (caption,cmd)
-    // void add_cmd_option(char ch, CmdOption const &option);
 
     // 'Latest': accessor to update options (key -> (caption,update))
     UpdateOptions const& update_options() const;
-    // // 'Older': accessor to command options (key -> (caption,cmd)) 
-    // CmdOptions const &cmd_options() const; // // Refactoring into CmdOptions
 
     // Members
     StateImpl(StateImpl const&) = delete; // As Immutable = copy not allowed
@@ -99,15 +89,9 @@ namespace first {
     StateImpl(UX const &ux);
     virtual ~StateImpl();
     UX const &ux() const;
-    // UX &ux();
 
     StateUpdateResult dispatch(Msg const& msg) const;
 
-    // Cargo visit/apply double dispatch removed (cargo now message passed)
-    // virtual StateUpdateResult apply(cargo::DummyCargo const& cargo) const;
-    // virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const;
-    // virtual StateUpdateResult apply(cargo::EnvironmentCargo const& cargo) const;
-    // virtual Cargo get_cargo() const;
 
     virtual std::optional<Msg> get_on_destruct_msg() const;
 
@@ -127,17 +111,10 @@ namespace first {
     mutable std::optional<StateImpl::UpdateOptions> m_transient_maybe_update_options;
     // Lazy UX generation
     mutable std::optional<UX> m_transient_maybe_ux;
-    // // 'Older' key -> (caption,Cmd) map
-    // std::optional<StateImpl::CmdOptions> m_transient_maybe_cmd_options;
 
     virtual UpdateOptions create_update_options() const; // Concrete state shall implement
     virtual UX create_ux() const; // Concrete state shall implement
-    // virtual CmdOptions create_cmd_options() const; // // Concrete state shall implement
 
-    // // 'Latest' key -> (caption,update) map
-    // UpdateOptions m_update_options_;
-    // // 'Older' key -> (caption,Cmd) map
-    // CmdOptions m_cmd_options; // key -> Cmd (older mechanism)
     
     // State TEA update mechanism
     virtual StateUpdateResult update(Msg const& msg) const;

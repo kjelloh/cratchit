@@ -44,21 +44,6 @@ namespace first {
     return *m_transient_maybe_ux;
   }
 
-  // ----------------------------------
-  // StateImpl::UX& StateImpl::ux() {
-  //   // For mutable access, ensure UX is initialized
-  //   if (!m_transient_maybe_ux) {
-  //     m_transient_maybe_ux = create_ux();
-  //   }
-    
-  //   if (!m_transient_maybe_ux) {
-  //     spdlog::error("DESIGN_INSUFFICIENCY: StateImpl::ux() requires this->create_ux to return non-empty UX!");
-  //     static UX dummy{};
-  //     return dummy;
-  //   }
-    
-  //   return *m_transient_maybe_ux;
-  // }
 
 
   // ----------------------------------
@@ -83,53 +68,13 @@ namespace first {
     return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
-  // Cargo visit/apply double dispatch removed (cargo now message passed)
-  // ----------------------------------
-  // StateUpdateResult StateImpl::apply(cargo::DummyCargo const& cargo) const {
-  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  // }
-  // ----------------------------------
-  // StateUpdateResult StateImpl::apply(cargo::HADsCargo const& cargo) const {
-  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  // }
-  // ----------------------------------
-  // StateUpdateResult StateImpl::apply(cargo::EnvironmentCargo const& cargo) const {
-  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  // }
-  // ----------------------------------
-  // StateUpdateResult StateImpl::apply(cargo::EditedItemCargo<HeadingAmountDateTransEntry> const& cargo) const {
-  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  // }
 
-  // Cargo visit/apply double dispatch removed (cargo now message passed)
-  // Cargo StateImpl::get_cargo() const {
-  //   return {};
-  // }
 
   // TODO: Refactor get_cargo() -> get_on_destruct_msg mechanism
   std::optional<Msg> StateImpl::get_on_destruct_msg() const {
     return std::nullopt;
   }
 
-  // ----------------------------------
-  // Refactoring into CmdOptions
-
-  // ----------------------------------
-  // void StateImpl::add_cmd_option(char ch, CmdOption const &option) {
-  //   this->m_cmd_options.add(ch,option);
-  // }
-
-  // ----------------------------------
-  // void StateImpl::add_update_option(char ch, UpdateOption const &option) {
-  //   this->m_update_options_.add(ch,option);
-  // }
-
-  // ----------------------------------
-  // StateImpl::CmdOptions const& StateImpl::cmd_options() const {
-  //   return m_cmd_options;
-  // }
-
-  // ----------------------------------
 
   StateImpl::UpdateOptions const& StateImpl::update_options() const {
 
@@ -189,9 +134,6 @@ namespace first {
         return std::make_shared<PopStateMsg>();
       };
     }
-    // else if (auto maybe_cmd = this->cmd_options()[ch]) {
-    //   cmd = *maybe_cmd;
-    // }
     else {
       spdlog::info("StateImpl::update(ch) - ignored message");
     }
@@ -229,11 +171,6 @@ namespace first {
     return result;
   }
   
-  // StateImpl::CmdOptions StateImpl::create_cmd_options() const {
-  //   StateImpl::CmdOptions result{};
-  //   result.add('?',CmdOption{"StateImpl::create_cmd_options",Nop});
-  //   return result;
-  // }
 
 
 } // namespace first
