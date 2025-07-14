@@ -3,13 +3,14 @@
 #include "cross_dependent.hpp"
 #include "cmd.hpp"
 #include "cargo/CargoBase.hpp"
-#include "cargo/HADsCargo.hpp"
 #include "cargo/EnvironmentCargo.hpp"
 #include <vector>
 #include <string>
 #include <utility> // std::pair
 #include <map>
 #include <spdlog/spdlog.h>
+#include <algorithm> // std::ranges::find,
+#include <ranges> // std::views::transform,
 
 
 namespace first {  

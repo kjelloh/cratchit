@@ -1,7 +1,6 @@
 #include "FiscalPeriodState.hpp"
 #include "HADsState.hpp"
 #include "fiscal/amount/HADFramework.hpp"
-#include "cargo/HADsCargo.hpp"
 #include "VATReturnsState.hpp"
 #include "environment.hpp"
 #include <spdlog/spdlog.h>
