@@ -10,9 +10,9 @@ namespace first {
         ,m_state{state} {}
 
   // ----------------------------------
-  PoppedStateCargoMsg::PoppedStateCargoMsg(Cargo const& cargo)
-      :  MsgImpl{}
-        ,m_cargo{cargo} {}
+  // PoppedStateCargoMsg::PoppedStateCargoMsg(Cargo const& cargo)
+  //     :  MsgImpl{}
+  //       ,m_cargo{cargo} {}
 
   UserEntryMsg::UserEntryMsg(std::string entry)
     : m_entry{entry} {}

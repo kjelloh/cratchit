@@ -214,18 +214,18 @@ namespace first {
       // user input state handled the message - apply the changes
       update_result.apply(model.user_input_state,cmd);
     }
-    else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
-      if (pimpl->m_cargo) {
-        // Double dispatch cargo to top state
-        const auto &cargo = *pimpl->m_cargo;
-        spdlog::info("cratchit::update:  PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
-        if (auto update_result = cargo.visit(model.ui_states.back())) {
-          update_result.apply(model.ui_states.back(),cmd);
-        }
-      } else {
-        spdlog::info("cratchit::update:  PoppedStateCargoMsg: NULL cargo");
-      }
-    }
+    // else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
+    //   if (pimpl->m_cargo) {
+    //     // Double dispatch cargo to top state
+    //     const auto &cargo = *pimpl->m_cargo;
+    //     spdlog::info("cratchit::update:  PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
+    //     if (auto update_result = cargo.visit(model.ui_states.back())) {
+    //       update_result.apply(model.ui_states.back(),cmd);
+    //     }
+    //   } else {
+    //     spdlog::info("cratchit::update:  PoppedStateCargoMsg: NULL cargo");
+    //   }
+    // }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
       if (pimpl->m_state != nullptr) {
         model.ui_states.push_back(pimpl->m_state);

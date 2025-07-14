@@ -83,12 +83,11 @@ namespace first {
     return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }
 
-  // ----------------------------------
-  StateUpdateResult StateImpl::apply(cargo::DummyCargo const& cargo) const {
-    return {std::nullopt,Nop}; // Default - no StateImpl mutation
-  }
-
   // Cargo visit/apply double dispatch removed (cargo now message passed)
+  // ----------------------------------
+  // StateUpdateResult StateImpl::apply(cargo::DummyCargo const& cargo) const {
+  //   return {std::nullopt,Nop}; // Default - no StateImpl mutation
+  // }
   // ----------------------------------
   // StateUpdateResult StateImpl::apply(cargo::HADsCargo const& cargo) const {
   //   return {std::nullopt,Nop}; // Default - no StateImpl mutation

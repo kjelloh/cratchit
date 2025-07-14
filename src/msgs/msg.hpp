@@ -21,10 +21,10 @@ namespace first {
   };
   
   // ----------------------------------
-  struct PoppedStateCargoMsg : public MsgImpl {
-    Cargo m_cargo{};
-    PoppedStateCargoMsg(Cargo const& cargo);
-  };
+  // struct PoppedStateCargoMsg : public MsgImpl {
+  //   Cargo m_cargo{};
+  //   PoppedStateCargoMsg(Cargo const& cargo);
+  // };
 
   // ----------------------------------
   struct UserEntryMsg : public MsgImpl {
