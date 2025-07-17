@@ -83,6 +83,7 @@ namespace first {
         // Create EnvironmentPeriodSlice matching get_cargo() logic
         EnvironmentPeriodSlice result{{}, fiscal_period};
         result.environment()["HeadingAmountDateTransEntry"]; // Parent state 'diff' needs key to work also for empty slice
+        spdlog::info("FiscalPeriodState::create_update_options, '-' -> lambda() -> PopStateMsg(EnvironmentPeriodSliceMsg::size = {})",period_hads.size());
         for (auto const& [index, env_val] : indexed_env_entries_from(period_hads)) {
           result.environment()["HeadingAmountDateTransEntry"].push_back({index, env_val});
         }

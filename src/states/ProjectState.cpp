@@ -74,7 +74,7 @@ namespace first {
       auto in_period = [&](auto const &it) {
         auto date = m_date_projection(*it);
         bool result = m_period.contains(date);
-        spdlog::info("in_period? {} -> {}", to_string(date), result);
+        // spdlog::info("in_period? {} -> {}", to_string(date), result);
         return result;
       };
 
@@ -82,7 +82,7 @@ namespace first {
 
       auto contains_ev = [&](auto const r,auto const& ev) {
         return std::ranges::any_of(r, [&](auto const& pair) {
-          spdlog::info("contains_ev - checking: {} == {}", to_string(m_value_projection(pair)), to_string(ev));
+          // spdlog::info("contains_ev - checking: {} == {}", to_string(m_value_projection(pair)), to_string(ev));
           return m_value_projection(pair) == ev;
         });
       };
@@ -102,6 +102,7 @@ namespace first {
     }
 
     explicit operator bool() const {
+      spdlog::info("diff_view::bool(): m_inserted.size() = {} m_removed.size() = {}",m_inserted.size(),m_removed.size());
       return !m_inserted.empty() || !m_removed.empty();
     }
 
@@ -121,7 +122,7 @@ namespace first {
       ValueProj m_value_projection;
       std::set<typename T::const_iterator> m_inserted;
       std::set<typename T::const_iterator> m_removed;
-    };
+    }; // diff_view
 
   StateUpdateResult ProjectState::update(Msg const& msg) const {
     using EnvironmentPeriodSliceMsg = CargoMsgT<EnvironmentPeriodSlice>;
@@ -147,7 +148,7 @@ namespace first {
           // Ok, so EnvironmentIdValuePair is not type safe regarding we asume it represents a HAD.
           // For now, this follows only from processing section 'HeadingAmountDateTransEntry'.
           if (auto had = to_had(pair.second)) {
-            spdlog::info("by_date date: {}", to_string(had->date));
+            // spdlog::info("by_date date: {}", to_string(had->date));
             return had->date;
           }
           spdlog::warn("ProjectState::update::by_date - Invalid HAD in EnvironmentIdValuePair: {}", to_string(pair.second));
@@ -156,8 +157,15 @@ namespace first {
 
         auto to_ev = [](EnvironmentIdValuePair const& pair) {return pair.second;};
 
-        diff_view<EnvironmentCasEntryVector,decltype(to_date), decltype(to_ev)> 
-          difference{m_environment.at(section), env_slice.at(section),slice_period, to_date,to_ev};
+        diff_view<
+           EnvironmentCasEntryVector
+          ,decltype(to_date)
+          ,decltype(to_ev)> difference{
+             m_environment.at(section)
+            ,env_slice.at(section)
+            ,slice_period
+            ,to_date,to_ev};
+
         if (difference) {
           spdlog::info("ProjectState::update - Difference found in section: {}", section);
           auto mutated_environment = this->m_environment;   // Make a copy to mutate
@@ -182,6 +190,9 @@ namespace first {
             }
           }
           mutated_state = make_state<ProjectState>(this->caption(), this->m_persistent_environment_file, mutated_environment);
+        }
+        else {
+          spdlog::info("ProjectState::update - No diff found");
         }
       }
       else {
