@@ -7,7 +7,7 @@
 
 namespace first {
 // ----------------------------------
-  HADState::HADState(HAD had) : m_edited_had{had, cargo::ItemMutation::UNCHANGED}, StateImpl({}) {
+  HADState::HADState(HAD had) : m_edited_had{had, cargo::ItemMutation::UNCHANGED}, StateImpl() {
 
     // StateFactory sie_factory = []() {
     //   auto SIE_ux = StateImpl::UX{"HAD to SIE UX goes here"};

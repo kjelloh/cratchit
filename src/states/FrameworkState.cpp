@@ -48,7 +48,7 @@ namespace first {
     UX result{};
     
     // Base UX from constructor
-    result.push_back(m_caption);
+    result.push_back(caption());
     
     // Add root path info
     result.push_back(m_root_path.string());

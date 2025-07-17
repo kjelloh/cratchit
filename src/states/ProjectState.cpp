@@ -153,7 +153,7 @@ namespace first {
 
         auto mutated_environment = m_environment;
         mutated_environment[section] = env_slice.at(section);
-        mutated_state = make_state<ProjectState>(this->m_caption, this->m_persistent_environment_file, mutated_environment);
+        mutated_state = make_state<ProjectState>(this->caption(), this->m_persistent_environment_file, mutated_environment);
       }
       else if (m_environment.contains(section) and env_slice.contains(section)) {
         spdlog::info("ProjectState::update - Processing section: {}", section);
@@ -196,7 +196,7 @@ namespace first {
               spdlog::warn("ProjectState::update - Entry already exists for insertion: {}", to_string(ev));
             }
           }
-          mutated_state = make_state<ProjectState>(this->m_caption, this->m_persistent_environment_file, mutated_environment);
+          mutated_state = make_state<ProjectState>(this->caption(), this->m_persistent_environment_file, mutated_environment);
         }
       }
       else {
@@ -357,7 +357,7 @@ namespace first {
     UX result{};
     
     // Base UX from constructor
-    result.push_back(m_caption);
+    result.push_back(caption());
     
     // Add dynamic content based on state
     if (!m_init_error.empty()) {

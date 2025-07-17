@@ -10,7 +10,7 @@ namespace first {
     :  m_all_hads{all_hads}
       ,m_fiscal_period{fiscal_period}
       ,m_mod10_view{mod10_view}
-      ,StateImpl({}) {
+      ,StateImpl() {
 
     spdlog::info("HADsState::HADsState(HADs all_hads:size={},Mod10View mod10_view)",m_all_hads.size());
 
