@@ -13,11 +13,6 @@
 
 namespace first {  
 
-  // template <typename Derived, typename... Args>
-  // static std::unique_ptr<Derived> to_cloned(const Derived&, Args&&... args) {
-  //     return std::make_unique<Derived>(std::forward<Args>(args)...);
-  // }    
-
   // Helper class to manage a list of char -> F:f (F is a callable)
   // The app uses this to map a user key input to calling a registered function.
   // The cratchit app uses it to map a key to a StateUpdateFunction.
@@ -92,7 +87,6 @@ namespace first {
     UpdateOptions const& update_options() const;
 
     // State TEA update mechanism
-    // virtual StateUpdateResult dispatch(Msg const& msg) const;
     virtual StateUpdateResult update(Msg const& msg) const;
 
     // virtual std::optional<Msg> get_on_destruct_msg() const;
@@ -109,10 +103,6 @@ namespace first {
     virtual UpdateOptions create_update_options() const; // Concrete state shall implement
     virtual UX create_ux() const; // Concrete state shall implement
     
-    // State TEA update mechanism
-    // StateUpdateResult default_update(Msg const& msg) const;
-    // StateUpdateResult default_update(char key) const;
-
   }; // StateImpl
 
 } // namespace first

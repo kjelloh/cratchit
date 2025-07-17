@@ -74,43 +74,6 @@ namespace first {
   }
 
   // ----------------------------------
-  // StateUpdateResult StateImpl::dispatch(Msg const& msg) const {
-  //   spdlog::info("StateImpl::dispatch(msg) - BEGIN");
-  //   return this->update(msg);
-
-    // all-state scope key handling moved out to cratchit::update::try_state_update     
-    // Try virtual update first
-    // if (auto result = this->update(msg)) {
-    //   // Derived state handled the message
-    //   spdlog::info("StateImpl::dispatch(msg) - Handled by derived state");
-    //   return result;
-    // }
-    // else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
-    //   spdlog::info("StateImpl::dispatch(msg) - NCursesKeyMsg");
-    //   auto ch = key_msg_ptr->key;
-    //   if (auto update_result = this->update_options().apply(ch)) {
-    //     return update_result;
-    //   }
-    //   else if (ch == 'q') {
-    //     return {std::nullopt,DO_QUIT};
-    //   }
-    //   else if (ch == '-') {
-    //     // Default pop-state (no payload child -> parent state)
-    //     return {std::nullopt,[]() -> std::optional<Msg>{
-    //       return std::make_shared<PopStateMsg>();
-    //     }};
-    //   }
-    //   spdlog::info("StateImpl::update(NCursesKeyMsg) - ignored message");
-    // }
-
-    // // Derived didn't handle it - use base default logic
-    // spdlog::info("StateImpl::dispatch(msg) - Using default_update fallback");
-    // return this->default_update(msg);
-
-    // return StateUpdateResult{}; // not handled    
-  // }
-
-  // ----------------------------------
   StateUpdateResult StateImpl::update(Msg const& msg) const {
     spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
     return {std::nullopt, Cmd{}}; // Base: "didn't handle"
@@ -151,45 +114,5 @@ namespace first {
     result.push_back("StateImpl::create_ux - override in concrete state");
     return result;
   }
-
-  // ----------------------------------
-  // StateUpdateResult StateImpl::default_update(Msg const& msg) const {
-  //   spdlog::info("StateImpl::default_update(msg) - BEGIN");
-
-  //   // Handle NCursesKeyMsg messages by delegating to update(char)
-  //   if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
-  //     spdlog::info("StateImpl::default_update(msg) - NCursesKeyMsg");
-  //     return this->default_update(key_msg_ptr->key);
-  //   }
-
-  //   return {std::nullopt,Cmd{}}; // fallback - no StateImpl mutation
-  // }
-
-  // ----------------------------------
-  // StateUpdateResult StateImpl::default_update(char ch) const {
-  //   spdlog::info("StateImpl::default_update(key) - BEGIN");
-
-  //   Cmd cmd{}; // null
-  //   std::optional<State> mutated_state{}; // None
-    
-  //   if (ch == 'q') {
-  //     cmd = DO_QUIT;
-  //   }
-  //   else if (auto update_result = this->update_options().apply(ch)) {
-  //     auto const& [new_state, new_cmd] = update_result;
-  //     mutated_state = new_state;
-  //     cmd = new_cmd;
-  //   }
-  //   else if (ch == '-') {
-  //     cmd = []() -> std::optional<Msg> {
-  //       return std::make_shared<PopStateMsg>();
-  //     };
-  //   }
-  //   else {
-  //     spdlog::info("StateImpl::update(ch) - ignored message");
-  //   }
-    
-  //   return {mutated_state, cmd};
-  // }
 
 } // namespace first

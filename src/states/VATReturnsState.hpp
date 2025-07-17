@@ -10,8 +10,6 @@ namespace first {
     virtual StateImpl::UpdateOptions create_update_options() const override;
     virtual std::string caption() const override;
 
-    // static StateFactory factory_from();
-    // static StateImpl::CmdOption cmd_option_from();
 
   }; // struct VATReturnsState
 }

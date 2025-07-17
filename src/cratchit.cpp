@@ -152,13 +152,11 @@ namespace first {
 
   // ----------------------------------
   bool is_quit_msg(Msg const& msg) {
-    // std::cout << "\nis_quit_msg sais Hello" << std::flush;
     return msg == QUIT_MSG;
   }
 
   // ----------------------------------
   InitResult init() {
-    // std::cout << "\ninit sais Hello :)" << std::flush;
     Model model{}; // Default initialization
 
     auto new_framework_state_cmd = []() -> Msg {
@@ -307,7 +305,6 @@ namespace first {
 
   // ----------------------------------
   ViewResult view(const Model &model) {
-    // std::cout << "\nview sais Hello :)" << std::flush;
 
     ViewResult ui{};
     auto& doc = ui.doc;
@@ -336,14 +333,6 @@ namespace first {
         top_content += model.ui_states.back()->ux()[i];
       }
       
-      // for (auto const& [ch, cmd_option] : model.ui_states.back()->cmd_options().view()) {
-      //   std::string entry{};
-      //   entry.push_back(ch);
-      //   entry.append(" = ");
-      //   entry.append(cmd_option.first);
-      //   entry.push_back('\n');
-      //   main_content.append(entry);
-      // }
 
       for (auto const& [ch, update_option] : model.ui_states.back()->update_options().view()) {
         std::string entry{};

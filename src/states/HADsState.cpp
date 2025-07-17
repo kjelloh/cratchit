@@ -14,44 +14,6 @@ namespace first {
 
     spdlog::info("HADsState::HADsState(HADs all_hads:size={},Mod10View mod10_view)",m_all_hads.size());
 
-    // HAD subrange StateImpl factory - moved to create_update_options()
-    // // Enable 'drill down' modulo 10 into HADs
-    // struct HADs_subrange_factory {
-    //   HADs_subrange_factory(HADsState::HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view)
-    //       : m_all_hads{all_hads},m_fiscal_period{fiscal_period},m_mod10_view{mod10_view} {}
-
-    //   HADsState::HADs m_all_hads{};
-    //   FiscalPeriod m_fiscal_period;
-    //   Mod10View m_mod10_view;
-
-    //   auto operator()() {
-    //     return std::make_shared<HADsState>(m_all_hads, m_fiscal_period,m_mod10_view);
-    //   }
-
-    // };
-
-    // auto cmd_option_from_subrange = [this](Mod10View::Range const& subrange) -> StateImpl::CmdOption {
-    //   auto caption = std::to_string(subrange.first);
-    //   caption += " .. ";
-    //   caption += std::to_string(subrange.second-1);
-    //   return {caption, cmd_from_state_factory(HADs_subrange_factory(m_all_hads,m_fiscal_period,subrange))};
-    // };
-
-    // auto subranges = m_mod10_view.subranges();
-    // for (size_t i=0;i<subranges.size();++i) {
-    //   auto const subrange = subranges[i];
-    //   auto const& [begin,end] = subrange;
-    //   if (end-begin==1) {
-    //     // Single HAD in range option
-    //     this->add_cmd_option(static_cast<char>('0'+i), HADState::cmd_option_from(m_all_hads[begin]));
-    //   }
-    //   else {
-    //     this->add_cmd_option(static_cast<char>('0'+i), cmd_option_from_subrange(subrange));
-    //   }
-    // }
-
-    // UX creation moved to create_ux()
-    // this->refresh_ux();
   }
 
   // ----------------------------------
@@ -108,43 +70,6 @@ namespace first {
     return {};
   }
 
-  // StateUpdateResult HADsState::apply(cargo::EditedItemCargo<HAD> const& cargo) const {
-  //   if (cargo.m_payload.mutation == cargo::ItemMutation::DELETED) {
-  //     spdlog::info("HADsState::apply - deleting HAD {}",to_string(cargo.m_payload.item));
-  //     auto mutated_hads = this->m_all_hads;
-  //     State maybe_state{}; // default none
-  //     // Remove the HAD from the collection in the mutated state
-  //     if (auto iter = std::ranges::find(mutated_hads,cargo.m_payload.item);iter != mutated_hads.end()) {
-  //       spdlog::info("HADsState::apply - HAD {} DELETED ok",to_string(*iter));
-  //       mutated_hads.erase(iter);
-  //       maybe_state = std::make_shared<HADsState>(mutated_hads,this->m_fiscal_period);
-  //     }
-  //     else {
-  //       spdlog::error("DESIGN_INSUFFICIENCY: HADsState::apply(cargo::EditedItemCargo<HAD>) failed to find HAD {} to delete",to_string(cargo.m_payload.item));
-  //     }
-      
-  //     return {maybe_state, Cmd{}};
-  //   }
-
-  //   // fallback if not handled
-  //   return StateImpl::apply(cargo);
-  // }
-
-  // Cargo visit/apply double dispatch removed (cargo now message passed)
-  // Cargo HADsState::get_cargo() const {
-  //   return cargo::to_cargo(this->m_all_hads);
-  // }
-
-  // StateFactory HADsState::factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period) {
-  //   // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
-  //   return [&all_hads,fiscal_period]() {
-  //     return make_state<HADsState>(all_hads,fiscal_period);
-  //   };
-  // }
-
-  // StateImpl::CmdOption HADsState::cmd_option_from(HADs const& all_hads,FiscalPeriod fiscal_period) {
-  //   return {std::format("HADs - count:{}",all_hads.size()), cmd_from_state_factory(factory_from(all_hads,fiscal_period))};
-  // }
 
   StateImpl::UpdateOptions HADsState::create_update_options() const {
     StateImpl::UpdateOptions result{};

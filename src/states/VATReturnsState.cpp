@@ -12,16 +12,6 @@ namespace first {
     return "VAT Returns";
   }
 
-  // StateFactory VATReturnsState::factory_from() {
-  //   // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
-  //   return []() {
-  //     return make_state<VATReturnsState>("VAT Returns");
-  //   };
-  // }
-
-  // StateImpl::CmdOption VATReturnsState::cmd_option_from() {
-  //   return {std::format("VAT Returns"), cmd_from_state_factory(factory_from())};
-  // }
 
   StateImpl::UpdateOptions VATReturnsState::create_update_options() const {
     StateImpl::UpdateOptions result{};

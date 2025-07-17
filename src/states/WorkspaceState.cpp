@@ -84,17 +84,4 @@ namespace first {
     return result;
   }
 
-  // StateImpl::CmdOption WorkspaceState::cmd_option_from(std::filesystem::path workspace_path) {
-  //   auto caption = workspace_path.filename().string();
-  //   if (caption.empty()) {
-  //     caption = workspace_path.string(); // Use full path if filename is empty
-  //   }
-    
-  //   auto factory = [workspace_path]() {
-  //     auto workspace_ux = StateImpl::UX{"Workspace UX"};
-  //     return std::make_shared<WorkspaceState>(workspace_ux, workspace_path);
-  //   };
-    
-  //   return {caption, cmd_from_state_factory(factory)};
-  // }
 }
