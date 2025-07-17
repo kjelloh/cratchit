@@ -356,6 +356,23 @@ namespace first {
       }
     }
 
+    // Generate stack breadcrumb
+    std::string breadcrumb_content;
+    if (model.ui_states.size() > 0) {
+      for (std::size_t i = 0; i < model.ui_states.size(); ++i) {
+        if (i > 0) breadcrumb_content.append(" -> ");
+        auto const& state_ref = *model.ui_states[i].get();
+        std::string full_name = to_type_name(typeid(state_ref));
+        
+        // Extract just the class name after the last "::"
+        size_t last_colon = full_name.find_last_of("::");
+        std::string short_name = (last_colon != std::string::npos) ? 
+                                 full_name.substr(last_colon + 1) : 
+                                 full_name;
+        breadcrumb_content.append(short_name);
+      }
+    }
+
     // Create the top section with class "content"
     pugi::xml_node top = body.append_child("div");
     top.append_attribute("class") = "content";
@@ -369,6 +386,17 @@ namespace first {
     // Create the user prompt section with class "user-prompt"
     pugi::xml_node prompt = body.append_child("div");
     prompt.append_attribute("class") = "user-prompt";
+    
+    // Add breadcrumb as first line
+    pugi::xml_node breadcrumb = prompt.append_child("div");
+    breadcrumb.append_attribute("class") = "breadcrumb";
+    breadcrumb.text().set(breadcrumb_content.c_str());
+    
+    // Add empty line (spacer)
+    pugi::xml_node spacer = prompt.append_child("div");
+    spacer.append_attribute("class") = "spacer";
+    spacer.text().set("");
+    
     // Add a label element for the prompt text
     pugi::xml_node label = prompt.append_child("label");
     std::string input_text = model.user_input_state.buffer();

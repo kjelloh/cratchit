@@ -40,10 +40,23 @@ namespace TEA {
     }
 
     void render_prompt(WINDOW *win, const pugi::xml_node &prompt_node) {
-      // User prompt at the bottom of the screen (in the last row)
+      int line = 1; // Start at line 1 (after border)
+      
+      // Render breadcrumb on line 1
+      auto breadcrumb_node = prompt_node.child("div");
+      if (breadcrumb_node && std::string(breadcrumb_node.attribute("class").as_string()) == "breadcrumb") {
+        const std::string breadcrumb_text = breadcrumb_node.text().as_string();
+        mvwprintw(win, line, 1, "%s", breadcrumb_text.c_str());
+        line++;
+      }
+      
+      // Skip line 2 (empty spacer line)
+      line++;
+      
+      // Render user prompt on line 3
       const std::string prompt_text = prompt_node.child("label").text().as_string();
-      mvwprintw(win, 1, 1, "%s", prompt_text.c_str());
-      wmove(win, 1, prompt_text.size() + 1); // Move cursor after the prompt
+      mvwprintw(win, line, 1, "%s", prompt_text.c_str());
+      wmove(win, line, prompt_text.size() + 1); // Move cursor after the prompt
       wnoutrefresh(win); // Update to buffer
     }
 
