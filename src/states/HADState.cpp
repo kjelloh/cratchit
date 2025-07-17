@@ -37,9 +37,6 @@ namespace first {
 
   StateFactory HADState::factory_from(HADState::HAD const& had) {
     return [had]() {
-      auto HAD_ux = StateImpl::UX{
-        "HAD UX goes here"
-      };
       return make_state<HADState>(had);
     };
   }
