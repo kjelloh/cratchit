@@ -40,7 +40,7 @@ namespace first {
       if (pimpl->payload != this->m_period_hads) {
         // Changes has been made
         spdlog::info("FiscalPeriodState::update - HADs has changed. payload size: {}", pimpl->payload.size());
-        mutated_state = to_cloned(*this, this->m_caption, this->m_fiscal_period, pimpl->payload);
+        mutated_state = make_state<FiscalPeriodState>(this->m_caption, this->m_fiscal_period, pimpl->payload);
       }
       return {mutated_state, cmd};
     }

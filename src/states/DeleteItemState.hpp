@@ -41,7 +41,7 @@ namespace first {
       // TODO: Refactor add_update_option in constructor to update options here
 
       result.add('y', {"Yes", [this]() -> StateUpdateResult {
-        std::shared_ptr<DeleteItemState<Item>> new_state = to_cloned(*this, this->m_edited_item.item);
+        auto new_state = make_state<DeleteItemState<Item>>(this->m_edited_item.item);
         new_state->m_edited_item.mutation = cargo::ItemMutation::DELETED;
         spdlog::info("DeleteItemState::m_update_options['y'] captures payload {}",to_string(new_state->m_edited_item.item));
         return {new_state, [payload = new_state->m_edited_item]() -> std::optional<Msg> { 

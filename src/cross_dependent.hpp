@@ -53,7 +53,7 @@ namespace first {
   // ----------------------------------
   // Helper template to create states uniformly
   template<typename StateType, typename... Args>
-  State make_state(Args&&... args) {
+  std::shared_ptr<StateType> make_state(Args&&... args) {
     return std::make_shared<StateType>(std::forward<Args>(args)...);
   }
 

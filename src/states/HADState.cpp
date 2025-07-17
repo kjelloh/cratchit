@@ -57,7 +57,7 @@ namespace first {
   StateUpdateResult HADState::update(Msg const& msg) const {
     using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
     if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
-      std::shared_ptr<HADState> new_state = to_cloned(*this, pimpl->payload.item);
+      auto new_state = make_state<HADState>(pimpl->payload.item);
       new_state->m_edited_had = pimpl->payload;
       spdlog::info("HADState::update - Received EditedHADMsg with payload {}, new_state->m_edited_had {} "
         ,to_string(pimpl->payload.item)
