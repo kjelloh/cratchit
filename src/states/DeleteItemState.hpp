@@ -87,10 +87,10 @@ namespace first {
     //   return std::make_shared<CargoMsgT<cargo::EditedItem<Item>>>(m_edited_item);
     // }
 
-    static StateFactory factory_from(DeleteItemState::Item const& item) {
-      return [item]() {
-        return std::make_shared<DeleteItemState<Item>>(item);
-      };
-    }
+    // static StateFactory factory_from(DeleteItemState::Item const& item) {
+    //   return [item]() {
+    //     return std::make_shared<DeleteItemState<Item>>(item);
+    //   };
+    // }
   };
 } // namespace first

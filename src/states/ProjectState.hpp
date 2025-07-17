@@ -19,9 +19,9 @@ namespace first {
 
   public:
     ProjectState(ProjectState const&) = delete; // Force create from fresh data (file)
-    ProjectState(std::string caption, std::filesystem::path root_path); // 'Initial' state
+    ProjectState(std::filesystem::path root_path); // 'Initial' state
     ProjectState(
-       std::string caption
+       std::optional<std::string> caption
       ,PersistentFile<Environment> persistent_environment_file
       ,Environment environment);
     virtual ~ProjectState() override;
@@ -31,8 +31,9 @@ namespace first {
     // virtual Cargo get_cargo() const override;
     virtual StateImpl::UpdateOptions create_update_options() const override;
     virtual StateImpl::UX create_ux() const override;
+    virtual std::string caption() const override;
     
-    static StateFactory factory_from(std::filesystem::path project_path);
+    // static StateFactory factory_from(std::filesystem::path project_path);
     // static StateImpl::CmdOption cmd_option_from(std::string org_name, std::filesystem::path root_path);
   };
 } // namespace first

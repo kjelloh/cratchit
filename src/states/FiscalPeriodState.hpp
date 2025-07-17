@@ -14,16 +14,17 @@ namespace first {
 
   public:
     FiscalPeriodState(FiscalPeriodState const&) = delete; // Force to clone from actual data
-    FiscalPeriodState(std::string caption,FiscalPeriod fiscal_period,HeadingAmountDateTransEntries period_hads);
-    FiscalPeriodState(std::string caption,FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
+    FiscalPeriodState(std::optional<std::string> caption,FiscalPeriod fiscal_period,HeadingAmountDateTransEntries period_hads);
+    FiscalPeriodState(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
     virtual StateUpdateResult update(Msg const& msg) const override;
     // Cargo visit/apply double dispatch removed (cargo now message passed)
     // virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const override;
     // Cargo visit/apply double dispatch removed (cargo now message passed)
     // virtual Cargo get_cargo() const override;
     virtual StateImpl::UpdateOptions create_update_options() const override;
+    virtual std::string caption() const override;
 
-    static StateFactory factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
+    // static StateFactory factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
     // static StateImpl::CmdOption cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
     // static StateImpl::CmdOption cmd_option_from(FiscalYear fiscal_year,Environment const& parent_environment_ref);
     // static StateImpl::CmdOption cmd_option_from(FiscalQuarter fiscal_quarter,Environment const& parent_environment_ref);

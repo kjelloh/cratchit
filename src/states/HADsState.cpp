@@ -135,12 +135,12 @@ namespace first {
   //   return cargo::to_cargo(this->m_all_hads);
   // }
 
-  StateFactory HADsState::factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period) {
-    // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
-    return [&all_hads,fiscal_period]() {
-      return make_state<HADsState>(all_hads,fiscal_period);
-    };
-  }
+  // StateFactory HADsState::factory_from(HADsState::HADs const& all_hads,FiscalPeriod fiscal_period) {
+  //   // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
+  //   return [&all_hads,fiscal_period]() {
+  //     return make_state<HADsState>(all_hads,fiscal_period);
+  //   };
+  // }
 
   // StateImpl::CmdOption HADsState::cmd_option_from(HADs const& all_hads,FiscalPeriod fiscal_period) {
   //   return {std::format("HADs - count:{}",all_hads.size()), cmd_from_state_factory(factory_from(all_hads,fiscal_period))};
@@ -175,7 +175,7 @@ namespace first {
         auto caption = to_string(m_all_hads[begin]);
         result.add(key, {caption, [had = m_all_hads[begin]]() -> StateUpdateResult {
           return {std::nullopt, [had]() -> std::optional<Msg> {
-            State new_state = HADState::factory_from(had)();
+            State new_state = make_state<HADState>(had);
             return std::make_shared<PushStateMsg>(new_state);
           }};
         }});

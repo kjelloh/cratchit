@@ -26,7 +26,7 @@ namespace first {
   // }
 
   ProjectState::ProjectState(
-     std::string caption
+     std::optional<std::string> caption
     ,PersistentFile<Environment> persistent_environment_file
     ,Environment environment)
     :  StateImpl{caption}
@@ -39,8 +39,8 @@ namespace first {
   }
 
   // ----------------------------------
-  ProjectState::ProjectState(std::string caption,std::filesystem::path root_path) 
-    :  StateImpl{caption}
+  ProjectState::ProjectState(std::filesystem::path root_path) 
+    :  StateImpl{std::nullopt}
       ,m_root_path{root_path}
       ,m_persistent_environment_file{m_root_path / "cratchit.env",environment_from_file,environment_to_file}
       ,m_environment{} {
@@ -69,6 +69,13 @@ namespace first {
     // NOTE: cratchit update(model) will defer destructor as Cmd invoked by runtime (i.e., side effects ok)
     spdlog::info("ProjectState::~ProjectState");
     m_persistent_environment_file.update(m_environment); // Save the environment to file
+  }
+
+  std::string ProjectState::caption() const {
+    if (m_caption.has_value()) {
+      return m_caption.value();
+    }
+    return m_root_path.string();
   }
 
   // A non owning diff of period sliced ranges = lhs - rhs
@@ -288,11 +295,11 @@ namespace first {
     return result;
   }
 
-  StateFactory ProjectState::factory_from(std::filesystem::path project_path) {
-    return [project_path]() {
-      return make_state<ProjectState>(project_path.string(), project_path);
-    };
-  }
+  // StateFactory ProjectState::factory_from(std::filesystem::path project_path) {
+  //   return [project_path]() {
+  //     return make_state<ProjectState>(project_path);
+  //   };
+  // }
 
   StateImpl::UpdateOptions ProjectState::create_update_options() const {
     StateImpl::UpdateOptions result{};
@@ -303,7 +310,7 @@ namespace first {
     result.add('0', {std::format("Fiscal Year: {}", current_fiscal_year.to_string()), 
       [current_fiscal_year, env = m_environment]() -> StateUpdateResult {
         return {std::nullopt, [current_fiscal_year, env]() -> std::optional<Msg> {
-          State new_state = FiscalPeriodState::factory_from(current_fiscal_year.period(), env)();
+          State new_state = make_state<FiscalPeriodState>(current_fiscal_year.period(), env);
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});
@@ -312,7 +319,7 @@ namespace first {
       [current_fiscal_year, env = m_environment]() -> StateUpdateResult {
         auto fiscal_year = current_fiscal_year.to_relative_fiscal_year(-1);
         return {std::nullopt, [fiscal_year, env]() -> std::optional<Msg> {
-          State new_state = FiscalPeriodState::factory_from(fiscal_year.period(), env)();
+          State new_state = make_state<FiscalPeriodState>(fiscal_year.period(), env);
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});
@@ -321,7 +328,7 @@ namespace first {
       [current_fiscal_year, env = m_environment]() -> StateUpdateResult {
         auto fiscal_year = current_fiscal_year.to_relative_fiscal_year(-2);
         return {std::nullopt, [fiscal_year, env]() -> std::optional<Msg> {
-          State new_state = FiscalPeriodState::factory_from(fiscal_year.period(), env)();
+          State new_state = make_state<FiscalPeriodState>(fiscal_year.period(), env);
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});
@@ -329,7 +336,7 @@ namespace first {
     result.add('3', {std::format("Fiscal Quarter: {}", current_fiscal_quarter.to_string()), 
       [current_fiscal_quarter, env = m_environment]() -> StateUpdateResult {
         return {std::nullopt, [current_fiscal_quarter, env]() -> std::optional<Msg> {
-          State new_state = FiscalPeriodState::factory_from(current_fiscal_quarter.period(), env)();
+          State new_state = make_state<FiscalPeriodState>(current_fiscal_quarter.period(), env);
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});
@@ -338,7 +345,7 @@ namespace first {
       [current_fiscal_quarter, env = m_environment]() -> StateUpdateResult {
         auto fiscal_quarter = current_fiscal_quarter.to_relative_fiscal_quarter(-1);
         return {std::nullopt, [fiscal_quarter, env]() -> std::optional<Msg> {
-          State new_state = FiscalPeriodState::factory_from(fiscal_quarter.period(), env)();
+          State new_state = make_state<FiscalPeriodState>(fiscal_quarter.period(), env);
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});

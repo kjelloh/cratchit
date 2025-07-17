@@ -36,7 +36,7 @@ namespace first {
       return {std::nullopt, [root_path]() -> std::optional<Msg> {
         auto folder_name = to_underscored_spaces(".");
         auto project_path = root_path / folder_name;
-        State new_state = ProjectState::factory_from(project_path)();
+        State new_state = make_state<ProjectState>(project_path);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
@@ -45,7 +45,7 @@ namespace first {
       return {std::nullopt, [root_path]() -> std::optional<Msg> {
         auto folder_name = to_underscored_spaces("ITfied AB");
         auto project_path = root_path / folder_name;
-        State new_state = ProjectState::factory_from(project_path)();
+        State new_state = make_state<ProjectState>(project_path);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
@@ -54,7 +54,7 @@ namespace first {
       return {std::nullopt, [root_path]() -> std::optional<Msg> {
         auto folder_name = to_underscored_spaces("Org x");
         auto project_path = root_path / folder_name;
-        State new_state = ProjectState::factory_from(project_path)();
+        State new_state = make_state<ProjectState>(project_path);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});

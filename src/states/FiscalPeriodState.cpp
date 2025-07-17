@@ -9,7 +9,7 @@
 namespace first {
 
   FiscalPeriodState::FiscalPeriodState(
-     std::string caption
+     std::optional<std::string> caption
     ,FiscalPeriod fiscal_period
     ,HeadingAmountDateTransEntries period_hads)
       :  StateImpl{caption}
@@ -26,10 +26,16 @@ namespace first {
   }
 
   FiscalPeriodState::FiscalPeriodState(
-     std::string caption
-    ,FiscalPeriod fiscal_period
+     FiscalPeriod fiscal_period
     ,Environment const &parent_environment_ref)
-      : FiscalPeriodState(caption,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
+      : FiscalPeriodState(std::nullopt,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
+
+  std::string FiscalPeriodState::caption() const {
+    if (m_caption.has_value()) {
+      return m_caption.value();
+    }
+    return "Fiscal Period: " + m_fiscal_period.to_string();
+  }
 
   StateUpdateResult FiscalPeriodState::update(Msg const& msg) const {
     using HADsMsg = CargoMsgT<HeadingAmountDateTransEntries>;
@@ -73,12 +79,12 @@ namespace first {
   //   return cargo::to_cargo(result);
   // }
 
-  StateFactory FiscalPeriodState::factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
-    return [fiscal_period, &parent_environment_ref]() {
-      std::string caption = "Fiscal Period: " + fiscal_period.to_string();
-      return make_state<FiscalPeriodState>(caption, fiscal_period, parent_environment_ref);
-    };
-  }
+  // StateFactory FiscalPeriodState::factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
+  //   return [fiscal_period, &parent_environment_ref]() {
+  //     std::string caption = "Fiscal Period: " + fiscal_period.to_string();
+  //     return make_state<FiscalPeriodState>(fiscal_period, parent_environment_ref);
+  //   };
+  // }
   // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
   //   return {"Fiscal Period: " + fiscal_period.to_string(), cmd_from_state_factory(factory_from(fiscal_period, parent_environment_ref))};
   // }
@@ -96,7 +102,7 @@ namespace first {
     result.add('h', {std::format("HADs - count:{}", m_period_hads.size()), 
       [period_hads = m_period_hads, fiscal_period = m_fiscal_period]() -> StateUpdateResult {
         return {std::nullopt, [period_hads, fiscal_period]() -> std::optional<Msg> {
-          State new_state = HADsState::factory_from(period_hads, fiscal_period)();
+          State new_state = make_state<HADsState>(period_hads, fiscal_period);
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});
@@ -104,7 +110,7 @@ namespace first {
     // Convert VATReturnsState::cmd_option_from to update option  
     result.add('v', {"VAT Returns", []() -> StateUpdateResult {
       return {std::nullopt, []() -> std::optional<Msg> {
-        State new_state = VATReturnsState::factory_from()();
+        State new_state = make_state<VATReturnsState>();
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});

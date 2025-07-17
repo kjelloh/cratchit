@@ -35,11 +35,11 @@ namespace first {
     // }});    
   }
 
-  StateFactory HADState::factory_from(HADState::HAD const& had) {
-    return [had]() {
-      return make_state<HADState>(had);
-    };
-  }
+  // StateFactory HADState::factory_from(HADState::HAD const& had) {
+  //   return [had]() {
+  //     return make_state<HADState>(had);
+  //   };
+  // }
   
   // StateImpl::CmdOption HADState::cmd_option_from(HADState::HAD const& had) {
   //   return {to_string(had), cmd_from_state_factory(factory_from(had))};
@@ -129,7 +129,7 @@ namespace first {
 
     result.add('d',{"Delete",[had = this->m_edited_had.item]() -> StateUpdateResult {
       return {std::nullopt,[had]() -> std::optional<Msg> {
-        State new_state = DeleteItemState<HAD>::factory_from(had)();
+        State new_state = make_state<DeleteItemState<HAD>>(had);
         auto msg = std::make_shared<PushStateMsg>(new_state);
         return msg;
       }};

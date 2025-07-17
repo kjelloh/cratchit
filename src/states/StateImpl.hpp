@@ -87,7 +87,7 @@ namespace first {
 
     StateImpl(std::optional<std::string> caption = std::nullopt);
     virtual ~StateImpl();
-    std::string caption() const;
+    virtual std::string caption() const;
     UX const &ux() const;
     UpdateOptions const& update_options() const;
 
