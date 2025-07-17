@@ -76,7 +76,7 @@ namespace first {
   StateFactory FiscalPeriodState::factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
     return [fiscal_period, &parent_environment_ref]() {
       std::string caption = "Fiscal Period: " + fiscal_period.to_string();
-      return std::make_shared<FiscalPeriodState>(caption, fiscal_period, parent_environment_ref);
+      return make_state<FiscalPeriodState>(caption, fiscal_period, parent_environment_ref);
     };
   }
   // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {

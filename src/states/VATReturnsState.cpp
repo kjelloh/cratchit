@@ -8,7 +8,7 @@ namespace first {
   StateFactory VATReturnsState::factory_from() {
     // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
     return []() {
-      return std::make_shared<VATReturnsState>("VAT Returns");
+      return make_state<VATReturnsState>("VAT Returns");
     };
   }
 

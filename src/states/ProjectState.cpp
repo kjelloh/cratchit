@@ -290,7 +290,7 @@ namespace first {
 
   StateFactory ProjectState::factory_from(std::filesystem::path project_path) {
     return [project_path]() {
-      return std::make_shared<ProjectState>(project_path.string(), project_path);
+      return make_state<ProjectState>(project_path.string(), project_path);
     };
   }
 

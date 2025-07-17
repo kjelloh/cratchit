@@ -40,7 +40,7 @@ namespace first {
       auto HAD_ux = StateImpl::UX{
         "HAD UX goes here"
       };
-      return std::make_shared<HADState>(had);
+      return make_state<HADState>(had);
     };
   }
   
@@ -121,7 +121,7 @@ namespace first {
     StateImpl::UpdateOptions result{};
 
     StateFactory sie_factory = []() {
-      return std::make_shared<StateImpl>("HAD to SIE"); // Placeholder state
+      return make_state<StateImpl>("HAD to SIE"); // Placeholder state
     };
 
     result.add('0',{"HAD -> SIE",[sie_factory]() -> StateUpdateResult {

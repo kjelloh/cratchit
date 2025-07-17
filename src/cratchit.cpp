@@ -147,7 +147,7 @@ namespace first {
   // ----------------------------------
   auto framework_state_factory = []() {
     std::filesystem::path root_path = std::filesystem::current_path();
-    return std::make_shared<FrameworkState>("Framework",root_path);
+    return make_state<FrameworkState>("Framework",root_path);
   };
 
   // ----------------------------------

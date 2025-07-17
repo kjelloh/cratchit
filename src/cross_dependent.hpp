@@ -51,6 +51,13 @@ namespace first {
   using MaybeState = std::optional<State>; // for future non-ptr State...
 
   // ----------------------------------
+  // Helper template to create states uniformly
+  template<typename StateType, typename... Args>
+  State make_state(Args&&... args) {
+    return std::make_shared<StateType>(std::forward<Args>(args)...);
+  }
+
+  // ----------------------------------
   using StateFactory = std::function<State()>;
   
   // ----------------------------------

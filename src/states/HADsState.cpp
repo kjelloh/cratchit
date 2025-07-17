@@ -139,7 +139,7 @@ namespace first {
     // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
     return [&all_hads,fiscal_period]() {
       auto ux = StateImpl::UX{"HADs UX goes here"};
-      return std::make_shared<HADsState>(all_hads,fiscal_period);
+      return make_state<HADsState>(all_hads,fiscal_period);
     };
   }
 

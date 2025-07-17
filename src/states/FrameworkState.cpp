@@ -26,7 +26,7 @@ namespace first {
     
     result.add('0', {caption, [root_path = m_root_path]() -> StateUpdateResult {
       return {std::nullopt, [root_path]() -> std::optional<Msg> {
-        State new_state = std::make_shared<WorkspaceState>("Workspace", root_path);
+        State new_state = make_state<WorkspaceState>("Workspace", root_path);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
