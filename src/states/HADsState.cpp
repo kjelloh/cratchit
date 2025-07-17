@@ -18,6 +18,11 @@ namespace first {
 
   // ----------------------------------
 
+  HADsState::HADsState(HADs all_hads,FiscalPeriod fiscal_period) 
+    : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
+
+  // ----------------------------------
+
   StateImpl::UX HADsState::create_ux() const {
     // Create view UX
     UX result{};
@@ -32,11 +37,10 @@ namespace first {
   }
 
   // ----------------------------------
-  HADsState::HADsState(HADs all_hads,FiscalPeriod fiscal_period) 
-    : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
 
   StateUpdateResult HADsState::update(Msg const& msg) const {
     using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+    using HADsMsg = CargoMsgT<HADsState::HADs>;
     if (auto entry_msg_ptr = std::dynamic_pointer_cast<UserEntryMsg>(msg);entry_msg_ptr != nullptr) {
       spdlog::info("HADsState::update - handling UserEntryMsg");
       std::string command(entry_msg_ptr->m_entry);
@@ -49,6 +53,16 @@ namespace first {
       }
       else {
         spdlog::info("HADsState::update - not a had");
+      }
+    }
+    else if (auto pimpl = std::dynamic_pointer_cast<HADsMsg>(msg); pimpl != nullptr) {
+      // We have got cargo from a subrange HADsState - reporting its subrange HADs
+      spdlog::info("HADsState::update - handling HADsMsg");
+      if (this->m_all_hads != pimpl->payload) {
+        spdlog::info("HADsState::update - HADs has changed");
+        auto mutated_hads = pimpl->payload; // Use payload as the new truth
+        auto mutated_state = make_state<HADsState>(mutated_hads,this->m_fiscal_period);
+        return {mutated_state, Cmd{}};
       }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
@@ -66,7 +80,6 @@ namespace first {
       }      
       return {maybe_state, Cmd{}};
     }
- 
     return {};
   }
 

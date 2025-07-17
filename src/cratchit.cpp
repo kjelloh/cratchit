@@ -185,7 +185,9 @@ namespace first {
     auto try_state_update = [&model](Msg const& msg) -> StateUpdateResult {
       bool ask_state_to_update = (model.ui_states.size()>0) and (model.user_input_state.buffer().size()==0);
       if (ask_state_to_update) {
+        spdlog::info("cratchit::update:::try_state_update: Passing Msg to state");
         if (auto update_result = model.ui_states.back()->update(msg)) {
+          spdlog::info("cratchit::update:::try_state_update: State returned update_result = handled by state");
           return update_result;
         }
         else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
@@ -206,9 +208,10 @@ namespace first {
               return std::make_shared<PopStateMsg>();
             }};
           }
-          spdlog::info("try_state_update: NCursesKeyMsg - ignored message");
+          spdlog::info("try_state_update: NCursesKeyMsg -  No handler for key {}",ch);
         }
       }
+      spdlog::info("cratchit::update:::try_state_update: No handling found for this message");
       return {std::nullopt,Cmd{}};
     };
 
@@ -261,9 +264,9 @@ namespace first {
       }
     }
     else {
-      // Trace ignored messages
+      // Trace unhandled messages
       auto const& ref = *msg;
-      spdlog::info("cratchit::update:  Ignored message type: {}", to_type_name(typeid(ref)));
+      spdlog::info("cratchit::update:  Unhandled message - type: {}", to_type_name(typeid(ref)));
     }
 
     // Dump stack to log
