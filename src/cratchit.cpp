@@ -198,7 +198,9 @@ namespace first {
             return update_result;
           }
           else if (ch == 'q') {
-            return {std::nullopt,DO_QUIT};
+            if (model.ui_states.size() <= 1) {
+              return {std::nullopt,DO_QUIT};
+            }
           }
           else if (ch == '-') {
             // Default pop-state (no payload child -> parent state)
@@ -234,18 +236,6 @@ namespace first {
       // user input state handled the message - apply the changes
       update_result.apply(model.user_input_state,cmd);
     }
-    // else if (auto pimpl = std::dynamic_pointer_cast<PoppedStateCargoMsg>(msg)) {
-    //   if (pimpl->m_cargo) {
-    //     // Double dispatch cargo to top state
-    //     const auto &cargo = *pimpl->m_cargo;
-    //     spdlog::info("cratchit::update:  PoppedStateCargoMsg: {}", to_type_name(typeid(cargo)));
-    //     if (auto update_result = cargo.visit(model.ui_states.back())) {
-    //       update_result.apply(model.ui_states.back(),cmd);
-    //     }
-    //   } else {
-    //     spdlog::info("cratchit::update:  PoppedStateCargoMsg: NULL cargo");
-    //   }
-    // }
     else if (auto pimpl = std::dynamic_pointer_cast<PushStateMsg>(msg); pimpl != nullptr) {
       if (pimpl->m_state != nullptr) {
         model.ui_states.push_back(pimpl->m_state);
@@ -260,15 +250,9 @@ namespace first {
         auto popped_state = model.ui_states.back();
         model.ui_states.pop_back();
 
-        if (true) {
-          auto const& ref = *popped_state.get();
-          spdlog::info("cratchit::update:  Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
-        }
+        auto const& ref = *popped_state.get();
+        spdlog::info("cratchit::update:  Popped {}[{}]", to_type_name(typeid(ref)), static_cast<void*>(popped_state.get()));
 
-        // 20250712/KoH - We have three candidates in flight for passing cargo child -> parent state
-        //                Decide on one and refactor the others away
-
-        // TODO: Consider PopStateMsg::m_maybe_null_cargo_msg mechanism?
         if (auto maybe_null_cargo_msg = pimpl->m_maybe_null_cargo_msg) {
           auto const& ref = *maybe_null_cargo_msg;
           spdlog::info("cratchit::update: PopStateMsg provided maybe_null_cargo_msg {}", to_type_name(typeid(ref)));
@@ -277,23 +261,6 @@ namespace first {
             return maybe_null_cargo_msg;
           };
         }
-        // // TODO: Consider get_on_destruct_msg mechanism?
-        // else if (auto on_destruct_msg = popped_state->get_on_destruct_msg()) {
-        //   auto const& ref = *(*on_destruct_msg).get();
-        //   spdlog::info("cratchit::update: popped_state provided on_destruct_msg {}", to_type_name(typeid(ref)));
-
-        //   cmd = [on_destruct_msg]() {
-        //     return on_destruct_msg;
-        //   };
-        // }
-        // Cargo visit/apply double dispatch removed (cargo now message passed)
-        // else {
-        //   cmd = [cargo = popped_state->get_cargo()]() mutable -> std::optional<Msg> {
-        //     auto msg = std::make_shared<PoppedStateCargoMsg>(cargo);
-        //     return msg;
-        //   };
-        // }
-
       }
     }
     else {
@@ -331,7 +298,10 @@ namespace first {
       }
     }
 
-    // UI generation moved to view() - proper TEA separation
+    // If no stack after any Msg, then tell runtime to quit
+    if (model.ui_states.size() == 0) {
+      return {model,DO_QUIT};
+    }
 
     return {model,cmd}; // Return updated model
   }

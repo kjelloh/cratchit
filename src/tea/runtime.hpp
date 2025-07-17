@@ -149,8 +149,10 @@ namespace TEA {
     using view_fn = std::function<view_result(Model)>;
     using model_update_result = std::pair<Model, Cmd>;
     using update_fn = std::function<model_update_result(Model, Msg)>;
+
     Runtime(init_fn init, view_fn view, update_fn update)
         : m_init(init), m_view(view), m_update(update) {};
+
     int run(int argc, char *argv[]) {
   #ifdef __APPLE__
       // Quick fix to make ncurses find the terminal setting on macOS
@@ -235,6 +237,9 @@ namespace TEA {
       }
       spdlog::info("Runtime::run - END");
 
+      // 250717 - Quit from loop with last user key '-' means the user unwound the stack down to empty
+      // , and we return non-zero to signal main 'main' to switch back to zeroth::main.
+      // Kind of a development version hack to keep both variants in play until we are ready to move fully to first::main...
       return (ch == '-') ? 1 : 0;
     }
 
