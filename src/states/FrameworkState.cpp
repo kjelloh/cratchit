@@ -5,8 +5,8 @@
 namespace first {
 
   // ----------------------------------
-  FrameworkState::FrameworkState(StateImpl::UX ux, std::filesystem::path root_path)
-      :  StateImpl{ux}
+  FrameworkState::FrameworkState(std::string caption, std::filesystem::path root_path)
+      :  StateImpl{caption}
         ,m_root_path{root_path} { 
     // UX creation moved to create_ux()
     // this->m_ux.push_back(m_root_path.string());
@@ -26,8 +26,7 @@ namespace first {
     
     result.add('0', {caption, [root_path = m_root_path]() -> StateUpdateResult {
       return {std::nullopt, [root_path]() -> std::optional<Msg> {
-        auto workspace_ux = StateImpl::UX{"Workspace UX"};
-        State new_state = std::make_shared<WorkspaceState>(workspace_ux, root_path);
+        State new_state = std::make_shared<WorkspaceState>("Workspace", root_path);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
@@ -49,9 +48,7 @@ namespace first {
     UX result{};
     
     // Base UX from constructor
-    if (!m_ux.empty()) {
-      result = m_ux;
-    }
+    result.push_back(m_caption);
     
     // Add root path info
     result.push_back(m_root_path.string());

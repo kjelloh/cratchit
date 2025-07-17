@@ -8,8 +8,8 @@ namespace first {
 
   // State
   // ----------------------------------
-  StateImpl::StateImpl(UX const& ux) 
-    :  m_ux{ux}
+  StateImpl::StateImpl(std::string const& caption) 
+    :  m_caption{caption}
       ,m_transient_maybe_update_options{}
       ,m_transient_maybe_ux{} {
 
@@ -41,6 +41,11 @@ namespace first {
     }
     
     return *m_transient_maybe_ux;
+  }
+
+  // ----------------------------------
+  std::string const& StateImpl::caption() const {
+    return m_caption;
   }
 
   StateImpl::UpdateOptions const& StateImpl::update_options() const {
@@ -141,7 +146,8 @@ namespace first {
   
   StateImpl::UX StateImpl::create_ux() const {
     // Default implementation - states should override this
-    UX result = m_ux; // Use the original UX from constructor as fallback
+    UX result;
+    result.push_back(m_caption); // Use the caption as first line
     result.push_back("StateImpl::create_ux - override in concrete state");
     return result;
   }

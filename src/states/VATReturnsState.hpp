@@ -5,7 +5,7 @@
 namespace first {
   // ----------------------------------
   struct VATReturnsState : public StateImpl {
-    VATReturnsState(StateImpl::UX ux);
+    VATReturnsState(std::string caption);
 
     virtual StateImpl::UpdateOptions create_update_options() const override;
 

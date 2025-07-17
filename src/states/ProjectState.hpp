@@ -19,9 +19,9 @@ namespace first {
 
   public:
     ProjectState(ProjectState const&) = delete; // Force create from fresh data (file)
-    ProjectState(StateImpl::UX ux, std::filesystem::path root_path); // 'Initial' state
+    ProjectState(std::string caption, std::filesystem::path root_path); // 'Initial' state
     ProjectState(
-       StateImpl::UX ux
+       std::string caption
       ,PersistentFile<Environment> persistent_environment_file
       ,Environment environment);
     virtual ~ProjectState() override;

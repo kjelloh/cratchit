@@ -3,13 +3,12 @@
 
 namespace first {
   // ----------------------------------
-  VATReturnsState::VATReturnsState(StateImpl::UX ux) : StateImpl{ux} {}
+  VATReturnsState::VATReturnsState(std::string caption) : StateImpl{caption} {}
 
   StateFactory VATReturnsState::factory_from() {
     // Called by parent state so all_hads will exist as long as this callable is avaibale (option in parent state)
     return []() {
-      auto ux = StateImpl::UX{"VAT Returns UX goes here"};
-      return std::make_shared<VATReturnsState>(ux);
+      return std::make_shared<VATReturnsState>("VAT Returns");
     };
   }
 

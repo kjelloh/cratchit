@@ -16,8 +16,8 @@ namespace first {
     return result;
   }
   // ----------------------------------
-  WorkspaceState::WorkspaceState(StateImpl::UX ux,std::filesystem::path root_path) 
-    :  StateImpl{ux}
+  WorkspaceState::WorkspaceState(std::string caption,std::filesystem::path root_path) 
+    :  StateImpl{caption}
       ,m_root_path{root_path} {
 
     // UX creation moved to create_ux()
@@ -76,9 +76,7 @@ namespace first {
     UX result{};
     
     // Base UX from constructor
-    if (!m_ux.empty()) {
-      result = m_ux;
-    }
+    result.push_back(m_caption);
     
     // Add root path info
     result.push_back(m_root_path.string());

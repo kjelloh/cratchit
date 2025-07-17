@@ -9,7 +9,7 @@ namespace first {
   private:
     std::filesystem::path m_root_path;    
   public:
-    WorkspaceState(StateImpl::UX ux,std::filesystem::path root_path);
+    WorkspaceState(std::string caption,std::filesystem::path root_path);
     
     virtual StateImpl::UpdateOptions create_update_options() const override;
     virtual StateImpl::UX create_ux() const override;

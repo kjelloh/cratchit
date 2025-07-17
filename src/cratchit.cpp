@@ -146,9 +146,8 @@ namespace first {
 
   // ----------------------------------
   auto framework_state_factory = []() {
-    auto framework_ux = StateImpl::UX{"Framework UX"};
     std::filesystem::path root_path = std::filesystem::current_path();
-    return std::make_shared<FrameworkState>(framework_ux,root_path);
+    return std::make_shared<FrameworkState>("Framework",root_path);
   };
 
   // ----------------------------------
@@ -361,15 +360,7 @@ namespace first {
     if (model.ui_states.size() > 0) {
       for (std::size_t i = 0; i < model.ui_states.size(); ++i) {
         if (i > 0) breadcrumb_content.append(" -> ");
-        auto const& state_ref = *model.ui_states[i].get();
-        std::string full_name = to_type_name(typeid(state_ref));
-        
-        // Extract just the class name after the last "::"
-        size_t last_colon = full_name.find_last_of("::");
-        std::string short_name = (last_colon != std::string::npos) ? 
-                                 full_name.substr(last_colon + 1) : 
-                                 full_name;
-        breadcrumb_content.append(short_name);
+        breadcrumb_content.append(model.ui_states[i]->caption());
       }
     }
 

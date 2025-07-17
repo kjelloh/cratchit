@@ -121,8 +121,7 @@ namespace first {
     StateImpl::UpdateOptions result{};
 
     StateFactory sie_factory = []() {
-      auto SIE_ux = StateImpl::UX{"HAD to SIE UX goes here"}; // Placeholder state
-      return std::make_shared<StateImpl>(SIE_ux);
+      return std::make_shared<StateImpl>("HAD to SIE"); // Placeholder state
     };
 
     result.add('0',{"HAD -> SIE",[sie_factory]() -> StateUpdateResult {

@@ -9,10 +9,10 @@
 namespace first {
 
   FiscalPeriodState::FiscalPeriodState(
-     StateImpl::UX ux
+     std::string caption
     ,FiscalPeriod fiscal_period
     ,HeadingAmountDateTransEntries period_hads)
-      :  StateImpl{ux}
+      :  StateImpl{caption}
         ,m_fiscal_period{fiscal_period}
         ,m_period_hads{period_hads} {
     try {
@@ -26,10 +26,10 @@ namespace first {
   }
 
   FiscalPeriodState::FiscalPeriodState(
-     StateImpl::UX ux
+     std::string caption
     ,FiscalPeriod fiscal_period
     ,Environment const &parent_environment_ref)
-      : FiscalPeriodState(ux,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
+      : FiscalPeriodState(caption,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref)) {}
 
   StateUpdateResult FiscalPeriodState::update(Msg const& msg) const {
     using HADsMsg = CargoMsgT<HeadingAmountDateTransEntries>;
@@ -40,7 +40,7 @@ namespace first {
       if (pimpl->payload != this->m_period_hads) {
         // Changes has been made
         spdlog::info("FiscalPeriodState::update - HADs has changed. payload size: {}", pimpl->payload.size());
-        mutated_state = to_cloned(*this, UX{}, this->m_fiscal_period, pimpl->payload);
+        mutated_state = to_cloned(*this, this->m_caption, this->m_fiscal_period, pimpl->payload);
       }
       return {mutated_state, cmd};
     }
@@ -75,8 +75,8 @@ namespace first {
 
   StateFactory FiscalPeriodState::factory_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {
     return [fiscal_period, &parent_environment_ref]() {
-      StateImpl::UX ux{"Fiscal Period: " + fiscal_period.to_string()};
-      return std::make_shared<FiscalPeriodState>(ux, fiscal_period, parent_environment_ref);
+      std::string caption = "Fiscal Period: " + fiscal_period.to_string();
+      return std::make_shared<FiscalPeriodState>(caption, fiscal_period, parent_environment_ref);
     };
   }
   // StateImpl::CmdOption FiscalPeriodState::cmd_option_from(FiscalPeriod fiscal_period,Environment const& parent_environment_ref) {

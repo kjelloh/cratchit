@@ -14,8 +14,8 @@ namespace first {
 
   public:
     FiscalPeriodState(FiscalPeriodState const&) = delete; // Force to clone from actual data
-    FiscalPeriodState(StateImpl::UX ux,FiscalPeriod fiscal_period,HeadingAmountDateTransEntries period_hads);
-    FiscalPeriodState(StateImpl::UX ux,FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
+    FiscalPeriodState(std::string caption,FiscalPeriod fiscal_period,HeadingAmountDateTransEntries period_hads);
+    FiscalPeriodState(std::string caption,FiscalPeriod fiscal_period,Environment const& parent_environment_ref);
     virtual StateUpdateResult update(Msg const& msg) const override;
     // Cargo visit/apply double dispatch removed (cargo now message passed)
     // virtual StateUpdateResult apply(cargo::HADsCargo const& cargo) const override;

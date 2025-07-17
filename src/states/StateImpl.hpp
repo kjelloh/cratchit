@@ -85,8 +85,9 @@ namespace first {
     StateImpl& operator=(StateImpl const&) = delete; // As Immutable = copy assignment not allowed
     StateImpl& operator=(StateImpl&&) = delete; // As Immutable = move assignment not allowed
 
-    StateImpl(UX const &ux);
+    StateImpl(std::string const &caption);
     virtual ~StateImpl();
+    std::string const &caption() const;
     UX const &ux() const;
     UpdateOptions const& update_options() const;
 
@@ -98,7 +99,7 @@ namespace first {
     static Cmd cmd_from_state_factory(StateFactory factory);
 
   protected:
-    UX m_ux;
+    std::string m_caption;
   private:
     // 'Transient' data = not regarded as immutable
     mutable std::optional<StateImpl::UpdateOptions> m_transient_maybe_update_options;

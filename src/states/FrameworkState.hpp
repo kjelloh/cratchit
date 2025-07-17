@@ -9,7 +9,7 @@ namespace first {
   private:
     std::filesystem::path m_root_path;
   public:
-    FrameworkState(StateImpl::UX ux,std::filesystem::path root_path);
+    FrameworkState(std::string caption,std::filesystem::path root_path);
     virtual UpdateOptions create_update_options() const override;
     virtual UX create_ux() const override;
 

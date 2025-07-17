@@ -26,10 +26,10 @@ namespace first {
   // }
 
   ProjectState::ProjectState(
-     StateImpl::UX ux
+     std::string caption
     ,PersistentFile<Environment> persistent_environment_file
     ,Environment environment)
-    :  StateImpl{ux}
+    :  StateImpl{caption}
       ,m_root_path{persistent_environment_file.root_path()}
       ,m_persistent_environment_file{persistent_environment_file}
       ,m_environment{environment} {
@@ -39,8 +39,8 @@ namespace first {
   }
 
   // ----------------------------------
-  ProjectState::ProjectState(StateImpl::UX ux,std::filesystem::path root_path) 
-    :  StateImpl{ux}
+  ProjectState::ProjectState(std::string caption,std::filesystem::path root_path) 
+    :  StateImpl{caption}
       ,m_root_path{root_path}
       ,m_persistent_environment_file{m_root_path / "cratchit.env",environment_from_file,environment_to_file}
       ,m_environment{} {
@@ -153,7 +153,7 @@ namespace first {
 
         auto mutated_environment = m_environment;
         mutated_environment[section] = env_slice.at(section);
-        mutated_state = to_cloned(*this, UX{}, this->m_persistent_environment_file, mutated_environment);
+        mutated_state = to_cloned(*this, this->m_caption, this->m_persistent_environment_file, mutated_environment);
       }
       else if (m_environment.contains(section) and env_slice.contains(section)) {
         spdlog::info("ProjectState::update - Processing section: {}", section);
@@ -196,7 +196,7 @@ namespace first {
               spdlog::warn("ProjectState::update - Entry already exists for insertion: {}", to_string(ev));
             }
           }
-          mutated_state = to_cloned(*this, UX{}, this->m_persistent_environment_file, mutated_environment);
+          mutated_state = to_cloned(*this, this->m_caption, this->m_persistent_environment_file, mutated_environment);
         }
       }
       else {
@@ -290,8 +290,7 @@ namespace first {
 
   StateFactory ProjectState::factory_from(std::filesystem::path project_path) {
     return [project_path]() {
-      auto project_ux = StateImpl::UX{project_path.string()};
-      return std::make_shared<ProjectState>(project_ux, project_path);
+      return std::make_shared<ProjectState>(project_path.string(), project_path);
     };
   }
 
@@ -358,9 +357,7 @@ namespace first {
     UX result{};
     
     // Base UX from constructor
-    if (!m_ux.empty()) {
-      result = m_ux;
-    }
+    result.push_back(m_caption);
     
     // Add dynamic content based on state
     if (!m_init_error.empty()) {
