@@ -53,7 +53,10 @@ add_executable(cratchit
         src/FiscalPeriod.cpp
         src/fiscal/amount/AmountFramework.cpp 
         src/fiscal/amount/TaggedAmountFramework.cpp
-        src/test/tests.cpp
+        src/test/test_runner.cpp
+        src/test/test_fixtures.cpp
+        src/test/test_integrations.cpp
+        src/test/test_atomics.cpp
         src/fiscal/BASFramework.cpp
         src/fiscal/amount/HADFramework.cpp
         src/Key.cpp

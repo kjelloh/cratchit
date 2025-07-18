@@ -1,11 +1,18 @@
-#include "tests.hpp"
+#include "test_atomics.hpp"
+#include "test_fixtures.hpp"
 #include <gtest/gtest.h>
+#include <iostream>
 #include <numeric> // std::accumulate,
-#include <vector>
 
 #include "fiscal/amount/functional.hpp"
 
-namespace test {
+namespace tests::atomics {
+
+    // Dummy integration test using gtest - always passes
+    TEST(AtomicTests, DummyAlwaysPass) {
+        EXPECT_TRUE(true);
+        ASSERT_STREQ("hello", "hello");
+    }
 
     namespace functional_suite {
 
@@ -372,9 +379,15 @@ namespace test {
         }
 
     } 
-
-    int run_all() {
-        ::testing::InitGoogleTest();
-        return RUN_ALL_TESTS();
+    
+    bool run_all() {
+        std::cout << "Running atomic tests..." << std::endl;
+        
+        // Run gtest with filter for atomic tests only
+        ::testing::GTEST_FLAG(filter) = "AtomicTests.*";
+        int result = RUN_ALL_TESTS();
+        
+        return result == 0;
     }
-} // namespace test
+}
+

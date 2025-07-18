@@ -1,5 +1,5 @@
 #include "cratchit.h"
-#include "test/tests.hpp"
+#include "test/test_runner.hpp"
 #include <vector>
 #include <string>
 #include <print>
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     }
     else if (argc > 1 && std::string(argv[1]) == "--test") {
         spdlog::info("Running tests...");
-        return test::run_all();
+        return tests::run_all();
     }
     else while (true) {
         // Toggle between zeroth (older) and first (this variant) of cratching
