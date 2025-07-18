@@ -2,6 +2,7 @@
 
 #include "event.hpp" // Event
 #include "to_type_name.hpp"
+#include "head.hpp"
 #include <functional>
 #include <memory>
 #include <pugixml.hpp>
@@ -163,20 +164,16 @@ namespace TEA {
     using model_update_result = std::pair<Model, Cmd>;
     using update_fn = std::function<model_update_result(Model, Msg)>;
 
-    Runtime(init_fn init, view_fn view, update_fn update)
-        : m_init(init), m_view(view), m_update(update) {};
+    Runtime(init_fn init, view_fn view, update_fn update, std::unique_ptr<Head> head)
+        : m_init(init), m_view(view), m_update(update), m_head(std::move(head)) {};
 
     int run(int argc, char *argv[]) {
-  #ifdef __APPLE__
-      // Quick fix to make ncurses find the terminal setting on macOS
-      setenv("TERMINFO", "/usr/share/terminfo", 1);
-  #endif
-
       spdlog::info("Runtime::run - BEGIN");
 
       int ch = ' '; // Variable to store the user's input
-      // init ncurses
-      nc::Ncurses ncurses{};
+      
+      // Initialize the head (UI system)
+      m_head->initialize();
 
       std::queue<Msg> msg_q{};
       std::queue<Cmd> cmd_q{};
@@ -190,7 +187,7 @@ namespace TEA {
 
         // render the ux
         auto ui = m_view(model);
-        nc::render(ui.doc);
+        m_head->render(ui.doc);
 
         if (not cmd_q.empty()) {
           // Execute a command
@@ -236,7 +233,7 @@ namespace TEA {
           cmd_q.push(cmd);
         } else {
           // Wait for user input
-          ch = getch();
+          ch = m_head->get_input();
           spdlog::info("Runtime::run ch={}",ch);
           if (ui.event_handlers.contains("OnKey")) {
             Event key_event{{"Key",std::to_string(ch)}};
@@ -248,6 +245,10 @@ namespace TEA {
         }
         ++loop_count;
       }
+      
+      // Cleanup the head (UI system)
+      m_head->cleanup();
+      
       spdlog::info("Runtime::run - END");
 
       // 250717 - Quit from loop with last user key '-' means the user unwound the stack down to empty
@@ -260,6 +261,7 @@ namespace TEA {
     init_fn m_init;
     view_fn m_view;
     update_fn m_update;
+    std::unique_ptr<Head> m_head;
   };
 
 } // TEA

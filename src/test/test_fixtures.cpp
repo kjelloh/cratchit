@@ -1,4 +1,6 @@
 #include "test_fixtures.hpp"
+#include "../cratchit_tea.hpp"
+#include "../tea/test_head.hpp"
 
 namespace tests::fixtures {
 
@@ -17,75 +19,35 @@ namespace tests::fixtures {
         return TestEnvironment::instance_ptr;
     }
     
-    void MetaTransformFixture::SetUp() {
-        // Create test directory under current working directory/cpptha_test
-        // This ensures tests run in workspace when using run.zsh --test
-        test_base_dir = std::filesystem::current_path() / "cpptha_test";
-        std::filesystem::create_directories(test_base_dir);
+    void TEATestFixture::SetUp() {
+        // Create a TestHead for headless testing
+        auto test_head = std::make_unique<TEA::TestHead>();
         
-        // Create test-specific subdirectory based on test name
-        auto test_info = ::testing::UnitTest::GetInstance()->current_test_info();
-        std::string test_name = std::string(test_info->test_suite_name()) + "_" + std::string(test_info->name());
-        temp_dir = test_base_dir / test_name;
-        std::filesystem::create_directories(temp_dir);
-        
-        // Copy meh library files to test directory (needed for some tests)
-        copy_meh_library();
-    }
-    
-    void MetaTransformFixture::TearDown() {
-        // Clean up test-specific directory
-        std::filesystem::remove_all(temp_dir);
-    }
-    
-    void MetaTransformFixture::copy_meh_library_to(const std::filesystem::path& build_dir) {
-        std::filesystem::create_directories(build_dir);
-        
-        // Copy meh.hpp
-        std::filesystem::copy_file(
-            get_meh_source_path() / "meh.hpp",
-            build_dir / "meh.hpp",
-            std::filesystem::copy_options::overwrite_existing
-        );
-        
-        // Copy meh.cpp
-        std::filesystem::copy_file(
-            get_meh_source_path() / "meh.cpp", 
-            build_dir / "meh.cpp",
-            std::filesystem::copy_options::overwrite_existing
+        // Create the TEA runtime with the TestHead
+        m_runtime = std::make_unique<first::CratchitRuntime>(
+            first::init, 
+            first::view, 
+            first::update, 
+            std::move(test_head)
         );
     }
     
-    std::filesystem::path MetaTransformFixture::get_meh_source_path() const {
-        // Navigate from test directory to src/meh
-        std::filesystem::path current = std::filesystem::current_path();
-        return current / "src" / "meh";
+    void TEATestFixture::TearDown() {
+        // Reset the runtime (unique_ptr handles cleanup automatically)
+        m_runtime.reset();
     }
     
-    void MetaTransformFixture::copy_meh_library() {
-        copy_meh_library_to(temp_dir);
+    void TEATestFixture::run_single_iteration() {
+        // Run the runtime (TestHead will immediately return 'q' to quit)
+        m_last_return_code = m_runtime->run(0, nullptr);
     }
     
-    void copy_meh_library_to_build_dir(const std::filesystem::path& build_dir) {
-        std::filesystem::create_directories(build_dir);
-        
-        // Get the path to the meh source directory
-        std::filesystem::path current = std::filesystem::current_path();
-        std::filesystem::path meh_source = current / "src" / "meh";
-        
-        // Copy meh.hpp
-        std::filesystem::copy_file(
-            meh_source / "meh.hpp",
-            build_dir / "meh.hpp",
-            std::filesystem::copy_options::overwrite_existing
-        );
-        
-        // Copy meh.cpp
-        std::filesystem::copy_file(
-            meh_source / "meh.cpp", 
-            build_dir / "meh.cpp",
-            std::filesystem::copy_options::overwrite_existing
-        );
+    int TEATestFixture::get_last_return_code() const {
+        return m_last_return_code;
+    }
+    
+    first::CratchitRuntime* TEATestFixture::get_runtime() {
+        return m_runtime.get();
     }
     
 }

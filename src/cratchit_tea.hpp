@@ -7,8 +7,14 @@
 
 namespace first {
 
+  // TEA Runtime class that inherits from the template
+  class CratchitRuntime : public TEA::Runtime<Model,Msg,Cmd> {
+  public:
+    // Inherit constructors
+    using TEA::Runtime<Model,Msg,Cmd>::Runtime;
+  };
+
   // TEA Runtime type aliases
-  using CratchitRuntime = TEA::Runtime<Model,Msg,Cmd>;
   using InitResult = CratchitRuntime::init_result;
   using ModelUpdateResult = CratchitRuntime::model_update_result;
   using ViewResult = CratchitRuntime::view_result;

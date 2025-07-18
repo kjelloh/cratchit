@@ -1,5 +1,6 @@
 #include "cratchit.h"
 #include "cratchit_tea.hpp"
+#include "tea/ncurses_head.hpp"
 #include "sub.hpp"
 #include <iostream>
 
@@ -11,7 +12,8 @@ namespace first {
   // ----------------------------------
 
   int main(int argc, char *argv[]) {
-    CratchitRuntime app(init,view,update);
+    auto ncurses_head = std::make_unique<TEA::NCursesHead>();
+    CratchitRuntime app(init,view,update,std::move(ncurses_head));
     return app.run(argc,argv);
   }
 } // namespace first
