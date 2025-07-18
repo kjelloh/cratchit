@@ -1,5 +1,5 @@
 #include "cratchit.h"
-#include "tests/tests.hpp"
+#include "test/tests.hpp"
 #include <vector>
 #include <string>
 #include <print>
