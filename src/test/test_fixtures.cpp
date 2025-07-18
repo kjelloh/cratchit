@@ -1,10 +1,20 @@
 #include "test_fixtures.hpp"
 
 namespace tests::fixtures {
-    
+
+    TestEnvironment* TestEnvironment::instance_ptr = nullptr;
+
+    TestEnvironment::~TestEnvironment() {
+        // Google test will own this as the global test environment.
+        // Thus we must NOT delete the instance (we do NOT own it)
+        // Google test will delete it (a delete here will result in double delete...)
+    }
+
     TestEnvironment* TestEnvironment::GetInstance() {
-        static TestEnvironment instance;
-        return &instance;
+        if (TestEnvironment::instance_ptr == nullptr) {
+            TestEnvironment::instance_ptr = new TestEnvironment();
+        }
+        return TestEnvironment::instance_ptr;
     }
     
     void MetaTransformFixture::SetUp() {
@@ -24,12 +34,8 @@ namespace tests::fixtures {
     }
     
     void MetaTransformFixture::TearDown() {
-        // Clean up test-specific directory unless --keep-test-files was specified
-        if (!TestEnvironment::GetInstance()->ShouldKeepTestFiles()) {
-            std::filesystem::remove_all(temp_dir);
-        } else {
-            std::cout << "Test files preserved in: " << temp_dir << std::endl;
-        }
+        // Clean up test-specific directory
+        std::filesystem::remove_all(temp_dir);
     }
     
     void MetaTransformFixture::copy_meh_library_to(const std::filesystem::path& build_dir) {

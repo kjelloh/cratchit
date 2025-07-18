@@ -10,12 +10,11 @@ namespace tests::fixtures {
     // Global test environment to communicate settings across all tests
     class TestEnvironment : public ::testing::Environment {
     public:
-        static TestEnvironment* GetInstance();
-        void SetKeepTestFiles(bool keep) { keep_test_files_ = keep; }
-        bool ShouldKeepTestFiles() const { return keep_test_files_; }
-        
+      TestEnvironment() = default;
+      virtual ~TestEnvironment();
+      static TestEnvironment* GetInstance();
     private:
-        bool keep_test_files_ = false;
+      static TestEnvironment* instance_ptr;
     };
     
     // Base fixture for meta-transform tests that need meh library support

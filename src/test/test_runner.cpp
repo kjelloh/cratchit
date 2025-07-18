@@ -11,7 +11,6 @@ namespace tests {
         ::testing::InitGoogleTest();
         
         // Set up global test environment with preserve setting
-        fixtures::TestEnvironment::GetInstance()->SetKeepTestFiles(keep_test_files);
         ::testing::AddGlobalTestEnvironment(fixtures::TestEnvironment::GetInstance());
         
         bool atomics_pass = atomics::run_all();
