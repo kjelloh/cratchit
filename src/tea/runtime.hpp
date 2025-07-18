@@ -19,7 +19,7 @@ namespace TEA {
   // NCurses
   namespace nc {
 
-    void render_section(WINDOW *win, const std::string &text, int start_y,
+    inline void render_section(WINDOW *win, const std::string &text, int start_y,
                         int max_lines) {
       int line_count = 0;
       size_t pos = 0;
@@ -39,7 +39,7 @@ namespace TEA {
       wnoutrefresh(win); // update to buffer
     }
 
-    void render_prompt(WINDOW *win, const pugi::xml_node &prompt_node) {
+    inline void render_prompt(WINDOW *win, const pugi::xml_node &prompt_node) {
       int line = 1; // Start at line 1 (after border)
       
       // Render breadcrumb on line 1
@@ -63,7 +63,7 @@ namespace TEA {
     // Renders doc as HTML to ncurses screen
     // Note: HTML doc semantics may be tested at:
     // https://www.w3schools.com/html/tryit.asp?filename=tryhtml_intro
-    void render(const pugi::xml_document &doc) {
+    inline void render(const pugi::xml_document &doc) {
       int screen_height, screen_width;
       getmaxyx(stdscr, screen_height, screen_width); // Get screen dimensions
 
@@ -114,7 +114,7 @@ namespace TEA {
       doupdate();
     }
 
-    void ncurses_cleanup_on_crash(int sig) {
+    inline void ncurses_cleanup_on_crash(int sig) {
         endwin();  // Reset terminal to normal
         // 20250616/KOH: This will NOT restore any ASAN linked machinery
         std::signal(sig, SIG_DFL); // Restore default handler

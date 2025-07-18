@@ -36,6 +36,7 @@ find_package(GTest REQUIRED)
 
 add_executable(cratchit 
         src/cratchit.cpp 
+        src/cratchit_tea.cpp
         src/main.cpp 
         src/mod10view.cpp
         src/msgs/msg.cpp
