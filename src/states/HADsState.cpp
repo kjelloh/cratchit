@@ -48,6 +48,8 @@ namespace first {
       if (auto had = to_had(tokens)) {
         auto mutated_hads = this->m_all_hads;
         mutated_hads.push_back(*had); // TODO: Check that new HAD is in period
+        // Sort by date for consistent ordering
+        std::sort(mutated_hads.begin(), mutated_hads.end(), date_ordering);
         auto mutated_state = make_state<HADsState>(mutated_hads, m_fiscal_period);
         return {mutated_state, Cmd{}};
       }
@@ -61,24 +63,15 @@ namespace first {
       if (this->m_all_hads != pimpl->payload) {
         spdlog::info("HADsState::update - HADs has changed");
         auto mutated_hads = pimpl->payload; // Use payload as the new truth
+        // Sort by date for consistent ordering
+        std::sort(mutated_hads.begin(), mutated_hads.end(), date_ordering);
         auto mutated_state = make_state<HADsState>(mutated_hads,this->m_fiscal_period);
         return {mutated_state, Cmd{}};
       }
     }
     else if (auto pimpl = std::dynamic_pointer_cast<EditedHADMsg>(msg); pimpl != nullptr) {
       spdlog::info("HADsState::update - handling EditedHADMsg");
-      auto mutated_hads = this->m_all_hads;
-      MaybeState maybe_state{}; // default 'none'
-      // Remove the HAD from the collection in the mutated state
-      if (auto iter = std::ranges::find(mutated_hads,pimpl->payload.item);iter != mutated_hads.end()) {
-        mutated_hads.erase(iter);
-        spdlog::info("HADsState::update - HAD {} DELETED ok",to_string(*iter));
-        maybe_state = make_state<HADsState>(mutated_hads, this->m_fiscal_period);
-      }
-      else {
-        spdlog::error("DESIGN_INSUFFICIENCY: HADsState::update() for EditedHADMsg failed to find HAD {} to delete",to_string(pimpl->payload.item));
-      }      
-      return {maybe_state, Cmd{}};
+      return apply(pimpl->payload);
     }
     return {};
   }
@@ -142,6 +135,37 @@ namespace first {
     }});
     
     return result;
+  }
+
+  StateUpdateResult HADsState::apply(cargo::EditedItem<HAD> const& edited_had) const {
+    auto mutated_hads = this->m_all_hads;
+    MaybeState maybe_state{}; // default 'none'
+    
+    switch (edited_had.mutation) {
+      case cargo::ItemMutation::DELETED:
+        // Remove the HAD from the collection
+        if (auto iter = std::ranges::find(mutated_hads, edited_had.item); iter != mutated_hads.end()) {
+          mutated_hads.erase(iter);
+          spdlog::info("HADsState::apply - HAD {} DELETED ok", to_string(*iter));
+          maybe_state = make_state<HADsState>(mutated_hads, this->m_fiscal_period);
+        }
+        else {
+          spdlog::error("HADsState::apply - failed to find HAD {} to delete", to_string(edited_had.item));
+        }
+        break;
+        
+      case cargo::ItemMutation::MODIFIED:
+        // Future: replace existing HAD with modified version
+        spdlog::info("HADsState::apply - HAD {} marked as MODIFIED (not yet implemented)", to_string(edited_had.item));
+        break;
+        
+      case cargo::ItemMutation::UNCHANGED:
+        spdlog::info("HADsState::apply - HAD {} returned unchanged", to_string(edited_had.item));
+        // No state change needed
+        break;
+    }
+    
+    return {maybe_state, Cmd{}};
   }
 
 } // namespace first

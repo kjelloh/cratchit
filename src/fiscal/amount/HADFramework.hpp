@@ -7,6 +7,7 @@
 #include <string>
 #include <optional>
 #include <ranges> // std::views::zip,
+#include <algorithm> // std::sort
 
 struct HeadingAmountDateTransEntry {
 	struct Optional {
@@ -28,6 +29,11 @@ using HAD = HeadingAmountDateTransEntry;
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had);
 std::string to_string(HeadingAmountDateTransEntry const& had);
+
+// Date ordering predicate for sorting HADs by date
+inline bool date_ordering(HeadingAmountDateTransEntry const& a, HeadingAmountDateTransEntry const& b) {
+  return a.date < b.date;
+}
 
 using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTransEntry>;
 
@@ -60,13 +66,17 @@ inline auto to_period_hads(FiscalPeriod period, const Environment &env) -> Headi
     return {}; // No entries of this type
   }
   auto const &id_ev_pairs = env.at(section);
-  return id_ev_pairs 
+  auto result = id_ev_pairs 
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_had) 
     | std::views::filter([](auto const &maybe_had) { return maybe_had.has_value(); }) 
     | std::views::transform([](auto const &maybe_had) { return *maybe_had; }) 
     | std::views::filter([&](auto const &had) { return in_period(had, period); }) 
     | std::ranges::to<std::vector>();
+  
+  // Sort by date for consistent ordering
+  std::sort(result.begin(), result.end(), date_ordering);
+  return result;
 }
 
 // Tokens -> HAD

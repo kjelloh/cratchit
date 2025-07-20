@@ -24,5 +24,7 @@ namespace first {
     HADsState::HADs m_all_hads;
     FiscalPeriod m_fiscal_period;
     first::Mod10View m_mod10_view;
+    
+    StateUpdateResult apply(cargo::EditedItem<HAD> const& edited_had) const;
   }; // struct HADsState
 }
