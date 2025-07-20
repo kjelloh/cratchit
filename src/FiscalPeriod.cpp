@@ -21,7 +21,7 @@ namespace first {
     if (!m_is_valid)
       return false;
     auto d = Days(date);
-    return d >= Days(m_start) && d < Days(m_end);
+    return d >= Days(m_start) && d <= Days(m_end);
   }
 
   bool FiscalPeriod::is_valid() const noexcept {
