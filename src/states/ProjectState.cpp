@@ -24,7 +24,7 @@ namespace first {
   ProjectState::ProjectState(std::filesystem::path root_path) 
     :  StateImpl{std::nullopt}
       ,m_root_path{root_path}
-      ,m_persistent_environment_file{m_root_path / "cratchit.env",environment_from_file,environment_to_file}
+      ,m_persistent_environment_file{m_root_path / "cratchit.env",environment_from_file,environment_to_file,PruningPolicy::count_only(10)}
       ,m_environment{} {
 
     try {
