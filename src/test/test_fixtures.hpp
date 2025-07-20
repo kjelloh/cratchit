@@ -4,6 +4,12 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <memory>
+
+// Forward declarations
+namespace first {
+    class CratchitRuntime;
+}
 
 namespace tests::fixtures {
     
@@ -17,26 +23,22 @@ namespace tests::fixtures {
       static TestEnvironment* instance_ptr;
     };
     
-    // Base fixture for meta-transform tests that need meh library support
-    class MetaTransformFixture : public ::testing::Test {
+    // Test fixture for TEA runtime testing with headless mode
+    class TEATestFixture : public ::testing::Test {
     protected:
         void SetUp() override;
         void TearDown() override;
         
-        // Copy meh library files to the specified build directory
-        void copy_meh_library_to(const std::filesystem::path& build_dir);
+        // Test helpers
+        void run_single_iteration();
+        int get_last_return_code() const;
         
-        // Get the path to the meh source directory
-        std::filesystem::path get_meh_source_path() const;
-        
-        std::filesystem::path test_base_dir;  // cpptha_test directory
-        std::filesystem::path temp_dir;      // test-specific subdirectory
+        // Access to the runtime for testing
+        first::CratchitRuntime* get_runtime();
         
     private:
-        void copy_meh_library();
+        std::unique_ptr<first::CratchitRuntime> m_runtime;
+        int m_last_return_code = 0;
     };
-    
-    // Utility function to copy meh library to any meta_transform build directory
-    void copy_meh_library_to_build_dir(const std::filesystem::path& build_dir);
     
 }
