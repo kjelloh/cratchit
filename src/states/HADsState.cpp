@@ -80,32 +80,36 @@ namespace first {
   StateImpl::UpdateOptions HADsState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     
-    auto subranges = m_mod10_view.subranges();
-    for (size_t i = 0; i < subranges.size(); ++i) {
-      auto const subrange = subranges[i];
-      auto const& [begin, end] = subrange;
-      char key = static_cast<char>('0' + i);
+    // Use enhanced API for cleaner digit-based option creation
+    for (char digit = '0'; digit <= '9'; ++digit) {
+      if (!m_mod10_view.is_valid_digit(digit)) {
+        break; // No more valid digits
+      }
       
-      if (subrange.second - subrange.first == 1) {
+      // Try to get direct index for single items
+      if (auto index = m_mod10_view.direct_index(digit); index.has_value()) {
         // Single HAD - direct navigation to HADState
-        auto caption = to_string(m_all_hads[begin]);
-        result.add(key, {caption, [had = m_all_hads[begin]]() -> StateUpdateResult {
+        auto caption = to_string(m_all_hads[*index]);
+        result.add(digit, {caption, [had = m_all_hads[*index]]() -> StateUpdateResult {
           return {std::nullopt, [had]() -> std::optional<Msg> {
             State new_state = make_state<HADState>(had);
             return std::make_shared<PushStateMsg>(new_state);
           }};
         }});
-      }
-      else {
-        // Subrange - drill down navigation  
-        auto caption = std::format("{} .. {}", subrange.first, subrange.second - 1);
-        result.add(key, {caption, [all_hads = m_all_hads, fiscal_period = m_fiscal_period, subrange]() -> StateUpdateResult {
-          return {std::nullopt, [all_hads, fiscal_period, subrange]() -> std::optional<Msg> {
-            Mod10View drilled_view(subrange);
-            State new_state = make_state<HADsState>(all_hads, fiscal_period, drilled_view);
-            return std::make_shared<PushStateMsg>(new_state);
-          }};
-        }});
+      } else {
+        // Subrange - use drill_down for navigation
+        try {
+          auto drilled_view = m_mod10_view.drill_down(digit);
+          auto caption = std::format("{} .. {}", drilled_view.first(), drilled_view.second() - 1);
+          result.add(digit, {caption, [all_hads = m_all_hads, fiscal_period = m_fiscal_period, drilled_view]() -> StateUpdateResult {
+            return {std::nullopt, [all_hads, fiscal_period, drilled_view]() -> std::optional<Msg> {
+              State new_state = make_state<HADsState>(all_hads, fiscal_period, drilled_view);
+              return std::make_shared<PushStateMsg>(new_state);
+            }};
+          }});
+        } catch (const std::exception& e) {
+          spdlog::error("HADsState: Error creating option for digit '{}': {}", digit, e.what());
+        }
       }
     }
     
