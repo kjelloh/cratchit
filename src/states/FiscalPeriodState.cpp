@@ -2,6 +2,7 @@
 #include "HADsState.hpp"
 #include "fiscal/amount/HADFramework.hpp"
 #include "VATReturnsState.hpp"
+#include "AccountStatementsState.hpp"
 #include "environment.hpp"
 #include <spdlog/spdlog.h>
 #include <ranges>
@@ -72,6 +73,14 @@ namespace first {
     result.add('v', {"VAT Returns", []() -> StateUpdateResult {
       return {std::nullopt, []() -> std::optional<Msg> {
         State new_state = make_state<VATReturnsState>();
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
+    }});
+    
+    // Add AccountStatementsState option
+    result.add('a', {"Account Statements", []() -> StateUpdateResult {
+      return {std::nullopt, []() -> std::optional<Msg> {
+        State new_state = make_state<AccountStatementsState>();
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
