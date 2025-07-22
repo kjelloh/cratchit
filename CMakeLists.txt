@@ -40,7 +40,7 @@ add_executable(cratchit
         src/tea/ncurses_head.cpp
         src/tea/test_head.cpp
         src/main.cpp 
-        src/mod10view.cpp
+        src/Mod10View.cpp
         src/msgs/msg.cpp
         src/cmd.cpp
         src/sub.cpp
