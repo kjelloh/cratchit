@@ -27,7 +27,7 @@ namespace first {
     // Create view UX
     UX result{};
     result.push_back(std::format("{}", m_fiscal_period.to_string()));
-    for (size_t i=m_mod10_view.m_range.first;i<m_mod10_view.m_range.second;++i) {
+    for (size_t i : m_mod10_view) {
       auto entry = std::to_string(i);
       entry += ". ";
       entry += to_string(m_all_hads[i]);
@@ -80,29 +80,14 @@ namespace first {
   StateImpl::UpdateOptions HADsState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     
-    // HAD subrange StateImpl factory
-    // Enable 'drill down' modulo 10 into HADs
-    struct HADs_subrange_factory {
-      HADs_subrange_factory(HADsState::HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view)
-          : m_all_hads{all_hads},m_fiscal_period{fiscal_period},m_mod10_view{mod10_view} {}
-
-      HADsState::HADs m_all_hads{};
-      FiscalPeriod m_fiscal_period;
-      Mod10View m_mod10_view;
-
-      auto operator()() {
-        return std::make_shared<HADsState>(m_all_hads, m_fiscal_period,m_mod10_view);
-      }
-    };
-
     auto subranges = m_mod10_view.subranges();
-    for (size_t i=0;i<subranges.size();++i) {
+    for (size_t i = 0; i < subranges.size(); ++i) {
       auto const subrange = subranges[i];
-      auto const& [begin,end] = subrange;
-      char key = static_cast<char>('0'+i);
+      auto const& [begin, end] = subrange;
+      char key = static_cast<char>('0' + i);
       
-      if (end-begin==1) {
-        // Single HAD in range option - convert to update option
+      if (subrange.second - subrange.first == 1) {
+        // Single HAD - direct navigation to HADState
         auto caption = to_string(m_all_hads[begin]);
         result.add(key, {caption, [had = m_all_hads[begin]]() -> StateUpdateResult {
           return {std::nullopt, [had]() -> std::optional<Msg> {
@@ -112,12 +97,12 @@ namespace first {
         }});
       }
       else {
-        // Subrange option - convert to update option
-        auto caption = std::to_string(subrange.first) + " .. " + std::to_string(subrange.second-1);
+        // Subrange - drill down navigation  
+        auto caption = std::format("{} .. {}", subrange.first, subrange.second - 1);
         result.add(key, {caption, [all_hads = m_all_hads, fiscal_period = m_fiscal_period, subrange]() -> StateUpdateResult {
           return {std::nullopt, [all_hads, fiscal_period, subrange]() -> std::optional<Msg> {
-            auto factory = HADs_subrange_factory(all_hads, fiscal_period, subrange);
-            State new_state = factory();
+            Mod10View drilled_view(subrange);
+            State new_state = make_state<HADsState>(all_hads, fiscal_period, drilled_view);
             return std::make_shared<PushStateMsg>(new_state);
           }};
         }});

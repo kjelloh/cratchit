@@ -8,14 +8,13 @@ namespace first {
   AccountStatementsState::AccountStatementsState() 
     : StateImpl{}, m_file_paths{scan_from_bank_or_skv_directory()}, m_mod10_view{m_file_paths} {
     
-    spdlog::info("AccountStatementsState::AccountStatementsState - found {} files", m_file_paths.size());
+    spdlog::info("AccountStatementsState - found {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
   }
 
   AccountStatementsState::AccountStatementsState(FilePaths file_paths, Mod10View mod10_view)
     : StateImpl{}, m_file_paths{std::move(file_paths)}, m_mod10_view{mod10_view} {
     
-    spdlog::info("AccountStatementsState::AccountStatementsState - {} files, range [{}, {})", 
-                 m_file_paths.size(), m_mod10_view.m_range.first, m_mod10_view.m_range.second);
+    spdlog::info("AccountStatementsState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
   }
 
   std::string AccountStatementsState::caption() const {
@@ -51,12 +50,9 @@ namespace first {
     UX result{};
     result.push_back(std::format("Files in from_bank_or_skv directory:"));
     
-    for (size_t i = m_mod10_view.m_range.first; i < m_mod10_view.m_range.second; ++i) {
+    for (size_t i : m_mod10_view) {
       if (i < m_file_paths.size()) {
-        auto entry = std::to_string(i);
-        entry += ". ";
-        entry += m_file_paths[i].filename().string();
-        result.push_back(entry);
+        result.push_back(std::format("{}. {}", i, m_file_paths[i].filename().string()));
       }
     }
     
@@ -66,27 +62,14 @@ namespace first {
   StateImpl::UpdateOptions AccountStatementsState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     
-    // File subrange StateImpl factory (similar to HADs_subrange_factory)
-    struct FilePaths_subrange_factory {
-      FilePaths_subrange_factory(AccountStatementsState::FilePaths file_paths, Mod10View mod10_view)
-          : m_file_paths{std::move(file_paths)}, m_mod10_view{mod10_view} {}
-
-      AccountStatementsState::FilePaths m_file_paths{};
-      Mod10View m_mod10_view;
-
-      auto operator()() {
-        return std::make_shared<AccountStatementsState>(m_file_paths, m_mod10_view);
-      }
-    };
-
     auto subranges = m_mod10_view.subranges();
     for (size_t i = 0; i < subranges.size(); ++i) {
       auto const subrange = subranges[i];
       auto const& [begin, end] = subrange;
       char key = static_cast<char>('0' + i);
       
-      if (end - begin == 1 && begin < m_file_paths.size()) {
-        // Single file in range option - navigate to CSVFileState
+      if (subrange.second - subrange.first == 1 && begin < m_file_paths.size()) {
+        // Single file - direct navigation to CSVFileState
         auto file_path = m_file_paths[begin];
         auto caption = file_path.filename().string();
         result.add(key, {caption, [file_path]() -> StateUpdateResult {
@@ -97,12 +80,12 @@ namespace first {
         }});
       }
       else {
-        // Subrange option - navigate to subrange of files
-        auto caption = std::to_string(subrange.first) + " .. " + std::to_string(subrange.second - 1);
+        // Subrange - drill down navigation
+        auto caption = std::format("{} .. {}", subrange.first, subrange.second - 1);
         result.add(key, {caption, [file_paths = m_file_paths, subrange]() -> StateUpdateResult {
           return {std::nullopt, [file_paths, subrange]() -> std::optional<Msg> {
-            auto factory = FilePaths_subrange_factory(file_paths, subrange);
-            State new_state = factory();
+            Mod10View drilled_view(subrange);
+            State new_state = make_state<AccountStatementsState>(file_paths, drilled_view);
             return std::make_shared<PushStateMsg>(new_state);
           }};
         }});
