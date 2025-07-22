@@ -70,7 +70,8 @@ add_executable(cratchit
         src/states/FiscalPeriodState.cpp
         src/text/charset.cpp
         src/text/encoding.cpp
-        src/sie/sie.cpp)
+        src/sie/sie.cpp
+        src/csv/csv.cpp)
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)
