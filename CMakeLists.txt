@@ -49,6 +49,7 @@ add_executable(cratchit
         src/states/HADsState.cpp
         src/states/VATReturnsState.cpp
         src/states/AccountStatementsState.cpp
+        src/states/CSVFileState.cpp
         src/states/ProjectState.cpp
         src/states/WorkspaceState.cpp
         src/states/FrameworkState.cpp
