@@ -3,12 +3,14 @@
 #include "fiscal/BASFramework.hpp" // BAS::AccountNo,
 #include "AmountFramework.hpp"
 #include "environment.hpp" // namespace cas,
+#include "FiscalPeriod.hpp"
 #include <ostream>
 #include <string>
 #include <vector>
 #include <map>
 #include <optional>
 #include <limits> // std::numeric_limits
+#include <ranges>
 
 class TaggedAmount {
 public:
@@ -95,6 +97,24 @@ TaggedAmount::ValueId to_value_id(TaggedAmount const &ta);
 std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta);
 TaggedAmount::OptionalValueId to_value_id(std::string const &s);
 TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids);
+
+// String conversion
+std::string to_string(TaggedAmount const& ta);
+
+// Environment conversions
+EnvironmentValue to_environment_value(TaggedAmount const& ta);
+OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev);
+
+// Environment -> TaggedAmounts (filtered by fiscal period)
+TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &env);
+
+// TaggedAmounts -> Environment entries (using hash-based indexing)
+inline auto indexed_env_entries_from(TaggedAmounts const& tagged_amounts) {
+  return tagged_amounts | std::views::transform(
+    [](TaggedAmount const& ta) -> EnvironmentIdValuePair {
+      return {to_value_id(ta), to_environment_value(ta)};
+    });
+}
 
 // using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>;
 // using TaggedAmountValueIdMap = cas::repository<TaggedAmount::ValueId,TaggedAmount>;

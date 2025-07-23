@@ -5376,37 +5376,9 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 	return ev;
 }
 
-EnvironmentValue to_environment_value(TaggedAmount const& ta) {
-	EnvironmentValue ev{};
-	ev["yyyymmdd_date"] = to_string(ta.date());
-	ev["cents_amount"] = to_string(ta.cents_amount());
-	for (auto const& entry : ta.tags()) {
-		ev[entry.first] = entry.second;
-	}
-	return ev;
-}
-
-OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
-	OptionalTaggedAmount result{};
-	OptionalDate date{};
-	OptionalCentsAmount cents_amount{};
-	TaggedAmount::OptionalValueId value_id{};
-	TaggedAmount::Tags tags{};
-	for (auto const& entry : ev) {
-		if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
-		else if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
-		else tags[entry.first] = entry.second;
-	}
-	if (date and cents_amount) {
-    result = TaggedAmount{*date,*cents_amount,std::move(tags)};
-	}
-  // TODO 240524 - Remove when fully functional tagged amounts to and from SIE is in place
-  //               For now, discard any stored tagged amounts that represents SIE journal entries
-  if (false and result) {
-    if (result->tag_value("BAS") or result->tag_value("SIE")) return std::nullopt; // discard / filter out stored SIE environment tagged amounts (start fresh)
-  }
-	return result;
-}
+// Now in TaggedAmountFramework unit
+// to_environment_value(TaggedAmount)
+// to_tagged_amount(EnvironmentValue) 
 
 std::optional<SRUEnvironments::value_type> to_sru_environments_entry(EnvironmentValue const& ev) {
 	try {

@@ -260,3 +260,74 @@ namespace tas {
   }
 
 } // namespace tas
+
+// String conversion
+std::string to_string(TaggedAmount const& ta) {
+  std::ostringstream oss;
+  oss << ta;
+  return oss.str();
+}
+
+// Environment conversions
+EnvironmentValue to_environment_value(TaggedAmount const& ta) {
+	EnvironmentValue ev{};
+	ev["yyyymmdd_date"] = to_string(ta.date());
+	ev["cents_amount"] = to_string(ta.cents_amount());
+	for (auto const& entry : ta.tags()) {
+		ev[entry.first] = entry.second;
+	}
+	return ev;
+}
+
+OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
+	OptionalTaggedAmount result{};
+	OptionalDate date{};
+	OptionalCentsAmount cents_amount{};
+	TaggedAmount::OptionalValueId value_id{};
+	TaggedAmount::Tags tags{};
+	for (auto const& entry : ev) {
+		if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
+		else if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
+		else tags[entry.first] = entry.second;
+	}
+	if (date and cents_amount) {
+    result = TaggedAmount{*date,*cents_amount,std::move(tags)};
+	}
+  // TODO 240524 - Remove when fully functional tagged amounts to and from SIE is in place
+  //               For now, discard any stored tagged amounts that represents SIE journal entries
+  if (false and result) {
+    if (result->tag_value("BAS") or result->tag_value("SIE")) return std::nullopt; // discard / filter out stored SIE environment tagged amounts (start fresh)
+  }
+	return result;
+}
+
+// Environment -> TaggedAmounts (filtered by fiscal period)
+TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &env) {
+  auto ev_to_maybe_ta = [](EnvironmentValue const &ev) -> OptionalTaggedAmount {
+    return to_tagged_amount(ev);
+  };
+  auto in_period = [](TaggedAmount const &ta, FiscalPeriod const &period) -> bool {
+    return period.contains(ta.date());
+  };  
+  auto id_ev_pair_to_ev = [](EnvironmentIdValuePair const &id_ev_pair) {
+    return id_ev_pair.second;
+  };
+  static constexpr auto section = "TaggedAmount";
+  if (!env.contains(section)) {
+    return {}; // No entries of this type
+  }
+  auto const &id_ev_pairs = env.at(section);
+  auto result = id_ev_pairs 
+    | std::views::transform(id_ev_pair_to_ev) 
+    | std::views::transform(ev_to_maybe_ta) 
+    | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
+    | std::views::transform([](auto const &maybe_ta) { return *maybe_ta; }) 
+    | std::views::filter([&](auto const &ta) { return in_period(ta, period); }) 
+    | std::ranges::to<std::vector>();
+  
+  // Sort by date for consistent ordering
+  std::sort(result.begin(), result.end(), [](const TaggedAmount& a, const TaggedAmount& b) {
+    return a.date() < b.date();
+  });
+  return result;
+}
