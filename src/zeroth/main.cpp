@@ -9564,9 +9564,14 @@ private:
             result += *tagged_amounts;
             std::cout << "\n\tValid entries count:" << tagged_amounts->size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";
-            std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-            std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
-            std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / statement_file_path.filename();
+            if (false) {
+              std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+              std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
+              std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / statement_file_path.filename();
+            }
+            else {
+              std::cout << "\n\tConsumed account statement file move DISABLED = NOT moved to " << consumed_files_path / statement_file_path.filename();
+            }
           }
           else {
             std::cout << "\n*Ignored* " << statement_file_path << " (Failed to understand file content)";
