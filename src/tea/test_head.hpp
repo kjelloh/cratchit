@@ -10,7 +10,7 @@ namespace TEA {
         TestHead() = default;
         ~TestHead() override = default;
         
-        void initialize() override;
+        void initialize(RuntimeEncoding::DetectedEncoding target_encoding) override;
         void render(const pugi::xml_document& doc) override;
         int get_input() override;
         void cleanup() override;

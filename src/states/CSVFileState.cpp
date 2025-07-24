@@ -127,7 +127,7 @@ namespace first {
     }
     
     // Use ICU-based encoding detection
-    auto detection_result = encoding::ICUEncodingDetector::detect_file_encoding(m_file_path);
+    auto detection_result = encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
     
     // Format display string with confidence and method
     std::string encoding_display;
@@ -164,22 +164,22 @@ namespace first {
       CSV::OptionalFieldRows field_rows;
       
       // Use ICU detection to determine appropriate encoding stream
-      auto detection_result = encoding::ICUEncodingDetector::detect_file_encoding(m_file_path);
+      auto detection_result = encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
       
       switch (detection_result.encoding) {
-        case encoding::DetectedEncoding::UTF8: {
+        case encoding::icu::DetectedEncoding::UTF8: {
           encoding::UTF8::istream utf8_in{ifs};
           field_rows = CSV::to_field_rows(utf8_in, ';');
           break;
         }
         
-        case encoding::DetectedEncoding::ISO_8859_1: {
+        case encoding::icu::DetectedEncoding::ISO_8859_1: {
           encoding::ISO_8859_1::istream iso8859_in{ifs}; 
           field_rows = CSV::to_field_rows(iso8859_in, ';');
           break;
         }
         
-        case encoding::DetectedEncoding::CP437: {
+        case encoding::icu::DetectedEncoding::CP437: {
           encoding::CP437::istream cp437_in{ifs};
           field_rows = CSV::to_field_rows(cp437_in, ';');
           break;

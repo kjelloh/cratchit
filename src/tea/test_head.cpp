@@ -2,8 +2,9 @@
 
 namespace TEA {
 
-    void TestHead::initialize() {
-        // No-op for test environment
+    void TestHead::initialize(RuntimeEncoding::DetectedEncoding target_encoding) {
+        // No-op for test environment - ignore encoding parameter
+        (void)target_encoding; // Suppress unused parameter warning
     }
 
     void TestHead::render(const pugi::xml_document& doc) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <pugixml.hpp>
+#include "RuntimeEncoding.hpp"
 
 namespace TEA {
 
@@ -9,8 +10,8 @@ namespace TEA {
     public:
         virtual ~Head() = default;
         
-        // Initialize the UI system
-        virtual void initialize() = 0;
+        // Initialize the UI system with encoding information
+        virtual void initialize(RuntimeEncoding::DetectedEncoding target_encoding) = 0;
         
         // Render the UI document
         virtual void render(const pugi::xml_document& doc) = 0;

@@ -3,6 +3,7 @@
 #include "event.hpp" // Event
 #include "to_type_name.hpp"
 #include "head.hpp"
+#include "RuntimeEncoding.hpp"
 #include <functional>
 #include <memory>
 #include <pugixml.hpp>
@@ -12,7 +13,6 @@
 #include <format>
 #include <spdlog/spdlog.h>
 #include <csignal> // std::signal
-
 
 // The Elm Aarchitecture
 namespace TEA {
@@ -172,8 +172,11 @@ namespace TEA {
 
       int ch = ' '; // Variable to store the user's input
       
-      // Initialize the head (UI system)
-      m_head->initialize();
+      // Initialize the head (UI system) with encoding from RuntimeEncoding
+      auto target_encoding = RuntimeEncoding::get_assumed_terminal_encoding();
+      spdlog::info("TEA::Runtime: Initializing head with encoding: {}", 
+                   RuntimeEncoding::get_encoding_display_name());
+      m_head->initialize(target_encoding);
 
       std::queue<Msg> msg_q{};
       std::queue<Cmd> cmd_q{};

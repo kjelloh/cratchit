@@ -73,7 +73,8 @@ add_executable(cratchit
         src/sie/sie.cpp
         src/csv/csv.cpp
         src/states/TaggedAmountsState.cpp
-        src/states/TaggedAmountState.cpp)
+        src/states/TaggedAmountState.cpp
+        src/RuntimeEncoding.cpp)
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)
