@@ -2,6 +2,13 @@
 #include <deque>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <filesystem>
+#include <vector>
+#include <algorithm>
+#include <unicode/ucsdet.h>  // ICU Character Set Detection
+#include <unicode/ucnv.h>    // ICU Converter API
+#include <unicode/ustring.h> // ICU String utilities
 
 namespace encoding {
 
@@ -212,5 +219,202 @@ namespace encoding {
     }
 
   } // namespace unicode
+
+  // ICU-based Encoding Detection Implementation
+  EncodingDetectionResult ICUEncodingDetector::detect_file_encoding(std::filesystem::path const& file_path) {
+    // First try BOM detection for quick wins
+    auto bom_result = detect_by_bom(file_path);
+    if (bom_result.confidence >= 95) {
+      return bom_result;
+    }
+    
+    // Read file sample for ICU analysis
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file.is_open()) {
+      return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Error: Cannot open file"};
+    }
+    
+    // Read up to 8KB sample (ICU recommendation)
+    std::vector<char> buffer(8192);
+    file.read(buffer.data(), buffer.size());
+    size_t bytes_read = file.gcount();
+    
+    if (bytes_read == 0) {
+      return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 100, "", "Empty file"};
+    }
+    
+    auto icu_result = detect_buffer_encoding(buffer.data(), bytes_read);
+    
+    // If ICU is uncertain, combine with extension heuristics
+    if (icu_result.confidence < 50) {
+      auto ext_result = detect_by_extension_heuristics(file_path);
+      if (ext_result.confidence > icu_result.confidence) {
+        return ext_result;
+      }
+    }
+    
+    return icu_result;
+  }
+
+  EncodingDetectionResult ICUEncodingDetector::detect_buffer_encoding(char const* data, size_t length) {
+    UErrorCode status = U_ZERO_ERROR;
+    
+    // Create ICU character set detector
+    UCharsetDetector* detector = ucsdet_open(&status);
+    if (U_FAILURE(status) || !detector) {
+      return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "ICU detector creation failed"};
+    }
+    
+    // Set the input data
+    ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
+    if (U_FAILURE(status)) {
+      ucsdet_close(detector);
+      return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "ICU setText failed"};
+    }
+    
+    // Detect the character set
+    const UCharsetMatch* match = ucsdet_detect(detector, &status);
+    if (U_FAILURE(status) || !match) {
+      ucsdet_close(detector);
+      return {DetectedEncoding::UTF8, "UTF-8", "UTF-8 (fallback)", 30, "", "ICU detection failed, fallback"};
+    }
+    
+    // Extract results
+    const char* canonical_name = ucsdet_getName(match, &status);
+    int32_t confidence = ucsdet_getConfidence(match, &status);
+    const char* language = ucsdet_getLanguage(match, &status);
+    
+    if (U_FAILURE(status)) {
+      ucsdet_close(detector);
+      return {DetectedEncoding::UTF8, "UTF-8", "UTF-8 (fallback)", 30, "", "ICU result extraction failed"};
+    }
+    
+    // Convert to our types
+    std::string canonical_str = canonical_name ? canonical_name : "UTF-8";
+    std::string language_str = language ? language : "";
+    DetectedEncoding encoding = canonical_name_to_enum(canonical_str);
+    std::string display_name = enum_to_display_name(encoding);
+    
+    ucsdet_close(detector);
+    
+    return {encoding, canonical_str, display_name, confidence, language_str, "ICU"};
+  }
+
+  std::vector<EncodingDetectionResult> ICUEncodingDetector::detect_all_possible_encodings(char const* data, size_t length) {
+    std::vector<EncodingDetectionResult> results;
+    UErrorCode status = U_ZERO_ERROR;
+    
+    UCharsetDetector* detector = ucsdet_open(&status);
+    if (U_FAILURE(status) || !detector) {
+      return results;
+    }
+    
+    ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
+    if (U_FAILURE(status)) {
+      ucsdet_close(detector);
+      return results;
+    }
+    
+    // Get all possible matches
+    int32_t match_count;
+    const UCharsetMatch** matches = ucsdet_detectAll(detector, &match_count, &status);
+    if (U_FAILURE(status) || !matches) {
+      ucsdet_close(detector);
+      return results;
+    }
+    
+    // Convert all matches to our format
+    for (int32_t i = 0; i < match_count; ++i) {
+      const char* canonical_name = ucsdet_getName(matches[i], &status);
+      int32_t confidence = ucsdet_getConfidence(matches[i], &status);
+      const char* language = ucsdet_getLanguage(matches[i], &status);
+      
+      if (U_SUCCESS(status) && canonical_name) {
+        std::string canonical_str = canonical_name;
+        std::string language_str = language ? language : "";
+        DetectedEncoding encoding = canonical_name_to_enum(canonical_str);
+        std::string display_name = enum_to_display_name(encoding);
+        
+        results.push_back({encoding, canonical_str, display_name, confidence, language_str, "ICU"});
+      }
+    }
+    
+    ucsdet_close(detector);
+    return results;
+  }
+
+  EncodingDetectionResult ICUEncodingDetector::detect_by_bom(std::filesystem::path const& file_path) {
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file.is_open()) {
+      return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Cannot open file"};
+    }
+    
+    // Read first few bytes for BOM detection
+    std::array<unsigned char, 4> bom_bytes{};
+    file.read(reinterpret_cast<char*>(bom_bytes.data()), bom_bytes.size());
+    size_t bytes_read = file.gcount();
+    
+    if (bytes_read >= 3) {
+      // UTF-8 BOM: EF BB BF
+      if (bom_bytes[0] == 0xEF && bom_bytes[1] == 0xBB && bom_bytes[2] == 0xBF) {
+        return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 100, "", "BOM"};
+      }
+    }
+    
+    if (bytes_read >= 2) {
+      // UTF-16 BE BOM: FE FF
+      if (bom_bytes[0] == 0xFE && bom_bytes[1] == 0xFF) {
+        return {DetectedEncoding::UTF16BE, "UTF-16BE", "UTF-16 Big Endian", 100, "", "BOM"};
+      }
+      // UTF-16 LE BOM: FF FE
+      if (bom_bytes[0] == 0xFF && bom_bytes[1] == 0xFE) {
+        return {DetectedEncoding::UTF16LE, "UTF-16LE", "UTF-16 Little Endian", 100, "", "BOM"};
+      }
+    }
+    
+    return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "No BOM"};
+  }
+
+  EncodingDetectionResult ICUEncodingDetector::detect_by_extension_heuristics(std::filesystem::path const& file_path) {
+    auto ext = file_path.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    
+    if (ext == ".csv") {
+      return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 60, "", "Extension (.csv)"};
+    } else if (ext == ".skv") {
+      return {DetectedEncoding::ISO_8859_1, "ISO-8859-1", "ISO-8859-1", 60, "sv", "Extension (.skv)"};
+    }
+    
+    return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 30, "", "Extension (default)"};
+  }
+
+  DetectedEncoding ICUEncodingDetector::canonical_name_to_enum(std::string const& canonical_name) {
+    if (canonical_name == "UTF-8") return DetectedEncoding::UTF8;
+    if (canonical_name == "UTF-16BE") return DetectedEncoding::UTF16BE;
+    if (canonical_name == "UTF-16LE") return DetectedEncoding::UTF16LE;
+    if (canonical_name == "UTF-32BE") return DetectedEncoding::UTF32BE;
+    if (canonical_name == "UTF-32LE") return DetectedEncoding::UTF32LE;
+    if (canonical_name == "ISO-8859-1") return DetectedEncoding::ISO_8859_1;
+    if (canonical_name == "ISO-8859-15") return DetectedEncoding::ISO_8859_15;
+    if (canonical_name == "windows-1252") return DetectedEncoding::WINDOWS_1252;
+    if (canonical_name == "IBM437") return DetectedEncoding::CP437;
+    return DetectedEncoding::Unknown;
+  }
+
+  std::string ICUEncodingDetector::enum_to_display_name(DetectedEncoding encoding) {
+    switch (encoding) {
+      case DetectedEncoding::UTF8: return "UTF-8";
+      case DetectedEncoding::UTF16BE: return "UTF-16 Big Endian";
+      case DetectedEncoding::UTF16LE: return "UTF-16 Little Endian";
+      case DetectedEncoding::UTF32BE: return "UTF-32 Big Endian";
+      case DetectedEncoding::UTF32LE: return "UTF-32 Little Endian";
+      case DetectedEncoding::ISO_8859_1: return "ISO-8859-1 (Latin-1)";
+      case DetectedEncoding::ISO_8859_15: return "ISO-8859-15 (Latin-9)";
+      case DetectedEncoding::WINDOWS_1252: return "Windows-1252";
+      case DetectedEncoding::CP437: return "CP437 (DOS)";
+      case DetectedEncoding::Unknown: return "Unknown";
+    }
+    return "Unknown";
+  }
 
 } // namespace encoding

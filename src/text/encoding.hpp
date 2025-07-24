@@ -8,6 +8,8 @@
 #include <iomanip> // std::quoted,
 #include <optional>
 #include <deque>
+#include <filesystem>
+#include <vector>
 
 namespace encoding {
 
@@ -159,5 +161,41 @@ namespace encoding {
 
     };
   } // namespace unicode
+
+  // Encoding Detection Service using ICU
+  enum class DetectedEncoding {
+    UTF8,
+    UTF16BE,
+    UTF16LE, 
+    UTF32BE,
+    UTF32LE,
+    ISO_8859_1,
+    ISO_8859_15,
+    WINDOWS_1252,
+    CP437,
+    Unknown
+  };
+
+  struct EncodingDetectionResult {
+    DetectedEncoding encoding;
+    std::string canonical_name;    // ICU canonical name (e.g., "UTF-8")
+    std::string display_name;      // Human readable name
+    int32_t confidence;            // ICU confidence (0-100)
+    std::string language;          // Detected language (e.g., "sv" for Swedish)
+    std::string detection_method;  // "ICU", "BOM", "Extension", "Default"
+  };
+
+  class ICUEncodingDetector {
+  public:
+    static EncodingDetectionResult detect_file_encoding(std::filesystem::path const& file_path);
+    static EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length);
+    static std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
+    
+  private:
+    static EncodingDetectionResult detect_by_bom(std::filesystem::path const& file_path);
+    static EncodingDetectionResult detect_by_extension_heuristics(std::filesystem::path const& file_path);
+    static DetectedEncoding canonical_name_to_enum(std::string const& canonical_name);
+    static std::string enum_to_display_name(DetectedEncoding encoding);
+  };
 
 } // namespace encoding

@@ -126,18 +126,24 @@ namespace first {
       return *m_cached_encoding;
     }
     
-    // Use extension-based detection following zeroth/main.cpp pattern
-    std::string encoding;
-    if (m_file_path.extension() == ".csv") {
-      encoding = "UTF-8";
-    } else if (m_file_path.extension() == ".skv") {
-      encoding = "ISO-8859-1";
+    // Use ICU-based encoding detection
+    auto detection_result = encoding::ICUEncodingDetector::detect_file_encoding(m_file_path);
+    
+    // Format display string with confidence and method
+    std::string encoding_display;
+    if (detection_result.confidence >= 70) {
+      encoding_display = std::format("{} ({}%)", detection_result.display_name, detection_result.confidence);
     } else {
-      encoding = "Unknown";
+      encoding_display = std::format("{} ({}%, {})", detection_result.display_name, detection_result.confidence, detection_result.detection_method);
     }
     
-    m_cached_encoding = encoding;
-    return encoding;
+    // Add language info if detected
+    if (!detection_result.language.empty()) {
+      encoding_display += std::format(" [{}]", detection_result.language);
+    }
+    
+    m_cached_encoding = encoding_display;
+    return encoding_display;
   }
 
   CSV::OptionalTable CSVFileState::parse_csv_content() const {
@@ -157,17 +163,34 @@ namespace first {
       
       CSV::OptionalFieldRows field_rows;
       
-      // Parse based on file extension following zeroth/main.cpp pattern
-      if (m_file_path.extension() == ".csv") {
-        encoding::UTF8::istream utf8_in{ifs};
-        field_rows = CSV::to_field_rows(utf8_in, ';');
-      } else if (m_file_path.extension() == ".skv") {
-        encoding::ISO_8859_1::istream iso8859_in{ifs};
-        field_rows = CSV::to_field_rows(iso8859_in, ';');
-      } else {
-        // Default to UTF-8 for unknown extensions
-        encoding::UTF8::istream utf8_in{ifs};
-        field_rows = CSV::to_field_rows(utf8_in, ';');
+      // Use ICU detection to determine appropriate encoding stream
+      auto detection_result = encoding::ICUEncodingDetector::detect_file_encoding(m_file_path);
+      
+      switch (detection_result.encoding) {
+        case encoding::DetectedEncoding::UTF8: {
+          encoding::UTF8::istream utf8_in{ifs};
+          field_rows = CSV::to_field_rows(utf8_in, ';');
+          break;
+        }
+        
+        case encoding::DetectedEncoding::ISO_8859_1: {
+          encoding::ISO_8859_1::istream iso8859_in{ifs}; 
+          field_rows = CSV::to_field_rows(iso8859_in, ';');
+          break;
+        }
+        
+        case encoding::DetectedEncoding::CP437: {
+          encoding::CP437::istream cp437_in{ifs};
+          field_rows = CSV::to_field_rows(cp437_in, ';');
+          break;
+        }
+        
+        default: {
+          spdlog::error("Unsupported encoding {} for CSV parsing: {}", 
+                        detection_result.display_name, m_file_path.string());
+          m_cached_table = result; // Cache the failure
+          return result; // Return nullopt - explicit failure
+        }
       }
       
       if (field_rows && !field_rows->empty()) {
