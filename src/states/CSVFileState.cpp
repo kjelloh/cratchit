@@ -45,32 +45,67 @@ namespace first {
     if (table && table.has_value()) {
       auto& csv_table = table.value();
       
-      // Display heading
+      // Calculate column widths for fixed-width formatting
+      std::vector<size_t> column_widths;
       if (csv_table.heading.size() > 0) {
+        column_widths.resize(csv_table.heading.size());
+        
+        // Initialize with heading widths
+        for (size_t i = 0; i < csv_table.heading.size(); ++i) {
+          column_widths[i] = csv_table.heading[i].length();
+        }
+        
+        // Check all rows to find maximum width per column
+        size_t max_display_rows = std::min(size_t(10), csv_table.rows.size());
+        for (size_t row_idx = 0; row_idx < max_display_rows; ++row_idx) {
+          auto& row = csv_table.rows[row_idx];
+          for (size_t col_idx = 0; col_idx < std::min(row.size(), column_widths.size()); ++col_idx) {
+            size_t field_length = std::min(row[col_idx].length(), size_t(25)); // Cap at 25 chars
+            column_widths[col_idx] = std::max(column_widths[col_idx], field_length);
+          }
+        }
+        
+        // Cap column widths at reasonable maximum
+        for (auto& width : column_widths) {
+          width = std::min(width, size_t(25));
+        }
+        
+        // Display formatted heading
         std::string heading_line;
         for (size_t i = 0; i < csv_table.heading.size(); ++i) {
           if (i > 0) heading_line += " | ";
-          heading_line += csv_table.heading[i];
+          std::string truncated_heading = csv_table.heading[i];
+          if (truncated_heading.length() > column_widths[i]) {
+            truncated_heading = truncated_heading.substr(0, column_widths[i] - 3) + "...";
+          }
+          heading_line += std::format("{:<{}}", truncated_heading, column_widths[i]);
         }
-        result.push_back(std::format("Columns: {}", heading_line));
-        result.push_back("");
+        result.push_back(heading_line);
+        
+        // Add separator line
+        std::string separator_line;
+        for (size_t i = 0; i < column_widths.size(); ++i) {
+          if (i > 0) separator_line += "-+-";
+          separator_line += std::string(column_widths[i], '-');
+        }
+        result.push_back(separator_line);
       }
       
-      // Display first 10 rows as preview
+      // Display formatted rows
       size_t max_rows = std::min(size_t(10), csv_table.rows.size());
       for (size_t i = 0; i < max_rows; ++i) {
         auto& row = csv_table.rows[i];
         std::string row_line;
-        for (size_t j = 0; j < row.size(); ++j) {
+        for (size_t j = 0; j < std::min(row.size(), column_widths.size()); ++j) {
           if (j > 0) row_line += " | ";
-          // Truncate long fields
           std::string field = row[j];
-          if (field.length() > 20) {
-            field = field.substr(0, 17) + "...";
+          // Truncate field if too long
+          if (field.length() > column_widths[j]) {
+            field = field.substr(0, column_widths[j] - 3) + "...";
           }
-          row_line += field;
+          row_line += std::format("{:<{}}", field, column_widths[j]);
         }
-        result.push_back(std::format("Row {}: {}", i + 1, row_line));
+        result.push_back(row_line);
       }
       
       if (csv_table.rows.size() > max_rows) {
