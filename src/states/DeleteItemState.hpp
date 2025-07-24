@@ -36,7 +36,7 @@ namespace first {
 
     virtual StateImpl::UpdateOptions create_update_options() const override {
       StateImpl::UpdateOptions result{};
-      using EditedHADMsg = CargoMsgT<cargo::EditedItem<HAD>>;
+      using EditedItemMsg = CargoMsgT<cargo::EditedItem<Item>>;
 
       // TODO: Refactor add_update_option in constructor to update options here
 
@@ -47,7 +47,7 @@ namespace first {
         return {new_state, [payload = new_state->m_edited_item]() -> std::optional<Msg> { 
           spdlog::info("DeleteItemState::m_update_options['y'] lambda forwards payload {}",to_string(payload.item));
           return std::make_shared<PopStateMsg>(
-            std::make_shared<EditedHADMsg>(payload)
+            std::make_shared<EditedItemMsg>(payload)
           ); 
         }};
       }});
@@ -57,7 +57,7 @@ namespace first {
       result.add('n',{"No",[payload = this->m_edited_item]() -> StateUpdateResult {
         return {std::nullopt,[payload]() -> std::optional<Msg>{
           return std::make_shared<PopStateMsg>(
-            std::make_shared<EditedHADMsg>(payload)
+            std::make_shared<EditedItemMsg>(payload)
           ); 
         }};
       }});
@@ -66,7 +66,7 @@ namespace first {
       result.add('-', {"Back", [payload = this->m_edited_item]() -> StateUpdateResult {
         return {std::nullopt, [payload]() -> std::optional<Msg> {
           return std::make_shared<PopStateMsg>(
-            std::make_shared<EditedHADMsg>(payload)
+            std::make_shared<EditedItemMsg>(payload)
           );
         }};
       }});
