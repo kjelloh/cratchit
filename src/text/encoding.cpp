@@ -90,7 +90,7 @@ namespace encoding {
       return os;
     }
 
-    std::string unicode_to_utf8(char16_t_string const& s) {
+    std::string unicode_to_utf8(cratchit_unicode_string const& s) {
       std::ostringstream os{};
       encoding::UTF8::ostream utf8_os{os};
       for (auto cp : s) utf8_os << cp;
@@ -154,8 +154,8 @@ namespace encoding {
       return result;
     }
 
-    char16_t_string utf8ToUnicode(std::string const& s_utf8) {
-      char16_t_string result{};
+    cratchit_unicode_string utf8ToUnicode(std::string const& s_utf8) {
+      cratchit_unicode_string result{};
       ToUnicodeBuffer to_unicode_buffer{};
       for (auto ch : s_utf8) {
         if (auto unicode = to_unicode_buffer.push(static_cast<std::uint8_t>(ch))) {
@@ -214,7 +214,7 @@ namespace encoding {
 
   namespace unicode {
 
-    std::string to_utf8::operator()(char16_t_string const& unicode_s) const {
+    std::string to_utf8::operator()(cratchit_unicode_string const& unicode_s) const {
       return encoding::UTF8::unicode_to_utf8(unicode_s);
     }
 

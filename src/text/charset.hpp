@@ -5,7 +5,17 @@
 #include <algorithm>
 #include <iostream>
 
-using char16_t_string = std::wstring;
+// using cratchit_unicode_string = std::wstring;
+
+namespace unicode {
+  // Works on macOS (should work also on Windows but needs 4 bytes on Linux?)
+  // Bascially retsricts cratchit to UTF-16 encoding
+  using code_point = char16_t;
+  using code_point_string = std::u16string;
+}
+using cratchit_unicode_code_point = unicode::code_point;
+using cratchit_unicode_string = unicode::code_point_string;
+
 
 namespace charset {
 
@@ -71,7 +81,7 @@ namespace charset {
 		// Code points above 0xFF has NO obvious representation in ISO 8859-1 (I suppose we could cherry pick to get some similar ISO 8859-1 glyph but...)
 
 		char16_t iso8859ToUnicode(char ch8859);
-		char16_t_string iso8859ToUnicode(std::string s8859);
+		cratchit_unicode_string iso8859ToUnicode(std::string s8859);
 		uint8_t UnicodeToISO8859(char16_t unicode);
 
 	}
@@ -81,7 +91,7 @@ namespace charset {
 
 		char16_t cp437ToUnicode(char ch437);
 		uint8_t UnicodeToCP437(char16_t unicode);
-		char16_t_string cp437ToUnicode(std::string s437);
+		cratchit_unicode_string cp437ToUnicode(std::string s437);
 
 	} // namespace CP437
 

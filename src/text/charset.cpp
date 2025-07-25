@@ -14,8 +14,8 @@ namespace charset {
 			return static_cast<uint8_t>(ch8859);
 		}
 	
-		char16_t_string iso8859ToUnicode(std::string s8859) {
-			char16_t_string result{};
+		cratchit_unicode_string iso8859ToUnicode(std::string s8859) {
+			cratchit_unicode_string result{};
 			std::transform(s8859.begin(),s8859.end(),std::back_inserter(result),[](char ch){
 				return iso8859ToUnicode(ch);
 			});
@@ -314,8 +314,8 @@ namespace charset {
 			return result;
 		} 
 
-		char16_t_string cp437ToUnicode(std::string s437) {
-			char16_t_string result{};
+		cratchit_unicode_string cp437ToUnicode(std::string s437) {
+			cratchit_unicode_string result{};
       if (false) {
         std::cout << "\ncp437ToUnicode(" << std::quoted(s437) << ")";
       }

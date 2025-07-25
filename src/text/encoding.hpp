@@ -97,7 +97,7 @@ namespace encoding {
 		};
 
 		encoding::UTF8::ostream& operator<<(encoding::UTF8::ostream& os,char32_t cp);
-		std::string unicode_to_utf8(char16_t_string const& s);
+		std::string unicode_to_utf8(cratchit_unicode_string const& s);
 
 		// UTF-8 to Unicode
 		class ToUnicodeBuffer {
@@ -109,7 +109,7 @@ namespace encoding {
 			OptionalUnicode to_unicode();
 		};
 
-    char16_t_string utf8ToUnicode(std::string const& s_utf8);
+    cratchit_unicode_string utf8ToUnicode(std::string const& s_utf8);
 
 		class istream : public bom_istream {
     public:
@@ -154,10 +154,12 @@ namespace encoding {
   } // namespace CP437
   
   namespace unicode {
-    // while (auto entry = in.getline(encoding::unicode::to_utf8{}))
+
+    using CodePoint = 
+
     struct to_utf8 {
       using value_type = std::string;
-      value_type operator()(char16_t_string const& unicode_s) const;
+      value_type operator()(cratchit_unicode_string const& unicode_s) const;
 
     };
   } // namespace unicode
