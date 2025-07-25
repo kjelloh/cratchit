@@ -35,6 +35,8 @@ namespace TEA {
         // Encoding initialization
         bool setup_encoding_support();
         void render_encoding_error_overlay();
+
+        encoding::UTF8::ToUnicodeBuffer m_utf8_to_unicode_buffer{};
     };
 
 } // namespace TEA

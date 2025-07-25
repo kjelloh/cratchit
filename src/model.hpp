@@ -9,6 +9,8 @@
 #include <string>
 #include <immer/box.hpp>
 #include <unicode/uchar.h>
+#include <unicode/unistr.h>  // ICU UnicodeString
+#include <unicode/brkiter.h> // ICU BreakIterator for grapheme counting
 
 namespace first {
 
@@ -30,8 +32,8 @@ namespace first {
 
     enum class State { Editing, Committed };
     
-    UserInputBufferState() : m_buffer(""), m_state(State::Editing) {}
-    explicit UserInputBufferState(immer::box<std::string> buffer) : m_buffer(buffer), m_state(State::Editing) {}
+    UserInputBufferState() : m_buffer(icu::UnicodeString()), m_state(State::Editing) {}
+    explicit UserInputBufferState(immer::box<icu::UnicodeString> buffer) : m_buffer(buffer), m_state(State::Editing) {}
 
     UpdateResult update(Msg const& msg) const {
       // Only handle NCursesKeyMsg
@@ -45,7 +47,9 @@ namespace first {
     }
 
     std::string buffer() const {
-      return *m_buffer;
+      std::string utf8_result;
+      m_buffer->toUTF8String(utf8_result);
+      return utf8_result;
     }
 
     State state() const {
@@ -60,8 +64,27 @@ namespace first {
       return UserInputBufferState();
     }
 
+    // Visual width for cursor positioning (count grapheme clusters)
+    size_t visual_width() const {
+      UErrorCode status = U_ZERO_ERROR;
+      std::unique_ptr<icu::BreakIterator> iter(
+        icu::BreakIterator::createCharacterInstance(icu::Locale::getDefault(), status));
+      
+      if (U_FAILURE(status) || !iter) {
+        // Fallback to character count if BreakIterator fails
+        return m_buffer->countChar32();
+      }
+      
+      iter->setText(*m_buffer);
+      size_t count = 0;
+      while (iter->next() != icu::BreakIterator::DONE) {
+        count++;
+      }
+      return count;
+    }
+
   private:
-    immer::box<std::string> m_buffer;
+    immer::box<icu::UnicodeString> m_buffer;
     State m_state;
     
     static UpdateResult make_result(std::optional<UserInputBufferState> state, Cmd cmd = {}) {
@@ -72,7 +95,7 @@ namespace first {
       return {.maybe_state = state, .maybe_null_cmd = cmd};
     }
         
-    UserInputBufferState with_buffer(immer::box<std::string> buffer) const {
+    UserInputBufferState with_buffer(immer::box<icu::UnicodeString> buffer) const {
       UserInputBufferState result = *this;
       result.m_buffer = buffer;
       return result;
@@ -85,16 +108,24 @@ namespace first {
     }
 
     UpdateResult handle_char_input(int ch) const {
-      if (!m_buffer->empty() && ch == 127) { // Backspace
-        auto new_buffer = m_buffer->substr(0, m_buffer->length() - 1);
-        return make_result(with_buffer(immer::box<std::string>(new_buffer)));
+      if (!m_buffer->isEmpty() && ch == 127) { // Backspace
+        // Remove last grapheme cluster using Unicode-aware method
+        auto char_count = m_buffer->countChar32();
+        if (char_count > 0) {
+          auto new_buffer = m_buffer->tempSubString(0, char_count - 1);
+          return make_result(with_buffer(immer::box<icu::UnicodeString>(new_buffer)));
+        }
       }
-      else if (u_isprint(static_cast<UChar32>(static_cast<unsigned char>(ch)))) {
-        auto new_buffer = *m_buffer + static_cast<char>(ch);
-        return make_result(with_buffer(immer::box<std::string>(new_buffer)));
+      else if (u_isprint(static_cast<UChar32>(ch))) {
+        // Append Unicode code point to buffer
+        auto new_buffer = *m_buffer + static_cast<UChar32>(ch);
+        return make_result(with_buffer(immer::box<icu::UnicodeString>(new_buffer)));
       }
-      else if (!m_buffer->empty() && ch == '\n') {
-        auto cmd = [entry = *m_buffer]() -> std::optional<Msg> {
+      else if (!m_buffer->isEmpty() && ch == '\n') {
+        // Convert Unicode buffer to UTF-8 string for the message
+        std::string utf8_entry;
+        m_buffer->toUTF8String(utf8_entry);
+        auto cmd = [entry = utf8_entry]() -> std::optional<Msg> {
           return std::make_shared<UserEntryMsg>(entry);
         };
         return make_result(clear(), cmd);

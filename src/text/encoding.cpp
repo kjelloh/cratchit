@@ -9,6 +9,7 @@
 #include <unicode/ucsdet.h>  // ICU Character Set Detection
 #include <unicode/ucnv.h>    // ICU Converter API
 #include <unicode/ustring.h> // ICU String utilities
+#include "spdlog/spdlog.h"
 
 namespace encoding {
 
@@ -112,10 +113,12 @@ namespace encoding {
       // U+0800	U+FFFF										1110xxxx	10xxxxxx	10xxxxxx	
       // U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
       this->m_utf_8_buffer.push_back(b);
-      if (false) {
-        std::cout << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")" << std::dec;
-        std::cout << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
-        for (auto ch : m_utf_8_buffer) std::cout << "[" << std::hex << static_cast<unsigned int>(ch) << "]" << std::dec;
+      if (true) {
+        std::ostringstream oss{};
+        oss << "ToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")" << std::dec;
+        oss << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
+        for (auto ch : m_utf_8_buffer) oss << "[" << std::hex << static_cast<unsigned int>(ch) << "]" << std::dec;
+        spdlog::info(oss.str());
       }
       return this->to_unicode();
     }
@@ -124,7 +127,7 @@ namespace encoding {
       OptionalUnicode result{};
       switch (m_utf_8_buffer.size()) {
         case 1: {
-          if (m_utf_8_buffer[0] < 0x7F) {
+          if (m_utf_8_buffer[0] <= 0x7F) {
             result = m_utf_8_buffer[0];
             m_utf_8_buffer.clear();
           }

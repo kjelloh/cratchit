@@ -59,11 +59,25 @@ namespace TEA {
     }
 
     int NCursesHead::get_input() {
-        if (!m_initialized) {
-            return 'q';  // Default to quit if not initialized
+      if (!m_initialized) {
+          return 'q';  // Default to quit if not initialized
+      }
+
+      while (true) {
+        auto nc_key = getch();
+
+        switch (m_target_encoding) {
+          case encoding::icu::DetectedEncoding::UTF8: {
+            // transform utf-8 to unicode code point
+            if (auto cp = m_utf8_to_unicode_buffer.push(nc_key)) {
+              return *cp;
+            }
+          } break;
+          default: {
+            return nc_key; // default single char code points
+          }
         }
-        
-        return getch();
+      }
     }
 
     void NCursesHead::cleanup() {

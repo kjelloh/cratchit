@@ -239,6 +239,8 @@ namespace first {
     pugi::xml_node label = prompt.append_child("label");
     std::string input_text = model.user_input_state.buffer();
     label.text().set((">" + input_text).c_str());
+    // Add visual width attribute for cursor positioning
+    label.append_attribute("visual-width") = (1 + model.user_input_state.visual_width());
 
     // Make prompt 'html-correct' (even though render does not care for now)
     pugi::xml_node input = prompt.append_child("input");

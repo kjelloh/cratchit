@@ -57,7 +57,11 @@ namespace TEA {
       // Render user prompt on line 3
       const std::string prompt_text = prompt_node.child("label").text().as_string();
       mvwprintw(win, line, 1, "%s", prompt_text.c_str());
-      wmove(win, line, prompt_text.size() + 1); // Move cursor after the prompt
+      
+      // Use visual width for proper UTF-8 cursor positioning
+      auto label_node = prompt_node.child("label");
+      int visual_width = label_node.attribute("visual-width").as_int(prompt_text.size() + 1);
+      wmove(win, line, visual_width + 1); // Move cursor after the prompt
       wnoutrefresh(win); // Update to buffer
     }
 
