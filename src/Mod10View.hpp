@@ -56,7 +56,8 @@ namespace first {
 
     // Static factory methods
     template <class T>
-    static Mod10View from_container(T const &container);
+    static Mod10View from_container(T const &container); 
+       
     static Mod10View from_range(size_t first, size_t last);
     static Mod10View empty_view();
     static Mod10View single_item(size_t index);
