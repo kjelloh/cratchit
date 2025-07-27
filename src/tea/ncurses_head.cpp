@@ -185,18 +185,30 @@ namespace TEA {
         render_encoding_error_overlay();
     }
 
+    // TODO: NCurses 'int' will not cover full UTF-16 code points
+    //       Consider to revise if/when supported platfrom requires it.
+    //       20250727 - For now macOS UTF-8 for ISO 8859-1 (Latin-1)
+    //                  will work (maps to Unicode ASCII + extended 0x80..0xFF)
+    //                  for one byte copde points ok.
+    //                  Other character sets may or may not map to two byte code points
+    //                  that will fit into an int.
+    //                  Also, 'int' may be more than two bytes...
+    //                  It is a 'mess'...
     int NCursesHead::get_input() {
       if (!m_initialized) {
           return 'q';  // Default to quit if not initialized
       }
 
+      // Loop to handle UTF-encoded multibyte 'code point'
+      // E.g., UTF-8 'å' will come from NCurses / runtime as byte stream 0xC3,0xA5
       while (true) {
         auto nc_key = getch();
 
         switch (m_runtime_endoding.detected_encoding()) {
           case encoding::icu::DetectedEncoding::UTF8: {
-            // transform utf-8 to unicode code point
+            // buffer-transform utf-8 to unicode code point
             if (auto cp = m_utf8_to_unicode_buffer.push(nc_key)) {
+              // Unicode Code point complete
               return *cp;
             }
           } break;
