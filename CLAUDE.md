@@ -13,12 +13,15 @@ This is a C++23 project using CMake and Conan package manager.
 
 ### Build commands:
 ```bash
-cmake --build build/Release  # Build from project root
-./run.zsh                    # Build and run in workspace/ directory
+./run.zsh --nop            # Build and run in workspace/ directory (no operation)
+./run.zsh --test           # Build and run in workspace/ directory (perform google tests)
+cmake --build --preset "$(cat cmake_preset.txt)" # Build current set cmake preset
+cmake --build --preset conan-debug # Build conan-debug preset (defined in CMakeUserPresets.json)
+cmake --build build/Debug  # Build Debug from project root
 ```
 
 ### Test commands:
-Tests are integrated into the main executable. Run with `--nop` flag to execute tests.
+Tests are integrated into the main executable. Run with `--test` flag to execute tests.
 
 ## Architecture Overview
 
@@ -31,6 +34,35 @@ Cratchit is a Swedish bookkeeping console application that processes SIE (Standa
 - **Two Main Namespaces**:
   - `first`: Main application logic using TEA pattern
   - `tea`: Runtime and event handling utilities
+
+### C++ code design choices
+
+Cratchit aims at utilise C++23 features and beyon.
+Cratchit aims at using functional composition with fiscal/amount/functional.hpp and std::ranges / std::views.
+Cratchit aims to center most fiscal functionality around TaggedAmount in fiscal/amount/TaggedAmountFramework
+Cratchid aims to avoid 'static' class/struct members in favor of stand-alone make_xxx functions and concrete class instance value semantics 
+
+### C++ refactoring aims
+
+Cratchit exists in the 'older' design in zeroth/main.cpp
+Cratchit aims to transit to TEA architecture (The Elm Architecture) as defined in 'Key components' below
+During refactoring there may be a need to refactor out code from 'older' zeroth/main.cpp to new units, classes and functions for shared use in TEA based cratchit.
+
+### Cratchit 'older' and 'newer' varaint in the same executable
+
+The root main.cpp is the app entry point and it provides the user to switch between running the 'older' zeroth::main (in zeroth/main.cpp) and the 'newer' first::main (in cratchit.cpp).
+
+In this way the transition (refactoring) to the 'newer' TEA based design while still having access to the 'older' functionality for evaluation and testing.
+
+```cpp
+...
+else while (true) {
+        // Toggle between zeroth (older) and first (this variant) of cratching
+        if (result = zeroth::main(argc, argv);result > 0) break;
+        // std::cout << "\nCentral main sais Hello :)" << std::flush;
+        if (result = first::main(argc,argv);result == 0) break;
+    }
+```
 
 ### Key Components:
 
