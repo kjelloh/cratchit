@@ -19,12 +19,12 @@ std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had
 		os << ' ';
 	}
 
-	if (auto me = had.optional.series) {
-		os << *had.optional.series;
-	}
-	else {
-		os << '-';
-	}
+	// if (auto me = had.optional.series) {
+	// 	os << *had.optional.series;
+	// }
+	// else {
+	// 	os << '-';
+	// }
 
 	if (auto me = had.optional.gross_account_no) {
 		os << ' ' << *had.optional.gross_account_no << ' ';

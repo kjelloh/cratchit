@@ -6272,16 +6272,17 @@ namespace lua_faced_ifc {
           // Push the value
           lua_newtable(L);
 
-          // Push the key
-          lua_pushstring(L, "series");
-          // Push the value
-          if (had->optional.series) {
-            std::string series_str(1, *had->optional.series);
-            lua_pushstring(L, series_str.c_str());
-          }
-          else lua_pushnil(L);
-          // Set the table value
-          lua_settable(L, -3);
+          // 20250726 - optional.series removed from HAD
+          // // Push the key
+          // lua_pushstring(L, "series");
+          // // Push the value
+          // if (had->optional.series) {
+          //   std::string series_str(1, *had->optional.series);
+          //   lua_pushstring(L, series_str.c_str());
+          // }
+          // else lua_pushnil(L);
+          // // Set the table value
+          // lua_settable(L, -3);
 
           // Push the key
           lua_pushstring(L, "gross_account_no");
