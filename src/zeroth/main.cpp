@@ -16,6 +16,7 @@ float const VERSION = 0.5;
 #include "text/encoding.hpp"
 #include "sie/sie.hpp"
 #include "csv/csv.hpp"
+#include "csv/projections.hpp"
 #include <iostream>
 #include <locale>
 #include <string>
@@ -1341,9 +1342,9 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 		// NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
 		// uses ';' as value separators
 		if (field_rows->size() > 0) {
-      auto csv_heading_id = CSV::to_csv_heading_id(field_rows->at(0));
+      auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
       switch (csv_heading_id) {
-        case CSV::HeadingId::NORDEA: {
+        case CSV::project::HeadingId::NORDEA: {
           auto to_heading = [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
             if (field_row.size() > 3) {
               // Note: Requiring at least 3 'columns' is a heuristic to somewhat ensure we have at least a date, an amount and some description to work with
@@ -1370,7 +1371,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
             std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << path << " to a CVS::Table with known heading and data content";
           }
         } break;
-        case CSV::HeadingId::SKV: {
+        case CSV::project::HeadingId::SKV: {
           auto to_heading = [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
             // Assume this is row 0 of an SKV-file which in turn we assume is from SKV, the swedish tax agency, with transactions on 'our' tax account
             // This mean we have no column names in the file and need to hard code them.

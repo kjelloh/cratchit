@@ -148,43 +148,44 @@ OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading 
 
 } // namespace SKV
 
-HeadingId to_csv_heading_id(FieldRow const& field_row) {
-  HeadingId result{HeadingId::Undefined};
-  if (true) {
-    std::cout << "\nfield_row.size() = " << field_row.size();
-    std::cout << "\nto_csv_heading_id(field_row:" << std::quoted(to_string(field_row)) << ")";
-    for (auto const& field : field_row) std::cout << "\n\t[" << "]" << std::quoted(field);
-  }
-  if (field_row.size() >= 10) {
-    if (true) {
-      std::cout << "\nNORDEA File candidate ok";
-    }
-    // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
-    // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
-    // Note: NORDEA web csv format has changed to incorporate and ending ';' (in effect changing ';' from being a separator to being a terminator)
-    // TODO 240221: Find a way to handle NORDEA file coming in UTF-8 with a BOM prefix and the SKV-file being ISO-8859-1 encoded (a mess!)
-    if (
-        true
-        and field_row[0].find(R"(Bokföringsdag)") != std::string::npos // avoid matching to the UTF-8 BOM prefix in a NORDEA file
-        and field_row[1] == "Belopp" 
-        and field_row[2] == "Avsändare"
-        and field_row[3] == "Mottagare" 
-        and field_row[4] == "Namn" 
-        and (field_row[5] == "Rubrik" or field_row[5] == "Ytterligare detaljer")
-        and field_row[6] == "Meddelande" 
-        and field_row[7] == "Egna anteckningar" 
-        and field_row[8] == "Saldo" 
-        and field_row[9] == "Valuta") {
-      result = HeadingId::NORDEA;
-    }
-  }
-  else if (field_row.size() == 5) {
-    if (true) {
-      std::cout << "\nSKV File candidate ok";
-    }
-    result = HeadingId::SKV;
-  }
-  return result;
-}
+// Now in projecgtions unit
+// HeadingId to_csv_heading_id(FieldRow const& field_row) {
+//   HeadingId result{HeadingId::Undefined};
+//   if (true) {
+//     std::cout << "\nfield_row.size() = " << field_row.size();
+//     std::cout << "\nto_csv_heading_id(field_row:" << std::quoted(to_string(field_row)) << ")";
+//     for (auto const& field : field_row) std::cout << "\n\t[" << "]" << std::quoted(field);
+//   }
+//   if (field_row.size() >= 10) {
+//     if (true) {
+//       std::cout << "\nNORDEA File candidate ok";
+//     }
+//     // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
+//     // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
+//     // Note: NORDEA web csv format has changed to incorporate and ending ';' (in effect changing ';' from being a separator to being a terminator)
+//     // TODO 240221: Find a way to handle NORDEA file coming in UTF-8 with a BOM prefix and the SKV-file being ISO-8859-1 encoded (a mess!)
+//     if (
+//         true
+//         and field_row[0].find(R"(Bokföringsdag)") != std::string::npos // avoid matching to the UTF-8 BOM prefix in a NORDEA file
+//         and field_row[1] == "Belopp" 
+//         and field_row[2] == "Avsändare"
+//         and field_row[3] == "Mottagare" 
+//         and field_row[4] == "Namn" 
+//         and (field_row[5] == "Rubrik" or field_row[5] == "Ytterligare detaljer")
+//         and field_row[6] == "Meddelande" 
+//         and field_row[7] == "Egna anteckningar" 
+//         and field_row[8] == "Saldo" 
+//         and field_row[9] == "Valuta") {
+//       result = HeadingId::NORDEA;
+//     }
+//   }
+//   else if (field_row.size() == 5) {
+//     if (true) {
+//       std::cout << "\nSKV File candidate ok";
+//     }
+//     result = HeadingId::SKV;
+//   }
+//   return result;
+// }
 
 } // namespace CSV

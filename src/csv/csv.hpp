@@ -129,12 +129,13 @@ namespace CSV {
 
 		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading const& heading = Table::Heading{});
 	} // namespace SKV
-  enum class HeadingId {
-    Undefined
-    ,NORDEA
-    ,SKV
-    ,unknown
-  };
 
-  HeadingId to_csv_heading_id(FieldRow const& field_row);
+  // Now in projections unit
+  // enum class HeadingId {
+  //   Undefined
+  //   ,NORDEA
+  //   ,SKV
+  //   ,unknown
+  // };
+  // HeadingId to_csv_heading_id(FieldRow const& field_row);
 } // namespace CSV
