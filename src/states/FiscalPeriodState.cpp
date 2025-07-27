@@ -3,7 +3,7 @@
 #include "TaggedAmountsState.hpp"
 #include "fiscal/amount/HADFramework.hpp"
 #include "VATReturnsState.hpp"
-#include "AccountStatementsState.hpp"
+#include "AccountStatementFilesState.hpp"
 #include "environment.hpp"
 #include <spdlog/spdlog.h>
 #include <ranges>
@@ -93,10 +93,10 @@ namespace first {
       }};
     }});
     
-    // Add AccountStatementsState option
+    // Add AccountStatementFilesState option
     result.add('a', {"Account Statements", []() -> StateUpdateResult {
       return {std::nullopt, []() -> std::optional<Msg> {
-        State new_state = make_state<AccountStatementsState>();
+        State new_state = make_state<AccountStatementFilesState>();
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});

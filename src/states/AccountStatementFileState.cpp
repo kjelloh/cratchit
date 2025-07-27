@@ -1,24 +1,24 @@
-#include "CSVFileState.hpp"
+#include "AccountStatementFileState.hpp"
 #include <format>
 #include <fstream>
 #include "spdlog/spdlog.h"
 
 namespace first {
   
-  CSVFileState::CSVFileState(std::filesystem::path file_path)
+  AccountStatementFileState::AccountStatementFileState(std::filesystem::path file_path)
     : StateImpl{}, m_file_path{std::move(file_path)} {}
 
-  CSVFileState::CSVFileState(std::optional<std::string> caption, std::filesystem::path file_path)
+  AccountStatementFileState::AccountStatementFileState(std::optional<std::string> caption, std::filesystem::path file_path)
     : StateImpl{caption}, m_file_path{std::move(file_path)} {}
 
-  std::string CSVFileState::caption() const {
+  std::string AccountStatementFileState::caption() const {
     if (m_caption.has_value()) {
       return m_caption.value();
     }
     return std::format("CSV File: {}", m_file_path.filename().string());
   }
 
-  StateImpl::UpdateOptions CSVFileState::create_update_options() const {
+  StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     
     // Add '-' key option for back navigation
@@ -26,7 +26,7 @@ namespace first {
       using StringMsg = CargoMsgT<std::string>;
       return {std::nullopt, []() -> std::optional<Msg> {
         return std::make_shared<PopStateMsg>(
-          std::make_shared<StringMsg>("CSVFileState")
+          std::make_shared<StringMsg>("AccountStatementFileState")
         );
       }};
     }});
@@ -34,7 +34,7 @@ namespace first {
     return result;
   }
 
-  StateImpl::UX CSVFileState::create_ux() const {
+  StateImpl::UX AccountStatementFileState::create_ux() const {
     UX result{};
     
     auto encoding = detect_encoding();
@@ -121,7 +121,7 @@ namespace first {
     return result;
   }
 
-  std::string CSVFileState::detect_encoding() const {
+  std::string AccountStatementFileState::detect_encoding() const {
     if (m_cached_encoding.has_value()) {
       return *m_cached_encoding;
     }
@@ -146,7 +146,7 @@ namespace first {
     return encoding_display;
   }
 
-  CSV::OptionalTable CSVFileState::parse_csv_content() const {
+  CSV::OptionalTable AccountStatementFileState::parse_csv_content() const {
     if (m_cached_table.has_value()) {
       return *m_cached_table;
     }

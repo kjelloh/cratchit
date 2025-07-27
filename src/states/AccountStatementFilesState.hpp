@@ -6,12 +6,12 @@
 #include <filesystem>
 
 namespace first {
-  class AccountStatementsState : public StateImpl {
+  class AccountStatementFilesState : public StateImpl {
   public:
     using FilePaths = std::vector<std::filesystem::path>;
 
-    AccountStatementsState();
-    AccountStatementsState(FilePaths file_paths, Mod10View mod10_view);
+    AccountStatementFilesState();
+    AccountStatementFilesState(FilePaths file_paths, Mod10View mod10_view);
 
     virtual StateImpl::UpdateOptions create_update_options() const override;
     virtual StateImpl::UX create_ux() const override;
@@ -23,5 +23,5 @@ namespace first {
 
     FilePaths scan_from_bank_or_skv_directory() const;
 
-  }; // AccountStatementsState
+  }; // AccountStatementFilesState
 }

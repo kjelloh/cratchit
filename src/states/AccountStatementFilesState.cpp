@@ -1,23 +1,23 @@
-#include "AccountStatementsState.hpp"
-#include "CSVFileState.hpp"
+#include "AccountStatementFilesState.hpp"
+#include "AccountStatementFileState.hpp"
 #include <format>
 #include <spdlog/spdlog.h>
 
 namespace first {
   
-  AccountStatementsState::AccountStatementsState() 
+  AccountStatementFilesState::AccountStatementFilesState() 
     : StateImpl{}, m_file_paths{scan_from_bank_or_skv_directory()}, m_mod10_view{m_file_paths} {
     
-    spdlog::info("AccountStatementsState - found {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
+    spdlog::info("AccountStatementFilesState - found {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
   }
 
-  AccountStatementsState::AccountStatementsState(FilePaths file_paths, Mod10View mod10_view)
+  AccountStatementFilesState::AccountStatementFilesState(FilePaths file_paths, Mod10View mod10_view)
     : StateImpl{}, m_file_paths{std::move(file_paths)}, m_mod10_view{mod10_view} {
     
-    spdlog::info("AccountStatementsState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
+    spdlog::info("AccountStatementFilesState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
   }
 
-  std::string AccountStatementsState::caption() const {
+  std::string AccountStatementFilesState::caption() const {
     if (m_caption.has_value()) {
       return m_caption.value();
     }
@@ -30,7 +30,7 @@ namespace first {
                       m_file_paths.size(), m_mod10_view.to_string());
   }
 
-  AccountStatementsState::FilePaths AccountStatementsState::scan_from_bank_or_skv_directory() const {
+  AccountStatementFilesState::FilePaths AccountStatementFilesState::scan_from_bank_or_skv_directory() const {
     FilePaths result;
     std::filesystem::path dir_path = "from_bank_or_skv";
     
@@ -52,7 +52,7 @@ namespace first {
     return result;
   }
 
-  StateImpl::UX AccountStatementsState::create_ux() const {
+  StateImpl::UX AccountStatementFilesState::create_ux() const {
     UX result{};
     
     if (m_mod10_view.empty()) {
@@ -75,17 +75,17 @@ namespace first {
     return result;
   }
 
-  StateImpl::UpdateOptions AccountStatementsState::create_update_options() const {
+  StateImpl::UpdateOptions AccountStatementFilesState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     
     if (m_mod10_view.empty()) {
-      spdlog::info("AccountStatementsState: No files to create options for");
+      spdlog::info("AccountStatementFilesState: No files to create options for");
       // Only add back navigation when no files
       result.add('-', {"Back", []() -> StateUpdateResult {
         using StringMsg = CargoMsgT<std::string>;
         return {std::nullopt, []() -> std::optional<Msg> {
           return std::make_shared<PopStateMsg>(
-            std::make_shared<StringMsg>("AccountStatementsState - no files")
+            std::make_shared<StringMsg>("AccountStatementFilesState - no files")
           );
         }};
       }});
@@ -100,12 +100,12 @@ namespace first {
       
       // Try to get direct index for single file
       if (auto index = m_mod10_view.direct_index(digit); index.has_value() && *index < m_file_paths.size()) {
-        // Single file - direct navigation to CSVFileState
+        // Single file - direct navigation to AccountStatementFileState
         auto file_path = m_file_paths[*index];
         auto caption = file_path.filename().string();
         result.add(digit, {caption, [file_path]() -> StateUpdateResult {
           return {std::nullopt, [file_path]() -> std::optional<Msg> {
-            State new_state = make_state<CSVFileState>(file_path);
+            State new_state = make_state<AccountStatementFileState>(file_path);
             return std::make_shared<PushStateMsg>(new_state);
           }};
         }});
@@ -119,12 +119,12 @@ namespace first {
           
           result.add(digit, {caption, [file_paths = m_file_paths, drilled_view]() -> StateUpdateResult {
             return {std::nullopt, [file_paths, drilled_view]() -> std::optional<Msg> {
-              State new_state = make_state<AccountStatementsState>(file_paths, drilled_view);
+              State new_state = make_state<AccountStatementFilesState>(file_paths, drilled_view);
               return std::make_shared<PushStateMsg>(new_state);
             }};
           }});
         } catch (const std::exception& e) {
-          spdlog::error("AccountStatementsState: Error creating option for digit '{}': {}", digit, e.what());
+          spdlog::error("AccountStatementFilesState: Error creating option for digit '{}': {}", digit, e.what());
         }
       }
     }
@@ -134,7 +134,7 @@ namespace first {
       using StringMsg = CargoMsgT<std::string>;
       return {std::nullopt, [view_info]() -> std::optional<Msg> {
         return std::make_shared<PopStateMsg>(
-          std::make_shared<StringMsg>("AccountStatementsState - " + view_info)
+          std::make_shared<StringMsg>("AccountStatementFilesState - " + view_info)
         );
       }};
     }});
