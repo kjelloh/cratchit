@@ -1343,65 +1343,22 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
 		// uses ';' as value separators
 		if (field_rows->size() > 0) {
       auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
-      switch (csv_heading_id) {
-        case CSV::project::HeadingId::NORDEA: {
-          // auto to_heading = [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
-          //   if (field_row.size() > 3) {
-          //     // Note: Requiring at least 3 'columns' is a heuristic to somewhat ensure we have at least a date, an amount and some description to work with
-          //     // E.g. NORDEA bank CSV-file row 0: "Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta"
-          //     return field_row; // Assume csv-file has row 0 as the one naming the columns (as of 2024-06-09 NORDEA web bank csv-file does)
-          //     // NOTE: This approach makes Cratchit dependent on the naming chosen by Nordea in its web bank generated CSV-file...
-          //   }
-          //   else {
-          //     std::cout << "\nDESIGN_INSUFFICIENCY: Failed to use provied field_row " << field_row << " to return a table heading. Insufficient field_row.size()=" << field_row.size();
-          //     return std::nullopt;
-          //   }
-          // };
-          if (auto table = CSV::to_table(field_rows,CSV::project::make_heading_projection(csv_heading_id))) {
-            for (auto const& field_row : table->rows) {
-              if (auto o_ta = CSV::NORDEA::to_tagged_amount(field_row,table->heading)) {
-                dota.insert(*o_ta);
-              }
-              else {
-                std::cout << "\nSorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
-              }
-            }            
+      auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
+      if (auto table = CSV::to_table(field_rows,heading_projection)) {
+        auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,table->heading);
+        for (auto const& field_row : table->rows) {
+          if (auto o_ta = to_tagged_amount(field_row)) {
+            dota.insert(*o_ta);
           }
           else {
-            std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << path << " to a CVS::Table with known heading and data content";
+            std::cout << "\nSorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
           }
-        } break;
-        case CSV::project::HeadingId::SKV: {
-          // auto to_heading = [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
-          //   // Assume this is row 0 of an SKV-file which in turn we assume is from SKV, the swedish tax agency, with transactions on 'our' tax account
-          //   // This mean we have no column names in the file and need to hard code them.
-          //   if (field_row.size() == 5) {
-          //     return CSV::TableHeading{{"Bokföringsdag","Rubrik","Belopp","Kolumn_4","Kolumn_5"}};
-          //   }
-          //   else {
-          //     return std::nullopt;
-          //   }
-          // };
-          if (auto table = CSV::to_table(field_rows,CSV::project::make_heading_projection(csv_heading_id))) {
-            for (auto const& field_row : table->rows) {
-              if (auto o_ta = CSV::SKV::to_tagged_amount(field_row,table->heading)) {
-                dota.insert(*o_ta);
-              }
-              else {
-                std::cout << "\nSorry, Failed to create tagged amount from field_row " << field_row;
-              }
-            }
-          }
-          else {
-            std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << path << " to a CVS::Table with known heading and data content";
-          }
-        } break;
-        default: {
-          // Skip this file (not a known count of values per row)
-          std::cout << "\n*Skipped file* " << path << " with csv_heading_id = " << static_cast<int>(csv_heading_id) << ". ERROR, unknown file content)";
-        }
+        }            
       }
-		}
+      else {
+        std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << path << " to a CVS::Table with known heading and data content";
+      }
+    }
 	}
 	if (dota.size() > 0) result = dota;
 
