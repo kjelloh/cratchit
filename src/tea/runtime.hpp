@@ -45,11 +45,11 @@ namespace TEA {
       spdlog::info("Runtime::run - BEGIN");
 
       int ch = ' '; // Variable to store the user's input
-      
-      // Initialize the head (UI system) with encoding from RuntimeEncoding
-      auto target_encoding = RuntimeEncoding::detected_encoding();
+
+      RuntimeEncoding runtime_encoding{};
+      auto target_encoding = runtime_encoding.detected_encoding();
       spdlog::info("TEA::Runtime: Initializing head with encoding: {}", 
-                   RuntimeEncoding::get_encoding_display_name());
+                   runtime_encoding.get_encoding_display_name());
       m_head->initialize(target_encoding);
 
       std::queue<Msg> msg_q{};

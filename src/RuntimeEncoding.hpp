@@ -10,25 +10,14 @@
 class RuntimeEncoding {
 public:
   using DetectedEncoding = encoding::icu::DetectedEncoding;
+  RuntimeEncoding();
   // Get/Set the encoding that TEA::Runtime assumes for terminal I/O
-  static DetectedEncoding detected_encoding();
-  // static void set_assumed_terminal_encoding(DetectedEncoding encoding);
+  DetectedEncoding detected_encoding();
   
   // Helper functions
-  static std::string get_encoding_display_name();
-  static std::string get_encoding_canonical_name();
-  // static bool is_utf8_mode();
-  // static bool supports_unicode();
-  
-  // Unicode conversion helpers
-  // static icu::UnicodeString to_unicode(const std::string& encoded_text);
-  // static icu::UnicodeString to_unicode(const std::string& encoded_text, DetectedEncoding encoding);
-  // static std::string from_unicode(const icu::UnicodeString& unicode_text);
-  // static std::string from_unicode(const icu::UnicodeString& unicode_text, DetectedEncoding encoding);
-  
-  // // Initialize with default assumption (UTF-8)
-  // static void initialize_defaults();
-  
+  std::string get_encoding_display_name();
+  std::string get_encoding_canonical_name();
+    
 private:
-  static DetectedEncoding m_detected_encoding;
+  DetectedEncoding m_detected_encoding;
 };
