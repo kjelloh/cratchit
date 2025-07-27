@@ -12,7 +12,8 @@ namespace first {
   // ----------------------------------
 
   int main(int argc, char *argv[]) {
-    auto ncurses_head = std::make_unique<TEA::NCursesHead>();
+    auto runtime_encoding = to_inferred_runtime_encoding();
+    auto ncurses_head = std::make_unique<TEA::NCursesHead>(runtime_encoding);
     CratchitRuntime app(init,view,update,std::move(ncurses_head));
     return app.run(argc,argv);
   }

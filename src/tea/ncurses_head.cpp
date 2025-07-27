@@ -143,16 +143,13 @@ namespace TEA {
         }
     }
 
-    void NCursesHead::initialize(RuntimeEncoding::DetectedEncoding target_encoding) {
+    void NCursesHead::initialize() {
         if (m_initialized) {
             return;
         }
-        
-        // Store the target encoding
-        m_target_encoding = target_encoding;
-        
+                
         spdlog::info("NCursesHead: Initializing with target encoding: {}", 
-                     encoding::icu::EncodingDetector::enum_to_display_name(target_encoding));
+                     this->m_runtime_endoding.get_encoding_display_name());
         
         // Setup encoding support
         bool encoding_ok = setup_encoding_support();
@@ -196,7 +193,7 @@ namespace TEA {
       while (true) {
         auto nc_key = getch();
 
-        switch (m_target_encoding) {
+        switch (m_runtime_endoding.detected_encoding()) {
           case encoding::icu::DetectedEncoding::UTF8: {
             // transform utf-8 to unicode code point
             if (auto cp = m_utf8_to_unicode_buffer.push(nc_key)) {
@@ -218,7 +215,7 @@ namespace TEA {
     }
 
     bool NCursesHead::setup_encoding_support() {
-        switch (m_target_encoding) {
+        switch (m_runtime_endoding.detected_encoding()) {
             case encoding::icu::DetectedEncoding::UTF8: {
                 // Try to set UTF-8 locale using setlocale approach
                 spdlog::info("NCursesHead: Setting up UTF-8 support using setlocale");
@@ -254,7 +251,7 @@ namespace TEA {
             case encoding::icu::DetectedEncoding::ISO_8859_1:
             case encoding::icu::DetectedEncoding::CP437: {
                 spdlog::warn("NCursesHead: Non-UTF8 encoding requested: {}, falling back to ASCII", 
-                           encoding::icu::EncodingDetector::enum_to_display_name(m_target_encoding));
+                           m_runtime_endoding.get_encoding_display_name());
                 m_encoding_support = EncodingSupport::ASCII_FALLBACK;
                 m_encoding_error_message = "Non-UTF8 encoding not supported - using ASCII fallback";
                 return false;
@@ -262,7 +259,7 @@ namespace TEA {
             
             default: {
                 spdlog::error("NCursesHead: Unsupported encoding: {}", 
-                            encoding::icu::EncodingDetector::enum_to_display_name(m_target_encoding));
+                            m_runtime_endoding.get_encoding_display_name());
                 m_encoding_support = EncodingSupport::FAILED;
                 m_encoding_error_message = "Unsupported encoding - terminal display may be corrupted";
                 return false;

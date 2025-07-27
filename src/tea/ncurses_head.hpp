@@ -18,10 +18,10 @@ namespace TEA {
     // NCurses-based UI implementation with encoding awareness
     class NCursesHead : public Head {
     public:
-        NCursesHead() = default;
+        NCursesHead(RuntimeEncoding const& runtime_endoding) : Head{runtime_endoding} {}
         ~NCursesHead() override;
         
-        void initialize(RuntimeEncoding::DetectedEncoding target_encoding) override;
+        void initialize() override;
         void render(const pugi::xml_document& doc) override;
         int get_input() override;
         void cleanup() override;
@@ -29,7 +29,6 @@ namespace TEA {
     private:
         bool m_initialized = false;
         EncodingSupport m_encoding_support = EncodingSupport::FAILED;
-        RuntimeEncoding::DetectedEncoding m_target_encoding = RuntimeEncoding::DetectedEncoding::UTF8;
         std::string m_encoding_error_message;
         
         // Encoding initialization

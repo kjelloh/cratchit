@@ -7,10 +7,10 @@ namespace TEA {
     // Test-friendly Head implementation - minimal no-op implementation
     class TestHead : public Head {
     public:
-        TestHead() = default;
+        TestHead() : Head{} {}
         ~TestHead() override = default;
         
-        void initialize(RuntimeEncoding::DetectedEncoding target_encoding) override;
+        void initialize() override;
         void render(const pugi::xml_document& doc) override;
         int get_input() override;
         void cleanup() override;

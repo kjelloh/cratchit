@@ -167,6 +167,7 @@ namespace encoding {
   namespace icu {
     // Encoding Detection Service using ICU
     enum class DetectedEncoding {
+      Undefined,
       UTF8,
       UTF16BE,
       UTF16LE, 

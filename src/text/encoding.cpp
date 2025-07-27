@@ -393,6 +393,7 @@ namespace encoding {
     }
 
     DetectedEncoding EncodingDetector::canonical_name_to_enum(std::string const& canonical_name) {
+      if (canonical_name == "Undefined") return DetectedEncoding::Undefined;
       if (canonical_name == "UTF-8") return DetectedEncoding::UTF8;
       if (canonical_name == "UTF-16BE") return DetectedEncoding::UTF16BE;
       if (canonical_name == "UTF-16LE") return DetectedEncoding::UTF16LE;
@@ -407,6 +408,7 @@ namespace encoding {
 
     std::string EncodingDetector::enum_to_display_name(DetectedEncoding encoding) {
       switch (encoding) {
+        case DetectedEncoding::Undefined: return "Undefined";
         case DetectedEncoding::UTF8: return "UTF-8";
         case DetectedEncoding::UTF16BE: return "UTF-16 Big Endian";
         case DetectedEncoding::UTF16LE: return "UTF-16 Little Endian";

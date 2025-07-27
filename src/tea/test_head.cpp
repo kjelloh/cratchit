@@ -2,22 +2,15 @@
 
 namespace TEA {
 
-    void TestHead::initialize(RuntimeEncoding::DetectedEncoding target_encoding) {
-        // No-op for test environment - ignore encoding parameter
-        (void)target_encoding; // Suppress unused parameter warning
-    }
+    void TestHead::initialize() {}
 
-    void TestHead::render(const pugi::xml_document& doc) {
-        // No-op for test environment - don't render anything
-    }
+    void TestHead::render(const pugi::xml_document& doc) {}
 
     int TestHead::get_input() {
         // Always return 'q' to quit immediately in test environment
         return 'q';
     }
 
-    void TestHead::cleanup() {
-        // No-op for test environment
-    }
+    void TestHead::cleanup() {}
 
 } // namespace TEA

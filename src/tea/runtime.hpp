@@ -46,11 +46,7 @@ namespace TEA {
 
       int ch = ' '; // Variable to store the user's input
 
-      RuntimeEncoding runtime_encoding{};
-      auto target_encoding = runtime_encoding.detected_encoding();
-      spdlog::info("TEA::Runtime: Initializing head with encoding: {}", 
-                   runtime_encoding.get_encoding_display_name());
-      m_head->initialize(target_encoding);
+      m_head->initialize();
 
       std::queue<Msg> msg_q{};
       std::queue<Cmd> cmd_q{};
