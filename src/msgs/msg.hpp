@@ -6,8 +6,13 @@
 namespace first {
   // ----------------------------------
   struct NCursesKeyMsg : public MsgImpl {
-    int key;
-    NCursesKeyMsg(int key);
+    // int key;
+    // NCursesKeyMsg(int key);
+
+    // cratchit processes key-input as unicode code points.
+    // Also see NCursesHead::get_input() for UTF-8 -> unicode_int_code_point
+    int unicode_int_code_point;
+    NCursesKeyMsg(int unicode_int_code_point);
   };
 
   // ----------------------------------

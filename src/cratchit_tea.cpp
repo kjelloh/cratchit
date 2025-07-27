@@ -48,23 +48,23 @@ namespace first {
         }
         else if (auto key_msg_ptr = std::dynamic_pointer_cast<NCursesKeyMsg>(msg); key_msg_ptr != nullptr) {
           spdlog::info("cratchit::update:::try_state_update: - NCursesKeyMsg");
-          auto ch = key_msg_ptr->key;
-          if (auto update_result = model.ui_states.back()->update_options().apply(ch)) {
+          auto unicode_int_code_point = key_msg_ptr->unicode_int_code_point;
+          if (auto update_result = model.ui_states.back()->update_options().apply(unicode_int_code_point)) {
             return update_result;
           }
-          else if (ch == 'q') {
+          else if (unicode_int_code_point == 'q') {
             if (model.ui_states.size() <= 1) {
               return {std::nullopt,DO_QUIT};
             }
           }
-          else if (ch == '-') {
+          else if (unicode_int_code_point == '-') {
             // Default pop-state (no payload child -> parent state)
             // 250714 - Only required for 'dummy' state pushed as StateImpl instance (prototyping)
             return {std::nullopt,[]() -> std::optional<Msg>{
               return std::make_shared<PopStateMsg>();
             }};
           }
-          spdlog::info("try_state_update: NCursesKeyMsg -  No handler for key {}",ch);
+          spdlog::info("try_state_update: NCursesKeyMsg -  No handler for key {}",unicode_int_code_point);
         }
       }
       spdlog::info("cratchit::update:::try_state_update: No handling found for this message");
@@ -192,9 +192,9 @@ namespace first {
       }
       
 
-      for (auto const& [ch, update_option] : model.ui_states.back()->update_options().view()) {
+      for (auto const& [unicode_int_code_point, update_option] : model.ui_states.back()->update_options().view()) {
         std::string entry{};
-        entry.push_back(ch);
+        entry.push_back(unicode_int_code_point);
         entry.append(" = ");
         entry.append(update_option.first);
         entry.push_back('\n');

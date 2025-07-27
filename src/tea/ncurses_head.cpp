@@ -204,16 +204,32 @@ namespace TEA {
       while (true) {
         auto nc_key = getch();
 
+        if (nc_key > KEY_MIN) {
+          // TODO: Consider to implement a mechanism to transfer special keys
+          //       that does not conflict with unicode values
+          return '?';
+        } 
+        
         switch (m_runtime_endoding.detected_encoding()) {
           case encoding::icu::DetectedEncoding::UTF8: {
             // buffer-transform utf-8 to unicode code point
             if (auto cp = m_utf8_to_unicode_buffer.push(nc_key)) {
-              // Unicode Code point complete
+              // UTF-8 Unicode Code point complete
               return *cp;
+              // 20250727 - Note that for ASCII (english) and Latin-1 runtimes the code pints
+              //            fits in one byte 00..FF. But potentially other runtime character sets
+              //            may map to unicode code points > 0xFF.
+              //            It is as of this writing unclear if the resulting code point
+              //            here may conflict with NCurses special key values?
+              //            If cratchit behaves 'strange' for special keys it may be because
+              //            the unicode for the pressed key in the runtime character set
+              //            conflicts with an NCurses special key.
+              //            Though: As long as cratchit does not have any actions mapped to 
+              //            special keys this should not be any problem?
             }
           } break;
           default: {
-            return nc_key; // default single char code points
+            return nc_key; // default single 'int' code points / key events
           }
         }
       }

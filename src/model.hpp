@@ -42,8 +42,8 @@ namespace first {
         return {std::nullopt}; // Not our concern
       }
       
-      auto ch = key_msg->key;
-      return handle_char_input(ch);
+      auto unicode_int_code_point = key_msg->unicode_int_code_point;
+      return handle_key_event(unicode_int_code_point);
     }
 
     std::string buffer() const {
@@ -107,8 +107,8 @@ namespace first {
       return result;
     }
 
-    UpdateResult handle_char_input(int ch) const {
-      if (!m_buffer->isEmpty() && ch == 127) { // Backspace
+    UpdateResult handle_key_event(int unicode_int_code_point) const {
+      if (!m_buffer->isEmpty() && unicode_int_code_point == 127) { // Backspace
         // Remove last grapheme cluster using Unicode-aware method
         auto char_count = m_buffer->countChar32();
         if (char_count > 0) {
@@ -116,12 +116,12 @@ namespace first {
           return make_result(with_buffer(immer::box<icu::UnicodeString>(new_buffer)));
         }
       }
-      else if (u_isprint(static_cast<UChar32>(ch))) {
+      else if (u_isprint(static_cast<UChar32>(unicode_int_code_point))) {
         // Append Unicode code point to buffer
-        auto new_buffer = *m_buffer + static_cast<UChar32>(ch);
+        auto new_buffer = *m_buffer + static_cast<UChar32>(unicode_int_code_point);
         return make_result(with_buffer(immer::box<icu::UnicodeString>(new_buffer)));
       }
-      else if (!m_buffer->isEmpty() && ch == '\n') {
+      else if (!m_buffer->isEmpty() && unicode_int_code_point == '\n') {
         // Convert Unicode buffer to UTF-8 string for the message
         std::string utf8_entry;
         m_buffer->toUTF8String(utf8_entry);
