@@ -1,7 +1,7 @@
 #pragma once
 
 #include "StateImpl.hpp"
-#include "csv/csv.hpp"
+#include "csv/projections.hpp"
 #include "text/encoding.hpp"
 #include <string>
 #include <filesystem>
@@ -9,11 +9,6 @@
 
 namespace first {
   class AccountStatementFileState : public StateImpl {
-  private:
-    std::filesystem::path m_file_path;
-    mutable std::optional<CSV::OptionalTable> m_cached_table;
-    mutable std::optional<std::string> m_cached_encoding;
-
   public:
     AccountStatementFileState(const AccountStatementFileState&) = delete;
     AccountStatementFileState(std::filesystem::path file_path);
@@ -26,8 +21,17 @@ namespace first {
     const std::filesystem::path& file_path() const { return m_file_path; }
 
   private:
-    std::string detect_encoding() const;
-    CSV::OptionalTable parse_csv_content() const;
+    struct ParseCSVResult {
+      encoding::icu::EncodingDetectionResult icu_detection_result;
+      CSV::project::HeadingId heading_id;
+      CSV::OptionalTable maybe_table;
+    };    
+
+    std::filesystem::path m_file_path;
+    ParseCSVResult m_parse_csv_result;
+
+    std::string encoding_caption() const;
+    ParseCSVResult try_parse_csv() const;
 
   }; // AccountStatementFileState
 }

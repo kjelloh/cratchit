@@ -93,7 +93,7 @@ namespace first {
     static Cmd cmd_from_state_factory(StateFactory factory);
 
   protected:
-    std::optional<std::string> m_caption;
+    mutable std::optional<std::string> m_caption; // transient caption
   private:
     // 'Transient' data = not regarded as immutable
     mutable std::optional<StateImpl::UpdateOptions> m_transient_maybe_update_options;

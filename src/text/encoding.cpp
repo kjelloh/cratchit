@@ -1,6 +1,5 @@
 #include "encoding.hpp"
 #include <deque>
-#include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <filesystem>
@@ -18,7 +17,7 @@ namespace encoding {
     using std_overload::operator<<; // to 'see' the defined overload for std::array
     auto original_pos = is.tellg();
     if (is >> bom.value) {
-      if (bom.value == BOM::UTF8_VALUE) {
+      if (bom.value == BOM::UTF8_VALUE) {      
         // std::cout << "\noperator>>(BOM) consumed from read file. bom:" << bom.value;
       }
       else {
@@ -46,7 +45,9 @@ namespace encoding {
     BOM candidate{};
 
     if (raw_in >> candidate) {
-      std::cout << "\nConsumed BOM:" << candidate;
+      std::ostringstream oss{};
+      oss << "\nConsumed BOM:" << candidate;
+      spdlog::info(oss.str());
       this->bom = candidate;
     }
     else {
@@ -96,9 +97,11 @@ namespace encoding {
       encoding::UTF8::ostream utf8_os{os};
       for (auto cp : s) utf8_os << cp;
       if (false) {
-        std::cout << "\nunicode_to_utf8(";
-        for (auto ch : s) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
-        std::cout << ") --> " << std::quoted(os.str());
+        std::ostringstream oss{};
+        oss << "\nunicode_to_utf8(";
+        for (auto ch : s) oss << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
+        oss << ") --> " << std::quoted(os.str());
+        spdlog::info(oss.str());
       }
       return os.str();
     }
@@ -166,10 +169,12 @@ namespace encoding {
         }
       }
       if (false) {
-        std::cout << "\nutf8ToUnicode(";
-        for (auto ch : s_utf8) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
-        std::cout << ") --> ";
-        for (auto ch : result) std::cout << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
+        std::ostringstream oss{};
+        oss << "\nutf8ToUnicode(";
+        for (auto ch : s_utf8) oss << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
+        oss << ") --> ";
+        for (auto ch : result) oss << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
+        spdlog::info(oss.str());
       }
 
       return result;
@@ -182,7 +187,10 @@ namespace encoding {
     istream::istream(std::istream& in) : bom_istream{in} {
       if (this->bom) {
         // We expect the input stream to be without BOM
-        std::cout << "\nSorry, Expected ISO8859-1 stream but found bom:" << *(this->bom);
+        std::ostringstream oss{};
+        oss << "\nSorry, Expected ISO8859-1 stream but found bom:" << *(this->bom);
+        spdlog::info(oss.str());
+
         this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
       }
     }
@@ -194,7 +202,10 @@ namespace encoding {
     istream::istream(std::istream& in) : bom_istream{in} {
       if (this->bom) {
         // We expect the input stream to be without BOM
-        std::cout << "\nSorry, Expected CP437 (SIE-file) stream but found bom:" << *(this->bom);
+        std::ostringstream oss{};
+        oss << "\nSorry, Expected CP437 (SIE-file) stream but found bom:" << *(this->bom);
+        spdlog::info(oss.str());
+
         this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
       }
     }
@@ -207,7 +218,10 @@ namespace encoding {
       if (this->bom) {
         if (this->bom->value != BOM::UTF8_VALUE) {
           // We expect the input stream to be in UTF8 and thus any BOM must confirm this
-          std::cout << "\nSorry, Expected an UTF8 input stream but found contradicting BOM:" << *(this->bom);
+          std::ostringstream oss{};
+          oss << "\nSorry, Expected an UTF8 input stream but found contradicting BOM:" << *(this->bom);
+          spdlog::info(oss.str());
+
           this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
         }
       }

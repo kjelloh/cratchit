@@ -6,13 +6,17 @@
 namespace first {
   
   AccountStatementFileState::AccountStatementFileState(std::filesystem::path file_path)
-    : StateImpl{}, m_file_path{std::move(file_path)} {}
+    :  StateImpl{}
+      ,m_file_path{std::move(file_path)}
+      ,m_parse_csv_result{this->try_parse_csv()} {
+  }
 
   std::string AccountStatementFileState::caption() const {
-    if (m_caption.has_value()) {
-      return m_caption.value();
+    if (not m_caption.has_value()) {
+      auto ec = encoding_caption();
+      m_caption = std::format("File: {} [{}]", m_file_path.filename().string(), ec);
     }
-    return std::format("CSV File: {}", m_file_path.filename().string());
+    return m_caption.value();
   }
 
   StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
@@ -33,17 +37,15 @@ namespace first {
 
   StateImpl::UX AccountStatementFileState::create_ux() const {
     UX result{};
-    
-    auto encoding = detect_encoding();
-    result.push_back(std::format("File: {} [{}]", m_file_path.filename().string(), encoding));
+
+    result.push_back(this->caption());    
     result.push_back("");
     
-    auto table = parse_csv_content();
-    if (table && table.has_value()) {
-      auto& csv_table = table.value();
+    if (m_parse_csv_result.maybe_table) {
+      auto& csv_table = m_parse_csv_result.maybe_table.value();
       
       // Calculate column widths for fixed-width formatting
-      std::vector<size_t> column_widths;
+      std::vector<size_t> column_widths{};
       if (csv_table.heading.size() > 0) {
         column_widths.resize(csv_table.heading.size());
         
@@ -92,15 +94,30 @@ namespace first {
       size_t max_rows = std::min(size_t(10), csv_table.rows.size());
       for (size_t i = 0; i < max_rows; ++i) {
         auto& row = csv_table.rows[i];
-        std::string row_line;
+        std::string row_line{};
         for (size_t j = 0; j < std::min(row.size(), column_widths.size()); ++j) {
           if (j > 0) row_line += " | ";
           std::string field = row[j];
+          if (true) {
+            field = "";
+            // Detect / filter control characters
+            for (int ix=0;ix<row[j].size();++ix) {
+              auto ch = row[j][ix];
+              if (static_cast<unsigned char>(ch) < ' ') {
+                field += std::format("<{}>",static_cast<unsigned char>(ch));
+              }
+              else {
+                field.push_back(ch);
+              }
+            }
+          }
+          else {
+          }
           // Truncate field if too long
           if (field.length() > column_widths[j]) {
             field = field.substr(0, column_widths[j] - 3) + "...";
           }
-          row_line += std::format("{:<{}}", field, column_widths[j]);
+          row_line += std::format("{:<{}}",field, column_widths[j]);
         }
         result.push_back(row_line);
       }
@@ -118,52 +135,39 @@ namespace first {
     return result;
   }
 
-  std::string AccountStatementFileState::detect_encoding() const {
-    if (m_cached_encoding.has_value()) {
-      return *m_cached_encoding;
-    }
-    
-    // Use ICU-based encoding detection
-    auto detection_result = encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
-    
+  std::string AccountStatementFileState::encoding_caption() const {        
     // Format display string with confidence and method
-    std::string encoding_display;
+    std::string result;
+    auto const& detection_result = m_parse_csv_result.icu_detection_result;
     if (detection_result.confidence >= 70) {
-      encoding_display = std::format("{} ({}%)", detection_result.display_name, detection_result.confidence);
+      result = std::format("{} ({}%)", detection_result.display_name, detection_result.confidence);
     } else {
-      encoding_display = std::format("{} ({}%, {})", detection_result.display_name, detection_result.confidence, detection_result.detection_method);
+      result = std::format("{} ({}%, {})", detection_result.display_name, detection_result.confidence, detection_result.detection_method);
     }
     
     // Add language info if detected
-    if (!detection_result.language.empty()) {
-      encoding_display += std::format(" [{}]", detection_result.language);
-    }
-    
-    m_cached_encoding = encoding_display;
-    return encoding_display;
+    if (detection_result.language.empty()) {
+      result += std::format(" [{}]", detection_result.language);
+    }    
+    return result;
   }
 
-  CSV::OptionalTable AccountStatementFileState::parse_csv_content() const {
-    if (m_cached_table.has_value()) {
-      return *m_cached_table;
-    }
-    
-    CSV::OptionalTable result;
+  AccountStatementFileState::ParseCSVResult AccountStatementFileState::try_parse_csv() const {
+    AccountStatementFileState::ParseCSVResult result{};
     
     try {
       std::ifstream ifs{m_file_path};
       if (!ifs.is_open()) {
         spdlog::error("Failed to open file: {}", m_file_path.string());
-        m_cached_table = result;
         return result;
       }
       
       CSV::OptionalFieldRows field_rows;
       
       // Use ICU detection to determine appropriate encoding stream
-      auto detection_result = encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
+      result.icu_detection_result = encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
       
-      switch (detection_result.encoding) {
+      switch (result.icu_detection_result.encoding) {
         case encoding::icu::DetectedEncoding::UTF8: {
           encoding::UTF8::istream utf8_in{ifs};
           field_rows = CSV::to_field_rows(utf8_in, ';');
@@ -184,29 +188,18 @@ namespace first {
         
         default: {
           spdlog::error("Unsupported encoding {} for CSV parsing: {}", 
-                        detection_result.display_name, m_file_path.string());
-          m_cached_table = result; // Cache the failure
-          return result; // Return nullopt - explicit failure
+                        result.icu_detection_result.display_name, m_file_path.string());
         }
       }
       
       if (field_rows && !field_rows->empty()) {
-        // Create a generic heading function that works for any CSV structure
-        auto to_heading = [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
-          if (field_row.size() > 0) {
-            return field_row; // Use first row as heading
-          }
-          return std::nullopt;
-        };
-        
-        result = CSV::to_table(field_rows, to_heading);
-      }
-      
+        result.heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
+        auto heading_projection = CSV::project::make_heading_projection(result.heading_id);
+        result.maybe_table = CSV::to_table(field_rows,heading_projection);
+      }      
     } catch (const std::exception& e) {
       spdlog::error("Failed to parse CSV file {}: {}", m_file_path.string(), e.what());
-    }
-    
-    m_cached_table = result;
+    }    
     return result;
   }
 
