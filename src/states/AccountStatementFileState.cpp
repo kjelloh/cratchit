@@ -8,9 +8,6 @@ namespace first {
   AccountStatementFileState::AccountStatementFileState(std::filesystem::path file_path)
     : StateImpl{}, m_file_path{std::move(file_path)} {}
 
-  AccountStatementFileState::AccountStatementFileState(std::optional<std::string> caption, std::filesystem::path file_path)
-    : StateImpl{caption}, m_file_path{std::move(file_path)} {}
-
   std::string AccountStatementFileState::caption() const {
     if (m_caption.has_value()) {
       return m_caption.value();
