@@ -1,6 +1,6 @@
 #include "FrameworkState.hpp"
 #include "WorkspaceState.hpp"
-#include "spdlog/spdlog.h"
+#include "logger/log.hpp"
 
 namespace first {
 

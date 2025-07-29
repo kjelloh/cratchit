@@ -3,7 +3,7 @@
 #include <cstdlib>      // For setenv
 #include <locale.h>     // For setlocale
 #include <clocale>      // For LC_ALL
-#include "spdlog/spdlog.h"
+#include "logger/log.hpp"
 
 namespace TEA {
 

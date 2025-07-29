@@ -1,23 +1,19 @@
 #include "projections.hpp"
 #include <sstream> // std::ostringstream,
-#include "spdlog/spdlog.h"
+#include "logger/log.hpp"
 
 namespace CSV {
   namespace project {
     HeadingId to_csv_heading_id(FieldRow const& field_row) {
       HeadingId result{HeadingId::Undefined};
       if (true) {
-        std::ostringstream oss{};
-        oss << "\nfield_row.size() = " << field_row.size();
-        oss << "\nto_csv_heading_id(field_row:" << std::quoted(to_string(field_row)) << ")";
-        for (auto const& field : field_row) oss << "\n\t[" << "]" << std::quoted(field);
-        spdlog::info(oss.str());
+        logger::cout_proxy << "\nfield_row.size() = " << field_row.size();
+        logger::cout_proxy << "\nto_csv_heading_id(field_row:" << std::quoted(to_string(field_row)) << ")";
+        for (auto const& field : field_row) logger::cout_proxy << "\n\t[" << "]" << std::quoted(field);
       }
       if (field_row.size() >= 10) {
         if (true) {
-          std::ostringstream oss{};
-          oss << "\nNORDEA File candidate ok";
-          spdlog::info(oss.str());
+          logger::cout_proxy << "\nNORDEA File candidate ok";
         }
         // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Rubrik;Meddelande;Egna anteckningar;Saldo;Valuta
         // Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
@@ -40,9 +36,7 @@ namespace CSV {
       }
       else if (field_row.size() == 5) {
         if (true) {
-          std::ostringstream oss{};
-          oss << "\nSKV File candidate ok";
-          spdlog::info(oss.str());
+          logger::cout_proxy << "\nSKV File candidate ok";
         }
         result = HeadingId::SKV;
       }
@@ -65,9 +59,7 @@ namespace CSV {
               // NOTE: This approach makes Cratchit dependent on the naming chosen by Nordea in its web bank generated CSV-file...
             }
             else {
-              std::ostringstream oss{};
-              oss << "\nDESIGN_INSUFFICIENCY: Failed to use provied field_row " << field_row << " to return a table heading. Insufficient field_row.size()=" << field_row.size();
-              spdlog::info(oss.str());
+              logger::cout_proxy << "\nDESIGN_INSUFFICIENCY: Failed to use provied field_row " << field_row << " to return a table heading. Insufficient field_row.size()=" << field_row.size();
               return std::nullopt;
             }
           };

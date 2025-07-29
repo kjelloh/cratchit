@@ -1,6 +1,6 @@
 #include "environment.hpp"
 #include "tokenize.hpp"
-#include "spdlog/spdlog.h"
+#include "logger/log.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>

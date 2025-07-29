@@ -8,7 +8,7 @@
 #include <unicode/ucsdet.h>  // ICU Character Set Detection
 #include <unicode/ucnv.h>    // ICU Converter API
 #include <unicode/ustring.h> // ICU String utilities
-#include "spdlog/spdlog.h"
+#include "logger/log.hpp"
 
 namespace encoding {
 
