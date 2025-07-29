@@ -1,7 +1,7 @@
 #include "HADsState.hpp"
 #include "HADState.hpp"
 #include "tokenize.hpp"
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <algorithm> // std::ranges::find,
 
 namespace first {

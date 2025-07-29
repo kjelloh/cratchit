@@ -11,7 +11,7 @@
 #include <ncurses.h>
 #include <queue>
 #include <format>
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <csignal> // std::signal
 
 // The Elm Aarchitecture

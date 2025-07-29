@@ -1,6 +1,6 @@
 #include "WorkspaceState.hpp"
 #include "ProjectState.hpp"
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <ranges>
 #include <algorithm>
 

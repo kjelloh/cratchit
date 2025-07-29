@@ -5,7 +5,7 @@
 #include <regex>
 #include <sstream>         // std::istringstream,
 #include <unicode/regex.h> // icu::RegexPattern, U_ZERO_ERROR
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 
 
 namespace tokenize {

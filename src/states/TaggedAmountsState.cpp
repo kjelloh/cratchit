@@ -1,6 +1,6 @@
 #include "TaggedAmountsState.hpp"
 #include "TaggedAmountState.hpp"
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <algorithm>
 #include <ranges>
 

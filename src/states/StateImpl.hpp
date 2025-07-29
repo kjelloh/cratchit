@@ -7,7 +7,7 @@
 #include <string>
 #include <utility> // std::pair
 #include <map>
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <algorithm> // std::ranges::find,
 #include <ranges> // std::views::transform,
 

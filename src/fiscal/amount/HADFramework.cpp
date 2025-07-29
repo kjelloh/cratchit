@@ -1,5 +1,5 @@
 #include "HADFramework.hpp"
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <algorithm> // std::transform
 #include <iterator> // std::back_inserter
 #include <stdexcept> // std::runtime_error

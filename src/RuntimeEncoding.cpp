@@ -1,6 +1,6 @@
 #include "RuntimeEncoding.hpp"
 #include "text/encoding.hpp"
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 
 #ifdef _WIN32
 #include <windows.h>

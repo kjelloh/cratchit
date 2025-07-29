@@ -2,7 +2,7 @@
 #include "FiscalPeriodState.hpp"
 #include "FiscalPeriod.hpp" // QuarterIndex,
 #include "diff_view.hpp"
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <format>
 #include <vector>
 #include <set>

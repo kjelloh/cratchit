@@ -1,6 +1,6 @@
 #include "FiscalPeriod.hpp"
 #include <format>
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 
 namespace first {
 

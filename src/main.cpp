@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <print>
-#include <spdlog/spdlog.h>
+#include "log/log.hpp"
 #include <spdlog/sinks/rotating_file_sink.h>
 #include "zeroth/main.cpp" // zeroth variant while refactoring into 'this' variant
 
