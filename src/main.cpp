@@ -40,7 +40,11 @@ int main(int argc, char *argv[]) {
         return tests::run_all();
     }
     else while (true) {
-        
+        // spdlog::info("\nmain: Before test of logger::cout_proxy");
+        logger::cout_proxy << "\nmain: Test of logger::cout_proxy 1";
+        logger::cout_proxy << "\nmain: Test of logger::cout_proxy 2";
+        logger::cout_proxy << "\nmain: Test of logger::cout_proxy 3" << std::flush;
+        spdlog::info("\nmain: After test of logger::cout_proxy");
         // Toggle between zeroth (older) and first (this variant) of cratching
         if (result = zeroth::main(argc, argv);result > 0) break;
         // std::cout << "\nCentral main sais Hello :)" << std::flush;
