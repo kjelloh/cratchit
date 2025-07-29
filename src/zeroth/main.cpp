@@ -10019,8 +10019,10 @@ private:
 // namespace to isolate this 'zeroth' variant of cratchin 'main' until refactored to 'next' variant
 // (This whole file conatins the 'zeroth' version of cratchit)
 namespace zeroth {
-	int main(int argc, char *argv[])
-	{
+	int main(int argc, char *argv[]) {
+
+    logger::business("zeroth::main sais << Hello >> --------------------------------- ");
+
 	if (true) {
 		auto map = sie::current_date_to_year_id_map(std::chrono::month{5},7);
 	}
@@ -10041,15 +10043,16 @@ namespace zeroth {
 		// std::cout << "\nPATH=" << sPATH;
 		}
 	
-	std::signal(SIGWINCH, handle_winch); // We need a signal handler to not confuse std::cin on console window resize
+  	std::signal(SIGWINCH, handle_winch); // We need a signal handler to not confuse std::cin on console window resize
 		std::string command{};
 		for (int i=1;i < argc;i++) command+= std::string{argv[i]} + " ";
 		auto current_path = std::filesystem::current_path();
 		auto environment_file_path = current_path / "cratchit.env";
 		REPL repl{environment_file_path};
 		repl.run(command);
-		// std::cout << "\nBye for now :)";
-	// std::cout << std::endl;
+
+    logger::business("zeroth::main sais >> Bye << -----------------------------------");
+
 		return 0;
 	}
 

@@ -10,10 +10,10 @@
 int main(int argc, char *argv[]) {
 
     // See https://github.com/gabime/spdlog
-    auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 5 * 1024 * 1024, 3);
+    auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 50 * 1024, 5);
     spdlog::set_default_logger(logger);
 
-    logger::cout_proxy << "\nCentral main sais Hello :)" << std::flush;
+    logger::business("Central main sais << Hello >> --------------------------------- ");
 
     for (int i = 0; i < argc; ++i) {
         spdlog::info("Argument {}: {}", i, argv[i]);
@@ -42,11 +42,15 @@ int main(int argc, char *argv[]) {
         return tests::run_all();
     }
     else while (true) {
+        static int loop_count{0};
+        logger::business("Central main: ping-pong-count:{}",++loop_count);
         // Toggle between zeroth (older) and first (this variant) of cratching
         if (result = zeroth::main(argc, argv);result > 0) break;
         // std::cout << "\nCentral main sais Hello :)" << std::flush;
         if (result = first::main(argc,argv);result == 0) break;
     }
-    logger::cout_proxy << "\nCentral main sais Bye :)" << std::flush;
+
+    logger::business("Central main sais >> Bye << -----------------------------------");
+
     return result;
 }
