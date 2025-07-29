@@ -53,6 +53,8 @@ namespace logger {
   };
 
   inline std_out_proxy cout_proxy{};
-  inline proxy business{"BUSINESS"};
+  inline proxy business{"BUSINESS"}; // Business log -> application user
+  inline proxy design_insufficiency{"DESIGN_INSUFFICIENCY"}; // Design insufficiency -> developer
+  inline proxy development_trace{"TRACE"}; // development trace -> developer
   
 } // log

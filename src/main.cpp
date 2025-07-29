@@ -44,6 +44,10 @@ int main(int argc, char *argv[]) {
     else while (true) {
         static int loop_count{0};
         logger::business("Central main: ping-pong-count:{}",++loop_count);
+
+        logger::design_insufficiency("Central main test of design_insufficiency log");
+        logger::development_trace("Central main test of development_trace log");
+        
         // Toggle between zeroth (older) and first (this variant) of cratching
         if (result = zeroth::main(argc, argv);result > 0) break;
         // std::cout << "\nCentral main sais Hello :)" << std::flush;
