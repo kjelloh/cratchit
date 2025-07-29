@@ -112,7 +112,7 @@ namespace encoding {
       // U+0800	U+FFFF										1110xxxx	10xxxxxx	10xxxxxx	
       // U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
       this->m_utf_8_buffer.push_back(b);
-      if (true) {
+      if (false) {
         logger::cout_proxy << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")" << std::dec;
         logger::cout_proxy << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
         for (auto ch : m_utf_8_buffer) logger::cout_proxy << "[" << std::hex << static_cast<unsigned int>(ch) << "]" << std::dec;
