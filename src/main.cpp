@@ -13,6 +13,8 @@ int main(int argc, char *argv[]) {
     auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 5 * 1024 * 1024, 3);
     spdlog::set_default_logger(logger);
 
+    logger::cout_proxy << "\nCentral main sais Hello :)" << std::flush;
+
     for (int i = 0; i < argc; ++i) {
         spdlog::info("Argument {}: {}", i, argv[i]);
         std::print("Argument {}: {}\n", i, argv[i]);
@@ -40,16 +42,11 @@ int main(int argc, char *argv[]) {
         return tests::run_all();
     }
     else while (true) {
-        // spdlog::info("\nmain: Before test of logger::cout_proxy");
-        logger::cout_proxy << "\nmain: Test of logger::cout_proxy 1";
-        logger::cout_proxy << "\nmain: Test of logger::cout_proxy 2";
-        logger::cout_proxy << "\nmain: Test of logger::cout_proxy 3" << std::flush;
-        spdlog::info("\nmain: After test of logger::cout_proxy");
         // Toggle between zeroth (older) and first (this variant) of cratching
         if (result = zeroth::main(argc, argv);result > 0) break;
         // std::cout << "\nCentral main sais Hello :)" << std::flush;
         if (result = first::main(argc,argv);result == 0) break;
     }
-    // std::cout << "\nCentral main sais Bye :)" << std::flush;
+    logger::cout_proxy << "\nCentral main sais Bye :)" << std::flush;
     return result;
 }
