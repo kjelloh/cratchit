@@ -45,9 +45,7 @@ namespace encoding {
     BOM candidate{};
 
     if (raw_in >> candidate) {
-      std::ostringstream oss{};
-      oss << "\nConsumed BOM:" << candidate;
-      spdlog::info(oss.str());
+      logger::cout_proxy << "\nConsumed BOM:" << candidate;
       this->bom = candidate;
     }
     else {
@@ -97,11 +95,9 @@ namespace encoding {
       encoding::UTF8::ostream utf8_os{os};
       for (auto cp : s) utf8_os << cp;
       if (false) {
-        std::ostringstream oss{};
-        oss << "\nunicode_to_utf8(";
-        for (auto ch : s) oss << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
-        oss << ") --> " << std::quoted(os.str());
-        spdlog::info(oss.str());
+        logger::cout_proxy << "\nunicode_to_utf8(";
+        for (auto ch : s) logger::cout_proxy << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
+        logger::cout_proxy << ") --> " << std::quoted(os.str());
       }
       return os.str();
     }
@@ -117,11 +113,9 @@ namespace encoding {
       // U+10000	[nb 2]U+10FFFF					11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
       this->m_utf_8_buffer.push_back(b);
       if (true) {
-        std::ostringstream oss{};
-        oss << "ToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")" << std::dec;
-        oss << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
-        for (auto ch : m_utf_8_buffer) oss << "[" << std::hex << static_cast<unsigned int>(ch) << "]" << std::dec;
-        spdlog::info(oss.str());
+        logger::cout_proxy << "\nToUnicodeBuffer::push(" << std::hex << static_cast<unsigned int>(b) << ")" << std::dec;
+        logger::cout_proxy << ":size:" << std::dec << m_utf_8_buffer.size() << " ";
+        for (auto ch : m_utf_8_buffer) logger::cout_proxy << "[" << std::hex << static_cast<unsigned int>(ch) << "]" << std::dec;
       }
       return this->to_unicode();
     }
@@ -169,12 +163,10 @@ namespace encoding {
         }
       }
       if (false) {
-        std::ostringstream oss{};
-        oss << "\nutf8ToUnicode(";
-        for (auto ch : s_utf8) oss << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
-        oss << ") --> ";
-        for (auto ch : result) oss << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
-        spdlog::info(oss.str());
+        logger::cout_proxy << "\nutf8ToUnicode(";
+        for (auto ch : s_utf8) logger::cout_proxy << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
+        logger::cout_proxy << ") --> ";
+        for (auto ch : result) logger::cout_proxy << " " << std::hex << static_cast<unsigned int>(ch) << std::dec;
       }
 
       return result;
@@ -187,9 +179,7 @@ namespace encoding {
     istream::istream(std::istream& in) : bom_istream{in} {
       if (this->bom) {
         // We expect the input stream to be without BOM
-        std::ostringstream oss{};
-        oss << "\nSorry, Expected ISO8859-1 stream but found bom:" << *(this->bom);
-        spdlog::info(oss.str());
+        logger::cout_proxy << "\nSorry, Expected ISO8859-1 stream but found bom:" << *(this->bom);
 
         this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
       }
@@ -202,9 +192,7 @@ namespace encoding {
     istream::istream(std::istream& in) : bom_istream{in} {
       if (this->bom) {
         // We expect the input stream to be without BOM
-        std::ostringstream oss{};
-        oss << "\nSorry, Expected CP437 (SIE-file) stream but found bom:" << *(this->bom);
-        spdlog::info(oss.str());
+        logger::cout_proxy << "\nSorry, Expected CP437 (SIE-file) stream but found bom:" << *(this->bom);
 
         this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
       }
@@ -218,9 +206,7 @@ namespace encoding {
       if (this->bom) {
         if (this->bom->value != BOM::UTF8_VALUE) {
           // We expect the input stream to be in UTF8 and thus any BOM must confirm this
-          std::ostringstream oss{};
-          oss << "\nSorry, Expected an UTF8 input stream but found contradicting BOM:" << *(this->bom);
-          spdlog::info(oss.str());
+          logger::cout_proxy << "\nSorry, Expected an UTF8 input stream but found contradicting BOM:" << *(this->bom);
 
           this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
         }
