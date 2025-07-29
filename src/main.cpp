@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <print>
-#include "log/log.hpp"
+#include "logger/log.hpp"
 #include <spdlog/sinks/rotating_file_sink.h>
 #include "zeroth/main.cpp" // zeroth variant while refactoring into 'this' variant
 
@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
         return tests::run_all();
     }
     else while (true) {
+        
         // Toggle between zeroth (older) and first (this variant) of cratching
         if (result = zeroth::main(argc, argv);result > 0) break;
         // std::cout << "\nCentral main sais Hello :)" << std::flush;

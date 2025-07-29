@@ -4,7 +4,7 @@
 #include <memory> // std::unique_ptr,
 #include <sstream> // std::ostringstream,
 
-namespace log {
+namespace logger {
   class std_out_proxy {
   public:
     template <typename T>

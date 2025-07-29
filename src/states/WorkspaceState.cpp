@@ -1,6 +1,6 @@
 #include "WorkspaceState.hpp"
 #include "ProjectState.hpp"
-#include "log/log.hpp"
+#include "logger/log.hpp"
 #include <ranges>
 #include <algorithm>
 

@@ -1,6 +1,6 @@
 #include "StateImpl.hpp"
 #include "to_type_name.hpp"
-#include "log/log.hpp"
+#include "logger/log.hpp"
 #include <unicode/uchar.h>  // for u_isprint
 #include "msgs/msg.hpp"  // for NCursesKeyMsg
 

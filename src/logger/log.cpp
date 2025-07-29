@@ -1,7 +1,7 @@
 #include "log.hpp"
 #include <string_view>
 
-log::std_out_proxy& log::std_out_proxy::operator<<(std::ostream& (*manip)(std::ostream&)) {
+logger::std_out_proxy& logger::std_out_proxy::operator<<(std::ostream& (*manip)(std::ostream&)) {
   oss << manip;
   try_flush_to_spdlog();
   return *this;
@@ -9,7 +9,7 @@ log::std_out_proxy& log::std_out_proxy::operator<<(std::ostream& (*manip)(std::o
 
 // New line
 
-void log::std_out_proxy::try_flush_to_spdlog() {
+void logger::std_out_proxy::try_flush_to_spdlog() {
     std::string buffer = this->oss.str();  // Get hold of copy (oss.str() is not a cont&)
 
     std::string_view view(buffer);

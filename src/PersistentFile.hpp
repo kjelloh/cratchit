@@ -7,7 +7,7 @@
 #include <vector>
 #include <regex>
 #include <algorithm>
-#include "log/log.hpp"
+#include "logger/log.hpp"
 
 struct PruningPolicy {
     std::optional<size_t> max_count = 10;           // Keep max 10 backups
