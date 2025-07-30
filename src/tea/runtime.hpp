@@ -4,6 +4,7 @@
 #include "to_type_name.hpp"
 #include "head.hpp"
 #include "RuntimeEncoding.hpp"
+#include "ThreadSafeT.hpp"
 #include <functional>
 #include <memory>
 #include <pugixml.hpp>
@@ -28,14 +29,26 @@ namespace TEA {
       std::map<std::string,std::function<std::optional<Msg>(Event)>> event_handlers{};
   };
 
+  // Asumes Q = ThreadSafe<std::queue<...>>
   template <class Q>
-  std::optional<std::decay_t<decltype(std::declval<Q&>().front())>> try_pop(Q& q) {
-      if (q.size() > 0) {
-          auto item = q.front();
-          q.pop();
-          return item; // will copy or move the value
+  using front_result_t = decltype(
+    std::declval<Q&>().apply(
+      [](auto const& q) {
+        return q.front(); 
+      }));
+
+  // Asumes Q = ThreadSafe<std::queue<...>>
+  template <class Q>
+  decltype(auto) try_pop(Q& thread_safe_q) {
+    using return_type = std::optional<std::decay_t<front_result_t<Q>>>;
+    return thread_safe_q.apply([](auto& std_q){
+      if (std_q.size() > 0) {
+          auto item = std_q.front();
+          std_q.pop();
+          return return_type{item};
       }
-      return std::nullopt;
+      return return_type{};
+    });
   }
 
   template <typename Model, typename Msg, typename Cmd>
@@ -58,15 +71,19 @@ namespace TEA {
 
       m_head->initialize();
 
-      std::queue<Msg> msg_q{};
-      std::queue<Cmd> cmd_q{};
+      ThreadSafeT<std::queue<Msg>> msg_q{};
+      ThreadSafeT<std::queue<Cmd>> cmd_q{};
       auto [model, is_quit_msg, cmd] = m_init();
-      cmd_q.push(cmd);
+      cmd_q.apply([&cmd](auto& q){q.push(cmd);});
       // Main loop
       int loop_count{};
       while (true) {
 
-        spdlog::info("Runtime::run loop_count: {}, cmd_q size: {}, msg_q size: {}", loop_count,cmd_q.size(), msg_q.size());
+        spdlog::info(
+           "Runtime::run loop_count: {}, cmd_q size: {}, msg_q size: {}"
+          ,loop_count
+          ,cmd_q.apply([](auto const& q){return q.size();})
+          ,msg_q.apply([](auto const& q){return q.size();}));
 
         // render the ux
         auto ui = m_view(model);
@@ -82,7 +99,7 @@ namespace TEA {
               spdlog::default_logger()->flush();
               const Msg &msg = *opt_msg;
               if (msg) {
-                msg_q.push(msg);
+                msg_q.apply([&msg](auto& q){q.push(msg);});
                 spdlog::info("Runtime::run: Msg pushed");
               } else {
                 spdlog::warn("Runtime::run: Command returned null message!");
@@ -111,14 +128,16 @@ namespace TEA {
           // Run the message though the client
           auto const &[m, cmd] = m_update(model, msg);
           model = m;
-          cmd_q.push(cmd);
+          cmd_q.apply([&cmd](auto& q){q.push(cmd);});
         } else {
           // Wait for user input
           ch = m_head->get_input();
           spdlog::info("Runtime::run ch={}",ch);
           if (ui.event_handlers.contains("OnKey")) {
             Event key_event{{"Key",std::to_string(ch)}};
-            if (auto optional_msg = ui.event_handlers["OnKey"](key_event)) msg_q.push(*optional_msg);
+            if (auto optional_msg = ui.event_handlers["OnKey"](key_event)) {
+              msg_q.apply([&optional_msg](auto& q){q.push(*optional_msg);});
+            }
           }
           else {
             throw std::runtime_error(std::format("Runtime::DESIGN INSUFFICIENCY, Runtime::run failed to find a binding 'OnKey' from client 'view' function"));
