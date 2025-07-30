@@ -28,6 +28,16 @@ namespace TEA {
       std::map<std::string,std::function<std::optional<Msg>(Event)>> event_handlers{};
   };
 
+  template <class Q>
+  std::optional<std::decay_t<decltype(std::declval<Q&>().front())>> try_pop(Q& q) {
+      if (q.size() > 0) {
+          auto item = q.front();
+          q.pop();
+          return item; // will copy or move the value
+      }
+      return std::nullopt;
+  }
+
   template <typename Model, typename Msg, typename Cmd>
   class Runtime {
   public:
@@ -62,11 +72,9 @@ namespace TEA {
         auto ui = m_view(model);
         m_head->render(ui.doc);
 
-        if (not cmd_q.empty()) {
+        if (auto maybe_cmd = try_pop(cmd_q)) {
           // Execute a command
-          auto cmd = cmd_q.front();
-          cmd_q.pop();
-          if (cmd) {
+          if (auto cmd = *maybe_cmd) {
             spdlog::info("Runtime::run: Processing Cmd type {}", to_type_name(typeid(cmd)));
             spdlog::default_logger()->flush();
             if (auto opt_msg = cmd()) {
