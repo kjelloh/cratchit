@@ -29,25 +29,22 @@ namespace TEA {
       std::map<std::string,std::function<std::optional<Msg>(Event)>> event_handlers{};
   };
 
-  // Asumes Q = ThreadSafe<std::queue<...>>
-  template <class Q>
-  using front_result_t = decltype(
-    std::declval<Q&>().apply(
-      [](auto const& q) {
-        return q.front(); 
-      }));
+  template <typename T>
+  concept QueueLike = requires(T& t) {
+    { t.front() };
+    { t.pop() };
+    { t.size() } -> std::convertible_to<std::size_t>;
+  };
 
-  // Asumes Q = ThreadSafe<std::queue<...>>
-  template <class Q>
-  decltype(auto) try_pop(Q& thread_safe_q) {
-    using return_type = std::optional<std::decay_t<front_result_t<Q>>>;
-    return thread_safe_q.apply([](auto& std_q){
+  template <QueueLike Q>
+  decltype(auto) try_pop(ThreadSafeT<Q>& thread_safe_q) {
+    return thread_safe_q.apply([](auto& std_q) -> std::optional<std::decay_t<decltype(std_q.front())>> {
       if (std_q.size() > 0) {
           auto item = std_q.front();
           std_q.pop();
-          return return_type{item};
+          return item;
       }
-      return return_type{};
+      return std::nullopt;
     });
   }
 
@@ -71,10 +68,14 @@ namespace TEA {
 
       m_head->initialize();
 
+      // Prepared for asynchornous design
+      // 20250730 - Still single threaded runtime / KoH
       ThreadSafeT<std::queue<Msg>> msg_q{};
       ThreadSafeT<std::queue<Cmd>> cmd_q{};
+
       auto [model, is_quit_msg, cmd] = m_init();
       cmd_q.apply([&cmd](auto& q){q.push(cmd);});
+
       // Main loop
       int loop_count{};
       while (true) {
