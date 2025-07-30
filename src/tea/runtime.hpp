@@ -92,8 +92,8 @@ namespace TEA {
             spdlog::warn("Runtime::run: DESIGN_INSUFFICIENCY - runtime queue poisoned with null (default constructed?) Cmd");
           }
         } 
-        else if (not msg_q.empty()) {
-          auto msg = msg_q.front(); msg_q.pop();
+        else if (auto maybe_msg = try_pop(msg_q)) {
+          auto msg = *maybe_msg;
 
           if (true) {
             if (msg) {
