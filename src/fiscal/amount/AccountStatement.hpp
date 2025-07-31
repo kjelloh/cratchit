@@ -16,7 +16,7 @@ using ExpectedAccountStatement = std::expected<AccountStatement,std::string>;
 
 namespace CSV {
   namespace project {
-    ExpectedAccountStatement to_account_statement(CSV::Table const& csv_table);
+    ExpectedAccountStatement to_account_statement(CSV::OptionalTable const& maybe_csv_table);
   }
 }
 
