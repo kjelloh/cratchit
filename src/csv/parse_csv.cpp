@@ -25,6 +25,7 @@ namespace CSV {
     ParseCSVResult result{};
     
     try {
+      logger::development_trace("try_parse_csv: BEGIN");
       std::ifstream ifs{m_file_path};
       if (!ifs.is_open()) {
         spdlog::error("Failed to open file: {}", m_file_path.string());
@@ -35,6 +36,7 @@ namespace CSV {
       
       // Use ICU detection to determine appropriate encoding stream
       result.icu_detection_result = encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
+      logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);
       
       switch (result.icu_detection_result.encoding) {
         case encoding::icu::DetectedEncoding::UTF8: {
@@ -62,10 +64,14 @@ namespace CSV {
       }
       
       if (field_rows && !field_rows->empty()) {
+        logger::development_trace("try_parse_csv: field_rows->size() = {}",field_rows->size());
         result.heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
         auto heading_projection = CSV::project::make_heading_projection(result.heading_id);
         result.maybe_table = CSV::to_table(field_rows,heading_projection);
       }      
+      else {
+        logger::development_trace("try_parse_csv: NO field_rows -> nullopt table");
+      }
     } catch (const std::exception& e) {
       spdlog::error("Failed to parse CSV file {}: {}", m_file_path.string(), e.what());
     }    

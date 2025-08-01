@@ -24,6 +24,10 @@ public:
   using AccountDescriptor = std::string;
   using OptionalAccountDescriptor = std::optional<AccountDescriptor>;
   AccountStatement(AccountStatementEntries const& entries,OptionalAccountDescriptor account_descriptor = std::nullopt);
+  
+  const AccountStatementEntries& entries() const { return m_entries; }
+  const OptionalAccountDescriptor& account_descriptor() const { return m_account_descriptor; }
+  
 private:
   OptionalAccountDescriptor m_account_descriptor;
   AccountStatementEntries m_entries;

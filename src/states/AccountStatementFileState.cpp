@@ -8,9 +8,8 @@ namespace first {
   
   AccountStatementFileState::AccountStatementFileState(std::filesystem::path file_path)
     :  StateImpl{}
-      ,m_file_path{std::move(file_path)}
-      ,m_parse_csv_result{CSV::try_parse_csv(this->m_file_path)} {
-  }
+      ,m_file_path{file_path}
+      ,m_parse_csv_result{CSV::try_parse_csv(file_path)} {}
 
   std::string AccountStatementFileState::caption() const {
     if (not m_caption.has_value()) {
@@ -51,7 +50,7 @@ namespace first {
     result.push_back("");
     
     if (m_parse_csv_result.maybe_table) {
-      auto& csv_table = m_parse_csv_result.maybe_table.value();
+      auto const& csv_table = m_parse_csv_result.maybe_table.value();
       
       // Calculate column widths for fixed-width formatting
       std::vector<size_t> column_widths{};
