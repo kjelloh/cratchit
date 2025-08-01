@@ -23,9 +23,9 @@ namespace first {
   StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
     StateImpl::UpdateOptions result{};
 
-    result.add('s', {"Account Statement", [maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
-      return {std::nullopt, [maybe_table]() -> std::optional<Msg> {
-        auto expteced_acount_statement = CSV::project::to_account_statement(maybe_table);
+    result.add('s', {"Account Statement", [csv_heading_id = this->m_parse_csv_result.heading_id,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
+      return {std::nullopt, [csv_heading_id,maybe_table]() -> std::optional<Msg> {
+        auto expteced_acount_statement = CSV::project::to_account_statement(csv_heading_id,maybe_table);
         State new_state = make_state<AccountStatementState>(expteced_acount_statement);
         return std::make_shared<PushStateMsg>(new_state);
       }};
