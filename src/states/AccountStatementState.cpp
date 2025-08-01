@@ -17,17 +17,34 @@ namespace first {
 
   using DeltaType = ::Delta<TaggedAmount>;
   using StateType = ::State<TaggedAmount>;
-  std::vector<std::string> to_elements(std::vector<std::string> headers,TaggedAmount const& ta) {
+  std::vector<std::string> to_elements(std::vector<std::string> headers,DeltaType const& delta) {
     std::vector<std::string> result(headers.size(),"??");
-    std::map<std::string,std::function<std::string(TaggedAmount)>> projector = {
-       {"Type",[](TaggedAmount const& ta){return "?type?";}}
-      ,{"Description",[](TaggedAmount const& ta){return ta.tag_value("Text").value_or("??");}}
-      ,{"Amount",[](TaggedAmount const& ta){return to_string(to_units_and_cents(ta.cents_amount()));}}
-      ,{"Tags",[](TaggedAmount const& ta){return "?Tags?";}}
+    std::map<std::string,std::function<std::string(DeltaType)>> projector = {
+       {"Type",[](DeltaType const& delta){return "Trans";}}
+      ,{"Date",[](DeltaType const& delta){return to_string(delta.m_t.date());}}
+      ,{"Description",[](DeltaType const& delta){return delta.m_t.tag_value("Text").value_or("??");}}
+      ,{"Amount",[](DeltaType const& delta){return to_string(to_units_and_cents(delta.m_t.cents_amount()));}}
+      ,{"Tags",[](DeltaType const& delta){return to_string(delta.m_t.tags());}}
     };
     for (int i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
-        result[i] = projector[headers[i]](ta);
+        result[i] = projector[headers[i]](delta);
+      }
+    }
+    return result;
+  }
+  std::vector<std::string> to_elements(std::vector<std::string> headers,StateType const& state) {
+    std::vector<std::string> result(headers.size(),"??");
+    std::map<std::string,std::function<std::string(StateType)>> projector = {
+       {"Type",[](StateType const& state){return "Saldo";}}
+      ,{"Date",[](StateType const& state){return to_string(state.m_t.date());}}
+      ,{"Description",[](StateType const& state){return "";}}
+      ,{"Amount",[](StateType const& state){return to_string(to_units_and_cents(state.m_t.cents_amount()));}}
+      ,{"Tags",[](StateType const& state){return to_string(state.m_t.tags());}}
+    };
+    for (int i=0;i<headers.size();++i) {  
+      if (projector.contains(headers[i])) {
+        result[i] = projector[headers[i]](state);
       }
     }
     return result;
@@ -48,8 +65,8 @@ namespace first {
       }
       
       // Define column headers and widths
-      std::vector<std::string> headers = {"Type", "Description", "Amount", "Tags"};
-      std::vector<size_t> column_widths = {8, 30, 15, 25};  // Adjusted widths
+      std::vector<std::string> headers = {"Type","Date", "Description", "Amount", "Tags"};
+      std::vector<size_t> column_widths = {8,8, 30, 15, 25};  // Adjusted widths
       
       // Display formatted heading
       std::string heading_line;
@@ -76,16 +93,8 @@ namespace first {
         std::visit([&](const auto& variant_entry) {
           using T = std::decay_t<decltype(variant_entry)>;
 
-          const TaggedAmount& ta = variant_entry.m_t;
-          auto elements = to_elements(headers,ta);
+          auto elements = to_elements(headers,variant_entry);
           
-          if constexpr (std::is_same_v<T, DeltaType>) {
-            elements[0] = "Delta";
-          } 
-          else if constexpr (std::is_same_v<T, StateType>) {
-            elements[0] = "State";
-          }
-
           // Truncate strings to fit column widths
           for (int i=0;i<headers.size();++i) {
             if (elements[i].length() > column_widths[i]) {
