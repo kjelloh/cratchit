@@ -15,6 +15,24 @@ namespace first {
     return "Account Statement";
   }
 
+  using DeltaType = ::Delta<TaggedAmount>;
+  using StateType = ::State<TaggedAmount>;
+  std::vector<std::string> to_elements(std::vector<std::string> headers,TaggedAmount const& ta) {
+    std::vector<std::string> result(headers.size(),"??");
+    std::map<std::string,std::function<std::string(TaggedAmount)>> projector = {
+       {"Type",[](TaggedAmount const& ta){return "?type?";}}
+      ,{"Description",[](TaggedAmount const& ta){return ta.tag_value("Text").value_or("??");}}
+      ,{"Amount",[](TaggedAmount const& ta){return to_string(to_units_and_cents(ta.cents_amount()));}}
+      ,{"Tags",[](TaggedAmount const& ta){return "?Tags?";}}
+    };
+    for (int i=0;i<headers.size();++i) {  
+      if (projector.contains(headers[i])) {
+        result[i] = projector[headers[i]](ta);
+      }
+    }
+    return result;
+  }
+
   StateImpl::UX AccountStatementState::create_ux() const {
     UX result{};
     result.push_back(this->caption());
@@ -50,79 +68,34 @@ namespace first {
       result.push_back(separator_line);
       
       // Display entries
-      size_t max_entries = std::min(size_t(20), entries.size());
+      size_t max_entries = std::min(size_t(5), entries.size());
       for (size_t i = 0; i < max_entries; ++i) {
         const auto& entry = entries[i];
-        std::string row_line;
+        std::string row_line{};
         
         std::visit([&](const auto& variant_entry) {
           using T = std::decay_t<decltype(variant_entry)>;
-          using DeltaType = ::Delta<TaggedAmount>;
-          using StateType = ::State<TaggedAmount>;
-          
-          std::string type_str;
-          std::string desc_str;
-          std::string amount_str;
-          std::string tags_str;
+
+          const TaggedAmount& ta = variant_entry.m_t;
+          auto elements = to_elements(headers,ta);
           
           if constexpr (std::is_same_v<T, DeltaType>) {
-            type_str = "Delta";
-            const TaggedAmount& ta = variant_entry.m_t;
-            desc_str = to_string(ta);
-            
-            // Extract amount and tags from TaggedAmount string representation
-            // This is a simplified extraction - you may want to improve this
-            size_t pos = desc_str.find_first_of("0123456789-");
-            if (pos != std::string::npos) {
-              size_t end_pos = desc_str.find(' ', pos);
-              if (end_pos != std::string::npos) {
-                amount_str = desc_str.substr(pos, end_pos - pos);
-                tags_str = desc_str.substr(end_pos + 1);
-              } else {
-                amount_str = desc_str.substr(pos);
-              }
-              desc_str = desc_str.substr(0, pos);
-            }
+            elements[0] = "Delta";
           } 
           else if constexpr (std::is_same_v<T, StateType>) {
-            type_str = "State";
-            const TaggedAmount& ta = variant_entry.m_t;
-            desc_str = to_string(ta);
-            
-            // Similar extraction for State
-            size_t pos = desc_str.find_first_of("0123456789-");
-            if (pos != std::string::npos) {
-              size_t end_pos = desc_str.find(' ', pos);
-              if (end_pos != std::string::npos) {
-                amount_str = desc_str.substr(pos, end_pos - pos);
-                tags_str = desc_str.substr(end_pos + 1);
-              } else {
-                amount_str = desc_str.substr(pos);
-              }
-              desc_str = desc_str.substr(0, pos);
+            elements[0] = "State";
+          }
+
+          // Truncate strings to fit column widths
+          for (int i=0;i<headers.size();++i) {
+            if (elements[i].length() > column_widths[i]) {
+              elements[i] = elements[i].substr(0, column_widths[i] - 3) + "...";
             }
           }
-          
-          // Truncate strings to fit column widths
-          if (type_str.length() > column_widths[0]) {
-            type_str = type_str.substr(0, column_widths[0] - 3) + "...";
+          for (int i=0;i<headers.size();++i) {
+            if (i > 0) row_line += " | ";
+            row_line += std::format("{:<{}}",elements[i],column_widths[i]);
           }
-          if (desc_str.length() > column_widths[1]) {
-            desc_str = desc_str.substr(0, column_widths[1] - 3) + "...";
-          }
-          if (amount_str.length() > column_widths[2]) {
-            amount_str = amount_str.substr(0, column_widths[2] - 3) + "...";
-          }
-          if (tags_str.length() > column_widths[3]) {
-            tags_str = tags_str.substr(0, column_widths[3] - 3) + "...";
-          }
-          
-          // Format the row
-          row_line = std::format("{:<{}} | {:<{}} | {:<{}} | {:<{}}", 
-                                type_str, column_widths[0],
-                                desc_str, column_widths[1], 
-                                amount_str, column_widths[2],
-                                tags_str, column_widths[3]);
         }, entry);
         
         result.push_back(row_line);
