@@ -12,15 +12,15 @@ namespace first {
     using HAD = HeadingAmountDateTransEntry;
     using HADs = HeadingAmountDateTransEntries;
 
-    using PeriodHADsSlice = PeriodSlice<HADs>;
+    using HADsSlice = PeriodSlice<HADs>;
 
     // 'older'
-    HADsState(HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view);
-    HADsState(HADs all_hads,FiscalPeriod fiscal_period);
+    // HADsState(HADs all_hads, FiscalPeriod fiscal_period,Mod10View mod10_view);
+    // HADsState(HADs all_hads,FiscalPeriod fiscal_period);
 
     // 'newer'
-    HADsState(PeriodHADsSlice const& hads_slice,Mod10View mod10_view);
-    HADsState(PeriodHADsSlice const& hads_slice);
+    HADsState(HADsSlice const& hads_slice,Mod10View mod10_view);
+    HADsState(HADsSlice const& hads_slice);
 
     HADsState(HADsState const&) = delete; // Force construct from data = ux ok
 
@@ -31,8 +31,8 @@ namespace first {
 
   private:
     // 'older'
-    HADsState::HADs m_all_hads;
-    FiscalPeriod m_fiscal_period;
+    // HADsState::HADs m_all_hads;
+    // FiscalPeriod m_fiscal_period;
 
     // 'newer'
     PeriodSlice<HADs> m_hads_slice;
