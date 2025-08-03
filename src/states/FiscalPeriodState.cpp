@@ -85,9 +85,9 @@ namespace first {
     
     // Convert HADsState::cmd_option_from to update option
     result.add('h', {std::format("HADs - count:{}", this->m_hads_slice.content().size()), 
-      [period_hads = this->m_hads_slice.content(), fiscal_period = m_fiscal_period]() -> StateUpdateResult {
-        return {std::nullopt, [period_hads, fiscal_period]() -> std::optional<Msg> {
-          State new_state = make_state<HADsState>(period_hads, fiscal_period);
+      [hads_slice = this->m_hads_slice]() -> StateUpdateResult {
+        return {std::nullopt, [hads_slice]() -> std::optional<Msg> {
+          State new_state = make_state<HADsState>(hads_slice);
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});

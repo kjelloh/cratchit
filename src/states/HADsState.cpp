@@ -7,10 +7,11 @@
 namespace first {
   // ----------------------------------
   HADsState::HADsState(HADs all_hads,FiscalPeriod fiscal_period,Mod10View mod10_view)
-    :  m_all_hads{all_hads}
+    :  StateImpl()
+      ,m_all_hads{all_hads}
       ,m_fiscal_period{fiscal_period}
-      ,m_mod10_view{mod10_view}
-      ,StateImpl() {
+      ,m_hads_slice{fiscal_period,all_hads}
+      ,m_mod10_view{mod10_view} {
 
     spdlog::info("HADsState::HADsState(HADs all_hads:size={},Mod10View mod10_view)",m_all_hads.size());
 
@@ -22,6 +23,23 @@ namespace first {
     : HADsState(all_hads,fiscal_period,Mod10View(all_hads)) {}
 
   // ----------------------------------
+
+  // 'newer'
+  HADsState::HADsState(PeriodHADsSlice const& hads_slice,Mod10View mod10_view)
+    :  StateImpl()
+      ,m_all_hads{hads_slice.content()}
+      ,m_fiscal_period{hads_slice.period()}
+      ,m_hads_slice{hads_slice}
+      ,m_mod10_view{mod10_view} {
+
+    spdlog::info("HADsState::HADsState(PeriodHADsSlice const& hads_slice::size={},Mod10View mod10_view)",m_all_hads.size());
+
+  }
+
+  HADsState::HADsState(PeriodHADsSlice const& hads_slice)
+    : HADsState(hads_slice,Mod10View(hads_slice.content())) {}
+  // ----------------------------------
+
 
   StateImpl::UX HADsState::create_ux() const {
     // Create view UX
