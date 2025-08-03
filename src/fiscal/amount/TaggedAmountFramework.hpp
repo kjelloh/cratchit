@@ -106,6 +106,7 @@ std::string to_string(TaggedAmount const& ta);
 EnvironmentValue to_environment_value(TaggedAmount const& ta);
 OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev);
 
+TaggedAmounts to_tagged_amounts(const Environment &env);
 // Environment -> TaggedAmounts (filtered by fiscal period)
 TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &env);
 

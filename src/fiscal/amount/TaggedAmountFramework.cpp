@@ -542,17 +542,38 @@ OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
 	return result;
 }
 
+auto ev_to_maybe_ta = [](EnvironmentValue const &ev) -> OptionalTaggedAmount {
+  return to_tagged_amount(ev);
+};
+auto in_period = [](TaggedAmount const &ta, FiscalPeriod const &period) -> bool {
+  return period.contains(ta.date());
+};  
+auto id_ev_pair_to_ev = [](EnvironmentIdValuePair const &id_ev_pair) {
+  return id_ev_pair.second;
+};
+
+TaggedAmounts to_tagged_amounts(const Environment &env) {
+  static constexpr auto section = "TaggedAmount";
+  if (!env.contains(section)) {
+    return {}; // No entries of this type
+  }
+  auto const &id_ev_pairs = env.at(section);
+  auto result = id_ev_pairs 
+    | std::views::transform(id_ev_pair_to_ev) 
+    | std::views::transform(ev_to_maybe_ta) 
+    | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
+    | std::views::transform([](auto const &maybe_ta) { return *maybe_ta; }) 
+    | std::ranges::to<std::vector>();
+  
+  // Sort by date for consistent ordering
+  std::sort(result.begin(), result.end(), [](const TaggedAmount& a, const TaggedAmount& b) {
+    return a.date() < b.date();
+  });
+  return result;
+}
+
 // Environment -> TaggedAmounts (filtered by fiscal period)
 TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &env) {
-  auto ev_to_maybe_ta = [](EnvironmentValue const &ev) -> OptionalTaggedAmount {
-    return to_tagged_amount(ev);
-  };
-  auto in_period = [](TaggedAmount const &ta, FiscalPeriod const &period) -> bool {
-    return period.contains(ta.date());
-  };  
-  auto id_ev_pair_to_ev = [](EnvironmentIdValuePair const &id_ev_pair) {
-    return id_ev_pair.second;
-  };
   static constexpr auto section = "TaggedAmount";
   if (!env.contains(section)) {
     return {}; // No entries of this type

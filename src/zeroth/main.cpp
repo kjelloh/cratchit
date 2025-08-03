@@ -9445,21 +9445,21 @@ private:
     return result;
   }
 
-	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
+  DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
     if (false) {
-		  std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files" << std::flush;
+      std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files" << std::flush;
     }
-		DateOrderedTaggedAmountsContainer result{};
-		// Ensure folder "from_bank_or_skv folder" exists
-		auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
-		std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-		if (std::filesystem::exists(from_bank_or_skv_path) == true) {
-			// Process all files in from_bank_or_skv_path
-			std::cout << "\nBEGIN: Processing files in " << from_bank_or_skv_path << std::flush;
+    DateOrderedTaggedAmountsContainer result{};
+    // Ensure folder "from_bank_or_skv folder" exists
+    auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
+    std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+    if (std::filesystem::exists(from_bank_or_skv_path) == true) {
+      // Process all files in from_bank_or_skv_path
+      std::cout << "\nBEGIN: Processing files in " << from_bank_or_skv_path << std::flush;
       // auto dir_entries = std::filesystem::directory_iterator{}; // Test empty iterator (does heap error disappear?) - YES!
       // TODO 240611 - Locate heap error detected here for g++ built with address sanitizer
       // NOTE: Seems to be all std::filesystem::directory_iterator usage in this code (Empty iterator here makes another loop cause heap error)
-			for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) { 
+      for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) { 
         // 240612 Test if g++14 with sanitizer detects heap violation also for an empty std::filesystem::directory_iterator loop?
         //        YES - c++14 with "-fsanitize=address,undefined" reports runtime heap violation error on the for statement above!
         if (true) {
@@ -9487,110 +9487,107 @@ private:
           }
           std::cout << "\nEND File: " << statement_file_path;
         }
-			}
-			std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
-		}
+      }
+      std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
+    }
     if (true) {
-  		std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
+      std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
     }
-		return result;
-	}
+    return result;
+  }
 
-	DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
+  DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
     if (false) {
-		  std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
+      std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
     }
-		DateOrderedTaggedAmountsContainer result{};
-		// auto [begin,end] = environment.equal_range("TaggedAmount");
-		// std::for_each(begin,end,[&result](auto const& entry){
-		// 	if (auto o_ta = to_tagged_amount(entry.second)) {
-		// 		result.insert(*o_ta);
-		// 	}
-		// 	else {
-		// 		std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << entry.second << " to a TaggedAmount";
-		// 	}
-		// });
-    if (environment.contains("TaggedAmount")) {
-      auto const id_ev_pairs = environment.at("TaggedAmount");
-      // 240621 - How can we convert the id used for the environment value to the one used by DateOrderedTaggedAmountsContainer?
-      //          The problembeing that an aggregate tagged amount refers to its members by listing the id:s of the members.
-      //          Thus, If we transform the id of a value referenmced by an aggregate, then we need to update thje id used in the listing.
-      // 240622 - Aha, What I am trying to implement is a CAS (Content Adressible Storage) with the known problem of uppdating cross referencies
-      //          when aggregate members are muraded.
-      //          Now in CAS values are in effect immutable, so the only way to mutate is to replace the mutated value with the new one
-      //          (that will for that reason have a new key).
-      //          My problem here is a variant of this problem, where the values are not mutated, but the keys may be.
-      //          Solution: Implement a two pass approach.
-      //          1. Transform all non-aggregates (ensuring they exist witgh their new key in the target map)
-      //             I need to cache the mapping of ev-keys to ta-keys to later transform aggrete member key listings
-      //          2. Transform all aggregates (ensuring they now refer to their members using their new keys)
-      //             using the cached ev-key to ta-key recorded in (1).
-      std::map<std::size_t,std::size_t> ev_id_to_ta_id{};
-      // Pass 1 - transform <ev_id,ev> --> <ta_id,ta> for non-aggregates (keep track of any key changes)
-      std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
-        auto const& [ev_id,ev] = id_ev_pair;
-        if (auto o_ta = to_tagged_amount(ev)) {
-          if (not o_ta->tag_value("_members")) {
-            // Not an aggregate = process in this pass 1
-            auto const& [ta_id,iter] = result.insert(*o_ta);
-            if (ta_id != ev_id) {
-              // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
-              std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id << std::dec;
-            }
-            else {
-              std::cout << "\nev_id:" << std::hex << ev_id << " == ta_id:" << ta_id << std::dec;
-            }
-            ev_id_to_ta_id[ev_id] = ta_id; // record 'ev id' -> 'ta id'
-          }
-        }
-        else {
-          std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
-        }              
-      });
-      // Pass 2 - transform <ev_id,ev> --> <ta_id,ta> for aggregates (update any changes to listed members keys)
-      std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
-        auto const& [ev_id,ev] = id_ev_pair;
-        if (auto o_ta = to_tagged_amount(ev)) {
-          auto ta = *o_ta;
-          if (auto ev_members_value = ta.tag_value("_members")) {
-            // Is an aggregate, process these in this pass 2 (transform 'ev id' -> 'ta id' references)
-            auto ev_members = Key::Path{*ev_members_value};
-            decltype(ev_members) ta_members{};
-            if (auto ev_ids = to_value_ids(ev_members)) {
-              for (auto const ev_id : *ev_ids) {
-                if (ev_id_to_ta_id.contains(ev_id)) {
-                  ta_members += TaggedAmount::to_string(ev_id_to_ta_id[ev_id]);
-                }
-                else {
-                  std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id in members listing of ev value:" << ev << ". Member discarded!" << std::dec;
-                }
-              }
-            }
-            else {
-              std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert ev_members  " << ev_members << " to value ids";
-            }
-            if (ev_members.size() != ta_members.size()) {
-              std::cout << "\nDESIGN INSUFFICIENCY: EV and TA Aggregates differs in members size. ev_members.size():" << ev_members.size() << " ta_members.size():" << ta_members.size();
-            }
-            if (false) {
-              std::cout << "\nev_members:" << ev_members << " --> ta_members:" << ta_members;
-            }
-            ta.tags()["_members"] = ta_members.to_string();
-          }
-        }
-        else {
-          std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
-        }              
-      });
-    }
-    else {
-      // Nop
-    }
+    DateOrderedTaggedAmountsContainer result{};
 
-		// Import any new account statements in dedicated "files from bank or skv" folder
-		result += date_ordered_tagged_amounts_from_account_statement_files(environment);
-		return result;
-	}
+    // Replaced with 'to_tagged_amounts(env)'in TaggedAmountFramework
+    // if (environment.contains("TaggedAmount")) {
+    //   auto const id_ev_pairs = environment.at("TaggedAmount");
+    //   // 240621 - How can we convert the id used for the environment value to the one used by DateOrderedTaggedAmountsContainer?
+    //   //          The problembeing that an aggregate tagged amount refers to its members by listing the id:s of the members.
+    //   //          Thus, If we transform the id of a value referenmced by an aggregate, then we need to update thje id used in the listing.
+    //   // 240622 - Aha, What I am trying to implement is a CAS (Content Adressible Storage) with the known problem of uppdating cross referencies
+    //   //          when aggregate members are muraded.
+    //   //          Now in CAS values are in effect immutable, so the only way to mutate is to replace the mutated value with the new one
+    //   //          (that will for that reason have a new key).
+    //   //          My problem here is a variant of this problem, where the values are not mutated, but the keys may be.
+    //   //          Solution: Implement a two pass approach.
+    //   //          1. Transform all non-aggregates (ensuring they exist witgh their new key in the target map)
+    //   //             I need to cache the mapping of ev-keys to ta-keys to later transform aggrete member key listings
+    //   //          2. Transform all aggregates (ensuring they now refer to their members using their new keys)
+    //   //             using the cached ev-key to ta-key recorded in (1).
+
+      
+    //   std::map<std::size_t,std::size_t> ev_id_to_ta_id{};
+    //   // Pass 1 - transform <ev_id,ev> --> <ta_id,ta> for non-aggregates (keep track of any key changes)
+    //   std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
+    //     auto const& [ev_id,ev] = id_ev_pair;
+    //     if (auto o_ta = to_tagged_amount(ev)) {
+    //       if (not o_ta->tag_value("_members")) {
+    //         // Not an aggregate = process in this pass 1
+    //         auto const& [ta_id,iter] = result.insert(*o_ta);
+    //         if (ta_id != ev_id) {
+    //           // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
+    //           std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id << std::dec;
+    //         }
+    //         else {
+    //           std::cout << "\nev_id:" << std::hex << ev_id << " == ta_id:" << ta_id << std::dec;
+    //         }
+    //         ev_id_to_ta_id[ev_id] = ta_id; // record 'ev id' -> 'ta id'
+    //       }
+    //     }
+    //     else {
+    //       std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
+    //     }              
+    //   });
+    //   // Pass 2 - transform <ev_id,ev> --> <ta_id,ta> for aggregates (update any changes to listed members keys)
+    //   std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
+    //     auto const& [ev_id,ev] = id_ev_pair;
+    //     if (auto o_ta = to_tagged_amount(ev)) {
+    //       auto ta = *o_ta;
+    //       if (auto ev_members_value = ta.tag_value("_members")) {
+    //         // Is an aggregate, process these in this pass 2 (transform 'ev id' -> 'ta id' references)
+    //         auto ev_members = Key::Path{*ev_members_value};
+    //         decltype(ev_members) ta_members{};
+    //         if (auto ev_ids = to_value_ids(ev_members)) {
+    //           for (auto const ev_id : *ev_ids) {
+    //             if (ev_id_to_ta_id.contains(ev_id)) {
+    //               ta_members += TaggedAmount::to_string(ev_id_to_ta_id[ev_id]);
+    //             }
+    //             else {
+    //               std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id in members listing of ev value:" << ev << ". Member discarded!" << std::dec;
+    //             }
+    //           }
+    //         }
+    //         else {
+    //           std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert ev_members  " << ev_members << " to value ids";
+    //         }
+    //         if (ev_members.size() != ta_members.size()) {
+    //           std::cout << "\nDESIGN INSUFFICIENCY: EV and TA Aggregates differs in members size. ev_members.size():" << ev_members.size() << " ta_members.size():" << ta_members.size();
+    //         }
+    //         if (false) {
+    //           std::cout << "\nev_members:" << ev_members << " --> ta_members:" << ta_members;
+    //         }
+    //         ta.tags()["_members"] = ta_members.to_string();
+    //       }
+    //     }
+    //     else {
+    //       std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
+    //     }              
+    //   });
+    // }
+    // else {
+    //   // Nop
+    // }
+
+    result += to_tagged_amounts(environment);
+
+    // Import any new account statements in dedicated "files from bank or skv" folder
+    result += date_ordered_tagged_amounts_from_account_statement_files(environment);
+    return result;
+  }
 
   void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_date_ordered_tagged_amounts,SIEEnvironment const& sie_environment) {
     // Use a double pointer mechanism to step through provided all_date_ordered_tagged_amounts and date_ordered_tagged_amounts_from_sie_environment in date order.

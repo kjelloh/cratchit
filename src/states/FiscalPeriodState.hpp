@@ -14,8 +14,8 @@ namespace first {
     FiscalPeriod m_fiscal_period;
 
     // 'Older' using separate period and container
-    HeadingAmountDateTransEntries m_period_hads;
-    TaggedAmounts m_period_tagged_amounts;
+    // HeadingAmountDateTransEntries m_period_hads;
+    // TaggedAmounts m_period_tagged_amounts;
 
     // 'Newer' using PeriodSlice mechanism
     PeriodSlice<HeadingAmountDateTransEntries> m_hads_slice;

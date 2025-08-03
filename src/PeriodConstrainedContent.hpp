@@ -23,8 +23,8 @@ public:
   using to_date_projection = std::function<Date(value_type)>;
   PeriodSlice(FiscalPeriod p, T const& t) :  m_period_paired{p,t} {}
 
-  auto const& period() const {return m_period_paired.first;}
-  auto const& content() const {return m_period_paired.second;}
+  auto const& period() const {return m_period_paired.period();}
+  auto const& content() const {return m_period_paired.content();}
 private:
   PeriodPairedT<T> m_period_paired;
 }; // PeriodSlice
@@ -38,7 +38,7 @@ template <class T>
 PeriodSlice<T> make_period_sliced(FiscalPeriod period,T const& container,typename PeriodSlice<T>::to_date_projection to_date) {
   T slice{};
   for (auto const& member : container) {
-    slice.emplace_back(member);
+    if (period.contains(to_date(member))) slice.emplace_back(member);
   }
   return PeriodSlice<T>{period,slice};
 }
