@@ -1310,60 +1310,10 @@ bool first_in_second_case_insensitive(std::string const& s1, std::string const& 
 // namespace CSV::NORDEA
 // namespace CSV::SKV
 
-using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsContainer>;
-				
-/**
- * Return a list of tagged amounts if provided path is to a file with amount values (e.g., a bank account csv statements file)
- */
-OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
-  if (true) {
-    std::cout << "\nto_tagged_amounts(" << path << ")";
-  }
-  OptionalDateOrderedTaggedAmounts result{};
-  CSV::OptionalFieldRows field_rows{};
-  std::ifstream ifs{path};
-  // NOTE: The mechanism implemented to apply correct decoding and parsing of different files is a mess!
-  //       For one, The runtime on Mac uses UTF-8 through the console by default (which Windows and Unix may or may not do).
-  //       Also, The NORDEA CSV-file as downloaded through Safary from NORDEA web bank is also UTF-8 encoded (although I am not sure it will be using another browser on another platform?).
-  //       Finally, The SKV-file from Swedish Tax Agency web interface gets encoded in ISO8859-1 on Mac using Safari.
-  //       For now the whole thing is a patch-work that may or may not continue to work on Mac and will very unlikelly work on Linux or Windows?
-  //       TODO 20240527 - Try to refactor this into something more stable and cross-platform at some point in time?!
-  if (path.extension() == ".csv") {
-    encoding::UTF8::istream utf8_in{ifs};
-    field_rows = CSV::to_field_rows(utf8_in,';'); // Call to_field_rows overload for "UTF8" input (assuming a CSV-file is ISO8859-1 encoded, as NORDEA csv-file is)
-  }
-  else if (path.extension() == ".skv") {
-    encoding::ISO_8859_1::istream iso8859_in{ifs};
-    field_rows = CSV::to_field_rows(iso8859_in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
-  }
-	DateOrderedTaggedAmountsContainer dota{};
-	if (field_rows) {
-		// The file is some form of 'comma separated value' file using ';' as separators
-		// NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
-		// uses ';' as value separators
-		if (field_rows->size() > 0) {
-      auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
-      auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
-      if (auto table = CSV::to_table(field_rows,heading_projection)) {
-        auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,table->heading);
-        for (auto const& field_row : table->rows) {
-          if (auto o_ta = to_tagged_amount(field_row)) {
-            dota.insert(*o_ta);
-          }
-          else {
-            std::cout << "\nSorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
-          }
-        }            
-      }
-      else {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << path << " to a CVS::Table with known heading and data content";
-      }
-    }
-	}
-	if (dota.size() > 0) result = dota;
+// Now in tas::projection (TaggedAmountFramework unit)
+// using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsContainer>;				
+// OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& path) {
 
-  return result;
-}
 
 unsigned first_digit(BAS::AccountNo account_no) {
 	return account_no / 1000;

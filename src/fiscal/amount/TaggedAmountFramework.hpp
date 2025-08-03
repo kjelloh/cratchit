@@ -212,11 +212,15 @@ private:
 // namespace BAS with 'forwards' now in BAS.hpp
 
 namespace tas {
-  // namespace for processing that produces tagged amounts and tagged amounts
+  // namespace for processing that produces tagged amounts
 
   // Generic for parsing a range or container of tagged amount pointers into a
   // vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas
   // account)
   TaggedAmounts to_bas_omslutning(DateOrderedTaggedAmountsContainer::const_subrange const& tas);
-
+          
 } // namespace tas
+
+using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsContainer>;
+OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& statement_file_path);
+

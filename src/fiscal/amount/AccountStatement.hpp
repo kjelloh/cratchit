@@ -5,11 +5,14 @@
 #include <expected>
 #include <variant>
 
+// 20250803 - Experimental / KoH
+//            Notion: Delta = State - State
+//            So far it seems this aproach is not worth the effort?
+//            Seems to require cumbersome boilerplate to process
 template <typename T>
 struct Delta {
   T m_t;
 };
-
 template <typename T>
 struct State {
   T m_t;

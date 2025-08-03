@@ -1,4 +1,5 @@
 #include "AccountStatementFileState.hpp"
+#include "TaggedAmountsState.hpp"
 #include "AccountStatementState.hpp"
 #include <format>
 #include <fstream>
@@ -22,6 +23,16 @@ namespace first {
   StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
     StateImpl::UpdateOptions result{};
 
+    result.add('t', {"As Tagged Amounts", [csv_heading_id = this->m_parse_csv_result.heading_id,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
+      return {std::nullopt, [csv_heading_id,maybe_table]() -> std::optional<Msg> {
+        TaggedAmounts all_tagged_amounts{};
+        FiscalPeriod fiscal_period{FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()};
+        State new_state = make_state<TaggedAmountsState>(all_tagged_amounts,fiscal_period);
+        return std::make_shared<PushStateMsg>(new_state);
+      }};
+    }});
+
+
     result.add('s', {"Account Statement", [csv_heading_id = this->m_parse_csv_result.heading_id,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
       return {std::nullopt, [csv_heading_id,maybe_table]() -> std::optional<Msg> {
         auto expteced_acount_statement = CSV::project::to_account_statement(csv_heading_id,maybe_table);
@@ -29,7 +40,6 @@ namespace first {
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
-
     
     result.add('-', {"Back", []() -> StateUpdateResult {
       using StringMsg = CargoMsgT<std::string>;
