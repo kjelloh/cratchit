@@ -17,23 +17,30 @@ namespace first {
     ,TaggedAmounts period_tagged_amounts)
       :  StateImpl{caption}
         ,m_fiscal_period{fiscal_period}
-        ,m_period_hads{period_hads}
-        ,m_period_tagged_amounts{period_tagged_amounts} {
-    try {
-      // Options - moved to create_update_options()
-      // this->add_cmd_option('h', HADsState::cmd_option_from(this->m_period_hads,this->m_fiscal_period));
-      // this->add_cmd_option('v', VATReturnsState::cmd_option_from());
 
-    } catch (std::exception const &e) {
-      spdlog::error("Error initializing FiscalPeriodState: {}", e.what());
-    }
-  }
+        // 'Older' using separate period and container
+        ,m_period_hads{period_hads}
+        ,m_period_tagged_amounts{period_tagged_amounts}
+
+        // 'newer' using PeriodSlice mechanism
+        ,m_hads_slice{make_period_sliced(fiscal_period,period_hads,[](HAD const& had){return had.date;})}
+        ,m_tas_slice{make_period_sliced(fiscal_period,period_tagged_amounts,[](TaggedAmount const& ta){return ta.date();})} {}
 
   FiscalPeriodState::FiscalPeriodState(
      FiscalPeriod fiscal_period
     ,Environment const &parent_environment_ref)
-      : FiscalPeriodState(std::nullopt,fiscal_period,to_period_hads(fiscal_period,parent_environment_ref),to_period_tagged_amounts(fiscal_period,parent_environment_ref)) {}
+      : FiscalPeriodState(
+         std::nullopt
+        ,fiscal_period
 
+        // 'Older' using separate period and container
+        ,to_period_hads(
+           fiscal_period
+          ,parent_environment_ref)
+        ,to_period_tagged_amounts(
+           fiscal_period
+          ,parent_environment_ref)) {}
+          
   std::string FiscalPeriodState::caption() const {
     if (m_caption.has_value()) {
       return m_caption.value();

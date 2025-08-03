@@ -1,7 +1,12 @@
 #pragma once
 
+#include "PeriodConstrainedContent.hpp"
+
 // A non owning diff of period sliced ranges = lhs - rhs
-template <typename T, typename DateProj, typename ValueProj>
+template <
+   typename T
+  ,typename DateProj
+  ,typename ValueProj>
 class diff_view {
 public:
   diff_view(

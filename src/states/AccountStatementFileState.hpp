@@ -22,5 +22,6 @@ namespace first {
   private:
     std::filesystem::path m_file_path;
     CSV::ParseCSVResult m_parse_csv_result;
+    
   }; // AccountStatementFileState
 }
