@@ -1,5 +1,5 @@
 #include "TaggedAmountFramework.hpp"
-#include "csv/parse_csv.hpp"
+#include "../../logger/log.hpp"
 #include <iostream> // ,std::cout
 #include <numeric> // std::accumulate,
 #include <sstream> // std::ostringstream, std::istringstream
@@ -262,6 +262,208 @@ namespace tas {
   }
 } // namespace tas
 
+namespace CSV {
+  namespace NORDEA {
+
+  OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading const& heading) {
+    OptionalTaggedAmount result{};
+    if (field_row.size() >= 10) {
+      auto sDate = field_row[element::Bokforingsdag];
+      if (auto date = to_date(sDate)) {
+        auto sAmount = field_row[element::Belopp];
+        if (auto amount = to_amount(sAmount)) {
+          auto cents_amount = to_cents_amount(*amount);
+          TaggedAmount ta{*date,cents_amount};
+          ta.tags()["Account"] = "NORDEA";
+          if (field_row[element::Namn].size() > 0) {
+            ta.tags()["Text"] = field_row[element::Namn];
+          }
+          if (field_row[element::Avsandare].size() > 0) {
+            ta.tags()["From"] = field_row[element::Avsandare];
+          }
+          if (field_row[element::Mottagare].size() > 0) {
+            ta.tags()["To"] = field_row[element::Mottagare];
+          }
+          if (auto saldo = to_amount(field_row[element::Saldo])) {
+            ta.tags()["Saldo"] = to_string(to_cents_amount(*saldo));
+          }
+          if (field_row[element::Meddelande].size() > 0) {
+            ta.tags()["Message"] = field_row[element::Meddelande];
+          }
+          if (field_row[element::Egna_anteckningar].size() > 0) {
+            ta.tags()["Notes"] = field_row[element::Egna_anteckningar];
+          }
+          // Tag with column names as defined by heading
+          if (heading.size() > 0 and heading.size() == field_row.size()) {
+            for (int i=0;i<heading.size();++i) {
+              auto key = heading[i];
+              auto value = field_row[i];
+              if (ta.tags().contains(key) == false) {
+                if (value.size() > 0) ta.tags()[key] = field_row[i]; // add column value tagged with column name
+              }
+              else {
+                logger::cout_proxy << "CSV::NORDEA::to_tagged_amountWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
+              }
+            }
+          }
+          else {
+            logger::cout_proxy << "CSV::NORDEA::to_tagged_amountError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
+          }
+
+          result = ta;
+        }
+        else {
+          logger::cout_proxy << "CSV::NORDEA::to_tagged_amountNot a valid NORDEA amount: " << std::quoted(sAmount); 
+        }
+      }
+      else {
+        if (sDate.size() > 0) logger::cout_proxy << "CSV::NORDEA::to_tagged_amountNot a valid date: " << std::quoted(sDate);
+      }
+    }
+    return result;
+  }
+
+  } // namespace NORDEA
+
+  namespace SKV {
+    OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading const& heading) {
+      OptionalTaggedAmount result{};
+      if (field_row.size() == 5) {
+        // NOTE: The SKV comma separated file is in fact a end-with-';' field file (so we get five separations where the file only contains four fields...)
+        //       I.e., field index 0..3 contains values
+        // NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
+        // Assume the client calling this function has already transcoded the text into internal character set and encoding (on macOS UNICODE in UTF-8)
+        auto sDate = field_row[element::OptionalDate];
+        if (auto date = to_date(sDate)) {
+          auto sAmount = field_row[element::Belopp];
+          if (auto amount = to_amount(sAmount)) {
+            auto cents_amount = to_cents_amount(*amount);
+            TaggedAmount ta{*date,cents_amount};
+            ta.tags()["Account"] = "SKV";
+            ta.tags()["Text"] = field_row[element::Text];
+
+            // Tag with column names as defined by heading
+            if (heading.size() > 0 and heading.size() == field_row.size()) {
+              for (int i=0;i<heading.size();++i) {
+                auto key = heading[i];
+                if (ta.tags().contains(key) == false) {
+                  // Note: The SKV file may contain both CR (0x0D) and LF (0x0A) even when downloaded to macOS that expects only CR.
+                  // We can trim on the value to get rid of any residue LF
+                  // TODO: Make reading of text from file robust against control characters that does not match the expectation of the runtime
+                  auto value = tokenize::trim(field_row[i]);
+                  if (value.size() > 0) ta.tags()[key] = field_row[i]; // add column value tagged with column name
+                }
+                else {
+                  logger::cout_proxy << "CSV::SKV::to_tagged_amountWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
+                }
+              }
+            }
+            else {
+              logger::cout_proxy << "CSV::SKV::to_tagged_amountError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
+            }
+
+            result = ta;
+          }
+          else {
+            logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid amount: " << std::quoted(sAmount); 
+          }
+        }
+        else {
+          // It may be a saldo entry
+          /*
+              skv-file entry	";Ingående saldo 2022-06-05;625;0;"
+              field_row				""  "Ingående saldo 2022-06-05" "625" "0" ""
+              index:           0                           1     2   3   4
+          */
+          auto sOptionalZero = field_row[element::OptionalZero]; // index 3
+          if (auto zero_amount = to_amount(sOptionalZero)) {
+            // No date and the optional zero is present ==> Assume a Saldo entry
+            // Pick the date from Text
+            auto words = tokenize::splits(field_row[element::Text],' ');
+            if (auto saldo_date = to_date(words.back())) {
+              // Success
+              auto sSaldo = field_row[element::Saldo];
+              if (auto saldo = to_amount(sSaldo)) {
+                auto cents_saldo = to_cents_amount(*saldo);
+                TaggedAmount ta{*saldo_date,cents_saldo};
+                ta.tags()["Account"] = "SKV";
+                ta.tags()["Text"] = field_row[element::Text];
+                ta.tags()["type"] = "saldo";
+                // NOTE! skv-files seems to be ISO_8859_1 encoded! (E.g., 'å' is ASCII 229 etc...)
+                // TODO: Re-encode into UTF-8 if/when we add parsing of text into tagged amount (See namespace charset::ISO_8859_1 ...)
+                result = ta;
+              }
+              else {
+                logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid SKV Saldo: " << std::quoted(sSaldo); 
+              }
+            }
+            else {
+                logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
+            }
+          }
+          if (sDate.size() > 0) logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid SKV date: " << std::quoted(sDate);
+        }
+      }
+      return result;
+    } // to_tagged_amount
+  } // SKV
+} // CSV
+
+namespace CSV {
+  namespace project {
+
+    ToTaggedAmountProjection make_tagged_amount_projection(
+       HeadingId const& csv_heading_id
+      ,CSV::TableHeading const& table_heading) {
+      switch (csv_heading_id) {
+        case HeadingId::Undefined: {
+          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
+            return std::nullopt;
+          };
+        } break;
+        case HeadingId::NORDEA: {
+          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
+            return CSV::NORDEA::to_tagged_amount(field_row,table_heading);
+          };
+        } break;
+        case HeadingId::SKV: {
+          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
+            return CSV::SKV::to_tagged_amount(field_row,table_heading);
+          };
+        } break;
+        case HeadingId::unknown: {
+          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
+            return std::nullopt;
+          };
+        } break;
+      }
+    }
+
+    OptionalDateOrderedTaggedAmounts to_tagged_amounts(
+       CSV::project::HeadingId const& csv_heading_id
+      ,CSV::OptionalTable const& maybe_csv_table) {
+      OptionalDateOrderedTaggedAmounts result{};
+      if (maybe_csv_table) {
+        auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,maybe_csv_table->heading);
+        DateOrderedTaggedAmountsContainer dota{};
+        for (auto const& field_row : maybe_csv_table->rows) {
+          if (auto o_ta = to_tagged_amount(field_row)) {
+            dota.insert(*o_ta);
+          }
+          else {
+            logger::cout_proxy << "Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
+          }
+        }
+        result = dota;
+      }
+      else {
+        logger::development_trace("CSV::project::to_tagged_amounts - Null table -> nullopt result");
+      }
+      return result;
+    } // to_tagged_amounts
+  } // project
+} // CSV
+
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
 */
@@ -286,7 +488,6 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
     encoding::ISO_8859_1::istream iso8859_in{ifs};
     field_rows = CSV::to_field_rows(iso8859_in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
   }
-  DateOrderedTaggedAmountsContainer dota{};
   if (field_rows) {
     // The file is some form of 'comma separated value' file using ';' as separators
     // NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
@@ -294,24 +495,9 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
     if (field_rows->size() > 0) {
       auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
       auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
-      if (auto table = CSV::to_table(field_rows,heading_projection)) {
-        auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,table->heading);
-        for (auto const& field_row : table->rows) {
-          if (auto o_ta = to_tagged_amount(field_row)) {
-            dota.insert(*o_ta);
-          }
-          else {
-            std::cout << "\nSorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
-          }
-        }            
-      }
-      else {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Failed to turn " << statement_file_path << " to a CVS::Table with known heading and data content";
-      }
+      result =  CSV::project::to_tagged_amounts(csv_heading_id,CSV::to_table(field_rows,heading_projection));
     }
   }
-  if (dota.size() > 0) result = dota;
-
   return result;
 }
 

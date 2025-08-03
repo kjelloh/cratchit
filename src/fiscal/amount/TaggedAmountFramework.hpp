@@ -4,6 +4,7 @@
 #include "AmountFramework.hpp"
 #include "environment.hpp" // namespace cas,
 #include "FiscalPeriod.hpp"
+#include "csv/parse_csv.hpp" // CSV::project::HeadingId,...
 #include <ostream>
 #include <string>
 #include <vector>
@@ -222,5 +223,27 @@ namespace tas {
 } // namespace tas
 
 using OptionalDateOrderedTaggedAmounts = std::optional<DateOrderedTaggedAmountsContainer>;
+
+// upstream (lift) projections
+namespace CSV {
+	namespace NORDEA {
+		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading const& heading = Table::Heading{}); 
+	} // namespace NORDEA 
+
+	namespace SKV {
+		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading const& heading = Table::Heading{});
+	} // namespace SKV
+} // namespace CSV
+
+namespace CSV {
+  namespace project {
+    using ToTaggedAmountProjection = std::function<OptionalTaggedAmount(CSV::FieldRow const& field_row)>;
+    ToTaggedAmountProjection make_tagged_amount_projection(
+      HeadingId const& csv_heading_id
+      ,CSV::TableHeading const& table_heading);
+    OptionalDateOrderedTaggedAmounts to_tagged_amounts(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+  }
+}
+
 OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& statement_file_path);
 

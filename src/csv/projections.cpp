@@ -84,32 +84,7 @@ namespace CSV {
       }
     }
 
-    ToTaggedAmountProjection make_tagged_amount_projection(
-       HeadingId const& csv_heading_id
-      ,CSV::TableHeading const& table_heading) {
-      switch (csv_heading_id) {
-        case HeadingId::Undefined: {
-          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
-            return std::nullopt;
-          };
-        } break;
-        case HeadingId::NORDEA: {
-          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
-            return CSV::NORDEA::to_tagged_amount(field_row,table_heading);
-          };
-        } break;
-        case HeadingId::SKV: {
-          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
-            return CSV::SKV::to_tagged_amount(field_row,table_heading);
-          };
-        } break;
-        case HeadingId::unknown: {
-          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
-            return std::nullopt;
-          };
-        } break;
-      }
-    }
-
+    // Now in TaggedAmountFramework
+    // ToTaggedAmountProjection make_tagged_amount_projection(
   } // project
 } // CSV

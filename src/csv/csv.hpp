@@ -2,7 +2,6 @@
 
 #include "Key.hpp" // Key::Path,
 #include "text/encoding.hpp"
-#include "fiscal/amount/TaggedAmountFramework.hpp"
 #include "tokenize.hpp"
 #include <iostream> // std::cout,
 
@@ -103,8 +102,6 @@ namespace CSV {
 			,Valuta = 9
 			,unknown
 		};
-
-		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading const& heading = Table::Heading{}); 
 	} // namespace NORDEA 
 
 	namespace SKV {
@@ -127,15 +124,5 @@ namespace CSV {
 			,unknown
 		};
 
-		OptionalTaggedAmount to_tagged_amount(FieldRow const& field_row, Table::Heading const& heading = Table::Heading{});
 	} // namespace SKV
-
-  // Now in projections unit
-  // enum class HeadingId {
-  //   Undefined
-  //   ,NORDEA
-  //   ,SKV
-  //   ,unknown
-  // };
-  // HeadingId to_csv_heading_id(FieldRow const& field_row);
 } // namespace CSV
