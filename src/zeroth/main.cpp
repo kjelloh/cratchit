@@ -9469,9 +9469,9 @@ private:
             // skip directories (will process regular files and symlinks etc...)
           }
           // Process file
-          else if (auto tagged_amounts = to_tagged_amounts(statement_file_path)) {
-            result += *tagged_amounts;
-            std::cout << "\n\tValid entries count:" << tagged_amounts->size();
+          else if (auto maybe_dota = to_dota(statement_file_path)) {
+            result += *maybe_dota;
+            std::cout << "\n\tValid entries count:" << maybe_dota->size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";
             if (false) {
               std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)

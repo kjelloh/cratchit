@@ -18,6 +18,7 @@ namespace first {
     virtual StateUpdateResult update(Msg const& msg) const override;
 
     virtual StateImpl::UpdateOptions create_update_options() const override;
+    virtual std::string caption() const override;
     virtual StateImpl::UX create_ux() const override;
 
   private:

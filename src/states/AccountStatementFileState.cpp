@@ -23,15 +23,26 @@ namespace first {
   StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
     StateImpl::UpdateOptions result{};
 
-    result.add('t', {"As Tagged Amounts", [csv_heading_id = this->m_parse_csv_result.heading_id,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
+    result.add('t', {"To Tagged Amounts", [csv_heading_id = this->m_parse_csv_result.heading_id,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
       return {std::nullopt, [csv_heading_id,maybe_table]() -> std::optional<Msg> {
-        TaggedAmounts all_tagged_amounts{};
+        auto maybe_dota = CSV::project::to_dota(csv_heading_id,maybe_table);
         FiscalPeriod fiscal_period{FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()};
-        State new_state = make_state<TaggedAmountsState>(all_tagged_amounts,fiscal_period);
+        State new_state{};
+        // Hack - 'glue' optional date ordered tagged amounts with
+        //        TaggedAmountsState aggregating raw tagged amounts
+        if (maybe_dota) {
+          new_state = make_state<TaggedAmountsState>(
+             maybe_dota->tagged_amounts()
+            ,fiscal_period);
+        }
+        else {
+          new_state = make_state<TaggedAmountsState>(
+             TaggedAmounts{}
+            ,fiscal_period);
+        }
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
-
 
     result.add('s', {"Account Statement", [csv_heading_id = this->m_parse_csv_result.heading_id,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
       return {std::nullopt, [csv_heading_id,maybe_table]() -> std::optional<Msg> {

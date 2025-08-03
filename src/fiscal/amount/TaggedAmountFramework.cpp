@@ -439,7 +439,7 @@ namespace CSV {
       }
     }
 
-    OptionalDateOrderedTaggedAmounts to_tagged_amounts(
+    OptionalDateOrderedTaggedAmounts to_dota(
        CSV::project::HeadingId const& csv_heading_id
       ,CSV::OptionalTable const& maybe_csv_table) {
       OptionalDateOrderedTaggedAmounts result{};
@@ -451,23 +451,23 @@ namespace CSV {
             dota.insert(*o_ta);
           }
           else {
-            logger::cout_proxy << "Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
+            logger::cout_proxy << "CSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
           }
         }
         result = dota;
       }
       else {
-        logger::development_trace("CSV::project::to_tagged_amounts - Null table -> nullopt result");
+        logger::development_trace("CSV::project::to_dota - Null table -> nullopt result");
       }
       return result;
-    } // to_tagged_amounts
+    } // to_dota
   } // project
 } // CSV
 
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
 */
-OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& statement_file_path) {
+OptionalDateOrderedTaggedAmounts to_dota(std::filesystem::path const& statement_file_path) {
   if (true) {
     std::cout << "\nto_tagged_amounts(" << statement_file_path << ")";
   }
@@ -495,7 +495,7 @@ OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& 
     if (field_rows->size() > 0) {
       auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
       auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
-      result =  CSV::project::to_tagged_amounts(csv_heading_id,CSV::to_table(field_rows,heading_projection));
+      result =  CSV::project::to_dota(csv_heading_id,CSV::to_table(field_rows,heading_projection));
     }
   }
   return result;

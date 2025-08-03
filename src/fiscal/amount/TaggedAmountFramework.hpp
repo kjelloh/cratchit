@@ -241,9 +241,8 @@ namespace CSV {
     ToTaggedAmountProjection make_tagged_amount_projection(
       HeadingId const& csv_heading_id
       ,CSV::TableHeading const& table_heading);
-    OptionalDateOrderedTaggedAmounts to_tagged_amounts(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+    OptionalDateOrderedTaggedAmounts to_dota(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
   }
 }
 
-OptionalDateOrderedTaggedAmounts to_tagged_amounts(std::filesystem::path const& statement_file_path);
-
+OptionalDateOrderedTaggedAmounts to_dota(std::filesystem::path const& statement_file_path);

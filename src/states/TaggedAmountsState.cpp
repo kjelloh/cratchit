@@ -18,8 +18,16 @@ namespace first {
   TaggedAmountsState::TaggedAmountsState(TaggedAmounts all_tagged_amounts, FiscalPeriod fiscal_period) 
     : TaggedAmountsState(all_tagged_amounts, fiscal_period, Mod10View(all_tagged_amounts)) {}
 
+  std::string TaggedAmountsState::caption() const {
+    if (m_all_tagged_amounts.size() > 0) {
+      return std::format("Tagged Amounts:{}",m_all_tagged_amounts.size());
+    }
+    return std::format("Tagged Amounts:{}"," *Empty*");
+  }
+
   StateImpl::UX TaggedAmountsState::create_ux() const {
     UX result{};
+    result.push_back(this->caption());
     result.push_back(std::format("{}", m_fiscal_period.to_string()));
     for (size_t i : m_mod10_view) {
       auto entry = std::to_string(i);
