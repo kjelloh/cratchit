@@ -55,10 +55,18 @@ namespace first {
       }};
     }});
 
-    result.add('s', {"Account Statement", [csv_heading_id = this->m_parse_csv_result.heading_id,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
-      return {std::nullopt, [csv_heading_id,maybe_table]() -> std::optional<Msg> {
+    result.add('s', {"Account Statement", [
+       fiscal_period
+      ,csv_heading_id = this->m_parse_csv_result.heading_id
+      ,maybe_table = this->m_parse_csv_result.maybe_table
+    ]() -> StateUpdateResult {
+      return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
         auto expteced_acount_statement = CSV::project::to_account_statement(csv_heading_id,maybe_table);
-        State new_state = make_state<AccountStatementState>(expteced_acount_statement);
+        AccountStatementState::PeriodPairedExpectedAccountStatement period_paired_expected_account_statement{
+           fiscal_period
+          ,expteced_acount_statement
+        };
+        State new_state = make_state<AccountStatementState>(period_paired_expected_account_statement);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});

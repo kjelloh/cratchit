@@ -7,17 +7,17 @@
 
 namespace first {
 
-  AccountStatementState::AccountStatementState(ExpectedAccountStatement expected_account_statement) 
-    :  StateImpl()
-      ,m_expected_account_statement{expected_account_statement}
-      ,m_period_paired_expected_account_statement{
-         FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
-        ,expected_account_statement} {}
+  // AccountStatementState::AccountStatementState(ExpectedAccountStatement expected_account_statement) 
+  //   :  StateImpl()
+  //     ,m_expected_account_statement{expected_account_statement}
+  //     ,m_period_paired_expected_account_statement{
+  //        FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
+  //       ,expected_account_statement} {}
 
   AccountStatementState::AccountStatementState(
     PeriodPairedExpectedAccountStatement period_paired_expected_account_statement)
     :  StateImpl{}
-      ,m_expected_account_statement{period_paired_expected_account_statement.content()}
+      // ,m_expected_account_statement{period_paired_expected_account_statement.content()}
       ,m_period_paired_expected_account_statement{period_paired_expected_account_statement} {}
 
   std::string AccountStatementState::caption() const {
@@ -61,11 +61,12 @@ namespace first {
 
   StateImpl::UX AccountStatementState::create_ux() const {
     UX result{};
+    result.push_back(this->m_period_paired_expected_account_statement.period().to_string());
     result.push_back(this->caption());
     result.push_back("");
     
-    if (m_expected_account_statement) {
-      const auto& statement = m_expected_account_statement.value();
+    if (m_period_paired_expected_account_statement.content()) {
+      const auto& statement = m_period_paired_expected_account_statement.content().value();
       const auto& entries = statement.entries();
       
       if (entries.empty()) {
@@ -131,7 +132,7 @@ namespace first {
       }
     }
     else {
-      result.push_back(std::format("Sorry - {}",m_expected_account_statement.error()));
+      result.push_back(std::format("Sorry - {}",m_period_paired_expected_account_statement.content().error()));
     }
     return result;
   }
