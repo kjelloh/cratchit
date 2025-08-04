@@ -6,14 +6,31 @@
 namespace first {
   
   AccountStatementFilesState::AccountStatementFilesState() 
-    : StateImpl{}, m_file_paths{scan_from_bank_or_skv_directory()}, m_mod10_view{m_file_paths} {
-    
+    :  StateImpl{}
+      ,m_file_paths{scan_from_bank_or_skv_directory()}
+      ,m_period_paired_file_paths{PeriodPairedFilePaths{
+        FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
+        ,m_file_paths}}
+      ,m_mod10_view{m_file_paths} {    
     spdlog::info("AccountStatementFilesState - found {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
   }
 
   AccountStatementFilesState::AccountStatementFilesState(FilePaths file_paths, Mod10View mod10_view)
-    : StateImpl{}, m_file_paths{std::move(file_paths)}, m_mod10_view{mod10_view} {
+    :  StateImpl{}
+      ,m_file_paths{std::move(file_paths)}
+      ,m_period_paired_file_paths{PeriodPairedFilePaths{
+        FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
+        ,m_file_paths}}
+      ,m_mod10_view{mod10_view} {
     
+    spdlog::info("AccountStatementFilesState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
+  }
+
+  AccountStatementFilesState::AccountStatementFilesState(PeriodPairedFilePaths period_paired_file_paths, Mod10View mod10_view)
+    :  StateImpl{}
+      ,m_file_paths{period_paired_file_paths.content()}
+      ,m_period_paired_file_paths{period_paired_file_paths}
+      ,m_mod10_view{mod10_view} {
     spdlog::info("AccountStatementFilesState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
   }
 
