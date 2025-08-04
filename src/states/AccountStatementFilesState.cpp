@@ -53,10 +53,12 @@ namespace first {
   StateImpl::UX AccountStatementFilesState::create_ux() const {
     UX result{};
     
-    if (m_mod10_view.empty()) {
-      result.push_back("No files found in from_bank_or_skv directory");
-      return result;
-    }
+    // if (m_mod10_view.empty()) {
+    //   result.push_back("No files found in from_bank_or_skv directory");
+    //   return result;
+    // }
+    result.push_back(this->m_period_paired_file_paths.period().to_string());
+    result.push_back(this->caption());
     
     result.push_back(std::format("Files in from_bank_or_skv directory ({})", m_mod10_view.to_string()));
     
@@ -99,11 +101,15 @@ namespace first {
       // Try to get direct index for single file
       if (auto index = m_mod10_view.direct_index(digit); index.has_value() && *index < m_period_paired_file_paths.content().size()) {
         // Single file - direct navigation to AccountStatementFileState
-        auto file_path = m_period_paired_file_paths.content()[*index];
-        auto caption = file_path.filename().string();
-        result.add(digit, {caption, [file_path]() -> StateUpdateResult {
-          return {std::nullopt, [file_path]() -> std::optional<Msg> {
-            State new_state = make_state<AccountStatementFileState>(file_path);
+        AccountStatementFileState::PeriodPairedFilePath period_paired_file_path{
+           m_period_paired_file_paths.period()
+          ,m_period_paired_file_paths.content()[*index]
+        };
+        // auto file_path = m_period_paired_file_paths.content()[*index];
+        auto caption = period_paired_file_path.content().filename().string();
+        result.add(digit, {caption, [period_paired_file_path]() -> StateUpdateResult {
+          return {std::nullopt, [period_paired_file_path]() -> std::optional<Msg> {
+            State new_state = make_state<AccountStatementFileState>(period_paired_file_path);
             return std::make_shared<PushStateMsg>(new_state);
           }};
         }});
