@@ -6,21 +6,20 @@
 
 namespace first {
   
-  TaggedAmountsState::TaggedAmountsState(TaggedAmounts all_tagged_amounts, FiscalPeriod fiscal_period, Mod10View mod10_view)
-    : m_all_tagged_amounts{all_tagged_amounts}
-    , m_fiscal_period{fiscal_period}
-    , m_mod10_view{mod10_view}
-    , StateImpl() {
+  TaggedAmountsState::TaggedAmountsState(TaggedAmountsSlice const& tagged_amounts_slice, Mod10View mod10_view)
+    : StateImpl()
+    , m_tagged_amounts_slice{tagged_amounts_slice}
+    , m_mod10_view{mod10_view} {
 
-    spdlog::info("TaggedAmountsState::TaggedAmountsState(TaggedAmounts all_tagged_amounts:size={},Mod10View mod10_view)", m_all_tagged_amounts.size());
+    spdlog::info("TaggedAmountsState::TaggedAmountsState(TaggedAmountsSlice const& tagged_amounts_slice::size={},Mod10View mod10_view)", tagged_amounts_slice.content().size());
   }
 
-  TaggedAmountsState::TaggedAmountsState(TaggedAmounts all_tagged_amounts, FiscalPeriod fiscal_period) 
-    : TaggedAmountsState(all_tagged_amounts, fiscal_period, Mod10View(all_tagged_amounts)) {}
+  TaggedAmountsState::TaggedAmountsState(TaggedAmountsSlice const& tagged_amounts_slice)
+    : TaggedAmountsState(tagged_amounts_slice, Mod10View(tagged_amounts_slice.content())) {}
 
   std::string TaggedAmountsState::caption() const {
-    if (m_all_tagged_amounts.size() > 0) {
-      return std::format("Tagged Amounts:{}",m_all_tagged_amounts.size());
+    if (m_tagged_amounts_slice.content().size() > 0) {
+      return std::format("Tagged Amounts:{}",m_tagged_amounts_slice.content().size());
     }
     return std::format("Tagged Amounts:{}"," *Empty*");
   }
@@ -28,11 +27,11 @@ namespace first {
   StateImpl::UX TaggedAmountsState::create_ux() const {
     UX result{};
     result.push_back(this->caption());
-    result.push_back(std::format("{}", m_fiscal_period.to_string()));
+    result.push_back(std::format("{}", m_tagged_amounts_slice.period().to_string()));
     for (size_t i : m_mod10_view) {
       auto entry = std::to_string(i);
       entry += ". ";
-      entry += to_string(m_all_tagged_amounts[i]);
+      entry += to_string(m_tagged_amounts_slice.content()[i]);
       result.push_back(entry);
     }
     return result;
@@ -50,7 +49,7 @@ namespace first {
     }
     else if (auto pimpl = std::dynamic_pointer_cast<TaggedAmountsMsg>(msg); pimpl != nullptr) {
       spdlog::info("TaggedAmountsState::update - handling TaggedAmountsMsg");
-      if (this->m_all_tagged_amounts != pimpl->payload) {
+      if (this->m_tagged_amounts_slice.content() != pimpl->payload) {
         spdlog::info("TaggedAmountsState::update - TaggedAmounts has changed");
         auto mutated_tagged_amounts = pimpl->payload;
         // Sort by date for consistent ordering
@@ -58,7 +57,7 @@ namespace first {
                   [](const TaggedAmount& a, const TaggedAmount& b) {
                     return a.date() < b.date();
                   });
-        auto mutated_state = make_state<TaggedAmountsState>(mutated_tagged_amounts, this->m_fiscal_period);
+        auto mutated_state = make_state<TaggedAmountsState>(TaggedAmountsSlice{this->m_tagged_amounts_slice.period(), mutated_tagged_amounts});
         return {mutated_state, Cmd{}};
       }
     }
@@ -81,8 +80,8 @@ namespace first {
       // Try to get direct index for single items
       if (auto index = m_mod10_view.direct_index(digit); index.has_value()) {
         // Single TaggedAmount - direct navigation to TaggedAmountState
-        auto caption = to_string(m_all_tagged_amounts[*index]);
-        result.add(digit, {caption, [tagged_amount = m_all_tagged_amounts[*index]]() -> StateUpdateResult {
+        auto caption = to_string(m_tagged_amounts_slice.content()[*index]);
+        result.add(digit, {caption, [tagged_amount = m_tagged_amounts_slice.content()[*index]]() -> StateUpdateResult {
           return {std::nullopt, [tagged_amount]() -> std::optional<Msg> {
             State new_state = make_state<TaggedAmountState>(tagged_amount);
             return std::make_shared<PushStateMsg>(new_state);
@@ -93,9 +92,9 @@ namespace first {
         try {
           auto drilled_view = m_mod10_view.drill_down(digit);
           auto caption = std::format("{} .. {}", drilled_view.first(), drilled_view.second() - 1);
-          result.add(digit, {caption, [all_tagged_amounts = m_all_tagged_amounts, fiscal_period = m_fiscal_period, drilled_view]() -> StateUpdateResult {
-            return {std::nullopt, [all_tagged_amounts, fiscal_period, drilled_view]() -> std::optional<Msg> {
-              State new_state = make_state<TaggedAmountsState>(all_tagged_amounts, fiscal_period, drilled_view);
+          result.add(digit, {caption, [tagged_amounts_slice = m_tagged_amounts_slice, drilled_view]() -> StateUpdateResult {
+            return {std::nullopt, [tagged_amounts_slice, drilled_view]() -> std::optional<Msg> {
+              State new_state = make_state<TaggedAmountsState>(tagged_amounts_slice, drilled_view);
               return std::make_shared<PushStateMsg>(new_state);
             }};
           }});
@@ -108,7 +107,7 @@ namespace first {
     // Add '-' key option last - back with TaggedAmounts as payload
     result.add('-', {"Back", [this]() -> StateUpdateResult {
       using TaggedAmountsMsg = CargoMsgT<TaggedAmountsState::TaggedAmounts>;
-      return {std::nullopt, [all_tagged_amounts = this->m_all_tagged_amounts]() -> std::optional<Msg> {
+      return {std::nullopt, [all_tagged_amounts = this->m_tagged_amounts_slice.content()]() -> std::optional<Msg> {
         return std::make_shared<PopStateMsg>(
           std::make_shared<TaggedAmountsMsg>(all_tagged_amounts)
         );
@@ -119,7 +118,7 @@ namespace first {
   }
 
   StateUpdateResult TaggedAmountsState::apply(cargo::EditedItem<TaggedAmount> const& edited_tagged_amount) const {
-    auto mutated_tagged_amounts = this->m_all_tagged_amounts;
+    auto mutated_tagged_amounts = this->m_tagged_amounts_slice.content();
     MaybeState maybe_state{}; // default 'none'
     
     switch (edited_tagged_amount.mutation) {
@@ -128,7 +127,7 @@ namespace first {
         if (auto iter = std::ranges::find(mutated_tagged_amounts, edited_tagged_amount.item); iter != mutated_tagged_amounts.end()) {
           mutated_tagged_amounts.erase(iter);
           spdlog::info("TaggedAmountsState::apply - TaggedAmount {} DELETED ok", to_string(*iter));
-          maybe_state = make_state<TaggedAmountsState>(mutated_tagged_amounts, this->m_fiscal_period);
+          maybe_state = make_state<TaggedAmountsState>(TaggedAmountsSlice{this->m_tagged_amounts_slice.period(), mutated_tagged_amounts});
         }
         else {
           spdlog::error("TaggedAmountsState::apply - failed to find TaggedAmount {} to delete", to_string(edited_tagged_amount.item));

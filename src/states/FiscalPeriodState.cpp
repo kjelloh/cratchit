@@ -112,7 +112,7 @@ namespace first {
     result.add('t', {std::format("Tagged Amounts - count:{}", m_tas_slice.content().size()), 
       [period_tagged_amounts = m_tas_slice.content(), fiscal_period = m_fiscal_period]() -> StateUpdateResult {
         return {std::nullopt, [period_tagged_amounts, fiscal_period]() -> std::optional<Msg> {
-          State new_state = make_state<TaggedAmountsState>(period_tagged_amounts, fiscal_period);
+          State new_state = make_state<TaggedAmountsState>(TaggedAmountsState::TaggedAmountsSlice{fiscal_period, period_tagged_amounts});
           return std::make_shared<PushStateMsg>(new_state);
         }};
       }});
