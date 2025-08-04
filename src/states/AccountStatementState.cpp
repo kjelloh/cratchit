@@ -9,7 +9,16 @@ namespace first {
 
   AccountStatementState::AccountStatementState(ExpectedAccountStatement expected_account_statement) 
     :  StateImpl()
-      ,m_expected_account_statement{expected_account_statement} {}
+      ,m_expected_account_statement{expected_account_statement}
+      ,m_period_paired_expected_account_statement{
+         FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
+        ,expected_account_statement} {}
+
+  AccountStatementState::AccountStatementState(
+    PeriodPairedExpectedAccountStatement period_paired_expected_account_statement)
+    :  StateImpl{}
+      ,m_expected_account_statement{period_paired_expected_account_statement.content()}
+      ,m_period_paired_expected_account_statement{period_paired_expected_account_statement} {}
 
   std::string AccountStatementState::caption() const {
     return "Account Statement";
