@@ -5,34 +5,37 @@
 
 namespace first {
   
-  AccountStatementFilesState::AccountStatementFilesState() 
-    :  StateImpl{}
-      ,m_file_paths{scan_from_bank_or_skv_directory()}
-      ,m_period_paired_file_paths{PeriodPairedFilePaths{
-        FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
-        ,m_file_paths}}
-      ,m_mod10_view{m_file_paths} {    
-    spdlog::info("AccountStatementFilesState - found {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
-  }
+  // AccountStatementFilesState::AccountStatementFilesState() 
+  //   :  StateImpl{}
+  //     ,m_file_paths{scan_from_bank_or_skv_directory()}
+  //     ,m_period_paired_file_paths{PeriodPairedFilePaths{
+  //       FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
+  //       ,m_file_paths}}
+  //     ,m_mod10_view{m_file_paths} {    
+  //   spdlog::info("AccountStatementFilesState - found {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
+  // }
 
-  AccountStatementFilesState::AccountStatementFilesState(FilePaths file_paths, Mod10View mod10_view)
-    :  StateImpl{}
-      ,m_file_paths{std::move(file_paths)}
-      ,m_period_paired_file_paths{PeriodPairedFilePaths{
-        FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
-        ,m_file_paths}}
-      ,m_mod10_view{mod10_view} {
+  // AccountStatementFilesState::AccountStatementFilesState(FilePaths file_paths, Mod10View mod10_view)
+  //   :  StateImpl{}
+  //     ,m_file_paths{std::move(file_paths)}
+  //     ,m_period_paired_file_paths{PeriodPairedFilePaths{
+  //       FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
+  //       ,m_file_paths}}
+  //     ,m_mod10_view{mod10_view} {
     
-    spdlog::info("AccountStatementFilesState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
-  }
+  //   spdlog::info("AccountStatementFilesState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
+  // }
 
   AccountStatementFilesState::AccountStatementFilesState(PeriodPairedFilePaths period_paired_file_paths, Mod10View mod10_view)
     :  StateImpl{}
-      ,m_file_paths{period_paired_file_paths.content()}
+      // ,m_file_paths{period_paired_file_paths.content()}
       ,m_period_paired_file_paths{period_paired_file_paths}
       ,m_mod10_view{mod10_view} {
-    spdlog::info("AccountStatementFilesState - {} files: {}", m_file_paths.size(), m_mod10_view.to_string());
+    spdlog::info("AccountStatementFilesState - {} files: {}", m_period_paired_file_paths.content().size(), m_mod10_view.to_string());
   }
+
+  AccountStatementFilesState::AccountStatementFilesState(PeriodPairedFilePaths period_paired_file_paths)
+    : AccountStatementFilesState{period_paired_file_paths,Mod10View{period_paired_file_paths.content()}} {}
 
   std::string AccountStatementFilesState::caption() const {
     if (m_caption.has_value()) {
@@ -44,29 +47,7 @@ namespace first {
     }
     
     return std::format("Account Statements ({} files, showing {})", 
-                      m_file_paths.size(), m_mod10_view.to_string());
-  }
-
-  AccountStatementFilesState::FilePaths AccountStatementFilesState::scan_from_bank_or_skv_directory() const {
-    FilePaths result;
-    std::filesystem::path dir_path = "from_bank_or_skv";
-    
-    try {
-      if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path)) {
-        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
-          if (entry.is_regular_file()) {
-            result.push_back(entry.path());
-            spdlog::info("Found file: {}", entry.path().string());
-          }
-        }
-      } else {
-        spdlog::info("Directory 'from_bank_or_skv' does not exist or is not a directory");
-      }
-    } catch (const std::exception& e) {
-      spdlog::error("Error scanning directory 'from_bank_or_skv': {}", e.what());
-    }
-    
-    return result;
+                      m_period_paired_file_paths.content().size(), m_mod10_view.to_string());
   }
 
   StateImpl::UX AccountStatementFilesState::create_ux() const {
@@ -84,8 +65,8 @@ namespace first {
     }
     
     for (size_t i : m_mod10_view) {
-      if (i < m_file_paths.size()) {
-        result.push_back(std::format("{}. {}", i, m_file_paths[i].filename().string()));
+      if (i < m_period_paired_file_paths.content().size()) {
+        result.push_back(std::format("{}. {}", i, m_period_paired_file_paths.content()[i].filename().string()));
       }
     }
     
@@ -116,9 +97,9 @@ namespace first {
       }
       
       // Try to get direct index for single file
-      if (auto index = m_mod10_view.direct_index(digit); index.has_value() && *index < m_file_paths.size()) {
+      if (auto index = m_mod10_view.direct_index(digit); index.has_value() && *index < m_period_paired_file_paths.content().size()) {
         // Single file - direct navigation to AccountStatementFileState
-        auto file_path = m_file_paths[*index];
+        auto file_path = m_period_paired_file_paths.content()[*index];
         auto caption = file_path.filename().string();
         result.add(digit, {caption, [file_path]() -> StateUpdateResult {
           return {std::nullopt, [file_path]() -> std::optional<Msg> {
@@ -134,9 +115,9 @@ namespace first {
             ? std::format("File {}", drilled_view.first())
             : std::format("Files {} .. {}", drilled_view.first(), drilled_view.second() - 1);
           
-          result.add(digit, {caption, [file_paths = m_file_paths, drilled_view]() -> StateUpdateResult {
-            return {std::nullopt, [file_paths, drilled_view]() -> std::optional<Msg> {
-              State new_state = make_state<AccountStatementFilesState>(file_paths, drilled_view);
+          result.add(digit, {caption, [period_paired_file_paths = m_period_paired_file_paths, drilled_view]() -> StateUpdateResult {
+            return {std::nullopt, [period_paired_file_paths, drilled_view]() -> std::optional<Msg> {
+              State new_state = make_state<AccountStatementFilesState>(period_paired_file_paths, drilled_view);
               return std::make_shared<PushStateMsg>(new_state);
             }};
           }});
@@ -155,6 +136,28 @@ namespace first {
         );
       }};
     }});
+    
+    return result;
+  }
+
+  AccountStatementFilesState::FilePaths AccountStatementFilesState::scan_from_bank_or_skv_directory() {
+    FilePaths result;
+    std::filesystem::path dir_path = "from_bank_or_skv";
+    
+    try {
+      if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path)) {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+          if (entry.is_regular_file()) {
+            result.push_back(entry.path());
+            spdlog::info("Found file: {}", entry.path().string());
+          }
+        }
+      } else {
+        spdlog::info("Directory 'from_bank_or_skv' does not exist or is not a directory");
+      }
+    } catch (const std::exception& e) {
+      spdlog::error("Error scanning directory 'from_bank_or_skv': {}", e.what());
+    }
     
     return result;
   }

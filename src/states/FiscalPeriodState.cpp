@@ -101,9 +101,14 @@ namespace first {
     }});
     
     // Add AccountStatementFilesState option
-    result.add('a', {"Account Statements", []() -> StateUpdateResult {
-      return {std::nullopt, []() -> std::optional<Msg> {
-        State new_state = make_state<AccountStatementFilesState>();
+    result.add('a', {"Account Statements", [fiscal_period = m_fiscal_period]() -> StateUpdateResult {
+      return {std::nullopt, [fiscal_period]() -> std::optional<Msg> {
+        auto file_paths = AccountStatementFilesState::scan_from_bank_or_skv_directory();
+        AccountStatementFilesState::PeriodPairedFilePaths period_paired_file_paths{
+           fiscal_period
+          ,file_paths
+        };
+        State new_state = make_state<AccountStatementFilesState>(period_paired_file_paths);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
