@@ -10,7 +10,16 @@ namespace first {
   AccountStatementFileState::AccountStatementFileState(std::filesystem::path file_path)
     :  StateImpl{}
       ,m_file_path{file_path}
-      ,m_parse_csv_result{CSV::try_parse_csv(file_path)} {}
+      ,m_parse_csv_result{CSV::try_parse_csv(file_path)}
+      ,m_period_paired_file_path{PeriodPairedFilePath{
+        FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
+        ,file_path}} {}
+
+  AccountStatementFileState::AccountStatementFileState(PeriodPairedFilePath period_paired_file_path)
+    :  StateImpl{}
+      ,m_file_path{period_paired_file_path.content()}
+      ,m_parse_csv_result{CSV::try_parse_csv(period_paired_file_path.content())}
+      ,m_period_paired_file_path{period_paired_file_path} {}
 
   std::string AccountStatementFileState::caption() const {
     if (not m_caption.has_value()) {
@@ -32,13 +41,11 @@ namespace first {
         //        TaggedAmountsState aggregating raw tagged amounts
         if (maybe_dota) {
           new_state = make_state<TaggedAmountsState>(
-             maybe_dota->tagged_amounts()
-            ,fiscal_period);
+             TaggedAmountsState::TaggedAmountsSlice{fiscal_period, maybe_dota->tagged_amounts()});
         }
         else {
           new_state = make_state<TaggedAmountsState>(
-             TaggedAmounts{}
-            ,fiscal_period);
+             TaggedAmountsState::TaggedAmountsSlice{fiscal_period, TaggedAmounts{}});
         }
         return std::make_shared<PushStateMsg>(new_state);
       }};

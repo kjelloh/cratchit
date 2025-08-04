@@ -2,6 +2,7 @@
 
 #include "StateImpl.hpp"
 #include "csv/parse_csv.hpp"
+#include "../PeriodConstrainedContent.hpp" 
 #include <string>
 #include <filesystem>
 #include <optional>
@@ -9,9 +10,10 @@
 namespace first {
   class AccountStatementFileState : public StateImpl {
   public:
+    using PeriodPairedFilePath = PeriodPairedT<std::filesystem::path>;
     AccountStatementFileState(const AccountStatementFileState&) = delete;
     AccountStatementFileState(std::filesystem::path file_path);
-    // AccountStatementFileState(std::optional<std::string> caption, std::filesystem::path file_path);
+    AccountStatementFileState(PeriodPairedFilePath period_paired_file_path);
 
     virtual StateImpl::UpdateOptions create_update_options() const override;
     virtual StateImpl::UX create_ux() const override;
@@ -21,6 +23,7 @@ namespace first {
 
   private:
     std::filesystem::path m_file_path;
+    PeriodPairedFilePath m_period_paired_file_path;
     CSV::ParseCSVResult m_parse_csv_result;
     
   }; // AccountStatementFileState
