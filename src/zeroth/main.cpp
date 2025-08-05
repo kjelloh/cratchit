@@ -5783,6 +5783,14 @@ std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered
 }
 
 std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
+  os << "\n" << "Financial Period:";
+  if (auto maybe_year_range = sie_environment.financial_year_date_range()) {
+    os << maybe_year_range.value();
+  }
+  else {
+    os << "*anonymous*";
+  }
+
 	for (auto const& je : sie_environment.journals()) {
 		auto& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {
@@ -5916,8 +5924,12 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now = std::chrono::system_clock::now();
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
-	// sieos.os << "\n" << "#GEN " << std::put_time(now_local, "%Y%m%d");
 	sieos.os << "#GEN " << std::put_time(now_local, "%Y%m%d");
+  // #RAR 0 20240501 20250430
+  if (auto maybe_year_range = sie.financial_year_date_range()) {
+    auto const& year_range = maybe_year_range.value();
+    sieos.os << "\n#RAR" << " 0 " << year_range.begin() << " " << year_range.end();
+  }
 	for (auto const& entry : sie.unposted()) {
 		std::cout << "\nUnposted:" << entry; 
 		sieos << to_sie_t(entry);
