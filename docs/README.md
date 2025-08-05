@@ -4,6 +4,8 @@ The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scroo
 
 cratchit © 2025 by Kjell-Olov Högdal is licensed under Creative Commons Attribution 4.0 International. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/
 
+* [Users Manual](users_manual/README.md)
+
 # Build
 
 This project supports Cmake and Conan package manager.
