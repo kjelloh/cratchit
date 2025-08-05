@@ -90,58 +90,61 @@ using QuarterIndex = first::QuarterIndex;
 using FiscalPeriod = first::FiscalPeriod;
 using FiscalYear = first::FiscalYear;
 
-// --------------------------------------------------------------------------------
-
+// global namespace
 using OptionalDate = std::optional<Date>;
 std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd);
 std::string to_string(Date const& yyyymmdd);
 Date to_date(int year,unsigned month,unsigned day);
 OptionalDate to_date(std::string const& sYYYYMMDD);
 Date to_today();
-
-
 QuarterIndex to_quarter_index(Date const& a_period_date);
 Month to_quarter_begin(QuarterIndex const& quarter_ix);
 Month to_quarter_end(QuarterIndex const& quarter_ix);
 
-// BEGIN -- Date framework (from original zeroth variant)
+namespace zeroth {
 
-class DateRange {
-public:
-    DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
-    DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-        OptionalDate begin{to_date(yyyymmdd_begin)};
-        OptionalDate end{to_date(yyyymmdd_end)};
-        if (begin and end) {
-            m_valid = true;
-            m_begin = *begin;
-            m_end = *end;
-        }
-    }
-    Date begin() const {return m_begin;}
-    Date end() const {return m_end;}
-    bool contains(Date const& date) const { return begin() <= date and date <= end();}
-    operator bool() const {return m_valid;}
-private:
-    bool m_valid{};
-    Date m_begin{};
-    Date m_end{};
-};
-using OptionalDateRange = std::optional<DateRange>;
+  // --------------------------------------------------------------------------------
 
-DateRange to_quarter_range(Date const& a_period_date);
-DateRange to_three_months_earlier(DateRange const& quarter);
-std::ostream& operator<<(std::ostream& os,DateRange const& dr);
+  // BEGIN -- Date framework (from original zeroth variant)
 
-struct IsPeriod {
-    DateRange period;
-    bool operator()(Date const& date) const {
-        return period.contains(date);
-    }
-};
+  class DateRange {
+  public:
+      DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
+      DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+          OptionalDate begin{to_date(yyyymmdd_begin)};
+          OptionalDate end{to_date(yyyymmdd_end)};
+          if (begin and end) {
+              m_valid = true;
+              m_begin = *begin;
+              m_end = *end;
+          }
+      }
+      Date begin() const {return m_begin;}
+      Date end() const {return m_end;}
+      bool contains(Date const& date) const { return begin() <= date and date <= end();}
+      operator bool() const {return m_valid;}
+  private:
+      bool m_valid{};
+      Date m_begin{};
+      Date m_end{};
+  };
+  using OptionalDateRange = std::optional<DateRange>;
 
-IsPeriod to_is_period(DateRange const& period);
-std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end);
+  DateRange to_quarter_range(Date const& a_period_date);
+  DateRange to_three_months_earlier(DateRange const& quarter);
+  std::ostream& operator<<(std::ostream& os,DateRange const& dr);
+
+  struct IsPeriod {
+      DateRange period;
+      bool operator()(Date const& date) const {
+          return period.contains(date);
+      }
+  };
+
+  IsPeriod to_is_period(DateRange const& period);
+  std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end);
+}
+
 
 // END -- Date framework
 

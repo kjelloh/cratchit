@@ -9,11 +9,8 @@
 #include <chrono> // std::chrono::year_month_day
 #include "FiscalPeriod.hpp" // fiscal Date and period classes 
 
-std::string filtered(std::string const& s,auto filter) {
-	std::string result{};;
-	std::copy_if(s.begin(),s.end(),std::back_inserter(result),filter);
-	return result;
-}
+// Now in FiscalPeriod unit 
+// std::string filtered(std::string const& s,auto filter) {
 
 // namespace Key now in Key unit
 

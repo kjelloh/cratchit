@@ -17,6 +17,7 @@ float const VERSION = 0.5;
 #include "sie/sie.hpp"
 #include "csv/csv.hpp"
 #include "csv/projections.hpp"
+#include "text/functional.hpp" // functional::text::filtered
 #include <iostream>
 #include <locale>
 #include <string>
@@ -122,7 +123,7 @@ As of 240603 I have yet to understand the exact difference between "date when th
 
 // namespace Key now in AmountsFramework unit
 
-// filtered now in AmountFramework unit
+// functional::text::filtered now in AmountFramework unit
 
 // WrappedCentsAmount, IntCentsAmount etc.  now in AmountFramework unit
 
@@ -130,7 +131,7 @@ As of 240603 I have yet to understand the exact difference between "date when th
 
 namespace sie {
 
-  auto to_financial_year_range = [](std::chrono::year financial_year_start_year, std::chrono::month financial_year_start_month) -> DateRange {
+  auto to_financial_year_range = [](std::chrono::year financial_year_start_year, std::chrono::month financial_year_start_month) -> zeroth::DateRange {
       auto start_date = std::chrono::year_month_day{financial_year_start_year, financial_year_start_month, std::chrono::day{1}};
       auto next_start_date = std::chrono::year_month_day{financial_year_start_year + std::chrono::years{1}, financial_year_start_month, std::chrono::day{1}};
       auto end_date_sys_days = std::chrono::sys_days(next_start_date) - std::chrono::days{1};
@@ -139,7 +140,7 @@ namespace sie {
   };
 
   // SIE defines a relative index 0,-1,-2 for financial years relative the financial year of current date 
-  using YearIndex2DateRangeMap = std::map<std::string,DateRange>;
+  using YearIndex2DateRangeMap = std::map<std::string,zeroth::DateRange>;
   YearIndex2DateRangeMap current_date_to_year_id_map(std::chrono::month financial_year_start_month,int index_count) {
     YearIndex2DateRangeMap result;
     
@@ -149,7 +150,7 @@ namespace sie {
     for (int i = 0; i < index_count; ++i) {
         auto financial_year_start_year = current_year - std::chrono::years{i};
         auto range = to_financial_year_range(financial_year_start_year, financial_year_start_month);
-        result.emplace(std::to_string(-i),range); // emplace insert to avoid default constructing a DateRange
+        result.emplace(std::to_string(-i),range); // emplace insert to avoid default constructing a zeroth::DateRange
     }
 
     if (true) {
@@ -2584,7 +2585,7 @@ public:
 
 	BAS::AccountMetas const & account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
 
-	void set_year_date_range(DateRange const& dr) {
+	void set_year_date_range(zeroth::DateRange const& dr) {
 		this->year_date_range = dr;
 		// std::cout << "\nset_year_date_range <== " << *this->year_date_range;
 	}
@@ -2637,7 +2638,7 @@ public:
 		return result;
 	}
 
-	OptionalDateRange financial_year_date_range() const {
+	zeroth::OptionalDateRange financial_year_date_range() const {
 		return this->year_date_range;
 	}
 
@@ -2655,7 +2656,7 @@ public:
 	
 private:
 	BASJournals m_journals{};
-	OptionalDateRange year_date_range{};
+	zeroth::OptionalDateRange year_date_range{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
 
@@ -3525,27 +3526,27 @@ namespace SKV { // SKV
 	int to_tax(Amount amount) {return to_double(trunc(amount));} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
 	int to_fee(Amount amount) {return to_double(trunc(amount));} 
 
-	OptionalDateRange to_date_range(std::string const& period_id) {
-		OptionalDateRange result{};
+	zeroth::OptionalDateRange to_date_range(std::string const& period_id) {
+		zeroth::OptionalDateRange result{};
 		try {
 			auto today = to_today();
 			const std::regex is_year_quarter("^\\s*\\d\\d-Q[1-4]\\s*$"); // YY-Q1..YY-Q4
 			const std::regex is_anonymous_quarter("Q[1-4]"); // Q1..Q4
 			if (period_id.size()==0) {
 				// default to current quarter
-				result = to_quarter_range(today);
+				result = zeroth::to_quarter_range(today);
 			}
 			else if (std::regex_match(period_id,is_year_quarter)) {
 				// Create quarter range of given year YY-Qx
 				auto current_century = static_cast<int>(today.year()) / 100;
 				std::chrono::year year{current_century*100 + std::stoi(period_id.substr(0,2))};
 				std::chrono::month end_month{3u * static_cast<unsigned>(period_id[4] - '0')};
-				result = to_quarter_range(year/end_month/std::chrono::last);
+				result = zeroth::to_quarter_range(year/end_month/std::chrono::last);
 			}
 			else if (std::regex_match(period_id,is_anonymous_quarter)) {
 				// Create quarter range of current year Qx
 				std::chrono::month end_month{3u * static_cast<unsigned>(period_id[1]-'0')};
-				result = to_quarter_range(today.year()/end_month/std::chrono::last);
+				result = zeroth::to_quarter_range(today.year()/end_month/std::chrono::last);
 			}
 			else throw std::runtime_error(std::string{"Can't interpret period_id=\""} + period_id + "\"");
 		}
@@ -3849,7 +3850,7 @@ namespace SKV { // SKV
 			// The SKV XML IT-system requires 12 digit organisation numbers with digits only
 			// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into 16XXXXXXYYYY
 			// See https://sv.wikipedia.org/wiki/Organisationsnummer
-			std::string sdigits = filtered(generic_org_no,::isdigit);
+			std::string sdigits = functional::text::filtered(generic_org_no,::isdigit);
 			switch (sdigits.size()) {
 				case 10: result = std::string{"16"} + sdigits; break;
 				case 12: result = sdigits; break;
@@ -4115,12 +4116,12 @@ namespace SKV { // SKV
 
 			// Meta-data required to frame a VAT Returns form to SKV
 			struct VatReturnsMeta {
-				DateRange period;
+				zeroth::DateRange period;
 				std::string period_to_declare; // VAT Returns period e.g., 202203 for Mars 2022 (also implying Q1 jan-mars)
 			};
 			using OptionalVatReturnsMeta = std::optional<VatReturnsMeta>;
 
-			OptionalVatReturnsMeta to_vat_returns_meta(DateRange const& period) {
+			OptionalVatReturnsMeta to_vat_returns_meta(zeroth::DateRange const& period) {
 				OptionalVatReturnsMeta result{};
 				try {
 					std::string period_to_declare = to_string(period.end()); // YYYYMMDD
@@ -4431,7 +4432,7 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			bool quarter_has_VAT_consilidation_entry(SIEEnvironments const& sie_envs,DateRange const& period) {
+			bool quarter_has_VAT_consilidation_entry(SIEEnvironments const& sie_envs,zeroth::DateRange const& period) {
 				bool result{};
 				auto f = [&period,&result](BAS::TypedMetaEntry const& tme) {
 					auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
@@ -4461,9 +4462,9 @@ namespace SKV { // SKV
 					// Create a had for last quarter if there is no journal entry in the M series for it
 					// Otherwise create a had for current quarter
 					auto today = to_today();
-					auto current_quarter = to_quarter_range(today);
+					auto current_quarter = zeroth::to_quarter_range(today);
 					auto previous_quarter = to_three_months_earlier(current_quarter);
-					auto vat_returns_range = DateRange{previous_quarter.begin(),current_quarter.end()}; // previous and "current" two quarters
+					auto vat_returns_range = zeroth::DateRange{previous_quarter.begin(),current_quarter.end()}; // previous and "current" two quarters
 					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter aftre having created the VAT returns consolidation
 					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
 
@@ -4545,7 +4546,7 @@ namespace SKV { // SKV
 				// The SKV CSV IT-system requires 10 digit organisation numbers with digits only
 				// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into XXXXXXYYYY
 				// See https://sv.wikipedia.org/wiki/Organisationsnummer
-				std::string sdigits = filtered(generic_org_no,::isdigit);
+				std::string sdigits = functional::text::filtered(generic_org_no,::isdigit);
 				switch (sdigits.size()) {
 					case 10: result = sdigits; break;
 					case 12: result = sdigits.substr(2); // Assume the two first are the prefix "16"
@@ -4757,7 +4758,7 @@ namespace SKV { // SKV
 				return {os.str()};
 			}
 
-			std::optional<Form> vat_returns_to_eu_sales_list_form(SKV::XML::VATReturns::FormBoxMap const& box_map,SKV::OrganisationMeta const& org_meta,DateRange const& period) {
+			std::optional<Form> vat_returns_to_eu_sales_list_form(SKV::XML::VATReturns::FormBoxMap const& box_map,SKV::OrganisationMeta const& org_meta,zeroth::DateRange const& period) {
 				std::optional<Form> result{};
 				try {
 					if (org_meta.contact_persons.size()==0) throw std::runtime_error(std::string{"vat_returns_to_eu_sales_list_form failed - zero org_meta.contact_persons"});
@@ -5474,6 +5475,7 @@ public:
 	std::vector<std::string> employee_birth_ids{};
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
+  FiscalYear current_fiscal_year{FiscalYear::to_current_fiscal_year(std::chrono::month{5})}; // month hard coded for now
 	size_t had_index{};
 	// BAS::MetaEntries template_candidates{};
 	BAS::TypedMetaEntries template_candidates{};
@@ -5580,8 +5582,8 @@ public:
 		return this->heading_amount_date_entries;
 	}
 
-  OptionalDateRange to_financial_year_date_range(std::string const& year_id) {
-    OptionalDateRange result{};
+  zeroth::OptionalDateRange to_financial_year_date_range(std::string const& year_id) {
+    zeroth::OptionalDateRange result{};
 		if (this->sie.contains(year_id)) {
       result = this->sie[year_id].financial_year_date_range();
     }
@@ -5868,7 +5870,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 				SIE::Rar rar = std::get<SIE::Rar>(*opt_entry);
 				if (rar.year_no == 0) {
 					// Process only "current" year in read sie file
-					sie_environment.set_year_date_range(DateRange{rar.first_day_yyyymmdd,rar.last_day_yyyymmdd});
+					sie_environment.set_year_date_range(zeroth::DateRange{rar.first_day_yyyymmdd,rar.last_day_yyyymmdd});
 				}
 			}
 			else if (auto opt_entry = SIE::parse_KONTO(utf8_in,"#KONTO")) {
@@ -7319,10 +7321,10 @@ Cmd Updater::operator()(Command const& command) {
             case 1: {
               // Create current quarter, previous quarter or two previous quarters option
               auto today = to_today();
-              auto current_qr = to_quarter_range(today);
+              auto current_qr = zeroth::to_quarter_range(today);
               auto previous_qr = to_three_months_earlier(current_qr);
               auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
-              auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
+              auto two_previous_quarters = zeroth::DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
 
               prompt << "\n0: Track Current Quarter " << current_qr;
               prompt << "\n1: Report Previous Quarter " << previous_qr;
@@ -7386,11 +7388,11 @@ Cmd Updater::operator()(Command const& command) {
 
         case PromptState::QuarterOptionIndex: {
           auto today = to_today();
-          auto current_qr = to_quarter_range(today);
+          auto current_qr = zeroth::to_quarter_range(today);
           auto previous_qr = to_three_months_earlier(current_qr);
           auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
-          auto two_previous_quarters = DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
-          OptionalDateRange period_range{};
+          auto two_previous_quarters = zeroth::DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
+          zeroth::OptionalDateRange period_range{};
           switch (ix) {
             case 0: {
               prompt << "\nCurrent Quarter " << current_qr << " (to track)";
@@ -8018,14 +8020,14 @@ Cmd Updater::operator()(Command const& command) {
           prompt << model->sie[ast[1]];
         }
         else if (auto bas_account_no = BAS::to_account_no(ast[1])) {
-          // List journal entries filtered on an bas account number
+          // List journal entries functional::text::filtered on an bas account number
           prompt << "\nFilter journal entries that has a transaction to account no " << *bas_account_no;
           prompt << "\nTIP: If you meant filter on amount please re-enter using '.00' to distinguish it from an account no.";
           FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
           prompt << filtered_sie;
         }
         else if (auto gross_amount = to_amount(ast[1])) {
-          // List journal entries filtered on given amount
+          // List journal entries functional::text::filtered on given amount
           prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
           FilteredSIEEnvironment filtered_sie{model->sie["current"],BAS::filter::HasGrossAmount{*gross_amount}};
           prompt << filtered_sie;

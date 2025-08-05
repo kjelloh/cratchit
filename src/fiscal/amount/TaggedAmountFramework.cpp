@@ -92,7 +92,7 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
 
 // BEGIN class DateOrderedTaggedAmountsContainer
 
-DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::in_date_range(DateRange const &date_period) {
+DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::in_date_range(zeroth::DateRange const &date_period) {
   auto first = std::find_if(this->begin(), this->end(),
                             [&date_period](auto const &ta) {
                               return (ta.date() >= date_period.begin());

@@ -147,7 +147,7 @@ public:
   iterator end() { return m_date_ordered_tagged_amounts.end(); }
   const_iterator begin() const { return m_date_ordered_tagged_amounts.begin(); }
   const_iterator end() const { return m_date_ordered_tagged_amounts.end(); }
-  const_subrange in_date_range(DateRange const &date_period);
+  const_subrange in_date_range(zeroth::DateRange const &date_period);
   OptionalTaggedAmount at(ValueId const &value_id);
   OptionalTaggedAmount operator[](ValueId const &value_id);
   OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);

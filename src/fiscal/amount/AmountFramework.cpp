@@ -3,66 +3,15 @@
 #include <sstream> // std::ostringstream,
 #include <numeric> // std::accumulate,
 
+// Date framework now in FiscalPeriod unit
 
-// BEGIN -- Date framework
-
-std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
-	// TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support?)
-	os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
-	os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
-	return os;
-}
-std::string to_string(Date const& yyyymmdd) {
-		std::ostringstream os{};
-		os << yyyymmdd;
-		return os.str();
-}
-Date to_date(int year,unsigned month,unsigned day) {
-	return Date {
-	     std::chrono::year{year}
-	    ,std::chrono::month{month}
-	    ,std::chrono::day{day}
-	};
-}
-OptionalDate to_date(std::string const& sYYYYMMDD) {
-	// std::cout << "\nto_date(" << sYYYYMMDD << ")";
-	OptionalDate result{};
-	try {
-		if (sYYYYMMDD.size()==8) {
-			result = to_date(
-				std::stoi(sYYYYMMDD.substr(0,4))
-				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
-				,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
-		}
-		else {
-			// Handle "YYYY-MM-DD" "YYYY MM DD" etc.
-			std::string sDate = filtered(sYYYYMMDD,::isdigit);
-			if (sDate.size()==8) result = to_date(sDate);
-		}
-		// if (result) std::cout << " = " << *result;
-		// else std::cout << " = null";
-	}
-	catch (std::exception const& e) {} // swallow silently
-	return result;
-}
-
-Date to_today() {
-	// TODO: Upgrade to correct std::chrono way when C++20 compiler support is there
-	// std::cout << "\nto_today";
-	std::ostringstream os{};
-	auto now_timet = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	std::tm* now_local = localtime(&now_timet);
-	return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
-}
-
+// Amounts framework
 namespace WrappedCentsAmount {
   std::string to_string(CentsAmount const &cents_amount) {
     std::ostringstream oss{};
     oss << cents_amount;
     return oss.str();
   }
-
 }
 
 namespace WrappedDoubleAmount {

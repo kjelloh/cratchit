@@ -1,6 +1,8 @@
 #include "FiscalPeriod.hpp"
-#include <format>
 #include "logger/log.hpp"
+#include "text/functional.hpp" // functional::text::filtered
+#include <format>
+#include <iomanip> // std::setfill,...
 
 namespace first {
 
@@ -116,60 +118,115 @@ namespace first {
 
 } // namespace first
 
+// Global namespace 
+
+std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
+  // TODO: Remove when support for ostream << chrono::year_month_day (g++11 stdlib seems to lack support?)
+  os << std::setfill('0') << std::setw(4) << static_cast<int>(yyyymmdd.year());
+  os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.month());
+  os << std::setfill('0') << std::setw(2) << static_cast<unsigned>(yyyymmdd.day());
+  return os;
+}
+std::string to_string(Date const& yyyymmdd) {
+    std::ostringstream os{};
+    os << yyyymmdd;
+    return os.str();
+}
+Date to_date(int year,unsigned month,unsigned day) {
+  return Date {
+      std::chrono::year{year}
+      ,std::chrono::month{month}
+      ,std::chrono::day{day}
+  };
+}
+OptionalDate to_date(std::string const& sYYYYMMDD) {
+  // std::cout << "\nto_date(" << sYYYYMMDD << ")";
+  OptionalDate result{};
+  try {
+    if (sYYYYMMDD.size()==8) {
+      result = to_date(
+        std::stoi(sYYYYMMDD.substr(0,4))
+        ,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
+        ,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
+    }
+    else {
+      // Handle "YYYY-MM-DD" "YYYY MM DD" etc.
+      std::string sDate = functional::text::filtered(sYYYYMMDD,::isdigit);
+      if (sDate.size()==8) result = to_date(sDate);
+    }
+    // if (result) std::cout << " = " << *result;
+    // else std::cout << " = null";
+  }
+  catch (std::exception const& e) {} // swallow silently
+  return result;
+}
+
+Date to_today() {
+  // TODO: Upgrade to correct std::chrono way when C++20 compiler support is there
+  // std::cout << "\nto_today";
+  std::ostringstream os{};
+  auto now_timet = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  std::tm* now_local = localtime(&now_timet);
+  return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
+}
 
 
 QuarterIndex to_quarter_index(Date const& a_period_date) {
-	return QuarterIndex{((static_cast<unsigned>(a_period_date.month())-1) / 3u)+ 1u}; // ((0..3) + 1
+  return QuarterIndex{((static_cast<unsigned>(a_period_date.month())-1) / 3u)+ 1u}; // ((0..3) + 1
 }
 std::chrono::month to_quarter_begin(QuarterIndex const& quarter_ix) {
-	unsigned begin_month_no = (quarter_ix.m_ix-1u) * 3u + 1u; // [0..3]*3 = [0,3,6,9] + 1 = [1,4,7,10]
-	return std::chrono::month{begin_month_no};
+  unsigned begin_month_no = (quarter_ix.m_ix-1u) * 3u + 1u; // [0..3]*3 = [0,3,6,9] + 1 = [1,4,7,10]
+  return std::chrono::month{begin_month_no};
 }
 std::chrono::month to_quarter_end(QuarterIndex const& quarter_ix) {
-	return (to_quarter_begin(quarter_ix) + std::chrono::months{2});
+  return (to_quarter_begin(quarter_ix) + std::chrono::months{2});
 }
 
-DateRange to_quarter_range(Date const& a_period_date) {
-// std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
-	auto quarter_ix = to_quarter_index(a_period_date);
-	auto begin_month = to_quarter_begin(quarter_ix);
-	auto end_month = to_quarter_end(quarter_ix);
-	auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
-	auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
-  if (false) {
-    spdlog::debug("to_quarter_range({}) --> {}..{}", to_string(a_period_date), to_string(begin), to_string(end));
+
+namespace zeroth {
+
+  DateRange to_quarter_range(Date const& a_period_date) {
+  // std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
+    auto quarter_ix = to_quarter_index(a_period_date);
+    auto begin_month = to_quarter_begin(quarter_ix);
+    auto end_month = to_quarter_end(quarter_ix);
+    auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
+    auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
+    if (false) {
+      spdlog::debug("to_quarter_range({}) --> {}..{}", to_string(a_period_date), to_string(begin), to_string(end));
+    }
+    return {begin,end};
   }
-	return {begin,end};
+
+  DateRange to_three_months_earlier(DateRange const& quarter) {
+    auto const quarter_duration = std::chrono::months{3};
+    // get the year and month for the date range to return
+    auto ballpark_end = quarter.end() - quarter_duration;
+    // Adjust the end day to the correct one for the range end month
+    auto end = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
+    // Note: We do not need to adjust the begin day as all month starts on day 1
+    return {quarter.begin() - quarter_duration,end};
+  }
+
+  std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
+    os << dr.begin() << "..." << dr.end();
+    return os;
+  }
+
+  // class IsPeriod here
+
+  IsPeriod to_is_period(DateRange const& period) {
+    return {period};
+  }
+
+  std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+    std::optional<IsPeriod> result{};
+    if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
+    else {
+      spdlog::error(R"(to_is_period failed. Invalid period "{}" ... "{}")", yyyymmdd_begin, yyyymmdd_end);
+    }
+    return result;
+  }
+
 }
-
-DateRange to_three_months_earlier(DateRange const& quarter) {
-	auto const quarter_duration = std::chrono::months{3};
-  // get the year and month for the date range to return
-  auto ballpark_end = quarter.end() - quarter_duration;
-  // Adjust the end day to the correct one for the range end month
-  auto end = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
-  // Note: We do not need to adjust the begin day as all month starts on day 1
-	return {quarter.begin() - quarter_duration,end};
-}
-
-std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
-	os << dr.begin() << "..." << dr.end();
-	return os;
-}
-
-// class IsPeriod here
-
-IsPeriod to_is_period(DateRange const& period) {
-	return {period};
-}
-
-std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-	std::optional<IsPeriod> result{};
-	if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
-	else {
-    spdlog::error(R"(to_is_period failed. Invalid period "{}" ... "{}")", yyyymmdd_begin, yyyymmdd_end);
-	}
-	return result;
-}
-
 
