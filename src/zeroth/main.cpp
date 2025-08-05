@@ -2537,6 +2537,14 @@ public:
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
     // std::cout << "\nstage(" << me << ")"  << std::flush; 
 		std::optional<BAS::MetaEntry> result{};
+
+    if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
+      // Block adding an entry with a dater outside an SIE envrionment financial date range
+      std::cout << "\nDate:" << me.defacto.date << " is not in financial year:";
+      if (this->financial_year_date_range()) std::cout << this->financial_year_date_range().value();
+      else std::cout << "*anonymous*";
+      return std::nullopt;
+    }
 		if (does_balance(me.defacto)) {
 			if (this->already_in_posted(me) == false) {
         result = this->add(me); // return entry if it is no longer unposted / staged for posting
