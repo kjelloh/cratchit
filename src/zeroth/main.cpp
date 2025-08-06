@@ -5287,16 +5287,16 @@ EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
 std::optional<SRUEnvironments::value_type> to_sru_environments_entry(EnvironmentValue const& ev) {
 	try {
 // std::cout << "\nto_sru_environments_entry";
-		// "4531=360000;4532=360000;financial_year_key=0"
+		// "4531=360000;4532=360000;relative_year_key=0"
 		SRUEnvironment sru_env{};
-		auto& financial_year_key = ev.at("financial_year_key");
+		auto& relative_year_key = ev.at("relative_year_key");
 		for (auto const& [key,value] : ev) {
 // std::cout << "\nkey:" << key << " value:" << value;
 			if (auto const& sru_code = SKV::SRU::to_account_no(key)) {
 				sru_env.set(*sru_code,value);
 			}
 		}
-		return SRUEnvironments::value_type{financial_year_key,sru_env};
+		return SRUEnvironments::value_type{relative_year_key,sru_env};
 	}
 	catch (std::exception const& e) {
 		std::cout << "\nto_sru_environments_entry failed. Exception=" << std::quoted(e.what());
@@ -5577,10 +5577,10 @@ public:
 		return this->heading_amount_date_entries;
 	}
 
-  zeroth::OptionalDateRange to_financial_year_date_range(std::string const& financial_year_key) {
+  zeroth::OptionalDateRange to_financial_year_date_range(std::string const& relative_year_key) {
     zeroth::OptionalDateRange result{};
-		if (this->sie_env_map.contains(financial_year_key)) {
-      result = this->sie_env_map[financial_year_key].financial_year_date_range();
+		if (this->sie_env_map.contains(relative_year_key)) {
+      result = this->sie_env_map[relative_year_key].financial_year_date_range();
     }
     return result;
   }
@@ -8129,10 +8129,10 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-huvudbok") {
       // command "-huvudbok" defaults to "-huvudbok 0", that is the fiscal year of current date
-      std::string financial_year_key = (ast.size() == 2)?ast[1]:std::string{"current"};
-      if (financial_year_key == "0") financial_year_key = "current";
-      prompt << "\nHuvudbok for year id " << financial_year_key;
-      auto financial_year_date_range = model->to_financial_year_date_range(financial_year_key);
+      std::string relative_year_key = (ast.size() == 2)?ast[1]:std::string{"current"};
+      if (relative_year_key == "0") relative_year_key = "current";
+      prompt << "\nHuvudbok for year id " << relative_year_key;
+      auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
       if (financial_year_date_range) {
         prompt << " " << *financial_year_date_range;
         TaggedAmounts tas{}; // journal entries
@@ -8165,7 +8165,7 @@ Cmd Updater::operator()(Command const& command) {
         }
 
         // 3. "print" the table grouping BAS accounts and date ordered SIE verifications (also showing a running accumultaion of the account balance)
-        prompt << "\n<Journal Entries in year id " << financial_year_key << ">";
+        prompt << "\n<Journal Entries in year id " << relative_year_key << ">";
         for (auto const& [bas_account_no,tas] : huvudbok) {
           CentsAmount acc{0};
           prompt << "\n" << bas_account_no;
@@ -8183,7 +8183,7 @@ Cmd Updater::operator()(Command const& command) {
         }
       }
       else {
-        prompt << "\nSORRY, Failed to understand what fiscal year " << financial_year_key << " refers to. Please enter a valid year id (0 or 'current', -1 = previous fiscal year...)";
+        prompt << "\nSORRY, Failed to understand what fiscal year " << relative_year_key << " refers to. Please enter a valid year id (0 or 'current', -1 = previous fiscal year...)";
       }
     }
     else if (ast[0] == "-balance") {
@@ -8276,7 +8276,7 @@ Cmd Updater::operator()(Command const& command) {
         }
         else if (ast.size() > 2) {
           // Assume the user has provided a year-id and a path to a csv-file with SRU values for that year?
-          auto financial_year_key = ast[1];
+          auto relative_year_key = ast[1];
           std::filesystem::path csv_file_path{ast[2]};
           if (std::filesystem::exists(csv_file_path)) {
             std::ifstream ifs{csv_file_path};
@@ -8285,7 +8285,7 @@ Cmd Updater::operator()(Command const& command) {
               for (auto const& field_row : *field_rows) {
                 if (field_row.size()==2) {
                   if (auto const& sru_code = SKV::SRU::to_account_no(field_row[0])) {
-                    model->sru[financial_year_key].set(*sru_code,field_row[1]);
+                    model->sru[relative_year_key].set(*sru_code,field_row[1]);
                   }
                 }
               }
@@ -8303,8 +8303,8 @@ Cmd Updater::operator()(Command const& command) {
         }
       }
       else {
-        for (auto const& [financial_year_key,sru_env] : model->sru) {
-          prompt << "\nyear:id:" << financial_year_key;
+        for (auto const& [relative_year_key,sru_env] : model->sru) {
+          prompt << "\nyear:id:" << relative_year_key;
           prompt << "\n" << sru_env;
         }
       }
@@ -8450,23 +8450,23 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-omslutning") {
       // Report yearly change for each BAS account
-      std::string financial_year_key = "current"; // default
+      std::string relative_year_key = "current"; // default
       if (ast.size()>1) {
         if (model->sie_env_map.contains(ast[1])) {
-          financial_year_key = ast[1];
+          relative_year_key = ast[1];
         }
         else {
           prompt << "\nSorry, I find no record of year " << std::quoted(ast[1]);
         }
       }
 
-      auto financial_year_date_range = model->to_financial_year_date_range(financial_year_key);
+      auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
 
       if (financial_year_date_range) {
         auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
         auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
 
-        std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[financial_year_key].opening_balances();
+        std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
         // Output Omslutning
         /*
         Omslutning 20230501...20240430 {
@@ -9853,10 +9853,10 @@ private:
 			result["employee"].push_back({index,to_environment_value(std::string{"birth-id="} + entry)});
 		}
     for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->sru)) {
-      auto const& [financial_year_key,sru_env] = entry;
+      auto const& [relative_year_key,sru_env] = entry;
       std::ostringstream os{};
       OEnvironmentValueOStream en_val_os{os};
-      en_val_os << "financial_year_key=" << financial_year_key << sru_env;
+      en_val_os << "relative_year_key=" << relative_year_key << sru_env;
       // result.insert({"SRU:S",to_environment_value(os.str())});
       result["SRU:S"].push_back({index,to_environment_value(os.str())});
     }
