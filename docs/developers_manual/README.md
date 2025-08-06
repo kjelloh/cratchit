@@ -48,3 +48,10 @@ if (environment.contains("sie_file")) {
 ```
 
 * There is only one 'cratchit.se' to store new financial entries that are not in the imported sie-file for 'current'.
+
+### SIE files indexed by financial year?
+
+Maybe it would be better to organise SIE files indexed by an actual financial year?
+
+20250806 - Started refactoring from SIEEnvironments_X -> SIEEnvironments_R. Where 'X' maps from int 0,-1,-2... relative index to SIEEnvironment and 'R maps Date -> SIEEnvironment (Date being forst day of financial year)
+
