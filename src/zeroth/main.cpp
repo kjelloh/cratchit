@@ -2730,11 +2730,48 @@ private:
 }; // class SIEEnvironment
 
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
-using RelativeYearKey = std::string;
-using ActualYearKey = RelativeYearKey; // Not refactored yet
-// using ActualYearKey = Date;
-using SIEEnvironmentsMap = std::map<ActualYearKey,SIEEnvironment>;
 
+class SIEEnvironmentsMap {
+public:
+  using RelativeYearKey = std::string;
+  using ActualYearKey = RelativeYearKey; // Not refactored yet
+  // using ActualYearKey = Date;
+  using map_type = std::map<ActualYearKey,SIEEnvironment>;
+  SIEEnvironmentsMap() = default;
+
+  auto begin() const {return m_sie_envs_map.begin();}
+  auto end() const {return m_sie_envs_map.end();}
+  auto contains(RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
+  auto& operator[](RelativeYearKey key) {return m_sie_envs_map[key];}
+private:
+  map_type m_sie_envs_map;
+
+  std::expected<ActualYearKey, std::string> to_actual_year_key(
+     RelativeYearKey relative_year_key
+    ,FiscalYear current_fiscal_year) {
+
+    // Old mechanism: use relative key as-is
+    return relative_year_key;
+
+    // New mechanism - Use Date with the value of first day of financial year as key
+    // try {
+    //     auto relative_fiscal_year_index = std::stoi(relative_year_key);
+    //     if (relative_fiscal_year_index <= 0 && relative_fiscal_year_index >= -10) {
+    //         return current_fiscal_year.to_relative_fiscal_year(relative_fiscal_year_index).start();
+    //     } else {
+    //         return std::unexpected(std::format(
+    //             "Relative year index {} is out of bounds (>0 or < -10)",
+    //             relative_fiscal_year_index
+    //         ));
+    //     }
+    // } catch (...) {
+    //     return std::unexpected(std::format(
+    //         "Failed to interpret relative year index {}", relative_year_key
+    //     ));
+    // }
+  }
+
+};
 
 BAS::AccountMetas matches_bas_or_sru_account_no(BAS::AccountNo const& to_match_account_no,SIEEnvironment const& sie_env) {
 	BAS::AccountMetas result{};
@@ -5485,31 +5522,6 @@ public:
 	std::map<std::string,std::filesystem::path> sie_file_path{};
 	SIEEnvironmentsMap sie_env_map{}; // 'Older' SIE envrionemtns map
   FiscalYear current_fiscal_year{FiscalYear::to_current_fiscal_year(std::chrono::month{5})}; // month hard coded for now
-
-  std::expected<ActualYearKey, std::string> to_actual_year_key(
-     RelativeYearKey relative_year_key
-    ,FiscalYear current_fiscal_year) {
-
-    // Old mechanism: use relative key as-is
-    return relative_year_key;
-
-    // New mechanism - Use Date with the value of first day of financial year as key
-    // try {
-    //     auto relative_fiscal_year_index = std::stoi(relative_year_key);
-    //     if (relative_fiscal_year_index <= 0 && relative_fiscal_year_index >= -10) {
-    //         return current_fiscal_year.to_relative_fiscal_year(relative_fiscal_year_index).start();
-    //     } else {
-    //         return std::unexpected(std::format(
-    //             "Relative year index {} is out of bounds (>0 or < -10)",
-    //             relative_fiscal_year_index
-    //         ));
-    //     }
-    // } catch (...) {
-    //     return std::unexpected(std::format(
-    //         "Failed to interpret relative year index {}", relative_year_key
-    //     ));
-    // }
-  }
 
 	SRUEnvironments sru{};
 	HeadingAmountDateTransEntries heading_amount_date_entries{};
