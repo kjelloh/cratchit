@@ -5956,6 +5956,10 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
         break;
       }
 		}
+    // Inject source file path into environment
+    // Note: Due to refactored from model map to SIEEnviuronment aggregate
+    //       and SIEEnvironment has yet no constructor...
+    sie_environment.sie_file_path = sie_file_path;
 		result = std::move(sie_environment);
 	}
   else {
@@ -8085,7 +8089,6 @@ Cmd Updater::operator()(Command const& command) {
           //    "current" is a place holder (no checks against actual current date and time)
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
-            model->sie_env_map["current"].sie_file_path = *sie_file_path;
             model->sie_env_map["current"] = std::move(*sie_env);
             // Update the list of staged entries
             if (auto sse = from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
@@ -8158,7 +8161,6 @@ Cmd Updater::operator()(Command const& command) {
         if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
-            model->sie_env_map[year_key].sie_file_path = *sie_file_path;
             model->sie_env_map[year_key] = std::move(*sie_env);
           }
           else {
@@ -9801,7 +9803,6 @@ private:
           std::filesystem::path sie_file_path{sie_file_name};
           if (auto sie_environment = from_sie_file(sie_file_path)) {
             model->sie_env_map[year_key] = std::move(*sie_environment);
-            model->sie_env_map[year_key].sie_file_path = {sie_file_name};
             prompt << "\nsie_x[" << year_key << "] from " << sie_file_path;
           }
           else {
@@ -9899,12 +9900,6 @@ private:
         result["HeadingAmountDateTransEntry"].push_back({index, env_val});
     }
 
-		// std::string sev = std::accumulate(model->sie_file_path.begin(),model->sie_file_path.end(),std::string{},[](auto acc,auto const& entry){
-		// 	std::ostringstream os{};
-		// 	if (acc.size()>0) os << acc << ";";
-		// 	os << entry.first << "=" << entry.second.string();
-		// 	return os.str();
-		// });
 		std::string sev = std::accumulate(model->sie_env_map.begin(),model->sie_env_map.end(),std::string{},[](auto acc,auto const& entry){
 			std::ostringstream os{};
 			if (acc.size()>0) os << acc << ";";
