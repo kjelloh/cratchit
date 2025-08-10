@@ -2486,6 +2486,9 @@ std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 
 class SIEEnvironment {
 public:
+  // Path to the file from which this environment originated (external tool SIE export)
+	std::filesystem::path sie_file_path{};
+
 	std::filesystem::path staged_sie_file_path() {
     return "cratchit.se"; // Hard coded and asuming only used for "current"
   };
@@ -5522,7 +5525,10 @@ public:
   std::size_t at_index{};
   std::string prompt{};
 	bool quit{};
-	std::map<std::string,std::filesystem::path> sie_file_path{};
+
+  // Now aggregated by the SIEEnvironment itself
+	// std::map<std::string,std::filesystem::path> sie_file_path{};
+
 	SIEEnvironmentsMap sie_env_map{}; // 'Older' SIE envrionemtns map
   FiscalYear current_fiscal_year{FiscalYear::to_current_fiscal_year(std::chrono::month{5})}; // month hard coded for now
 
@@ -8076,14 +8082,14 @@ Cmd Updater::operator()(Command const& command) {
         }
         else if (auto sie_file_path = path_to_existing_file(ast[1])) {
           // #1 command '-sie file-name' -> register "current" SIE file as provided name
-          //    "current" us a place holder (no checks ahainst actual current date and time)
+          //    "current" is a place holder (no checks against actual current date and time)
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
-            model->sie_file_path["current"] = *sie_file_path;
+            model->sie_env_map["current"].sie_file_path = *sie_file_path;
             model->sie_env_map["current"] = std::move(*sie_env);
             // Update the list of staged entries
             if (auto sse = from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
-              // #2 model->staged_sie_file_path is the path to SIE entries NOT in "current" import
+              // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
               //    That is, asumed to be added by cratchit (and not yet known by external tool)
               // The stage(sie environment) returns all sie entries now discovered to actualy be in the imported sie
               auto unstaged = model->sie_env_map["current"].stage(*sse);
@@ -8152,7 +8158,7 @@ Cmd Updater::operator()(Command const& command) {
         if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
-            model->sie_file_path[year_key] = *sie_file_path;
+            model->sie_env_map[year_key].sie_file_path = *sie_file_path;
             model->sie_env_map[year_key] = std::move(*sie_env);
           }
           else {
@@ -9795,7 +9801,7 @@ private:
           std::filesystem::path sie_file_path{sie_file_name};
           if (auto sie_environment = from_sie_file(sie_file_path)) {
             model->sie_env_map[year_key] = std::move(*sie_environment);
-            model->sie_file_path[year_key] = {sie_file_name};
+            model->sie_env_map[year_key].sie_file_path = {sie_file_name};
             prompt << "\nsie_x[" << year_key << "] from " << sie_file_path;
           }
           else {
@@ -9893,14 +9899,18 @@ private:
         result["HeadingAmountDateTransEntry"].push_back({index, env_val});
     }
 
-		std::string sev = std::accumulate(model->sie_file_path.begin(),model->sie_file_path.end(),std::string{},[](auto acc,auto const& entry){
+		// std::string sev = std::accumulate(model->sie_file_path.begin(),model->sie_file_path.end(),std::string{},[](auto acc,auto const& entry){
+		// 	std::ostringstream os{};
+		// 	if (acc.size()>0) os << acc << ";";
+		// 	os << entry.first << "=" << entry.second.string();
+		// 	return os.str();
+		// });
+		std::string sev = std::accumulate(model->sie_env_map.begin(),model->sie_env_map.end(),std::string{},[](auto acc,auto const& entry){
 			std::ostringstream os{};
 			if (acc.size()>0) os << acc << ";";
-			os << entry.first << "=" << entry.second.string();
+			os << entry.first << "=" << entry.second.sie_file_path.string();
 			return os.str();
 		});
-		// sev += std::string{";"} + "path" + "=" + model->sie_file_path["current"].string();
-		// result.insert({"sie_file",to_environment_value(sev)});
 		result["sie_file"].push_back({0,to_environment_value(sev)});
 		for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->organisation_contacts)) {
 			// result.insert({"contact",to_environment_value(entry)});
