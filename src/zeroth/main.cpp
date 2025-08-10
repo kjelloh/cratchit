@@ -2735,7 +2735,6 @@ class SIEEnvironmentsMap {
 public:
   using RelativeYearKey = std::string;
   using ActualYearKey = RelativeYearKey; // Not refactored yet
-  // using ActualYearKey = Date;
   using map_type = std::map<ActualYearKey,SIEEnvironment>;
   SIEEnvironmentsMap() = default;
 
@@ -8070,12 +8069,17 @@ Cmd Updater::operator()(Command const& command) {
           prompt << filtered_sie;
         }
         else if (auto sie_file_path = path_to_existing_file(ast[1])) {
+          // #1 command '-sie file-name' -> register "current" SIE file as provided name
+          //    "current" us a place holder (no checks ahainst actual current date and time)
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
             model->sie_file_path["current"] = *sie_file_path;
             model->sie_env_map["current"] = std::move(*sie_env);
             // Update the list of staged entries
             if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+              // #2 model->staged_sie_file_path is the path to SIE entries NOT in "current" import
+              //    That is, asumed to be added by cratchit (and not yet known by external tool)
+              // The stage(sie environment) returns all sie entries now discovered to actualy be in the imported sie
               auto unstaged = model->sie_env_map["current"].stage(*sse);
               for (auto const& je : unstaged) {
                 prompt << "\nnow posted " << je; 
@@ -9335,6 +9339,8 @@ public:
             auto model_environment = environment_from_model(model);
             auto cratchit_environment = this->add_cratchit_environment(model_environment);
             this->m_persistent_environment_file.update(cratchit_environment);
+            // #3 unposted_to_sie_file writes SIE entries in "current" to provoded path
+            //    For now "current" maps to the sie out file defined by model staged_sie_file_path
             unposted_to_sie_file(model->sie_env_map["current"], model->staged_sie_file_path);
             // Update/create the skv xml-file (employer monthly tax declaration)
             // std::cout << R"(\nmodel->sie_env_map["current"].organisation_no.CIN=)" << model->sie_env_map["current"].organisation_no.CIN;
@@ -9797,6 +9803,10 @@ private:
       std::cout << "\nNo sie_file entries found in environment";
     }
 		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+      // #4 model_from_environment ingests persistent sie file defined by model_from_environment
+      //    and shows the user what was previously staged and what is now discovered to be posted
+      //    * Staged are those in file model->staged_sie_file_path
+      //    * Posted are those now in "current" sie in (imported from external tool)
 			if (sse->journals().size()>0) {
 				prompt << "\n<STAGED>";
 				prompt << *sse;
