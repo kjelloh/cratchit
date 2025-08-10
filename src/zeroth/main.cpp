@@ -2486,6 +2486,10 @@ std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 
 class SIEEnvironment {
 public:
+	std::filesystem::path staged_sie_file_path() {
+    return "cratchit.se"; // Hard coded and asuming only used for "current"
+  };
+
 	SIE::OrgNr organisation_no{};
 	SIE::FNamn organisation_name{};
 	SIE::Adress organisation_address{};
@@ -5528,7 +5532,9 @@ public:
 	DateOrderedTaggedAmountsContainer selected_date_ordered_tagged_amounts{};
 	DateOrderedTaggedAmountsContainer new_date_ordered_tagged_amounts{};
 	size_t ta_index{};
-	std::filesystem::path staged_sie_file_path{"cratchit.se"};
+
+  // Now in SIEEnvironment
+	// std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
 	std::optional<DateOrderedTaggedAmountsContainer::iterator> to_ta_iter(std::size_t ix) {
 		std::optional<DateOrderedTaggedAmountsContainer::iterator> result{};
@@ -8076,7 +8082,7 @@ Cmd Updater::operator()(Command const& command) {
             model->sie_file_path["current"] = *sie_file_path;
             model->sie_env_map["current"] = std::move(*sie_env);
             // Update the list of staged entries
-            if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+            if (auto sse = from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
               // #2 model->staged_sie_file_path is the path to SIE entries NOT in "current" import
               //    That is, asumed to be added by cratchit (and not yet known by external tool)
               // The stage(sie environment) returns all sie entries now discovered to actualy be in the imported sie
@@ -9341,7 +9347,7 @@ public:
             this->m_persistent_environment_file.update(cratchit_environment);
             // #3 unposted_to_sie_file writes SIE entries in "current" to provoded path
             //    For now "current" maps to the sie out file defined by model staged_sie_file_path
-            unposted_to_sie_file(model->sie_env_map["current"], model->staged_sie_file_path);
+            unposted_to_sie_file(model->sie_env_map["current"], model->sie_env_map["current"].staged_sie_file_path());
             // Update/create the skv xml-file (employer monthly tax declaration)
             // std::cout << R"(\nmodel->sie_env_map["current"].organisation_no.CIN=)" << model->sie_env_map["current"].organisation_no.CIN;
           }
@@ -9802,7 +9808,7 @@ private:
     else {
       std::cout << "\nNo sie_file entries found in environment";
     }
-		if (auto sse = from_sie_file(model->staged_sie_file_path)) {
+		if (auto sse = from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
       // #4 model_from_environment ingests persistent sie file defined by model_from_environment
       //    and shows the user what was previously staged and what is now discovered to be posted
       //    * Staged are those in file model->staged_sie_file_path
