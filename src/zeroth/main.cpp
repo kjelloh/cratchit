@@ -2490,7 +2490,12 @@ public:
 	std::filesystem::path sie_file_path{};
 
 	std::filesystem::path staged_sie_file_path() {
-    return "cratchit.se"; // Hard coded and asuming only used for "current"
+    if (this->year_date_range) {
+      return std::format("cratchit_{}_{}.se",this->year_date_range->begin(),this->year_date_range->end());
+    }
+    else {
+      return "cratchit.se"; // Hard coded and asuming only used for "current"
+    }
   };
 
 	SIE::OrgNr organisation_no{};
