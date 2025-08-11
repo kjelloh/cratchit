@@ -774,23 +774,32 @@ cratchit:had>-hads
 
 Note: As of this writing cratchit logs 'DESIGN INSUFFICIENCY - Unknown JournalEntryVATType SKV Interest' which we can ignore.
 
-### BEWARE: cratchit 'zeroth' does NOT protect against wrong fiscal year!
+### Switching to a new financial year
 
-In this example, processing '16   nnnn Account:SKV Text:Intäktsränta 1.00 20250405' will result in an A62 with the date 20250506 although this is in fact an entry that should go into the fiscal year that starts as 20250501 for the example organisation.
+The cratchit app currently keep track of financial years based on imported SIE files. And it keeps the notion of the tagging 'current', '-1', '-2',... to refer to a year.
+
+To update the financial years cratchit provides the command '-sie <year id> <sie-file>'.
+
+If no 'year id' is provided in the command, then cratchit asumes the year id 'current'.
 
 ```sh
-...
-cratchit:had:je:1*at>3
+cratchit:>-sie sie_in/TheITfiedAB20250811_141304.se
 
-"gross" count:2
-Template is an NO VAT, all gross amount transaction :)
- A _  "Account:NORDEA Text:PRIS ENL SPEC" 20250506
-         gross = sort_code: 0x3 : "PlusGiro":1920 "" -1.85
-         gross = sort_code: 0x3 : "Bankkostnader":6570 "" 1.85
- A62 "Account:NORDEA Text:PRIS ENL SPEC" 20250506
-  "PlusGiro":1920 "" -1.85
-  "Bankkostnader":6570 "" 1.85 STAGED
-Please enter a valid had index
-cratchit:had>
+Importing SIE to current year from "sie_in/TheITfiedAB20250811_141304.se"
+```
+
+If the 'current' is now a new financial year, then the user is required to adjust also the '-1' (previous), '-2' (before previous) and so on.
+
+```sh
+cratchit:>-sie -1 sie_in/TheITfiedAB20250510_190029.se
+
+Importing SIE to realtive year -1 from "sie_in/TheITfiedAB20250510_190029.se"
+```
+
+```sh
+cratchit:>-sie -2 sie_in/TheITfiedAB20250213_102434.se
+
+Importing SIE to realtive year -2 from "sie_in/TheITfiedAB20250213_102434.se"
+cratchit:>
 ```
 
