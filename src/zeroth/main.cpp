@@ -2547,28 +2547,6 @@ public:
 			std::cout << "\nSIEEnvironment::post failed - can't post an entry with null verno";
 		}
 	}
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
-    // std::cout << "\nstage(" << me << ")"  << std::flush; 
-		std::optional<BAS::MetaEntry> result{};
-
-    if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
-      // Block adding an entry with a dater outside an SIE envrionment financial date range
-      std::cout << "\nDate:" << me.defacto.date << " is not in financial year:";
-      if (this->financial_year_date_range()) std::cout << this->financial_year_date_range().value();
-      else std::cout << "*anonymous*";
-      return std::nullopt;
-    }
-		if (does_balance(me.defacto)) {
-			if (this->already_in_posted(me) == false) {
-        result = this->add(me); // return entry if it is no longer unposted / staged for posting
-      }
-			else result = this->update(me);
-		}
-		else {
-			std::cout << "\nSorry, Failed to stage. Entry Does not Balance";
-		}
-		return result;
-	}
 
   // Try to stage all provided entries for posting
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {
@@ -2681,6 +2659,30 @@ private:
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
 
+  friend class SIEEnvironmentsMap;
+	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
+    // std::cout << "\nstage(" << me << ")"  << std::flush; 
+		std::optional<BAS::MetaEntry> result{};
+
+    if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
+      // Block adding an entry with a date outside an SIE envrionment financial date range
+      std::cout << "\nDate:" << me.defacto.date << " is not in financial year:";
+      if (this->financial_year_date_range()) std::cout << this->financial_year_date_range().value();
+      else std::cout << "*anonymous*";
+      return std::nullopt;
+    }
+		if (does_balance(me.defacto)) {
+			if (this->already_in_posted(me) == false) {
+        result = this->add(me); // return entry if it is no longer unposted / staged for posting
+      }
+			else result = this->update(me);
+		}
+		else {
+			std::cout << "\nSorry, Failed to stage. Entry Does not Balance";
+		}
+		return result;
+	}
+
 	BAS::MetaEntry add(BAS::MetaEntry me) {
     // std::cout << "\nadd(" << me << ")"  << std::flush; 
 		BAS::MetaEntry result{me};
@@ -2754,6 +2756,27 @@ public:
   auto end() const {return m_sie_envs_map.end();}
   auto contains(RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
   auto& operator[](RelativeYearKey key) {return m_sie_envs_map[key];}
+
+	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
+    std::optional<BAS::MetaEntry> result{};
+    // TODO: Refctor this 'mess' *sigh* (to many optionals...)
+    if (this->m_sie_envs_map.contains("current")) {
+      if (auto financial_year = this->m_sie_envs_map["current"].financial_year_date_range()) {
+        if (financial_year->contains(me.defacto.date)) {
+          return this->m_sie_envs_map["current"].stage(me);
+        }
+      }
+    }
+    else if (this->m_sie_envs_map.contains("-1")) {
+      if (auto financial_year = this->m_sie_envs_map["-1"].financial_year_date_range()) {
+        if (financial_year->contains(me.defacto.date)) {
+          return this->m_sie_envs_map["-1"].stage(me);
+        }
+      }
+    }
+    return result;
+  }
+
 private:
   map_type m_sie_envs_map;
 
@@ -7237,7 +7260,7 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   else {
                     // Stage as-is
-                    if (auto staged_me = model->sie_env_map["current"].stage(*had.optional.current_candidate)) {
+                    if (auto staged_me = model->sie_env_map.stage(*had.optional.current_candidate)) {
                       prompt << "\n" << *staged_me << " STAGED";
                       model->heading_amount_date_entries.erase(*had_iter);
                       model->prompt_state = PromptState::HADIndex;
@@ -7292,7 +7315,7 @@ Cmd Updater::operator()(Command const& command) {
                 } break;
                 case 3: {
                   // Stage the candidate
-                  if (auto staged_me = model->sie_env_map["current"].stage(*had.optional.current_candidate)) {
+                  if (auto staged_me = model->sie_env_map.stage(*had.optional.current_candidate)) {
                     prompt << "\n" << *staged_me << " STAGED";
                     model->heading_amount_date_entries.erase(*had_iter);
                     model->prompt_state = PromptState::HADIndex;
@@ -8965,7 +8988,7 @@ The ITfied AB
             prompt << "\ndiff:" << gross_amounts_diff;
             if (gross_amounts_diff == 0) {
               // Stage the journal entry
-              auto me = model->sie_env_map["current"].stage(*had.optional.current_candidate);
+              auto me = model->sie_env_map.stage(*had.optional.current_candidate);
               if (me) {
                 prompt << "\n" << *me << " STAGED";
                 model->heading_amount_date_entries.erase(*had_iter);
