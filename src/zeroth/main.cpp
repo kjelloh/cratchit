@@ -2489,7 +2489,7 @@ public:
   // Path to the file from which this environment originated (external tool SIE export)
 	std::filesystem::path sie_file_path{};
 
-	std::filesystem::path staged_sie_file_path() {
+	std::filesystem::path staged_sie_file_path() const {
     if (this->year_date_range) {
       return std::format("cratchit_{}_{}.se",this->year_date_range->begin(),this->year_date_range->end());
     }
@@ -2759,7 +2759,9 @@ public:
 
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
     std::optional<BAS::MetaEntry> result{};
+
     // TODO: Refctor this 'mess' *sigh* (to many optionals...)
+
     if (this->m_sie_envs_map.contains("current")) {
       if (auto financial_year = this->m_sie_envs_map["current"].financial_year_date_range()) {
         if (financial_year->contains(me.defacto.date)) {
@@ -2767,7 +2769,8 @@ public:
         }
       }
     }
-    else if (this->m_sie_envs_map.contains("-1")) {
+
+    if (this->m_sie_envs_map.contains("-1")) {
       if (auto financial_year = this->m_sie_envs_map["-1"].financial_year_date_range()) {
         if (financial_year->contains(me.defacto.date)) {
           return this->m_sie_envs_map["-1"].stage(me);
@@ -6007,7 +6010,6 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
 	sieos.os << "#GEN " << std::put_time(now_local, "%Y%m%d");
-  // #RAR 0 20240501 20250430
   if (auto maybe_year_range = sie.financial_year_date_range()) {
     auto const& year_range = maybe_year_range.value();
     sieos.os << "\n#RAR" << " 0 " << year_range.begin() << " " << year_range.end();
@@ -6016,6 +6018,14 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 		std::cout << "\nUnposted:" << entry; 
 		sieos << to_sie_t(entry);
 	}
+}
+
+void unposted_to_sie_files(SIEEnvironmentsMap const& sie_env_map) {
+  for (auto const& [year_id,sie] : sie_env_map) {
+    if (auto count = sie.unposted().size(); count > 0) {
+      unposted_to_sie_file(sie,sie.staged_sie_file_path());
+    }
+  }
 }
 
 std::vector<std::string> quoted_tokens(std::string const& cli) {
@@ -8186,10 +8196,24 @@ Cmd Updater::operator()(Command const& command) {
       }
       else if (ast.size()==3) {
         auto year_key = ast[1];
-        if (auto sie_file_path = path_to_existing_file(ast[2])) {
+        if (ast[2]=="*") {
+          // List unposted (staged) sie entries
+          FilteredSIEEnvironment filtered_sie{model->sie_env_map[year_key],BAS::filter::is_flagged_unposted{}};
+          prompt << filtered_sie;
+        }
+        else if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
           if (auto sie_env = from_sie_file(*sie_file_path)) {
             model->sie_env_map[year_key] = std::move(*sie_env);
+            if (auto sse = from_sie_file(model->sie_env_map[year_key].staged_sie_file_path())) {
+              // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
+              //    That is, asumed to be added by cratchit (and not yet known by external tool)
+              // The stage(sie environment) returns all sie entries now discovered to actualy be in the imported sie
+              auto unstaged = model->sie_env_map[year_key].stage(*sse);
+              for (auto const& je : unstaged) {
+                prompt << "\nnow posted " << je; 
+              }
+            }							
           }
           else {
             // failed to parse sie-file into an SIE Environment 
@@ -9381,9 +9405,8 @@ public:
             auto model_environment = environment_from_model(model);
             auto cratchit_environment = this->add_cratchit_environment(model_environment);
             this->m_persistent_environment_file.update(cratchit_environment);
-            // #3 unposted_to_sie_file writes SIE entries in "current" to provoded path
-            //    For now "current" maps to the sie out file defined by model staged_sie_file_path
-            unposted_to_sie_file(model->sie_env_map["current"], model->sie_env_map["current"].staged_sie_file_path());
+            // #3 unposted_to_sie_files save unstaged entries per environment (unique file names) 
+            unposted_to_sie_files(model->sie_env_map);
             // Update/create the skv xml-file (employer monthly tax declaration)
             // std::cout << R"(\nmodel->sie_env_map["current"].organisation_no.CIN=)" << model->sie_env_map["current"].organisation_no.CIN;
           }
@@ -9843,20 +9866,24 @@ private:
     else {
       std::cout << "\nNo sie_file entries found in environment";
     }
-		if (auto sse = from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
-      // #4 model_from_environment ingests persistent sie file defined by model_from_environment
-      //    and shows the user what was previously staged and what is now discovered to be posted
-      //    * Staged are those in file model->staged_sie_file_path
-      //    * Posted are those now in "current" sie in (imported from external tool)
-			if (sse->journals().size()>0) {
-				prompt << "\n<STAGED>";
-				prompt << *sse;
-			}
-			auto unstaged = model->sie_env_map["current"].stage(*sse); // the call returns any now no longer staged entries
-			for (auto const& je : unstaged) {
-				prompt << "\nnow posted " << je; 
-			}
-		}
+
+    for (auto const& [year_id,sie] : model->sie_env_map) {
+      if (auto sse = from_sie_file(model->sie_env_map[year_id].staged_sie_file_path())) {
+        // #4 model_from_environment ingests persistent sie file defined by model_from_environment
+        //    and shows the user what was previously staged and what is now discovered to be posted
+        //    * Staged are those in file model->staged_sie_file_path
+        //    * Posted are those now in "current" sie in (imported from external tool)
+        if (sse->journals().size()>0) {
+          prompt << "\n<STAGED>";
+          prompt << *sse;
+        }
+        auto unstaged = model->sie_env_map[year_id].stage(*sse); // the call returns any now no longer staged entries
+        for (auto const& je : unstaged) {
+          prompt << "\nnow posted " << je; 
+        }
+      }
+    }
+
 		model->heading_amount_date_entries = hads_from_environment(environment);
 		model->organisation_contacts = this->contacts_from_environment(environment);
 		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
