@@ -127,7 +127,8 @@ namespace zeroth {
       bool m_valid{};
       Date m_begin{};
       Date m_end{};
-  };
+  }; // DateRange
+
   using OptionalDateRange = std::optional<DateRange>;
 
   DateRange to_quarter_range(Date const& a_period_date);
@@ -143,7 +144,8 @@ namespace zeroth {
 
   IsPeriod to_is_period(DateRange const& period);
   std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end);
-}
+  
+} // zeroth
 
 
 // END -- Date framework
