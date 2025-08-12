@@ -2550,7 +2550,7 @@ public:
 
   // Try to stage all provided entries for posting
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {
-    // std::cout << "\nstage(sie environment)"  << std::flush; 
+    std::cout << "\nstage(sie environment)"  << std::flush; 
 		BAS::MetaEntries result{};
 		for (auto const& [series,journal] : staged_sie_environment.journals()) {
 			for (auto const& [verno,aje] : journal) {
@@ -2661,7 +2661,7 @@ private:
 
   friend class SIEEnvironmentsMap;
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
-    // std::cout << "\nstage(" << me << ")"  << std::flush; 
+    std::cout << "\nstage(" << me << ")"  << std::flush; 
 		std::optional<BAS::MetaEntry> result{};
 
     if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
@@ -2684,7 +2684,7 @@ private:
 	}
 
 	BAS::MetaEntry add(BAS::MetaEntry me) {
-    // std::cout << "\nadd(" << me << ")"  << std::flush; 
+    std::cout << "\nadd(" << me << ")"  << std::flush; 
 		BAS::MetaEntry result{me};
 		// Ensure a valid series
 		if (me.meta.series < 'A' or 'M' < me.meta.series) {
@@ -2705,7 +2705,7 @@ private:
 	}
 
 	BAS::MetaEntry update(BAS::MetaEntry const& me) {
-    // std::cout << "\nupdate(" << me << ")" << std::flush; 
+    std::cout << "\nupdate(" << me << ")" << std::flush; 
 		BAS::MetaEntry result{me};
 		if (me.meta.verno and *me.meta.verno > 0) {
 			auto journal_iter = m_journals.find(me.meta.series);
@@ -6744,7 +6744,7 @@ Cmd Updater::operator()(Command const& command) {
 // std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
                     // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
                     // Book this on BAS 2650
-                    // NOTE: Is "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
+                    // NOTE: If "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
                     if (account_no==0) {
                       me.defacto.account_transactions.push_back({
                         .account_no = 2650
