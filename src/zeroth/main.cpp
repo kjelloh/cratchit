@@ -180,6 +180,8 @@ namespace SKV::SRU::INK2 {
 	extern const char* INK2_csv_to_sru_template;
 	extern const char* INK2S_csv_to_sru_template;
 	extern const char* INK2R_csv_to_sru_template;
+  extern const char* info_ink2_template;
+  extern const char* blanketter_ink2_ink2s_ink2r_template;
 }
 
 namespace BAS::SRU::INK2 {
@@ -1890,7 +1892,7 @@ TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransactio
 }
 
 TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
-  if (true) {
+  if (false) {
     std::cout << "\nto_tagged_amounts(me)";
   }
 	TaggedAmounts result{};
@@ -2550,7 +2552,7 @@ public:
 
   // Try to stage all provided entries for posting
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {
-    std::cout << "\nstage(sie environment)"  << std::flush; 
+    std::cout << "\nstage(staged_sie_environment)"  << std::flush; 
 		BAS::MetaEntries result{};
 		for (auto const& [series,journal] : staged_sie_environment.journals()) {
 			for (auto const& [verno,aje] : journal) {
@@ -2672,10 +2674,16 @@ private:
       return std::nullopt;
     }
 		if (does_balance(me.defacto)) {
-			if (this->already_in_posted(me) == false) {
-        result = this->add(me); // return entry if it is no longer unposted / staged for posting
+			if (not this->already_in_posted(me)) {
+        // Not yet posted (in sie-file from external tool)
+        // So add it to make our internal sie-environment complete
+        result = this->add(me);
       }
-			else result = this->update(me);
+			else {
+        // Is 'posted' to external tool
+        // But update it in case we have edited it
+        this->update(me);
+      }
 		}
 		else {
 			std::cout << "\nSorry, Failed to stage. Entry Does not Balance";
@@ -2739,6 +2747,11 @@ private:
 				}
 			}
 		}
+    if (true) {
+      std::cout << "\nalready_in_posted(me=" << me << ") = ";
+      if (result) std::cout << " TRUE";
+      else std::cout << " false";
+    }
 		return result;
 	}
 }; // class SIEEnvironment
@@ -6002,10 +6015,9 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 }
 
 void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
-	// std::cout << "\nunposted_to_sie_file " << p;
+  logger::cout_proxy << "\nunposted_to_sie_file " << p;
 	std::ofstream os{p};
 	SIE::OStream sieos{os};
-	// auto now = std::chrono::utc_clock::now();
 	auto now = std::chrono::system_clock::now();
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
@@ -6015,16 +6027,15 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
     sieos.os << "\n#RAR" << " 0 " << year_range.begin() << " " << year_range.end();
   }
 	for (auto const& entry : sie.unposted()) {
-		std::cout << "\nUnposted:" << entry; 
+    logger::cout_proxy << "\nUnposted:" << entry; 
 		sieos << to_sie_t(entry);
 	}
 }
 
 void unposted_to_sie_files(SIEEnvironmentsMap const& sie_env_map) {
+  logger::development_trace("unposted_to_sie_files");
   for (auto const& [year_id,sie] : sie_env_map) {
-    if (auto count = sie.unposted().size(); count > 0) {
-      unposted_to_sie_file(sie,sie.staged_sie_file_path());
-    }
+    unposted_to_sie_file(sie,sie.staged_sie_file_path());
   }
 }
 
@@ -9402,6 +9413,7 @@ public:
           // std::cout << "\nCratchit::update updater visit ok" << std::flush;
           if (model->quit) {
             // std::cout << "\nCratchit::update if (updater.model->quit) {" << std::flush;
+            logger::development_trace("zeroth::model->quit DETECTED");
             auto model_environment = environment_from_model(model);
             auto cratchit_environment = this->add_cratchit_environment(model_environment);
             this->m_persistent_environment_file.update(cratchit_environment);
@@ -10527,6 +10539,65 @@ Räkenskapsårets slut;7012;Datum_D;N;;
 3.25 Skatt på årets resultat;7528;Numeriskt_A;N;-;
 3.26 Årets resultat, vinst (flyttas till p. 4.1);7450;Numeriskt_B;N;+;Får ej förekomma om 7550 finns med och 7550 <> 0.
 3.27 Årets resultat, förlust (flyttas till p. 4.2);7550;Numeriskt_B;N;-;Får ej förekomma om 7450 finns med och 7450 <> 0.)";
+
+  const char* info_ink2_template = R"(#DATABESKRIVNING_START
+#PRODUKT SRU
+#SKAPAD 20241130 124700
+#PROGRAM https://github.com/kjelloh/cratchit
+#FILNAMN BLANKETTER.SRU
+#DATABESKRIVNING_SLUT
+#MEDIELEV_START
+#ORGNR 165567828172
+#NAMN The ITfied AB
+#POSTNR 17141
+#POSTORT Solna
+#MEDIELEV_SLUT)";
+
+  const char* blanketter_ink2_ink2s_ink2r_template = R"(#BLANKETT INK2R-2024P1
+#IDENTITET 165567828172 20240727 195839
+#NAMN The ITfied AB
+#SYSTEMINFO klarmarkerad u. a.
+#UPPGIFT 7011 20230501
+#UPPGIFT 7012 20240430
+#UPPGIFT 7215 42734
+#UPPGIFT 7261 2046
+#UPPGIFT 7281 119254
+#UPPGIFT 7301 100800
+#UPPGIFT 7302 39106
+#UPPGIFT 7365 -896
+#UPPGIFT 7368 0
+#UPPGIFT 7369 25024
+#UPPGIFT 7410 1
+#UPPGIFT 7417 3588
+#UPPGIFT 7513 13451
+#UPPGIFT 7515 20685
+#UPPGIFT 7528 0
+#UPPGIFT 7550 30547
+#BLANKETTSLUT
+#BLANKETT INK2S-2024P1
+#IDENTITET 165567828172 20240727 195839
+#NAMN The ITfied AB
+#SYSTEMINFO klarmarkerad u. a.
+#UPPGIFT 7011 20230501
+#UPPGIFT 7012 20240430
+#UPPGIFT 7651 0
+#UPPGIFT 7653 625
+#UPPGIFT 7750 30547
+#UPPGIFT 7754 15
+#UPPGIFT 7763 176026
+#UPPGIFT 7770 205963
+#UPPGIFT 8041 X
+#UPPGIFT 8045 X
+#BLANKETTSLUT
+#BLANKETT INK2-2024P1
+#IDENTITET 165567828172 20240727 195839
+#NAMN The ITfied AB
+#SYSTEMINFO klarmarkerad u. a.
+#UPPGIFT 7011 20230501
+#UPPGIFT 7012 20240430
+#UPPGIFT 7114 205963
+#BLANKETTSLUT
+#FIL_SLUT)";
 
 	} // namespace SRU
 } // namespace SKV

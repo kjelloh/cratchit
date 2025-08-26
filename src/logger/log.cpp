@@ -21,8 +21,8 @@ logger::std_out_proxy& logger::std_out_proxy::operator<<(std::ostream& (*manip)(
 // New line
 
 void logger::std_out_proxy::try_flush_to_spdlog() {
-    // spdlog::info("logger::std_out_proxy::try_flush_to_spdlog: Entry");
     std::string buffer = this->oss.str();  // Get hold of copy (oss.str() is not a cont&)
+    // spdlog::info("logger::std_out_proxy::try_flush_to_spdlog - Entry:{}",buffer);
 
     std::string_view view(buffer);
     size_t start = 0;

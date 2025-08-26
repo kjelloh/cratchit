@@ -57,4 +57,4 @@ namespace logger {
   inline proxy design_insufficiency{"DESIGN_INSUFFICIENCY"}; // Design insufficiency -> developer
   inline proxy development_trace{"TRACE"}; // development trace -> developer
   
-} // log
+} // logger

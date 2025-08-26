@@ -302,22 +302,22 @@ namespace CSV {
                 if (value.size() > 0) ta.tags()[key] = field_row[i]; // add column value tagged with column name
               }
               else {
-                logger::cout_proxy << "CSV::NORDEA::to_tagged_amountWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
+                logger::cout_proxy << "\nCSV::NORDEA::to_tagged_amountWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
               }
             }
           }
           else {
-            logger::cout_proxy << "CSV::NORDEA::to_tagged_amountError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
+            logger::cout_proxy << "\nCSV::NORDEA::to_tagged_amountError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
           }
 
           result = ta;
         }
         else {
-          logger::cout_proxy << "CSV::NORDEA::to_tagged_amountNot a valid NORDEA amount: " << std::quoted(sAmount); 
+          logger::cout_proxy << "\nCSV::NORDEA::to_tagged_amountNot a valid NORDEA amount: " << std::quoted(sAmount); 
         }
       }
       else {
-        if (sDate.size() > 0) logger::cout_proxy << "CSV::NORDEA::to_tagged_amountNot a valid date: " << std::quoted(sDate);
+        if (sDate.size() > 0) logger::cout_proxy << "\nCSV::NORDEA::to_tagged_amountNot a valid date: " << std::quoted(sDate);
       }
     }
     return result;
@@ -354,18 +354,18 @@ namespace CSV {
                   if (value.size() > 0) ta.tags()[key] = field_row[i]; // add column value tagged with column name
                 }
                 else {
-                  logger::cout_proxy << "CSV::SKV::to_tagged_amountWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
+                  logger::cout_proxy << "\nCSV::SKV::to_tagged_amountWarning, to_tagged_amount - Skipped conflicting column name:" << std::quoted(key) << ". Already tagged with value:" << std::quoted(ta.tags()[key]);
                 }
               }
             }
             else {
-              logger::cout_proxy << "CSV::SKV::to_tagged_amountError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
+              logger::cout_proxy << "\nCSV::SKV::to_tagged_amountError, to_tagged_amount failed to tag amount with heading defined tags and values. No secure mapping from heading column count:" << heading.size() << " to entry column count:" << field_row.size();
             }
 
             result = ta;
           }
           else {
-            logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid amount: " << std::quoted(sAmount); 
+            logger::cout_proxy << "\nCSV::SKV::to_tagged_amountNot a valid amount: " << std::quoted(sAmount); 
           }
         }
         else {
@@ -394,14 +394,14 @@ namespace CSV {
                 result = ta;
               }
               else {
-                logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid SKV Saldo: " << std::quoted(sSaldo); 
+                logger::cout_proxy << "\nCSV::SKV::to_tagged_amountNot a valid SKV Saldo: " << std::quoted(sSaldo); 
               }
             }
             else {
-                logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
+                logger::cout_proxy << "\nCSV::SKV::to_tagged_amountNot a valid SKV Saldo Date in entry: " << std::quoted(field_row[element::Text]); 
             }
           }
-          if (sDate.size() > 0) logger::cout_proxy << "CSV::SKV::to_tagged_amountNot a valid SKV date: " << std::quoted(sDate);
+          if (sDate.size() > 0) logger::cout_proxy << "\nCSV::SKV::to_tagged_amountNot a valid SKV date: " << std::quoted(sDate);
         }
       }
       return result;
@@ -451,7 +451,7 @@ namespace CSV {
             dota.insert(*o_ta);
           }
           else {
-            logger::cout_proxy << "CSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
+            logger::cout_proxy << "\nCSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
           }
         }
         result = dota;
