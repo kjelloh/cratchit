@@ -5,3 +5,7 @@ URL: https://skatteverket.se/foretag/inkomstdeklaration/forredovisningsbyraer/te
 The cratchit repo contains selected documents in xlsx and converted to csv-formats.
 
 Some files are also in cratchit as raw string literals.
+
+The sub-folder 'csv' are files converted to scv-format.
+
+See [csv/README](csv/README.md)
