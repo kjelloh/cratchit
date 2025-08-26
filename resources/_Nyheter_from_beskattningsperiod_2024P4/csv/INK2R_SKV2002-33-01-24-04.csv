@@ -1,0 +1,104 @@
+Table 1
+Fältnamn på INK2R_SKV2002-33-01-24-04;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt organisationsnummer;PersOrgNr;Orgnr_Id_O;J;;
+Uppgiftslämnarens namn;Namn;Str_250;N;;
+Räkenskapsårets början;7011;Datum_D;N;;
+Räkenskapsårets slut;7012;Datum_D;N;;
+2.1 Immateriella anläggningstillgångar Koncessioner, patent, licenser, varumärken, hyresrätter, goodwill och liknande rättigheter;7201;Numeriskt_A;N;*;
+2.2 Immateriella anläggningstillgångar Förskott avseende immateriella anläggningstillgångar;7202;Numeriskt_A;N;*;
+2.3 Materiella anläggningstillgångar Byggnader och mark;7214;Numeriskt_A;N;*;
+2.4 Materiella anläggningstillgångar Maskiner, inventarier och övriga materiella anläggningstillgångar;7215;Numeriskt_A;N;*;
+2.5 Materiella anläggningstillgångar Förbättringsutgifter på annans fastighet;7216;Numeriskt_A;N;*;
+2.6 Materiella anläggningstillgångar Pågående nyanläggningar och förskott avseende materiella anläggningstillgångar;7217;Numeriskt_A;N;*;
+2.7 Finansiella anläggningstillgångar Andelar i koncernföretag;7230;Numeriskt_A;N;*;
+2.8 Finansiella anläggningstillgångar Andelar i intresseföretag och gemensamt styrda företag;7231;Numeriskt_A;N;*;
+"2.9 Ägarintressen i övriga företag och 
+ andra långfristiga värdepappersinnehav";7233;Numeriskt_A;N;*;
+2.10 Finansiella anläggningstillgångar Fordringar hos koncern-, intresse- och  gemensamt styrda företag;7232;Numeriskt_A;N;*;
+2.11 Finansiella anläggningstillgångar Lån till delägare eller närstående;7234;Numeriskt_A;N;*;
+"2.12 Fordringar hos övriga företag som 
+ det finns ett ägarintresse i och 
+ andra långfristiga fordringar";7235;Numeriskt_A;N;*;
+2.13 Varulager m.m. Råvaror och förnödenheter;7241;Numeriskt_A;N;*;
+2.14 Varulager Varor under tillverkning;7242;Numeriskt_A;N;*;
+2.15 Varulager Färdiga varor och handelsvaror;7243;Numeriskt_A;N;*;
+2.16 Varulager Övriga lagertillgångar;7244;Numeriskt_A;N;*;
+2.17 Varulager Pågående arbeten för annans räkning;7245;Numeriskt_A;N;*;
+2.18 Varulager Förskott till leverantörer;7246;Numeriskt_A;N;*;
+2.19 Kortfristiga fordringar Kundfordringar;7251;Numeriskt_A;N;*;
+2.20 Kortfristiga fordringar Fordringar hos koncern-, intresse- och gemensamt styrda företag;7252;Numeriskt_A;N;*;
+"2.21 Fordringar hos övriga företag som det 
+ finns ett ägarintresse i och 
+ övriga fordringar";7261;Numeriskt_A;N;*;
+2.22 Kortfristiga fordringar Upparbetad men ej fakturerad intäkt;7262;Numeriskt_A;N;*;
+2.23 Kortfristiga fordringar Förutbetalda kostnader och upplupna intäkter;7263;Numeriskt_A;N;*;
+2.24 Kortfristiga placeringar Andelar i koncernföretag;7270;Numeriskt_A;N;*;
+2.25 Kortfristiga placeringar Övriga kortfristiga placeringar;7271;Numeriskt_A;N;*;
+2.26 Kassa och bank Kassa, bank och redovisningsmedel;7281;Numeriskt_A;N;*;
+2.27 Eget kapital Bundet eget kapital;7301;Numeriskt_A;N;*;
+2.28 Eget kapital Fritt eget kapital;7302;Numeriskt_A;N;*;
+2.29 Obeskattade reserver Periodiseringsfonder;7321;Numeriskt_A;N;*;
+2.30 Obeskattade reserver Ackumulerade överavskrivningar;7322;Numeriskt_A;N;*;
+2.31 Obeskattade reserver Övriga obeskattade reserver;7323;Numeriskt_A;N;*;
+2.32 Avsättningar Avsättningar för pensioner och liknande förpliktelser enligt lag (1967:531)...;7331;Numeriskt_A;N;*;
+2.33 Avsättningar Övriga avsättningar för pensioner och liknande förpliktelser;7332;Numeriskt_A;N;*;
+2.34 Avsättningar Övriga avsättningar;7333;Numeriskt_A;N;*;
+2.35 Långfristiga skulder Obligationslån;7350;Numeriskt_A;N;*;
+2.36 Långfristiga skulder Checkräkningskredit;7351;Numeriskt_A;N;*;
+2.37 Långfristiga skulder Övriga skulder till kreditinstitut;7352;Numeriskt_A;N;*;
+2.38 Långfristiga skulder Skulder till koncern-, intresse- och gemensamt styrda företag;7353;Numeriskt_A;N;*;
+"2.39 Skulder till övriga företag som det finns 
+ ett ägarintresse i och övriga skulder";7354;Numeriskt_A;N;*;
+2.40 Kortfristiga skulder Checkräkningskredit;7360;Numeriskt_A;N;*;
+2.41 Kortfristiga skulder Övriga skulder till kreditinstitut;7361;Numeriskt_A;N;*;
+2.42 Kortfristiga skulder Förskott från kunder;7362;Numeriskt_A;N;*;
+2.43 Kortfristiga skulder Pågående arbeten för annans räkning;7363;Numeriskt_A;N;*;
+2.44 Kortfristiga skulder Fakturerad men ej upparbetad intäkt;7364;Numeriskt_A;N;*;
+2.45 Kortfristiga skulder Leverantörsskulder;7365;Numeriskt_A;N;*;
+2.46 Kortfristiga skulder Växelskulder;7366;Numeriskt_A;N;*;
+2.47 Kortfristiga skulder Skulder till koncern-, intresse- och gemensamt styrda företag;7367;Numeriskt_A;N;*;
+"2.48 Skulder till övriga företag som det finns 
+ ett ägarintresse i och övriga skulder";7369;Numeriskt_A;N;*;
+2.49 Kortfristiga skulder Skattesskulder;7368;Numeriskt_A;N;*;
+2.50 Kortfristiga skulder Upplupna kostnader och förutbetalda intäkter;7370;Numeriskt_A;N;*;
+3.1 Nettoomsättning;7410;Numeriskt_A;N;+;
+3.2 Förändring av lager av produkter i arbete, färdiga varor och pågående arbete för annans räkning. +;7411;Numeriskt_A;N;+;
+3.2 Förändring av lager av produkter i arbete, färdiga varor och pågående arbete för annans räkning. -;7510;Numeriskt_A;N;-;
+3.3 Aktiverat arbete för egen räkning;7412;Numeriskt_A;N;+;
+3.4 Övriga rörelseintäkter;7413;Numeriskt_A;N;+;
+3.5 Råvaror och förnödenheter;7511;Numeriskt_A;N;-;
+3.6 Handelsvaror;7512;Numeriskt_A;N;-;
+3.7 Övriga externa kostnader;7513;Numeriskt_A;N;-;
+3.8 Personalkostnader;7514;Numeriskt_A;N;-;
+3.9 Av- och nedskrivningar av materiella och immateriella anläggningstillgångar;7515;Numeriskt_A;N;-;
+3.10 Nedskrivningar av omsättningstillgångar utöver normala nedskrivningar;7516;Numeriskt_A;N;-;
+3.11 Övriga rörelsekostnader;7517;Numeriskt_A;N;-;
+3.12 Resultat från andelar i koncernföretag +;7414;Numeriskt_A;N;+;
+3.12 Resultat från andelar i koncernföretag -;7518;Numeriskt_A;N;-;
+3.13 Resultat från andelar i intresseföretag och gemensamt styrda företag +;7415;Numeriskt_A;N;+;
+3.13 Resultat från andelar i intresseföretag och gemensamt styrda företag -;7519;Numeriskt_A;N;-;
+3.14 Resultat från övriga företag som det finns ett ägarintresse i +;7423;Numeriskt_A;N;+;
+3.14 Resultat från övriga företag som det finns ett ägarintresse i -;7530;Numeriskt_A;N;-;
+3.15 Resultat från övriga finansiella anläggningstillgångar +;7416;Numeriskt_A;N;+;
+3.15 Resultat från övriga finansiella anläggningstillgångar -;7520;Numeriskt_A;N;-;
+3.16 Övriga ränteintäkter och liknande resultatposter;7417;Numeriskt_A;N;+;
+3.17 Nedskrivning av finansiella anläggningstillgångar och kortfristiga placeringar;7521;Numeriskt_A;N;-;
+3.18 Räntekostnader och liknande resultatposter;7522;Numeriskt_A;N;-;
+3.19 Lämnade koncernbidrag;7524;Numeriskt_A;N;-;
+3.20 Mottagna koncernbidrag;7419;Numeriskt_A;N;+;
+3.21 Återföring av periodiseringsfond;7420;Numeriskt_B;N;+;
+3.22 Avsättning till periodiseringsfond;7525;Numeriskt_B;N;-;
+3.23 Förändring av överavskrivningar +;7421;Numeriskt_A;N;+;
+3.23 Förändring av överavskrivningar -;7526;Numeriskt_A;N;-;
+3.24 Övriga bokslutsdispositioner +;7422;Numeriskt_A;N;+;
+3.24 Övriga bokslutsdispositioner -;7527;Numeriskt_A;N;-;
+3.25 Skatt på årets resultat;7528;Numeriskt_A;N;-;
+3.26 Årets resultat, vinst (flyttas till p. 4.1);7450;Numeriskt_B;N;+;Får ej förekomma om 7550 finns med och 7550 <> 0.
+3.27 Årets resultat, förlust (flyttas till p. 4.2);7550;Numeriskt_B;N;-;Får ej förekomma om 7450 finns med och 7450 <> 0.

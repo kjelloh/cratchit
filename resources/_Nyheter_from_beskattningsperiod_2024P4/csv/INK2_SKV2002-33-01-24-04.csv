@@ -1,0 +1,50 @@
+INK2: Table 1
+Fältnamn på INK2_SKV2002-33-01-24-04;;;;;
+;;;;;
+;;;;;
+Attribut;Fältnamn;Datatyp;Obl.;*/+/-;Regel
+Framställningsdatum;DatFramst;Datum_A;J;;
+Framställningstid;TidFramst;Tid_A;J;;
+Fältkodsnummer;FältKod;Numeriskt_E;N;;
+Intern information för framställande program/system;SystemInfo;Str_250;N;;
+Korrekt organisationsnummer;PersOrgNr;Orgnr_Id_O;J;;
+Räkenskapsårets början;7011;Datum_D;N;;
+Räkenskapsårets slut;7012;Datum_D;N;;"Tillåtna bokslutsdatum.
+Period     fr.o.m           t.o.m
+ÅÅÅÅP1 ÅÅÅÅ0101 ÅÅÅÅ0430
+ÅÅÅÅP2 ÅÅÅÅ0501 ÅÅÅÅ0630
+ÅÅÅÅP3 ÅÅÅÅ0701 ÅÅÅÅ0831
+ÅÅÅÅP4 ÅÅÅÅ0901 ÅÅÅÅ1231"
+1.1 Överskott av näringsverksamhet;7104;Numeriskt_B;N;*;
+1.2 Underskott av näringsverksamhet;7114;Numeriskt_B;N;*;
+1.3 Kreditinstituts underlag för riskskatt;7131;Numeriskt_13;N;*;
+1.4 Underlag för särskild löneskatt på pensionskostnader;7132;Numeriskt_B;N;*;Får ej förekomma om 7133 finns med och den <> 0.
+1.5 Negativt underlag för särskild löneskatt på pensionskostnader;7133;Numeriskt_B;N;*;Får ej förekomma om 7132 finns med och den <> 0.
+1.6 a Försäkringsföretag m.fl. samt avsatt till pensioner 15 %;7153;Numeriskt_B;N;*;
+1.6 b Utländska pensions- försäkringar 15 %;7154;Numeriskt_B;N;*;
+1.7 a Försäkringsföretag m.fl 30 %;7155;Numeriskt_B;N;*;
+"1.7 b Utländska kapitalförsäkringar 
+ 30 %";7156;Numeriskt_B;N;*;
+1.8 Småhus/ ägarlägenhet;80;Numeriskt_B;N;*;
+"1.9 Hyreshus: 
+ bostäder";93;Numeriskt_B;N;*;
+1.10 Småhus/ägarlägenhet: tomtmark, byggnad under uppförande;84;Numeriskt_B;N;*;
+1.11 Hyreshus: tomtmark, bostäder under uppförande;86;Numeriskt_B;N;*;
+1.12 Hyreshus: lokaler;95;Numeriskt_B;N;*;
+1.13 Industrienhet och elproduktionsenhet: värme- kraftverk;96;Numeriskt_B;N;*;
+1.14 Elproduktionsenhet, vattenkraftverk;97;Numeriskt_B;N;*;
+1.15 Elproduktionsenhet, vindkraftverk;98;Numeriskt_B;N;*;
+Övriga upplysningar på bilaga;90;Str_X;N;;
+1.16 Förnybar el (kilowattimmar);1582;Numeriskt_10;N;*;
+
+Revisonshistorik: Table 1
+;;;;
+;Dokumenthistorik;;;
+;Datum;Version;Beskrivning;Signatur
+;;;;
+;;;;
+;;;;
+;;;;
+;;;;
+;Referenser;;;
+;"Definition av format återfinns i SKV 269 ""Teknisk beskrivning Näringsuppgifter(SRU) Anstånd Tjänst Kapital""";;;
