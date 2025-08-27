@@ -2553,8 +2553,9 @@ public:
 	}
 
   // Try to stage all provided entries for posting
+  // Returns actually staged entries
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {
-    std::cout << "\nstage(staged_sie_environment)"  << std::flush; 
+    // std::cout << "\nstage(staged_sie_environment)"  << std::flush; 
 		BAS::MetaEntries result{};
 		for (auto const& [series,journal] : staged_sie_environment.journals()) {
 			for (auto const& [verno,aje] : journal) {
@@ -2662,10 +2663,13 @@ private:
 	zeroth::OptionalDateRange year_date_range{};
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
-
   friend class SIEEnvironmentsMap;
+
+  // Try to stage provided me.
+  // A succesfull stage either adds it ot uopdate an existing entry.
+  // This is to allow cratchit to edit an entry imported from an external tool.
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
-    std::cout << "\nstage(" << me << ")"  << std::flush; 
+    // std::cout << "\nstage(" << me << ")"  << std::flush; 
 		std::optional<BAS::MetaEntry> result{};
 
     if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
@@ -2684,7 +2688,7 @@ private:
 			else {
         // Is 'posted' to external tool
         // But update it in case we have edited it
-        this->update(me);
+        result = this->update(me);
       }
 		}
 		else {
@@ -8185,11 +8189,15 @@ Cmd Updater::operator()(Command const& command) {
             // Update the list of staged entries
             if (auto sse = from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
               // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
-              //    That is, asumed to be added by cratchit (and not yet known by external tool)
-              // The stage(sie environment) returns all sie entries now discovered to actualy be in the imported sie
-              auto unstaged = model->sie_env_map["current"].stage(*sse);
-              for (auto const& je : unstaged) {
-                prompt << "\nnow posted " << je; 
+              //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
+              auto staged = model->sie_env_map["current"].stage(*sse);
+              auto unposted = model->sie_env_map["current"].unposted();
+              if (unposted.size() > 0) {
+                prompt << "\n<UNPOSTED>";
+                prompt << unposted;
+              }
+              else {
+                prompt << "\nAll staged entries are now posted OK";
               }
             }							
           }
@@ -8260,12 +8268,14 @@ Cmd Updater::operator()(Command const& command) {
           if (auto sie_env = from_sie_file(*sie_file_path)) {
             model->sie_env_map[year_key] = std::move(*sie_env);
             if (auto sse = from_sie_file(model->sie_env_map[year_key].staged_sie_file_path())) {
-              // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
-              //    That is, asumed to be added by cratchit (and not yet known by external tool)
-              // The stage(sie environment) returns all sie entries now discovered to actualy be in the imported sie
-              auto unstaged = model->sie_env_map[year_key].stage(*sse);
-              for (auto const& je : unstaged) {
-                prompt << "\nnow posted " << je; 
+              auto staged = model->sie_env_map[year_key].stage(*sse);
+              auto unposted = model->sie_env_map[year_key].unposted();
+              if (unposted.size() > 0) {
+                prompt << "\n<UNPOSTED>";
+                prompt << unposted;
+              }
+              else {
+                prompt << "\nAll staged entries are now posted OK";
               }
             }							
           }
@@ -9928,14 +9938,15 @@ private:
         //    and shows the user what was previously staged and what is now discovered to be posted
         //    * Staged are those in file model->staged_sie_file_path
         //    * Posted are those now in "current" sie in (imported from external tool)
-        if (sse->journals().size()>0) {
+        auto staged = model->sie_env_map[year_id].stage(*sse);
+        if (staged.size()>0) {
           prompt << "\n<STAGED>";
-          prompt << *sse;
+          prompt << "\n" << staged;
         }
-        auto unstaged = model->sie_env_map[year_id].stage(*sse); // the call returns any now no longer staged entries
-        for (auto const& je : unstaged) {
-          prompt << "\nnow posted " << je; 
-        }
+        auto unposted = model->sie_env_map[year_id].unposted();
+        prompt << "\n<Still UNPOSTED>";
+        if (unposted.size() > 0) prompt << "\n" << unposted;
+        else prompt << "\n*None*";
       }
     }
 
