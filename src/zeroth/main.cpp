@@ -3743,7 +3743,7 @@ namespace SKV { // SKV
 			return result;
 		}
 
-		std::string to_tag(std::string const& tag,SRUFileTagMap const& tag_map) {
+		std::string sru_tag_value(std::string const& tag,SRUFileTagMap const& tag_map) {
 // std::cout << "\nto_tag" << std::flush;
 			std::ostringstream os{};
 			os << tag << " ";
@@ -3787,13 +3787,13 @@ namespace SKV { // SKV
 			// 9. #ORGNR
 				// #ORGNR 191111111111
 			// os.sru_os << "\n" << "#ORGNR" << " " << "191111111111";
-			os.sru_os << "\n"  << to_tag("#ORGNR",fm.info);
+			os.sru_os << "\n"  << sru_tag_value("#ORGNR",fm.info);
 
 
 			// 10. #NAMN
 				// #NAMN Databokföraren
 			// os.sru_os << "\n" << "#NAMN" << " " << "Databokföraren";
-			os.sru_os << "\n" << to_tag("#NAMN",fm.info);
+			os.sru_os << "\n" << sru_tag_value("#NAMN",fm.info);
 
 			// 11. #ADRESS (ej obligatorisk)
 				// #ADRESS BOX 159
@@ -3801,13 +3801,13 @@ namespace SKV { // SKV
 			// 12. #POSTNR
 				// #POSTNR 12345
 			// os.sru_os << "\n" << "#POSTNR" << " " << "12345";
-			os.sru_os << "\n" << to_tag("#POSTNR",fm.info);
+			os.sru_os << "\n" << sru_tag_value("#POSTNR",fm.info);
 
 			// 13. #POSTORT
 				// #POSTORT SKATTSTAD
 			// os.sru_os << "\n" << "#POSTORT" << " " << "SKATTSTAD";
 			// os.sru_os << "\n" << "#POSTORT" << " " << "Järfälla";
-			os.sru_os << "\n" << to_tag("#POSTORT",fm.info);
+			os.sru_os << "\n" << sru_tag_value("#POSTORT",fm.info);
 			
 			// 14. #AVDELNING (ej obligatorisk)
 				// #AVDELNING Ekonomi
@@ -3837,12 +3837,12 @@ namespace SKV { // SKV
 				// 1. #BLANKETT
 				// #BLANKETT N7-2013P1
 				// os.sru_os << "#BLANKETT" << " " << "N7-2013P1"; 
-				os.sru_os << to_tag("#BLANKETT",fm.blanketter[i].first);
+				os.sru_os << sru_tag_value("#BLANKETT",fm.blanketter[i].first);
 
 				// 2. #IDENTITET
 				// #IDENTITET 193510250100 20130426 174557
 				// os.sru_os << "\n" << "#IDENTITET" << " " << "193510250100 20130426 174557"; 
-				os.sru_os << "\n" << to_tag("#IDENTITET",fm.blanketter[i].first);
+				os.sru_os << "\n" << sru_tag_value("#IDENTITET",fm.blanketter[i].first);
 
 				// 3. #NAMN (ej obligatorisk)
 				// #NAMN Kalle Andersson
@@ -3884,10 +3884,10 @@ namespace SKV { // SKV
 					}
 				}
 
-				for (auto const& [account_no,value] : fm.blanketter[i].second) {
-					if (value) os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << *value;
-				}
-
+        // All #UPPGIFT entrires comes from non-zero values
+        for (auto const& [account_no,value] : fm.blanketter[i].second) {
+          if (value) os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << *value;
+        }
 
 				// 5. #BLANKETTSLUT
 				// #BLANKETTSLUT
@@ -5748,57 +5748,62 @@ namespace SKV {
 		OptionalSRUValueMap to_sru_value_map(Model const& model,::CSV::FieldRows const& field_rows) {
 			OptionalSRUValueMap result{};
 			try {
-// std::cout << "\nto_sru_value_map";
+std::cout << "\nto_sru_value_map";
 				std::map<SKV::SRU::AccountNo,BAS::OptionalAccountNos> sru_to_bas_accounts{};
 				for (int i=0;i<field_rows.size();++i) {
 					auto const& field_row = field_rows[i];
-// std::cout << "\n\t" << static_cast<std::string>(field_row);
+std::cout << "\n\t" << static_cast<std::string>(field_row);
 					if (field_row.size() > 1) {
 						auto const& field_1 = field_row[1];
-// std::cout << "\n\t\t[1]=" << std::quoted(field_1);
+std::cout << "\n\t\t[1]=" << std::quoted(field_1);
 						if (auto sru_code = to_account_no(field_1)) {
-// std::cout << " ok! ";
+std::cout << " ok! ";
 							if (field_row.size() > 3) {
 								auto mandatory = (field_row[3].find("J") != std::string::npos);
 								if (mandatory) {
-// std::cout << " Mandatory.";
+std::cout << " Mandatory.";
 								}
 								else {
-// std::cout << " optional ;)";
+std::cout << " optional ;)";
 								}
-								sru_to_bas_accounts[*sru_code] = model->sie_env_map["current"].to_bas_accounts(*sru_code);
+								sru_to_bas_accounts[*sru_code] = model->sie_env_map["-1"].to_bas_accounts(*sru_code);
+std::cout << "\nSRU:" << *sru_code << " BAS count: " << sru_to_bas_accounts[*sru_code]->size();
 							}
 							else {
-// std::cout << " NO [3]";
+std::cout << " NO [3]";
 							}
 						}
 						else {
-// std::cout << " NOT SRU";
+std::cout << " NOT SRU";
 						}
 					}
 					else {
-// std::cout << " null (does not exist)";
+std::cout << " null (does not exist)";
 					}
 				}
 				// Now retreive the sru values from bas accounts as mapped
 				SRUValueMap sru_value_map{};
 				for (auto const& [sru_code,bas_account_nos] : sru_to_bas_accounts) {
-// std::cout << "\nSRU:" << sru_code;
+std::cout << "\nSRU:" << sru_code;
 					if (bas_account_nos) {
-// for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
+
+for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
+
 						sru_value_map[sru_code] = to_ats_sum_string(model->sie_env_map,*bas_account_nos);
-// std::cout << "\n\t------------------";
-// std::cout << "\n\tSUM:" << sru_code << " = ";
-// if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
-// else std::cout << " null";
+
+std::cout << "\n\t------------------";
+std::cout << "\n\tSUM:" << sru_code << " = ";
+if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
+else std::cout << " null";
+
 					}
 					else {
-// std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
-						if (auto const& stored_value = model->sru["0"].at(sru_code)) {
+std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
+						if (auto const& stored_value = model->sru["-1"].at(sru_code)) {
 							sru_value_map[sru_code] = stored_value;
-// std::cout << "\n\tstored:" << *stored_value;
-
+std::cout << "\n\tstored:" << *stored_value;
 						}
+
 						// // K10
 						// SRU:4531	"Antal ägda andelar vid årets ingång"
 						// SRU:4532	"Totala antalet andelar i hela företaget vid årets ingång"
@@ -7697,7 +7702,10 @@ Cmd Updater::operator()(Command const& command) {
                 }
 
 
+                // Use gathered values
                 if (k10_sru_value_map and ink1_sru_value_map) {
+
+                  // Gather data fro info.sru
                   SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
                   {
                     // Assume we are to send in with sender being this company?
@@ -7728,6 +7736,7 @@ Cmd Updater::operator()(Command const& command) {
                       info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
                     }
                   }
+
                   SKV::SRU::SRUFileTagMap k10_sru_file_tag_map{};
                   {
                     // #BLANKETT N7-2013P1
@@ -7746,6 +7755,7 @@ Cmd Updater::operator()(Command const& command) {
                     os << " " << "120000";
                     k10_sru_file_tag_map["#IDENTITET"] = os.str();
                   }
+
                   SKV::SRU::SRUFileTagMap ink1_sru_file_tag_map{};
                   {
                     // #BLANKETT N7-2013P1
@@ -7823,31 +7833,268 @@ Cmd Updater::operator()(Command const& command) {
               // extern const char* info_ink2_template;
               // extern const char* blanketter_ink2_ink2s_ink2r_template;
 
-              SKV::SRU::OptionalSRUValueMap ink2_sru_value_map{};
 
-              // ink2_csv_to_sru_template
-              std::istringstream ink2_is{SKV::SRU::INK2::Y_2024::INK2_csv_to_sru_template};
-              encoding::UTF8::istream utf8_ink2_in{ink2_is};
-              if (auto field_rows = CSV::to_field_rows(utf8_ink2_in)) {
-                for (auto const& field_row : *field_rows) {
-                  if (field_row.size()>0) prompt << "\n";
-                  for (int i=0;i<field_row.size();++i) {
-                    prompt << " [" << i << "]" << field_row[i];
+              SKV::SRU::OptionalSRUValueMap ink2r_sru_value_map{};
+              {
+                // INK2R_csv_to_sru_template
+                std::istringstream is{SKV::SRU::INK2::Y_2024::INK2R_csv_to_sru_template};
+                encoding::UTF8::istream utf8_in{is};
+                if (auto field_rows = CSV::to_field_rows(utf8_in)) {
+                  for (auto const& field_row : *field_rows) {
+                    if (field_row.size()>0) prompt << "\n";
+                    for (int i=0;i<field_row.size();++i) {
+                      prompt << " [" << i << "]" << field_row[i];
+                    }
                   }
+                  ink2r_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+
                 }
-                // Acquire the SRU Values required for the INK2 Form
-                ink2_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
-              }
-              else {
-                prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                else {
+                  prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                }
               }
 
-              // Project into value maps
-              // OptionalSRUValueMap to_sru_value_map(SKV::SRU::INK2::INK2_csv_to_sru_template)
-              // OptionalSRUValueMap to_sru_value_map(INK2S)
-              // OptionalSRUValueMap to_sru_value_map(INK2R)
+              SKV::SRU::OptionalSRUValueMap ink2s_sru_value_map{};
+              {
+                // INK2S_csv_to_sru_template
+                std::istringstream is{SKV::SRU::INK2::Y_2024::INK2S_csv_to_sru_template};
+                encoding::UTF8::istream utf8_in{is};
+                if (auto field_rows = CSV::to_field_rows(utf8_in)) {
+                  for (auto const& field_row : *field_rows) {
+                    if (field_row.size()>0) prompt << "\n";
+                    for (int i=0;i<field_row.size();++i) {
+                      prompt << " [" << i << "]" << field_row[i];
+                    }
+                  }
+                  // Acquire the SRU Values required for the INK2 Form
+                  ink2s_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                }
+                else {
+                  prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                }
+              }
 
-              if (ink2_sru_value_map) {
+              SKV::SRU::OptionalSRUValueMap ink2_sru_value_map{};
+              {
+                // ink2_csv_to_sru_template
+                std::istringstream is{SKV::SRU::INK2::Y_2024::INK2_csv_to_sru_template};
+                encoding::UTF8::istream utf8_in{is};
+                if (auto field_rows = CSV::to_field_rows(utf8_in)) {
+                  for (auto const& field_row : *field_rows) {
+                    if (field_row.size()>0) prompt << "\n";
+                    for (int i=0;i<field_row.size();++i) {
+                      prompt << " [" << i << "]" << field_row[i];
+                    }
+                  }
+                  
+                  // Inject the SRU Values required for the INK2 Form
+
+                  // #UPPGIFT 7011 20230501
+                  model->sru["-1"].set(7011,std::string{"20240501"});
+
+                  // #UPPGIFT 7012 20240430
+                  model->sru["-1"].set(7012,std::string{"20250430"});
+
+                  // #UPPGIFT 7114 205963
+                  model->sru["-1"].set(7114,std::string{"?"});
+
+                  // Acquire the SRU Values required for the INK2 Form
+                  ink2_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                }
+                else {
+                  prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                }
+              }
+
+
+              // Process value maps + tag maps
+              if (    ink2r_sru_value_map
+                  and ink2_sru_value_map
+                  and ink2_sru_value_map) {
+
+                // INFO.SRU tag map
+                SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};
+                {
+
+                  // See https://skatteverket.se/download/18.96cca41179bad4b1aad958/1636640681760/SKV269_27.pdf
+                  // 1. #DATABESKRIVNING_START
+                  // 2. #PRODUKT SRU
+                  // 3. #MEDIAID (ej obligatorisk)
+                  // 4. #SKAPAD (ej obligatorisk)
+                  // 5. #PROGRAM (ej obligatorisk)
+                  // 6. #FILNAMN (en post)
+                  // 7. #DATABESKRIVNING_SLUT
+                  // 8. #MEDIELEV_START
+                  // 9. #ORGNR
+                  info_sru_file_tag_map["#ORGNR"] = model->sie_env_map["current"].organisation_no.CIN;		
+                  // 10. #NAMN
+                  info_sru_file_tag_map["#NAMN"] = model->sie_env_map["current"].organisation_name.company_name;
+
+                  auto postal_address = model->sie_env_map["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
+                  auto postal_address_tokens = tokenize::splits(postal_address,' ');
+
+                  // 11. #ADRESS (ej obligatorisk)
+                  // 12. #POSTNR
+                  if (postal_address_tokens.size() > 0) {
+                    info_sru_file_tag_map["#POSTNR"] = postal_address_tokens[0];
+                  }
+                  else {
+                    info_sru_file_tag_map["#POSTNR"] = "?POSTNR?";
+                  }
+                  // 13. #POSTORT
+                  if (postal_address_tokens.size() > 1) {
+                    info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
+                  }
+                  else {
+                    info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
+                  }
+                  // 14. #AVDELNING (ej obligatorisk)
+                  // 15. #KONTAKT (ej obligatorisk)
+                  // 16. #EMAIL (ej obligatorisk)
+                  // 17. #TELEFON (ej obligatorisk)
+                  // 18. #FAX (ej obligatorisk)
+                  // 19. #MEDIELEV_SLUT
+                }
+
+                // Create the SRU files mapping for the info.sru + blanketter.sru file pair
+                SKV::SRU::FilesMapping fm {
+                  .info = info_sru_file_tag_map // info is tags only (no values)
+                };
+
+                // Create content for blanketter.sru
+
+                // #BLANKETT INK2R-2024P1
+                SKV::SRU::SRUFileTagMap ink2r_sru_file_tag_map{};
+                {
+                  // #BLANKETT INK2R-2024P1
+                  ink2r_sru_file_tag_map["#BLANKETT"] = " INK2R-2025P1"; // See _Nyheter_from_beskattningsperiod_2024P4.pdf
+                  
+                  // #IDENTITET 165567828172 20240727 195839
+                  std::ostringstream os{};
+                  os <<  " " << model->sie_env_map["current"].organisation_no.CIN;
+                  auto today = to_today();
+                  os << " " << today;
+                  os << " " << "120000";
+                  ink2r_sru_file_tag_map["#IDENTITET"] = os.str();
+
+                  // #NAMN The ITfied AB
+                  ink2r_sru_file_tag_map["#NAMN"] = model->sie_env_map["current"].organisation_name.company_name;
+
+                  // #SYSTEMINFO klarmarkerad u. a.
+                  // #UPPGIFT 7011 20230501
+                  // #UPPGIFT 7012 20240430
+                  // #UPPGIFT 7215 42734
+                  // #UPPGIFT 7261 2046
+                  // #UPPGIFT 7281 119254
+                  // #UPPGIFT 7301 100800
+                  // #UPPGIFT 7302 39106
+                  // #UPPGIFT 7365 -896
+                  // #UPPGIFT 7368 0
+                  // #UPPGIFT 7369 25024
+                  // #UPPGIFT 7410 1
+                  // #UPPGIFT 7417 3588
+                  // #UPPGIFT 7513 13451
+                  // #UPPGIFT 7515 20685
+                  // #UPPGIFT 7528 0
+                  // #UPPGIFT 7550 30547
+                  // #BLANKETTSLUT
+
+
+
+                }
+                SKV::SRU::Blankett ink2r_blankett{ink2r_sru_file_tag_map,*ink2r_sru_value_map}; 
+                fm.blanketter.push_back(ink2r_blankett); // blankett is tags and values
+
+                // #BLANKETT INK2S-2024P1
+                SKV::SRU::SRUFileTagMap ink2s_sru_file_tag_map{};
+                {
+                  // #BLANKETT INK2S-2024P1
+                  ink2s_sru_file_tag_map["#BLANKETT"] = " INK2S-2025P1"; // See _Nyheter_from_beskattningsperiod_2024P4.pdf
+                  // #IDENTITET 165567828172 20240727 195839
+                  std::ostringstream os{};
+                  os <<  " " << model->sie_env_map["current"].organisation_no.CIN;
+                  auto today = to_today();
+                  os << " " << today;
+                  os << " " << "120000";
+                  ink2s_sru_file_tag_map["#IDENTITET"] = os.str();
+
+                  // #NAMN The ITfied AB
+                  ink2s_sru_file_tag_map["#NAMN"] = model->sie_env_map["current"].organisation_name.company_name;
+
+                  // #SYSTEMINFO klarmarkerad u. a.
+                  // #UPPGIFT 7011 20230501
+                  // #UPPGIFT 7012 20240430
+                  // #UPPGIFT 7651 0
+                  // #UPPGIFT 7653 625
+                  // #UPPGIFT 7750 30547
+                  // #UPPGIFT 7754 15
+                  // #UPPGIFT 7763 176026
+                  // #UPPGIFT 7770 205963
+                  // #UPPGIFT 8041 X
+                  // #UPPGIFT 8045 X
+                  // #BLANKETTSLUT
+                }
+                SKV::SRU::Blankett ink2s_blankett{ink2s_sru_file_tag_map,*ink2s_sru_value_map}; 
+                fm.blanketter.push_back(ink2s_blankett); // blankett is tags and values
+
+                SKV::SRU::SRUFileTagMap ink2_sru_file_tag_map{};
+                {
+
+                  // #BLANKETT INK2-2024P1
+                  ink2_sru_file_tag_map["#BLANKETT"] = " INK2-2025P1"; // See _Nyheter_from_beskattningsperiod_2024P4.pdf
+                  // #IDENTITET 165567828172 20240727 195839
+                  std::ostringstream os{};
+                  os <<  " " << model->sie_env_map["current"].organisation_no.CIN;
+                  auto today = to_today();
+                  os << " " << today;
+                  os << " " << "120000";
+                  ink2_sru_file_tag_map["#IDENTITET"] = os.str();
+
+                  // #NAMN The ITfied AB
+                  ink2_sru_file_tag_map["#NAMN"] = model->sie_env_map["current"].organisation_name.company_name;
+
+                  // #SYSTEMINFO klarmarkerad u. a.
+                  // #UPPGIFT 7011 20230501
+                  // #UPPGIFT 7012 20240430
+                  // #UPPGIFT 7114 205963
+                  // #BLANKETTSLUT
+                }
+                SKV::SRU::Blankett ink2_blankett{ink2_sru_file_tag_map,*ink2_sru_value_map}; 
+                fm.blanketter.push_back(ink2_blankett); // blankett is tags and values
+
+
+                // Create the SRU files from the files mapping 'fm'
+
+                // Ensure the ouput folder exists
+                std::filesystem::path info_file_path{"to_skv/INK2/SRU/INFO.SRU"};
+                std::filesystem::create_directories(info_file_path.parent_path());
+
+                // Create the info.sru file from 
+                auto info_std_os = std::ofstream{info_file_path};
+                SKV::SRU::OStream info_sru_os{info_std_os};
+                SKV::SRU::InfoOStream info_os{info_sru_os};
+
+                if (info_os << fm) {
+                  prompt << "\nCreated " << info_file_path;
+                }
+                else {
+                  prompt << "\nSorry, FAILED to create " << info_file_path;
+                }
+
+
+                std::filesystem::path blanketter_file_path{"to_skv/INK2/SRU/BLANKETTER.SRU"};
+                std::filesystem::create_directories(blanketter_file_path.parent_path());
+                auto blanketter_std_os = std::ofstream{blanketter_file_path};
+                SKV::SRU::OStream blanketter_sru_os{blanketter_std_os};
+                SKV::SRU::BlanketterOStream blanketter_os{blanketter_sru_os};
+
+                if (blanketter_os << fm) {
+                  prompt << "\nCreated " << blanketter_file_path;
+                }
+                else {
+                  prompt << "\nSorry, FAILED to create " << blanketter_file_path;
+                }
+
               }
               else {
                 prompt << "\nSorry, Failed to acquirer the data for the INK2 forms";									
@@ -10625,6 +10872,65 @@ Uppdragstagare (t.ex. redovisningskonsult) har biträtt vid upprättandet av år
 Årsredovisningen har varit föremål för revision: Ja;8044;Str_X;N;;Får ej förekomma om 8045 finns med.
 Årsredovisningen har varit föremål för revision: Nej;8045;Str_X;N;;Får ej förekomma om 8044 finns med.)INK2"};
 
+  const char* info_ink2_template = R"(#DATABESKRIVNING_START
+#PRODUKT SRU
+#SKAPAD 20241130 124700
+#PROGRAM https://github.com/kjelloh/cratchit
+#FILNAMN BLANKETTER.SRU
+#DATABESKRIVNING_SLUT
+#MEDIELEV_START
+#ORGNR 165567828172
+#NAMN The ITfied AB
+#POSTNR 17141
+#POSTORT Solna
+#MEDIELEV_SLUT)";
+
+  const char* blanketter_ink2_ink2s_ink2r_template = R"(#BLANKETT INK2R-2024P1
+#IDENTITET 165567828172 20240727 195839
+#NAMN The ITfied AB
+#SYSTEMINFO klarmarkerad u. a.
+#UPPGIFT 7011 20230501
+#UPPGIFT 7012 20240430
+#UPPGIFT 7215 42734
+#UPPGIFT 7261 2046
+#UPPGIFT 7281 119254
+#UPPGIFT 7301 100800
+#UPPGIFT 7302 39106
+#UPPGIFT 7365 -896
+#UPPGIFT 7368 0
+#UPPGIFT 7369 25024
+#UPPGIFT 7410 1
+#UPPGIFT 7417 3588
+#UPPGIFT 7513 13451
+#UPPGIFT 7515 20685
+#UPPGIFT 7528 0
+#UPPGIFT 7550 30547
+#BLANKETTSLUT
+#BLANKETT INK2S-2024P1
+#IDENTITET 165567828172 20240727 195839
+#NAMN The ITfied AB
+#SYSTEMINFO klarmarkerad u. a.
+#UPPGIFT 7011 20230501
+#UPPGIFT 7012 20240430
+#UPPGIFT 7651 0
+#UPPGIFT 7653 625
+#UPPGIFT 7750 30547
+#UPPGIFT 7754 15
+#UPPGIFT 7763 176026
+#UPPGIFT 7770 205963
+#UPPGIFT 8041 X
+#UPPGIFT 8045 X
+#BLANKETTSLUT
+#BLANKETT INK2-2024P1
+#IDENTITET 165567828172 20240727 195839
+#NAMN The ITfied AB
+#SYSTEMINFO klarmarkerad u. a.
+#UPPGIFT 7011 20230501
+#UPPGIFT 7012 20240430
+#UPPGIFT 7114 205963
+#BLANKETTSLUT
+#FIL_SLUT)";
+
       } // Y_2024
       
 		// Also in resources/INK2_19_P1-intervall-vers-2.csv
@@ -10833,64 +11139,6 @@ Räkenskapsårets slut;7012;Datum_D;N;;
 3.26 Årets resultat, vinst (flyttas till p. 4.1);7450;Numeriskt_B;N;+;Får ej förekomma om 7550 finns med och 7550 <> 0.
 3.27 Årets resultat, förlust (flyttas till p. 4.2);7550;Numeriskt_B;N;-;Får ej förekomma om 7450 finns med och 7450 <> 0.)";
 
-  const char* info_ink2_template = R"(#DATABESKRIVNING_START
-#PRODUKT SRU
-#SKAPAD 20241130 124700
-#PROGRAM https://github.com/kjelloh/cratchit
-#FILNAMN BLANKETTER.SRU
-#DATABESKRIVNING_SLUT
-#MEDIELEV_START
-#ORGNR 165567828172
-#NAMN The ITfied AB
-#POSTNR 17141
-#POSTORT Solna
-#MEDIELEV_SLUT)";
-
-  const char* blanketter_ink2_ink2s_ink2r_template = R"(#BLANKETT INK2R-2024P1
-#IDENTITET 165567828172 20240727 195839
-#NAMN The ITfied AB
-#SYSTEMINFO klarmarkerad u. a.
-#UPPGIFT 7011 20230501
-#UPPGIFT 7012 20240430
-#UPPGIFT 7215 42734
-#UPPGIFT 7261 2046
-#UPPGIFT 7281 119254
-#UPPGIFT 7301 100800
-#UPPGIFT 7302 39106
-#UPPGIFT 7365 -896
-#UPPGIFT 7368 0
-#UPPGIFT 7369 25024
-#UPPGIFT 7410 1
-#UPPGIFT 7417 3588
-#UPPGIFT 7513 13451
-#UPPGIFT 7515 20685
-#UPPGIFT 7528 0
-#UPPGIFT 7550 30547
-#BLANKETTSLUT
-#BLANKETT INK2S-2024P1
-#IDENTITET 165567828172 20240727 195839
-#NAMN The ITfied AB
-#SYSTEMINFO klarmarkerad u. a.
-#UPPGIFT 7011 20230501
-#UPPGIFT 7012 20240430
-#UPPGIFT 7651 0
-#UPPGIFT 7653 625
-#UPPGIFT 7750 30547
-#UPPGIFT 7754 15
-#UPPGIFT 7763 176026
-#UPPGIFT 7770 205963
-#UPPGIFT 8041 X
-#UPPGIFT 8045 X
-#BLANKETTSLUT
-#BLANKETT INK2-2024P1
-#IDENTITET 165567828172 20240727 195839
-#NAMN The ITfied AB
-#SYSTEMINFO klarmarkerad u. a.
-#UPPGIFT 7011 20230501
-#UPPGIFT 7012 20240430
-#UPPGIFT 7114 205963
-#BLANKETTSLUT
-#FIL_SLUT)";
 
     } // INK2
 
