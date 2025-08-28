@@ -5767,6 +5767,52 @@ Amount get_K10_Dividend(Model const& model) {
 	return result;
 }
 
+struct IBPeriodUB {
+  CentsAmount ib{};
+  CentsAmount period{};
+  CentsAmount ub{};
+};
+
+using IBPeriodUBMap = std::map<BAS::AccountNo,IBPeriodUB>;
+
+IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) {
+  IBPeriodUBMap result{};
+  if (model->sie_env_map.contains(relative_year_key)) {
+    auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
+    if (financial_year_date_range) {
+      std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
+      auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
+      auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
+      for (auto const& ta : bas_account_accs) {
+        IBPeriodUB entry{};
+        std::string bas_account_string = ta.tags().at("BAS"); 
+        auto bas_account_no = *BAS::to_account_no(bas_account_string);
+        if (opening_balances.contains(bas_account_no)) {
+          entry.ib = to_cents_amount(opening_balances.at(bas_account_no));
+        }
+        entry.period = ta.cents_amount();
+        entry.ub = entry.ib + entry.period;
+        result[bas_account_no] = entry;
+        opening_balances.erase(bas_account_no); // consumed
+      }
+      for (auto const& [bas_account_no,opening_balance] : opening_balances) {
+        IBPeriodUB entry{};
+        std::string bas_account_string = std::to_string(bas_account_no); 
+        entry.ib = to_cents_amount(opening_balance);
+        entry.ub = entry.ib;
+        result[bas_account_no] = entry;
+      }
+    }
+    else {
+      std::cerr << "\nto_omslutning failed to create financial_year_date_range for relative_year_key:" << std::quoted(relative_year_key);
+    }
+  }
+  else {
+    std::cerr << "\nto_omslutning failed. No SIE environment for relative_year_key:" << std::quoted(relative_year_key);
+  }
+  return result;
+}
+
 namespace SKV {
 	namespace SRU {
 
@@ -5777,53 +5823,81 @@ namespace SKV {
           std::cerr << "\nSorry, to_sru_value_map failed. No SIE environment found for year index:" << year_index;
           return result;
         }
-std::cout << "\nto_sru_value_map";
+        // LOG
+        std::cout << "\nto_sru_value_map";
+
 				std::map<SKV::SRU::AccountNo,BAS::OptionalAccountNos> sru_to_bas_accounts{};
 				for (int i=0;i<field_rows.size();++i) {
 					auto const& field_row = field_rows[i];
-std::cout << "\n\t" << static_cast<std::string>(field_row);
+          // LOG
+          std::cout << "\n\t" << static_cast<std::string>(field_row);
 					if (field_row.size() > 1) {
 						auto const& field_1 = field_row[1];
-std::cout << "\n\t\t[1]=" << std::quoted(field_1);
+            // LOG
+            std::cout << "\n\t\t[1]=" << std::quoted(field_1);
 						if (auto sru_code = to_account_no(field_1)) {
-std::cout << " ok! ";
+              // LOG
+              std::cout << " ok! ";
 							if (field_row.size() > 3) {
 								auto mandatory = (field_row[3].find("J") != std::string::npos);
 								if (mandatory) {
-std::cout << " Mandatory.";
+                  // LOG
+                  std::cout << " Mandatory.";
 								}
 								else {
-std::cout << " optional ;)";
+                  // LOG
+                  std::cout << " optional ;)";
 								}
-								sru_to_bas_accounts[*sru_code] = model->sie_env_map[year_index].to_bas_accounts(*sru_code);
-std::cout << "\nSRU:" << *sru_code << " BAS count: " << sru_to_bas_accounts[*sru_code]->size();
+
+                sru_to_bas_accounts[*sru_code] = model->sie_env_map[year_index].to_bas_accounts(*sru_code);
+                // LOG
+                std::cout << "\nSRU:" << *sru_code << " BAS count: " << sru_to_bas_accounts[*sru_code]->size();
+
 							}
 							else {
-std::cout << " NO [3]";
+                // LOG
+                std::cout << " NO [3]";
 							}
 						}
 						else {
-std::cout << " NOT SRU";
+              // LOG
+              std::cout << " NOT SRU";
 						}
 					}
 					else {
-std::cout << " null (does not exist)";
+            // LOG
+            std::cout << " null (does not exist)";
 					}
 				}
+
+        auto ib_period_ub = to_ib_period_ub(model,year_index);
+
 				// Now retreive the sru values from bas accounts as mapped
 				SRUValueMap sru_value_map{};
 				for (auto const& [sru_code,bas_account_nos] : sru_to_bas_accounts) {
-std::cout << "\nSRU:" << sru_code;
+          std::cout << "\nSRU:" << sru_code;
 					if (bas_account_nos) {
 
-for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
+            CentsAmount acc{};
+            for (auto const& bas_account_no : *bas_account_nos) {
+              // LOG
+              std::cout << "\n\tBAS:" << bas_account_no;
+              if (ib_period_ub.contains(bas_account_no)) {
 
-						sru_value_map[sru_code] = to_ats_sum_string(model->sie_env_map[year_index],*bas_account_nos);
+                acc += ib_period_ub[bas_account_no].ub;
+                
+                // LOG
+                std::cout << " UB:" << ib_period_ub[bas_account_no].ub;
+                std::cout << " Acc:" << acc;
+              }
+            }
+            sru_value_map[sru_code] = to_string(acc);
 
-std::cout << "\n\t------------------";
-std::cout << "\n\tSUM:" << sru_code << " = ";
-if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
-else std::cout << " null";
+            // LOG
+            std::cout << "\n\t------------------";
+            std::cout << "\n\tSUM:" << sru_code << " = ";
+            if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
+            else std::cout << " null";
 
 					}
 					else {
@@ -5832,6 +5906,11 @@ std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
 							sru_value_map[sru_code] = stored_value;
 std::cout << "\n\tstored:" << *stored_value;
 						}
+            else {
+              // Mark as unknown
+              // TODO: Skip if not mandatory
+              // sru_value_map[sru_code] = std::format("?{}?",sru_code);
+            }
 
 						// // K10
 						// SRU:4531	"Antal ägda andelar vid årets ingång"
@@ -6404,52 +6483,6 @@ namespace lua_faced_ifc {
   }
 
 } // namespace lua
-
-struct IBPeriodUB {
-  CentsAmount ib{};
-  CentsAmount period{};
-  CentsAmount ub{};
-};
-
-using IBPeriodUBMap = std::map<BAS::AccountNo,IBPeriodUB>;
-
-IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) {
-  IBPeriodUBMap result{};
-  if (model->sie_env_map.contains(relative_year_key)) {
-    auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
-    if (financial_year_date_range) {
-      std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
-      auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
-      auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
-      for (auto const& ta : bas_account_accs) {
-        IBPeriodUB entry{};
-        std::string bas_account_string = ta.tags().at("BAS"); 
-        auto bas_account_no = *BAS::to_account_no(bas_account_string);
-        if (opening_balances.contains(bas_account_no)) {
-          entry.ib = to_cents_amount(opening_balances.at(bas_account_no));
-        }
-        entry.period = ta.cents_amount();
-        entry.ub = entry.ib + entry.period;
-        result[bas_account_no] = entry;
-        opening_balances.erase(bas_account_no); // consumed
-      }
-      for (auto const& [bas_account_no,opening_balance] : opening_balances) {
-        IBPeriodUB entry{};
-        std::string bas_account_string = std::to_string(bas_account_no); 
-        entry.ib = to_cents_amount(opening_balance);
-        entry.ub = entry.ib;
-        result[bas_account_no] = entry;
-      }
-    }
-    else {
-      std::cerr << "\nto_omslutning failed to create financial_year_date_range for relative_year_key:" << std::quoted(relative_year_key);
-    }
-  }
-  else {
-    std::cerr << "\nto_omslutning failed. No SIE environment for relative_year_key:" << std::quoted(relative_year_key);
-  }
-  return result;
-}
 
 // ==================================================
 // *** class Updater declaration ***
