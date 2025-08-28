@@ -7999,13 +7999,10 @@ Cmd Updater::operator()(Command const& command) {
                   // Inject the SRU Values required for the INK2 Form
 
                   // #UPPGIFT 7011 20230501
-                  model->sru["-1"].set(7011,std::string{"20240501"});
+                  model->sru[model->selected_year_index].set(7011,std::string{"20240501"});
 
                   // #UPPGIFT 7012 20240430
-                  model->sru["-1"].set(7012,std::string{"20250430"});
-
-                  // #UPPGIFT 7114 205963
-                  model->sru["-1"].set(7114,std::string{"?"});
+                  model->sru[model->selected_year_index].set(7012,std::string{"20250430"});
 
                   // Acquire the SRU Values required for the INK2 Form
                   ink2_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
@@ -8015,11 +8012,25 @@ Cmd Updater::operator()(Command const& command) {
                 }
               }
 
-
               // Process value maps + tag maps
               if (    ink2r_sru_value_map
                   and ink2_sru_value_map
                   and ink2_sru_value_map) {
+
+                // ####
+                // Calculate the cross-dependant SRU values
+                {
+                  // TODO: All these optionals and strongly typed CentsAmount is a MESS!!
+                  if (auto arets_resultat = to_cents_amount(ink2r_sru_value_map.value()[7450].value_or("0"))
+                      ;arets_resultat.value_or(CentsAmount{0}) < CentsAmount{0}) {
+                    ink2r_sru_value_map.value()[7450] = std::nullopt;
+                    ink2r_sru_value_map.value()[7550] = to_string(-(arets_resultat.value()));
+                    prompt << "\nSRU:7450 -> SRU:7550 : Förlust" << ink2r_sru_value_map.value()[7550];
+                  }
+
+                  // #UPPGIFT 7114 205963
+                  model->sru[model->selected_year_index].set(7114,std::string{"?"});
+                }
 
                 // INFO.SRU tag map
                 SKV::SRU::SRUFileTagMap info_sru_file_tag_map{};

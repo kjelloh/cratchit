@@ -33,10 +33,14 @@ namespace WrappedCentsAmount {
       return *this;
     }
 
-    CentsAmount operator+(CentsAmount const &other) {
+    CentsAmount operator+(CentsAmount const &other) const {
       CentsAmount result{*this};
       result += other;
       return result;
+    }
+
+    CentsAmount operator-() const {
+      return CentsAmount{-this->m_in_cents_value};
     }
 
     auto operator<=>(CentsAmount const &other) const = default;
