@@ -2921,6 +2921,24 @@ OptionalAmount account_sum(SIEEnvironment const& sie_env,BAS::AccountNo account_
 	return result;
 }
 
+OptionalAmount to_ats_sum(SIEEnvironment const& sie_env,BAS::AccountNos const& bas_account_nos) {
+	OptionalAmount result{};
+	try {
+		Amount amount{};
+		auto f = [&amount,&bas_account_nos](BAS::MetaAccountTransaction const& mat) {
+			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
+				amount += mat.defacto.amount;
+			}
+		};
+		for_each_meta_account_transaction(sie_env,f);
+		result = amount;
+	}
+	catch (std::exception const& e) {
+		std::cout << "\nto_ats_sum failed. Excpetion=" << std::quoted(e.what());
+	}
+	return result;
+}
+
 OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos const& bas_account_nos) {
 	OptionalAmount result{};
 	try {
@@ -2936,6 +2954,12 @@ OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos
 	catch (std::exception const& e) {
 		std::cout << "\nto_ats_sum failed. Excpetion=" << std::quoted(e.what());
 	}
+	return result;
+}
+
+std::optional<std::string> to_ats_sum_string(SIEEnvironment const& sie_env,BAS::AccountNos const& bas_account_nos) {
+	std::optional<std::string> result{};
+	if (auto const& ats_sum = to_ats_sum(sie_env,bas_account_nos)) result = to_string(*ats_sum);
 	return result;
 }
 
@@ -5746,9 +5770,13 @@ Amount get_K10_Dividend(Model const& model) {
 namespace SKV {
 	namespace SRU {
 
-		OptionalSRUValueMap to_sru_value_map(Model const& model,::CSV::FieldRows const& field_rows) {
+		OptionalSRUValueMap to_sru_value_map(Model const& model,std::string year_index,::CSV::FieldRows const& field_rows) {
 			OptionalSRUValueMap result{};
 			try {
+        if (!model->sie_env_map.contains(year_index)) {
+          std::cerr << "\nSorry, to_sru_value_map failed. No SIE environment found for year index:" << year_index;
+          return result;
+        }
 std::cout << "\nto_sru_value_map";
 				std::map<SKV::SRU::AccountNo,BAS::OptionalAccountNos> sru_to_bas_accounts{};
 				for (int i=0;i<field_rows.size();++i) {
@@ -5767,7 +5795,7 @@ std::cout << " Mandatory.";
 								else {
 std::cout << " optional ;)";
 								}
-								sru_to_bas_accounts[*sru_code] = model->sie_env_map["-1"].to_bas_accounts(*sru_code);
+								sru_to_bas_accounts[*sru_code] = model->sie_env_map[year_index].to_bas_accounts(*sru_code);
 std::cout << "\nSRU:" << *sru_code << " BAS count: " << sru_to_bas_accounts[*sru_code]->size();
 							}
 							else {
@@ -5790,7 +5818,7 @@ std::cout << "\nSRU:" << sru_code;
 
 for (auto const& bas_account_no : *bas_account_nos) std::cout << "\n\tBAS:" << bas_account_no;
 
-						sru_value_map[sru_code] = to_ats_sum_string(model->sie_env_map,*bas_account_nos);
+						sru_value_map[sru_code] = to_ats_sum_string(model->sie_env_map[year_index],*bas_account_nos);
 
 std::cout << "\n\t------------------";
 std::cout << "\n\tSUM:" << sru_code << " = ";
@@ -5800,7 +5828,7 @@ else std::cout << " null";
 					}
 					else {
 std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
-						if (auto const& stored_value = model->sru["-1"].at(sru_code)) {
+						if (auto const& stored_value = model->sru[year_index].at(sru_code)) {
 							sru_value_map[sru_code] = stored_value;
 std::cout << "\n\tstored:" << *stored_value;
 						}
@@ -6376,6 +6404,53 @@ namespace lua_faced_ifc {
   }
 
 } // namespace lua
+
+struct IBPeriodUB {
+  CentsAmount ib{};
+  CentsAmount period{};
+  CentsAmount ub{};
+};
+
+using IBPeriodUBMap = std::map<BAS::AccountNo,IBPeriodUB>;
+
+IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) {
+  IBPeriodUBMap result{};
+  if (model->sie_env_map.contains(relative_year_key)) {
+    auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
+    if (financial_year_date_range) {
+      std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
+      auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
+      auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
+      for (auto const& ta : bas_account_accs) {
+        IBPeriodUB entry{};
+        std::string bas_account_string = ta.tags().at("BAS"); 
+        auto bas_account_no = *BAS::to_account_no(bas_account_string);
+        if (opening_balances.contains(bas_account_no)) {
+          entry.ib = to_cents_amount(opening_balances.at(bas_account_no));
+        }
+        entry.period = ta.cents_amount();
+        entry.ub = entry.ib + entry.period;
+        result[bas_account_no] = entry;
+        opening_balances.erase(bas_account_no); // consumed
+      }
+      for (auto const& [bas_account_no,opening_balance] : opening_balances) {
+        IBPeriodUB entry{};
+        std::string bas_account_string = std::to_string(bas_account_no); 
+        entry.ib = to_cents_amount(opening_balance);
+        entry.ub = entry.ib;
+        result[bas_account_no] = entry;
+      }
+    }
+    else {
+      std::cerr << "\nto_omslutning failed to create financial_year_date_range for relative_year_key:" << std::quoted(relative_year_key);
+    }
+  }
+  else {
+    std::cerr << "\nto_omslutning failed. No SIE environment for relative_year_key:" << std::quoted(relative_year_key);
+  }
+  return result;
+}
+
 // ==================================================
 // *** class Updater declaration ***
 // ==================================================
@@ -7679,7 +7754,7 @@ Cmd Updater::operator()(Command const& command) {
                     }
                   }
                   // Acquire the SRU Values required for the K10 Form
-                  k10_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                  k10_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
                 }
                 else {
                   prompt << "\nSorry, failed to acquire a valid template for the K10 form";
@@ -7696,7 +7771,7 @@ Cmd Updater::operator()(Command const& command) {
                     }
                   }
                   // Acquire the SRU Values required for the INK1 Form
-                  ink1_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                  ink1_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
                 }
                 else {
                   prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
@@ -7847,7 +7922,7 @@ Cmd Updater::operator()(Command const& command) {
                       prompt << " [" << i << "]" << field_row[i];
                     }
                   }
-                  ink2r_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                  ink2r_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
 
                 }
                 else {
@@ -7868,7 +7943,7 @@ Cmd Updater::operator()(Command const& command) {
                     }
                   }
                   // Acquire the SRU Values required for the INK2 Form
-                  ink2s_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                  ink2s_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
                 }
                 else {
                   prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
@@ -7900,7 +7975,7 @@ Cmd Updater::operator()(Command const& command) {
                   model->sru["-1"].set(7114,std::string{"?"});
 
                   // Acquire the SRU Values required for the INK2 Form
-                  ink2_sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows);
+                  ink2_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
                 }
                 else {
                   prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
@@ -8852,7 +8927,7 @@ Cmd Updater::operator()(Command const& command) {
                 prompt << " [" << i << "]" << field_row[i];
               }
             }
-            if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,*field_rows)) {
+            if (auto sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows)) {
               prompt << "\nSorry, Reading an input csv-file as base for SRU-file creation is not yet implemented.";
             }
             else {
@@ -8889,72 +8964,46 @@ Cmd Updater::operator()(Command const& command) {
         }
       }
 
+      /*
+      Omslutning 20230501...20240430 {
+        <Konto>      <IN>  <period>     <OUT>
+            1920  36147,89  -7420,27  28727,62
+            1999    156,75   -156,75      0,00
+            2098      0,00  84192,50  84192,50
+            2099  84192,50 -84192,50      0,00
+            2440  -5459,55      0,00  -5459,55
+            2641   1331,46    156,75   1488,21
+            2893  -2601,86   2420,27   -181,59
+            2898  -5000,00   5000,00      0,00
+            9000                0,00      0,00
+      } // Omslutning
+      */
+
       auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
-
+      auto bas_omslutning_map = to_ib_period_ub(model,relative_year_key);
       if (financial_year_date_range) {
-        auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
-        auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
-
-        std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
-        // Output Omslutning
-        /*
-        Omslutning 20230501...20240430 {
-          <Konto>      <IN>  <period>     <OUT>
-              1920  36147,89  -7420,27  28727,62
-              1999    156,75   -156,75      0,00
-              2098      0,00  84192,50  84192,50
-              2099  84192,50 -84192,50      0,00
-              2440  -5459,55      0,00  -5459,55
-              2641   1331,46    156,75   1488,21
-              2893  -2601,86   2420,27   -181,59
-              2898  -5000,00   5000,00      0,00
-              9000                0,00      0,00
-        } // Omslutning
-        */
         prompt << "\nOmslutning " << *financial_year_date_range << " {";
         prompt << "\n" << std::setfill(' ');
         auto w = 12;
         prompt << std::setw(w) << "<Konto>";
-        prompt << "\t" << std::setw(w) << "<IN>";
+        prompt << "\t" << std::setw(w) << "<IB>";
         prompt << "\t" << std::setw(w) << "<period>";
-        prompt << "\t" << std::setw(w) <<  "<OUT>";
-        for (auto const& ta : bas_account_accs) {
-          auto omslutning = to_units_and_cents(ta.cents_amount());
-          std::string bas_account_string = ta.tags().at("BAS"); 
+        prompt << "\t" << std::setw(w) <<  "<UB>";
+      
+        for (auto const& [bas_account_no,entry] : bas_omslutning_map) {
           prompt << "\n";
-          prompt << std::setw(w) << std::string("") + bas_account_string;
-          auto bas_account_no = *BAS::to_account_no(bas_account_string);
-          if (opening_balances.contains(bas_account_no)) {
-            auto ib = opening_balances.at(bas_account_no);
-            auto ib_units_and_cents = to_units_and_cents(to_cents_amount(ib)); 
-            prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
-            prompt << "\t" << std::setw(w) << to_string(omslutning);
-            prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(to_cents_amount(ib) + ta.cents_amount()));
-            opening_balances.erase(bas_account_no); // reported
-          }
-          else {
-            prompt << "\t" << std::setw(w) << "";
-            prompt << "\t" << std::setw(w) << to_string(omslutning);
-            prompt << "\t" << std::setw(w) << to_string(omslutning);
-          }
+          prompt << std::setw(w) << bas_account_no;
+          prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(entry.ib));
+          prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(entry.period));
+          prompt << "\t" << std::setw(w) << to_string(to_units_and_cents(entry.ub));
         }
-        // Add on BAS accounts that has an IB but not reported above (no omslutning / transactions)
-        // TODO 20250828 - make a design so that the listing is on BAS account order.
-        //                 This add-on makes these BAS accounts to be listed below the others...
-        for (auto const& [bas_account_no,opening_balance] : opening_balances) {
-          std::string bas_account_string = std::to_string(bas_account_no); 
-          prompt << "\n";
-          prompt << std::setw(w) << std::string("") + bas_account_string;
-          auto ib_units_and_cents = to_units_and_cents(to_cents_amount(opening_balance)); 
-          prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
-          prompt << "\t" << std::setw(w) << "0,00";
-          prompt << "\t" << std::setw(w) << to_string(ib_units_and_cents);
-        }
+
         prompt << "\n} // Omslutning";
+
       }
       else {
         prompt << "\nTry '-omslutning' with no argument for current year or enter a valid fiscal year id 'current','-1','-2',...";
-      }
+      }      
     }
     else if (ast[0] == "-ar_vs_bas") {
       auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2024_mapping_to_k2_ar_text);
