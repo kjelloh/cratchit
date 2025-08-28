@@ -224,11 +224,12 @@ namespace tas {
                   << std::quoted(ta.tags().at("BAS"));
         return false;
       } else
-        return ((ta.tags().contains("BAS")) and
-                (BAS::to_account_no(ta.tags().at("BAS"))) and
-                (((ta.tags().contains("type") == false)) or
-                 ((ta.tags().contains("type") == true) and
-                  (ta.tags().at("type") != "saldo"))));
+        return (     (ta.tags().contains("BAS")) 
+                 and (BAS::to_account_no(ta.tags().at("BAS")))
+                 and (ta.tags().contains("IB") == false)
+                 and (    ((ta.tags().contains("type") == false)) 
+                       or (     (ta.tags().contains("type") == true) 
+                            and (ta.tags().at("type") != "saldo"))));
     };
     for (auto const &ta : tas) {
       if (is_valid_bas_account_transaction(ta)) {
@@ -258,6 +259,9 @@ namespace tas {
       saldo_ta.tags()["type"] = "saldo";
       result.push_back(saldo_ta);
     }
+    std::ranges::sort(result,[](auto const& lhs,auto const& rhs){
+      return (lhs.tag_value("BAS").value() < rhs.tag_value("BAS").value());
+    });
     return result;
   }
 } // namespace tas

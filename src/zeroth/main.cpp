@@ -5588,6 +5588,7 @@ public:
 	DateOrderedTaggedAmountsContainer selected_date_ordered_tagged_amounts{};
 	DateOrderedTaggedAmountsContainer new_date_ordered_tagged_amounts{};
 	size_t ta_index{};
+  std::string selected_year_index{"0"};
 
   // Now in SIEEnvironment
 	// std::filesystem::path staged_sie_file_path{"cratchit.se"};
@@ -8755,7 +8756,9 @@ Cmd Updater::operator()(Command const& command) {
       prompt << t2s;
     }
     else if (ast[0] == "-skv") {
-      if (ast.size() == 1) {
+      if (ast.size() == 2 and model->sie_env_map.contains(ast[1])) {
+        model->selected_year_index = ast[1];
+        prompt << "\nTill Skatteverket för år " << ast[1];
         // List skv options
         prompt << "\n0: Arbetsgivardeklaration (TAX Returns)";
         prompt << "\n1: Momsrapport (VAT Returns)";
@@ -8763,6 +8766,9 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n3: INK1 + K10 (Swedish Tax Agency private TAX Form + Dividend Form";
         prompt << "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
         model->prompt_state = PromptState::SKVEntryIndex;
+      }
+      else {
+        prompt << "\nSorry, please enter '-skv <year_index>' e.g.,'-skv -1' ";
       }
     }
     else if (ast[0] == "-csv") {
@@ -8933,6 +8939,8 @@ Cmd Updater::operator()(Command const& command) {
           }
         }
         // Add on BAS accounts that has an IB but not reported above (no omslutning / transactions)
+        // TODO 20250828 - make a design so that the listing is on BAS account order.
+        //                 This add-on makes these BAS accounts to be listed below the others...
         for (auto const& [bas_account_no,opening_balance] : opening_balances) {
           std::string bas_account_string = std::to_string(bas_account_no); 
           prompt << "\n";
