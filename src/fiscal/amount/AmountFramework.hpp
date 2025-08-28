@@ -33,6 +33,11 @@ namespace WrappedCentsAmount {
       return *this;
     }
 
+    CentsAmount &operator*=(int k) {
+      this->m_in_cents_value *= k;
+      return *this;
+    }
+
     CentsAmount operator+(CentsAmount const &other) const {
       CentsAmount result{*this};
       result += other;

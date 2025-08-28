@@ -5818,6 +5818,7 @@ namespace SKV {
 
 		OptionalSRUValueMap to_sru_value_map(Model const& model,std::string year_index,::CSV::FieldRows const& field_rows) {
 			OptionalSRUValueMap result{};
+      std::map<SKV::SRU::AccountNo,int> sru_value_aggregate_sign{};
 			try {
         if (!model->sie_env_map.contains(year_index)) {
           std::cerr << "\nSorry, to_sru_value_map failed. No SIE environment found for year index:" << year_index;
@@ -5838,7 +5839,7 @@ namespace SKV {
 						if (auto sru_code = to_account_no(field_1)) {
               // LOG
               std::cout << " ok! ";
-							if (field_row.size() > 3) {
+							if (field_row.size() > 4) {
 								auto mandatory = (field_row[3].find("J") != std::string::npos);
 								if (mandatory) {
                   // LOG
@@ -5848,6 +5849,13 @@ namespace SKV {
                   // LOG
                   std::cout << " optional ;)";
 								}
+
+                // Experimental: It seems this specification just defines how to aggregate this value.
+                //               A '+' means add it, and '-' means subtract it?
+                //               The value itself should be positive if we kept the books in order
+                //               and flips the sign according to BAS account category (See below)? 
+                //               A '*' seems to mean it does not take part in any expressions (so dont care)?
+                sru_value_aggregate_sign[*sru_code] = (field_row[4].find("-") != std::string::npos)?-1:1;
 
                 sru_to_bas_accounts[*sru_code] = model->sie_env_map[year_index].to_bas_accounts(*sru_code);
                 // LOG
@@ -5879,11 +5887,32 @@ namespace SKV {
 					if (bas_account_nos) {
 
             CentsAmount acc{};
+            int sign_adjust_factor{1};
+            
             for (auto const& bas_account_no : *bas_account_nos) {
+
+              // Experimental: We need to adjust the sign of values of SRU to match the form.
+              // After some thinking I have this theory.
+              // The Assets and Liabilities are entered into the form with signes flipped to 
+              // make BAS Debit Assets AND BAS Credit liabilities is positive in 'SRU form'.
+              // This means we flip the sign on BAS liabilites to adjust for this.
+              // The same goes for Revenues that we flip the sign on to get positive values for SRU
+              // Expenses are positive in BAS so no sign flipping there.
+              // And 
+              switch (bas_account_no / 1000) {
+                case 1: break; // Assets are positive in BAS ok
+                case 2: sign_adjust_factor = -1; break; // Liabilities are negative in BAS = flip sign
+                case 3: sign_adjust_factor = -1; break; // Revenues are negative in BAS = flip sign
+                case 4:
+                case 5: 
+                case 6: 
+                case 7: break; // Expenses are positive in BAS ok.
+                case 8: sign_adjust_factor = -1; break; // SRU values shall be positive for Revenuse (so flip BAS sign)
+              }
+
               // LOG
               std::cout << "\n\tBAS:" << bas_account_no;
               if (ib_period_ub.contains(bas_account_no)) {
-
                 acc += ib_period_ub[bas_account_no].ub;
                 
                 // LOG
@@ -5891,6 +5920,14 @@ namespace SKV {
                 std::cout << " Acc:" << acc;
               }
             }
+            std::cout << "\n\tsign_adjust_factor : " << sign_adjust_factor;
+
+            // LOG
+            std::cout << "\n\t" << acc << " *= " << sign_adjust_factor << " = ";
+            acc *= sign_adjust_factor; // Expect all amounts to SKV to be without sign
+            // LOG
+            std::cout << acc;
+
             sru_value_map[sru_code] = to_string(acc);
 
             // LOG
