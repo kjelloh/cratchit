@@ -210,6 +210,7 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(Valu
 
 namespace tas {
   TaggedAmounts to_bas_omslutning(DateOrderedTaggedAmountsContainer::const_subrange const& tas) {
+    logger::cout_proxy << "\nto_bas_omslutning";
     TaggedAmounts result{};
     using BASBuckets = std::map<BAS::AccountNo, TaggedAmounts>;
     BASBuckets bas_buckets{};
@@ -219,7 +220,7 @@ namespace tas {
         // Whine about invalid tagging of 'BAS' tag!
         // It is vital we do NOT have any badly tagged BAS account transactions
         // as this will screw up the saldo calculation!
-        std::cout << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to "
+        logger::cout_proxy << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to "
                      "create a valid BAS account no from tag 'BAS' with value "
                   << std::quoted(ta.tags().at("BAS"));
         return false;
@@ -238,7 +239,7 @@ namespace tas {
     }
     for (auto const &[bas_account_no, tas] : bas_buckets) {
       Date period_end_date{};
-      std::cout << "\n" << std::dec << bas_account_no;
+      logger::cout_proxy << "\n" << std::dec << bas_account_no;
       auto cents_saldo = std::accumulate(
           tas.begin(), tas.end(), CentsAmount{0},
           [&period_end_date](auto acc, auto const &ta) {
@@ -248,7 +249,7 @@ namespace tas {
                                      // expect they are in growing date order.
                                      // But just in case...
             acc += ta.cents_amount();
-            std::cout << "\n\t" << period_end_date << " "
+            logger::cout_proxy << "\n\t" << period_end_date << " "
                       << to_string(to_units_and_cents(ta.cents_amount()))
                       << " ackumulerat:" << to_string(to_units_and_cents(acc));
             return acc;

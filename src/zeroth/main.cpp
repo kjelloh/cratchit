@@ -3687,6 +3687,23 @@ namespace SKV { // SKV
 
 	namespace SRU { // SKV::SRU
 
+    using sru_amount_value_type = int;
+
+    sru_amount_value_type to_sru_amount(CentsAmount cents_amount) { 
+      // TODO: Clean up the 'amount strong type' mess?
+      //       For now we have a lot (to many) of experimental strong-type-amounts?
+      //       But keep currency amounts strongly typed while being able to 
+      //       apply correct rounding to integer amounts (possibly applying different roundings for different domains?).
+      //       E.g., Swedish tax agencly may define one way to round to integer amounts? While BAS accounding, banks
+      //       invoices etc. may apply (call for) roduing with truncation, floor, ceil etc?
+
+      // For now, go through UnitsAndCents as the intemediate candidate type.
+      // CentsAmount -> UnitAndCents -> Amount -> C++ double -> C++ int (applying std::round)
+      auto units_and_cents = to_units_and_cents(cents_amount);
+      auto amount = round(to_amount(units_and_cents));
+      return static_cast<sru_amount_value_type>(to_double(amount));
+    }
+
 		struct OStream {
 			std::ostream& os;
 			encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
@@ -3910,7 +3927,18 @@ namespace SKV { // SKV
 
         // All #UPPGIFT entrires comes from non-zero values
         for (auto const& [account_no,value] : fm.blanketter[i].second) {
-          if (value) os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << *value;
+          if (value) {
+            auto maybe_cents_amount = to_cents_amount(*value);
+            if (maybe_cents_amount) {
+              // Output as SRU amount (whole SEK)
+              auto sru_amount = to_sru_amount(maybe_cents_amount.value());
+              os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << std::to_string(sru_amount);
+            }
+            else {
+              // output as text
+              os.sru_os << "\n" << "#UPPGIFT" << " " << std::to_string(account_no) << " " << *value;
+            }
+          }
         }
 
 				// 5. #BLANKETTSLUT
@@ -5821,33 +5849,27 @@ namespace SKV {
       std::map<SKV::SRU::AccountNo,int> sru_value_aggregate_sign{};
 			try {
         if (!model->sie_env_map.contains(year_index)) {
-          std::cerr << "\nSorry, to_sru_value_map failed. No SIE environment found for year index:" << year_index;
+          logger::cout_proxy << "\nSorry, to_sru_value_map failed. No SIE environment found for year index:" << year_index;
           return result;
         }
-        // LOG
-        std::cout << "\nto_sru_value_map";
+        logger::cout_proxy << "\nto_sru_value_map";
 
 				std::map<SKV::SRU::AccountNo,BAS::OptionalAccountNos> sru_to_bas_accounts{};
 				for (int i=0;i<field_rows.size();++i) {
 					auto const& field_row = field_rows[i];
-          // LOG
-          std::cout << "\n\t" << static_cast<std::string>(field_row);
+          logger::cout_proxy << "\n\t" << static_cast<std::string>(field_row);
 					if (field_row.size() > 1) {
 						auto const& field_1 = field_row[1];
-            // LOG
-            std::cout << "\n\t\t[1]=" << std::quoted(field_1);
+            logger::cout_proxy << "\n\t\t[1]=" << std::quoted(field_1);
 						if (auto sru_code = to_account_no(field_1)) {
-              // LOG
-              std::cout << " ok! ";
+              logger::cout_proxy << " ok! ";
 							if (field_row.size() > 4) {
 								auto mandatory = (field_row[3].find("J") != std::string::npos);
 								if (mandatory) {
-                  // LOG
-                  std::cout << " Mandatory.";
+                  logger::cout_proxy << " Mandatory.";
 								}
 								else {
-                  // LOG
-                  std::cout << " optional ;)";
+                  logger::cout_proxy << " optional ;)";
 								}
 
                 // Experimental: It seems this specification just defines how to aggregate this value.
@@ -5858,23 +5880,19 @@ namespace SKV {
                 sru_value_aggregate_sign[*sru_code] = (field_row[4].find("-") != std::string::npos)?-1:1;
 
                 sru_to_bas_accounts[*sru_code] = model->sie_env_map[year_index].to_bas_accounts(*sru_code);
-                // LOG
-                std::cout << "\nSRU:" << *sru_code << " BAS count: " << sru_to_bas_accounts[*sru_code]->size();
+                logger::cout_proxy << "\nSRU:" << *sru_code << " BAS count: " << sru_to_bas_accounts[*sru_code]->size();
 
 							}
 							else {
-                // LOG
-                std::cout << " NO [3]";
+                logger::cout_proxy << " NO [3]";
 							}
 						}
 						else {
-              // LOG
-              std::cout << " NOT SRU";
+              logger::cout_proxy << " NOT SRU";
 						}
 					}
 					else {
-            // LOG
-            std::cout << " null (does not exist)";
+            logger::cout_proxy << " null (does not exist)";
 					}
 				}
 
@@ -5883,7 +5901,7 @@ namespace SKV {
 				// Now retreive the sru values from bas accounts as mapped
 				SRUValueMap sru_value_map{};
 				for (auto const& [sru_code,bas_account_nos] : sru_to_bas_accounts) {
-          std::cout << "\nSRU:" << sru_code;
+          logger::cout_proxy << "\nSRU:" << sru_code;
 					if (bas_account_nos) {
 
             CentsAmount acc{};
@@ -5910,38 +5928,31 @@ namespace SKV {
                 case 8: sign_adjust_factor = -1; break; // SRU values shall be positive for Revenuse (so flip BAS sign)
               }
 
-              // LOG
-              std::cout << "\n\tBAS:" << bas_account_no;
+              logger::cout_proxy << "\n\tBAS:" << bas_account_no;
               if (ib_period_ub.contains(bas_account_no)) {
-                acc += ib_period_ub[bas_account_no].ub;
-                
-                // LOG
-                std::cout << " UB:" << ib_period_ub[bas_account_no].ub;
-                std::cout << " Acc:" << acc;
+                acc += ib_period_ub[bas_account_no].ub;                
+                logger::cout_proxy << " UB:" << ib_period_ub[bas_account_no].ub;
+                logger::cout_proxy << " Acc:" << acc;
               }
             }
-            std::cout << "\n\tsign_adjust_factor : " << sign_adjust_factor;
-
-            // LOG
-            std::cout << "\n\t" << acc << " *= " << sign_adjust_factor << " = ";
+            logger::cout_proxy << "\n\tsign_adjust_factor : " << sign_adjust_factor;
+            logger::cout_proxy << "\n\t" << acc << " *= " << sign_adjust_factor << " = ";
             acc *= sign_adjust_factor; // Expect all amounts to SKV to be without sign
-            // LOG
-            std::cout << acc;
+            logger::cout_proxy << acc;
 
             sru_value_map[sru_code] = to_string(acc);
 
-            // LOG
-            std::cout << "\n\t------------------";
-            std::cout << "\n\tSUM:" << sru_code << " = ";
-            if (sru_value_map[sru_code]) std::cout << *sru_value_map[sru_code];
-            else std::cout << " null";
+            logger::cout_proxy << "\n\t------------------";
+            logger::cout_proxy << "\n\tSUM:" << sru_code << " = ";
+            if (sru_value_map[sru_code]) logger::cout_proxy << *sru_value_map[sru_code];
+            else logger::cout_proxy << " null";
 
 					}
 					else {
-std::cout << "\n\tNO BAS Accounts map to SRU:" << sru_code;
+            logger::cout_proxy << "\n\tNO BAS Accounts map to SRU:" << sru_code;
 						if (auto const& stored_value = model->sru[year_index].at(sru_code)) {
 							sru_value_map[sru_code] = stored_value;
-std::cout << "\n\tstored:" << *stored_value;
+              logger::cout_proxy << "\n\tstored:" << *stored_value;
 						}
             else {
               // Mark as unknown
@@ -5979,7 +5990,7 @@ std::cout << "\n\tstored:" << *stored_value;
 				result = sru_value_map;
 			}
 			catch (std::exception const& e) {
-				std::cout << "\nto_sru_value_map failed. Excpetion=" << std::quoted(e.what());
+				logger::cout_proxy << "\nto_sru_value_map failed. Excpetion=" << std::quoted(e.what());
 			}
 			return result;
 		}
@@ -7971,14 +7982,29 @@ Cmd Updater::operator()(Command const& command) {
               prompt << "\nTODO: Add edit of INK2 meta data";
             } break;
             case 2: {
-              prompt << "\nTODO: Add generation of INK2 forms into SRU-file (See code for INK1 and K10)";
 
+              // Available templates
               // extern const char* INK2_csv_to_sru_template;
               // extern const char* INK2S_csv_to_sru_template;
               // extern const char* INK2R_csv_to_sru_template;
               // extern const char* info_ink2_template;
               // extern const char* blanketter_ink2_ink2s_ink2r_template;
 
+              // Inject the SRU Values required for the INK2 Forms
+
+              // Räkenskapsår (INK2R,INK2S,INK2)
+              // #UPPGIFT 7011 20230501
+              model->sru[model->selected_year_index].set(7011,std::string{"20240501"});
+              // #UPPGIFT 7012 20240430
+              model->sru[model->selected_year_index].set(7012,std::string{"20250430"});
+
+              // Upplysningar om årsredovisning (INK2S)
+              // Uppdragstagare har biträtt vid upprättande av årsredovisning
+              // 8040 = X (JA) 8041 = X (NEJ)
+              model->sru[model->selected_year_index].set(8041,std::string{"X"});
+              // Årsredovisning har varit föremål för revision
+              // 8044 = X (JA) 8045 = X (NEJ)
+              model->sru[model->selected_year_index].set(8045,std::string{"X"});
 
               SKV::SRU::OptionalSRUValueMap ink2r_sru_value_map{};
               {
@@ -7986,17 +8012,18 @@ Cmd Updater::operator()(Command const& command) {
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2R_csv_to_sru_template};
                 encoding::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
+                  logger::cout_proxy << "\nParsing INK2R_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
-                    if (field_row.size()>0) prompt << "\n";
+                    if (field_row.size()>0) logger::cout_proxy << "\n";
                     for (int i=0;i<field_row.size();++i) {
-                      prompt << " [" << i << "]" << field_row[i];
+                      logger::cout_proxy << " [" << i << "]" << field_row[i];
                     }
                   }
                   ink2r_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
 
                 }
                 else {
-                  prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                  logger::cout_proxy << "\nSorry, failed to acquire a valid template for the INK2R form";
                 }
               }
 
@@ -8006,17 +8033,18 @@ Cmd Updater::operator()(Command const& command) {
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2S_csv_to_sru_template};
                 encoding::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
+                  logger::cout_proxy << "\nParsing INK2S_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
-                    if (field_row.size()>0) prompt << "\n";
+                    if (field_row.size()>0) logger::cout_proxy << "\n";
                     for (int i=0;i<field_row.size();++i) {
-                      prompt << " [" << i << "]" << field_row[i];
+                      logger::cout_proxy << " [" << i << "]" << field_row[i];
                     }
                   }
                   // Acquire the SRU Values required for the INK2 Form
                   ink2s_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
                 }
                 else {
-                  prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                  logger::cout_proxy << "\nSorry, failed to acquire a valid template for the INK2S form";
                 }
               }
 
@@ -8026,26 +8054,18 @@ Cmd Updater::operator()(Command const& command) {
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2_csv_to_sru_template};
                 encoding::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
+                  logger::cout_proxy << "\nParsing INK2_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
-                    if (field_row.size()>0) prompt << "\n";
+                    if (field_row.size()>0) logger::cout_proxy << "\n";
                     for (int i=0;i<field_row.size();++i) {
-                      prompt << " [" << i << "]" << field_row[i];
+                      logger::cout_proxy << " [" << i << "]" << field_row[i];
                     }
                   }
-                  
-                  // Inject the SRU Values required for the INK2 Form
-
-                  // #UPPGIFT 7011 20230501
-                  model->sru[model->selected_year_index].set(7011,std::string{"20240501"});
-
-                  // #UPPGIFT 7012 20240430
-                  model->sru[model->selected_year_index].set(7012,std::string{"20250430"});
-
                   // Acquire the SRU Values required for the INK2 Form
                   ink2_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
                 }
                 else {
-                  prompt << "\nSorry, failed to acquire a valid template for the INK1 form";
+                  logger::cout_proxy << "\nSorry, failed to acquire a valid template for the INK2 form";
                 }
               }
 
