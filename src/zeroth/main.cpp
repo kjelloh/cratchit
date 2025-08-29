@@ -3842,13 +3842,15 @@ namespace SKV { // SKV
 			// 12. #POSTNR
 				// #POSTNR 12345
 			// os.sru_os << "\n" << "#POSTNR" << " " << "12345";
-			os.sru_os << "\n" << sru_tag_value("#POSTNR",fm.info);
+			// os.sru_os << "\n" << sru_tag_value("#POSTNR",fm.info);
+      // NOTE 20250829 - I chose to exclude it - an online program generated file without it (and it was accepted ny SKV)/KoH
 
 			// 13. #POSTORT
 				// #POSTORT SKATTSTAD
 			// os.sru_os << "\n" << "#POSTORT" << " " << "SKATTSTAD";
 			// os.sru_os << "\n" << "#POSTORT" << " " << "Järfälla";
-			os.sru_os << "\n" << sru_tag_value("#POSTORT",fm.info);
+			// os.sru_os << "\n" << sru_tag_value("#POSTORT",fm.info);
+      // NOTE 20250829 - I chose to exclude it - an online program generated file without it (and it was accepted ny SKV)/KoH
 			
 			// 14. #AVDELNING (ej obligatorisk)
 				// #AVDELNING Ekonomi
@@ -5925,8 +5927,16 @@ namespace SKV {
                 case 5: 
                 case 6: 
                 case 7: break; // Expenses are positive in BAS ok.
-                case 8: sign_adjust_factor = -1; break; // SRU values shall be positive for Revenuse (so flip BAS sign)
+                case 8: {
+                  // SRU values shall be positive for Revenuse (so flip BAS sign)
+                  // Except for 'årets resultat' 8990..8999 where negative is a loss.
+                  //        So we must not flip the sign of 8999 as we need to detect if we made a loss to
+                  //        assign to SRU 7450 (gain) or 7550 (loss)
+                  if (bas_account_no < 8990) sign_adjust_factor = -1;
+                }
+                break; 
               }
+
 
               logger::cout_proxy << "\n\tBAS:" << bas_account_no;
               if (ib_period_ub.contains(bas_account_no)) {
@@ -8021,6 +8031,39 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   ink2r_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
 
+                  // Choose how to get 'årets resultat' 3.26 or 3.27
+                  if (false) {
+                    // Aggregate the SRU values as defined by INK2R 'resultaträkning'
+                    CentsAmount ink2r_year_result{};
+                    {
+                      ink2r_year_result += to_cents_amount(ink2r_sru_value_map.value()[7410].value_or("0")).value_or(CentsAmount{0});
+                      // ...
+                      // TODO: Aggregate all SRU codes required for INK2R 'resultaträkning 3.1 .. 3.25
+                    }
+                    if (ink2r_year_result < CentsAmount{0}) {
+                      ink2r_sru_value_map.value()[7550] = to_string(-ink2r_year_result);
+                    }
+                    else {
+                      ink2r_sru_value_map.value()[7450] = to_string(ink2r_year_result);
+                    }
+                  }
+                  else {
+                    // Simply use already mapped SRU 7450
+                    // For now we asume the SIE file maps 89xx to SRU 7450 and just use that value as required
+                    // NOTE: We thus skip the aggregation of 3.1 .. 3.25 on INK2R.
+                    //       But if we kept the book OK the value should be the same?
+
+                    // TODO: Consider to implement both alternatives to check them against eachother for safety?
+
+                    if (auto arets_resultat = to_cents_amount(ink2r_sru_value_map.value()[7450].value_or("0"))
+                        ;arets_resultat.value_or(CentsAmount{0}) < CentsAmount{0}) {
+                      // SRU 7450 is negative. Null and move to SRU 7550
+                      ink2r_sru_value_map.value()[7450] = std::nullopt;
+                      ink2r_sru_value_map.value()[7550] = to_string(-(arets_resultat.value()));
+                      prompt << "\nSRU:7450 (3.26) -> SRU:7550 (3.27) : Förlust öre: " << ink2r_sru_value_map.value()[7550];
+                    }
+                  }
+
                 }
                 else {
                   logger::cout_proxy << "\nSorry, failed to acquire a valid template for the INK2R form";
@@ -8040,8 +8083,50 @@ Cmd Updater::operator()(Command const& command) {
                       logger::cout_proxy << " [" << i << "]" << field_row[i];
                     }
                   }
-                  // Acquire the SRU Values required for the INK2 Form
+                  // Acquire the SRU Values required for the INK2S Form
+
+                  // NOTE: We actually expect no values to be calculated as no INK2S SRU values seems to stem from BAS accounts?
+                  // That is, INK2S is 'tax adjustments' and thus a separate domain from the BAS book kept data
+                  // For now, call anyhow for the sake of handling INK2R, INK2S and INK2 the 'same' way
                   ink2s_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
+
+                  // Transer INK2R -> INK2S
+                  ink2s_sru_value_map.value()[7650] = ink2r_sru_value_map.value()[7450]; // nullopt or value
+                  ink2s_sru_value_map.value()[7750] = ink2r_sru_value_map.value()[7550]; // nullopt or value
+
+                  // TODO: Design a container to hold tax adjustment domain data?
+                  //       We could imagine to store the tax return form SRU values for each year.
+                  //       Then we could e.g., use last year SRY 7770 as this year SRU 7763
+                  ink2s_sru_value_map.value()[7651] = "0"; // Hard coded zero tax paid yet
+                  prompt << "\nSRU:7651 (4.3 a) Skatt på årets resultat - hard coded to " << ink2s_sru_value_map.value()[7651].value_or("0");
+
+                  ink2s_sru_value_map.value()[7653] = "62500"; // Hard coded for test 2023-2024
+                  prompt << "\nSRU:7653 (4.3 c) Andra bokföra kostnader - hard coded to (2023-2024 test) " << ink2s_sru_value_map.value()[7653].value_or("0");
+
+                  ink2s_sru_value_map.value()[7754] = "1500"; // Hard coded for test 2023-2024
+                  prompt << "\nSRU:7754 (4.5 c) Andra bokföra intäkter - hard coded to (2023-2024 test) " << ink2s_sru_value_map.value()[7754].value_or("0");
+
+                  ink2s_sru_value_map.value()[7763] = "17602600"; // Hard coded 'saved loss from last year SRU:7770 (For test of INK2 2023-2024)
+                  // ink2s_sru_value_map.value()[7763] = "20596300"; // Hard coded 'saved loss from last year SRU:7770
+                  prompt << "\nSRU:7763 (4.14 a) Outnyttjat underskott från föregående år - hard coded to öre: " << ink2s_sru_value_map.value()[7763].value_or("0");
+
+                  CentsAmount ink2s_acc{};
+                  {
+                    ink2s_acc +=  to_cents_amount(ink2s_sru_value_map.value()[7650].value_or("0")).value_or(CentsAmount{0});
+                    ink2s_acc += -to_cents_amount(ink2s_sru_value_map.value()[7750].value_or("0")).value_or(CentsAmount{0});
+                    ink2s_acc +=  to_cents_amount(ink2s_sru_value_map.value()[7651].value_or("0")).value_or(CentsAmount{0});
+                    ink2s_acc +=  to_cents_amount(ink2s_sru_value_map.value()[7653].value_or("0")).value_or(CentsAmount{0});
+                    ink2s_acc += -to_cents_amount(ink2s_sru_value_map.value()[7754].value_or("0")).value_or(CentsAmount{0});
+                    ink2s_acc += -to_cents_amount(ink2s_sru_value_map.value()[7763].value_or("0")).value_or(CentsAmount{0});
+                  }
+
+                  if (ink2s_acc < CentsAmount{0}) {
+                    ink2s_sru_value_map.value()[7770] = to_string(-ink2s_acc);
+                  }
+                  else {
+                    ink2s_sru_value_map.value()[7670] = to_string(ink2s_acc);
+                  }
+                  
                 }
                 else {
                   logger::cout_proxy << "\nSorry, failed to acquire a valid template for the INK2S form";
@@ -8063,6 +8148,11 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   // Acquire the SRU Values required for the INK2 Form
                   ink2_sru_value_map = SKV::SRU::to_sru_value_map(model,model->selected_year_index,*field_rows);
+
+                  // Transer INK2S -> INK2
+                  ink2_sru_value_map.value()[7104] = ink2s_sru_value_map.value()[7670]; // nullopt or value
+                  ink2_sru_value_map.value()[7114] = ink2s_sru_value_map.value()[7770]; // nullopt or value
+
                 }
                 else {
                   logger::cout_proxy << "\nSorry, failed to acquire a valid template for the INK2 form";
@@ -8071,19 +8161,12 @@ Cmd Updater::operator()(Command const& command) {
 
               // Process value maps + tag maps
               if (    ink2r_sru_value_map
-                  and ink2_sru_value_map
+                  and ink2s_sru_value_map
                   and ink2_sru_value_map) {
 
                 // ####
                 // Calculate the cross-dependant SRU values
                 {
-                  // TODO: All these optionals and strongly typed CentsAmount is a MESS!!
-                  if (auto arets_resultat = to_cents_amount(ink2r_sru_value_map.value()[7450].value_or("0"))
-                      ;arets_resultat.value_or(CentsAmount{0}) < CentsAmount{0}) {
-                    ink2r_sru_value_map.value()[7450] = std::nullopt;
-                    ink2r_sru_value_map.value()[7550] = to_string(-(arets_resultat.value()));
-                    prompt << "\nSRU:7450 -> SRU:7550 : Förlust" << ink2r_sru_value_map.value()[7550];
-                  }
 
                   // #UPPGIFT 7114 205963
                   model->sru[model->selected_year_index].set(7114,std::string{"?"});
@@ -8176,8 +8259,6 @@ Cmd Updater::operator()(Command const& command) {
                   // #UPPGIFT 7550 30547
                   // #BLANKETTSLUT
 
-
-
                 }
                 SKV::SRU::Blankett ink2r_blankett{ink2r_sru_file_tag_map,*ink2r_sru_value_map}; 
                 fm.blanketter.push_back(ink2r_blankett); // blankett is tags and values
@@ -8210,6 +8291,12 @@ Cmd Updater::operator()(Command const& command) {
                   // #UPPGIFT 8041 X
                   // #UPPGIFT 8045 X
                   // #BLANKETTSLUT
+
+                  // NOTE: INK2S carries NO values from BAS accounting!
+                  //       These values are all 'skattemässiga justeringar' and needs values from
+                  //       the tax / skv domain
+                  
+
                 }
                 SKV::SRU::Blankett ink2s_blankett{ink2s_sru_file_tag_map,*ink2s_sru_value_map}; 
                 fm.blanketter.push_back(ink2s_blankett); // blankett is tags and values
@@ -8238,7 +8325,6 @@ Cmd Updater::operator()(Command const& command) {
                 }
                 SKV::SRU::Blankett ink2_blankett{ink2_sru_file_tag_map,*ink2_sru_value_map}; 
                 fm.blanketter.push_back(ink2_blankett); // blankett is tags and values
-
 
                 // Create the SRU files from the files mapping 'fm'
 
