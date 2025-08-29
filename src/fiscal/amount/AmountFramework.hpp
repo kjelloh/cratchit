@@ -23,7 +23,7 @@ namespace WrappedCentsAmount {
   // type keeps the value as a value in cents.
   class CentsAmount {
   public:
-    using cents_value_type = int;
+    using cents_value_type = long;
     CentsAmount() = default;
     explicit CentsAmount(CentsAmount::cents_value_type cents_value)
         : m_in_cents_value{cents_value} {}
@@ -33,7 +33,7 @@ namespace WrappedCentsAmount {
       return *this;
     }
 
-    CentsAmount &operator*=(int k) {
+    CentsAmount &operator*=(long k) {
       this->m_in_cents_value *= k;
       return *this;
     }
@@ -90,7 +90,7 @@ using OptionalCentsAmount = std::optional<CentsAmount>;
 
 namespace IntCentsAmount {
   // Cents Amount represents e.g., 117.17 as the integer 11717
-  using CentsAmount = int;
+  using CentsAmount = long;
 
   inline CentsAmount to_whole_part_integer(CentsAmount const& cents_amount) {
     return cents_amount / 100;
@@ -246,7 +246,7 @@ std::string to_string(Amount const& amount);
 OptionalCentsAmount to_cents_amount(std::string const& s);
 CentsAmount to_cents_amount(Amount const& amount);
 
-using UnitsAndCentsValueType = int;
+using UnitsAndCentsValueType = long;
 using UnitsAndCents = std::pair<UnitsAndCentsValueType,UnitsAndCentsValueType>;
 
 UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount);
