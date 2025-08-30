@@ -5950,19 +5950,33 @@ namespace SKV {
               // Expenses are positive in BAS so no sign flipping there.
               // And 
               switch (bas_account_no / 1000) {
-                case 1: break; // Assets are positive in BAS ok
+                case 1: sign_adjust_factor = 1; break; // Assets are positive in BAS ok
                 case 2: sign_adjust_factor = -1; break; // Liabilities are negative in BAS = flip sign
                 case 3: sign_adjust_factor = -1; break; // Revenues are negative in BAS = flip sign
                 case 4:
                 case 5: 
                 case 6: 
-                case 7: break; // Expenses are positive in BAS ok.
+                case 7: sign_adjust_factor = 1; break; // Expenses are positive in BAS ok.
                 case 8: {
+
+                  // TODO: Consider to solve the problem with signs on 8xxx-accounts?
+                  //       1) Hard code all SRU values on INK2R result form so they are all positive (abs())?
+                  //       2) hard code / identify what 8xxx accounts that are cost accounts and flip the signs on those?
+                  //       3) Other option?
+
                   // SRU values shall be positive for Revenuse (so flip BAS sign)
                   // Except for 'årets resultat' 8990..8999 where negative is a loss.
                   //        So we must not flip the sign of 8999 as we need to detect if we made a loss to
                   //        assign to SRU 7450 (gain) or 7550 (loss)
                   if (bas_account_no < 8990) sign_adjust_factor = -1;
+
+                  // Dirty fix for BAS 84xx (SRU: 7522)
+                  // The form aggregates this value with -. But a cost on 8xxx is + in BAS! To make this work we
+                  // need to NOT flip the sign on this cost value to make SRU value psotive and form subtract it correctly!
+                  // Note: BAS:8310 UB:-199807 for a revenue!
+                  // Note: BAS:
+                  // *sigh* - what a MESS!
+                  if (bas_account_no >= 8400 and bas_account_no <= 8499) sign_adjust_factor = 1; // SRU:7522 positive for a cost
                 }
                 break; 
               }
@@ -8113,6 +8127,11 @@ Cmd Updater::operator()(Command const& command) {
                     if (maybe_value.value_or("0") == "0") {
                       maybe_value = std::nullopt;
                     }
+
+                    // TODO: Consider to turn all SRU on 'Resultaträkning' to abs-values (all positive)?
+                    //       Some come from 8xxx-acounts and there only the revenue accounts needs sign-flipping to become positive.
+                    //       So maybe SKV asumes we should just take the abs-values and put into the form?
+                    //       Also see to_sru_value_map(...) where sign flipping is applied somewhat 'hacky' to adress this issue
                   }
 
                   // Inject selected zero values
