@@ -10579,13 +10579,27 @@ private:
       }
 			result["TaggedAmount"].push_back({to_value_id(ta),to_environment_value(ta)});
 		};
-    // Removed 20250829 - We get duplicates in tagged amounts which screws up 
-    //                    processing.
+
+    // Removed 20250829 - Saving tagged amunts to persistent storage and app end.
+    //                    Currently We can get duplicates in tagged amounts which screws up valid processing.
     //                    So until further notice, we only inject tagged amounts from imported SIE-files.
     //                    And never save anything on shut-down.
     //                    In this way cratchit will internally only have tagged amounts from SIE-file(s).
     //                    No duplication error can occurr.
-		// model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
+    // Note:              The problem is when SIE entries are 'edited'. I imagine either the 'old' entries
+    //                    remains (as they have different value hash = are uniqie / immutable individs).
+    //                    Or, the problem comes from when importing edited SIE entries from an external app?
+    //                    Then the 'old' SIE entries as cratchit sees them remains in the persistet storage.
+    //                    Finally, the filtering / processing does NOT detect if a BAS account tagged amount
+    //                    belongs to an 'active' SIE entry aggregate or not and so processing yelds the wrong result...
+
+    // 20251008 - Disable mechanism controlled with 'disable_ta_persistent_storage' flag
+
+    static const bool disable_ta_persistent_storage = true;
+    // static const bool disable_ta_persistent_storage = false;
+    if (not disable_ta_persistent_storage) {
+  		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
+    }
 
 		// for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {
 		// 	// result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});
