@@ -86,6 +86,9 @@ namespace std {
       hash_combine(result, static_cast<unsigned>(yyyymmdd.day()));
       hash_combine(result, ta.cents_amount());
       for (auto const &[key, value] : ta.tags()) {
+        // TODO 20251008 - Consider if all tags really are members of the 'value'
+        //                 or if we need tags that are 'transient' as meta-data we may change
+        //                 without actually 'mutating the value'?
         hash_combine(result, key);
         hash_combine(result, value);
       }
