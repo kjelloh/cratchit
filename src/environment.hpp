@@ -1,38 +1,13 @@
 #pragma once
 
 #include "FiscalPeriod.hpp"
+#include "cas.hpp"
 #include <string>
 #include <vector>
 #include <map>
 #include <filesystem>
 
-// Content Addressable Storage namespace
-namespace cas {
-
-  template <typename Key, typename Value>
-  class repository {
-  private:
-    using KeyValueMap = std::map<Key, Value>;
-    KeyValueMap m_map{};
-  public:
-    // Tricky! We need EnvironmentCasEntryVector to be assignable, so we cannot
-    // use KeyValueMap::value_type directly as this would make the Key type const...
-    // using value_type = KeyValueMap::value_type;
-    using value_type = std::pair<Key, Value>;
-    bool contains(Key const &key) const { return m_map.contains(key); }
-    Value const &at(Key const &key) const { return m_map.at(key); }
-    void clear() { return m_map.clear(); }
-    KeyValueMap &the_map() {
-      return m_map;
-    }
-    repository& operator=(const repository &other) {
-      if (this != &other) {
-        m_map = other.m_map; // OK: std::map is assignable
-      }
-      return *this;
-    }
-  };
-} // namespace cas
+// namespace cas now on cas unit
 
 using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value-pairs
 using EnvironmentValueName = std::string;

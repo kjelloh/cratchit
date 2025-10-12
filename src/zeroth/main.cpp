@@ -10242,8 +10242,8 @@ private:
     //   //          The problembeing that an aggregate tagged amount refers to its members by listing the id:s of the members.
     //   //          Thus, If we transform the id of a value referenmced by an aggregate, then we need to update thje id used in the listing.
     //   // 240622 - Aha, What I am trying to implement is a CAS (Content Adressible Storage) with the known problem of uppdating cross referencies
-    //   //          when aggregate members are muraded.
-    //   //          Now in CAS values are in effect immutable, so the only way to mutate is to replace the mutated value with the new one
+    //   //          when aggregate members are mutaded.
+    //   //          Now in CAS, values are in effect immutable. So the only way to mutate is to replace the mutated value with the new one
     //   //          (that will for that reason have a new key).
     //   //          My problem here is a variant of this problem, where the values are not mutated, but the keys may be.
     //   //          Solution: Implement a two pass approach.
@@ -10595,8 +10595,8 @@ private:
 
     // 20251008 - Disable mechanism controlled with 'disable_ta_persistent_storage' flag
 
-    static const bool disable_ta_persistent_storage = true;
-    // static const bool disable_ta_persistent_storage = false;
+    // static const bool disable_ta_persistent_storage = true;
+    static const bool disable_ta_persistent_storage = false;
     if (not disable_ta_persistent_storage) {
   		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
     }

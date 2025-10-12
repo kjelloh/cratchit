@@ -127,7 +127,8 @@ using TaggedAmountsCasRepository = cas::repository<TaggedAmount::ValueId, Tagged
 
 // Behaves more or less as a vector of tagged amounts in date order.
 // But uses a map <Key,Value> as the mechanism to look up a value based on its
-// value_id. A of 240622 the behind-the-scenes map is a CAS (Content Addressable
+// value_id. 
+// As of 240622 the behind-the-scenes map is a CAS (Content Addressable
 // Storage) with a key being a hash of its 'value'
 class DateOrderedTaggedAmountsContainer {
 public:
@@ -210,8 +211,7 @@ private:
   TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
                                                                 // as content addressable storage
                                                                 // repository
-  TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ptrs
-                                                 // ordered by date
+  TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
 }; // class DateOrderedTaggedAmountsContainer
 
 // namespace BAS with 'forwards' now in BAS.hpp
