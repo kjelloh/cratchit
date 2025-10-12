@@ -7,7 +7,7 @@
 
 bool is_value_line(std::string const& line) {
     // Not a comment
-    return (line.size()<0)?false:(line.substr(0,2) != R"(//)");
+    return (line.size()<2)?false:(line.substr(0,2) != R"(//)");
 }
 
 // Split <key> on ':' into <name> and <id>
@@ -69,13 +69,11 @@ Environment environment_from_file(std::filesystem::path const &p) {
         if (id) {
           current_index[name] = *id;
         } else {
-          current_index[name] = result[key].size();
+          current_index[name] = result[key].size(); // Auto indexing if none in file entry
         }
         // Each <name> maps to a list of pairs <index,environment value>
         // Where <index> is the index recorded in the file (to preserve order
-        // to and from persisten storage in file) Also, <index> is basicvally
-        // the hash of the value (expected to be unique cross all <names>
-        // (types) of values)
+        // to and from persisten storage in file).
         result[name].push_back(
             // EnvironmentValue is key-value-pairs as a map <key,value>
             // result is Environment, i.e.,

@@ -50,7 +50,7 @@ using EnvironmentValueName = std::string;
 using EnvironmentValueId = std::size_t;
 using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
 using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
-using EnvironmentCasEntryVector = std::vector<EnvironmentIdValuePair>; // To model order in persistent file
+using EnvironmentCasEntryVector = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
 using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 
 // parsing environment in -> Environment
