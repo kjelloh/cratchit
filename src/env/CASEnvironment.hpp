@@ -13,7 +13,7 @@
 #include <map>
 #include <string>
 
-namespace detail {
+namespace cas_detail {
 
   using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value pairs
   using EnvironmentValueName = std::string;
@@ -22,14 +22,14 @@ namespace detail {
   using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
   using EnvironmentIdValuePairs = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
   using Environment = std::map<EnvironmentValueName,EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
-} // detail
+} // cas_detail
 
-using CASEnvironmentValueId = detail::EnvironmentValueId;
-using CASEnvironmentValue = detail::EnvironmentValue;
-using CASEnvironmentIdValuePair = detail::EnvironmentIdValuePair;
-using CASEnvironmentIdValuePairs = detail::EnvironmentIdValuePairs;
+using CASEnvironmentValueId = cas_detail::EnvironmentValueId;
+using CASEnvironmentValue = cas_detail::EnvironmentValue;
+using CASEnvironmentIdValuePair = cas_detail::EnvironmentIdValuePair;
+using CASEnvironmentIdValuePairs = cas_detail::EnvironmentIdValuePairs;
 
 // TODO: Refactor into propoer CAS (Content Adressable Storage)
 //       For now this is just a clone of original Environment that mixes index and hash based ID-Value mapping
 //       also consumed from persistent storage text file.
-using CASEnvironment = detail::Environment;
+using CASEnvironment = cas_detail::Environment;

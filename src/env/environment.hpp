@@ -68,12 +68,12 @@ Environment environment_from_file(std::filesystem::path const &p);
 namespace out {
   // TODO: Refactor into using intermediate IndexedEnvironment
   //       file <- IndexedEnvironment <- CASEnvironment (Alias Environment)
-  std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev);
-  std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry);
-  std::ostream& operator<<(std::ostream& os,Environment const& env);
-  std::string to_string(EnvironmentValue const& ev);
-  std::string to_string(Environment::value_type const& entry);
-  void environment_to_file(Environment const &environment,std::filesystem::path const &p);
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironmentValue const& ev);
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironment::value_type const& entry);
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironment const& env);
+  std::string to_string(IndexedEnvironmentValue const& ev);
+  std::string to_string(IndexedEnvironment::value_type const& entry);
+  void environment_to_file(IndexedEnvironment const &environment,std::filesystem::path const &p);
 }
 void environment_to_file(Environment const &environment,std::filesystem::path const &p);
 

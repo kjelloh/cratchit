@@ -57,8 +57,8 @@ namespace in {
     return result;
   }
 
-  Environment environment_from_file(std::filesystem::path const &p) {
-    Environment result{};
+  IndexedEnvironment environment_from_file(std::filesystem::path const &p) {
+    IndexedEnvironment result{};
     logger::scope_logger raii_log{logger::development_trace,"environment_from_file"};
     try {
       std::ifstream in{p};
@@ -103,10 +103,13 @@ namespace in {
 
 } // in
 
-Environment environment_from_file(std::filesystem::path const &p) {
-  return in::environment_from_file(p);
+Environment to_environment(IndexedEnvironment const& indexed_environment) {
+  return indexed_environment;
 }
 
+Environment environment_from_file(std::filesystem::path const &p) {
+  return to_environment(in::environment_from_file(p));
+}
 
 namespace out {
   std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev) {
@@ -130,42 +133,43 @@ namespace out {
       if (iter != id_ev_pairs.begin()) {
         os << "\n";
       }
+      // Note that 'EnvironmentValue' is actually a vector of name-value-pairs for a cratchit environment entry.
+      // E.g., "belopp=1389,50;datum=20221023;rubrik=Klarna"
+
       // Use to_string on environment value to be able to use std::quoted
       os << key << ":" << std::hex << id << " " << std::quoted(to_string(ev)) << std::dec;
     }
     return os;
   }
 
-  std::ostream& operator<<(std::ostream& os,Environment const& env) {
-    for (auto const &entry : env) {
-      os << "\n" << entry;
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironment const& env) {
+    for (auto iter = env.begin(); iter != env.end(); ++iter) {
+      if (iter == env.begin()) {
+        os << to_string(*iter);
+      }
+      else {
+        os << "\n" << to_string(*iter);
+      }
     }
     return os;
   }
 
-  // Note that 'EnvironmentValue' is actually a vector of name-value-pairs for a cratchit environment entry.
-  // E.g., "belopp=1389,50;datum=20221023;rubrik=Klarna"
-  std::string to_string(EnvironmentValue const& ev) {
+  std::string to_string(IndexedEnvironmentValue const& ev) {
     std::ostringstream os{};
     os << ev;
     return os.str();
   }
 
-  std::string to_string(Environment::value_type const& entry) {
+  std::string to_string(IndexedEnvironment::value_type const& entry) {
     std::ostringstream os{};
     os << entry;
     return os.str();
   }
 
-  void environment_to_file(Environment const &environment,std::filesystem::path const &p) {
+  void indexed_environment_to_file(IndexedEnvironment const &indexed_environment,std::filesystem::path const &p) {
     try {
       std::ofstream out{p};
-      for (auto iter = environment.begin(); iter != environment.end(); ++iter) {
-        if (iter == environment.begin())
-          out << to_string(*iter);
-        else
-          out << "\n" << to_string(*iter);
-      }
+      out << indexed_environment;
     } catch (std::runtime_error const &e) {
       logger::design_insufficiency(R"(ERROR - Write to {} failed. Exception: {})", p.string(), e.what());
     }
@@ -173,6 +177,11 @@ namespace out {
 
 } // out
 
+IndexedEnvironment to_indexed_environment(Environment const& environment) {
+  // TODO: Implement transform from hash-index to integer index 
+  return environment;
+}
+
 void environment_to_file(Environment const &environment,std::filesystem::path const &p) {
-  return out::environment_to_file(environment,p);
+  return out::indexed_environment_to_file(to_indexed_environment(environment),p);
 }

@@ -14,7 +14,7 @@
 #include <map>
 #include <string>
 
-namespace detail {
+namespace indexed_detail {
 
   using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value pairs
   using EnvironmentValueName = std::string;
@@ -22,8 +22,9 @@ namespace detail {
   using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
   using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
   using EnvironmentIdValuePairs = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
-} // detail
+} // indexed_detail
 
 // TODO: Refactor into proper indexed based composite.
 //       For now this is the original Environment just cloned
-using IndexedEnvironment = std::map<detail::EnvironmentValueName,detail::EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+using IndexedEnvironmentValue = indexed_detail::EnvironmentValue;
+using IndexedEnvironment = std::map<indexed_detail::EnvironmentValueName,indexed_detail::EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
