@@ -38,13 +38,13 @@ public:
 
     for (auto it = std::ranges::begin(m_lhs); it != std::ranges::end(m_lhs); ++it) {
       if (in_period(it) && !contains_ev(m_rhs, m_value_projection(*it))) {
-        spdlog::info("diff_view - lhs removed: {}", to_string(m_value_projection(*it)));
+        spdlog::info("diff_view - lhs removed: {}", out::to_string(m_value_projection(*it)));
         m_removed.insert(it);
       }
     }
     for (auto it = std::ranges::begin(m_rhs); it != std::ranges::end(m_rhs); ++it) {
       if (in_period(it) && !contains_ev(m_lhs, m_value_projection(*it))) {
-        spdlog::info("diff_view - rhs inserted: {}", to_string(m_value_projection(*it)));
+        spdlog::info("diff_view - rhs inserted: {}", out::to_string(m_value_projection(*it)));
         m_inserted.insert(it);
       }
     }

@@ -84,7 +84,7 @@ namespace first {
             // spdlog::info("by_date date: {}", to_string(had->date));
             return had->date;
           }
-          spdlog::warn("ProjectState::update::by_date - Invalid HAD in EnvironmentIdValuePair: {}", to_string(pair.second));
+          spdlog::warn("ProjectState::update::by_date - Invalid HAD in EnvironmentIdValuePair: {}", out::to_string(pair.second));
           return Date{}; // Return a default date if HAD is invalid
         };
 
@@ -106,20 +106,20 @@ namespace first {
           // Remove entriers in mutated section
           for (auto const &[index, ev] : difference.removed()) {
             if (auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; }); iter != mutated_section.end()) {
-              spdlog::info("ProjectState::update - Removing entry {}:{}", index, to_string(ev));
+              spdlog::info("ProjectState::update - Removing entry {}:{}", index, out::to_string(ev));
               mutated_section.erase(iter); // Remove the entry
             } else {
-              spdlog::warn("ProjectState::update - Entry not found for removal: {}", to_string(ev));
+              spdlog::warn("ProjectState::update - Entry not found for removal: {}", out::to_string(ev));
             }
           }
           // Insert entries in mutated section
           for (auto const &[index, ev] : difference.inserted()) {
             if ( auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; })
                 ;iter == mutated_section.end()) {
-              spdlog::info("ProjectState::update - Inserting entry {}:{}", index, to_string(ev));
+              spdlog::info("ProjectState::update - Inserting entry {}:{}", index, out::to_string(ev));
               mutated_section.push_back({mutated_section.size(), ev}); // Insert the entry
             } else {
-              spdlog::warn("ProjectState::update - Entry already exists for insertion: {}", to_string(ev));
+              spdlog::warn("ProjectState::update - Entry already exists for insertion: {}", out::to_string(ev));
             }
           }
           mutated_state = make_state<ProjectState>(this->caption(), this->m_persistent_environment_file, mutated_environment);

@@ -10467,9 +10467,8 @@ private:
     // Now stand-alone: HeadingAmountDateTransEntries hads_from_environment(Environment const& environment)
 
 	bool is_value_line(std::string const& line) {
-		// return (line.size()==0)?false:(line.substr(0,2) != R"(//)");
 		// Now in environment unit
-		return ::is_value_line(line);
+		return in::is_value_line(line);
 	}
 
 	Model model_from_environment(Environment const& environment) {
@@ -10615,22 +10614,19 @@ private:
 			os << entry.first << "=" << entry.second.sie_file_path.string();
 			return os.str();
 		});
-		result["sie_file"].push_back({0,to_environment_value(sev)});
+		result["sie_file"].push_back({0,in::to_environment_value(sev)});
 		for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->organisation_contacts)) {
-			// result.insert({"contact",to_environment_value(entry)});
 			result["contact"].push_back({index,to_environment_value(entry)});
 		}
 		for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->employee_birth_ids)) {
-			// result.insert({"employee",to_environment_value(std::string{"birth-id="} + entry)});
-			result["employee"].push_back({index,to_environment_value(std::string{"birth-id="} + entry)});
+			result["employee"].push_back({index,in::to_environment_value(std::string{"birth-id="} + entry)});
 		}
     for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->sru)) {
       auto const& [relative_year_key,sru_env] = entry;
       std::ostringstream os{};
       OEnvironmentValueOStream en_val_os{os};
       en_val_os << "relative_year_key=" << relative_year_key << sru_env;
-      // result.insert({"SRU:S",to_environment_value(os.str())});
-      result["SRU:S"].push_back({index,to_environment_value(os.str())});
+      result["SRU:S"].push_back({index,in::to_environment_value(os.str())});
     }
 		return result;
 	}

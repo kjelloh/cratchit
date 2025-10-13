@@ -33,7 +33,7 @@ namespace first {
       ,{"Date",[](DeltaType const& delta){return to_string(delta.m_t.date());}}
       ,{"Description",[](DeltaType const& delta){return delta.m_t.tag_value("Text").value_or("??");}}
       ,{"Amount",[](DeltaType const& delta){return to_string(to_units_and_cents(delta.m_t.cents_amount()));}}
-      ,{"Tags",[](DeltaType const& delta){return to_string(delta.m_t.tags());}}
+      ,{"Tags",[](DeltaType const& delta){return out::to_string(delta.m_t.tags());}}
     };
     for (int i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
@@ -49,7 +49,7 @@ namespace first {
       ,{"Date",[](StateType const& state){return to_string(state.m_t.date());}}
       ,{"Description",[](StateType const& state){return "";}}
       ,{"Amount",[](StateType const& state){return to_string(to_units_and_cents(state.m_t.cents_amount()));}}
-      ,{"Tags",[](StateType const& state){return to_string(state.m_t.tags());}}
+      ,{"Tags",[](StateType const& state){return out::to_string(state.m_t.tags());}}
     };
     for (int i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
