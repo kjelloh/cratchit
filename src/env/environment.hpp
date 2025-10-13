@@ -1,7 +1,8 @@
 #pragma once
 
 #include "FiscalPeriod.hpp"
-#include "cas.hpp"
+#include "IndexedEnvironment.hpp"
+#include "CASEnvironment.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -43,18 +44,18 @@
 
 */
 
-// TODO: Consider to refactor into clear 'PeristentEnvironment' vs 'Environment'
-//       to more clearly see how the persistent file is parsed into the internal Environment representation? / 20251012
-using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value pairs
-using EnvironmentValueName = std::string;
-using EnvironmentValueId = std::size_t;
-using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
-using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
-using EnvironmentCasEntryVector = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
-using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+// TODO: Refactor to make Environment stand-alone for internal usage.
+//       We should not need to expose all these other detailed sub-types?
+using EnvironmentValueId = CASEnvironmentValueId;
+using EnvironmentValue = CASEnvironmentValue;
+using EnvironmentIdValuePair = CASEnvironmentIdValuePair;
+using EnvironmentIdValuePairs = CASEnvironmentIdValuePairs;
+using Environment = CASEnvironment;
 
 // parsing environment in -> Environment
 namespace in {
+  // TODO: Refactor into using intermediate IndexedEnvironment
+  //       file -> IndexedEnvironment -> CASEnvironment (Alias Environment)
   bool is_comment_line(std::string const& line);
   bool is_value_line(std::string const& line);
   std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key);
@@ -65,6 +66,8 @@ Environment environment_from_file(std::filesystem::path const &p);
 
 // Processing environment -> out
 namespace out {
+  // TODO: Refactor into using intermediate IndexedEnvironment
+  //       file <- IndexedEnvironment <- CASEnvironment (Alias Environment)
   std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev);
   std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry);
   std::ostream& operator<<(std::ostream& os,Environment const& env);

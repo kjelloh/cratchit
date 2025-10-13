@@ -5226,8 +5226,8 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 // using EnvironmentValueName = std::string;
 // using EnvironmentValueId = std::size_t;
 // using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
-// using EnvironmentCasEntryVector = std::vector<EnvironmentValues_cas_repository::value_type>;
-// using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+// using EnvironmentIdValuePairs = std::vector<EnvironmentValues_cas_repository::value_type>;
+// using Environment = std::map<EnvironmentValueName,EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 // std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key);
 
 class ImmutableFileManager {

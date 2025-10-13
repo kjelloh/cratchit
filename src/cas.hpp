@@ -14,7 +14,7 @@ namespace cas {
     using KeyValueMap = std::map<Key, Value>;
     KeyValueMap m_map{};
   public:
-    // Tricky! We need EnvironmentCasEntryVector to be assignable, so we cannot
+    // Tricky! We need EnvironmentIdValuePairs to be assignable, so we cannot
     // use KeyValueMap::value_type directly as this would make the Key type const (not mutable).
     // using value_type = KeyValueMap::value_type;
     using value_type = std::pair<Key, Value>;

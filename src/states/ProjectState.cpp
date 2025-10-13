@@ -91,7 +91,7 @@ namespace first {
         auto to_ev = [](EnvironmentIdValuePair const& pair) {return pair.second;};
 
         diff_view<
-           EnvironmentCasEntryVector
+           EnvironmentIdValuePairs
           ,decltype(to_date)
           ,decltype(to_ev)> difference{
              m_environment.at(section)
