@@ -22,9 +22,25 @@ namespace indexed_detail {
   using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
   using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
   using EnvironmentIdValuePairs = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
+  using Environment = std::map<indexed_detail::EnvironmentValueName,indexed_detail::EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 } // indexed_detail
 
 // TODO: Refactor into proper indexed based composite.
 //       For now this is the original Environment just cloned
 using IndexedEnvironmentValue = indexed_detail::EnvironmentValue;
-using IndexedEnvironment = std::map<indexed_detail::EnvironmentValueName,indexed_detail::EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+using IndexedEnvironmentValueId = indexed_detail::EnvironmentValueId;
+class IndexedEnvironment {
+public:
+  using value_type = indexed_detail::Environment::value_type;
+  auto& operator[](indexed_detail::EnvironmentValueName const& section) {
+    return m_env[section];
+  }
+  auto begin() const {
+    return m_env.begin();
+  }
+  auto end() const {
+    return m_env.end();
+  }
+private:
+  indexed_detail::Environment m_env{};
+};

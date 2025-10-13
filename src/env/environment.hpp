@@ -58,9 +58,9 @@ namespace in {
   //       file -> IndexedEnvironment -> CASEnvironment (Alias Environment)
   bool is_comment_line(std::string const& line);
   bool is_value_line(std::string const& line);
-  std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key);
-  EnvironmentValue to_environment_value(std::string const s);
-  Environment environment_from_file(std::filesystem::path const &p);
+  std::pair<std::string, std::optional<IndexedEnvironmentValueId>> to_name_and_id(std::string const& s);
+  IndexedEnvironmentValue to_environment_value(std::string const& s);
+  IndexedEnvironment environment_from_file(std::filesystem::path const &p);
 }
 Environment environment_from_file(std::filesystem::path const &p);
 

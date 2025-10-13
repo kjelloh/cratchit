@@ -32,4 +32,27 @@ using CASEnvironmentIdValuePairs = cas_detail::EnvironmentIdValuePairs;
 // TODO: Refactor into propoer CAS (Content Adressable Storage)
 //       For now this is just a clone of original Environment that mixes index and hash based ID-Value mapping
 //       also consumed from persistent storage text file.
-using CASEnvironment = cas_detail::Environment;
+class CASEnvironment {
+public:
+  bool contains(cas_detail::EnvironmentValueName const& section) const {
+    return m_env.contains(section);
+  }
+  auto const& at(cas_detail::EnvironmentValueName const& section) const {
+    return m_env.at(section);
+  }
+  auto& operator[](cas_detail::EnvironmentValueName const& section) {
+    return m_env[section];
+  }
+  auto operator<=>(const CASEnvironment&) const = default;
+  auto size() const {
+    return m_env.size();
+  }
+  auto begin() const {
+    return m_env.begin();
+  }
+  auto end() const {
+    return m_env.end();
+  }
+private:
+  cas_detail::Environment m_env{};
+};

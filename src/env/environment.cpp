@@ -16,17 +16,17 @@ namespace in {
       return (line.size() > 0) and !is_comment_line(line);
   }
 
-  // Split <key> on ':' into <name> and <id>
+  // Split s on ':' into <name> and <id>
   // <name> is 'type' or 'category' (e.g., 'HeadingAmountDateTransEntry',
   // 'TaggedAmount', 'contact', 'employee', 'sie_file')) <id> is basically a hash
   // of the <value> following the key (to identify duplicate values based on same
   // id)
-  std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key) {
+  std::pair<std::string, std::optional<IndexedEnvironmentValueId>> to_name_and_id(std::string const& s) {
     logger::scope_logger raii_log{logger::development_trace,"to_name_and_id"};
-    logger::development_trace("key:{}",key);
-    if (auto pos = key.find(':'); pos != std::string::npos) {
-      auto name = key.substr(0, pos);
-      auto id_string = key.substr(pos + 1);
+    logger::development_trace("s:{}",s);
+    if (auto pos = s.find(':'); pos != std::string::npos) {
+      auto name = s.substr(0, pos);
+      auto id_string = s.substr(pos + 1);
       std::istringstream is{id_string};
       EnvironmentValueId id{};
       if (is >> std::hex >> id) {
@@ -36,15 +36,15 @@ namespace in {
         // std::cout << "\nDESIGN_INSUFFICIENCY: Failed to parse the value id after "
         //              "':' in "
         //           << std::quoted(key);
-        logger::design_insufficiency(R"(DESIGN_INSUFFICIENCY: Failed to parse the value id after ':' in "{}")", key);
+        logger::design_insufficiency(R"(DESIGN_INSUFFICIENCY: Failed to parse the value id after ':' in "{}")", s);
         return {name, std::nullopt};
       }
     } else {
-      return {key, std::nullopt};
+      return {s, std::nullopt};
     }
   }
 
-  EnvironmentValue to_environment_value(std::string const s) {
+  IndexedEnvironmentValue to_environment_value(std::string const& s) {
     logger::scope_logger raii_logger{logger::development_trace,"to_environment_value"};
     logger::development_trace("s:{}",s);
     EnvironmentValue result{};
@@ -104,7 +104,11 @@ namespace in {
 } // in
 
 Environment to_environment(IndexedEnvironment const& indexed_environment) {
-  return indexed_environment;
+  Environment result{};
+  for (auto const& [name,value] : indexed_environment) {
+    result[name] = value;
+  }
+  return result;
 }
 
 Environment environment_from_file(std::filesystem::path const &p) {
@@ -112,7 +116,7 @@ Environment environment_from_file(std::filesystem::path const &p) {
 }
 
 namespace out {
-  std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev) {
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironmentValue const& ev) {
     bool not_first{false};
     std::for_each(ev.begin(), ev.end(), [&not_first, &os](auto const &entry) {
       if (not_first) {
@@ -126,7 +130,7 @@ namespace out {
     return os;
   }
 
-  std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironment::value_type const& entry) {
     auto const &[key, id_ev_pairs] = entry;
     for (auto iter = id_ev_pairs.begin(); iter != id_ev_pairs.end(); ++iter) {
       auto const &[id, ev] = *iter;
@@ -178,8 +182,11 @@ namespace out {
 } // out
 
 IndexedEnvironment to_indexed_environment(Environment const& environment) {
-  // TODO: Implement transform from hash-index to integer index 
-  return environment;
+  IndexedEnvironment result{};
+  for (auto const& [name,value] : environment) {
+    result[name] = value;
+  }
+  return result;
 }
 
 void environment_to_file(Environment const &environment,std::filesystem::path const &p) {
