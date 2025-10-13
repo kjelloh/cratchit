@@ -54,7 +54,7 @@ add_executable(cratchit
         src/states/WorkspaceState.cpp
         src/states/FrameworkState.cpp
         src/tokenize.cpp
-        src/environment.cpp
+        src/env/environment.cpp
         src/FiscalPeriod.cpp
         src/fiscal/amount/AmountFramework.cpp 
         src/fiscal/amount/TaggedAmountFramework.cpp
