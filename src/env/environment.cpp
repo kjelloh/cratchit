@@ -1,9 +1,11 @@
 #include "env/environment.hpp"
+#include "fiscal/amount/TaggedAmountFramework.hpp"
 #include "tokenize.hpp"
 #include "logger/log.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <ranges>
 
 namespace in {
 
@@ -44,11 +46,11 @@ namespace in {
     }
   }
 
-  IndexedEnvironmentValue to_environment_value(std::string const& s) {
+  IndexedEnvironmentValue to_environment_value(std::string const& sev) {
     logger::scope_logger raii_logger{logger::development_trace,"to_environment_value"};
-    logger::development_trace("s:{}",s);
+    logger::development_trace("sev:{}",sev);
     EnvironmentValue result{};
-    auto kvps = tokenize::splits(s, ';');
+    auto kvps = tokenize::splits(sev, ';');
     for (auto const &kvp : kvps) {
       auto const &[name, value] = tokenize::split(kvp, '=');
       logger::development_trace("name:{} value:{}",name,value);
@@ -109,8 +111,67 @@ CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment)
     cas_detail::EnvironmentIdValuePairs cas_id_value_pairs{};
     if (name == "TaggedAmount") {
       // We need to transform the indecies in the file to actual (hash based) value ids in CAS Environment
-      for (auto const& [index_id,indexed_value] : indexed_id_value_pairs) {
-        cas_id_value_pairs.push_back({index_id,indexed_value});
+      // The pipe for the raw ev becomes environment_value -> TaggedAmount -> to_value_id(TaggedAmount).
+      // TODO: Consider to use a schema to project environment value -> 'tagged amount environment value'?
+      //       That is, use the schema to filter out any meta data in the environment value to be able
+      //       to calculate the actual value id (hash) from correct input data?
+
+      std::map<indexed_detail::EnvironmentValueId, cas_detail::EnvironmentValueId> index_to_id{};
+      for (auto const& [index,indexed_ev] : indexed_id_value_pairs) {
+        // Trust that environment values (records as tag-value pairs) are ordered such that
+        // any inter-value reference (aggregate, ordering etc.) using index/id always refers back to a value already in the container.
+        // In this way we can always transform also the refernces in the value as we iterate trhough the container
+
+        if (auto maybe_at = to_tagged_amount(indexed_ev)) {
+          auto at = maybe_at.value();
+          if (indexed_ev.contains("_members")) {
+            auto const& smembers = indexed_ev.at("_members");
+            auto indexed_members = Key::Path{smembers};
+            if (auto indexed_refs = to_value_ids(indexed_members)) {
+              Key::Path cas_refs{};
+              for (auto const& indexed_ref : indexed_refs.value()) {
+                if (index_to_id.contains(indexed_ref)) {
+                  // Already in indexed_ref map OK (thus also already in cas_id_value_pairs)
+                  // Transform reference from indexed to value_id in cas
+
+                  // TODO: Fix this hack to create a hex-string of looked up value id
+                  std::ostringstream os{};
+                  os << std::hex << index_to_id.at(indexed_ref);
+                  cas_refs += os.str();
+                }
+                else {
+                  // Not yet mapped = malformed input
+                  logger::design_insufficiency("Failed to look up index:{} in index_to_id map",indexed_ref);
+                }
+              }
+              // Transform the tagged amount to carry the correct inter-value cas reference list
+              at.tags()["_members"] = cas_refs.to_string(); // produces correct encoding of the ref list
+              auto at_id = to_value_id(at);
+              auto at_ev = to_environment_value(at);
+              cas_id_value_pairs.push_back({at_id,at_ev});
+              // Note: This turned out 'hacky' as we use the tagged amount only to perform the transformation
+              //       indexed environment value to cas environment value.
+              //       This means we later use this environment value to create the tagged amount again.
+              //       Well, works for now.
+              logger::development_trace("Transformed:'{}' -> '{}'",out::to_string(indexed_ev),out::to_string(at_ev));
+
+            }
+            else {
+              logger::design_insufficiency("Failed to parse inter-value refs from '{}'",smembers);
+            }            
+          }
+          else {
+            // An atomic value
+            index_to_id[index] = index; // 1-to-1 mapping for now
+            cas_id_value_pairs.push_back({index,indexed_ev});
+            logger::development_trace("Not transformed:'{}'",out::to_string(indexed_ev));
+          }
+        }
+        else {
+          logger::design_insufficiency("Failed to create a tagged amount from '{}'",out::to_string(indexed_ev));
+        }
+
+
       }
     }
     else {
