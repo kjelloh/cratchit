@@ -99,7 +99,7 @@ namespace std {
 
 TaggedAmount::ValueId to_value_id(TaggedAmount const &ta);
 std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta);
-TaggedAmount::OptionalValueId to_value_id(std::string const &s);
+TaggedAmount::OptionalValueId to_value_id(std::string const &sid);
 TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids);
 
 // String conversion
@@ -113,8 +113,8 @@ TaggedAmounts to_tagged_amounts(const Environment &env);
 // Environment -> TaggedAmounts (filtered by fiscal period)
 TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &env);
 
-// TaggedAmounts -> Environment entries (using hash-based indexing)
-inline auto indexed_env_entries_from(TaggedAmounts const& tagged_amounts) {
+// TaggedAmounts -> Id-Value pairs (map Environment value-Id to Environment Value)
+inline auto id_value_pairs_from(TaggedAmounts const& tagged_amounts) {
   return tagged_amounts | std::views::transform(
     [](TaggedAmount const& ta) -> EnvironmentIdValuePair {
       return {to_value_id(ta), to_environment_value(ta)};

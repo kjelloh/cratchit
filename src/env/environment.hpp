@@ -60,7 +60,7 @@ namespace in {
   bool is_value_line(std::string const& line);
   std::pair<std::string, std::optional<IndexedEnvironmentValueId>> to_name_and_id(std::string const& s);
   IndexedEnvironmentValue to_environment_value(std::string const& s);
-  IndexedEnvironment environment_from_file(std::filesystem::path const &p);
+  // IndexedEnvironment indexed_environment_from_file(std::filesystem::path const &p);
 }
 Environment environment_from_file(std::filesystem::path const &p);
 
@@ -73,7 +73,7 @@ namespace out {
   std::ostream& operator<<(std::ostream& os,IndexedEnvironment const& env);
   std::string to_string(IndexedEnvironmentValue const& ev);
   std::string to_string(IndexedEnvironment::value_type const& entry);
-  void environment_to_file(IndexedEnvironment const &environment,std::filesystem::path const &p);
+  // void indexed_environment_to_file(IndexedEnvironment const &environment,std::filesystem::path const &p);
 }
 void environment_to_file(Environment const &environment,std::filesystem::path const &p);
 

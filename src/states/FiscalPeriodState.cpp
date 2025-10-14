@@ -140,7 +140,7 @@ namespace first {
         }
         
         // Add TaggedAmounts (using hash-based indexing)
-        for (auto const& [value_id, env_val] : indexed_env_entries_from(period_tagged_amounts)) {
+        for (auto const& [value_id, env_val] : id_value_pairs_from(period_tagged_amounts)) {
           result.environment()["TaggedAmount"].push_back({value_id, env_val});
         }
         

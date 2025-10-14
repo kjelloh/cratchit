@@ -57,7 +57,7 @@ namespace in {
     return result;
   }
 
-  IndexedEnvironment environment_from_file(std::filesystem::path const &p) {
+  IndexedEnvironment indexed_environment_from_file(std::filesystem::path const &p) {
     IndexedEnvironment result{};
     logger::scope_logger raii_log{logger::development_trace,"environment_from_file"};
     try {
@@ -106,13 +106,20 @@ namespace in {
 Environment to_environment(IndexedEnvironment const& indexed_environment) {
   Environment result{};
   for (auto const& [name,value] : indexed_environment) {
-    result[name] = value;
+    indexed_detail::EnvironmentIdValuePairs indexed_value{};
+    if (name == "TaggedAmount") {
+      indexed_value = value;
+    }
+    else {
+      indexed_value = value;
+    }
+    result[name] = indexed_value;
   }
   return result;
 }
 
 Environment environment_from_file(std::filesystem::path const &p) {
-  return to_environment(in::environment_from_file(p));
+  return to_environment(in::indexed_environment_from_file(p));
 }
 
 namespace out {

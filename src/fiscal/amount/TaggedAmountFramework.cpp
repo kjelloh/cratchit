@@ -37,6 +37,7 @@ bool TaggedAmount::operator==(TaggedAmount const &other) const {
 
 // END class TaggedAmount
 
+// TaggedAmount to Value Id
 TaggedAmount::ValueId to_value_id(TaggedAmount const &ta) {
   return std::hash<TaggedAmount>{}(ta);
 }
@@ -51,21 +52,23 @@ std::ostream& operator<<(std::ostream &os, TaggedAmount const &ta) {
   return os;
 }
 
-TaggedAmount::OptionalValueId to_value_id(std::string const& s) {
+// Hex string to Value Id (for parsing tags that encodes references as valude Ids)
+TaggedAmount::OptionalValueId to_value_id(std::string const& sid) {
   // std::cout << "\nto_value_id()" << std::flush;
   TaggedAmount::OptionalValueId result{};
   TaggedAmount::ValueId value_id{};
-  std::istringstream is{s};
+  std::istringstream is{sid};
   try {
     is >> std::hex >> value_id;
     result = value_id;
   } catch (...) {
-    std::cout << "\nto_value_id(" << std::quoted(s)
+    std::cout << "\nto_value_id(" << std::quoted(sid)
               << ") failed. General Exception caught." << std::flush;
   }
   return result;
 }
 
+// Hex listing string to Value Ids (for parsing tags that encodes references as valude Ids)
 TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
   // std::cout << "\nto_value_ids()" << std::flush;
   TaggedAmount::OptionalValueIds result{};
