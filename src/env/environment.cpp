@@ -103,23 +103,26 @@ namespace in {
 
 } // in
 
-Environment to_environment(IndexedEnvironment const& indexed_environment) {
-  Environment result{};
-  for (auto const& [name,value] : indexed_environment) {
-    indexed_detail::EnvironmentIdValuePairs indexed_value{};
+CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment) {
+  CASEnvironment result{};
+  for (auto const& [name,indexed_id_value_pairs] : indexed_environment) {
+    cas_detail::EnvironmentIdValuePairs cas_id_value_pairs{};
     if (name == "TaggedAmount") {
-      indexed_value = value;
+      // We need to transform the indecies in the file to actual (hash based) value ids in CAS Environment
+      for (auto const& [index_id,indexed_value] : indexed_id_value_pairs) {
+        cas_id_value_pairs.push_back({index_id,indexed_value});
+      }
     }
     else {
-      indexed_value = value;
+      cas_id_value_pairs = indexed_id_value_pairs; // as-is (hash value id not used, yet = hack)
     }
-    result[name] = indexed_value;
+    result[name] = cas_id_value_pairs;
   }
   return result;
 }
 
 Environment environment_from_file(std::filesystem::path const &p) {
-  return to_environment(in::indexed_environment_from_file(p));
+  return to_cas_environment(in::indexed_environment_from_file(p));
 }
 
 namespace out {
