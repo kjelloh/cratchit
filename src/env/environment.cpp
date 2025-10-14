@@ -60,8 +60,8 @@ namespace in {
   }
 
   IndexedEnvironment indexed_environment_from_file(std::filesystem::path const &p) {
+    logger::scope_logger raii_log{logger::development_trace,"indexed_environment_from_file"};
     IndexedEnvironment result{};
-    logger::scope_logger raii_log{logger::development_trace,"environment_from_file"};
     try {
       std::ifstream in{p};
       std::string line{};
@@ -106,6 +106,8 @@ namespace in {
 } // in
 
 CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment) {
+  logger::scope_logger raii_log{logger::development_trace,"to_cas_environment"};
+
   CASEnvironment result{};
   for (auto const& [name,indexed_id_value_pairs] : indexed_environment) {
     cas_detail::EnvironmentIdValuePairs cas_id_value_pairs{};
@@ -122,11 +124,16 @@ CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment)
         // any inter-value reference (aggregate, ordering etc.) using index/id always refers back to a value already in the container.
         // In this way we can always transform also the refernces in the value as we iterate trhough the container
 
-        if (auto maybe_at = to_tagged_amount(indexed_ev)) {
-          auto at = maybe_at.value();
+        if (auto maybe_ta = to_tagged_amount(indexed_ev)) {
+          // Encodes a tagged amount OK
+          auto ta = maybe_ta.value();
+          auto ta_ev = indexed_ev; // Default - as is (no encoded refs / meta-data that needs transform)
+
           if (indexed_ev.contains("_members")) {
-            auto const& smembers = indexed_ev.at("_members");
-            auto indexed_members = Key::Path{smembers};
+            // Encodes a tagged amount aggretate (_members lists the refs to member tagged amounts)
+            // We need to transform also the encoded refs from index refs to value_id refs used for tagged amounts 
+            auto const& s_indexed_members = indexed_ev.at("_members");
+            auto indexed_members = Key::Path{s_indexed_members};
             if (auto indexed_refs = to_value_ids(indexed_members)) {
               Key::Path cas_refs{};
               for (auto const& indexed_ref : indexed_refs.value()) {
@@ -141,37 +148,35 @@ CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment)
                 }
                 else {
                   // Not yet mapped = malformed input
-                  logger::design_insufficiency("Failed to look up index:{} in index_to_id map",indexed_ref);
+                  logger::design_insufficiency("to_cas_environment: Failed to look up index:{} in index_to_id map",indexed_ref);
                 }
               }
               // Transform the tagged amount to carry the correct inter-value cas reference list
-              at.tags()["_members"] = cas_refs.to_string(); // produces correct encoding of the ref list
-              auto at_id = to_value_id(at);
-              auto at_ev = to_environment_value(at);
-              cas_id_value_pairs.push_back({at_id,at_ev});
-              // Note: This turned out 'hacky' as we use the tagged amount only to perform the transformation
-              //       indexed environment value to cas environment value.
-              //       This means we later use this environment value to create the tagged amount again.
-              //       Well, works for now.
-              logger::development_trace("Transformed:'{}' -> '{}'",out::to_string(indexed_ev),out::to_string(at_ev));
-
+              auto s_cas_members = cas_refs.to_string();
+              ta.tags()["_members"] = s_cas_members;
+              ta_ev = to_environment_value(ta); // transformed environment value
+              logger::development_trace("to_cas_environment: Transformed '{}' -> '{}'",out::to_string(indexed_ev),out::to_string(ta_ev));
             }
             else {
-              logger::design_insufficiency("Failed to parse inter-value refs from '{}'",smembers);
+              logger::design_insufficiency("to_cas_environment: Failed to parse inter-value refs from '{}'",s_indexed_members);
             }            
           }
           else {
-            // An atomic value
-            index_to_id[index] = index; // 1-to-1 mapping for now
-            cas_id_value_pairs.push_back({index,indexed_ev});
-            logger::development_trace("Not transformed:'{}'",out::to_string(indexed_ev));
+            // No encoded refs
+            logger::development_trace("to_cas_environment: Not transformed {} ",out::to_string(indexed_ev));
           }
+
+          // Transform index to value_id for tagged amount
+          auto at_id = to_value_id(ta);
+          index_to_id[index] = at_id;
+          logger::development_trace("to_cas_environment: index:{} -> tagged amount id:{}",index,at_id);
+
+          // Update transformed target
+          cas_id_value_pairs.push_back({index_to_id[index],ta_ev});
         }
         else {
-          logger::design_insufficiency("Failed to create a tagged amount from '{}'",out::to_string(indexed_ev));
+          logger::design_insufficiency("to_cas_environment: Failed to create a tagged amount from '{}'",out::to_string(indexed_ev));
         }
-
-
       }
     }
     else {
@@ -242,6 +247,7 @@ namespace out {
   }
 
   void indexed_environment_to_file(IndexedEnvironment const &indexed_environment,std::filesystem::path const &p) {
+    logger::scope_logger raii_log{logger::development_trace,"indexed_environment_to_file"};
     try {
       std::ofstream out{p};
       out << indexed_environment;
@@ -252,14 +258,66 @@ namespace out {
 
 } // out
 
-IndexedEnvironment to_indexed_environment(Environment const& environment) {
+IndexedEnvironment to_indexed_environment(Environment const& cas_environment) {
+  logger::scope_logger raii_log{logger::development_trace,"to_indexed_environment"};
   IndexedEnvironment result{};
-  for (auto const& [name,value] : environment) {
-    result[name] = value;
+  for (auto const& [section,cas_id_value_pairs] : cas_environment) {
+    indexed_detail::EnvironmentIdValuePairs indexed_id_value_pairs{}; // Transform target
+
+    // Transform inter-value references in cas_id_value_pairs
+    // from value_ids to integer indexed ids
+    std::map<cas_detail::EnvironmentValueId,indexed_detail::EnvironmentValueId> id_to_index{};
+    for (auto const& [cas_id,cas_ev] : cas_id_value_pairs) {
+      if (not id_to_index.contains(cas_id)) {
+        // OK, unique ref
+        id_to_index[cas_id] = id_to_index.size(); // Simply enumerate the refs 0...
+
+        auto indexed_ev = cas_ev; // default
+
+        if (cas_ev.contains("_members")) {
+          // transform the cas refs to index refs
+          auto const& s_cas_members = cas_ev.at("_members");
+          auto cas_members = Key::Path{s_cas_members};
+          if (auto maybe_cas_refs = to_value_ids(cas_members)) {
+            Key::Path index_refs{};
+            for (auto const& cas_ref : maybe_cas_refs.value()) {
+              if (id_to_index.contains(cas_ref)) {
+                // Already in ref map OK (thus also already in transformed indexed_id_value_pairs)
+                // Transform reference from value id in cas to intereger index ref
+
+                // TODO: Fix this hack to create a hex-string of looked-up value id
+                std::ostringstream os{};
+                os << std::hex << id_to_index.at(cas_ref);
+                index_refs += os.str();
+              }
+              else {
+                // Not yet mapped = malformed input
+                logger::design_insufficiency("to_indexed_environment: Failed to look up id:{} in id_to_index map",cas_ref);
+              }
+            }
+            indexed_ev["_members"] = index_refs.to_string(); // transform the refs
+            logger::development_trace("to_indexed_environment: Transformed:'{}' -> '{}'",out::to_string(cas_ev),out::to_string(indexed_ev));
+          }
+          else {
+            logger::design_insufficiency("to_indexed_environment: Failed to parse inter-value refs from _members:'{}'",s_cas_members);
+          }            
+        }
+        else {
+          logger::development_trace("to_indexed_environment: Not transformed:'{}'",out::to_string(indexed_ev));
+        }
+        indexed_id_value_pairs.push_back({id_to_index[cas_id],indexed_ev});
+      }
+      else {
+        logger::design_insufficiency("to_indexed_environment: Found duplicate value_id:{} in provided cas_environment");
+      }
+    }
+
+    result[section] = indexed_id_value_pairs;
   }
   return result;
 }
 
 void environment_to_file(Environment const &environment,std::filesystem::path const &p) {
+  logger::scope_logger raii_log{logger::development_trace,"environment_to_file"};
   return out::indexed_environment_to_file(to_indexed_environment(environment),p);
 }

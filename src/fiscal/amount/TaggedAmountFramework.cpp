@@ -542,11 +542,6 @@ OptionalTaggedAmount to_tagged_amount(EnvironmentValue const& ev) {
 	if (date and cents_amount) {
     result = TaggedAmount{*date,*cents_amount,std::move(tags)};
 	}
-  // TODO 240524 - Remove when fully functional tagged amounts to and from SIE is in place
-  //               For now, discard any stored tagged amounts that represents SIE journal entries
-  if (false and result) {
-    if (result->tag_value("BAS") or result->tag_value("SIE")) return std::nullopt; // discard / filter out stored SIE environment tagged amounts (start fresh)
-  }
 	return result;
 }
 
