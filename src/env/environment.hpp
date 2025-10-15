@@ -44,12 +44,6 @@
 
 */
 
-// TODO: Refactor to make Environment stand-alone for internal usage.
-//       We should not need to expose all these other detailed sub-types?
-using EnvironmentValueId = CASEnvironmentValueId;
-using EnvironmentValue = CASEnvironmentValue;
-using EnvironmentIdValuePair = CASEnvironmentIdValuePair;
-using EnvironmentIdValuePairs = CASEnvironmentIdValuePairs;
 using Environment = CASEnvironment;
 
 // parsing environment in -> Environment
@@ -58,8 +52,8 @@ namespace in {
   //       file -> IndexedEnvironment -> CASEnvironment (Alias Environment)
   bool is_comment_line(std::string const& line);
   bool is_value_line(std::string const& line);
-  std::pair<std::string, std::optional<IndexedEnvironmentValueId>> to_name_and_id(std::string const& s);
-  IndexedEnvironmentValue to_environment_value(std::string const& s);
+  std::pair<std::string, std::optional<IndexedEnvironment::EnvironmentValueId>> to_name_and_id(std::string const& s);
+  IndexedEnvironment::EnvironmentValue to_environment_value(std::string const& s);
   // IndexedEnvironment indexed_environment_from_file(std::filesystem::path const &p);
 }
 Environment environment_from_file(std::filesystem::path const &p);
@@ -68,10 +62,10 @@ Environment environment_from_file(std::filesystem::path const &p);
 namespace out {
   // TODO: Refactor into using intermediate IndexedEnvironment
   //       file <- IndexedEnvironment <- CASEnvironment (Alias Environment)
-  std::ostream& operator<<(std::ostream& os,IndexedEnvironmentValue const& ev);
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironment::EnvironmentValue const& ev);
   std::ostream& operator<<(std::ostream& os,IndexedEnvironment::value_type const& entry);
   std::ostream& operator<<(std::ostream& os,IndexedEnvironment const& env);
-  std::string to_string(IndexedEnvironmentValue const& ev);
+  std::string to_string(IndexedEnvironment::EnvironmentValue const& ev);
   std::string to_string(IndexedEnvironment::value_type const& entry);
   // void indexed_environment_to_file(IndexedEnvironment const &environment,std::filesystem::path const &p);
 }

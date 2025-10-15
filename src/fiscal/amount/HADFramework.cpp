@@ -45,7 +45,7 @@ std::string to_string(HeadingAmountDateTransEntry const& had) {
   return oss.str();
 }
 
-OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
+OptionalHeadingAmountDateTransEntry to_had(Environment::EnvironmentValue const& ev) {
 	OptionalHeadingAmountDateTransEntry result{};
 	HeadingAmountDateTransEntry had{};
 	while (true) {
@@ -101,11 +101,11 @@ OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& token
 // ----------------------------------------------
 // <-- HAD(s)
 
-EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
+Environment::EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
 	// std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
 	std::ostringstream os{};
 	os << had.amount;
-	EnvironmentValue ev{};
+	Environment::EnvironmentValue ev{};
 	ev["rubrik"] = had.heading;
 	ev["belopp"] = os.str();
 	ev["datum"] = to_string(had.date);

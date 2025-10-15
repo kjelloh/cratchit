@@ -77,7 +77,7 @@ namespace first {
       else if (m_environment.contains(section) and env_slice.contains(section)) {
         spdlog::info("ProjectState::update - Processing section: {}", section);
 
-        auto to_date = [](EnvironmentIdValuePair const& pair) -> Date {
+        auto to_date = [](Environment::EnvironmentIdValuePair const& pair) -> Date {
           // Ok, so EnvironmentIdValuePair is not type safe regarding we asume it represents a HAD.
           // For now, this follows only from processing section 'HeadingAmountDateTransEntry'.
           if (auto had = to_had(pair.second)) {
@@ -88,10 +88,10 @@ namespace first {
           return Date{}; // Return a default date if HAD is invalid
         };
 
-        auto to_ev = [](EnvironmentIdValuePair const& pair) {return pair.second;};
+        auto to_ev = [](Environment::EnvironmentIdValuePair const& pair) {return pair.second;};
 
         diff_view<
-           EnvironmentIdValuePairs
+           Environment::EnvironmentIdValuePairs
           ,decltype(to_date)
           ,decltype(to_ev)> difference{
              m_environment.at(section)

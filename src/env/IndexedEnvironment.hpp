@@ -14,7 +14,8 @@
 #include <map>
 #include <string>
 
-namespace indexed_detail {
+class IndexedEnvironment {
+public:
 
   using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value pairs
   using EnvironmentValueName = std::string;
@@ -22,17 +23,10 @@ namespace indexed_detail {
   using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
   using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
   using EnvironmentIdValuePairs = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
-  using Environment = std::map<indexed_detail::EnvironmentValueName,indexed_detail::EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
-} // indexed_detail
+  using Environment = std::map<EnvironmentValueName,EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 
-// TODO: Refactor into proper indexed based composite.
-//       For now this is the original Environment just cloned
-using IndexedEnvironmentValue = indexed_detail::EnvironmentValue;
-using IndexedEnvironmentValueId = indexed_detail::EnvironmentValueId;
-class IndexedEnvironment {
-public:
-  using value_type = indexed_detail::Environment::value_type;
-  auto& operator[](indexed_detail::EnvironmentValueName const& section) {
+  using value_type = Environment::value_type;
+  auto& operator[](EnvironmentValueName const& section) {
     return m_env[section];
   }
   auto begin() const {
@@ -42,5 +36,5 @@ public:
     return m_env.end();
   }
 private:
-  indexed_detail::Environment m_env{};
+  Environment m_env{};
 };

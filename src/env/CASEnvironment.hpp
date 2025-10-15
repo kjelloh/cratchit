@@ -13,7 +13,11 @@
 #include <map>
 #include <string>
 
-namespace cas_detail {
+// TODO: Refactor into propoer CAS (Content Adressable Storage)
+//       For now this is just a clone of original Environment that mixes index and hash based ID-Value mapping
+//       also consumed from persistent storage text file.
+class CASEnvironment {
+public:
 
   using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value pairs
   using EnvironmentValueName = std::string;
@@ -22,25 +26,14 @@ namespace cas_detail {
   using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
   using EnvironmentIdValuePairs = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
   using Environment = std::map<EnvironmentValueName,EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
-} // cas_detail
 
-using CASEnvironmentValueId = cas_detail::EnvironmentValueId;
-using CASEnvironmentValue = cas_detail::EnvironmentValue;
-using CASEnvironmentIdValuePair = cas_detail::EnvironmentIdValuePair;
-using CASEnvironmentIdValuePairs = cas_detail::EnvironmentIdValuePairs;
-
-// TODO: Refactor into propoer CAS (Content Adressable Storage)
-//       For now this is just a clone of original Environment that mixes index and hash based ID-Value mapping
-//       also consumed from persistent storage text file.
-class CASEnvironment {
-public:
-  bool contains(cas_detail::EnvironmentValueName const& section) const {
+  bool contains(EnvironmentValueName const& section) const {
     return m_env.contains(section);
   }
-  auto const& at(cas_detail::EnvironmentValueName const& section) const {
+  auto const& at(EnvironmentValueName const& section) const {
     return m_env.at(section);
   }
-  auto& operator[](cas_detail::EnvironmentValueName const& section) {
+  auto& operator[](EnvironmentValueName const& section) {
     return m_env[section];
   }
   auto operator<=>(const CASEnvironment&) const = default;
@@ -54,5 +47,5 @@ public:
     return m_env.end();
   }
 private:
-  cas_detail::Environment m_env{};
+  Environment m_env{};
 };
