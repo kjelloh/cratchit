@@ -41,7 +41,7 @@ using OptionalHeadingAmountDateTransEntry = std::optional<HeadingAmountDateTrans
 // --> HAD(s)
 
 // Environment Entry -> HAD
-OptionalHeadingAmountDateTransEntry to_had(Environment::EnvironmentValue const& ev);
+OptionalHeadingAmountDateTransEntry to_had(Environment::Value const& ev);
 
 using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 
@@ -52,13 +52,13 @@ using HADs = HeadingAmountDateTransEntries;
 HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);
 
 inline auto to_period_hads(FiscalPeriod period, const Environment &env) -> HeadingAmountDateTransEntries {
-  auto ev_to_maybe_had = [](Environment::EnvironmentValue const &ev) -> OptionalHeadingAmountDateTransEntry {
+  auto ev_to_maybe_had = [](Environment::Value const &ev) -> OptionalHeadingAmountDateTransEntry {
     return to_had(ev);
   };
   auto in_period = [](HeadingAmountDateTransEntry const &had,FiscalPeriod const &period) -> bool {
     return period.contains(had.date);
   };
-  auto id_ev_pair_to_ev = [](Environment::EnvironmentIdValuePair const &id_ev_pair) {
+  auto id_ev_pair_to_ev = [](Environment::IdValuePair const &id_ev_pair) {
     return id_ev_pair.second;
   };
   static constexpr auto section = "HeadingAmountDateTransEntry";
@@ -85,7 +85,7 @@ OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& token
 // ----------------------------------------------
 // <-- HAD(s)
 
-Environment::EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had);
+Environment::Value to_environment_value(HeadingAmountDateTransEntry const had);
 
 // std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries);
 inline auto indexed_env_entries_from(HeadingAmountDateTransEntries const& hads) {

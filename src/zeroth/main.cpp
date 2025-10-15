@@ -5435,8 +5435,8 @@ OptionalHeadingAmountDateTransEntry to_had(TaggedAmount const& ta) {
 // Now in HADFramework unit
 // OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& tokens)
 
-Environment::EnvironmentValue to_environment_value(SKV::ContactPersonMeta const& cpm) {
-	Environment::EnvironmentValue ev{};
+Environment::Value to_environment_value(SKV::ContactPersonMeta const& cpm) {
+	Environment::Value ev{};
 	ev["name"] = cpm.name;
 	ev["phone"] = cpm.phone;
 	ev["e-mail"] = cpm.e_mail;
@@ -5447,7 +5447,7 @@ Environment::EnvironmentValue to_environment_value(SKV::ContactPersonMeta const&
 // to_environment_value(TaggedAmount)
 // to_tagged_amount(EnvironmentValue) 
 
-std::optional<SRUEnvironments::value_type> to_sru_environments_entry(Environment::EnvironmentValue const& ev) {
+std::optional<SRUEnvironments::value_type> to_sru_environments_entry(Environment::Value const& ev) {
 	try {
 // std::cout << "\nto_sru_environments_entry";
 		// "4531=360000;4532=360000;relative_year_key=0"
@@ -5467,7 +5467,7 @@ std::optional<SRUEnvironments::value_type> to_sru_environments_entry(Environment
 	return std::nullopt;
 }
 
-SKV::OptionalContactPersonMeta to_contact(Environment::EnvironmentValue const& ev) {
+SKV::OptionalContactPersonMeta to_contact(Environment::Value const& ev) {
 	SKV::OptionalContactPersonMeta result;
 	SKV::ContactPersonMeta cpm{};
 	while (true) {
@@ -5483,7 +5483,7 @@ SKV::OptionalContactPersonMeta to_contact(Environment::EnvironmentValue const& e
 	return result;
 }
 
-std::optional<std::string> to_employee(Environment::EnvironmentValue const& ev) {
+std::optional<std::string> to_employee(Environment::Value const& ev) {
 	std::optional<std::string> result{};
 	std::string birth_id{};
 	while (true) {

@@ -106,8 +106,8 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids);
 std::string to_string(TaggedAmount const& ta);
 
 // Environment conversions
-Environment::EnvironmentValue to_environment_value(TaggedAmount const& ta);
-OptionalTaggedAmount to_tagged_amount(Environment::EnvironmentValue const& ev);
+Environment::Value to_environment_value(TaggedAmount const& ta);
+OptionalTaggedAmount to_tagged_amount(Environment::Value const& ev);
 
 TaggedAmounts to_tagged_amounts(const Environment &env);
 // Environment -> TaggedAmounts (filtered by fiscal period)
@@ -116,7 +116,7 @@ TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &e
 // TaggedAmounts -> Id-Value pairs (map Environment value-Id to Environment Value)
 inline auto id_value_pairs_from(TaggedAmounts const& tagged_amounts) {
   return tagged_amounts | std::views::transform(
-    [](TaggedAmount const& ta) -> Environment::EnvironmentIdValuePair {
+    [](TaggedAmount const& ta) -> Environment::IdValuePair {
       return {to_value_id(ta), to_environment_value(ta)};
     });
 }

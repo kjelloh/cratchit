@@ -23,14 +23,14 @@ namespace in {
   // 'TaggedAmount', 'contact', 'employee', 'sie_file')) <id> is basically a hash
   // of the <value> following the key (to identify duplicate values based on same
   // id)
-  std::pair<std::string, std::optional<IndexedEnvironment::EnvironmentValueId>> to_name_and_id(std::string const& s) {
+  std::pair<std::string, std::optional<IndexedEnvironment::ValueId>> to_name_and_id(std::string const& s) {
     logger::scope_logger raii_log{logger::development_trace,"to_name_and_id"};
     logger::development_trace("s:{}",s);
     if (auto pos = s.find(':'); pos != std::string::npos) {
       auto name = s.substr(0, pos);
       auto id_string = s.substr(pos + 1);
       std::istringstream is{id_string};
-      Environment::EnvironmentValueId id{};
+      Environment::ValueId id{};
       if (is >> std::hex >> id) {
         logger::development_trace("name:{} id:{}",name,id);
         return {name, id};
@@ -46,10 +46,10 @@ namespace in {
     }
   }
 
-  IndexedEnvironment::EnvironmentValue to_environment_value(std::string const& sev) {
+  IndexedEnvironment::Value to_environment_value(std::string const& sev) {
     logger::scope_logger raii_logger{logger::development_trace,"to_environment_value"};
     logger::development_trace("sev:{}",sev);
-    Environment::EnvironmentValue result{};
+    Environment::Value result{};
     auto kvps = tokenize::splits(sev, ';');
     for (auto const &kvp : kvps) {
       auto const &[name, value] = tokenize::split(kvp, '=');
@@ -85,7 +85,7 @@ namespace in {
           result[name].push_back(
               // EnvironmentValue is key-value-pairs as a map <key,value>
               // result is Environment, i.e.,
-              Environment::EnvironmentIdValuePair{current_index[name], to_environment_value(value_string)});
+              Environment::IdValuePair{current_index[name], to_environment_value(value_string)});
         }
       }
     } catch (std::runtime_error const &e) {
@@ -110,7 +110,7 @@ CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment)
 
   CASEnvironment result{};
   for (auto const& [name,indexed_id_value_pairs] : indexed_environment) {
-    Environment::EnvironmentIdValuePairs cas_id_value_pairs{};
+    Environment::IdValuePairs cas_id_value_pairs{};
     if (name == "TaggedAmount") {
       // We need to transform the indecies in the file to actual (hash based) value ids in CAS Environment
       // The pipe for the raw ev becomes environment_value -> TaggedAmount -> to_value_id(TaggedAmount).
@@ -118,7 +118,7 @@ CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment)
       //       That is, use the schema to filter out any meta data in the environment value to be able
       //       to calculate the actual value id (hash) from correct input data?
 
-      std::map<IndexedEnvironment::EnvironmentValueId, CASEnvironment::EnvironmentValueId> index_to_id{};
+      std::map<IndexedEnvironment::ValueId, CASEnvironment::ValueId> index_to_id{};
       for (auto const& [index,indexed_ev] : indexed_id_value_pairs) {
         // Trust that environment values (records as tag-value pairs) are ordered such that
         // any inter-value reference (aggregate, ordering etc.) using index/id always refers back to a value already in the container.
@@ -192,7 +192,7 @@ Environment environment_from_file(std::filesystem::path const &p) {
 }
 
 namespace out {
-  std::ostream& operator<<(std::ostream& os,IndexedEnvironment::EnvironmentValue const& ev) {
+  std::ostream& operator<<(std::ostream& os,IndexedEnvironment::Value const& ev) {
     bool not_first{false};
     std::for_each(ev.begin(), ev.end(), [&not_first, &os](auto const &entry) {
       if (not_first) {
@@ -234,7 +234,7 @@ namespace out {
     return os;
   }
 
-  std::string to_string(IndexedEnvironment::EnvironmentValue const& ev) {
+  std::string to_string(IndexedEnvironment::Value const& ev) {
     std::ostringstream os{};
     os << ev;
     return os.str();
@@ -262,11 +262,11 @@ IndexedEnvironment to_indexed_environment(Environment const& cas_environment) {
   logger::scope_logger raii_log{logger::development_trace,"to_indexed_environment"};
   IndexedEnvironment result{};
   for (auto const& [section,cas_id_value_pairs] : cas_environment) {
-    IndexedEnvironment::EnvironmentIdValuePairs indexed_id_value_pairs{}; // Transform target
+    IndexedEnvironment::IdValuePairs indexed_id_value_pairs{}; // Transform target
 
     // Transform inter-value references in cas_id_value_pairs
     // from value_ids to integer indexed ids
-    std::map<CASEnvironment::EnvironmentValueId,IndexedEnvironment::EnvironmentValueId> id_to_index{};
+    std::map<CASEnvironment::ValueId,IndexedEnvironment::ValueId> id_to_index{};
     for (auto const& [cas_id,cas_ev] : cas_id_value_pairs) {
       if (not id_to_index.contains(cas_id)) {
         // OK, unique ref

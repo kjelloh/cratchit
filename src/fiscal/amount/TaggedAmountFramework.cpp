@@ -518,8 +518,8 @@ std::string to_string(TaggedAmount const& ta) {
 }
 
 // Environment conversions
-Environment::EnvironmentValue to_environment_value(TaggedAmount const& ta) {
-	Environment::EnvironmentValue ev{};
+Environment::Value to_environment_value(TaggedAmount const& ta) {
+	Environment::Value ev{};
 	ev["yyyymmdd_date"] = to_string(ta.date());
 	ev["cents_amount"] = to_string(ta.cents_amount());
 	for (auto const& entry : ta.tags()) {
@@ -528,7 +528,7 @@ Environment::EnvironmentValue to_environment_value(TaggedAmount const& ta) {
 	return ev;
 }
 
-OptionalTaggedAmount to_tagged_amount(Environment::EnvironmentValue const& ev) {
+OptionalTaggedAmount to_tagged_amount(Environment::Value const& ev) {
 	OptionalTaggedAmount result{};
 	OptionalDate date{};
 	OptionalCentsAmount cents_amount{};
@@ -545,13 +545,13 @@ OptionalTaggedAmount to_tagged_amount(Environment::EnvironmentValue const& ev) {
 	return result;
 }
 
-auto ev_to_maybe_ta = [](Environment::EnvironmentValue const &ev) -> OptionalTaggedAmount {
+auto ev_to_maybe_ta = [](Environment::Value const &ev) -> OptionalTaggedAmount {
   return to_tagged_amount(ev);
 };
 auto in_period = [](TaggedAmount const &ta, FiscalPeriod const &period) -> bool {
   return period.contains(ta.date());
 };  
-auto id_ev_pair_to_ev = [](Environment::EnvironmentIdValuePair const &id_ev_pair) {
+auto id_ev_pair_to_ev = [](Environment::IdValuePair const &id_ev_pair) {
   return id_ev_pair.second;
 };
 

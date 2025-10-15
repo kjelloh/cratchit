@@ -17,24 +17,24 @@
 class IndexedEnvironment {
 public:
 
-  using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value pairs
-  using EnvironmentValueName = std::string;
-  using EnvironmentValueId = std::size_t;
-  using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
-  using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
-  using EnvironmentIdValuePairs = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
-  using Environment = std::map<EnvironmentValueName,EnvironmentIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+  using ValueName = std::string;
+  using Value = std::map<std::string,std::string>; // vector of name-value pairs
+  using ValueId = std::size_t;
+  using Values_cas_repository = cas::repository<ValueId,Value>;
+  using IdValuePair = Values_cas_repository::value_type; // mutable id-value pair
+  using IdValuePairs = std::vector<IdValuePair>; // To model the order in persistent file
+  using Container = std::map<ValueName,IdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 
-  using value_type = Environment::value_type;
-  auto& operator[](EnvironmentValueName const& section) {
-    return m_env[section];
+  using value_type = Container::value_type;
+  auto& operator[](ValueName const& section) {
+    return m_container[section];
   }
   auto begin() const {
-    return m_env.begin();
+    return m_container.begin();
   }
   auto end() const {
-    return m_env.end();
+    return m_container.end();
   }
 private:
-  Environment m_env{};
+  Container m_container{};
 };
