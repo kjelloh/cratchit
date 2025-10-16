@@ -159,7 +159,7 @@ OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(Value
   return result;
 }
 
-std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsContainer::iterator> DateOrderedTaggedAmountsContainer::insert(TaggedAmount const &ta) {
+std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsContainer::const_iterator> DateOrderedTaggedAmountsContainer::insert(TaggedAmount const &ta) {
   auto result = m_date_ordered_tagged_amounts.end();
   auto value_id = to_value_id(ta);
   if (m_tagged_amount_cas_repository.contains(value_id) == false) {

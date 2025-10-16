@@ -139,7 +139,7 @@ namespace zeroth {
     using ValueIds = TaggedAmount::ValueIds;
     using OptionalValueIds = TaggedAmount::OptionalValueIds;
 
-    using iterator = TaggedAmounts::iterator;
+    // using iterator = TaggedAmounts::iterator;
     using const_iterator = TaggedAmounts::const_iterator;
     using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
 
@@ -147,8 +147,8 @@ namespace zeroth {
       return m_date_ordered_tagged_amounts;
     }
     std::size_t size() const { return m_date_ordered_tagged_amounts.size(); }
-    iterator begin() { return m_date_ordered_tagged_amounts.begin(); }
-    iterator end() { return m_date_ordered_tagged_amounts.end(); }
+    // iterator begin() { return m_date_ordered_tagged_amounts.begin(); }
+    // iterator end() { return m_date_ordered_tagged_amounts.end(); }
     const_iterator begin() const { return m_date_ordered_tagged_amounts.begin(); }
     const_iterator end() const { return m_date_ordered_tagged_amounts.end(); }
     const_subrange in_date_range(zeroth::DateRange const &date_period);
@@ -172,7 +172,7 @@ namespace zeroth {
     // (internal CAS map is hidden from client)
     // But the internally used key (the ValueId) is returned for environment vs
     // tagged amounts key transformation purposes (to and from Environment)
-    std::pair<ValueId, iterator> insert(TaggedAmount const &ta);
+    std::pair<ValueId, const_iterator> insert(TaggedAmount const &ta);
 
     DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
 
@@ -228,6 +228,9 @@ namespace first {
 
   class DateOrderedTaggedAmountsContainer {
   public:
+    using const_iterator = TaggedAmountsCasRepository::const_iterator;
+    using const_subrange = TaggedAmountsCasRepository::const_subrange;
+
     DateOrderedTaggedAmountsContainer();
   private:
     TaggedAmountsCasRepository m_repo;

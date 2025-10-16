@@ -43,6 +43,11 @@ namespace cas {
     using Key = decltype(std::declval<Hasher>()(std::declval<Value>()));
     using MaybeKey = std::optional<Key>;
     using PrevOf = std::function<MaybeKey(Key key,ordered_composite const& container)>;
+
+    using Values = std::vector<Value>;
+    using const_iterator = Values::const_iterator;
+    using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
+
   private:
     Hasher m_hasher;
     std::unordered_map<Key,Hasher> m_map{};
@@ -58,12 +63,8 @@ namespace cas {
       return *this;
     }
 
-    bool contains(Key key) {
-      return m_map.contains(key);
-    }
-
-    Value at(Key key) const {
-      return m_map.at(key);
+    bool contains(Value const& value) const {
+      return m_map.contains(m_hasher(value));
     }
 
     std::pair<Key,bool> insert(Value const& value) {

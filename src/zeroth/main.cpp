@@ -5659,8 +5659,8 @@ public:
   // Now in SIEEnvironment
 	// std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
-	std::optional<DateOrderedTaggedAmountsContainer::iterator> to_ta_iter(std::size_t ix) {
-		std::optional<DateOrderedTaggedAmountsContainer::iterator> result{};
+	std::optional<DateOrderedTaggedAmountsContainer::const_iterator> to_ta_iter(std::size_t ix) {
+		std::optional<DateOrderedTaggedAmountsContainer::const_iterator> result{};
 		auto ta_iter = this->selected_date_ordered_tagged_amounts.begin();
 		auto end = this->selected_date_ordered_tagged_amounts.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
@@ -5702,7 +5702,7 @@ public:
     return result;
   }
 
-	std::optional<DateOrderedTaggedAmountsContainer::iterator> selected_ta() {
+	std::optional<DateOrderedTaggedAmountsContainer::const_iterator> selected_ta() {
 		return to_ta_iter(this->ta_index);
 	}
 
