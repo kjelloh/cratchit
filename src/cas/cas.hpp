@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <functional> // std::function
 #include <ranges>
+#include <limits>  // for std::numeric_limits
 
 // Content Addressable Storage namespace
 // TODO: Consider to make cas::repository more like std::unordrered_map in that
@@ -44,14 +45,69 @@ namespace cas {
     using MaybeKey = std::optional<Key>;
     using PrevOf = std::function<MaybeKey(Key key,ordered_composite const& container)>;
 
+    using Map = std::unordered_map<Key,Hasher>;
+
+    using Keyes = std::vector<Key>;    
     using Values = std::vector<Value>;
-    using const_iterator = Values::const_iterator;
+
+    // using const_iterator = Values::const_iterator;
+
+    // Key based const iterator
+    class const_iterator {
+    public:
+      using value_type = Value;
+      // using reference = Value const&;
+      // using pointer = Value const*;
+      using difference_type = std::ptrdiff_t;
+      using iterator_category = std::forward_iterator_tag;
+
+      const_iterator() = default;
+      const_iterator(Map const& map,Keyes const& keyes,size_t ix)
+        :  m_map{&map}
+          ,m_keyes{&keyes}
+          ,m_ix{ix} {}
+
+      Value const& operator*() {
+        if (m_map==nullptr or m_keyes == nullptr or m_ix > m_keyes->size()) {
+          throw std::runtime_error(std::format("ordered_composite::const_iterator: Can't dereference map:{} keyes:{} ix:{}",m_map,m_keyes,m_ix));
+        }
+        return m_map->at(m_keyes->at(m_ix));
+      }
+
+      const_iterator& operator++() { 
+        ++m_ix; 
+        return *this; 
+      }
+
+      const_iterator operator++(int) {
+        const_iterator tmp = *this;
+        ++(*this);
+        return tmp;
+      }
+
+      bool operator==(const const_iterator& other) const noexcept {
+        return m_map == other.m_map && m_keyes == other.m_keyes && m_ix == other.m_ix;
+      }
+
+      bool operator!=(const const_iterator& other) const noexcept {
+        return !(*this == other);
+      }
+
+    private:
+      size_t m_ix{std::numeric_limits<size_t>::max()};
+      Keyes const* m_keyes{nullptr};
+      Map const* m_map{nullptr};
+    };
+
     using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
+
+    const_iterator begin() const { return const_iterator(m_map,m_ordered_keyes,0);}
+    const_iterator end() const { return const_iterator(m_map,m_ordered_keyes,m_ordered_keyes.size());}
 
   private:
     Hasher m_hasher;
-    std::unordered_map<Key,Hasher> m_map{};
-    std::vector<Key> m_ordered_keyes{};
+    Map m_map{};
+    Keyes m_ordered_keyes{};
     PrevOf m_prev_of;
   public:
     ordered_composite(PrevOf const& prev_of,Hasher hasher = Hasher{}) 

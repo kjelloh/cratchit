@@ -143,14 +143,13 @@ namespace zeroth {
     using const_iterator = TaggedAmounts::const_iterator;
     using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
 
-    TaggedAmounts const &tagged_amounts() {
+    TaggedAmounts const& tagged_amounts() {
       return m_date_ordered_tagged_amounts;
     }
     std::size_t size() const { return m_date_ordered_tagged_amounts.size(); }
-    // iterator begin() { return m_date_ordered_tagged_amounts.begin(); }
-    // iterator end() { return m_date_ordered_tagged_amounts.end(); }
     const_iterator begin() const { return m_date_ordered_tagged_amounts.begin(); }
     const_iterator end() const { return m_date_ordered_tagged_amounts.end(); }
+
     const_subrange in_date_range(zeroth::DateRange const &date_period);
     OptionalTaggedAmount at(ValueId const &value_id);
     OptionalTaggedAmount operator[](ValueId const &value_id);
@@ -205,8 +204,8 @@ namespace zeroth {
     }
 
   private:
-    // Note: Each tagged amount pointer instance is stored twice. Once in a
-    // mapping between value_id and tagged amount pointer and once in a vector
+    // Note: Each tagged amount is stored twice. Once in a
+    // mapping between value_id and tagged amount and once in a vector
     // ordered by date.
     TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
                                                                   // as content addressable storage
@@ -214,6 +213,7 @@ namespace zeroth {
     TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
   }; // class DateOrderedTaggedAmountsContainer
 }
+
 namespace first {
 
   class TaggedAmountHasher {
@@ -232,6 +232,9 @@ namespace first {
     using const_subrange = TaggedAmountsCasRepository::const_subrange;
 
     DateOrderedTaggedAmountsContainer();
+
+    auto begin() const {return m_repo.begin();}
+    auto end() const {return m_repo.end();}
   private:
     TaggedAmountsCasRepository m_repo;
   };
