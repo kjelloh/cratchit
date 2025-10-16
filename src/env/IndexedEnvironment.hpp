@@ -10,7 +10,7 @@
   Also see CASEnvironment.
  */
 
-#include "cas.hpp"
+#include "cas/cas.hpp"
 #include <map>
 #include <string>
 

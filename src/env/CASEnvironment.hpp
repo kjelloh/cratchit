@@ -9,7 +9,7 @@
   Also see IndexedEnvironment.
  */
 
-#include "cas.hpp"
+#include "cas/cas.hpp"
 #include <map>
 #include <string>
 
