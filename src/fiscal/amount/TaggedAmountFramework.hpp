@@ -121,98 +121,123 @@ inline auto id_value_pairs_from(TaggedAmounts const& tagged_amounts) {
     });
 }
 
-// using TaggedAmountValueIdMap = std::map<TaggedAmount::ValueId,TaggedAmount>;
-// using TaggedAmountValueIdMap = cas::repository<TaggedAmount::ValueId,TaggedAmount>;
-using TaggedAmountsCasRepository = cas::repository<TaggedAmount::ValueId, TaggedAmount>;
+namespace zeroth {
 
-// Behaves more or less as a vector of tagged amounts in date order.
-// But uses a map <Key,Value> as the mechanism to look up a value based on its
-// value_id. 
-// As of 240622 the behind-the-scenes map is a CAS (Content Addressable
-// Storage) with a key being a hash of its 'value'
-class DateOrderedTaggedAmountsContainer {
-public:
-  using OptionalTagValue = TaggedAmount::OptionalTagValue;
-  using Tags = TaggedAmount::Tags;
-  using ValueId = TaggedAmount::ValueId;
-  using OptionalValueId = TaggedAmount::OptionalValueId;
-  using ValueIds = TaggedAmount::ValueIds;
-  using OptionalValueIds = TaggedAmount::OptionalValueIds;
+  using TaggedAmountsCasRepository = cas::repository<TaggedAmount::ValueId, TaggedAmount>;
 
-  using iterator = TaggedAmounts::iterator;
-  using const_iterator = TaggedAmounts::const_iterator;
-  using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
+  // Behaves more or less as a vector of tagged amounts in date order.
+  // But uses a map <Key,Value> as the mechanism to look up a value based on its
+  // value_id. 
+  // As of 240622 the behind-the-scenes map is a CAS (Content Addressable
+  // Storage) with a key being a hash of its 'value'
+  class DateOrderedTaggedAmountsContainer {
+  public:
+    using OptionalTagValue = TaggedAmount::OptionalTagValue;
+    using Tags = TaggedAmount::Tags;
+    using ValueId = TaggedAmount::ValueId;
+    using OptionalValueId = TaggedAmount::OptionalValueId;
+    using ValueIds = TaggedAmount::ValueIds;
+    using OptionalValueIds = TaggedAmount::OptionalValueIds;
 
-  TaggedAmounts const &tagged_amounts() {
-    return m_date_ordered_tagged_amounts;
-  }
-  std::size_t size() const { return m_date_ordered_tagged_amounts.size(); }
-  iterator begin() { return m_date_ordered_tagged_amounts.begin(); }
-  iterator end() { return m_date_ordered_tagged_amounts.end(); }
-  const_iterator begin() const { return m_date_ordered_tagged_amounts.begin(); }
-  const_iterator end() const { return m_date_ordered_tagged_amounts.end(); }
-  const_subrange in_date_range(zeroth::DateRange const &date_period);
-  OptionalTaggedAmount at(ValueId const &value_id);
-  OptionalTaggedAmount operator[](ValueId const &value_id);
-  OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
+    using iterator = TaggedAmounts::iterator;
+    using const_iterator = TaggedAmounts::const_iterator;
+    using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
 
-  DateOrderedTaggedAmountsContainer &clear() {
-    m_tagged_amount_cas_repository.clear();
-    m_date_ordered_tagged_amounts.clear();
-    return *this;
-  }
-
-  DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const &other) {
-    this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
-    this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
-    return *this;
-  }
-
-  // Insert the value and return the iterator to the vector of tas
-  // (internal CAS map is hidden from client)
-  // But the internally used key (the ValueId) is returned for environment vs
-  // tagged amounts key transformation purposes (to and from Environment)
-  std::pair<ValueId, iterator> insert(TaggedAmount const &ta);
-
-  DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
-
-  DateOrderedTaggedAmountsContainer const &for_each(auto f) const {
-    for (auto const &ta : m_date_ordered_tagged_amounts) {
-      f(ta);
+    TaggedAmounts const &tagged_amounts() {
+      return m_date_ordered_tagged_amounts;
     }
-    return *this;
-  }
+    std::size_t size() const { return m_date_ordered_tagged_amounts.size(); }
+    iterator begin() { return m_date_ordered_tagged_amounts.begin(); }
+    iterator end() { return m_date_ordered_tagged_amounts.end(); }
+    const_iterator begin() const { return m_date_ordered_tagged_amounts.begin(); }
+    const_iterator end() const { return m_date_ordered_tagged_amounts.end(); }
+    const_subrange in_date_range(zeroth::DateRange const &date_period);
+    OptionalTaggedAmount at(ValueId const &value_id);
+    OptionalTaggedAmount operator[](ValueId const &value_id);
+    OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
 
-  DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const &other) {
-    other.for_each([this](TaggedAmount const &ta) {
-      // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
-      // preceedence (overwrite any existing tagged amounts reflecting the same
-      // events) Hm...Maybe this is NOT the convenient place to do this?
-      this->insert(ta);
-    });
-    return *this;
-  }
-  DateOrderedTaggedAmountsContainer &operator+=(TaggedAmounts const &tas) {
-    for (auto const &ta : tas)
-      this->insert(ta);
-    return *this;
-  }
+    DateOrderedTaggedAmountsContainer &clear() {
+      m_tagged_amount_cas_repository.clear();
+      m_date_ordered_tagged_amounts.clear();
+      return *this;
+    }
 
-  DateOrderedTaggedAmountsContainer &operator=(TaggedAmounts const &tas) {
-    this->clear();
-    *this += tas;
-    return *this;
-  }
+    DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const &other) {
+      this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
+      this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
+      return *this;
+    }
 
-private:
-  // Note: Each tagged amount pointer instance is stored twice. Once in a
-  // mapping between value_id and tagged amount pointer and once in a vector
-  // ordered by date.
-  TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
-                                                                // as content addressable storage
-                                                                // repository
-  TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
-}; // class DateOrderedTaggedAmountsContainer
+    // Insert the value and return the iterator to the vector of tas
+    // (internal CAS map is hidden from client)
+    // But the internally used key (the ValueId) is returned for environment vs
+    // tagged amounts key transformation purposes (to and from Environment)
+    std::pair<ValueId, iterator> insert(TaggedAmount const &ta);
+
+    DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
+
+    DateOrderedTaggedAmountsContainer const &for_each(auto f) const {
+      for (auto const &ta : m_date_ordered_tagged_amounts) {
+        f(ta);
+      }
+      return *this;
+    }
+
+    DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const &other) {
+      other.for_each([this](TaggedAmount const &ta) {
+        // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
+        // preceedence (overwrite any existing tagged amounts reflecting the same
+        // events) Hm...Maybe this is NOT the convenient place to do this?
+        this->insert(ta);
+      });
+      return *this;
+    }
+    DateOrderedTaggedAmountsContainer &operator+=(TaggedAmounts const &tas) {
+      for (auto const &ta : tas)
+        this->insert(ta);
+      return *this;
+    }
+
+    DateOrderedTaggedAmountsContainer &operator=(TaggedAmounts const &tas) {
+      this->clear();
+      *this += tas;
+      return *this;
+    }
+
+  private:
+    // Note: Each tagged amount pointer instance is stored twice. Once in a
+    // mapping between value_id and tagged amount pointer and once in a vector
+    // ordered by date.
+    TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
+                                                                  // as content addressable storage
+                                                                  // repository
+    TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
+  }; // class DateOrderedTaggedAmountsContainer
+}
+namespace first {
+
+  class TaggedAmountHasher {
+  public:
+    TaggedAmount::ValueId operator()(TaggedAmount const& ta) {
+      return to_value_id(ta);
+    }
+  private:
+  };
+
+  using TaggedAmountsCasRepository = cas::ordered_composite<TaggedAmount,TaggedAmountHasher>;
+
+  class DateOrderedTaggedAmountsContainer {
+  public:
+    DateOrderedTaggedAmountsContainer();
+  private:
+    TaggedAmountsCasRepository m_repo;
+  };
+
+}
+
+// Type switch while refactoring into first::DateOrderedTaggedAmountsContainer;
+using DateOrderedTaggedAmountsContainer = zeroth::DateOrderedTaggedAmountsContainer;
+// using DateOrderedTaggedAmountsContainer = first::DateOrderedTaggedAmountsContainer;
 
 // namespace BAS with 'forwards' now in BAS.hpp
 

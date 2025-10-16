@@ -174,8 +174,7 @@ std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsCo
           return ta1.date() < ta2.date();
         });
 
-    m_tagged_amount_cas_repository.the_map().insert(
-        {value_id, ta}); // id -> ta
+    m_tagged_amount_cas_repository.the_map().insert( {value_id, ta});
     result = m_date_ordered_tagged_amounts.insert(
         end, ta); // place after all with date less than the one of ta
   } else {
@@ -210,6 +209,19 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(Valu
 }
 
 // END class DateOrderedTaggedAmountsContainer
+
+namespace first {
+
+  TaggedAmountsCasRepository::MaybeKey date_ordered_prev(TaggedAmountsCasRepository::Key key,TaggedAmountsCasRepository const& repo) {
+    TaggedAmountsCasRepository::MaybeKey result{};
+    return result;
+  }
+
+  DateOrderedTaggedAmountsContainer::DateOrderedTaggedAmountsContainer() 
+    : m_repo{date_ordered_prev} {
+  }
+
+}
 
 namespace tas {
   TaggedAmounts to_bas_omslutning(DateOrderedTaggedAmountsContainer::const_subrange const& tas) {
