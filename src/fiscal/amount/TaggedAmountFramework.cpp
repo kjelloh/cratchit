@@ -212,14 +212,24 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(Valu
 
 namespace first {
 
-  TaggedAmountsCasRepository::MaybeKey date_ordered_prev(TaggedAmountsCasRepository::Key key,TaggedAmountsCasRepository const& repo) {
-    TaggedAmountsCasRepository::MaybeKey result{};
+  TaggedAmount::ValueId TaggedAmountHasher::operator()(TaggedAmount const& ta) const {
+    return to_value_id(ta);
+  }
+
+  TaggedAmountsCasRepository::MaybeValue date_ordered_prev(
+     TaggedAmountsCasRepository::Value const& value
+    ,TaggedAmountsCasRepository const& container) {
+    TaggedAmountsCasRepository::MaybeValue result{};
+
     return result;
   }
 
   DateOrderedTaggedAmountsContainer::DateOrderedTaggedAmountsContainer() 
     : m_repo{date_ordered_prev} {
   }
+
+  TaggedAmountsCasRepository::const_iterator DateOrderedTaggedAmountsContainer::begin() const {return m_repo.begin();}
+  TaggedAmountsCasRepository::const_iterator DateOrderedTaggedAmountsContainer::end() const {return m_repo.end();}
 
 }
 

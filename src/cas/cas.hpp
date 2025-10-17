@@ -1,5 +1,6 @@
 #pragma once
 
+#include "logger/log.hpp"
 #include <map>
 #include <unordered_map>
 #include <functional> // std::function
@@ -38,12 +39,14 @@ namespace cas {
 
   // A Content Adressable Storage (CAS) container that preserves ordering 
   // and models value aggregation
-  template <typename Value,class Hasher = std::hash<Value>>
+  template <typename ValueT,class Hasher = std::hash<ValueT>>
   class ordered_composite {
   public:
+    using Value = ValueT;
     using Key = decltype(std::declval<Hasher>()(std::declval<Value>()));
     using MaybeKey = std::optional<Key>;
-    using PrevOf = std::function<MaybeKey(Key key,ordered_composite const& container)>;
+    using MaybeValue = std::optional<Value>;
+    using PrevOf = std::function<MaybeValue(Value const& value,ordered_composite const& container)>;
 
     using Map = std::unordered_map<Key,Hasher>;
 
@@ -55,6 +58,9 @@ namespace cas {
     // Key based const iterator
     class const_iterator {
     public:
+
+      // BEGIN Iterator 
+
       using value_type = Value;
       // using reference = Value const&;
       // using pointer = Value const*;
@@ -93,6 +99,12 @@ namespace cas {
         return !(*this == other);
       }
 
+      // END Iterator
+
+      auto ix() const {
+        return m_ix;
+      }
+
     private:
       size_t m_ix{std::numeric_limits<size_t>::max()};
       Keyes const* m_keyes{nullptr};
@@ -123,20 +135,43 @@ namespace cas {
       return m_map.contains(m_hasher(value));
     }
 
-    std::pair<Key,bool> insert(Value const& value) {
-      auto key = m_hasher(value);
-      auto [iter,inserted] = m_map.insert({key,value});
-      if (inserted) {
-        if (auto maybe_prev = m_prev_of(key)) {
-          auto prev = maybe_prev.value();
-          auto iter = std::ranges::find(m_ordered_keyes,prev);
-          m_ordered_keyes.insert(iter,key);
+    const_iterator insert(const_iterator const& iter,Value const& value) {
+      if (iter == this->end()) {
+        // No previous
+        if (this->m_ordered_keyes.size() == 0) {
+          auto key = this->m_hasher(value);
+          this->m_ordered_keyes.push_back(key);
+          this->m_map.insert({key,value});
         }
         else {
-          // No previous = first or stand-alone
+          logger::design_insufficiency("const_iterator::insert: Can't insert at end() for non-empty m_keyes");
         }
       }
-      return {key,inserted};
+      else {
+        auto key = this->m_hasher(value);
+        auto pos = std::advance(m_ordered_keyes.begin(),iter.ix());
+        this->m_ordered_keyes.insert(pos,key);
+        this->m_map.insert({key,value});
+      }
+    }
+
+    std::pair<const_iterator,bool> insert(Value const& value) {
+      if (!this->contains(value)) {
+        if (auto maybe_prev = this->m_prev_of(value,*this)) {
+          auto iter = std::ranges::find(*this,maybe_prev.value());
+          return this->insert(iter,value);
+        }
+        else {
+          // No prev = first
+          return this->insert(this->end(),value);
+        }
+      }
+      else {
+        // value already exists
+        auto iter = std::ranges::find(*this,value);
+        return {iter,false};
+      }
+
     }
 
   };

@@ -218,9 +218,7 @@ namespace first {
 
   class TaggedAmountHasher {
   public:
-    TaggedAmount::ValueId operator()(TaggedAmount const& ta) {
-      return to_value_id(ta);
-    }
+    TaggedAmount::ValueId operator()(TaggedAmount const& ta) const;
   private:
   };
 
@@ -228,13 +226,17 @@ namespace first {
 
   class DateOrderedTaggedAmountsContainer {
   public:
+    using Value = TaggedAmountsCasRepository::Value;
     using const_iterator = TaggedAmountsCasRepository::const_iterator;
     using const_subrange = TaggedAmountsCasRepository::const_subrange;
 
     DateOrderedTaggedAmountsContainer();
 
-    auto begin() const {return m_repo.begin();}
-    auto end() const {return m_repo.end();}
+    const_iterator begin() const;
+    const_iterator end() const;
+
+    const_subrange in_date_range(zeroth::DateRange const &date_period);
+
   private:
     TaggedAmountsCasRepository m_repo;
   };
