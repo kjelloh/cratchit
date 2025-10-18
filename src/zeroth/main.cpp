@@ -6666,8 +6666,11 @@ Cmd Updater::operator()(Command const& command) {
           switch (ix) {
             case 1: {
               // Accept the new tagged amounts created
-              model->all_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
-              model->selected_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
+              // model->all_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
+              // model->selected_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
+              model->all_date_ordered_tagged_amounts.merge(model->new_date_ordered_tagged_amounts);
+              model->selected_date_ordered_tagged_amounts.merge(model->new_date_ordered_tagged_amounts);
+
               model->prompt_state = PromptState::TAIndex;
               prompt << "\n*Accepted*";
               prompt << "\n\n" << options_list_of_prompt_state(model->prompt_state);
@@ -8497,7 +8500,7 @@ Cmd Updater::operator()(Command const& command) {
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
           for (auto const& ta : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {
-            model->selected_date_ordered_tagged_amounts.insert(ta);
+            model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(ta);
           }				
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
@@ -8520,7 +8523,8 @@ Cmd Updater::operator()(Command const& command) {
         };
         TaggedAmounts reduced{};
         std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_tag),std::back_inserter(reduced));				
-        model->selected_date_ordered_tagged_amounts = reduced;
+        // model->selected_date_ordered_tagged_amounts = reduced;
+        model->selected_date_ordered_tagged_amounts.reset(reduced);
       }
       else {
         prompt << "\nPlease provide the tag name you want to filter on";
@@ -8533,7 +8537,9 @@ Cmd Updater::operator()(Command const& command) {
         };
         TaggedAmounts reduced{};
         std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_not_tag),std::back_inserter(reduced));				
-        model->selected_date_ordered_tagged_amounts = reduced;
+        // model->selected_date_ordered_tagged_amounts = reduced;
+        model->selected_date_ordered_tagged_amounts.reset(reduced);
+
       }
       else {
         prompt << "\nPlease provide the tag name you want to filter on";
@@ -8549,7 +8555,9 @@ Cmd Updater::operator()(Command const& command) {
           };
           TaggedAmounts reduced{};
           std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_tagged),std::back_inserter(reduced));				
-          model->selected_date_ordered_tagged_amounts = reduced;
+          // model->selected_date_ordered_tagged_amounts = reduced;
+          model->selected_date_ordered_tagged_amounts.reset(reduced);
+
         }
         else {
           prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
@@ -8569,7 +8577,9 @@ Cmd Updater::operator()(Command const& command) {
           };
           TaggedAmounts reduced{};
           std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_not_tagged),std::back_inserter(reduced));				
-          model->selected_date_ordered_tagged_amounts = reduced;
+          // model->selected_date_ordered_tagged_amounts = reduced;
+          model->selected_date_ordered_tagged_amounts.reset(reduced);
+
         }
         else {
           prompt << "\nPlease provide '<tag name>=<tag_value or regular expression>' to filter on";
@@ -8594,7 +8604,8 @@ Cmd Updater::operator()(Command const& command) {
             return result;
           };
           std::ranges::transform(model->selected_date_ordered_tagged_amounts,std::back_inserter(created),new_ta);
-          model->new_date_ordered_tagged_amounts = created;
+          // model->new_date_ordered_tagged_amounts = created;
+          model->new_date_ordered_tagged_amounts.reset(created);
           prompt << "\n<CREATED>";
           // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
           int index = 0;
@@ -8639,7 +8650,9 @@ Cmd Updater::operator()(Command const& command) {
       };
       TaggedAmounts reduced{};
       std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_aggregate),std::back_inserter(reduced));				
-      model->selected_date_ordered_tagged_amounts = reduced;
+      // model->selected_date_ordered_tagged_amounts = reduced;
+      model->selected_date_ordered_tagged_amounts.reset(reduced);
+
       // List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
       std::cout << "\n<AGGREGATES>" << std::flush;
       prompt << "\n<AGGREGATES>";
@@ -10089,19 +10102,20 @@ private:
       TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
       saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
       saldo_ta.tags()["IB"] = "True";
-      result.insert(saldo_ta);
+      result.date_ordered_tagged_amounts_insert(saldo_ta);
       if (true) {
         std::cout << "\n\tsaldo_ta : " << saldo_ta;
       }
     }
-		auto create_tagged_amounts_to_result = [&result](BAS::MetaEntry const& me) {
+		auto create_and_merge_to_result = [&result](BAS::MetaEntry const& me) {
 			auto tagged_amounts = to_tagged_amounts(me);
       // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
       // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
-			result += tagged_amounts;
+			// result += tagged_amounts;
+			result.merge(tagged_amounts);
 		};
-		for_each_meta_entry(sie_env,create_tagged_amounts_to_result);
+		for_each_meta_entry(sie_env,create_and_merge_to_result);
 		return result;
 	}
 
@@ -10184,9 +10198,10 @@ private:
             // skip directories (will process regular files and symlinks etc...)
           }
           // Process file
-          else if (auto maybe_dota = to_dota(statement_file_path)) {
-            result += *maybe_dota;
-            std::cout << "\n\tValid entries count:" << maybe_dota->size();
+          else if (auto maybe_dotas = to_dotas(statement_file_path)) {
+            // result += *maybe_dotas;
+            result.merge(maybe_dotas.value());
+            std::cout << "\n\tValid entries count:" << maybe_dotas->size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";
             if (false) {
               std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
@@ -10297,10 +10312,12 @@ private:
     //   // Nop
     // }
 
-    result += to_tagged_amounts(environment);
+    // result += to_tagged_amounts(environment);
+    result.merge(to_tagged_amounts(environment));
 
     // Import any new account statements in dedicated "files from bank or skv" folder
-    result += date_ordered_tagged_amounts_from_account_statement_files(environment);
+    // result += date_ordered_tagged_amounts_from_account_statement_files(environment);
+    result.merge(date_ordered_tagged_amounts_from_account_statement_files(environment));
     return result;
   }
 
@@ -10330,14 +10347,15 @@ private:
         else while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end() and source_iter->date() < target_iter->date()) {
           // Add new SIE entries not yet in (older than) "all"
           std::cout << "\n\tAdding Older SIE entry" << *source_iter;
-          all_date_ordered_tagged_amounts.insert(*source_iter);
+          all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter);
           ++source_iter;
         }
         // We are now Synchronized to the "same" start date.
         // Now ensure "all" contains only the provided SIE entries
         while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
           if (source_iter->tag_value("IB")) {
-            all_date_ordered_tagged_amounts.insert(*source_iter); // Ensure any opening balance is updated ok (sie file values take precedence)
+            all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter); // Ensure any opening balance is updated ok (sie file values take precedence)
+
             ++source_iter;
             continue; // skip further processing of added opening balance
           }
@@ -10368,7 +10386,7 @@ private:
               else if (target_iter->date() > source_iter->date()) {
                 // Provided SIE contains an entry not in "all"
                 std::cout << "\n\tInserted to TA a source SIE with date > target SIE date " << *source_iter;
-                all_date_ordered_tagged_amounts.insert(*source_iter);
+                all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter);
                 ++source_iter;
               }
               else {
@@ -10386,7 +10404,7 @@ private:
           else {
             // Add new SIE entries not yet in "all"
             std::cout << "\n\tADDING to TA the newer imported SIE" << *source_iter;
-            all_date_ordered_tagged_amounts.insert(*source_iter);
+            all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter);
             ++source_iter;
           }
         } // while source_iter
@@ -10522,7 +10540,8 @@ private:
     if (false) {
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
-      model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+      // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+      model->all_date_ordered_tagged_amounts.merge(this->date_ordered_tagged_amounts_from_environment(environment));
       // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
       for (auto const& [key,sie_environment] : model->sie_env_map) {
         this->synchronize_tagged_amounts_with_sie(model->all_date_ordered_tagged_amounts,sie_environment);
@@ -10531,10 +10550,12 @@ private:
     else {
       // TODO 240219 - Replace this old implementation with the new one above
       for (auto const& sie_environments_entry : model->sie_env_map) {
-        model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
+        // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
+        model->all_date_ordered_tagged_amounts.merge(this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));	
       }
       prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
-      model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+      // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
+      model->all_date_ordered_tagged_amounts.merge(this->date_ordered_tagged_amounts_from_environment(environment));
     }
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?

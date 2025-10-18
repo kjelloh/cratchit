@@ -166,7 +166,8 @@ namespace zeroth {
       return *this;
     }
 
-    DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const &other) {
+    // DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const &other) {
+    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other) {
       this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
       this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
       return *this;
@@ -176,7 +177,7 @@ namespace zeroth {
     // (internal CAS map is hidden from client)
     // But the internally used key (the ValueId) is returned for environment vs
     // tagged amounts key transformation purposes (to and from Environment)
-    std::pair<ValueId, const_iterator> insert(TaggedAmount const &ta);
+    std::pair<ValueId, const_iterator> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
 
     DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
 
@@ -187,24 +188,29 @@ namespace zeroth {
       return *this;
     }
 
-    DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const &other) {
+    // DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const &other) {
+    DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other) {
       other.for_each([this](TaggedAmount const &ta) {
         // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
         // preceedence (overwrite any existing tagged amounts reflecting the same
         // events) Hm...Maybe this is NOT the convenient place to do this?
-        this->insert(ta);
+        this->date_ordered_tagged_amounts_insert(ta);
       });
       return *this;
     }
-    DateOrderedTaggedAmountsContainer &operator+=(TaggedAmounts const &tas) {
+
+    // DateOrderedTaggedAmountsContainer &operator+=(TaggedAmounts const &tas) {
+    DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas) {
       for (auto const &ta : tas)
-        this->insert(ta);
+        this->date_ordered_tagged_amounts_insert(ta);
       return *this;
     }
 
-    DateOrderedTaggedAmountsContainer &operator=(TaggedAmounts const &tas) {
+    // DateOrderedTaggedAmountsContainer& operator=(TaggedAmounts const &tas) {
+    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas) {
       this->clear();
-      *this += tas;
+      // *this += tas;
+      this->merge(tas);
       return *this;
     }
 
@@ -277,8 +283,8 @@ namespace CSV {
     ToTaggedAmountProjection make_tagged_amount_projection(
       HeadingId const& csv_heading_id
       ,CSV::TableHeading const& table_heading);
-    OptionalDateOrderedTaggedAmounts to_dota(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+    OptionalDateOrderedTaggedAmounts to_dotas(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
   }
 }
 
-OptionalDateOrderedTaggedAmounts to_dota(std::filesystem::path const& statement_file_path);
+OptionalDateOrderedTaggedAmounts to_dotas(std::filesystem::path const& statement_file_path);

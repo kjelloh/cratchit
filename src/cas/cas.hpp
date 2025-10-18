@@ -63,7 +63,8 @@ namespace cas {
     //   return m_map;
     // }
 
-    auto insert(value_type const& entry) {
+    // #cas::repository::insert
+    auto cas_repository_insert(value_type const& entry) {
       return m_map.insert(entry);
     }
 

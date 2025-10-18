@@ -38,14 +38,14 @@ namespace first {
       ,maybe_table = this->m_parse_csv_result.maybe_table
     ]() -> StateUpdateResult {
       return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
-        auto maybe_dota = CSV::project::to_dota(csv_heading_id,maybe_table);
+        auto maybe_dotas = CSV::project::to_dotas(csv_heading_id,maybe_table);
         // FiscalPeriod fiscal_period{FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()};
         State new_state{};
         // Hack - 'glue' optional date ordered tagged amounts with
         //        TaggedAmountsState aggregating raw tagged amounts
-        if (maybe_dota) {
+        if (maybe_dotas) {
           new_state = make_state<TaggedAmountsState>(
-             TaggedAmountsState::TaggedAmountsSlice{fiscal_period, maybe_dota->tagged_amounts()});
+             TaggedAmountsState::TaggedAmountsSlice{fiscal_period, maybe_dotas->tagged_amounts()});
         }
         else {
           new_state = make_state<TaggedAmountsState>(

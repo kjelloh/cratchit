@@ -159,7 +159,8 @@ OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(Value
   return result;
 }
 
-std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsContainer::const_iterator> DateOrderedTaggedAmountsContainer::insert(TaggedAmount const &ta) {
+std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsContainer::const_iterator> 
+DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const &ta) {
   auto result = m_date_ordered_tagged_amounts.end();
   auto value_id = to_value_id(ta);
   if (m_tagged_amount_cas_repository.contains(value_id) == false) {
@@ -174,8 +175,8 @@ std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsCo
           return ta1.date() < ta2.date();
         });
 
-    // m_tagged_amount_cas_repository.the_map().insert( {value_id, ta});
-    m_tagged_amount_cas_repository.insert( {value_id, ta});
+    // #cas::repository::insert
+    m_tagged_amount_cas_repository.cas_repository_insert( {value_id, ta});
 
     result = m_date_ordered_tagged_amounts.insert(
         end, ta); // place after all with date less than the one of ta
@@ -473,22 +474,22 @@ namespace CSV {
       }
     }
 
-    OptionalDateOrderedTaggedAmounts to_dota(
+    OptionalDateOrderedTaggedAmounts to_dotas(
        CSV::project::HeadingId const& csv_heading_id
       ,CSV::OptionalTable const& maybe_csv_table) {
       OptionalDateOrderedTaggedAmounts result{};
       if (maybe_csv_table) {
         auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,maybe_csv_table->heading);
-        DateOrderedTaggedAmountsContainer dota{};
+        DateOrderedTaggedAmountsContainer dotas{};
         for (auto const& field_row : maybe_csv_table->rows) {
           if (auto o_ta = to_tagged_amount(field_row)) {
-            dota.insert(*o_ta);
+            dotas.date_ordered_tagged_amounts_insert(*o_ta);
           }
           else {
             logger::cout_proxy << "\nCSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
           }
         }
-        result = dota;
+        result = dotas;
       }
       else {
         logger::development_trace("CSV::project::to_dota - Null table -> nullopt result");
@@ -501,7 +502,7 @@ namespace CSV {
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
 */
-OptionalDateOrderedTaggedAmounts to_dota(std::filesystem::path const& statement_file_path) {
+OptionalDateOrderedTaggedAmounts to_dotas(std::filesystem::path const& statement_file_path) {
   if (true) {
     std::cout << "\nto_tagged_amounts(" << statement_file_path << ")";
   }
@@ -529,7 +530,7 @@ OptionalDateOrderedTaggedAmounts to_dota(std::filesystem::path const& statement_
     if (field_rows->size() > 0) {
       auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
       auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
-      result =  CSV::project::to_dota(csv_heading_id,CSV::to_table(field_rows,heading_projection));
+      result =  CSV::project::to_dotas(csv_heading_id,CSV::to_table(field_rows,heading_projection));
     }
   }
   return result;
