@@ -173,11 +173,17 @@ namespace zeroth {
       return *this;
     }
 
+    template <typename Inserter>
+    auto insert(TaggedAmount const& ta) {
+      Inserter inserter{this};
+      inserter.insert(ta);
+    }
+
     // Insert the value and return the iterator to the vector of tas
     // (internal CAS map is hidden from client)
     // But the internally used key (the ValueId) is returned for environment vs
     // tagged amounts key transformation purposes (to and from Environment)
-    std::pair<ValueId, const_iterator> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
+    void date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
 
     DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
 
@@ -212,6 +218,13 @@ namespace zeroth {
       // *this += tas;
       this->merge(tas);
       return *this;
+    }
+
+    auto& cas() {return m_tagged_amount_cas_repository;}
+    auto& ordered() {return m_date_ordered_tagged_amounts;}
+    bool contains(TaggedAmount const& ta) const {
+      auto value_id = to_value_id(ta);
+      return m_tagged_amount_cas_repository.contains(value_id);
     }
 
   private:

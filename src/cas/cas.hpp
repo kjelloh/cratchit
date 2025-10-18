@@ -59,9 +59,6 @@ namespace cas {
       }
       return *this;
     }
-    // KeyValueMap &the_map() {
-    //   return m_map;
-    // }
 
     // #cas::repository::insert
     auto cas_repository_insert(value_type const& entry) {
