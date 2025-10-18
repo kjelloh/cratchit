@@ -13,6 +13,20 @@
 //       That is, do NOT expose the_map?
 namespace cas {
 
+  /**
+      Design considerations for a cas (content adressable storage).
+
+      0.  The prerequisite must be that each value is immutabe and unique.
+
+          Thus, when 'mutating' a value we in fact insert a new value (leaving the previous value in place)
+
+      1.  Each value is stored and referenced by a 'value id' that is unique for the value.
+
+          Any two values with the same 'value id' is to be terated as the 'same' value.
+
+      ...
+
+  */
   template <typename Key, typename Value>
   class repository {
   private:
@@ -32,10 +46,47 @@ namespace cas {
       }
       return *this;
     }
-    KeyValueMap &the_map() {
-      return m_map;
+    // KeyValueMap &the_map() {
+    //   return m_map;
+    // }
+
+    auto insert(value_type const& entry) {
+      return m_map.insert(entry);
+    }
+
+    auto erase(Key key) {
+      return m_map.erase(key);
     }
   };
+
+  /**
+      Design considerations for an ordered composite cas.
+
+      0.  The prerequisite must be that each value is immutabe and unique.
+
+          Thus, when 'mutating' a value we in fact insert a new value (leaving the previous value in place)
+
+      2.  Now, Should each member encode its relations to other values?
+
+          That is, does a cas value that participates in a cas value ordering encode its relation to 
+          the previous and/or next value? Also, does an aggregate cas value 
+          encode references to its aggregated member values?
+
+      3. Or should ordering and aggregation be a separate meta-data mechanism on top of a plain cas?
+
+      4. Should replacing a value with a new one also replace the value in an ordering and aggregation?
+
+          That is, if we 'mutate' a value, should is also 'mutate' the value in an ordering and/or aggregation.
+
+          It seems 'mutation' of a value that is in an aggregation value should also result in a new
+          aggregation value referencing the new value?
+
+          And it seems 'mutation' of a value that is member of an ordering should also result in a new
+          ordering where all the values are the same but the new value is used instead of the 'mutated' value?
+
+      ...
+
+   */
 
   // A Content Adressable Storage (CAS) container that preserves ordering 
   // and models value aggregation

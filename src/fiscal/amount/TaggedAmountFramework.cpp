@@ -174,7 +174,9 @@ std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsCo
           return ta1.date() < ta2.date();
         });
 
-    m_tagged_amount_cas_repository.the_map().insert( {value_id, ta});
+    // m_tagged_amount_cas_repository.the_map().insert( {value_id, ta});
+    m_tagged_amount_cas_repository.insert( {value_id, ta});
+
     result = m_date_ordered_tagged_amounts.insert(
         end, ta); // place after all with date less than the one of ta
   } else {
@@ -190,7 +192,8 @@ std::pair<DateOrderedTaggedAmountsContainer::ValueId, DateOrderedTaggedAmountsCo
 
 DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const &value_id) {
   if (auto o_ptr = this->at(value_id)) {
-    m_tagged_amount_cas_repository.the_map().erase(value_id);
+    // m_tagged_amount_cas_repository.the_map().erase(value_id);
+    m_tagged_amount_cas_repository.erase(value_id);    
     auto iter = std::ranges::find(m_date_ordered_tagged_amounts, *o_ptr);
     if (iter != m_date_ordered_tagged_amounts.end()) {
       m_date_ordered_tagged_amounts.erase(iter);
