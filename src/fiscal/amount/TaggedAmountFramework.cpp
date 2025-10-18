@@ -213,11 +213,12 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(Valu
 
 // END class DateOrderedTaggedAmountsContainer
 
+TaggedAmount::ValueId TaggedAmountHasher::operator()(TaggedAmount const& ta) const {
+  return to_value_id(ta);
+}
+
 namespace first {
 
-  TaggedAmount::ValueId TaggedAmountHasher::operator()(TaggedAmount const& ta) const {
-    return to_value_id(ta);
-  }
 
   TaggedAmountsCasRepository::MaybeValue date_ordered_prev(
      TaggedAmountsCasRepository::Value const& value

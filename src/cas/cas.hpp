@@ -27,8 +27,21 @@ namespace cas {
       ...
 
   */
-  template <typename Key, typename Value>
+  template <typename KeyT, typename ValueT,typename HasherT>
   class repository {
+  public:
+    using Value = ValueT; // Expose template arg type
+    using Hasher = HasherT; // Expose template arg type
+    using Key = decltype(std::declval<Hasher>()(std::declval<Value>()));
+
+    // Refactoring error
+    // TODO: Refactor code so that the template does not take KeyT from the client.
+    //       For now, have the compiler ensure we do not break the contract
+    static_assert(
+        std::is_same_v<Key, KeyT>,
+        "HasherT::operator()(ValueT) must return the same type as KeyT"
+    );    
+    using value_type = std::pair<Key, Value>;
   private:
     using KeyValueMap = std::map<Key, Value>;
     KeyValueMap m_map{};
@@ -36,7 +49,7 @@ namespace cas {
     // Tricky! We need EnvironmentIdValuePairs to be assignable, so we cannot
     // use KeyValueMap::value_type directly as this would make the Key type const (not mutable).
     // using value_type = KeyValueMap::value_type;
-    using value_type = std::pair<Key, Value>;
+
     bool contains(Key const &key) const { return m_map.contains(key); }
     Value const &at(Key const &key) const { return m_map.at(key); }
     void clear() { return m_map.clear(); }
@@ -90,10 +103,12 @@ namespace cas {
 
   // A Content Adressable Storage (CAS) container that preserves ordering 
   // and models value aggregation
-  template <typename ValueT,class Hasher = std::hash<ValueT>>
+  template <typename ValueT,class HasherT = std::hash<ValueT>>
   class ordered_composite {
   public:
-    using Value = ValueT;
+    using Value = ValueT; // Expose template arg type
+    using Hasher = HasherT; // Expose template arg type
+
     using Key = decltype(std::declval<Hasher>()(std::declval<Value>()));
     using MaybeKey = std::optional<Key>;
     using MaybeValue = std::optional<Value>;
