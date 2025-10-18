@@ -23,7 +23,7 @@ namespace in {
   // 'TaggedAmount', 'contact', 'employee', 'sie_file')) <id> is basically a hash
   // of the <value> following the key (to identify duplicate values based on same
   // id)
-  std::pair<std::string, std::optional<IndexedEnvironment::ValueId>> to_name_and_id(std::string const& s) {
+  std::pair<std::string, std::optional<Environment::ValueId>> to_name_and_id(std::string const& s) {
     logger::scope_logger raii_log{logger::development_trace,"to_name_and_id"};
     logger::development_trace("s:{}",s);
     if (auto pos = s.find(':'); pos != std::string::npos) {
@@ -46,7 +46,7 @@ namespace in {
     }
   }
 
-  IndexedEnvironment::Value to_environment_value(std::string const& sev) {
+  Environment::Value to_environment_value(std::string const& sev) {
     logger::scope_logger raii_logger{logger::development_trace,"to_environment_value"};
     logger::development_trace("sev:{}",sev);
     Environment::Value result{};
@@ -59,9 +59,9 @@ namespace in {
     return result;
   }
 
-  IndexedEnvironment indexed_environment_from_file(std::filesystem::path const &p) {
+  Environment indexed_environment_from_file(std::filesystem::path const &p) {
     logger::scope_logger raii_log{logger::development_trace,"indexed_environment_from_file"};
-    IndexedEnvironment result{};
+    Environment result{};
     try {
       std::ifstream in{p};
       std::string line{};
@@ -105,10 +105,10 @@ namespace in {
 
 } // in
 
-CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment) {
+Environment to_cas_environment(Environment const& indexed_environment) {
   logger::scope_logger raii_log{logger::development_trace,"to_cas_environment"};
 
-  CASEnvironment result{};
+  Environment result{};
   for (auto const& [name,indexed_id_value_pairs] : indexed_environment) {
     Environment::IdValuePairs cas_id_value_pairs{};
     if (name == "TaggedAmount") {
@@ -118,7 +118,7 @@ CASEnvironment to_cas_environment(IndexedEnvironment const& indexed_environment)
       //       That is, use the schema to filter out any meta data in the environment value to be able
       //       to calculate the actual value id (hash) from correct input data?
 
-      std::map<IndexedEnvironment::ValueId, CASEnvironment::ValueId> index_to_id{};
+      std::map<Environment::ValueId, Environment::ValueId> index_to_id{};
       for (auto const& [index,indexed_ev] : indexed_id_value_pairs) {
         // Trust that environment values (records as tag-value pairs) are ordered such that
         // any inter-value reference (aggregate, ordering etc.) using index/id always refers back to a value already in the container.
@@ -192,7 +192,7 @@ Environment environment_from_file(std::filesystem::path const &p) {
 }
 
 namespace out {
-  std::ostream& operator<<(std::ostream& os,IndexedEnvironment::Value const& ev) {
+  std::ostream& operator<<(std::ostream& os,Environment::Value const& ev) {
     bool not_first{false};
     std::for_each(ev.begin(), ev.end(), [&not_first, &os](auto const &entry) {
       if (not_first) {
@@ -206,7 +206,7 @@ namespace out {
     return os;
   }
 
-  std::ostream& operator<<(std::ostream& os,IndexedEnvironment::value_type const& entry) {
+  std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
     auto const &[key, id_ev_pairs] = entry;
     for (auto iter = id_ev_pairs.begin(); iter != id_ev_pairs.end(); ++iter) {
       auto const &[id, ev] = *iter;
@@ -222,7 +222,7 @@ namespace out {
     return os;
   }
 
-  std::ostream& operator<<(std::ostream& os,IndexedEnvironment const& env) {
+  std::ostream& operator<<(std::ostream& os,Environment const& env) {
     for (auto iter = env.begin(); iter != env.end(); ++iter) {
       if (iter == env.begin()) {
         os << to_string(*iter);
@@ -234,19 +234,19 @@ namespace out {
     return os;
   }
 
-  std::string to_string(IndexedEnvironment::Value const& ev) {
+  std::string to_string(Environment::Value const& ev) {
     std::ostringstream os{};
     os << ev;
     return os.str();
   }
 
-  std::string to_string(IndexedEnvironment::value_type const& entry) {
+  std::string to_string(Environment::value_type const& entry) {
     std::ostringstream os{};
     os << entry;
     return os.str();
   }
 
-  void indexed_environment_to_file(IndexedEnvironment const &indexed_environment,std::filesystem::path const &p) {
+  void indexed_environment_to_file(Environment const &indexed_environment,std::filesystem::path const &p) {
     logger::scope_logger raii_log{logger::development_trace,"indexed_environment_to_file"};
     try {
       std::ofstream out{p};
@@ -258,15 +258,15 @@ namespace out {
 
 } // out
 
-IndexedEnvironment to_indexed_environment(Environment const& cas_environment) {
+Environment to_indexed_environment(Environment const& cas_environment) {
   logger::scope_logger raii_log{logger::development_trace,"to_indexed_environment"};
-  IndexedEnvironment result{};
+  Environment result{};
   for (auto const& [section,cas_id_value_pairs] : cas_environment) {
-    IndexedEnvironment::IdValuePairs indexed_id_value_pairs{}; // Transform target
+    Environment::IdValuePairs indexed_id_value_pairs{}; // Transform target
 
     // Transform inter-value references in cas_id_value_pairs
     // from value_ids to integer indexed ids
-    std::map<CASEnvironment::ValueId,IndexedEnvironment::ValueId> id_to_index{};
+    std::map<Environment::ValueId,Environment::ValueId> id_to_index{};
     for (auto const& [cas_id,cas_ev] : cas_id_value_pairs) {
       if (not id_to_index.contains(cas_id)) {
         // OK, unique ref
