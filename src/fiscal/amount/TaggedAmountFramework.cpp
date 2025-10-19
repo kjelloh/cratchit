@@ -95,6 +95,17 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
 
 // BEGIN class DateOrderedTaggedAmountsContainer
 
+TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
+  // Note: For now generate a container and return. This ensures
+  //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
+  return TaggedAmounts{m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end()};
+}
+
+
+std::size_t DateOrderedTaggedAmountsContainer::size() const { return m_date_ordered_tagged_amounts.size(); }
+DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const { return m_date_ordered_tagged_amounts.begin(); }
+DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const { return m_date_ordered_tagged_amounts.end(); }
+
 DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::in_date_range(zeroth::DateRange const &date_period) {
   auto first = std::find_if(this->begin(), this->end(),
                             [&date_period](auto const &ta) {
@@ -157,6 +168,18 @@ OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(Value
               << std::flush;
   }
   return result;
+}
+
+DateOrderedTaggedAmountsContainer&  DateOrderedTaggedAmountsContainer::clear() {
+  m_tagged_amount_cas_repository.clear();
+  m_date_ordered_tagged_amounts.clear();
+  return *this;
+}
+
+DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const &other) {
+  this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
+  this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
+  return *this;
 }
 
 class DateOrderedTAInserter {
@@ -226,6 +249,16 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(Valu
            "failed to find value_id "
         << value_id;
   }
+  return *this;
+}
+
+DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(DateOrderedTaggedAmountsContainer const &other) {
+  other.for_each([this](TaggedAmount const &ta) {
+    // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
+    // preceedence (overwrite any existing tagged amounts reflecting the same
+    // events) Hm...Maybe this is NOT the convenient place to do this?
+    this->date_ordered_tagged_amounts_insert(ta);
+  });
   return *this;
 }
 

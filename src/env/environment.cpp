@@ -25,7 +25,7 @@ namespace in {
   // id)
   std::pair<std::string, std::optional<Environment::ValueId>> to_name_and_id(std::string const& s) {
     logger::scope_logger raii_log{logger::development_trace,"to_name_and_id"};
-    logger::development_trace("s:{}",s);
+    logger::development_trace("s:'{}'",s);
     if (auto pos = s.find(':'); pos != std::string::npos) {
       auto name = s.substr(0, pos);
       auto id_string = s.substr(pos + 1);
