@@ -148,11 +148,12 @@ namespace zeroth {
     // using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
 
     // Container
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
 
     // Accessors
     bool contains(TaggedAmount const& ta) const;
     OptionalTaggedAmount at(ValueId const &value_id) const;
-    OptionalTaggedAmount operator[](ValueId const &value_id) const;
+    // OptionalTaggedAmount operator[](ValueId const &value_id) const;
     TaggedAmountsCasRepository& cas();
 
     // Sequence
@@ -180,7 +181,6 @@ namespace zeroth {
     }
 
     // Mutation
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
     DateOrderedTaggedAmountsContainer& erase(ValueId const &value_id);
 
     DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=

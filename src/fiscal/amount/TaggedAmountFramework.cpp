@@ -116,19 +116,19 @@ namespace zeroth {
     return result;
   }
 
-  OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const &value_id) const {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
-              << TaggedAmount::to_string(value_id) << ")" << std::flush;
-    OptionalTaggedAmount result{};
-    if (auto maybe_ta = this->at(value_id)) {
-      result = maybe_ta;
-    } else {
-      std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not "
-                  "find a mapping to value_id="
-                << TaggedAmount::to_string(value_id) << std::flush;
-    }
-    return result;
-  }
+  // OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const &value_id) const {
+  //   std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
+  //             << TaggedAmount::to_string(value_id) << ")" << std::flush;
+  //   OptionalTaggedAmount result{};
+  //   if (auto maybe_ta = this->at(value_id)) {
+  //     result = maybe_ta;
+  //   } else {
+  //     std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not "
+  //                 "find a mapping to value_id="
+  //               << TaggedAmount::to_string(value_id) << std::flush;
+  //   }
+  //   return result;
+  // }
 
   TaggedAmountsCasRepository& DateOrderedTaggedAmountsContainer::cas() {
   return m_tagged_amount_cas_repository;
@@ -166,8 +166,8 @@ namespace zeroth {
     OptionalTaggedAmounts result{};
     TaggedAmounts tas{};
     for (auto const &value_id : value_ids) {
-      if (auto o_ta = (*this)[value_id]) {
-        tas.push_back(*o_ta);
+      if (auto maybe_ta = this->at(value_id)) {
+        tas.push_back(maybe_ta.value());
       } else {
         std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() "
                     "failed. No instance found for value_id="
@@ -503,8 +503,8 @@ namespace CSV {
         auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,maybe_csv_table->heading);
         DateOrderedTaggedAmountsContainer dotas{};
         for (auto const& field_row : maybe_csv_table->rows) {
-          if (auto o_ta = to_tagged_amount(field_row)) {
-            dotas.date_ordered_tagged_amounts_insert(*o_ta);
+          if (auto maybe_ta = to_tagged_amount(field_row)) {
+            dotas.date_ordered_tagged_amounts_insert(maybe_ta.value());
           }
           else {
             logger::cout_proxy << "\nCSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
@@ -613,7 +613,7 @@ TaggedAmounts to_tagged_amounts(const Environment &env) {
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_ta) 
     | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
-    | std::views::transform([](auto const &maybe_ta) { return *maybe_ta; }) 
+    | std::views::transform([](auto const &maybe_ta) { return maybe_ta.value(); }) 
     | std::ranges::to<std::vector>();
   
   // Sort by date for consistent ordering
@@ -634,7 +634,7 @@ TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &e
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_ta) 
     | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
-    | std::views::transform([](auto const &maybe_ta) { return *maybe_ta; }) 
+    | std::views::transform([](auto const &maybe_ta) { return maybe_ta.value(); }) 
     | std::views::filter([&](auto const &ta) { return in_period(ta, period); }) 
     | std::ranges::to<std::vector>();
   
