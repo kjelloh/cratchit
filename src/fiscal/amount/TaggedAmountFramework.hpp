@@ -147,16 +147,16 @@ namespace zeroth {
     using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
 
     // Container
-    std::size_t size() const;
 
     // Accessors
     bool contains(TaggedAmount const& ta) const;
     OptionalTaggedAmount at(ValueId const &value_id) const;
     OptionalTaggedAmount operator[](ValueId const &value_id) const;
-    auto& cas();
+    TaggedAmountsCasRepository& cas();
 
     // Sequence
-    auto& ordered();
+    std::size_t sequence_size() const;
+    TaggedAmounts const& ordered_tas() const;
     const_iterator begin() const;
     const_iterator end() const;
     TaggedAmounts tagged_amounts();    
@@ -183,6 +183,7 @@ namespace zeroth {
                                                                   // as content addressable storage
                                                                   // repository
     TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
+    // ValueIds m_date_ordered_value_ids{};
 
   }; // class DateOrderedTaggedAmountsContainer
 }

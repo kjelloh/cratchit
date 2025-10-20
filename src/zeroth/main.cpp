@@ -8479,7 +8479,7 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-tas") {
       // Enter tagged Amounts mode for specified period (from any state)
-      if (ast.size() == 1 and model->selected_date_ordered_tagged_amounts.size() > 0) {
+      if (ast.size() == 1 and model->selected_date_ordered_tagged_amounts.sequence_size() > 0) {
         // Enter into current selection
         model->prompt_state = PromptState::TAIndex;
       // List current selection
@@ -10201,7 +10201,7 @@ private:
           else if (auto maybe_dotas = to_dotas(statement_file_path)) {
             // result += *maybe_dotas;
             result.merge(maybe_dotas.value());
-            std::cout << "\n\tValid entries count:" << maybe_dotas->size();
+            std::cout << "\n\tValid entries count:" << maybe_dotas->sequence_size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";
             if (false) {
               std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)

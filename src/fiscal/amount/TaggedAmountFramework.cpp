@@ -93,185 +93,196 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
   return result;
 }
 
-// BEGIN class DateOrderedTaggedAmountsContainer
 
-// Container
-std::size_t DateOrderedTaggedAmountsContainer::size() const { return m_date_ordered_tagged_amounts.size(); }
+namespace zeroth {
+  // BEGIN class DateOrderedTaggedAmountsContainer
 
-// Accessors
-bool DateOrderedTaggedAmountsContainer::contains(TaggedAmount const& ta) const {
-  auto value_id = to_value_id(ta);
-  return m_tagged_amount_cas_repository.contains(value_id);
-}
+  // Container
 
-OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) const {
-  std::cout << "\nDateOrderedTaggedAmountsContainer::at("
-            << TaggedAmount::to_string(value_id) << ")" << std::flush;
-  OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
-  if (!result) {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a "
-                 "mapping to value_id="
-              << TaggedAmount::to_string(value_id) << std::flush;
+  // Accessors
+  bool DateOrderedTaggedAmountsContainer::contains(TaggedAmount const& ta) const {
+    auto value_id = to_value_id(ta);
+    return m_tagged_amount_cas_repository.contains(value_id);
   }
-  return result;
-}
 
-OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const &value_id) const {
-  std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
-            << TaggedAmount::to_string(value_id) << ")" << std::flush;
-  OptionalTaggedAmount result{};
-  if (auto o_ptr = this->at(value_id)) {
-    result = o_ptr;
-  } else {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not "
-                 "find a mapping to value_id="
-              << TaggedAmount::to_string(value_id) << std::flush;
-  }
-  return result;
-}
-
-auto& DateOrderedTaggedAmountsContainer::cas() {return m_tagged_amount_cas_repository;}
-
-// Sequence
-
-auto& DateOrderedTaggedAmountsContainer::ordered() {return m_date_ordered_tagged_amounts;}
-
-DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const {
- return m_date_ordered_tagged_amounts.begin(); 
-}
-
-DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const {
- return m_date_ordered_tagged_amounts.end(); 
-}
-
-TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
-  // Note: For now generate a container and return. This ensures
-  //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
-  return TaggedAmounts{m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end()};
-}
-
-OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const &value_ids) {
-  std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()"
-            << std::flush;
-  OptionalTaggedAmounts result{};
-  TaggedAmounts tas{};
-  for (auto const &value_id : value_ids) {
-    if (auto o_ta = (*this)[value_id]) {
-      tas.push_back(*o_ta);
-    } else {
-      std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() "
-                   "failed. No instance found for value_id="
+  OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) const {
+    std::cout << "\nDateOrderedTaggedAmountsContainer::at("
+              << TaggedAmount::to_string(value_id) << ")" << std::flush;
+    OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
+    if (!result) {
+      std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a "
+                  "mapping to value_id="
                 << TaggedAmount::to_string(value_id) << std::flush;
     }
+    return result;
   }
-  if (tas.size() == value_ids.size()) {
-    result = tas;
-  } else {
-    std::cout << "\nto_tagged_amounts() Failed. tas.size() = " << tas.size()
-              << " IS NOT provided value_ids.size() = " << value_ids.size()
-              << std::flush;
-  }
-  return result;
-}
 
-DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::in_date_range(zeroth::DateRange const &date_period) {
-  auto first = std::find_if(this->begin(), this->end(),
-                            [&date_period](auto const &ta) {
-                              return (ta.date() >= date_period.begin());
-                            });
-  auto last = std::find_if(this->begin(), this->end(),
-                           [&date_period](auto const &ta) {
-                             return (ta.date() > date_period.end());
-                           });
-  return std::ranges::subrange(first, last);
-}
-
-
-// Mutation
-std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
-std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const& ta) {
-  auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
-  if (put_result.second == true) {
-    // Log
-    if (false) {
-      std::cout << "\nthis:" << this << " Inserted new " << ta;
-    }
-    // Find the last element with a date less than the date of ta
-    auto prev = std::upper_bound(
-        m_date_ordered_tagged_amounts.begin(),
-        m_date_ordered_tagged_amounts.end(), ta,
-        [](TaggedAmount const &ta1, TaggedAmount const &ta2) {
-          return ta1.date() < ta2.date();
-        });
-
-    m_date_ordered_tagged_amounts.insert(prev, ta); // place after all with date less than the one of ta
-  } 
-  else {
-    // No op - ta already in container (and CAS)
-  }
-  return put_result;
-}
-
-DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const &value_id) {
-  if (auto o_ptr = this->at(value_id)) {
-    // m_tagged_amount_cas_repository.the_map().erase(value_id);
-    m_tagged_amount_cas_repository.erase(value_id);    
-    auto iter = std::ranges::find(m_date_ordered_tagged_amounts, *o_ptr);
-    if (iter != m_date_ordered_tagged_amounts.end()) {
-      m_date_ordered_tagged_amounts.erase(iter);
+  OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const &value_id) const {
+    std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
+              << TaggedAmount::to_string(value_id) << ")" << std::flush;
+    OptionalTaggedAmount result{};
+    if (auto o_ptr = this->at(value_id)) {
+      result = o_ptr;
     } else {
-      std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in "
-                   "map but not in date-ordered-vector, value_id "
-                << value_id;
+      std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not "
+                  "find a mapping to value_id="
+                << TaggedAmount::to_string(value_id) << std::flush;
     }
-  } else {
-    std::cout
-        << "nDESIGN INSUFFICIENCY: DateOrderedTaggedAmountsContainer::at "
-           "failed to find value_id "
-        << value_id;
+    return result;
   }
-  return *this;
+
+  TaggedAmountsCasRepository& DateOrderedTaggedAmountsContainer::cas() {
+  return m_tagged_amount_cas_repository;
+  }
+
+  // Sequence
+  std::size_t DateOrderedTaggedAmountsContainer::sequence_size() const {
+  return m_date_ordered_tagged_amounts.size();
+  }
+
+  TaggedAmounts const& DateOrderedTaggedAmountsContainer::ordered_tas() const {
+    return m_date_ordered_tagged_amounts;
+  }
+
+  DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const {
+  return m_date_ordered_tagged_amounts.begin(); 
+  }
+
+  DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const {
+  return m_date_ordered_tagged_amounts.end(); 
+  }
+
+  TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
+    // Note: For now generate a container and return. This ensures
+    //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
+    return TaggedAmounts{m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end()};
+  }
+
+  OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const &value_ids) {
+    std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()"
+              << std::flush;
+    OptionalTaggedAmounts result{};
+    TaggedAmounts tas{};
+    for (auto const &value_id : value_ids) {
+      if (auto o_ta = (*this)[value_id]) {
+        tas.push_back(*o_ta);
+      } else {
+        std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() "
+                    "failed. No instance found for value_id="
+                  << TaggedAmount::to_string(value_id) << std::flush;
+      }
+    }
+    if (tas.size() == value_ids.size()) {
+      result = tas;
+    } else {
+      std::cout << "\nto_tagged_amounts() Failed. tas.size() = " << tas.size()
+                << " IS NOT provided value_ids.size() = " << value_ids.size()
+                << std::flush;
+    }
+    return result;
+  }
+
+  DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::in_date_range(zeroth::DateRange const &date_period) {
+    auto first = std::find_if(this->begin(), this->end(),
+                              [&date_period](auto const &ta) {
+                                return (ta.date() >= date_period.begin());
+                              });
+    auto last = std::find_if(this->begin(), this->end(),
+                            [&date_period](auto const &ta) {
+                              return (ta.date() > date_period.end());
+                            });
+    return std::ranges::subrange(first, last);
+  }
+
+
+  // Mutation
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const& ta) {
+    auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
+    if (put_result.second == true) {
+      // Log
+      if (false) {
+        std::cout << "\nthis:" << this << " Inserted new " << ta;
+      }
+      // Find the last element with a date less than the date of ta
+      auto prev = std::upper_bound(
+          m_date_ordered_tagged_amounts.begin(),
+          m_date_ordered_tagged_amounts.end(), ta,
+          [](TaggedAmount const &ta1, TaggedAmount const &ta2) {
+            return ta1.date() < ta2.date();
+          });
+
+      m_date_ordered_tagged_amounts.insert(prev, ta); // place after all with date less than the one of ta
+    } 
+    else {
+      // No op - ta already in container (and CAS)
+    }
+    return put_result;
+  }
+
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const &value_id) {
+    if (auto o_ptr = this->at(value_id)) {
+      // m_tagged_amount_cas_repository.the_map().erase(value_id);
+      m_tagged_amount_cas_repository.erase(value_id);    
+      auto iter = std::ranges::find(m_date_ordered_tagged_amounts, *o_ptr);
+      if (iter != m_date_ordered_tagged_amounts.end()) {
+        m_date_ordered_tagged_amounts.erase(iter);
+      } else {
+        std::cout << "\nDESIGN INSUFFICIENCY: Failed to erase tagged amount in "
+                    "map but not in date-ordered-vector, value_id "
+                  << value_id;
+      }
+    } else {
+      std::cout
+          << "nDESIGN INSUFFICIENCY: DateOrderedTaggedAmountsContainer::at "
+            "failed to find value_id "
+          << value_id;
+    }
+    return *this;
+  }
+
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(DateOrderedTaggedAmountsContainer const &other) {
+    std::ranges::for_each(other,[this](TaggedAmount const &ta) {
+      // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
+      // preceedence (overwrite any existing tagged amounts reflecting the same
+      // events) Hm...Maybe this is NOT the convenient place to do this?
+      this->date_ordered_tagged_amounts_insert(ta);
+    });
+
+    return *this;
+  }
+
+
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const &other) {
+    this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
+    this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
+    return *this;
+  }
+
+
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(TaggedAmounts const &tas) {
+    for (auto const &ta : tas)
+      this->date_ordered_tagged_amounts_insert(ta);
+    return *this;
+  }
+
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const &tas) {
+    this->clear();
+    // *this += tas;
+    this->merge(tas);
+    return *this;
+  }
+
+  DateOrderedTaggedAmountsContainer&  DateOrderedTaggedAmountsContainer::clear() {
+    m_tagged_amount_cas_repository.clear();
+    m_date_ordered_tagged_amounts.clear();
+    return *this;
+  }
+
+  // END class DateOrderedTaggedAmountsContainer
+
 }
 
-DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(DateOrderedTaggedAmountsContainer const &other) {
-  std::ranges::for_each(other,[this](TaggedAmount const &ta) {
-    // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
-    // preceedence (overwrite any existing tagged amounts reflecting the same
-    // events) Hm...Maybe this is NOT the convenient place to do this?
-    this->date_ordered_tagged_amounts_insert(ta);
-  });
 
-  return *this;
-}
-
-
-DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const &other) {
-  this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
-  this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
-  return *this;
-}
-
-
-DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(TaggedAmounts const &tas) {
-  for (auto const &ta : tas)
-    this->date_ordered_tagged_amounts_insert(ta);
-  return *this;
-}
-
-DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const &tas) {
-  this->clear();
-  // *this += tas;
-  this->merge(tas);
-  return *this;
-}
-
-DateOrderedTaggedAmountsContainer&  DateOrderedTaggedAmountsContainer::clear() {
-  m_tagged_amount_cas_repository.clear();
-  m_date_ordered_tagged_amounts.clear();
-  return *this;
-}
-
-// END class DateOrderedTaggedAmountsContainer
 
 TaggedAmount::ValueId TaggedAmountHasher::operator()(TaggedAmount const& ta) const {
   return to_value_id(ta);
