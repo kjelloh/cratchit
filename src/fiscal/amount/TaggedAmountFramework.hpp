@@ -149,85 +149,40 @@ namespace zeroth {
     using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
   private:
     // Note: Each tagged amount is stored twice. Once in a
-    // mapping between value_id and tagged amount and once in a vector
+    // mapping between value_id and tagged amount and once in an iteratable sequence
     // ordered by date.
     TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
                                                                   // as content addressable storage
                                                                   // repository
-
-    class Ordered {
-    private:
-      TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
-    public:
-      using const_iterator = TaggedAmounts::const_iterator;
-      auto begin() const {return m_date_ordered_tagged_amounts.begin();}
-      auto end() const {return m_date_ordered_tagged_amounts.end();}
-      auto insert(const_iterator pos,TaggedAmount const& value) {
-        return m_date_ordered_tagged_amounts.insert(pos,value);
-      }
-      auto clear() {return m_date_ordered_tagged_amounts.clear();}
-      auto size() const {return m_date_ordered_tagged_amounts.size();}
-      auto erase(const_iterator pos) {return m_date_ordered_tagged_amounts.erase(pos);}
-    };
-    // TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
-    Ordered m_date_ordered_tagged_amounts{};
+    TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
 
   public:
     TaggedAmounts tagged_amounts();
     std::size_t size() const;
     const_iterator begin() const;
     const_iterator end() const;
-
     const_subrange in_date_range(zeroth::DateRange const &date_period);
     OptionalTaggedAmount at(ValueId const &value_id);
     OptionalTaggedAmount operator[](ValueId const &value_id);
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
-
     DateOrderedTaggedAmountsContainer &clear();
-
-    // DateOrderedTaggedAmountsContainer& operator=(DateOrderedTaggedAmountsContainer const &other) {
     DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other);
-
     template <typename Inserter>
     auto insert(TaggedAmount const& ta) {
       Inserter inserter{this};
       inserter.insert(ta);
     }
-
-    // Insert the value and return the iterator to the vector of tas
-    // (internal CAS map is hidden from client)
-    // But the internally used key (the ValueId) is returned for environment vs
-    // tagged amounts key transformation purposes (to and from Environment)
     void date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
-
     DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
-
     DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
       for (auto const &ta : m_date_ordered_tagged_amounts) {
         f(ta);
       }
       return *this;
     }
-
-
-    // DateOrderedTaggedAmountsContainer& operator+=(DateOrderedTaggedAmountsContainer const &other) {
-    DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other);
-
-    // DateOrderedTaggedAmountsContainer &operator+=(TaggedAmounts const &tas) {
-    DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas) {
-      for (auto const &ta : tas)
-        this->date_ordered_tagged_amounts_insert(ta);
-      return *this;
-    }
-
-    // DateOrderedTaggedAmountsContainer& operator=(TaggedAmounts const &tas) {
-    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas) {
-      this->clear();
-      // *this += tas;
-      this->merge(tas);
-      return *this;
-    }
-
+    DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
+    DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
+    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas); // =
     auto& cas() {return m_tagged_amount_cas_repository;}
     auto& ordered() {return m_date_ordered_tagged_amounts;}
     bool contains(TaggedAmount const& ta) const {

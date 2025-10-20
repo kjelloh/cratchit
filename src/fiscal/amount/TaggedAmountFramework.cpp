@@ -262,6 +262,18 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(Date
   return *this;
 }
 
+DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(TaggedAmounts const &tas) {
+  for (auto const &ta : tas)
+    this->date_ordered_tagged_amounts_insert(ta);
+  return *this;
+}
+DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const &tas) {
+  this->clear();
+  // *this += tas;
+  this->merge(tas);
+  return *this;
+}
+
 // END class DateOrderedTaggedAmountsContainer
 
 TaggedAmount::ValueId TaggedAmountHasher::operator()(TaggedAmount const& ta) const {
