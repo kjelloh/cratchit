@@ -143,10 +143,38 @@ namespace zeroth {
     using OptionalValueId = TaggedAmount::OptionalValueId;
     using ValueIds = TaggedAmount::ValueIds;
     using OptionalValueIds = TaggedAmount::OptionalValueIds;
-
-    // using iterator = TaggedAmounts::iterator;
     using const_iterator = TaggedAmounts::const_iterator;
     using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
+
+    // Container
+    std::size_t size() const;
+
+    // Accessors
+    bool contains(TaggedAmount const& ta) const;
+    OptionalTaggedAmount at(ValueId const &value_id) const;
+    OptionalTaggedAmount operator[](ValueId const &value_id) const;
+    auto& cas();
+
+    // Sequence
+    auto& ordered();
+    const_iterator begin() const;
+    const_iterator end() const;
+    TaggedAmounts tagged_amounts();    
+    OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
+    const_subrange in_date_range(zeroth::DateRange const &date_period);
+
+    // Mutation
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
+    DateOrderedTaggedAmountsContainer& erase(ValueId const &value_id);
+
+    DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
+    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other); // =
+
+    DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
+    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas); // =
+
+    DateOrderedTaggedAmountsContainer& clear();
+
   private:
     // Note: Each tagged amount is stored twice. Once in a
     // mapping between value_id and tagged amount and once in an iteratable sequence
@@ -156,28 +184,6 @@ namespace zeroth {
                                                                   // repository
     TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
 
-  public:
-    TaggedAmounts tagged_amounts();
-    std::size_t size() const;
-    const_iterator begin() const;
-    const_iterator end() const;
-    const_subrange in_date_range(zeroth::DateRange const &date_period);
-    OptionalTaggedAmount at(ValueId const &value_id);
-    OptionalTaggedAmount operator[](ValueId const &value_id);
-    OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
-    DateOrderedTaggedAmountsContainer &clear();
-    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other);
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
-    DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
-    DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
-    DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
-    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas); // =
-    auto& cas() {return m_tagged_amount_cas_repository;}
-    auto& ordered() {return m_date_ordered_tagged_amounts;}
-    bool contains(TaggedAmount const& ta) const {
-      auto value_id = to_value_id(ta);
-      return m_tagged_amount_cas_repository.contains(value_id);
-    }
   }; // class DateOrderedTaggedAmountsContainer
 }
 

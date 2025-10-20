@@ -95,30 +95,16 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
 
 // BEGIN class DateOrderedTaggedAmountsContainer
 
-TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
-  // Note: For now generate a container and return. This ensures
-  //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
-  return TaggedAmounts{m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end()};
-}
-
-
+// Container
 std::size_t DateOrderedTaggedAmountsContainer::size() const { return m_date_ordered_tagged_amounts.size(); }
-DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const { return m_date_ordered_tagged_amounts.begin(); }
-DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const { return m_date_ordered_tagged_amounts.end(); }
 
-DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::in_date_range(zeroth::DateRange const &date_period) {
-  auto first = std::find_if(this->begin(), this->end(),
-                            [&date_period](auto const &ta) {
-                              return (ta.date() >= date_period.begin());
-                            });
-  auto last = std::find_if(this->begin(), this->end(),
-                           [&date_period](auto const &ta) {
-                             return (ta.date() > date_period.end());
-                           });
-  return std::ranges::subrange(first, last);
+// Accessors
+bool DateOrderedTaggedAmountsContainer::contains(TaggedAmount const& ta) const {
+  auto value_id = to_value_id(ta);
+  return m_tagged_amount_cas_repository.contains(value_id);
 }
 
-OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) {
+OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) const {
   std::cout << "\nDateOrderedTaggedAmountsContainer::at("
             << TaggedAmount::to_string(value_id) << ")" << std::flush;
   OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
@@ -130,7 +116,7 @@ OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_
   return result;
 }
 
-OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const &value_id) {
+OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const &value_id) const {
   std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
             << TaggedAmount::to_string(value_id) << ")" << std::flush;
   OptionalTaggedAmount result{};
@@ -142,6 +128,26 @@ OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const
               << TaggedAmount::to_string(value_id) << std::flush;
   }
   return result;
+}
+
+auto& DateOrderedTaggedAmountsContainer::cas() {return m_tagged_amount_cas_repository;}
+
+// Sequence
+
+auto& DateOrderedTaggedAmountsContainer::ordered() {return m_date_ordered_tagged_amounts;}
+
+DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const {
+ return m_date_ordered_tagged_amounts.begin(); 
+}
+
+DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const {
+ return m_date_ordered_tagged_amounts.end(); 
+}
+
+TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
+  // Note: For now generate a container and return. This ensures
+  //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
+  return TaggedAmounts{m_date_ordered_tagged_amounts.begin(),m_date_ordered_tagged_amounts.end()};
 }
 
 OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const &value_ids) {
@@ -168,18 +174,21 @@ OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(Value
   return result;
 }
 
-DateOrderedTaggedAmountsContainer&  DateOrderedTaggedAmountsContainer::clear() {
-  m_tagged_amount_cas_repository.clear();
-  m_date_ordered_tagged_amounts.clear();
-  return *this;
+DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::in_date_range(zeroth::DateRange const &date_period) {
+  auto first = std::find_if(this->begin(), this->end(),
+                            [&date_period](auto const &ta) {
+                              return (ta.date() >= date_period.begin());
+                            });
+  auto last = std::find_if(this->begin(), this->end(),
+                           [&date_period](auto const &ta) {
+                             return (ta.date() > date_period.end());
+                           });
+  return std::ranges::subrange(first, last);
 }
 
-DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const &other) {
-  this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
-  this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
-  return *this;
-}
 
+// Mutation
+std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
 std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const& ta) {
   auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
   if (put_result.second == true) {
@@ -225,12 +234,6 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(Valu
 }
 
 DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(DateOrderedTaggedAmountsContainer const &other) {
-  // other.for_each([this](TaggedAmount const &ta) {
-  //   // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
-  //   // preceedence (overwrite any existing tagged amounts reflecting the same
-  //   // events) Hm...Maybe this is NOT the convenient place to do this?
-  //   this->date_ordered_tagged_amounts_insert(ta);
-  // });
   std::ranges::for_each(other,[this](TaggedAmount const &ta) {
     // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
     // preceedence (overwrite any existing tagged amounts reflecting the same
@@ -241,15 +244,30 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(Date
   return *this;
 }
 
+
+DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const &other) {
+  this->m_date_ordered_tagged_amounts = other.m_date_ordered_tagged_amounts;
+  this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
+  return *this;
+}
+
+
 DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(TaggedAmounts const &tas) {
   for (auto const &ta : tas)
     this->date_ordered_tagged_amounts_insert(ta);
   return *this;
 }
+
 DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const &tas) {
   this->clear();
   // *this += tas;
   this->merge(tas);
+  return *this;
+}
+
+DateOrderedTaggedAmountsContainer&  DateOrderedTaggedAmountsContainer::clear() {
+  m_tagged_amount_cas_repository.clear();
+  m_date_ordered_tagged_amounts.clear();
   return *this;
 }
 
