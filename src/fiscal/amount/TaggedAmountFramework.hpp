@@ -167,11 +167,6 @@ namespace zeroth {
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
     DateOrderedTaggedAmountsContainer &clear();
     DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other);
-    template <typename Inserter>
-    auto insert(TaggedAmount const& ta) {
-      Inserter inserter{this};
-      inserter.insert(ta);
-    }
     void date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
     DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
     DateOrderedTaggedAmountsContainer const& for_each(auto f) const {

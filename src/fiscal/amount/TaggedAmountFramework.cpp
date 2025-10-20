@@ -182,53 +182,26 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(Date
   return *this;
 }
 
-class DateOrderedTAInserter {
-public:
-  using Key = DateOrderedTaggedAmountsContainer::ValueId;
-  using Value = TaggedAmount;
-
-  DateOrderedTAInserter(DateOrderedTaggedAmountsContainer* container) : m_container{container} {}
-
-  auto insert(Value const& value) {
-    if (!m_container->contains(value)) {
-      // Find the last element with a date less than the date of ta
-      auto prev = std::upper_bound(
-          m_container->begin()
-          ,m_container->end()
-          ,value
-          ,[](TaggedAmount const &ta1, TaggedAmount const &ta2) {
-            return ta1.date() < ta2.date();
-          });
-
-      
-      auto value_id = to_value_id(value);
-      m_container->cas().cas_repository_insert({value_id, value});
-      m_container->ordered().insert(prev,value);
-    }
-  }
-
-private:
-  DateOrderedTaggedAmountsContainer* m_container;
-};
-
 void DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const& ta) {
-  // auto value_id = to_value_id(ta);
-  // if (m_tagged_amount_cas_repository.contains(value_id) == false) {
-  //   if (false) {
-  //     std::cout << "\nthis:" << this << " Inserted new " << ta;
-  //   }
-  //   // Find the last element with a date less than the date of ta
-  //   auto prev = std::upper_bound(
-  //       m_date_ordered_tagged_amounts.begin(),
-  //       m_date_ordered_tagged_amounts.end(), ta,
-  //       [](TaggedAmount const &ta1, TaggedAmount const &ta2) {
-  //         return ta1.date() < ta2.date();
-  //       });
+  auto value_id = to_value_id(ta);
+  if (m_tagged_amount_cas_repository.contains(value_id) == false) {
+    if (false) {
+      std::cout << "\nthis:" << this << " Inserted new " << ta;
+    }
+    // Find the last element with a date less than the date of ta
+    auto prev = std::upper_bound(
+        m_date_ordered_tagged_amounts.begin(),
+        m_date_ordered_tagged_amounts.end(), ta,
+        [](TaggedAmount const &ta1, TaggedAmount const &ta2) {
+          return ta1.date() < ta2.date();
+        });
 
-  //   m_tagged_amount_cas_repository.cas_repository_insert({value_id, ta});
-  //   m_date_ordered_tagged_amounts.insert(prev, ta); // place after all with date less than the one of ta
-  // } 
-  this->insert<DateOrderedTAInserter>(ta);
+    m_tagged_amount_cas_repository.cas_repository_insert({value_id, ta});
+    m_date_ordered_tagged_amounts.insert(prev, ta); // place after all with date less than the one of ta
+  } 
+  else {
+    // No op - ta already in container (and CAS)
+  }
 }
 
 DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const &value_id) {
