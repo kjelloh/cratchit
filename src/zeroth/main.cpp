@@ -5659,17 +5659,18 @@ public:
   // Now in SIEEnvironment
 	// std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
-	std::optional<DateOrderedTaggedAmountsContainer::const_iterator> to_ta_iter(std::size_t ix) {
-		std::optional<DateOrderedTaggedAmountsContainer::const_iterator> result{};
-		auto ta_iter = this->selected_date_ordered_tagged_amounts.begin();
-		auto end = this->selected_date_ordered_tagged_amounts.end();
-		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
-		if (ix < std::distance(ta_iter,end)) {
-			std::advance(ta_iter,ix); // zero based index
-			result = ta_iter;
-		}
-		return result;
-	}
+  // Removed/20251020 (Refactored to value semantics)
+	// std::optional<DateOrderedTaggedAmountsContainer::const_iterator> to_ta_iter(std::size_t ix) {
+	// 	std::optional<DateOrderedTaggedAmountsContainer::const_iterator> result{};
+	// 	auto ta_iter = this->selected_date_ordered_tagged_amounts.begin();
+	// 	auto end = this->selected_date_ordered_tagged_amounts.end();
+	// 	if (ix < std::distance(ta_iter,end)) {
+	// 		std::advance(ta_iter,ix); // zero based index
+	// 		result = ta_iter;
+	// 	}
+	// 	return result;
+	// }
+
 	std::optional<HeadingAmountDateTransEntries::iterator> to_had_iter(std::size_t ix) {
 		std::optional<HeadingAmountDateTransEntries::iterator> result{};
 		auto had_iter = this->heading_amount_date_entries.begin();
@@ -5702,8 +5703,17 @@ public:
     return result;
   }
 
-	std::optional<DateOrderedTaggedAmountsContainer::const_iterator> selected_ta() {
-		return to_ta_iter(this->ta_index);
+	// std::optional<DateOrderedTaggedAmountsContainer::const_iterator> selected_ta() {
+	// 	return to_ta_iter(this->ta_index);
+	// }
+
+	OptionalTaggedAmount selected_ta() {
+    OptionalTaggedAmount result{};
+    auto sequence_view = this->selected_date_ordered_tagged_amounts.ordered_tas_view();
+    if (sequence_view.size() > this->ta_index) {
+      result = sequence_view[this->ta_index];
+    }
+    return result;
 	}
 
 	std::optional<HeadingAmountDateTransEntries::iterator> selected_had() {
@@ -5823,7 +5833,7 @@ IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) 
     auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
     if (financial_year_date_range) {
       std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
-      auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
+      auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.date_range_tas_view(*financial_year_date_range); 
       auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
       for (auto const& ta : bas_account_accs) {
         IBPeriodUB entry{};
@@ -6602,7 +6612,7 @@ Cmd Updater::operator()(Command const& command) {
       prompt << "\n<SELECTED>";
       // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
       int index = 0;
-      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
+      for (auto const& ta : model->selected_date_ordered_tagged_amounts.ordered_tas_view()) {	
         prompt << "\n" << index++ << ". " << ta;
       }				
     }
@@ -6657,8 +6667,8 @@ Cmd Updater::operator()(Command const& command) {
         } break;
         case PromptState::TAIndex: {
           model->ta_index = ix;
-          if (auto ta_ptr_iter = model->selected_ta()) {
-            auto& ta = *(*ta_ptr_iter);
+          if (auto maybe_ta = model->selected_ta()) {
+            auto& ta = maybe_ta.value();
             prompt << "\n" << ta;
           }
         } break;
@@ -8486,7 +8496,7 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n<SELECTED>";
         // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
         int index = 0;
-        for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
+        for (auto const& ta : model->selected_date_ordered_tagged_amounts.ordered_tas_view()) {    	
           prompt << "\n" << index++ << ". " << ta;
         }				
       }
@@ -8499,14 +8509,14 @@ Cmd Updater::operator()(Command const& command) {
         }
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
-          for (auto const& ta : model->all_date_ordered_tagged_amounts.in_date_range({*begin,*end})) {
+          for (auto const& ta : model->all_date_ordered_tagged_amounts.date_range_tas_view({*begin,*end})) {
             model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(ta);
           }				
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
           // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta : model->selected_date_ordered_tagged_amounts) {	
+          for (auto const& ta : model->selected_date_ordered_tagged_amounts.ordered_tas_view()) {    	
             prompt << "\n" << index++ << ". " << ta;
           }				
 
@@ -8522,7 +8532,11 @@ Cmd Updater::operator()(Command const& command) {
           return ta.tags().contains(tag);
         };
         TaggedAmounts reduced{};
-        std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_tag),std::back_inserter(reduced));				
+        std::ranges::copy(
+            model->selected_date_ordered_tagged_amounts.ordered_tas_view()
+          | std::views::filter(has_tag)
+          ,std::back_inserter(reduced)
+        );
         // model->selected_date_ordered_tagged_amounts = reduced;
         model->selected_date_ordered_tagged_amounts.reset(reduced);
       }
@@ -8536,7 +8550,11 @@ Cmd Updater::operator()(Command const& command) {
           return !ta.tags().contains(tag);
         };
         TaggedAmounts reduced{};
-        std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(has_not_tag),std::back_inserter(reduced));				
+        std::ranges::copy(
+            model->selected_date_ordered_tagged_amounts.ordered_tas_view()
+          | std::views::filter(has_not_tag)
+          ,std::back_inserter(reduced)
+        );
         // model->selected_date_ordered_tagged_amounts = reduced;
         model->selected_date_ordered_tagged_amounts.reset(reduced);
 
@@ -8554,7 +8572,11 @@ Cmd Updater::operator()(Command const& command) {
             return (ta.tags().contains(tag) and std::regex_match(ta.tags().at(tag),pattern_regex));
           };
           TaggedAmounts reduced{};
-          std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_tagged),std::back_inserter(reduced));				
+          std::ranges::copy(
+              model->selected_date_ordered_tagged_amounts.ordered_tas_view()
+            | std::views::filter(is_tagged)
+            ,std::back_inserter(reduced)
+          );
           // model->selected_date_ordered_tagged_amounts = reduced;
           model->selected_date_ordered_tagged_amounts.reset(reduced);
 
@@ -8576,7 +8598,11 @@ Cmd Updater::operator()(Command const& command) {
             return (ta.tags().contains(tag)==false or std::regex_match(ta.tags().at(tag),pattern_regex)==false);
           };
           TaggedAmounts reduced{};
-          std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_not_tagged),std::back_inserter(reduced));				
+          std::ranges::copy(
+              model->selected_date_ordered_tagged_amounts.ordered_tas_view()
+            | std::views::filter(is_not_tagged)
+            ,std::back_inserter(reduced)
+          );
           // model->selected_date_ordered_tagged_amounts = reduced;
           model->selected_date_ordered_tagged_amounts.reset(reduced);
 
@@ -8603,13 +8629,16 @@ Cmd Updater::operator()(Command const& command) {
             TaggedAmount result{date,cents_amount,std::move(tags)};
             return result;
           };
-          std::ranges::transform(model->selected_date_ordered_tagged_amounts,std::back_inserter(created),new_ta);
+          std::ranges::transform(
+             model->selected_date_ordered_tagged_amounts.ordered_tas_view()
+            ,std::back_inserter(created)
+            ,new_ta);
           // model->new_date_ordered_tagged_amounts = created;
           model->new_date_ordered_tagged_amounts.reset(created);
           prompt << "\n<CREATED>";
           // for (auto const& ta : model->all_date_ordered_tagged_amounts.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta : model->new_date_ordered_tagged_amounts) {	
+          for (auto const& ta : model->new_date_ordered_tagged_amounts.ordered_tas_view()) {	
             prompt << "\n\t" << index++ << ". " << ta;
           }				
           model->prompt_state = PromptState::AcceptNewTAs;
@@ -8626,7 +8655,7 @@ Cmd Updater::operator()(Command const& command) {
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
       using AmountTrailsMap = std::map<CentsAmount,TaggedAmounts>;
       AmountTrailsMap amount_trails_map{};
-      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {
+      for (auto const& ta : model->selected_date_ordered_tagged_amounts.ordered_tas_view()) {    
         amount_trails_map[abs(ta.cents_amount())].push_back(ta);
       }
       std::vector<std::pair<CentsAmount,TaggedAmounts>> date_ordered_amount_trails_map{};
@@ -8649,14 +8678,18 @@ Cmd Updater::operator()(Command const& command) {
         return (ta.tags().contains("type") and ta.tags().at("type") == "aggregate");
       };
       TaggedAmounts reduced{};
-      std::ranges::copy(model->selected_date_ordered_tagged_amounts | std::views::filter(is_aggregate),std::back_inserter(reduced));				
+      std::ranges::copy(
+          model->selected_date_ordered_tagged_amounts.ordered_tas_view()
+        | std::views::filter(is_aggregate)
+        ,std::back_inserter(reduced)
+      );
       // model->selected_date_ordered_tagged_amounts = reduced;
       model->selected_date_ordered_tagged_amounts.reset(reduced);
 
       // List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
       std::cout << "\n<AGGREGATES>" << std::flush;
       prompt << "\n<AGGREGATES>";
-      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {
+      for (auto const& ta : model->selected_date_ordered_tagged_amounts.ordered_tas_view()) {    
         prompt << "\n" << ta;
         if (auto members_value = ta.tag_value("_members")) {
           auto members = Key::Path{*members_value};
@@ -8673,27 +8706,19 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_hads") {
       prompt << "\nCreating Heading Amount Date entries (HAD:s) from selected Tagged Amounts";
-      auto had_candidate_ta_ptrs = model->selected_date_ordered_tagged_amounts;
-      // Filter out all tagged amounts that are SIE aggregates or member of an SIE aggregate (these are already in the books)
-      for (auto const& ta : model->selected_date_ordered_tagged_amounts) {
-        bool has_SIE_tag = ta.tag_value("SIE").has_value();
-        if (auto members_value = ta.tag_value("_members");has_SIE_tag and members_value) {
-          prompt << "\nDisregarded SIE aggregate " << ta;
-          had_candidate_ta_ptrs.erase(to_value_id(ta));
-          auto members = Key::Path{*members_value};
-          if (auto value_ids = to_value_ids(members)) {
-            if (auto tas = model->all_date_ordered_tagged_amounts.to_tagged_amounts(*value_ids)) {
-              for (auto const& ta : *tas) {
-                prompt << "\nDisregarded SIE aggregate member " << ta;
-                had_candidate_ta_ptrs.erase(to_value_id(ta));            
-              }
-            }
-          }
-        }
-      }
-      for (auto const& ta : had_candidate_ta_ptrs) {
-        if (auto o_had = to_had(ta)) {
-          model->heading_amount_date_entries.push_back(*o_had);
+      auto had_candidates_tas = 
+          model->selected_date_ordered_tagged_amounts.ordered_tas_view()
+        | std::views::filter([&](auto const& ta){
+            // Filter out SIE and BAS entries
+            if (ta.tag_value("SIE").has_value()) return false;
+            if (ta.tag_value("BAS").has_value()) return false;
+            return true; // keep this ta
+          })
+        | std::ranges::to<TaggedAmounts>();
+
+      for (auto const& ta : had_candidates_tas) {
+        if (auto maybe_had = to_had(ta)) {
+          model->heading_amount_date_entries.push_back(maybe_had.value());
         }
         else {
           prompt << "\nSORRY, failed to turn tagged amount into a heading amount date entry" << ta;
@@ -8899,7 +8924,7 @@ Cmd Updater::operator()(Command const& command) {
         auto is_journal_entry = [](TaggedAmount const& ta) {
           return (ta.tags().contains("parent_SIE") or ta.tags().contains("IB"));
         };        
-        std::ranges::copy(model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
+        std::ranges::copy(model->all_date_ordered_tagged_amounts.date_range_tas_view(*financial_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
         // 2. Group tagged amounts into same BAS account and a list of parent_SIE
         std::map<BAS::AccountNo,TaggedAmounts> huvudbok{};
         std::map<BAS::AccountNo,CentsAmount> opening_balance{};
@@ -9292,7 +9317,7 @@ Cmd Updater::operator()(Command const& command) {
       auto financial_year_date_range = model->sie_env_map["-1"].financial_year_date_range();
 
       if (false and financial_year_date_range) {
-        auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.in_date_range(*financial_year_date_range); 
+        auto financial_year_tagged_amounts_range = model->all_date_ordered_tagged_amounts.date_range_tas_view(*financial_year_date_range); 
         auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
 
         if (true) {
@@ -10322,98 +10347,21 @@ private:
   }
 
   void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_date_ordered_tagged_amounts,SIEEnvironment const& sie_environment) {
-    // Use a double pointer mechanism to step through provided all_date_ordered_tagged_amounts and date_ordered_tagged_amounts_from_sie_environment in date order.
-    // 1) If an SIE entry is in tagged amount but NOT in sie environment --> erase it from tagged amounts
-    // 2) If an SIE entry is in sie environment but NOT in tagged amounts --> insert it into tagged amounts
-    // 3) If an SIE entry is in both tagged amounts and sie environment but with the wrong properties --> Erase in tagged amounts and insert from SIE
-    // 4) else, if both in tagged amounts and SIE --> do nothing (all is in sync)
+    // TODO: Base the implementation on DateOrderedTaggedAmountsContainer handling 'branching' on CAS based value-id ordering?
 
-    std::cout << "\nSYNHRONIZE TAGGED AMOUNTS WITH SIE - BEGIN {";
+    logger::scope_logger scope_raii{logger::development_trace,"SYNHRONIZE TAGGED AMOUNTS WITH SIE"};
     if (auto financial_year_date_range = sie_environment.financial_year_date_range()) {
       std::cout << "\n\tSIE fiscal year:" << *financial_year_date_range;
-      auto date_ordered_tagged_amounts_from_sie_environment = this->date_ordered_tagged_amounts_from_sie_environment(sie_environment);
-      auto target_iter = all_date_ordered_tagged_amounts.begin();
-      auto source_iter = date_ordered_tagged_amounts_from_sie_environment.begin();
-      if (target_iter != all_date_ordered_tagged_amounts.end() and source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
-        // Both are valid ranges
-        // get the fiscal year of provided SIE entries
-        if (target_iter->date()<financial_year_date_range->begin()) {
-          // Skip tagged amounts before the fiscal year
-          while (target_iter != all_date_ordered_tagged_amounts.end() and target_iter->date()<financial_year_date_range->begin()) {
-            // std::cout << "\n\tSkipping Older TA" << *(*target_iter);
-            ++target_iter;
-          }
-        }
-        else while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end() and source_iter->date() < target_iter->date()) {
-          // Add new SIE entries not yet in (older than) "all"
-          std::cout << "\n\tAdding Older SIE entry" << *source_iter;
-          all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter);
-          ++source_iter;
-        }
-        // We are now Synchronized to the "same" start date.
-        // Now ensure "all" contains only the provided SIE entries
-        while (source_iter != date_ordered_tagged_amounts_from_sie_environment.end()) {
-          if (source_iter->tag_value("IB")) {
-            all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter); // Ensure any opening balance is updated ok (sie file values take precedence)
+      auto date_ordered_tagged_amounts_from_sie_environment = this->date_ordered_tagged_amounts_from_sie_environment(sie_environment);      
 
-            ++source_iter;
-            continue; // skip further processing of added opening balance
-          }
+      // TODO: 'put' all tagged amounts in date_ordered_tagged_amounts_from_sie_environment
+      //       into 'all_date_ordered_tagged_amounts' and trust it to detect branching
+      //       for conflicting ordering (when implemented)
 
-          // iterate to next SIE aggregate in source and target
-          if ( not source_iter->tag_value("SIE")) {
-            ++source_iter;
-            continue; // skip non SIE aggregate
-          }
-          if  (target_iter != all_date_ordered_tagged_amounts.end() and !target_iter->tag_value("SIE")) {
-            ++target_iter;
-            continue; // skip non SIE aggregate
-          }
-          // Both source and target is an SIE aggregate ok
-          if (target_iter != all_date_ordered_tagged_amounts.end()) {
-            if (target_iter->date() < source_iter->date()) {
-              // This SIE aggregate in "all" should not be there!
-              std::cout << "\n\tShould be erased - Older TA not in imported SIE " << *target_iter;
-              // all_date_ordered_tagged_amounts.erase(target_iter);
-              ++target_iter;
-            }
-            else {
-              // Now, the SIE in target must be in provided SIE entries or else it must go
-              if (*target_iter == *source_iter) { 
-                ++source_iter;
-                ++target_iter;
-              }
-              else if (target_iter->date() > source_iter->date()) {
-                // Provided SIE contains an entry not in "all"
-                std::cout << "\n\tInserted to TA a source SIE with date > target SIE date " << *source_iter;
-                all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter);
-                ++source_iter;
-              }
-              else {
-                // We have a quirky situation here. Provided SIE entries are ordrered by Date
-                // but may come out of order in sequence?!
-                // So maybe we need to assemble all SIE entries with the same date and check these sets are equal?
-                std::cout << "\n\tOut of order (or undeteced same?) - May require SET comparisson or updated operator==? {";
-                std::cout << "\n\t\tSIE: " << *source_iter;
-                std::cout << "\n\t\tTA: " << *target_iter;
-                std::cout << "\n\t} Out of order?";
-                ++target_iter;
-              }
-            }
-          }
-          else {
-            // Add new SIE entries not yet in "all"
-            std::cout << "\n\tADDING to TA the newer imported SIE" << *source_iter;
-            all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(*source_iter);
-            ++source_iter;
-          }
-        } // while source_iter
-      }
     }
     else {
       std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
     }
-    std::cout << "\n} SYNHRONIZE TAGGED AMOUNTS WITH SIE - END";
   }
 
 	SRUEnvironments srus_from_environment(Environment const& environment) {
@@ -10601,7 +10549,9 @@ private:
     static const bool disable_ta_persistent_storage = false;
     if (not disable_ta_persistent_storage) {
   		// model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
-      std::ranges::for_each(model->all_date_ordered_tagged_amounts,tagged_amount_to_environment);
+      std::ranges::for_each(
+         model->all_date_ordered_tagged_amounts.ordered_tas_view()
+        ,tagged_amount_to_environment);
     }
 
 		// for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {

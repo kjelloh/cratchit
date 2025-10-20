@@ -12,6 +12,7 @@
 #include <optional>
 #include <limits> // std::numeric_limits
 #include <ranges>
+#include <numeric> // std::accumulate,
 
 class TaggedAmount {
 public:
@@ -144,7 +145,7 @@ namespace zeroth {
     using ValueIds = TaggedAmount::ValueIds;
     using OptionalValueIds = TaggedAmount::OptionalValueIds;
     using const_iterator = TaggedAmounts::const_iterator;
-    using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
+    // using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
 
     // Container
 
@@ -156,12 +157,27 @@ namespace zeroth {
 
     // Sequence
     std::size_t sequence_size() const;
-    TaggedAmounts const& ordered_tas() const;
-    const_iterator begin() const;
-    const_iterator end() const;
+    auto ordered_tas_view() const {
+      return m_date_ordered_value_ids
+        | std::views::transform([this](ValueId value_id) {
+            return this->m_tagged_amount_cas_repository.cas_repository_get(value_id).value();
+          });
+    }
+    // const_iterator begin() const;
+    // const_iterator end() const;
     TaggedAmounts tagged_amounts();    
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
-    const_subrange in_date_range(zeroth::DateRange const &date_period);
+    // const_subrange date_range_tas_view(zeroth::DateRange const &date_period);
+    auto date_range_tas_view(zeroth::DateRange const& date_period) const {
+      auto view = ordered_tas_view()
+        | std::views::drop_while([&](auto const& ta) {
+            return ta.date() < date_period.begin();
+        })
+        | std::views::take_while([&](auto const& ta) {
+            return ta.date() <= date_period.end();
+        });
+      return view;
+    }
 
     // Mutation
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
@@ -182,8 +198,8 @@ namespace zeroth {
     TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
                                                                   // as content addressable storage
                                                                   // repository
-    TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
-    // ValueIds m_date_ordered_value_ids{};
+    // TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
+    ValueIds m_date_ordered_value_ids{};
 
   }; // class DateOrderedTaggedAmountsContainer
 }
@@ -203,7 +219,7 @@ namespace first {
     const_iterator begin() const;
     const_iterator end() const;
 
-    const_subrange in_date_range(zeroth::DateRange const &date_period);
+    const_subrange date_range_tas_view(zeroth::DateRange const &date_period);
 
   private:
     TaggedAmountsCasRepository m_repo;
@@ -223,7 +239,66 @@ namespace tas {
   // Generic for parsing a range or container of tagged amount pointers into a
   // vector of saldo tagged amounts (tagged with 'BAS' for each accumulated bas
   // account)
-  TaggedAmounts to_bas_omslutning(DateOrderedTaggedAmountsContainer::const_subrange const& tas);
+  TaggedAmounts to_bas_omslutning(auto ordered_tas_view) {
+
+    logger::cout_proxy << "\nto_bas_omslutning";
+    TaggedAmounts result{};
+    using BASBuckets = std::map<BAS::AccountNo, TaggedAmounts>;
+    BASBuckets bas_buckets{};
+
+    auto is_valid_bas_account_transaction = [](TaggedAmount const &ta) {
+      if (ta.tags().contains("BAS") and
+          !(BAS::to_account_no(ta.tags().at("BAS")))) {
+        // Whine about invalid tagging of 'BAS' tag!
+        // It is vital we do NOT have any badly tagged BAS account transactions
+        // as this will screw up the saldo calculation!
+        logger::cout_proxy << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to "
+                     "create a valid BAS account no from tag 'BAS' with value "
+                  << std::quoted(ta.tags().at("BAS"));
+        return false;
+      } else
+        return (     (ta.tags().contains("BAS")) 
+                 and (BAS::to_account_no(ta.tags().at("BAS")))
+                 and (ta.tags().contains("IB") == false)
+                 and (    ((ta.tags().contains("type") == false)) 
+                       or (     (ta.tags().contains("type") == true) 
+                            and (ta.tags().at("type") != "saldo"))));
+    };
+
+    for (auto const &ta : ordered_tas_view) {
+      if (is_valid_bas_account_transaction(ta)) {
+        bas_buckets[*BAS::to_account_no(ta.tags().at("BAS"))].push_back(ta);
+      }
+    }
+
+    for (auto const &[bas_account_no, tas] : bas_buckets) {
+      Date period_end_date{};
+      logger::cout_proxy << "\n" << std::dec << bas_account_no;
+      auto cents_saldo = std::accumulate(
+          tas.begin(), tas.end(), CentsAmount{0},
+          [&period_end_date](auto acc, auto const &ta) {
+            period_end_date =
+                std::max(period_end_date,
+                         ta.date()); // Ensure we keep the latest date. NOTE: We
+                                     // expect they are in growing date order.
+                                     // But just in case...
+            acc += ta.cents_amount();
+            logger::cout_proxy << "\n\t" << period_end_date << " "
+                      << to_string(to_units_and_cents(ta.cents_amount()))
+                      << " ackumulerat:" << to_string(to_units_and_cents(acc));
+            return acc;
+          });
+
+      TaggedAmount saldo_ta{period_end_date, cents_saldo};
+      saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
+      saldo_ta.tags()["type"] = "saldo";
+      result.push_back(saldo_ta);
+    }
+    std::ranges::sort(result,[](auto const& lhs,auto const& rhs){
+      return (lhs.tag_value("BAS").value() < rhs.tag_value("BAS").value());
+    });
+    return result;
+  }
           
 } // namespace tas
 
