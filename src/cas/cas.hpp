@@ -31,6 +31,7 @@ namespace cas {
   class repository {
   public:
     using Value = ValueT; // Expose template arg type
+    using MaybeValue = std::optional<Value>;
     using Hasher = HasherT; // Expose template arg type
     using Key = decltype(std::declval<Hasher>()(std::declval<Value>()));
 
@@ -41,17 +42,23 @@ namespace cas {
         std::is_same_v<Key, KeyT>,
         "HasherT::operator()(ValueT) must return the same type as KeyT"
     );    
+    // Note: Cratchit uses a vector<value_type> to pass (assign) ordered values
+    //       so we need value_type to be mutable.
+    //       KeyValueMap::value_type wount do as then Key is const (non mutable)
+    //       TODO: Refactor this approach to make it work some other way?
     using value_type = std::pair<Key, Value>;
   private:
     using KeyValueMap = std::map<Key, Value>;
     KeyValueMap m_map{};
   public:
-    // Tricky! We need EnvironmentIdValuePairs to be assignable, so we cannot
-    // use KeyValueMap::value_type directly as this would make the Key type const (not mutable).
-    // using value_type = KeyValueMap::value_type;
-
     bool contains(Key const &key) const { return m_map.contains(key); }
-    Value const &at(Key const &key) const { return m_map.at(key); }
+    MaybeValue cas_repository_get(Key const &key) const { 
+      MaybeValue result{};
+      if (this->contains(key)) {
+        result = m_map.at(key); 
+      }
+      return result;
+    }
     void clear() { return m_map.clear(); }
     repository& operator=(const repository &other) {
       if (this != &other) {
@@ -61,8 +68,10 @@ namespace cas {
     }
 
     // #cas::repository::insert
-    auto cas_repository_insert(value_type const& entry) {
-      return m_map.insert(entry);
+    std::pair<Key,bool> cas_repository_put(Value const& value) {
+      auto key = Hasher{}(value);
+      auto result = m_map.insert({key,value});
+      return {key,result.second};
     }
 
     auto erase(Key key) {

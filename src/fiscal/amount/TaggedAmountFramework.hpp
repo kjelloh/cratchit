@@ -167,14 +167,8 @@ namespace zeroth {
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
     DateOrderedTaggedAmountsContainer &clear();
     DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other);
-    void date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
     DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
-    // DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
-    //   for (auto const &ta : m_date_ordered_tagged_amounts) {
-    //     f(ta);
-    //   }
-    //   return *this;
-    // }
     DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
     DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
     DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas); // =

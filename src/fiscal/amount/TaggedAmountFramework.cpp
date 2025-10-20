@@ -121,10 +121,8 @@ DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContai
 OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) {
   std::cout << "\nDateOrderedTaggedAmountsContainer::at("
             << TaggedAmount::to_string(value_id) << ")" << std::flush;
-  OptionalTaggedAmount result{};
-  if (m_tagged_amount_cas_repository.contains(value_id)) {
-    result = m_tagged_amount_cas_repository.at(value_id);
-  } else {
+  OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
+  if (!result) {
     std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a "
                  "mapping to value_id="
               << TaggedAmount::to_string(value_id) << std::flush;
@@ -182,9 +180,10 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(Date
   return *this;
 }
 
-void DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const& ta) {
-  auto value_id = to_value_id(ta);
-  if (m_tagged_amount_cas_repository.contains(value_id) == false) {
+std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const& ta) {
+  auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
+  if (put_result.second == true) {
+    // Log
     if (false) {
       std::cout << "\nthis:" << this << " Inserted new " << ta;
     }
@@ -196,12 +195,12 @@ void DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(Tagge
           return ta1.date() < ta2.date();
         });
 
-    m_tagged_amount_cas_repository.cas_repository_insert({value_id, ta});
     m_date_ordered_tagged_amounts.insert(prev, ta); // place after all with date less than the one of ta
   } 
   else {
     // No op - ta already in container (and CAS)
   }
+  return put_result;
 }
 
 DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const &value_id) {
