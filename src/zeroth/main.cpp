@@ -10600,7 +10600,8 @@ private:
     // static const bool disable_ta_persistent_storage = true;
     static const bool disable_ta_persistent_storage = false;
     if (not disable_ta_persistent_storage) {
-  		model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
+  		// model->all_date_ordered_tagged_amounts.for_each(tagged_amount_to_environment);
+      std::ranges::for_each(model->all_date_ordered_tagged_amounts,tagged_amount_to_environment);
     }
 
 		// for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {

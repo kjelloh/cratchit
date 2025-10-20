@@ -169,12 +169,12 @@ namespace zeroth {
     DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other);
     void date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
     DateOrderedTaggedAmountsContainer &erase(ValueId const &value_id);
-    DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
-      for (auto const &ta : m_date_ordered_tagged_amounts) {
-        f(ta);
-      }
-      return *this;
-    }
+    // DateOrderedTaggedAmountsContainer const& for_each(auto f) const {
+    //   for (auto const &ta : m_date_ordered_tagged_amounts) {
+    //     f(ta);
+    //   }
+    //   return *this;
+    // }
     DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
     DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
     DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas); // =

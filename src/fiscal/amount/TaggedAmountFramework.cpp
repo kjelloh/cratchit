@@ -226,12 +226,19 @@ DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(Valu
 }
 
 DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(DateOrderedTaggedAmountsContainer const &other) {
-  other.for_each([this](TaggedAmount const &ta) {
+  // other.for_each([this](TaggedAmount const &ta) {
+  //   // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
+  //   // preceedence (overwrite any existing tagged amounts reflecting the same
+  //   // events) Hm...Maybe this is NOT the convenient place to do this?
+  //   this->date_ordered_tagged_amounts_insert(ta);
+  // });
+  std::ranges::for_each(other,[this](TaggedAmount const &ta) {
     // TODO 240217: Consider a way to ensure that SIE entries in SIE file has
     // preceedence (overwrite any existing tagged amounts reflecting the same
     // events) Hm...Maybe this is NOT the convenient place to do this?
     this->date_ordered_tagged_amounts_insert(ta);
   });
+
   return *this;
 }
 
