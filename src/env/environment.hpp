@@ -48,9 +48,9 @@ public:
   };
 
   using Values_cas_repository = cas::repository<ValueId,Value,Hasher>;
-  using IdValuePair = Values_cas_repository::value_type; // mutable id-value pair
-  using IdValuePairs = std::vector<IdValuePair>; // To model the order in persistent file
-  using Container = std::map<ValueName,IdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+  using MutableIdValuePair = Values_cas_repository::mutable_cid_value_type;
+  using MutableIdValuePairs = std::vector<MutableIdValuePair>; // To model the order in persistent file
+  using Container = std::map<ValueName,MutableIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 
   using value_type = Container::value_type;
   auto& operator[](ValueName const& section) {

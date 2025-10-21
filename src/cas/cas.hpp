@@ -1,16 +1,12 @@
 #pragma once
 
 #include "logger/log.hpp"
-#include <map>
 #include <unordered_map>
 #include <functional> // std::function
 #include <ranges>
 #include <limits>  // for std::numeric_limits
 
 // Content Addressable Storage namespace
-// TODO: Consider to make cas::repository more like std::unordrered_map in that
-//       it inserts and retreives members based on known Key-function and provided member value?
-//       That is, do NOT expose the_map?
 namespace cas {
 
   /**
@@ -27,57 +23,66 @@ namespace cas {
       ...
 
   */
-  template <typename KeyT, typename ValueT,typename HasherT>
+
+  // CidT = Content ID type (Adress in CAS of Value)
+  // ValueT = Content value type
+  // ToCidT = Function: ValueT -> CidT (maps value to CAS address / CidT)
+  template <typename CidT, typename ValueT,typename ToCidT>
   class repository {
   public:
-    using Value = ValueT; // Expose template arg type
+    using Value = ValueT;
     using MaybeValue = std::optional<Value>;
-    using Hasher = HasherT; // Expose template arg type
-    using Key = decltype(std::declval<Hasher>()(std::declval<Value>()));
+    using ToCid = ToCidT;
+    using Cid = decltype(std::declval<ToCid>()(std::declval<Value>())); // Return type of ToCid function
 
     // Refactoring error
-    // TODO: Refactor code so that the template does not take KeyT from the client.
+    // TODO: Refactor code so that the template does not take CidT from the client.
     //       For now, have the compiler ensure we do not break the contract
     static_assert(
-        std::is_same_v<Key, KeyT>,
-        "HasherT::operator()(ValueT) must return the same type as KeyT"
+        std::is_same_v<Cid, CidT>,
+        "ToCidT::operator()(ValueT) must return the same type as CidT"
     );    
     // Note: Cratchit uses a vector<value_type> to pass (assign) ordered values
     //       so we need value_type to be mutable.
-    //       KeyValueMap::value_type wount do as then Key is const (non mutable)
+    //       KeyValueMap::value_type wount do as then Cid is const (non mutable)
     //       TODO: Refactor this approach to make it work some other way?
-    using value_type = std::pair<Key, Value>;
+    using mutable_cid_value_type = std::pair<Cid, Value>;
   private:
-    using KeyValueMap = std::map<Key, Value>;
+    using KeyValueMap = std::unordered_map<Cid, Value>;
     KeyValueMap m_map{};
+    ToCid m_to_cid{};
   public:
 
     auto size() const {return m_map.size();}
-    bool contains(Key const &key) const { return m_map.contains(key); }
-    MaybeValue cas_repository_get(Key const &key) const { 
+
+    bool contains(Cid const &cid) const { return m_map.contains(cid); }
+
+    MaybeValue cas_repository_get(Cid const &cid) const { 
       MaybeValue result{};
-      if (this->contains(key)) {
-        result = m_map.at(key); 
+
+      auto iter = m_map.find(cid);
+      if (iter != m_map.end()) {
+        result = iter->second;
       }
       return result;
     }
     void clear() { return m_map.clear(); }
     repository& operator=(const repository &other) {
       if (this != &other) {
-        m_map = other.m_map; // OK: std::map is assignable
+        m_map = other.m_map;
       }
       return *this;
     }
 
     // #cas::repository::insert
-    std::pair<Key,bool> cas_repository_put(Value const& value) {
-      auto key = Hasher{}(value);
-      auto result = m_map.insert({key,value});
-      return {key,result.second};
+    std::pair<Cid,bool> cas_repository_put(Value const& value) {
+      auto cid = m_to_cid(value);
+      auto result = m_map.insert({cid,value});
+      return {cid,result.second};
     }
 
-    auto erase(Key key) {
-      return m_map.erase(key);
+    auto erase(Cid cid) {
+      return m_map.erase(cid);
     }
   };
 
@@ -112,25 +117,25 @@ namespace cas {
 
   // A Content Adressable Storage (CAS) container that preserves ordering 
   // and models value aggregation
-  template <typename ValueT,class HasherT = std::hash<ValueT>>
+  template <typename ValueT,class ToCidT = std::hash<ValueT>>
   class ordered_composite {
   public:
     using Value = ValueT; // Expose template arg type
-    using Hasher = HasherT; // Expose template arg type
+    using ToCid = ToCidT; // Expose template arg type
 
-    using Key = decltype(std::declval<Hasher>()(std::declval<Value>()));
-    using MaybeKey = std::optional<Key>;
+    using Cid = decltype(std::declval<ToCid>()(std::declval<Value>()));
+    using MaybeKey = std::optional<Cid>;
     using MaybeValue = std::optional<Value>;
     using PrevOf = std::function<MaybeValue(Value const& value,ordered_composite const& container)>;
 
-    using Map = std::unordered_map<Key,Hasher>;
+    using Map = std::unordered_map<Cid,ToCid>;
 
-    using Keyes = std::vector<Key>;    
+    using Keyes = std::vector<Cid>;    
     using Values = std::vector<Value>;
 
     // using const_iterator = Values::const_iterator;
 
-    // Key based const iterator
+    // Cid based const iterator
     class const_iterator {
     public:
 
@@ -192,14 +197,14 @@ namespace cas {
     const_iterator end() const { return const_iterator(m_map,m_ordered_keyes,m_ordered_keyes.size());}
 
   private:
-    Hasher m_hasher;
+    ToCid m_hasher;
     Map m_map{};
     Keyes m_ordered_keyes{};
     PrevOf m_prev_of;
   public:
-    ordered_composite(PrevOf const& prev_of,Hasher hasher = Hasher{}) 
+    ordered_composite(PrevOf const& prev_of,ToCid to_cid = ToCid{}) 
       :  m_prev_of{prev_of}
-        ,m_hasher{hasher} {}
+        ,m_hasher{to_cid} {}
 
     ordered_composite& clear() {
       m_map.clear();
@@ -214,19 +219,19 @@ namespace cas {
       if (iter == this->end()) {
         // No previous
         if (this->m_ordered_keyes.size() == 0) {
-          auto key = this->m_hasher(value);
-          this->m_ordered_keyes.push_back(key);
-          this->m_map.insert({key,value});
+          auto Cid = this->m_hasher(value);
+          this->m_ordered_keyes.push_back(Cid);
+          this->m_map.insert({Cid,value});
         }
         else {
           logger::design_insufficiency("const_iterator::insert: Can't insert at end() for non-empty m_keyes");
         }
       }
       else {
-        auto key = this->m_hasher(value);
+        auto Cid = this->m_hasher(value);
         auto pos = std::advance(m_ordered_keyes.begin(),iter.ix());
-        this->m_ordered_keyes.insert(pos,key);
-        this->m_map.insert({key,value});
+        this->m_ordered_keyes.insert(pos,Cid);
+        this->m_map.insert({Cid,value});
       }
     }
 

@@ -10481,6 +10481,7 @@ private:
         ,tagged_amount_to_environment);
     }
 
+    // Log
     if (true) {
       logger::scope_logger scope_raii{logger::development_trace,"Model -> Environment Log"};
       logger::development_trace("model->all_date_ordered_tagged_amounts.cas().size():{}",model->all_date_ordered_tagged_amounts.cas().size());
@@ -10496,7 +10497,6 @@ private:
     if (result.contains("TaggedAmount") and (result.at("TaggedAmount").size() != model->all_date_ordered_tagged_amounts.ordered_tas_view().size())) {
       logger::design_insufficiency(R"(environment_from_model: Failed. Expected same size model->all_date_ordered_tagged_amounts.ordered_tas_view():{} != result.at("TaggedAmount").size():{})",model->all_date_ordered_tagged_amounts.ordered_tas_view().size(),result.at("TaggedAmount").size());
     }
-
 
 		// for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {
 		// 	// result.insert({"HeadingAmountDateTransEntry",to_environment_value(entry)});

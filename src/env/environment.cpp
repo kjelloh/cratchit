@@ -85,7 +85,7 @@ namespace in {
           result[name].push_back(
               // EnvironmentValue is key-value-pairs as a map <key,value>
               // result is Environment, i.e.,
-              Environment::IdValuePair{current_index[name], to_environment_value(value_string)});
+              Environment::MutableIdValuePair{current_index[name], to_environment_value(value_string)});
         }
       }
     } catch (std::runtime_error const &e) {
@@ -110,7 +110,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
 
   Environment result{};
   for (auto const& [name,indexed_id_value_pairs] : indexed_environment) {
-    Environment::IdValuePairs cas_id_value_pairs{};
+    Environment::MutableIdValuePairs cas_id_value_pairs{};
     if (name == "TaggedAmount") {
       // We need to transform the indecies in the file to actual (hash based) value ids in CAS Environment
       // The pipe for the raw ev becomes environment_value -> TaggedAmount -> to_value_id(TaggedAmount).
@@ -262,7 +262,7 @@ Environment to_indexed_environment(Environment const& cas_environment) {
   logger::scope_logger raii_log{logger::development_trace,"to_indexed_environment"};
   Environment result{};
   for (auto const& [section,cas_id_value_pairs] : cas_environment) {
-    Environment::IdValuePairs indexed_id_value_pairs{}; // Transform target
+    Environment::MutableIdValuePairs indexed_id_value_pairs{}; // Transform target
 
     // Transform inter-value references in cas_id_value_pairs
     // from value_ids to integer indexed ids

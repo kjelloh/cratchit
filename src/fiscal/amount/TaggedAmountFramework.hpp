@@ -111,7 +111,7 @@ OptionalTaggedAmount to_tagged_amount(Environment::Value const& ev);
 // TaggedAmounts -> Id-Value pairs (map Environment value-Id to Environment Value)
 inline auto id_value_pairs_from(TaggedAmounts const& tagged_amounts) {
   return tagged_amounts | std::views::transform(
-    [](TaggedAmount const& ta) -> Environment::IdValuePair {
+    [](TaggedAmount const& ta) -> Environment::MutableIdValuePair {
       return {to_value_id(ta), to_environment_value(ta)};
     });
 }

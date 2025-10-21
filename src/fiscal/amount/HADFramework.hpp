@@ -58,7 +58,7 @@ inline auto to_period_hads(FiscalPeriod period, const Environment &env) -> Headi
   auto in_period = [](HeadingAmountDateTransEntry const &had,FiscalPeriod const &period) -> bool {
     return period.contains(had.date);
   };
-  auto id_ev_pair_to_ev = [](Environment::IdValuePair const &id_ev_pair) {
+  auto id_ev_pair_to_ev = [](Environment::MutableIdValuePair const &id_ev_pair) {
     return id_ev_pair.second;
   };
   static constexpr auto section = "HeadingAmountDateTransEntry";
