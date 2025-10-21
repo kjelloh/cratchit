@@ -1918,8 +1918,6 @@ TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
 	};
   
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
-	// TODO: Create the aggregate amount that refers to all account transaction amounts
-	// type=aggregate members=<id>&<id>&<id>...
 	aggregate_ta.tags()["_members"] = value_ids.to_string();
 	result.push_back(aggregate_ta);
 	return result;

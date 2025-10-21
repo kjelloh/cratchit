@@ -12,10 +12,15 @@ TaggedAmount::TaggedAmount(Date const &date, CentsAmount const &cents_amount, Ta
     : m_date{date},m_cents_amount{cents_amount}, m_tags{tags} {}
 
 std::string TaggedAmount::to_string(TaggedAmount::ValueId value_id) {
-  std::ostringstream os{};
-  os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex
-     << value_id << std::dec;
-  return os.str();
+  // TODO: Consider a safe way to ensure ALL value ids gets converted to the same string
+  //       to ernsure consistent environment value encoding / 20251021
+  //       Also see to_cas_environment(indexed_environment)
+
+  // std::ostringstream os{};
+  // os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex
+  //    << value_id << std::dec;
+  // return os.str();
+  return std::format("{:x}",value_id);
 }
 
 bool TaggedAmount::operator==(TaggedAmount const &other) const {
@@ -272,6 +277,7 @@ namespace zeroth {
     if (m_date_ordered_value_ids.size() > m_tagged_amount_cas_repository.size()) {
       logger::design_insufficiency("DateOrderedTaggedAmountsContainer: Unexpected m_date_ordered_value_ids.size():{} > m_tagged_amount_cas_repository.size():{}",m_date_ordered_value_ids.size(), m_tagged_amount_cas_repository.size());
     }
+
 
     return put_result;
   }
