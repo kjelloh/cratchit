@@ -10199,11 +10199,11 @@ private:
     return result;
   }
 
-  DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_account_statement_files(Environment const& environment) {
+  TaggedAmounts tagged_amounts_sequence_from_account_statement_file(Environment const& environment) {
     if (false) {
-      std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files" << std::flush;
+      std::cout << "\ntagged_amounts_sequence_from_account_statement_file" << std::flush;
     }
-    DateOrderedTaggedAmountsContainer result{};
+    TaggedAmounts result{};
     // Ensure folder "from_bank_or_skv folder" exists
     auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
     std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
@@ -10223,10 +10223,9 @@ private:
             // skip directories (will process regular files and symlinks etc...)
           }
           // Process file
-          else if (auto maybe_dotas = to_dotas(statement_file_path)) {
-            // result += *maybe_dotas;
-            result.date_ordered_tagged_amounts_put_container(maybe_dotas.value());
-            std::cout << "\n\tValid entries count:" << maybe_dotas->sequence_size();
+          else if (auto maybe_tas = to_tas(statement_file_path)) {
+            result = maybe_tas.value();
+            std::cout << "\n\tValid entries count:" << maybe_tas->size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";
             if (false) {
               std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
@@ -10246,7 +10245,10 @@ private:
       std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
     }
     if (true) {
-      std::cout << "\ndate_ordered_tagged_amounts_from_account_statement_files RETURNS " << result.tagged_amounts().size() << " entries";
+      std::cout 
+        << "\ntagged_amounts_sequence_from_account_statement_file RETURNS " 
+        << result.size() 
+        << " entries";
     }
     return result;
   }
@@ -10256,12 +10258,11 @@ private:
       std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
     }
     DateOrderedTaggedAmountsContainer result{};
-    // result += to_tagged_amounts(environment);
-    result.date_ordered_tagged_amounts_put_sequence(to_tagged_amounts(environment));
+    result.date_ordered_tagged_amounts_put_container(dotas_from_environment(environment));
 
     // Import any new account statements in dedicated "files from bank or skv" folder
-    // result += date_ordered_tagged_amounts_from_account_statement_files(environment);
-    result.date_ordered_tagged_amounts_put_container(date_ordered_tagged_amounts_from_account_statement_files(environment));
+    // result += tagged_amounts_sequence_from_account_statement_file(environment);
+    result.date_ordered_tagged_amounts_put_sequence(tagged_amounts_sequence_from_account_statement_file(environment));
     return result;
   }
 

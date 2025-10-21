@@ -97,7 +97,7 @@ namespace std {
 } // namespace std
 
 TaggedAmount::ValueId to_value_id(TaggedAmount const &ta);
-std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta);
+std::ostream& operator<<(std::ostream &os, TaggedAmount const &ta);
 TaggedAmount::OptionalValueId to_value_id(std::string const &sid);
 TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids);
 
@@ -107,10 +107,6 @@ std::string to_string(TaggedAmount const& ta);
 // Environment conversions
 Environment::Value to_environment_value(TaggedAmount const& ta);
 OptionalTaggedAmount to_tagged_amount(Environment::Value const& ev);
-
-TaggedAmounts to_tagged_amounts(const Environment &env);
-// Environment -> TaggedAmounts (filtered by fiscal period)
-TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &env);
 
 // TaggedAmounts -> Id-Value pairs (map Environment value-Id to Environment Value)
 inline auto id_value_pairs_from(TaggedAmounts const& tagged_amounts) {
@@ -232,6 +228,10 @@ using DateOrderedTaggedAmountsContainer = zeroth::DateOrderedTaggedAmountsContai
 
 // namespace BAS with 'forwards' now in BAS.hpp
 
+DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env);
+// Environment -> TaggedAmounts (filtered by fiscal period)
+DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_container(FiscalPeriod period, const Environment &env);
+
 namespace tas {
   // namespace for processing that produces tagged amounts
 
@@ -320,8 +320,8 @@ namespace CSV {
     ToTaggedAmountProjection make_tagged_amount_projection(
       HeadingId const& csv_heading_id
       ,CSV::TableHeading const& table_heading);
-    OptionalDateOrderedTaggedAmounts to_dotas(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+    OptionalTaggedAmounts to_tas(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
   }
 }
 
-OptionalDateOrderedTaggedAmounts to_dotas(std::filesystem::path const& statement_file_path);
+OptionalTaggedAmounts to_tas(std::filesystem::path const& statement_file_path);

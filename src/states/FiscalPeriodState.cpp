@@ -10,32 +10,29 @@
 
 namespace first {
 
+  // 'Older' taking separate period, tagged amounts and hads (and create slices behind the hood)
   FiscalPeriodState::FiscalPeriodState(
      std::optional<std::string> caption
     ,FiscalPeriod fiscal_period
-    ,HeadingAmountDateTransEntries period_hads
-    ,TaggedAmounts period_tagged_amounts)
+    ,HeadingAmountDateTransEntries all_hads
+    ,TaggedAmounts all_tagged_amounts)
       :  StateImpl{caption}
         ,m_fiscal_period{fiscal_period}
+        // create period slices
+        ,m_hads_slice{make_period_sliced(fiscal_period,all_hads,[](HAD const& had){return had.date;})}
+        ,m_tas_slice{make_period_sliced(fiscal_period,all_tagged_amounts,[](TaggedAmount const& ta){return ta.date();})} {}
 
-        // 'Older' using separate period and container
-        // ,m_period_hads{period_hads}
-        // ,m_period_tagged_amounts{period_tagged_amounts}
-
-        // 'newer' using PeriodSlice mechanism
-        ,m_hads_slice{make_period_sliced(fiscal_period,period_hads,[](HAD const& had){return had.date;})}
-        ,m_tas_slice{make_period_sliced(fiscal_period,period_tagged_amounts,[](TaggedAmount const& ta){return ta.date();})} {}
-
+  // 'Newer' taking period and environment
   FiscalPeriodState::FiscalPeriodState(
      FiscalPeriod fiscal_period
     ,Environment const &parent_environment_ref)
       : FiscalPeriodState(
          std::nullopt
         ,fiscal_period
-
-        // 'Older' using separate period and container
         ,hads_from_environment(parent_environment_ref)
-        ,to_tagged_amounts(parent_environment_ref)) {}
+        // TODO: Attend to the innefficiency to instantiate the whole date ordered container and then all tagged amounts.
+        //       We don't need potential conflicting histories and we need only instantiate tagged amounts in the period.
+        ,dotas_from_environment(parent_environment_ref).tagged_amounts()) {}
           
   std::string FiscalPeriodState::caption() const {
     if (m_caption.has_value()) {

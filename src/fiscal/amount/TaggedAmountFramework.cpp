@@ -51,22 +51,6 @@ std::ostream& operator<<(std::ostream &os, TaggedAmount const &ta) {
   return os;
 }
 
-// Hex string to Value Id (for parsing tags that encodes references as valude Ids)
-TaggedAmount::OptionalValueId to_value_id(std::string const& sid) {
-  // std::cout << "\nto_value_id()" << std::flush;
-  TaggedAmount::OptionalValueId result{};
-  TaggedAmount::ValueId value_id{};
-  std::istringstream is{sid};
-  try {
-    is >> std::hex >> value_id;
-    result = value_id;
-  } catch (...) {
-    std::cout << "\nto_value_id(" << std::quoted(sid)
-              << ") failed. General Exception caught." << std::flush;
-  }
-  return result;
-}
-
 // Hex listing string to Value Ids (for parsing tags that encodes references as valude Ids)
 TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
   // std::cout << "\nto_value_ids()" << std::flush;
@@ -92,6 +76,56 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
   return result;
 }
 
+// Hex string to Value Id (for parsing tags that encodes references as valude Ids)
+TaggedAmount::OptionalValueId to_value_id(std::string const& sid) {
+  // std::cout << "\nto_value_id()" << std::flush;
+  TaggedAmount::OptionalValueId result{};
+  TaggedAmount::ValueId value_id{};
+  std::istringstream is{sid};
+  try {
+    is >> std::hex >> value_id;
+    result = value_id;
+  } catch (...) {
+    std::cout << "\nto_value_id(" << std::quoted(sid)
+              << ") failed. General Exception caught." << std::flush;
+  }
+  return result;
+}
+
+// String conversion
+std::string to_string(TaggedAmount const& ta) {
+  std::ostringstream oss;
+  oss << ta;
+  return oss.str();
+}
+
+// Environment conversions
+Environment::Value to_environment_value(TaggedAmount const& ta) {
+	Environment::Value ev{};
+	ev["yyyymmdd_date"] = to_string(ta.date());
+	ev["cents_amount"] = to_string(ta.cents_amount());
+	for (auto const& entry : ta.tags()) {
+		ev[entry.first] = entry.second;
+	}
+	return ev;
+}
+
+OptionalTaggedAmount to_tagged_amount(Environment::Value const& ev) {
+	OptionalTaggedAmount result{};
+	OptionalDate date{};
+	OptionalCentsAmount cents_amount{};
+	TaggedAmount::OptionalValueId value_id{};
+	TaggedAmount::Tags tags{};
+	for (auto const& entry : ev) {
+		if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
+		else if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
+		else tags[entry.first] = entry.second;
+	}
+	if (date and cents_amount) {
+    result = TaggedAmount{*date,*cents_amount,std::move(tags)};
+	}
+	return result;
+}
 
 namespace zeroth {
   // BEGIN class DateOrderedTaggedAmountsContainer
@@ -105,13 +139,12 @@ namespace zeroth {
   }
 
   OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) const {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::at("
-              << TaggedAmount::to_string(value_id) << ")" << std::flush;
+    if (false) {
+      logger::development_trace("DateOrderedTaggedAmountsContainer::at({})",TaggedAmount::to_string(value_id));
+    }
     OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
     if (!result) {
-      std::cout << "\nDateOrderedTaggedAmountsContainer::at could not find a "
-                  "mapping to value_id="
-                << TaggedAmount::to_string(value_id) << std::flush;
+      logger::development_trace("DateOrderedTaggedAmountsContainer::at({}), No value -> returns std::nullopt",TaggedAmount::to_string(value_id));
     }
     return result;
   }
@@ -291,8 +324,6 @@ namespace zeroth {
   // END class DateOrderedTaggedAmountsContainer
 
 }
-
-
 
 TaggedAmount::ValueId TaggedAmountHasher::operator()(TaggedAmount const& ta) const {
   return to_value_id(ta);
@@ -495,22 +526,22 @@ namespace CSV {
       }
     }
 
-    OptionalDateOrderedTaggedAmounts to_dotas(
+    OptionalTaggedAmounts to_tas(
        CSV::project::HeadingId const& csv_heading_id
       ,CSV::OptionalTable const& maybe_csv_table) {
-      OptionalDateOrderedTaggedAmounts result{};
+      OptionalTaggedAmounts result{};
       if (maybe_csv_table) {
         auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,maybe_csv_table->heading);
-        DateOrderedTaggedAmountsContainer dotas{};
+        TaggedAmounts tas{};
         for (auto const& field_row : maybe_csv_table->rows) {
           if (auto maybe_ta = to_tagged_amount(field_row)) {
-            dotas.date_ordered_tagged_amounts_put_value(maybe_ta.value());
+            tas.push_back(maybe_ta.value());
           }
           else {
             logger::cout_proxy << "\nCSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
           }
         }
-        result = dotas;
+        result = tas;
       }
       else {
         logger::development_trace("CSV::project::to_dota - Null table -> nullopt result");
@@ -523,11 +554,11 @@ namespace CSV {
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
 */
-OptionalDateOrderedTaggedAmounts to_dotas(std::filesystem::path const& statement_file_path) {
+OptionalTaggedAmounts to_tas(std::filesystem::path const& statement_file_path) {
   if (true) {
     std::cout << "\nto_tagged_amounts(" << statement_file_path << ")";
   }
-  OptionalDateOrderedTaggedAmounts result{};
+  OptionalTaggedAmounts result{};
   CSV::OptionalFieldRows field_rows{};
   std::ifstream ifs{statement_file_path};
   // NOTE: The mechanism implemented to apply correct decoding and parsing of different files is a mess!
@@ -551,46 +582,10 @@ OptionalDateOrderedTaggedAmounts to_dotas(std::filesystem::path const& statement
     if (field_rows->size() > 0) {
       auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
       auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
-      result =  CSV::project::to_dotas(csv_heading_id,CSV::to_table(field_rows,heading_projection));
+      result =  CSV::project::to_tas(csv_heading_id,CSV::to_table(field_rows,heading_projection));
     }
   }
   return result;
-}
-
-
-// String conversion
-std::string to_string(TaggedAmount const& ta) {
-  std::ostringstream oss;
-  oss << ta;
-  return oss.str();
-}
-
-// Environment conversions
-Environment::Value to_environment_value(TaggedAmount const& ta) {
-	Environment::Value ev{};
-	ev["yyyymmdd_date"] = to_string(ta.date());
-	ev["cents_amount"] = to_string(ta.cents_amount());
-	for (auto const& entry : ta.tags()) {
-		ev[entry.first] = entry.second;
-	}
-	return ev;
-}
-
-OptionalTaggedAmount to_tagged_amount(Environment::Value const& ev) {
-	OptionalTaggedAmount result{};
-	OptionalDate date{};
-	OptionalCentsAmount cents_amount{};
-	TaggedAmount::OptionalValueId value_id{};
-	TaggedAmount::Tags tags{};
-	for (auto const& entry : ev) {
-		if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
-		else if (entry.first == "cents_amount") cents_amount = to_cents_amount(entry.second);
-		else tags[entry.first] = entry.second;
-	}
-	if (date and cents_amount) {
-    result = TaggedAmount{*date,*cents_amount,std::move(tags)};
-	}
-	return result;
 }
 
 auto ev_to_maybe_ta = [](Environment::Value const &ev) -> OptionalTaggedAmount {
@@ -603,34 +598,36 @@ auto id_ev_pair_to_ev = [](Environment::IdValuePair const &id_ev_pair) {
   return id_ev_pair.second;
 };
 
-TaggedAmounts to_tagged_amounts(const Environment &env) {
+DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env) {
+  DateOrderedTaggedAmountsContainer result{};
   static constexpr auto section = "TaggedAmount";
   if (!env.contains(section)) {
     return {}; // No entries of this type
   }
   auto const &id_ev_pairs = env.at(section);
-  auto result = id_ev_pairs 
+  auto tas_sequence = id_ev_pairs 
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_ta) 
     | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
     | std::views::transform([](auto const &maybe_ta) { return maybe_ta.value(); }) 
     | std::ranges::to<std::vector>();
-  
-  // Sort by date for consistent ordering
-  std::sort(result.begin(), result.end(), [](const TaggedAmount& a, const TaggedAmount& b) {
-    return a.date() < b.date();
+
+  std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
+    result.date_ordered_tagged_amounts_put_value(ta); // put and apply ordering
   });
+
   return result;
 }
 
 // Environment -> TaggedAmounts (filtered by fiscal period)
-TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &env) {
+DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_container(FiscalPeriod period, const Environment &env) {
+  DateOrderedTaggedAmountsContainer result{};
   static constexpr auto section = "TaggedAmount";
   if (!env.contains(section)) {
     return {}; // No entries of this type
   }
   auto const &id_ev_pairs = env.at(section);
-  auto result = id_ev_pairs 
+  auto tas_sequence = id_ev_pairs 
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_ta) 
     | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
@@ -638,9 +635,9 @@ TaggedAmounts to_period_tagged_amounts(FiscalPeriod period, const Environment &e
     | std::views::filter([&](auto const &ta) { return in_period(ta, period); }) 
     | std::ranges::to<std::vector>();
   
-  // Sort by date for consistent ordering
-  std::sort(result.begin(), result.end(), [](const TaggedAmount& a, const TaggedAmount& b) {
-    return a.date() < b.date();
+  std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
+    result.date_ordered_tagged_amounts_put_value(ta); // put and apply ordering
   });
+
   return result;
 }
