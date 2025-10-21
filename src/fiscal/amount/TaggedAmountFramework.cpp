@@ -266,7 +266,10 @@ namespace zeroth {
     } 
     else {
       // No op - ta already in container (and CAS)
+      logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
+      logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));      
     }
+
     return put_result;
   }
 

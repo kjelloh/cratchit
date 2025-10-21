@@ -10260,8 +10260,15 @@ private:
     DateOrderedTaggedAmountsContainer result{};
     result.date_ordered_tagged_amounts_put_container(dotas_from_environment(environment));
 
+    if (environment.contains("TaggedAmount") and (environment.at("TaggedAmount").size() != result.cas().size())) {
+      logger::design_insufficiency("date_ordered_tagged_amounts_from_environment: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
+    }
+
+    if (true) {
+      logger::development_trace("date_ordered_tagged_amounts_from_environment: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
+    }
+
     // Import any new account statements in dedicated "files from bank or skv" folder
-    // result += tagged_amounts_sequence_from_account_statement_file(environment);
     result.date_ordered_tagged_amounts_put_sequence(tagged_amounts_sequence_from_account_statement_file(environment));
     return result;
   }

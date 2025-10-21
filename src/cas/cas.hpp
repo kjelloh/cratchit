@@ -51,6 +51,8 @@ namespace cas {
     using KeyValueMap = std::map<Key, Value>;
     KeyValueMap m_map{};
   public:
+
+    auto size() const {return m_map.size();}
     bool contains(Key const &key) const { return m_map.contains(key); }
     MaybeValue cas_repository_get(Key const &key) const { 
       MaybeValue result{};
