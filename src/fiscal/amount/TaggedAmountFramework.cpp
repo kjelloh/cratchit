@@ -199,7 +199,7 @@ namespace zeroth {
 
 
   // Mutation
-  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert(TaggedAmount const& ta) {
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value(TaggedAmount const& ta) {
     auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
     if (put_result.second == true) {
       // Log
@@ -225,7 +225,7 @@ namespace zeroth {
             if (maybe_lhs_ta and maybe_rhs_ta) {
               return maybe_lhs_ta->date() < maybe_rhs_ta->date();
             }
-            logger::design_insufficiency("date_ordered_tagged_amounts_insert: Detected corrupt m_date_ordered_value_ids. Failed to map m_date_ordered_value_ids {} and/or {} to value",lhs,rhs);
+            logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map m_date_ordered_value_ids {} and/or {} to value",lhs,rhs);
             return false;
           });
       m_date_ordered_value_ids.insert(prev,put_result.first); // place after all with date less than the one of ta
@@ -253,9 +253,9 @@ namespace zeroth {
     return *this;
   }
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(DateOrderedTaggedAmountsContainer const &other) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const &other) {
     std::ranges::for_each(other.ordered_tas_view(),[this](TaggedAmount const &ta) {
-      this->date_ordered_tagged_amounts_insert(ta);
+      this->date_ordered_tagged_amounts_put_value(ta);
     });
 
     return *this;
@@ -269,16 +269,16 @@ namespace zeroth {
   }
 
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::merge(TaggedAmounts const &tas) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_sequence(TaggedAmounts const &tas) {
     for (auto const &ta : tas)
-      this->date_ordered_tagged_amounts_insert(ta);
+      this->date_ordered_tagged_amounts_put_value(ta);
     return *this;
   }
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const &tas) {
     this->clear();
     // *this += tas;
-    this->merge(tas);
+    this->date_ordered_tagged_amounts_put_sequence(tas);
     return *this;
   }
 
@@ -504,7 +504,7 @@ namespace CSV {
         DateOrderedTaggedAmountsContainer dotas{};
         for (auto const& field_row : maybe_csv_table->rows) {
           if (auto maybe_ta = to_tagged_amount(field_row)) {
-            dotas.date_ordered_tagged_amounts_insert(maybe_ta.value());
+            dotas.date_ordered_tagged_amounts_put_value(maybe_ta.value());
           }
           else {
             logger::cout_proxy << "\nCSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));

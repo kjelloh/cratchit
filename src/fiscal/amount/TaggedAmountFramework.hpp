@@ -148,12 +148,11 @@ namespace zeroth {
     // using const_subrange = std::ranges::subrange<const_iterator, const_iterator>;
 
     // Container
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert(TaggedAmount const &ta);
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_put_value(TaggedAmount const &ta);
 
     // Accessors
     bool contains(TaggedAmount const& ta) const;
     OptionalTaggedAmount at(ValueId const &value_id) const;
-    // OptionalTaggedAmount operator[](ValueId const &value_id) const;
     TaggedAmountsCasRepository& cas();
 
     // Sequence
@@ -164,8 +163,6 @@ namespace zeroth {
             return this->m_tagged_amount_cas_repository.cas_repository_get(value_id).value();
           });
     }
-    // const_iterator begin() const;
-    // const_iterator end() const;
     TaggedAmounts tagged_amounts();    
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
     // const_subrange date_range_tas_view(zeroth::DateRange const &date_period);
@@ -183,10 +180,12 @@ namespace zeroth {
     // Mutation
     DateOrderedTaggedAmountsContainer& erase(ValueId const &value_id);
 
-    DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
+    // DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
+    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const &other); // +=
     DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other); // =
 
-    DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
+    // DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
+    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_sequence(TaggedAmounts const &tas); // +=
     DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas); // =
 
     DateOrderedTaggedAmountsContainer& clear();

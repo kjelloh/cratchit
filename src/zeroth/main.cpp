@@ -6678,8 +6678,8 @@ Cmd Updater::operator()(Command const& command) {
               // Accept the new tagged amounts created
               // model->all_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
               // model->selected_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
-              model->all_date_ordered_tagged_amounts.merge(model->new_date_ordered_tagged_amounts);
-              model->selected_date_ordered_tagged_amounts.merge(model->new_date_ordered_tagged_amounts);
+              model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(model->new_date_ordered_tagged_amounts);
+              model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(model->new_date_ordered_tagged_amounts);
 
               model->prompt_state = PromptState::TAIndex;
               prompt << "\n*Accepted*";
@@ -8510,7 +8510,7 @@ Cmd Updater::operator()(Command const& command) {
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
           for (auto const& ta : model->all_date_ordered_tagged_amounts.date_range_tas_view({*begin,*end})) {
-            model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert(ta);
+            model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_value(ta);
           }				
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
@@ -10127,7 +10127,7 @@ private:
       TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
       saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
       saldo_ta.tags()["IB"] = "True";
-      result.date_ordered_tagged_amounts_insert(saldo_ta);
+      result.date_ordered_tagged_amounts_put_value(saldo_ta);
       if (true) {
         std::cout << "\n\tsaldo_ta : " << saldo_ta;
       }
@@ -10138,7 +10138,7 @@ private:
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
       // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
 			// result += tagged_amounts;
-			result.merge(tagged_amounts);
+			result.date_ordered_tagged_amounts_put_sequence(tagged_amounts);
 		};
 		for_each_meta_entry(sie_env,create_and_merge_to_result);
 		return result;
@@ -10225,7 +10225,7 @@ private:
           // Process file
           else if (auto maybe_dotas = to_dotas(statement_file_path)) {
             // result += *maybe_dotas;
-            result.merge(maybe_dotas.value());
+            result.date_ordered_tagged_amounts_put_container(maybe_dotas.value());
             std::cout << "\n\tValid entries count:" << maybe_dotas->sequence_size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";
             if (false) {
@@ -10256,93 +10256,12 @@ private:
       std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
     }
     DateOrderedTaggedAmountsContainer result{};
-
-    // Replaced with 'to_tagged_amounts(env)'in TaggedAmountFramework
-    // if (environment.contains("TaggedAmount")) {
-    //   auto const id_ev_pairs = environment.at("TaggedAmount");
-    //   // 240621 - How can we convert the id used for the environment value to the one used by DateOrderedTaggedAmountsContainer?
-    //   //          The problembeing that an aggregate tagged amount refers to its members by listing the id:s of the members.
-    //   //          Thus, If we transform the id of a value referenmced by an aggregate, then we need to update thje id used in the listing.
-    //   // 240622 - Aha, What I am trying to implement is a CAS (Content Adressible Storage) with the known problem of uppdating cross referencies
-    //   //          when aggregate members are mutaded.
-    //   //          Now in CAS, values are in effect immutable. So the only way to mutate is to replace the mutated value with the new one
-    //   //          (that will for that reason have a new key).
-    //   //          My problem here is a variant of this problem, where the values are not mutated, but the keys may be.
-    //   //          Solution: Implement a two pass approach.
-    //   //          1. Transform all non-aggregates (ensuring they exist witgh their new key in the target map)
-    //   //             I need to cache the mapping of ev-keys to ta-keys to later transform aggrete member key listings
-    //   //          2. Transform all aggregates (ensuring they now refer to their members using their new keys)
-    //   //             using the cached ev-key to ta-key recorded in (1).
-
-      
-    //   std::map<std::size_t,std::size_t> ev_id_to_ta_id{};
-    //   // Pass 1 - transform <ev_id,ev> --> <ta_id,ta> for non-aggregates (keep track of any key changes)
-    //   std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
-    //     auto const& [ev_id,ev] = id_ev_pair;
-    //     if (auto o_ta = to_tagged_amount(ev)) {
-    //       if (not o_ta->tag_value("_members")) {
-    //         // Not an aggregate = process in this pass 1
-    //         auto const& [ta_id,iter] = result.insert(*o_ta);
-    //         if (ta_id != ev_id) {
-    //           // ev and ta uses different keys (file may be generated with keys that are not what we use internally)
-    //           std::cout << "\nev_id:" << std::hex << ev_id << " --> ta_id:" << ta_id << std::dec;
-    //         }
-    //         else {
-    //           std::cout << "\nev_id:" << std::hex << ev_id << " == ta_id:" << ta_id << std::dec;
-    //         }
-    //         ev_id_to_ta_id[ev_id] = ta_id; // record 'ev id' -> 'ta id'
-    //       }
-    //     }
-    //     else {
-    //       std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
-    //     }              
-    //   });
-    //   // Pass 2 - transform <ev_id,ev> --> <ta_id,ta> for aggregates (update any changes to listed members keys)
-    //   std::for_each(id_ev_pairs.begin(),id_ev_pairs.end(),[&ev_id_to_ta_id,&result](auto const& id_ev_pair){
-    //     auto const& [ev_id,ev] = id_ev_pair;
-    //     if (auto o_ta = to_tagged_amount(ev)) {
-    //       auto ta = *o_ta;
-    //       if (auto ev_members_value = ta.tag_value("_members")) {
-    //         // Is an aggregate, process these in this pass 2 (transform 'ev id' -> 'ta id' references)
-    //         auto ev_members = Key::Path{*ev_members_value};
-    //         decltype(ev_members) ta_members{};
-    //         if (auto ev_ids = to_value_ids(ev_members)) {
-    //           for (auto const ev_id : *ev_ids) {
-    //             if (ev_id_to_ta_id.contains(ev_id)) {
-    //               ta_members += TaggedAmount::to_string(ev_id_to_ta_id[ev_id]);
-    //             }
-    //             else {
-    //               std::cout << "\nDESIGN INSUFFICIENCY - No mapping found from ev_id:" << std::hex << ev_id << " to ta_id in members listing of ev value:" << ev << ". Member discarded!" << std::dec;
-    //             }
-    //           }
-    //         }
-    //         else {
-    //           std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert ev_members  " << ev_members << " to value ids";
-    //         }
-    //         if (ev_members.size() != ta_members.size()) {
-    //           std::cout << "\nDESIGN INSUFFICIENCY: EV and TA Aggregates differs in members size. ev_members.size():" << ev_members.size() << " ta_members.size():" << ta_members.size();
-    //         }
-    //         if (false) {
-    //           std::cout << "\nev_members:" << ev_members << " --> ta_members:" << ta_members;
-    //         }
-    //         ta.tags()["_members"] = ta_members.to_string();
-    //       }
-    //     }
-    //     else {
-    //       std::cout << "\nDESIGN INSUFFICIENCY - Failed to convert environment value " << ev << " to a TaggedAmount";
-    //     }              
-    //   });
-    // }
-    // else {
-    //   // Nop
-    // }
-
     // result += to_tagged_amounts(environment);
-    result.merge(to_tagged_amounts(environment));
+    result.date_ordered_tagged_amounts_put_sequence(to_tagged_amounts(environment));
 
     // Import any new account statements in dedicated "files from bank or skv" folder
     // result += date_ordered_tagged_amounts_from_account_statement_files(environment);
-    result.merge(date_ordered_tagged_amounts_from_account_statement_files(environment));
+    result.date_ordered_tagged_amounts_put_container(date_ordered_tagged_amounts_from_account_statement_files(environment));
     return result;
   }
 
@@ -10489,7 +10408,7 @@ private:
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
-      model->all_date_ordered_tagged_amounts.merge(this->date_ordered_tagged_amounts_from_environment(environment));
+      model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(this->date_ordered_tagged_amounts_from_environment(environment));
       // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
       for (auto const& [key,sie_environment] : model->sie_env_map) {
         this->synchronize_tagged_amounts_with_sie(model->all_date_ordered_tagged_amounts,sie_environment);
@@ -10499,11 +10418,11 @@ private:
       // TODO 240219 - Replace this old implementation with the new one above
       for (auto const& sie_environments_entry : model->sie_env_map) {
         // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
-        model->all_date_ordered_tagged_amounts.merge(this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));	
+        model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));	
       }
       prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
       // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
-      model->all_date_ordered_tagged_amounts.merge(this->date_ordered_tagged_amounts_from_environment(environment));
+      model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(this->date_ordered_tagged_amounts_from_environment(environment));
     }
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
