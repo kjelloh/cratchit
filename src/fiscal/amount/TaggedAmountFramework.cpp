@@ -244,8 +244,8 @@ namespace zeroth {
     if (false) {
       // 'Newer' pre-linked-encoded ordering
       logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: prev-linked-encoded ordering"};
-
       logger::design_insufficiency("NOT IMPLEMENETD: DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value - : prev-linked-encoded ordering");
+
       auto put_result = m_tagged_amount_cas_repository.try_cas_repository_put(ta);
       return put_result;
     }
@@ -259,28 +259,19 @@ namespace zeroth {
           std::cout << "\nthis:" << this << " Inserted new " << ta;
         }
 
-        auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
-          if (maybe_lhs_date and maybe_rhs_date) {
-            return maybe_lhs_date.value() < maybe_rhs_date.value();
-          }
-          return false;
-        };
+        auto insert_pos = m_date_ordered_value_ids.begin();
 
-        auto value_id_to_ta_maybe_date = [this](ValueId value_id) -> OptionalDate {
-          if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
-            return maybe_ta->date();
-          }
-          logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
-          return std::nullopt;
-        };
+        if (auto maybe_prev = to_prev(ta)) {
+            // Find iterator to this ValueId
+            insert_pos = std::ranges::find(m_date_ordered_value_ids, maybe_prev.value());
+            if (insert_pos != m_date_ordered_value_ids.end()) {
+                ++insert_pos; // Adjust to make std::vector::insert do what we want (inserts before iter)
+            }
+        }
 
-        auto prev = std::ranges::upper_bound(
-            m_date_ordered_value_ids
-            ,ta.date()
-            ,maybe_date_compare
-            ,value_id_to_ta_maybe_date);
+        // If maybe_prev_vid is nullopt, insert_pos stays at begin() (insert at / before start)
+        m_date_ordered_value_ids.insert(insert_pos, put_result.first);
 
-        m_date_ordered_value_ids.insert(prev,put_result.first); // place after all with date less than the one of ta
       } 
       else {
         // No op - ta already in container (and CAS)
@@ -347,6 +338,49 @@ namespace zeroth {
     m_date_ordered_value_ids.clear();
     return *this;
   }
+
+  DateOrderedTaggedAmountsContainer::OptionalValueId DateOrderedTaggedAmountsContainer::to_prev(TaggedAmount const& ta) {
+
+    auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
+      if (maybe_lhs_date and maybe_rhs_date) {
+        return maybe_lhs_date.value() < maybe_rhs_date.value();
+      }
+      return false;
+    };
+
+    auto value_id_to_ta_maybe_date = [this](ValueId value_id) -> OptionalDate {
+      if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
+        return maybe_ta->date();
+      }
+      logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
+      return std::nullopt;
+    };
+
+    auto iter = std::ranges::upper_bound(
+        m_date_ordered_value_ids
+        ,ta.date()
+        ,maybe_date_compare
+        ,value_id_to_ta_maybe_date);
+
+    if (iter != m_date_ordered_value_ids.begin()) {
+      // For non empty m_date_ordered_value_ids decrement on non-begin is valid (including end).
+      // For empty m_date_ordered_value_ids begin == end so iter is end = no decrement
+      --iter;
+    }
+    
+    if (iter != m_date_ordered_value_ids.end()) {
+      return *iter;
+    }
+    return std::nullopt;
+  }
+
+  std::tuple<
+     DateOrderedTaggedAmountsContainer::OptionalValueId
+    ,DateOrderedTaggedAmountsContainer::ValueId
+    ,TaggedAmount> DateOrderedTaggedAmountsContainer::to_prev_new(TaggedAmount const& ta) {
+    return {std::nullopt,0,ta}; // Dummy
+  }
+
 
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::put_value_after(ValueId prev,TaggedAmount const& ta) {
     auto iter = std::ranges::find(m_date_ordered_value_ids,prev);

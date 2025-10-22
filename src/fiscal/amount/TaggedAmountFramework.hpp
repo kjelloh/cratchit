@@ -13,6 +13,7 @@
 #include <limits> // std::numeric_limits
 #include <ranges>
 #include <numeric> // std::accumulate,
+#include <tuple>
 
 class TaggedAmount {
 public:
@@ -197,6 +198,10 @@ namespace zeroth {
                                                                   // repository
     // TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
     ValueIds m_date_ordered_value_ids{};
+
+    OptionalValueId to_prev(TaggedAmount const& ta);
+
+    std::tuple<OptionalValueId,ValueId,TaggedAmount> to_prev_new(TaggedAmount const& ta);
 
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> put_value_after(ValueId prev,TaggedAmount const& ta);
 
