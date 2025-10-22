@@ -201,7 +201,7 @@ namespace zeroth {
 
     OptionalValueId to_prev(TaggedAmount const& ta);
 
-    std::tuple<OptionalValueId,ValueId,TaggedAmount> to_prev_new(TaggedAmount const& ta);
+    std::pair<OptionalValueId,TaggedAmount> to_prev_and_transformed_ta(TaggedAmount const& ta);
 
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> put_value_after(ValueId prev,TaggedAmount const& ta);
 
