@@ -241,7 +241,7 @@ namespace zeroth {
   // Mutation
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value(TaggedAmount const& ta) {
 
-    if (false) {
+    if (true) {
       // 'Newer' pre-linked-encoded ordering
       logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: prev-linked-encoded ordering"};
 
@@ -249,9 +249,32 @@ namespace zeroth {
       // auto put_result = m_tagged_amount_cas_repository.try_cas_repository_put(ta);
       // return put_result;
 
-      auto [prev,transformed_ta] = this->to_prev_and_transformed_ta(ta);
+      auto [maybe_prev,transformed_ta] = this->to_prev_and_transformed_ta(ta);
       if (auto put_result = m_tagged_amount_cas_repository.cas_repository_put(transformed_ta);put_result.second) {
+        logger::development_trace("New value at:{} value:{}",put_result.first,to_string(transformed_ta));
         // New linked value
+        auto insert_pos = m_date_ordered_value_ids.begin();
+
+        if (maybe_prev) {
+            logger::development_trace("Valid prev:{}",maybe_prev.value());
+            // Find iterator to this ValueId
+            insert_pos = std::ranges::find(m_date_ordered_value_ids, maybe_prev.value());
+            if (insert_pos != m_date_ordered_value_ids.end()) {
+                ++insert_pos; // Adjust to make std::vector::insert do what we want (inserts before iter)
+            }
+        }
+
+        // If maybe_prev_vid is nullopt, insert_pos stays at begin() (insert at / before start)
+        m_date_ordered_value_ids.insert(insert_pos, put_result.first);
+
+        // Log
+        if (maybe_prev) {
+          logger::development_trace("m_date_ordered_value_ids inserted after:{} id:{}",maybe_prev.value(),put_result.first);
+        }
+        else {
+          logger::development_trace("m_date_ordered_value_ids inserted as first id:{}",put_result.first);
+        }
+
         return put_result;
       }
       else {
