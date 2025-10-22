@@ -242,18 +242,11 @@ namespace zeroth {
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value(TaggedAmount const& ta) {
     auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
     if (put_result.second == true) {
+
       // Log
       if (false) {
         std::cout << "\nthis:" << this << " Inserted new " << ta;
       }
-      // Find the last element with a date less than the date of ta
-      // auto prev = std::upper_bound(
-      //     m_date_ordered_tagged_amounts.begin(),
-      //     m_date_ordered_tagged_amounts.end(), ta,
-      //     [](TaggedAmount const &ta1, TaggedAmount const &ta2) {
-      //       return ta1.date() < ta2.date();
-      //     });
-      // m_date_ordered_tagged_amounts.insert(prev, ta); // place after all with date less than the one of ta
 
       auto prev = std::upper_bound(
            m_date_ordered_value_ids.begin()
@@ -268,6 +261,7 @@ namespace zeroth {
             logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map m_date_ordered_value_ids {} and/or {} to value",lhs,rhs);
             return false;
           });
+
       m_date_ordered_value_ids.insert(prev,put_result.first); // place after all with date less than the one of ta
     } 
     else {
@@ -341,26 +335,6 @@ namespace zeroth {
 
 TaggedAmount::ValueId TaggedAmountHasher::operator()(TaggedAmount const& ta) const {
   return to_value_id(ta);
-}
-
-namespace first {
-
-
-  TaggedAmountsCasRepository::MaybeValue date_ordered_prev(
-     TaggedAmountsCasRepository::Value const& value
-    ,TaggedAmountsCasRepository const& container) {
-    TaggedAmountsCasRepository::MaybeValue result{};
-
-    return result;
-  }
-
-  DateOrderedTaggedAmountsContainer::DateOrderedTaggedAmountsContainer() 
-    : m_repo{date_ordered_prev} {
-  }
-
-  TaggedAmountsCasRepository::const_iterator DateOrderedTaggedAmountsContainer::begin() const {return m_repo.begin();}
-  TaggedAmountsCasRepository::const_iterator DateOrderedTaggedAmountsContainer::end() const {return m_repo.end();}
-
 }
 
 namespace CSV {

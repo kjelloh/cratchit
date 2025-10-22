@@ -200,32 +200,7 @@ namespace zeroth {
   }; // class DateOrderedTaggedAmountsContainer
 }
 
-namespace first {
-
-  using TaggedAmountsCasRepository = cas::ordered_composite<TaggedAmount,TaggedAmountHasher>;
-
-  class DateOrderedTaggedAmountsContainer {
-  public:
-    using Value = TaggedAmountsCasRepository::Value;
-    using const_iterator = TaggedAmountsCasRepository::const_iterator;
-    using const_subrange = TaggedAmountsCasRepository::const_subrange;
-
-    DateOrderedTaggedAmountsContainer();
-
-    const_iterator begin() const;
-    const_iterator end() const;
-
-    const_subrange date_range_tas_view(zeroth::DateRange const &date_period);
-
-  private:
-    TaggedAmountsCasRepository m_repo;
-  };
-
-}
-
-// Type switch while refactoring into first::DateOrderedTaggedAmountsContainer;
 using DateOrderedTaggedAmountsContainer = zeroth::DateOrderedTaggedAmountsContainer;
-// using DateOrderedTaggedAmountsContainer = first::DateOrderedTaggedAmountsContainer;
 
 // namespace BAS with 'forwards' now in BAS.hpp
 

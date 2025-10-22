@@ -141,15 +141,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
                 if (index_to_id.contains(indexed_ref)) {
                   // Already in indexed_ref map OK (thus also already in cas_id_value_pairs)
                   // Transform reference from indexed to value_id in cas
-
-                  // TODO: Consider a safe way to ensure ALL value ids gets converted to the same string
-                  //       to ernsure consistent environment value encoding / 20251021
-                  //       Also see TaggedAmount::to_string(ValueId)
-                  // std::ostringstream os{};
-                  // os << std::hex << index_to_id.at(indexed_ref);
-                  // cas_refs += os.str();
                   cas_refs += text::format::to_hex_string(index_to_id.at(indexed_ref));
-
                 }
                 else {
                   // Not yet mapped = malformed input
