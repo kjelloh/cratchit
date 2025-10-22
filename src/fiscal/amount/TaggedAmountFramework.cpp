@@ -274,7 +274,6 @@ namespace zeroth {
       logger::design_insufficiency("DateOrderedTaggedAmountsContainer: Unexpected m_date_ordered_value_ids.size():{} > m_tagged_amount_cas_repository.size():{}",m_date_ordered_value_ids.size(), m_tagged_amount_cas_repository.size());
     }
 
-
     return put_result;
   }
 
@@ -327,6 +326,22 @@ namespace zeroth {
     m_tagged_amount_cas_repository.clear();
     m_date_ordered_value_ids.clear();
     return *this;
+  }
+
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::put_value_after(ValueId prev,TaggedAmount const& ta) {
+    auto iter = std::ranges::find(m_date_ordered_value_ids,prev);
+    if (iter != m_date_ordered_value_ids.end()) {
+      auto linked_ta = ta;
+      linked_ta.tags()["_prev"] = *iter;
+      auto linked_put_result = m_tagged_amount_cas_repository.cas_repository_put(linked_ta);
+      m_date_ordered_value_ids.insert(iter,linked_put_result.first);
+      return linked_put_result;
+    }
+    // Failed to locate prev
+    logger::design_insufficiency("DateOrderedTaggedAmountsContainer::put_value_after: Expected prev:{} to exist for ta:{}"
+      ,prev
+      ,to_string(ta));
+    return {to_value_id(ta),false}; // BEWARE - returned value_id is NOT the value_id of a properly linked value
   }
 
   // END class DateOrderedTaggedAmountsContainer

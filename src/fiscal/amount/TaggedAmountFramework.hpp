@@ -188,6 +188,7 @@ namespace zeroth {
     DateOrderedTaggedAmountsContainer& clear();
 
   private:
+
     // Note: Each tagged amount is stored twice. Once in a
     // mapping between value_id and tagged amount and once in an iteratable sequence
     // ordered by date.
@@ -196,6 +197,8 @@ namespace zeroth {
                                                                   // repository
     // TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
     ValueIds m_date_ordered_value_ids{};
+
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> put_value_after(ValueId prev,TaggedAmount const& ta);
 
   }; // class DateOrderedTaggedAmountsContainer
 }

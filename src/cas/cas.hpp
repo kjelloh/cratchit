@@ -74,7 +74,12 @@ namespace cas {
       return *this;
     }
 
-    // #cas::repository::insert
+    std::pair<Cid,bool> try_cas_repository_put(Value const& value) const {
+      auto cid = m_to_cid(value);
+      auto is_new_value = m_map.contains(cid);
+      return {cid,is_new_value};
+    }
+
     std::pair<Cid,bool> cas_repository_put(Value const& value) {
       auto cid = m_to_cid(value);
       auto result = m_map.insert({cid,value});
