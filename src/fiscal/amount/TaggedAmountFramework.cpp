@@ -248,9 +248,8 @@ namespace zeroth {
         std::cout << "\nthis:" << this << " Inserted new " << ta;
       }
 
-      auto prev = std::upper_bound(
-           m_date_ordered_value_ids.begin()
-          ,m_date_ordered_value_ids.end()
+      auto prev = std::ranges::upper_bound(
+           m_date_ordered_value_ids
           ,put_result.first
           ,[this](ValueId lhs,ValueId rhs) {
             auto maybe_lhs_ta = this->at(lhs);
