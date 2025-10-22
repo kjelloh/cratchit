@@ -43,9 +43,10 @@ public:
 
   bool operator==(TaggedAmount const &other) const;
 
+  // Replaced with text::format::to_hex_string() / 20251022
   // tagged_amount::to_string ensures it does not override
   // std::to_string(integral type) or any local one
-  static std::string to_string(TaggedAmount::ValueId value_id);
+  // static std::string to_string(TaggedAmount::ValueId value_id);
 
 private:
   Date m_date;

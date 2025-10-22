@@ -1,5 +1,6 @@
 #include "TaggedAmountFramework.hpp"
 #include "../../logger/log.hpp"
+#include "text/format.hpp"
 #include <iostream> // ,std::cout
 #include <sstream> // std::ostringstream, std::istringstream
 #include <algorithm> // std::all_of,
@@ -11,17 +12,18 @@
 TaggedAmount::TaggedAmount(Date const &date, CentsAmount const &cents_amount, Tags &&tags)
     : m_date{date},m_cents_amount{cents_amount}, m_tags{tags} {}
 
-std::string TaggedAmount::to_string(TaggedAmount::ValueId value_id) {
-  // TODO: Consider a safe way to ensure ALL value ids gets converted to the same string
-  //       to ernsure consistent environment value encoding / 20251021
-  //       Also see to_cas_environment(indexed_environment)
+// Replaced with text::format::to_hex_string
+// std::string TaggedAmount::to_string(TaggedAmount::ValueId value_id) {
+//   // TODO: Consider a safe way to ensure ALL value ids gets converted to the same string
+//   //       to ernsure consistent environment value encoding / 20251021
+//   //       Also see to_cas_environment(indexed_environment)
 
-  // std::ostringstream os{};
-  // os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex
-  //    << value_id << std::dec;
-  // return os.str();
-  return std::format("{:x}",value_id);
-}
+//   // std::ostringstream os{};
+//   // os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex
+//   //    << value_id << std::dec;
+//   // return os.str();
+//   return std::format("{:x}",value_id);
+// }
 
 bool TaggedAmount::operator==(TaggedAmount const &other) const {
   auto result =
@@ -145,11 +147,11 @@ namespace zeroth {
 
   OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) const {
     if (false) {
-      logger::development_trace("DateOrderedTaggedAmountsContainer::at({})",TaggedAmount::to_string(value_id));
+      logger::development_trace("DateOrderedTaggedAmountsContainer::at({})",text::format::to_hex_string(value_id));
     }
     OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
     if (!result) {
-      logger::development_trace("DateOrderedTaggedAmountsContainer::at({}), No value -> returns std::nullopt",TaggedAmount::to_string(value_id));
+      logger::development_trace("DateOrderedTaggedAmountsContainer::at({}), No value -> returns std::nullopt",text::format::to_hex_string(value_id));
     }
     return result;
   }
@@ -209,7 +211,7 @@ namespace zeroth {
       } else {
         std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() "
                     "failed. No instance found for value_id="
-                  << TaggedAmount::to_string(value_id) << std::flush;
+                  << text::format::to_hex_string(value_id) << std::flush;
       }
     }
     if (tas.size() == value_ids.size()) {

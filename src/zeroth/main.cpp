@@ -18,6 +18,7 @@ float const VERSION = 0.5;
 #include "csv/csv.hpp"
 #include "csv/projections.hpp"
 #include "text/functional.hpp" // functional::text::filtered
+#include "text/format.hpp" // text::format::to_hex_string
 #include <iostream>
 #include <locale>
 #include <string>
@@ -1914,7 +1915,7 @@ TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
     if (verno) ta.tags()["parent_SIE"] = journal_id+std::to_string(*verno);
     ta.tags()["Ix"]=std::to_string(result.size()); // index 0,1,2...
 		result.push_back(ta);
-		value_ids += TaggedAmount::to_string(to_value_id(ta));
+		value_ids += text::format::to_hex_string(to_value_id(ta));
 	};
   
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);

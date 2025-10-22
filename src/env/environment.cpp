@@ -2,6 +2,7 @@
 #include "fiscal/amount/TaggedAmountFramework.hpp"
 #include "tokenize.hpp"
 #include "logger/log.hpp"
+#include "text/format.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -147,7 +148,8 @@ Environment to_cas_environment(Environment const& indexed_environment) {
                   // std::ostringstream os{};
                   // os << std::hex << index_to_id.at(indexed_ref);
                   // cas_refs += os.str();
-                  cas_refs += std::format("{:x}",index_to_id.at(indexed_ref));
+                  cas_refs += text::format::to_hex_string(index_to_id.at(indexed_ref));
+
                 }
                 else {
                   // Not yet mapped = malformed input
