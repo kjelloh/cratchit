@@ -248,18 +248,26 @@ namespace zeroth {
         std::cout << "\nthis:" << this << " Inserted new " << ta;
       }
 
+      auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
+        if (maybe_lhs_date and maybe_rhs_date) {
+          return maybe_lhs_date.value() < maybe_rhs_date.value();
+        }
+        return false;
+      };
+
+      auto value_id_to_ta_maybe_date = [this](ValueId value_id) -> OptionalDate {
+        if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
+          return maybe_ta->date();
+        }
+        logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
+        return std::nullopt;
+      };
+
       auto prev = std::ranges::upper_bound(
            m_date_ordered_value_ids
-          ,put_result.first
-          ,[this](ValueId lhs,ValueId rhs) {
-            auto maybe_lhs_ta = this->at(lhs);
-            auto maybe_rhs_ta = this->at(rhs);
-            if (maybe_lhs_ta and maybe_rhs_ta) {
-              return maybe_lhs_ta->date() < maybe_rhs_ta->date();
-            }
-            logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map m_date_ordered_value_ids {} and/or {} to value",lhs,rhs);
-            return false;
-          });
+          ,ta.date()
+          ,maybe_date_compare
+          ,value_id_to_ta_maybe_date);
 
       m_date_ordered_value_ids.insert(prev,put_result.first); // place after all with date less than the one of ta
     } 
