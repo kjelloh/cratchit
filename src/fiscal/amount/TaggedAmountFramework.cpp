@@ -240,48 +240,61 @@ namespace zeroth {
 
   // Mutation
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value(TaggedAmount const& ta) {
-    auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
-    if (put_result.second == true) {
 
-      // Log
-      if (false) {
-        std::cout << "\nthis:" << this << " Inserted new " << ta;
+    if (false) {
+      // 'Newer' pre-linked-encoded ordering
+      logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: prev-linked-encoded ordering"};
+
+      logger::design_insufficiency("NOT IMPLEMENETD: DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value - : prev-linked-encoded ordering");
+      auto put_result = m_tagged_amount_cas_repository.try_cas_repository_put(ta);
+      return put_result;
+    }
+    else {
+      // 'Older' no-prev-encoding ordering
+      auto put_result = m_tagged_amount_cas_repository.cas_repository_put(ta);
+      if (put_result.second == true) {
+
+        // Log
+        if (false) {
+          std::cout << "\nthis:" << this << " Inserted new " << ta;
+        }
+
+        auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
+          if (maybe_lhs_date and maybe_rhs_date) {
+            return maybe_lhs_date.value() < maybe_rhs_date.value();
+          }
+          return false;
+        };
+
+        auto value_id_to_ta_maybe_date = [this](ValueId value_id) -> OptionalDate {
+          if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
+            return maybe_ta->date();
+          }
+          logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
+          return std::nullopt;
+        };
+
+        auto prev = std::ranges::upper_bound(
+            m_date_ordered_value_ids
+            ,ta.date()
+            ,maybe_date_compare
+            ,value_id_to_ta_maybe_date);
+
+        m_date_ordered_value_ids.insert(prev,put_result.first); // place after all with date less than the one of ta
+      } 
+      else {
+        // No op - ta already in container (and CAS)
+        logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
+        logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));      
       }
 
-      auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
-        if (maybe_lhs_date and maybe_rhs_date) {
-          return maybe_lhs_date.value() < maybe_rhs_date.value();
-        }
-        return false;
-      };
+      if (m_date_ordered_value_ids.size() > m_tagged_amount_cas_repository.size()) {
+        logger::design_insufficiency("DateOrderedTaggedAmountsContainer: Unexpected m_date_ordered_value_ids.size():{} > m_tagged_amount_cas_repository.size():{}",m_date_ordered_value_ids.size(), m_tagged_amount_cas_repository.size());
+      }
 
-      auto value_id_to_ta_maybe_date = [this](ValueId value_id) -> OptionalDate {
-        if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
-          return maybe_ta->date();
-        }
-        logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
-        return std::nullopt;
-      };
+      return put_result;
 
-      auto prev = std::ranges::upper_bound(
-           m_date_ordered_value_ids
-          ,ta.date()
-          ,maybe_date_compare
-          ,value_id_to_ta_maybe_date);
-
-      m_date_ordered_value_ids.insert(prev,put_result.first); // place after all with date less than the one of ta
-    } 
-    else {
-      // No op - ta already in container (and CAS)
-      logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
-      logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));      
     }
-
-    if (m_date_ordered_value_ids.size() > m_tagged_amount_cas_repository.size()) {
-      logger::design_insufficiency("DateOrderedTaggedAmountsContainer: Unexpected m_date_ordered_value_ids.size():{} > m_tagged_amount_cas_repository.size():{}",m_date_ordered_value_ids.size(), m_tagged_amount_cas_repository.size());
-    }
-
-    return put_result;
   }
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const &value_id) {
