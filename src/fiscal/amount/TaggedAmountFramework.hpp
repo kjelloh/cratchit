@@ -212,7 +212,7 @@ namespace zeroth {
 
     OptionalValueId to_prev(TaggedAmount const& ta);
 
-    std::pair<OptionalValueId,TaggedAmount> to_prev_and_transformed_ta(TaggedAmount const& ta);
+    // std::pair<OptionalValueId,TaggedAmount> to_prev_and_transformed_ta(TaggedAmount const& ta);
 
     std::pair<PrevNextPair,TaggedAmount> to_prev_next_pair_and_transformed_ta(TaggedAmount const& ta);
 

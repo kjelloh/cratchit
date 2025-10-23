@@ -207,6 +207,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
 }
 
 Environment environment_from_file(std::filesystem::path const &p) {
+  logger::scope_logger raii_log{logger::development_trace,"environment_from_file"};
   return to_cas_environment(in::indexed_environment_from_file(p));
 }
 
@@ -322,7 +323,7 @@ Environment to_indexed_environment(Environment const& cas_environment) {
           }            
         }
 
-        if (false) {
+        if (true) {
           if (cas_ev.contains("_prev")) {
             auto s_cas_prev = cas_ev.at("_prev");
             auto maybe_cas_prev = to_value_id(s_cas_prev);

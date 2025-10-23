@@ -466,20 +466,26 @@ namespace zeroth {
     auto prev_and_next = to_prev_and_next(ta);
 
     // Transform meta-data prev-link reference
-    if (false) {
+    if (true) {
       if (prev_and_next.first) {
-        ta_with_prev.tags()["_prev"] = text::format::to_hex_string(prev_and_next.first.value());
+        auto new_s_prev = text::format::to_hex_string(prev_and_next.first.value());
+        ta_with_prev.tags()["_prev"] = new_s_prev;
+
+        if (true) {
+          auto maybe_s_prev = ta.tag_value("_prev");
+          logger::development_trace("to_prev_next_pair_and_transformed_ta: Re-linked _prev:{} to _prev:{}",maybe_s_prev.value_or("null"),new_s_prev);
+        }
       }
     }
 
-    return {prev_and_next,ta_with_prev}; // Dummy / No Transform with _prev tag
+    return {prev_and_next,ta_with_prev};
   }
 
-  std::pair<
-     DateOrderedTaggedAmountsContainer::OptionalValueId
-    ,TaggedAmount> DateOrderedTaggedAmountsContainer::to_prev_and_transformed_ta(TaggedAmount const& ta) {
-    return {to_prev(ta),ta}; // Dummy / No Transform with _prev tag
-  }
+  // std::pair<
+  //    DateOrderedTaggedAmountsContainer::OptionalValueId
+  //   ,TaggedAmount> DateOrderedTaggedAmountsContainer::to_prev_and_transformed_ta(TaggedAmount const& ta) {
+  //   return {to_prev(ta),ta};
+  // }
 
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::append_value(ValueId prev,TaggedAmount const& ta) {
     auto iter = std::ranges::find(m_date_ordered_value_ids,prev);
