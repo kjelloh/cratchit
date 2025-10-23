@@ -237,15 +237,13 @@ namespace zeroth {
   //   return std::ranges::subrange(first, last);
   // }
 
-
-  // Mutation
-  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value(TaggedAmount const& ta) {
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_value(TaggedAmount const& ta) {
 
     if (true) {
       // 'Newer' pre-linked-encoded ordering
-      logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: prev-linked-encoded ordering"};
+      logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_value: prev-linked-encoded ordering"};
 
-      // logger::design_insufficiency("NOT IMPLEMENETD: DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value - : prev-linked-encoded ordering");
+      // logger::design_insufficiency("NOT IMPLEMENETD: DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_value - : prev-linked-encoded ordering");
       // auto put_result = m_tagged_amount_cas_repository.try_cas_repository_put(ta);
       // return put_result;
 
@@ -279,7 +277,7 @@ namespace zeroth {
       }
       else {
         // No op - transformed_ta (properly linked in ta) already in container (and CAS)
-        logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(transformed_ta));
+        logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(transformed_ta));
         logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));
         return put_result;
       }
@@ -307,10 +305,14 @@ namespace zeroth {
         // If maybe_prev_vid is nullopt, insert_pos stays at begin() (insert at / before start)
         m_date_ordered_value_ids.insert(insert_pos, put_result.first);
 
+        if (insert_pos != m_date_ordered_value_ids.end()) {
+          logger::design_insufficiency("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_value: insert before end but no re-linking yet implemented");
+        }
+
       } 
       else {
         // No op - ta already in container (and CAS)
-        logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
+        logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
         logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));      
       }
 
@@ -341,7 +343,7 @@ namespace zeroth {
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const &other) {
     std::ranges::for_each(other.ordered_tas_view(),[this](TaggedAmount const &ta) {
-      this->date_ordered_tagged_amounts_put_value(ta);
+      this->date_ordered_tagged_amounts_insert_value(ta);
     });
 
     return *this;
@@ -357,7 +359,7 @@ namespace zeroth {
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_sequence(TaggedAmounts const &tas) {
     for (auto const &ta : tas)
-      this->date_ordered_tagged_amounts_put_value(ta);
+      this->date_ordered_tagged_amounts_insert_value(ta);
     return *this;
   }
 
@@ -374,6 +376,59 @@ namespace zeroth {
     return *this;
   }
 
+  std::pair<
+     DateOrderedTaggedAmountsContainer::OptionalValueId
+    ,DateOrderedTaggedAmountsContainer::OptionalValueId> DateOrderedTaggedAmountsContainer::o_prev_and_next(TaggedAmount const& ta) {
+
+    std::pair<
+      DateOrderedTaggedAmountsContainer::OptionalValueId
+      ,DateOrderedTaggedAmountsContainer::OptionalValueId> result{};
+
+    auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
+      if (maybe_lhs_date and maybe_rhs_date) {
+        return maybe_lhs_date.value() < maybe_rhs_date.value();
+      }
+      return false;
+    };
+
+    auto value_id_to_ta_maybe_date = [this](ValueId value_id) -> OptionalDate {
+      if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
+        return maybe_ta->date();
+      }
+      logger::design_insufficiency("date_ordered_tagged_amounts_insert_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
+      return std::nullopt;
+    };
+
+    auto next_iter = std::ranges::upper_bound(
+        m_date_ordered_value_ids
+        ,ta.date()
+        ,maybe_date_compare
+        ,value_id_to_ta_maybe_date);
+
+    auto prev_iter = next_iter;
+
+    if (next_iter != m_date_ordered_value_ids.begin()) {
+      // For non empty m_date_ordered_value_ids decrement on non-begin is valid (including end).
+      // For empty m_date_ordered_value_ids next_iter is end and begin == end, so this if is skipped (no decrement)
+      --prev_iter;
+    }
+    else {
+      // next_iter == begin --> no prev
+      prev_iter = m_date_ordered_value_ids.end(); // No prev
+    }
+    
+    if (prev_iter != m_date_ordered_value_ids.end()) {
+      // prev exists
+      result.first = *prev_iter;
+    }
+    if (next_iter != m_date_ordered_value_ids.end()) {
+      // next exists
+      result.second = *next_iter;
+    }
+    return result;
+  }
+
+
   DateOrderedTaggedAmountsContainer::OptionalValueId DateOrderedTaggedAmountsContainer::to_prev(TaggedAmount const& ta) {
 
     auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
@@ -387,7 +442,7 @@ namespace zeroth {
       if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
         return maybe_ta->date();
       }
-      logger::design_insufficiency("date_ordered_tagged_amounts_put_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
+      logger::design_insufficiency("date_ordered_tagged_amounts_insert_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
       return std::nullopt;
     };
 
@@ -398,9 +453,14 @@ namespace zeroth {
         ,value_id_to_ta_maybe_date);
 
     if (iter != m_date_ordered_value_ids.begin()) {
+      // Adjust iter to refer to previous (iter is next as implied by upper_bount call)
       // For non empty m_date_ordered_value_ids decrement on non-begin is valid (including end).
       // For empty m_date_ordered_value_ids begin == end so iter is end = no decrement
       --iter;
+    }
+    else {
+      // iter == begin (adjust to prev not possible)
+      iter = m_date_ordered_value_ids.end(); // No prev
     }
     
     if (iter != m_date_ordered_value_ids.end()) {
@@ -415,7 +475,7 @@ namespace zeroth {
     return {to_prev(ta),ta}; // Dummy / No Transform with _prev tag
   }
 
-  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::put_value_after(ValueId prev,TaggedAmount const& ta) {
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::append_value(ValueId prev,TaggedAmount const& ta) {
     auto iter = std::ranges::find(m_date_ordered_value_ids,prev);
     if (iter != m_date_ordered_value_ids.end()) {
       auto linked_ta = ta;
@@ -425,7 +485,7 @@ namespace zeroth {
       return linked_put_result;
     }
     // Failed to locate prev
-    logger::design_insufficiency("DateOrderedTaggedAmountsContainer::put_value_after: Expected prev:{} to exist for ta:{}"
+    logger::design_insufficiency("DateOrderedTaggedAmountsContainer::append_value: Expected prev:{} to exist for ta:{}"
       ,prev
       ,to_string(ta));
     return {to_value_id(ta),false}; // BEWARE - returned value_id is NOT the value_id of a properly linked value
@@ -703,7 +763,7 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
     | std::ranges::to<std::vector>();
 
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
-    result.date_ordered_tagged_amounts_put_value(ta); // put and apply ordering
+    result.date_ordered_tagged_amounts_insert_value(ta); // put and apply ordering
   });
 
   return result;
@@ -726,7 +786,7 @@ DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_containe
     | std::ranges::to<std::vector>();
   
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
-    result.date_ordered_tagged_amounts_put_value(ta); // put and apply ordering
+    result.date_ordered_tagged_amounts_insert_value(ta); // put and apply ordering
   });
 
   return result;
