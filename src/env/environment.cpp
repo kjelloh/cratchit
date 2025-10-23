@@ -163,6 +163,28 @@ Environment to_cas_environment(Environment const& indexed_environment) {
             logger::development_trace("to_cas_environment: Not transformed {} ",out::to_string(indexed_ev));
           }
 
+          // Transform meta-data for prev link
+          if (false) {
+            if (indexed_ev.contains("_prev")) {
+              auto const& s_indexed_id = indexed_ev.at("_prev");
+              if (auto maybe_indexed_prev = to_value_id(s_indexed_id)) {
+                auto indexed_prev = maybe_indexed_prev.value();
+                if (index_to_id.contains(indexed_prev)) {
+                  auto cas_ref = index_to_id.at(indexed_prev);
+                  auto s_cas_prev = text::format::to_hex_string(cas_ref);
+                  ta.tags()["_prev"] = s_cas_prev;
+                  // Log
+                  if (true) {
+                    logger::development_trace("Indexed _prev:{} to CAS _prev:{}",s_indexed_id,s_cas_prev);
+                  }
+                }
+                else {
+                  logger::design_insufficiency("to_cas_environment: Failed to look up Indexed _prev:{} in index_to_id map",indexed_prev);
+                }
+              }
+            }
+          }
+
           // Transform index to value_id for tagged amount
           auto at_id = to_value_id(ta);
           index_to_id[index] = at_id;
@@ -265,8 +287,8 @@ Environment to_indexed_environment(Environment const& cas_environment) {
     // from value_ids to integer indexed ids
     std::map<Environment::ValueId,Environment::ValueId> id_to_index{};
     for (auto const& [cas_id,cas_ev] : cas_id_value_pairs) {
-      if (not id_to_index.contains(cas_id)) {
-        // OK, unique ref
+      if (id_to_index.contains(cas_id) == false) {
+        // OK, unique cas_id
         id_to_index[cas_id] = id_to_index.size(); // Simply enumerate the refs 0...
 
         auto indexed_ev = cas_ev; // default
@@ -299,9 +321,35 @@ Environment to_indexed_environment(Environment const& cas_environment) {
             logger::design_insufficiency("to_indexed_environment: Failed to parse inter-value refs from _members:'{}'",s_cas_members);
           }            
         }
-        else {
-          logger::development_trace("to_indexed_environment: Not transformed:'{}'",out::to_string(indexed_ev));
+
+        if (false) {
+          if (cas_ev.contains("_prev")) {
+            auto s_cas_prev = cas_ev.at("_prev");
+            auto maybe_cas_prev = to_value_id(s_cas_prev);
+            if (maybe_cas_prev) {
+              auto cas_prev = maybe_cas_prev.value();
+              if (id_to_index.contains(cas_prev)) {
+                auto indexed_prev = id_to_index.at(cas_prev);
+                auto s_indexed_prev = text::format::to_hex_string(indexed_prev);
+                indexed_ev["_prev"] = s_indexed_prev;
+
+                if (true) {
+                  logger::development_trace("to_indexed_environment: Transformed cas _prev:{} to indexed _prev:{}",s_cas_prev,s_indexed_prev);
+                }
+              }
+              else {
+                logger::design_insufficiency("to_indexed_environment: Failed to look up _prev cas_id:{} in id_to_index",cas_prev);
+              }
+            }
+            else {
+              logger::design_insufficiency("to_indexed_environment: Failed to convert '{}' to a valid CAS id",s_cas_prev);
+            }
+          }
         }
+
+        // else {
+        //   logger::development_trace("to_indexed_environment: Not transformed:'{}'",out::to_string(indexed_ev));
+        // }
         indexed_id_value_pairs.push_back({id_to_index[cas_id],indexed_ev});
       }
       else {

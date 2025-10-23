@@ -64,9 +64,9 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
   TaggedAmount::OptionalValueIds result{};
   TaggedAmount::ValueIds value_ids{};
   for (auto const &sid : sids) {
-    if (auto value_id = to_value_id(sid)) {
+    if (auto maybe_value_id = to_value_id(sid)) {
       // std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
-      value_ids.push_back(*value_id);
+      value_ids.push_back(maybe_value_id.value());
     } else {
       std::cout
           << "\nDESIGN_INSUFFICIENCY: to_value_ids: Not a valid instance id string sid="
@@ -288,7 +288,7 @@ namespace zeroth {
             ,to_string(this->at(maybe_next.value()).value_or(TaggedAmount{Date{},CentsAmount{}})));
 
           auto begin = std::ranges::find(m_date_ordered_value_ids,maybe_next.value());
-          
+
           std::for_each(
              begin
             ,m_date_ordered_value_ids.end()
@@ -462,8 +462,17 @@ namespace zeroth {
      DateOrderedTaggedAmountsContainer::PrevNextPair
     ,TaggedAmount> DateOrderedTaggedAmountsContainer::to_prev_next_pair_and_transformed_ta(TaggedAmount const& ta) {
 
+    auto ta_with_prev = ta;
     auto prev_and_next = to_prev_and_next(ta);
-    return {prev_and_next,ta}; // Dummy / No Transform with _prev tag
+
+    // Transform meta-data prev-link reference
+    if (false) {
+      if (prev_and_next.first) {
+        ta_with_prev.tags()["_prev"] = text::format::to_hex_string(prev_and_next.first.value());
+      }
+    }
+
+    return {prev_and_next,ta_with_prev}; // Dummy / No Transform with _prev tag
   }
 
   std::pair<
