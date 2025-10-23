@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric> // std::accumulate,
+#include <ranges> // std::ranges::is_sorted,
+#include <print>
 
 #include "fiscal/amount/functional.hpp"
 
@@ -378,16 +380,87 @@ namespace tests::atomics {
             }
         }
 
-    } 
+    } // tafw_suite
+
+    namespace dotasfw_suite {
+
+        // Date Ordrered Tagges Amounts Framework Test Suite
+
+        // Helper to create some example TaggedAmount objects for testing
+        DateOrderedTaggedAmountsContainer createSample() {
+            DateOrderedTaggedAmountsContainer result{};
+            auto tas = tests::atomics::tafw_suite::createSampleEntries();
+            result.date_ordered_tagged_amounts_put_sequence(tas);
+            return result;
+        }
+
+        // Test fixture (optional if you want setup/teardown)
+        class DateOrderedTaggedAmountsContainerTest : public ::testing::Test {
+        protected:
+            DateOrderedTaggedAmountsContainer dotas;
+
+            void SetUp() override {
+                dotas = createSample();
+            }
+        };
+
+        template <std::ranges::range R>
+        auto adjacent_pairs(R&& r) {
+            return std::views::zip(
+                std::forward<R>(r) | std::views::take(r.size() - 1),
+                std::forward<R>(r) | std::views::drop(1)
+            );
+        }        
+
+        void log_order(DateOrderedTaggedAmountsContainer const& dotas) {
+          std::print("\nDateOrderedTaggedAmountsContainer ordering listing");
+          for (auto const& [lhs,rhs] : adjacent_pairs(dotas.ordered_tas_view())) {
+            auto is_correct_order = (lhs.date() <= rhs.date());
+            std::print(
+               "\ncorrect order={}\n{}\n{}"
+              ,is_correct_order
+              ,to_string(lhs)
+              ,to_string(rhs));
+          }
+          std::print("\n\n"); // Work with google test asuming post-newline logging
+        }
+
+        // Test filtering by Account and Date
+        TEST_F(DateOrderedTaggedAmountsContainerTest, OrderedTest) {
+
+          auto tas_view = dotas.ordered_tas_view();
+
+          auto is_invalid_order = [](TaggedAmount const& lhs,TaggedAmount const& rhs) {
+              bool result = lhs.date() > rhs.date();
+              if (result) {
+                std::print("\nInvalid Order\n{}\n{}",to_string(lhs),to_string(rhs));
+              }
+              return result;
+            };
+
+
+          auto iter = std::ranges::adjacent_find(
+             tas_view
+            ,is_invalid_order);
+
+          auto is_all_date_ordered = (iter == tas_view.end()); // no violations found
+
+          if (!is_all_date_ordered) {
+            log_order(dotas);
+          }
+
+          EXPECT_EQ(is_all_date_ordered,true);          
+        }
+    } // dotasfw_suite
     
-    bool run_all() {
-        std::cout << "Running atomic tests..." << std::endl;
+    // bool run_all() {
+    //     std::cout << "Running atomic tests..." << std::endl;
         
-        // Run gtest with filter for atomic tests only
-        ::testing::GTEST_FLAG(filter) = "AtomicTests.*";
-        int result = RUN_ALL_TESTS();
+    //     // Run gtest with filter for atomic tests only
+    //     ::testing::GTEST_FLAG(filter) = "AtomicTests.*";
+    //     int result = RUN_ALL_TESTS();
         
-        return result == 0;
-    }
+    //     return result == 0;
+    // }
 }
 

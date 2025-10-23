@@ -1,5 +1,5 @@
 #pragma once
 
 namespace tests::integrations {
-    bool run_all();
+    // bool run_all();
 }

@@ -30,14 +30,14 @@ namespace tests::integrations {
         EXPECT_EQ(return_code, 0);
     }
 
-    bool run_all() {
-        std::cout << "Running integration tests..." << std::endl;
+    // bool run_all() {
+    //     std::cout << "Running integration tests..." << std::endl;
         
-        // Run gtest with filter for integration tests only
-        ::testing::GTEST_FLAG(filter) = "IntegrationTests.*:TEATestFixture.*";
-        int result = RUN_ALL_TESTS();
+    //     // Run gtest with filter for integration tests only
+    //     ::testing::GTEST_FLAG(filter) = "IntegrationTests.*:TEATestFixture.*";
+    //     int result = RUN_ALL_TESTS();
         
-        return result == 0;
-    }
+    //     return result == 0;
+    // }
 
 } // end namespace tests::integrations
