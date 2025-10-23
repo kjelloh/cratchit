@@ -457,15 +457,66 @@ namespace tests::atomics {
           EXPECT_EQ(is_all_date_ordered,true);          
         }
 
-        // Test to append value at end
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendTest) {
-          auto last_date = dotas.ordered_tas_view().back().date(); // trust non-empty
+        // Test to insert value at end
+        TEST_F(DateOrderedTaggedAmountsContainerTest, InsertLastTest) {
+          auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
+
+          auto last_date = original_tas.back().date(); // trust non-empty
           auto later_date = Date{std::chrono::sys_days{last_date} + std::chrono::days{1}};
           auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 5"}});
           auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
 
-          auto tas_view = dotas.ordered_tas_view();
-          auto result = (tas_view.back() == new_ta);
+          auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
+          auto result = (new_tas.back() == new_ta);
+          EXPECT_TRUE(result);
+        }
+
+        // Test to insert value at begining
+        TEST_F(DateOrderedTaggedAmountsContainerTest, InsertFirstTest) {
+          // Insert as first
+          auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
+          auto first_date = original_tas.front().date(); // trust non-empty
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 5"}});
+          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
+
+          auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
+          auto result = (new_tas.front() == new_ta);
+          EXPECT_TRUE(result);
+        }
+
+        // Test that insert extends lengt by one
+        TEST_F(DateOrderedTaggedAmountsContainerTest, InsertlengthTest) {
+          // Insert as first
+          auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
+          auto first_date = original_tas.front().date(); // trust non-empty
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 5"}});
+          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
+
+          auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
+
+          auto length_diff = (new_tas.size() - original_tas.size());
+          auto result = (length_diff == 1);
+
+          // Log
+          if (!result) {
+            std::ranges::for_each(
+               original_tas
+              ,[](auto const& ta) {
+                std::print("\nORIGINAL:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+            std::ranges::for_each(
+               new_tas
+              ,[](auto const& ta) {
+                std::print("\nEXTENDED:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+          }
+
           EXPECT_TRUE(result);
         }
 
