@@ -204,11 +204,15 @@ namespace zeroth {
     // TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
     ValueIds m_date_ordered_value_ids{};
 
-    std::pair<OptionalValueId,OptionalValueId> to_prev_and_next(TaggedAmount const& ta);
+    using PrevNextPair = std::pair<OptionalValueId,OptionalValueId>;
+
+    PrevNextPair to_prev_and_next(TaggedAmount const& ta);
 
     OptionalValueId to_prev(TaggedAmount const& ta);
 
     std::pair<OptionalValueId,TaggedAmount> to_prev_and_transformed_ta(TaggedAmount const& ta);
+
+    std::pair<PrevNextPair,TaggedAmount> to_prev_next_pair_and_transformed_ta(TaggedAmount const& ta);
 
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> append_value(ValueId prev,TaggedAmount const& ta);
 

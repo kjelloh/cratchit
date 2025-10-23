@@ -376,13 +376,9 @@ namespace zeroth {
     return *this;
   }
 
-  std::pair<
-     DateOrderedTaggedAmountsContainer::OptionalValueId
-    ,DateOrderedTaggedAmountsContainer::OptionalValueId> DateOrderedTaggedAmountsContainer::to_prev_and_next(TaggedAmount const& ta) {
+  DateOrderedTaggedAmountsContainer::PrevNextPair DateOrderedTaggedAmountsContainer::to_prev_and_next(TaggedAmount const& ta) {
 
-    std::pair<
-      DateOrderedTaggedAmountsContainer::OptionalValueId
-      ,DateOrderedTaggedAmountsContainer::OptionalValueId> result{};
+    DateOrderedTaggedAmountsContainer::PrevNextPair result{};
 
     auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
       if (maybe_lhs_date and maybe_rhs_date) {
@@ -428,10 +424,17 @@ namespace zeroth {
     return result;
   }
 
-
   DateOrderedTaggedAmountsContainer::OptionalValueId DateOrderedTaggedAmountsContainer::to_prev(TaggedAmount const& ta) {
     auto prev_and_next = to_prev_and_next(ta);
     return prev_and_next.first;
+  }
+
+  std::pair<
+     DateOrderedTaggedAmountsContainer::PrevNextPair
+    ,TaggedAmount> DateOrderedTaggedAmountsContainer::to_prev_next_pair_and_transformed_ta(TaggedAmount const& ta) {
+
+    auto prev_and_next = to_prev_and_next(ta);
+    return {prev_and_next,ta}; // Dummy / No Transform with _prev tag
   }
 
   std::pair<
