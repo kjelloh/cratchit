@@ -324,6 +324,7 @@ namespace tests::atomics {
 
     namespace tafw_suite {
 
+
         // Helper to create some example TaggedAmount objects for testing
         std::vector<TaggedAmount> createSampleEntries() {
             using namespace std::chrono;
@@ -386,6 +387,10 @@ namespace tests::atomics {
 
         // Date Ordrered Tagges Amounts Framework Test Suite
 
+        TaggedAmount create_tagged_amount(Date date,CentsAmount cents_amount,TaggedAmount::Tags&& tags) {
+          return TaggedAmount{date,cents_amount,std::move(tags)};
+        }
+
         // Helper to create some example TaggedAmount objects for testing
         DateOrderedTaggedAmountsContainer createSample() {
             DateOrderedTaggedAmountsContainer result{};
@@ -425,7 +430,7 @@ namespace tests::atomics {
           std::print("\n\n"); // Work with google test asuming post-newline logging
         }
 
-        // Test filtering by Account and Date
+        // Test correct order by default
         TEST_F(DateOrderedTaggedAmountsContainerTest, OrderedTest) {
 
           auto tas_view = dotas.ordered_tas_view();
@@ -451,6 +456,20 @@ namespace tests::atomics {
 
           EXPECT_EQ(is_all_date_ordered,true);          
         }
+
+        // Test to append value at end
+        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendTest) {
+          auto last_date = dotas.ordered_tas_view().back().date(); // trust non-empty
+          auto later_date = Date{std::chrono::sys_days{last_date} + std::chrono::days{1}};
+          auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 5"}});
+          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
+
+          auto tas_view = dotas.ordered_tas_view();
+          auto result = (tas_view.back() == new_ta);
+          EXPECT_TRUE(result);
+        }
+
+
     } // dotasfw_suite
     
     // bool run_all() {

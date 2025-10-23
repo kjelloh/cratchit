@@ -160,12 +160,14 @@ namespace zeroth {
 
     // Sequence
     std::size_t sequence_size() const;
+
     auto ordered_tas_view() const {
       return m_date_ordered_value_ids
         | std::views::transform([this](ValueId value_id) {
             return this->m_tagged_amount_cas_repository.cas_repository_get(value_id).value();
           });
     }
+    
     TaggedAmounts tagged_amounts();    
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
     // const_subrange date_range_tas_view(zeroth::DateRange const &date_period);
