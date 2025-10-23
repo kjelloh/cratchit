@@ -204,7 +204,7 @@ namespace zeroth {
     // TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
     ValueIds m_date_ordered_value_ids{};
 
-    std::pair<OptionalValueId,OptionalValueId> o_prev_and_next(TaggedAmount const& ta);
+    std::pair<OptionalValueId,OptionalValueId> to_prev_and_next(TaggedAmount const& ta);
 
     OptionalValueId to_prev(TaggedAmount const& ta);
 

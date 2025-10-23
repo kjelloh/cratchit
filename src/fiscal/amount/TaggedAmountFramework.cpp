@@ -378,7 +378,7 @@ namespace zeroth {
 
   std::pair<
      DateOrderedTaggedAmountsContainer::OptionalValueId
-    ,DateOrderedTaggedAmountsContainer::OptionalValueId> DateOrderedTaggedAmountsContainer::o_prev_and_next(TaggedAmount const& ta) {
+    ,DateOrderedTaggedAmountsContainer::OptionalValueId> DateOrderedTaggedAmountsContainer::to_prev_and_next(TaggedAmount const& ta) {
 
     std::pair<
       DateOrderedTaggedAmountsContainer::OptionalValueId
@@ -430,43 +430,8 @@ namespace zeroth {
 
 
   DateOrderedTaggedAmountsContainer::OptionalValueId DateOrderedTaggedAmountsContainer::to_prev(TaggedAmount const& ta) {
-
-    auto maybe_date_compare = [](OptionalDate maybe_lhs_date,OptionalDate maybe_rhs_date){
-      if (maybe_lhs_date and maybe_rhs_date) {
-        return maybe_lhs_date.value() < maybe_rhs_date.value();
-      }
-      return false;
-    };
-
-    auto value_id_to_ta_maybe_date = [this](ValueId value_id) -> OptionalDate {
-      if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
-        return maybe_ta->date();
-      }
-      logger::design_insufficiency("date_ordered_tagged_amounts_insert_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
-      return std::nullopt;
-    };
-
-    auto iter = std::ranges::upper_bound(
-        m_date_ordered_value_ids
-        ,ta.date()
-        ,maybe_date_compare
-        ,value_id_to_ta_maybe_date);
-
-    if (iter != m_date_ordered_value_ids.begin()) {
-      // Adjust iter to refer to previous (iter is next as implied by upper_bount call)
-      // For non empty m_date_ordered_value_ids decrement on non-begin is valid (including end).
-      // For empty m_date_ordered_value_ids begin == end so iter is end = no decrement
-      --iter;
-    }
-    else {
-      // iter == begin (adjust to prev not possible)
-      iter = m_date_ordered_value_ids.end(); // No prev
-    }
-    
-    if (iter != m_date_ordered_value_ids.end()) {
-      return *iter;
-    }
-    return std::nullopt;
+    auto prev_and_next = to_prev_and_next(ta);
+    return prev_and_next.first;
   }
 
   std::pair<
