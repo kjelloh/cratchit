@@ -463,7 +463,7 @@ namespace tests::atomics {
 
           auto last_date = original_tas.back().date(); // trust non-empty
           auto later_date = Date{std::chrono::sys_days{last_date} + std::chrono::days{1}};
-          auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 5"}});
+          auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
           auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
 
           auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
@@ -477,11 +477,30 @@ namespace tests::atomics {
           auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
           auto first_date = original_tas.front().date(); // trust non-empty
           auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
-          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 5"}});
+          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
           auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
 
           auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
           auto result = (new_tas.front() == new_ta);
+
+          // Log
+          if (!result) {
+            std::ranges::for_each(
+               original_tas
+              ,[](auto const& ta) {
+                std::print("\nORIGINAL:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+            std::ranges::for_each(
+               new_tas
+              ,[](auto const& ta) {
+                std::print("\nNEW:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+          }
+
           EXPECT_TRUE(result);
         }
 
@@ -491,7 +510,7 @@ namespace tests::atomics {
           auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
           auto first_date = original_tas.front().date(); // trust non-empty
           auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
-          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 5"}});
+          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
           auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
 
           auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
@@ -511,7 +530,7 @@ namespace tests::atomics {
             std::ranges::for_each(
                new_tas
               ,[](auto const& ta) {
-                std::print("\nEXTENDED:{}",to_string(ta));
+                std::print("\nNEW:{}",to_string(ta));
               }
             );
             std::print("\n");

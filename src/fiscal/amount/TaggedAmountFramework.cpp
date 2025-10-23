@@ -247,14 +247,20 @@ namespace zeroth {
       // auto put_result = m_tagged_amount_cas_repository.try_cas_repository_put(ta);
       // return put_result;
 
-      auto [maybe_prev,transformed_ta] = this->to_prev_and_transformed_ta(ta);
+      auto [prev_and_next_pair,transformed_ta] = this->to_prev_next_pair_and_transformed_ta(ta);
+      auto [maybe_prev,maybe_next] = prev_and_next_pair;
+
       if (auto put_result = m_tagged_amount_cas_repository.cas_repository_put(transformed_ta);put_result.second) {
         logger::development_trace("New value at:{} value:{}",put_result.first,to_string(transformed_ta));
         // New linked value
-        auto insert_pos = m_date_ordered_value_ids.begin();
+        auto insert_pos = m_date_ordered_value_ids.begin(); // Default for no prev
 
         if (maybe_prev) {
-            logger::development_trace("Valid prev:{}",maybe_prev.value());
+          logger::development_trace(
+             "Valid prev:{} {}"
+            ,maybe_prev.value()
+            ,to_string(this->at(maybe_prev.value()).value_or(TaggedAmount{Date{},CentsAmount{}})));
+
             // Find iterator to this ValueId
             insert_pos = std::ranges::find(m_date_ordered_value_ids, maybe_prev.value());
             if (insert_pos != m_date_ordered_value_ids.end()) {
@@ -271,6 +277,29 @@ namespace zeroth {
         }
         else {
           logger::development_trace("m_date_ordered_value_ids inserted as first id:{}",put_result.first);
+        }
+
+        // Re-link?
+        if (maybe_next) {
+          logger::scope_logger scope_raii{logger::development_trace,"Re-link after insert"};
+          logger::development_trace(
+             "Valid next:{} {}"
+            ,maybe_next.value()
+            ,to_string(this->at(maybe_next.value()).value_or(TaggedAmount{Date{},CentsAmount{}})));
+
+          auto begin = std::ranges::find(m_date_ordered_value_ids,maybe_next.value());
+          
+          std::for_each(
+             begin
+            ,m_date_ordered_value_ids.end()
+            ,[this](auto const& value_id){
+              logger::development_trace(
+                 "Not transformed:{}"
+                ,to_string(this->at(value_id).value_or(TaggedAmount{Date{},CentsAmount{}})));
+            }
+          );
+
+
         }
 
         return put_result;
