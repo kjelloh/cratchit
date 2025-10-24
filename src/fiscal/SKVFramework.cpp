@@ -35,7 +35,7 @@ namespace SKV {
 				std::istringstream is{ACCOUNT_VAT_CSV};
 				std::string row{};
 				while (std::getline(is,row)) {
-					result.push_back(Key::Path_{row,';'});
+					result.push_back(Key::Path{row,';'});
 				}
 				return result;
 			}
@@ -43,7 +43,7 @@ namespace SKV {
 			BAS::AccountNos to_accounts(BoxNo box_no) {
 				static auto const ps = account_vat_form_mapping();
 				BAS::AccountNos result{};
-				return std::accumulate(ps.begin(),ps.end(),BAS::AccountNos{},[&box_no](auto acc,Key::Path_ const& p){
+				return std::accumulate(ps.begin(),ps.end(),BAS::AccountNos{},[&box_no](auto acc,Key::Path const& p){
 					try {
 						std::ostringstream os{};
 						os << std::setfill('0') << std::setw(2) << box_no;
