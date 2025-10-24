@@ -115,83 +115,96 @@ Environment to_cas_environment(Environment const& indexed_environment) {
     if (name == "TaggedAmount") {
       // We need to transform the indecies in the file to actual (hash based) value ids in CAS Environment
       // The pipe for the raw ev becomes environment_value -> TaggedAmount -> to_value_id(TaggedAmount).
+
       // TODO: Consider to use a schema to project environment value -> 'tagged amount environment value'?
       //       That is, use the schema to filter out any meta data in the environment value to be able
       //       to calculate the actual value id (hash) from correct input data?
 
-      std::map<Environment::ValueId, Environment::ValueId> index_to_id{};
+      // index -> cas_id
+      std::map<Environment::ValueId, Environment::ValueId> index_to_cas_id{};
+
       for (auto const& [index,indexed_ev] : indexed_id_value_pairs) {
         // Trust that environment values (records as tag-value pairs) are ordered such that
         // any inter-value reference (aggregate, ordering etc.) using index/id always refers back to a value already in the container.
         // In this way we can always transform also the refernces in the value as we iterate trhough the container
 
+        auto cas_ev = indexed_ev; // Init transformed ev (indexed_ev -> cas_ev)
+
         if (auto maybe_ta = to_tagged_amount(indexed_ev)) {
-          // Encodes a tagged amount OK
-          auto ta = maybe_ta.value();
-          auto ta_ev = indexed_ev; // Default - as is (no encoded refs / meta-data that needs transform)
+
+          // indexed_ev -> ta -> transformed(ta) -> cas_ev
+
+          auto cas_ta = maybe_ta.value(); // Init CAS based tagged amount
 
           if (indexed_ev.contains("_members")) {
-            // Encodes a tagged amount aggretate (_members lists the refs to member tagged amounts)
-            // We need to transform also the encoded refs from index refs to value_id refs used for tagged amounts 
+
+            // ta -> transformed_ta(ta,_members)
+
             auto const& s_indexed_members = indexed_ev.at("_members");
-            auto indexed_members = Key::Path{s_indexed_members};
+            auto indexed_members = Key::Sequence{s_indexed_members};
+
             if (auto indexed_refs = to_value_ids(indexed_members)) {
-              Key::Path cas_refs{};
+              Key::Sequence cas_refs{};
               for (auto const& indexed_ref : indexed_refs.value()) {
-                if (index_to_id.contains(indexed_ref)) {
+                if (index_to_cas_id.contains(indexed_ref)) {
                   // Already in indexed_ref map OK (thus also already in cas_id_value_pairs)
                   // Transform reference from indexed to value_id in cas
-                  cas_refs += text::format::to_hex_string(index_to_id.at(indexed_ref));
+                  auto s_cas_ref = text::format::to_hex_string(index_to_cas_id.at(indexed_ref));
+                  cas_refs += s_cas_ref;
                 }
                 else {
                   // Not yet mapped = malformed input
-                  logger::design_insufficiency("to_cas_environment: Failed to look up index:{} in index_to_id map",indexed_ref);
+                  logger::design_insufficiency("to_cas_environment: Failed to look up _members index:{} in index_to_cas_id map",indexed_ref);
                 }
               }
               // Transform the tagged amount to carry the correct inter-value cas reference list
               auto s_cas_members = cas_refs.to_string();
-              ta.tags()["_members"] = s_cas_members;
-              ta_ev = to_environment_value(ta); // transformed environment value
-              logger::development_trace("to_cas_environment: Transformed '{}' -> '{}'",out::to_string(indexed_ev),out::to_string(ta_ev));
+              cas_ta.tags()["_members"] = s_cas_members;
+              // ta_ev = to_environment_value(ta); // transformed environment value
+              logger::development_trace("to_cas_environment: Transformed \n'{}' -> \n'{}'",out::to_string(indexed_ev),out::to_string(cas_ev));
             }
             else {
               logger::design_insufficiency("to_cas_environment: Failed to parse inter-value refs from '{}'",s_indexed_members);
             }            
           }
-          else {
-            // No encoded refs
-            logger::development_trace("to_cas_environment: Not transformed {} ",out::to_string(indexed_ev));
-          }
+          // else {
+          //   // No encoded refs
+          //   logger::development_trace("to_cas_environment: Not transformed {} ",out::to_string(indexed_ev));
+          // }
 
-          // Transform meta-data for prev link
           if (false) {
+            // Transform meta-data indexed _prev -> cas _prev (ordering link)
             if (indexed_ev.contains("_prev")) {
               auto const& s_indexed_id = indexed_ev.at("_prev");
               if (auto maybe_indexed_prev = to_value_id(s_indexed_id)) {
                 auto indexed_prev = maybe_indexed_prev.value();
-                if (index_to_id.contains(indexed_prev)) {
-                  auto cas_ref = index_to_id.at(indexed_prev);
+                if (index_to_cas_id.contains(indexed_prev)) {
+                  auto cas_ref = index_to_cas_id.at(indexed_prev);
                   auto s_cas_prev = text::format::to_hex_string(cas_ref);
-                  ta.tags()["_prev"] = s_cas_prev;
+                  cas_ta.tags()["_prev"] = s_cas_prev;
                   // Log
                   if (true) {
                     logger::development_trace("Indexed _prev:{} to CAS _prev:{}",s_indexed_id,s_cas_prev);
                   }
+                  // ta_ev = to_environment_value(ta); // transformed environment value
+
                 }
                 else {
-                  logger::design_insufficiency("to_cas_environment: Failed to look up Indexed _prev:{} in index_to_id map",indexed_prev);
+                  logger::design_insufficiency("to_cas_environment: Failed to look up Indexed _prev:{} in index_to_cas_id map",indexed_prev);
                 }
               }
             }
           }
 
-          // Transform index to value_id for tagged amount
-          auto at_id = to_value_id(ta);
-          index_to_id[index] = at_id;
-          logger::development_trace("to_cas_environment: index:{} -> tagged amount id:{}",index,at_id);
+          // Update map index -> cas_id
+          auto cas_ta_id = to_value_id(cas_ta);
+          index_to_cas_id[index] = cas_ta_id;          
+          logger::development_trace("to_cas_environment: index:{} -> tagged amount id:{}",index,cas_ta_id);
 
-          // Update transformed target
-          cas_id_value_pairs.push_back({index_to_id[index],ta_ev});
+          // Update transformed content (tarnsformed ta -> cas_ev)
+          cas_ev = to_environment_value(cas_ta);
+          cas_id_value_pairs.push_back({cas_ta_id,cas_ev});
+
         }
         else {
           logger::design_insufficiency("to_cas_environment: Failed to create a tagged amount from '{}'",out::to_string(indexed_ev));
@@ -297,9 +310,9 @@ Environment to_indexed_environment(Environment const& cas_environment) {
         if (cas_ev.contains("_members")) {
           // transform the cas refs to index refs
           auto const& s_cas_members = cas_ev.at("_members");
-          auto cas_members = Key::Path{s_cas_members};
+          auto cas_members = Key::Sequence{s_cas_members};
           if (auto maybe_cas_refs = to_value_ids(cas_members)) {
-            Key::Path index_refs{};
+            Key::Sequence index_refs{};
             for (auto const& cas_ref : maybe_cas_refs.value()) {
               if (id_to_index.contains(cas_ref)) {
                 // Already in ref map OK (thus also already in transformed indexed_id_value_pairs)

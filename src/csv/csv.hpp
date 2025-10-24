@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Key.hpp" // Key::Path,
+#include "Key.hpp" // Key::Sequence,
 #include "text/encoding.hpp"
 #include "tokenize.hpp"
 #include <iostream> // std::cout,
 
 namespace CSV {
-	using FieldRow = Key::Path;
+	using FieldRow = Key::Sequence;
 	using FieldRows = std::vector<FieldRow>;
 	using OptionalFieldRows = std::optional<FieldRows>;
 

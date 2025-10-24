@@ -101,7 +101,7 @@ namespace std {
 TaggedAmount::ValueId to_value_id(TaggedAmount const &ta);
 std::ostream& operator<<(std::ostream &os, TaggedAmount const &ta);
 TaggedAmount::OptionalValueId to_value_id(std::string const &sid);
-TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids);
+TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const &sids);
 
 // String conversion
 std::string to_string(TaggedAmount const& ta);

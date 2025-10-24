@@ -1908,7 +1908,7 @@ TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
 	if (verno) tags["SIE"] = journal_id+std::to_string(*verno);
 	tags["vertext"] = me.defacto.caption;
 	TaggedAmount aggregate_ta{date,gross_cents_amount,std::move(tags)};
-	Key::Path value_ids{};
+	Key::Sequence value_ids{};
 
 	auto push_back_as_tagged_amount = [&value_ids,&date,&journal_id,&verno,&result](BAS::anonymous::AccountTransaction const& at){
 		auto ta = to_tagged_amount(date,at);
@@ -4066,7 +4066,7 @@ namespace SKV { // SKV
 		}
 
 		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap::value_type const& entry) {
-			Key::Path p{entry.first};
+			Key::Path_ p{entry.first};
 			std::string indent(p.size(),' ');
 			edos << indent << "<" << p.back() << ">" << entry.second << "</" << p.back() << ">";
 			return edos;
@@ -4074,7 +4074,7 @@ namespace SKV { // SKV
 
 		EmployerDeclarationOStream& operator<<(EmployerDeclarationOStream& edos,XMLMap const& xml_map) {
 			try {
-				Key::Path p{};
+				Key::Path_ p{};
 				// IMPORTANT: No empty line (nor any white space) allowed before the "<?xml..." tag! *sigh*
 				edos << R"(<?xml version="1.0" encoding="UTF-8" standalone="no"?>)";
 				edos << "\n" << R"(<Skatteverket omrade="Arbetsgivardeklaration")";
@@ -4344,14 +4344,14 @@ namespace SKV { // SKV
 			}
 
 			OStream& operator<<(OStream& os,XMLMap::value_type const& entry) {
-				Key::Path p{entry.first};
+				Key::Path_ p{entry.first};
 				std::string indent(p.size(),' ');
 				os << indent << "<" << p.back() << ">" << entry.second << "</" << p.back() << ">";
 				return os;
 			}
 
 			OStream& operator<<(OStream& os,SKV::XML::XMLMap const& xml_map) {
-				Key::Path p{};
+				Key::Path_ p{};
 				os << R"(<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">)";
 				os << "\n" << R"(<eSKDUpload Version="6.0">)";
 				p += R"(eSKDUpload Version="6.0")";
@@ -4507,7 +4507,7 @@ namespace SKV { // SKV
 						// 82415		49									"MomsBetala"
 						// 597			50									"MomsUlagImport"
 						// 149			60									"MomsImportUtgHog"
-						Key::Path p{};
+						Key::Path_ p{};
 						// <!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
 						// <eSKDUpload Version="6.0">
 						p += R"(eSKDUpload Version="6.0")";
@@ -4981,7 +4981,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 	std::optional<SKV::XML::XMLMap> result{};
 	SKV::XML::XMLMap xml_map{SKV::XML::TAXReturns::tax_returns_template};
 	// sender_meta -> Skatteverket^agd:Avsandare.*
-	Key::Path p{};
+	Key::Path_ p{};
 	try {
 		if (sender_meta.contact_persons.size()==0) throw std::runtime_error(std::string{"to_skv_xml_map failed - zero sender_meta.contact_persons"});
 		if (employer_meta.contact_persons.size()==0) throw std::runtime_error(std::string{"to_skv_xml_map failed - zero employer_meta.contact_persons"});
@@ -8691,7 +8691,7 @@ Cmd Updater::operator()(Command const& command) {
       for (auto const& ta : model->selected_date_ordered_tagged_amounts.ordered_tas_view()) {    
         prompt << "\n" << ta;
         if (auto members_value = ta.tag_value("_members")) {
-          auto members = Key::Path{*members_value};
+          auto members = Key::Sequence{*members_value};
           if (auto value_ids = to_value_ids(members)) {
             prompt << "\n\t<members>";
             if (auto tas = model->all_date_ordered_tagged_amounts.to_tagged_amounts(*value_ids)) {
@@ -11671,7 +11671,7 @@ Blad3: Table 1
 				std::istringstream in{INK2_19_P1_intervall_vers_2_csv};
 				std::string row{};		
 				while (std::getline(in,row)) {
-					Key::Path tokens{row,';'};
+					Key::Sequence tokens{row,';'};
 					std::cout << "\n------------------";
 					int index{};
 					for (auto const& token : tokens) {

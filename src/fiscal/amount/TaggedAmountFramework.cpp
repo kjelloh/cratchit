@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream &os, TaggedAmount const &ta) {
 }
 
 // Hex listing string to Value Ids (for parsing tags that encodes references as valude Ids)
-TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
+TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const &sids) {
   // std::cout << "\nto_value_ids()" << std::flush;
   TaggedAmount::OptionalValueIds result{};
   TaggedAmount::ValueIds value_ids{};
@@ -76,7 +76,7 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Path const &sids) {
   if (value_ids.size() == sids.size()) {
     result = value_ids;
   } else {
-    std::cout << "\nDESIGN_INSUFFICIENCY: to_value_ids(Key::Path const& "
+    std::cout << "\nDESIGN_INSUFFICIENCY: to_value_ids(Key::Sequence const& "
               << sids.to_string() << ") Failed. Created" << value_ids.size()
               << " out of " << sids.size() << " possible.";
   }
@@ -273,10 +273,10 @@ namespace zeroth {
 
         // Log
         if (maybe_prev) {
-          logger::development_trace("m_date_ordered_value_ids inserted after:{} id:{}",maybe_prev.value(),put_result.first);
+          logger::development_trace("m_date_ordered_value_ids inserted _prev:{} -> id:{}",maybe_prev.value(),put_result.first);
         }
         else {
-          logger::development_trace("m_date_ordered_value_ids inserted as first id:{}",put_result.first);
+          logger::development_trace("m_date_ordered_value_ids inserted _prev:null -> id:{}",put_result.first);
         }
 
         // Re-link?

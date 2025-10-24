@@ -6,8 +6,8 @@
 #include <cctype> // std::isprint,
 
 namespace Key {
-    Path::Path(std::vector<std::string> const &v) : m_path{v} {}
-    Path::Path(std::string const &s_path, char delim)
+    Path_::Path_(std::vector<std::string> const &v) : m_path{v} {}
+    Path_::Path_(std::string const &s_path, char delim)
         : m_delim{delim},
           m_path(tokenize::splits(s_path, delim,
                                   tokenize::eAllowEmptyTokens::YES)) {
@@ -15,46 +15,46 @@ namespace Key {
         // Quick Fix that tokenize::splits will return one element of zero length for an empty string :\
         // 240623 - I do not dare to fix 'splits' itself when I do not know the effect it may have on other code...
         m_path.clear();
-        std::cout << "\nKey::Path(" << std::quoted(s_path)
+        std::cout << "\nKey::Path_(" << std::quoted(s_path)
                   << ") PATCHED to empty path";
       }
     };
-    Path Path::operator+(std::string const &key) const {
-      Path result{*this};
+    Path_ Path_::operator+(std::string const &key) const {
+      Path_ result{*this};
       result.m_path.push_back(key);
       return result;
     }
-    Path::operator std::string() const {
+    Path_::operator std::string() const {
       std::ostringstream os{};
       os << *this;
       return os.str();
     }
-    Path& Path::operator+=(std::string const &key) {
+    Path_& Path_::operator+=(std::string const &key) {
       m_path.push_back(key);
       // std::cout << "\noperator+= :" << *this  << " size:" << this->size();
       return *this;
     }
-    Path& Path::operator--() {
+    Path_& Path_::operator--() {
       m_path.pop_back();
       // std::cout << "\noperator-- :" << *this << " size:" << this->size();
       return *this;
     }
-    Path Path::parent() {
-      Path result{*this};
+    Path_ Path_::parent() {
+      Path_ result{*this};
       --result;
       // std::cout << "\nparent:" << result << " size:" << result.size();
       return result;
     }
-    std::string Path::back() const { return m_path.back(); }
-    std::string Path::operator[](std::size_t pos) const { return m_path[pos]; }
-    std::string Path::to_string() const {
+    std::string Path_::back() const { return m_path.back(); }
+    std::string Path_::operator[](std::size_t pos) const { return m_path[pos]; }
+    std::string Path_::to_string() const {
       std::ostringstream os{};
       os << *this;
       return os.str();
     }
 
 
-  std::ostream &operator<<(std::ostream &os, Key::Path const &key_path) {
+  std::ostream &operator<<(std::ostream &os, Key::Path_ const &key_path) {
     int key_count{0};
     for (auto const &key : key_path) {
       if (key_count++ > 0)
@@ -80,7 +80,7 @@ namespace Key {
     }
     return os;
   }
-  std::string to_string(Key::Path const &key_path) {
+  std::string to_string(Key::Path_ const &key_path) {
     std::ostringstream os{};
     os << key_path;
     return os.str();
