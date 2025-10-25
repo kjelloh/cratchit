@@ -617,6 +617,28 @@ namespace tests::atomics {
         }
 
         // Test append value
+        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueCompabilityTest) {
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto second_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);          
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (should have succeeded in compability mode)");
+          ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 1");
+        }
+
+
+        // Test append value
         TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueOlderCompabilityFailTest) {
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
