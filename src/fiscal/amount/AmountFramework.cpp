@@ -7,7 +7,7 @@
 
 // Amounts framework
 namespace WrappedCentsAmount {
-  std::string to_string(CentsAmount const &cents_amount) {
+  std::string to_string(CentsAmount const& cents_amount) {
     std::ostringstream oss{};
     oss << cents_amount;
     return oss.str();

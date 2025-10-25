@@ -30,7 +30,7 @@ namespace first {
 
     try {
       m_persistent_environment_file.init();
-      if (auto const &cached_env = m_persistent_environment_file.cached()) {
+      if (auto const& cached_env = m_persistent_environment_file.cached()) {
         m_environment = *cached_env;
       }
       else {
@@ -104,8 +104,8 @@ namespace first {
           auto mutated_environment = this->m_environment;   // Make a copy to mutate
           auto &mutated_section = mutated_environment[section];
           // Remove entriers in mutated section
-          for (auto const &[index, ev] : difference.removed()) {
-            if (auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; }); iter != mutated_section.end()) {
+          for (auto const& [index, ev] : difference.removed()) {
+            if (auto iter = std::ranges::find(mutated_section, ev, [](auto const& pair) { return pair.second; }); iter != mutated_section.end()) {
               spdlog::info("ProjectState::update - Removing entry {}:{}", index, out::to_string(ev));
               mutated_section.erase(iter); // Remove the entry
             } else {
@@ -113,8 +113,8 @@ namespace first {
             }
           }
           // Insert entries in mutated section
-          for (auto const &[index, ev] : difference.inserted()) {
-            if ( auto iter = std::ranges::find(mutated_section, ev, [](auto const &pair) { return pair.second; })
+          for (auto const& [index, ev] : difference.inserted()) {
+            if ( auto iter = std::ranges::find(mutated_section, ev, [](auto const& pair) { return pair.second; })
                 ;iter == mutated_section.end()) {
               spdlog::info("ProjectState::update - Inserting entry {}:{}", index, out::to_string(ev));
               mutated_section.push_back({mutated_section.size(), ev}); // Insert the entry

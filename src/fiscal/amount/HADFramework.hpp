@@ -49,29 +49,29 @@ using HeadingAmountDateTransEntries = std::vector<HeadingAmountDateTransEntry>;
 using HADs = HeadingAmountDateTransEntries;
 
 // Environment -> HADs
-HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);
+HeadingAmountDateTransEntries hads_from_environment(Environment const& environment);
 
 inline auto to_period_hads(FiscalPeriod period, const Environment &env) -> HeadingAmountDateTransEntries {
-  auto ev_to_maybe_had = [](Environment::Value const &ev) -> OptionalHeadingAmountDateTransEntry {
+  auto ev_to_maybe_had = [](Environment::Value const& ev) -> OptionalHeadingAmountDateTransEntry {
     return to_had(ev);
   };
-  auto in_period = [](HeadingAmountDateTransEntry const &had,FiscalPeriod const &period) -> bool {
+  auto in_period = [](HeadingAmountDateTransEntry const& had,FiscalPeriod const& period) -> bool {
     return period.contains(had.date);
   };
-  auto id_ev_pair_to_ev = [](Environment::MutableIdValuePair const &id_ev_pair) {
+  auto id_ev_pair_to_ev = [](Environment::MutableIdValuePair const& id_ev_pair) {
     return id_ev_pair.second;
   };
   static constexpr auto section = "HeadingAmountDateTransEntry";
   if (!env.contains(section)) {
     return {}; // No entries of this type
   }
-  auto const &id_ev_pairs = env.at(section);
+  auto const& id_ev_pairs = env.at(section);
   auto result = id_ev_pairs 
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_had) 
-    | std::views::filter([](auto const &maybe_had) { return maybe_had.has_value(); }) 
-    | std::views::transform([](auto const &maybe_had) { return *maybe_had; }) 
-    | std::views::filter([&](auto const &had) { return in_period(had, period); }) 
+    | std::views::filter([](auto const& maybe_had) { return maybe_had.has_value(); }) 
+    | std::views::transform([](auto const& maybe_had) { return *maybe_had; }) 
+    | std::views::filter([&](auto const& had) { return in_period(had, period); }) 
     | std::ranges::to<std::vector>();
   
   // Sort by date for consistent ordering

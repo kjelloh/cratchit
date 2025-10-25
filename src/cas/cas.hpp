@@ -55,9 +55,9 @@ namespace cas {
 
     auto size() const {return m_map.size();}
 
-    bool contains(Cid const &cid) const { return m_map.contains(cid); }
+    bool contains(Cid const& cid) const { return m_map.contains(cid); }
 
-    MaybeValue cas_repository_get(Cid const &cid) const { 
+    MaybeValue cas_repository_get(Cid const& cid) const { 
       MaybeValue result{};
 
       auto iter = m_map.find(cid);

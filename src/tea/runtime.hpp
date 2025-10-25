@@ -127,7 +127,7 @@ namespace TEA {
           }
 
           // Run the message though the client
-          auto const &[m, cmd] = m_update(model, msg);
+          auto const& [m, cmd] = m_update(model, msg);
           model = m;
           cmd_q.apply([&cmd](auto& q){q.push(cmd);});
         } else {

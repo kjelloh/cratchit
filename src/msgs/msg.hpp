@@ -40,7 +40,7 @@ namespace first {
   // ----------------------------------
   struct PushStateMsg : public MsgImpl {
     State m_state{};
-    PushStateMsg(State const &state);
+    PushStateMsg(State const& state);
   };
 
   // ----------------------------------

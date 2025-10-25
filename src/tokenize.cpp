@@ -10,16 +10,16 @@
 
 namespace tokenize {
 
-  std::string trim(std::string const &s) {
+  std::string trim(std::string const& s) {
     return std::ranges::to<std::string>(
         s | std::views::drop_while(::isspace) | std::views::reverse | std::views::drop_while(::isspace) | std::views::reverse);
   }
 
-  bool contains(std::string const &key, std::string const &s) {
+  bool contains(std::string const& key, std::string const& s) {
     return (s.find(key) != std::string::npos);
   }
 
-  bool starts_with(std::string const &key, std::string const &s) {
+  bool starts_with(std::string const& key, std::string const& s) {
     return s.starts_with(key);
   }
 
@@ -52,7 +52,7 @@ namespace tokenize {
         // std::cout << "\nhead" << head_tail.first << " tail:" <<
         // head_tail.second;
         while (head_tail.first.size() > 0) {
-          auto const &[head, tail] = head_tail;
+          auto const& [head, tail] = head_tail;
           result.push_back(head);
           head_tail = split(tail, delim);
           // std::cout << "\nhead" << head_tail.first << " tail:" <<
@@ -76,7 +76,7 @@ namespace tokenize {
           }
         } while (delim_pos < s.size());
       }
-    } catch (std::exception const &e) {
+    } catch (std::exception const& e) {
       std::cout << "\nDESIGN INSUFFICIENCY: splits(s,delim,allow_empty_tokens) "
                    "failed for s="
                 << std::quoted(s) << ". Expception=" << std::quoted(e.what());
@@ -92,7 +92,7 @@ namespace tokenize {
     return result;
   }
 
-  std::vector<std::string> splits(std::string const &s) {
+  std::vector<std::string> splits(std::string const& s) {
     std::vector<std::string> result{};
     try {
       std::istringstream is{s};
@@ -101,7 +101,7 @@ namespace tokenize {
         result.push_back(token);
         token.clear();
       }
-    } catch (std::exception const &e) {
+    } catch (std::exception const& e) {
       std::cout << "\nDESIGN INSUFFICIENCY: splits(s) failed for s="
                 << std::quoted(s) << ". Expception=" << std::quoted(e.what());
     }
@@ -112,7 +112,7 @@ namespace tokenize {
     return result;
   }
 
-  std::ostream &operator<<(std::ostream &os, TokenID const &id) {
+  std::ostream &operator<<(std::ostream &os, TokenID const& id) {
     switch (id) {
     case TokenID::Undefined:
       os << "Undefined";
@@ -133,7 +133,7 @@ namespace tokenize {
     return os;
   }
 
-  TokenID token_id_of(std::string const &s) {
+  TokenID token_id_of(std::string const& s) {
     // NOTE: The order of matching below matters (matches from least permissive
     // (date) to most permissive (any text)) If you put the most permissive
     // first the less permissive tokens will never be matched.
@@ -187,12 +187,12 @@ namespace tokenize {
     return result;
   }
 
-  std::vector<std::string> splits(std::string const &s, SplitOn split_on) {
+  std::vector<std::string> splits(std::string const& s, SplitOn split_on) {
     // std::cout << "\nsplits(std::string const& s,SplitOn split_on)";
     std::vector<std::string> result{};
     auto spaced_tokens = splits(s);
     std::vector<TokenID> ids{};
-    for (auto const &s : spaced_tokens) {
+    for (auto const& s : spaced_tokens) {
       ids.push_back(token_id_of(s));
     }
 

@@ -9,7 +9,7 @@
 
 // BEGIN class TaggedAmount
 
-TaggedAmount::TaggedAmount(Date const &date, CentsAmount const &cents_amount, Tags &&tags)
+TaggedAmount::TaggedAmount(Date const& date, CentsAmount const& cents_amount, Tags &&tags)
     : m_date{date},m_cents_amount{cents_amount}, m_tags{tags} {}
 
 // Replaced with text::format::to_hex_string
@@ -25,12 +25,12 @@ TaggedAmount::TaggedAmount(Date const &date, CentsAmount const &cents_amount, Ta
 //   return std::format("{:x}",value_id);
 // }
 
-bool TaggedAmount::operator==(TaggedAmount const &other) const {
+bool TaggedAmount::operator==(TaggedAmount const& other) const {
   auto result =
       this->date() == other.date() and
       this->cents_amount() == other.cents_amount() and
       std::all_of(m_tags.begin(), m_tags.end(),
-                  [&other](Tags::value_type const &entry) {
+                  [&other](Tags::value_type const& entry) {
                     return ((entry.first.starts_with("_")) or
                             (other.tags().contains(entry.first) and
                              other.tags().at(entry.first) == entry.second));
@@ -44,26 +44,26 @@ bool TaggedAmount::operator==(TaggedAmount const &other) const {
 // END class TaggedAmount
 
 // TaggedAmount to Value Id
-TaggedAmount::ValueId to_value_id(TaggedAmount const &ta) {
+TaggedAmount::ValueId to_value_id(TaggedAmount const& ta) {
   return std::hash<TaggedAmount>{}(ta);
 }
 
-std::ostream& operator<<(std::ostream &os, TaggedAmount const &ta) {
+std::ostream& operator<<(std::ostream &os, TaggedAmount const& ta) {
   // os << TaggedAmount::to_string(to_value_id(ta));
   os << " " << ::to_string(ta.date());
   os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
-  for (auto const &tag : ta.tags()) {
+  for (auto const& tag : ta.tags()) {
     os << "\n\t|--> \"" << tag.first << "=" << tag.second << "\"";
   }
   return os;
 }
 
 // Hex listing string to Value Ids (for parsing tags that encodes references as valude Ids)
-TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const &sids) {
+TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const& sids) {
   // std::cout << "\nto_value_ids()" << std::flush;
   TaggedAmount::OptionalValueIds result{};
   TaggedAmount::ValueIds value_ids{};
-  for (auto const &sid : sids) {
+  for (auto const& sid : sids) {
     if (auto maybe_value_id = to_value_id(sid)) {
       // std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
       value_ids.push_back(maybe_value_id.value());
@@ -145,7 +145,7 @@ namespace zeroth {
     return m_tagged_amount_cas_repository.contains(value_id);
   }
 
-  OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const &value_id) const {
+  OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const& value_id) const {
     if (false) {
       logger::development_trace("DateOrderedTaggedAmountsContainer::at({})",text::format::to_hex_string(value_id));
     }
@@ -156,7 +156,7 @@ namespace zeroth {
     return result;
   }
 
-  // OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const &value_id) const {
+  // OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const& value_id) const {
   //   std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
   //             << TaggedAmount::to_string(value_id) << ")" << std::flush;
   //   OptionalTaggedAmount result{};
@@ -200,12 +200,12 @@ namespace zeroth {
       | std::ranges::to<TaggedAmounts>();
   }
 
-  OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const &value_ids) {
+  OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const& value_ids) {
     std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()"
               << std::flush;
     OptionalTaggedAmounts result{};
     TaggedAmounts tas{};
-    for (auto const &value_id : value_ids) {
+    for (auto const& value_id : value_ids) {
       if (auto maybe_ta = this->at(value_id)) {
         tas.push_back(maybe_ta.value());
       } else {
@@ -225,13 +225,13 @@ namespace zeroth {
   }
 
   // Now in header file based on range adaptors
-  // DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::date_range_tas_view(zeroth::DateRange const &date_period) {
+  // DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::date_range_tas_view(zeroth::DateRange const& date_period) {
   //   auto first = std::find_if(this->begin(), this->end(),
-  //                             [&date_period](auto const &ta) {
+  //                             [&date_period](auto const& ta) {
   //                               return (ta.date() >= date_period.begin());
   //                             });
   //   auto last = std::find_if(this->begin(), this->end(),
-  //                           [&date_period](auto const &ta) {
+  //                           [&date_period](auto const& ta) {
   //                             return (ta.date() > date_period.end());
   //                           });
   //   return std::ranges::subrange(first, last);
@@ -354,7 +354,7 @@ namespace zeroth {
     }
   }
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const &value_id) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const& value_id) {
     if (auto maybe_ta = this->at(value_id)) {
       m_tagged_amount_cas_repository.erase(value_id);    
       auto iter = std::ranges::find(m_date_ordered_value_ids, value_id);
@@ -370,8 +370,8 @@ namespace zeroth {
     return *this;
   }
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const &other) {
-    std::ranges::for_each(other.ordered_tas_view(),[this](TaggedAmount const &ta) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const& other) {
+    std::ranges::for_each(other.ordered_tas_view(),[this](TaggedAmount const& ta) {
       this->date_ordered_tagged_amounts_insert_value(ta);
     });
 
@@ -379,20 +379,20 @@ namespace zeroth {
   }
 
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const &other) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const& other) {
     this->m_date_ordered_value_ids = other.m_date_ordered_value_ids;
     this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
     return *this;
   }
 
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_sequence(TaggedAmounts const &tas) {
-    for (auto const &ta : tas)
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_sequence(TaggedAmounts const& tas) {
+    for (auto const& ta : tas)
       this->date_ordered_tagged_amounts_insert_value(ta);
     return *this;
   }
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const &tas) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const& tas) {
     this->clear();
     // *this += tas;
     this->date_ordered_tagged_amounts_put_sequence(tas);
@@ -750,13 +750,13 @@ OptionalTaggedAmounts to_tas(std::filesystem::path const& statement_file_path) {
   return result;
 }
 
-auto ev_to_maybe_ta = [](Environment::Value const &ev) -> OptionalTaggedAmount {
+auto ev_to_maybe_ta = [](Environment::Value const& ev) -> OptionalTaggedAmount {
   return to_tagged_amount(ev);
 };
-auto in_period = [](TaggedAmount const &ta, FiscalPeriod const &period) -> bool {
+auto in_period = [](TaggedAmount const& ta, FiscalPeriod const& period) -> bool {
   return period.contains(ta.date());
 };  
-auto id_ev_pair_to_ev = [](Environment::MutableIdValuePair const &id_ev_pair) {
+auto id_ev_pair_to_ev = [](Environment::MutableIdValuePair const& id_ev_pair) {
   return id_ev_pair.second;
 };
 
@@ -766,12 +766,12 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
   if (!env.contains(section)) {
     return {}; // No entries of this type
   }
-  auto const &id_ev_pairs = env.at(section);
+  auto const& id_ev_pairs = env.at(section);
   auto tas_sequence = id_ev_pairs 
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_ta) 
-    | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
-    | std::views::transform([](auto const &maybe_ta) { return maybe_ta.value(); }) 
+    | std::views::filter([](auto const& maybe_ta) { return maybe_ta.has_value(); }) 
+    | std::views::transform([](auto const& maybe_ta) { return maybe_ta.value(); }) 
     | std::ranges::to<std::vector>();
 
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
@@ -788,13 +788,13 @@ DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_containe
   if (!env.contains(section)) {
     return {}; // No entries of this type
   }
-  auto const &id_ev_pairs = env.at(section);
+  auto const& id_ev_pairs = env.at(section);
   auto tas_sequence = id_ev_pairs 
     | std::views::transform(id_ev_pair_to_ev) 
     | std::views::transform(ev_to_maybe_ta) 
-    | std::views::filter([](auto const &maybe_ta) { return maybe_ta.has_value(); }) 
-    | std::views::transform([](auto const &maybe_ta) { return maybe_ta.value(); }) 
-    | std::views::filter([&](auto const &ta) { return in_period(ta, period); }) 
+    | std::views::filter([](auto const& maybe_ta) { return maybe_ta.has_value(); }) 
+    | std::views::transform([](auto const& maybe_ta) { return maybe_ta.value(); }) 
+    | std::views::filter([&](auto const& ta) { return in_period(ta, period); }) 
     | std::ranges::to<std::vector>();
   
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {

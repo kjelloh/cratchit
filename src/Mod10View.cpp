@@ -4,7 +4,7 @@
 namespace first {
 
   // ----------------------------------
-  Mod10View::Mod10View(Mod10View::Range const &range)
+  Mod10View::Mod10View(Mod10View::Range const& range)
       :  m_range{range}
         ,m_subrange_size{to_subrange_size(range)} {
     validate_range();
@@ -85,7 +85,7 @@ namespace first {
     return Mod10View(Range(index, index + 1));
   }
 
-  size_t Mod10View::to_subrange_size(Mod10View::Range const &range) {
+  size_t Mod10View::to_subrange_size(Mod10View::Range const& range) {
     size_t result{0};
     if (range.second > range.first) {
       const size_t range_size = range.second - range.first;

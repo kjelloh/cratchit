@@ -2586,7 +2586,7 @@ public:
 		return result;
 	}
 
-	BAS::AccountMetas const & account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
+	BAS::AccountMetas const&  account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
 
 	void set_year_date_range(zeroth::DateRange const& dr) {
 		this->year_date_range = dr;
@@ -10014,7 +10014,7 @@ std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState 
 }
 
 // Now in BASFramework unit
-// HeadingAmountDateTransEntries hads_from_environment(Environment const &environment);
+// HeadingAmountDateTransEntries hads_from_environment(Environment const& environment);
 
 
 class Cratchit {
@@ -10023,12 +10023,12 @@ public:
 		: cratchit_file_path{p}
           ,m_persistent_environment_file{p,::environment_from_file,::environment_to_file} {}
 
-        Model init(Command const &command) {
+        Model init(Command const& command) {
           std::ostringstream prompt{};
           prompt << "\nInit from ";
           prompt << cratchit_file_path;
           m_persistent_environment_file.init();
-          if (auto const &cached_env = m_persistent_environment_file.cached()) {
+          if (auto const& cached_env = m_persistent_environment_file.cached()) {
             auto model = this->model_from_environment(*cached_env);
             model->prompt_state = PromptState::Root;
             prompt << "\n" << prompt_line(model->prompt_state);

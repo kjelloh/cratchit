@@ -13,10 +13,10 @@ namespace first {
   public:
     using Range = std::pair<size_t, size_t>;
 
-    Mod10View(Range const &range);
+    Mod10View(Range const& range);
 
     template <class T>
-    Mod10View(T const &container);
+    Mod10View(T const& container);
 
     // Encapsulated access to internal state
     const Range& range() const { return m_range; }
@@ -56,7 +56,7 @@ namespace first {
 
     // Static factory methods
     template <class T>
-    static Mod10View from_container(T const &container); 
+    static Mod10View from_container(T const& container); 
        
     static Mod10View from_range(size_t first, size_t last);
     static Mod10View empty_view();
@@ -66,17 +66,17 @@ namespace first {
     Range m_range;
     size_t m_subrange_size;
 
-    size_t to_subrange_size(Mod10View::Range const &range);
+    size_t to_subrange_size(Mod10View::Range const& range);
     void validate_range() const;
   }; // class Mod10View
 
   // ----------------------------------
   template <class T>
-  Mod10View::Mod10View(T const &container)
+  Mod10View::Mod10View(T const& container)
       : Mod10View(Range(0, container.size())) {}
 
   template <class T>
-  Mod10View Mod10View::from_container(T const &container) {
+  Mod10View Mod10View::from_container(T const& container) {
       return Mod10View(container);
   }
 

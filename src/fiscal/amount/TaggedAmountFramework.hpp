@@ -17,7 +17,7 @@
 
 class TaggedAmount {
 public:
-  friend std::ostream &operator<<(std::ostream &os, TaggedAmount const &ta);
+  friend std::ostream &operator<<(std::ostream &os, TaggedAmount const& ta);
   using OptionalTagValue = std::optional<std::string>;
   using Tags = std::map<std::string, std::string>;
   using ValueId = std::size_t;
@@ -25,16 +25,16 @@ public:
   using ValueIds = std::vector<ValueId>;
   using OptionalValueIds = std::optional<ValueIds>;
 
-  TaggedAmount(Date const &date, CentsAmount const &cents_amount,Tags &&tags = Tags{});
+  TaggedAmount(Date const& date, CentsAmount const& cents_amount,Tags &&tags = Tags{});
 
   // Getters
-  Date const &date() const { return m_date; }
-  CentsAmount const &cents_amount() const { return m_cents_amount; }
-  Tags const &tags() const { return m_tags; }
+  Date const& date() const { return m_date; }
+  CentsAmount const& cents_amount() const { return m_cents_amount; }
+  Tags const& tags() const { return m_tags; }
   Tags &tags() { return m_tags; }
 
   // Map key to optional value
-  OptionalTagValue tag_value(std::string const &key) const {
+  OptionalTagValue tag_value(std::string const& key) const {
     OptionalTagValue result{};
     if (m_tags.contains(key)) {
       result = m_tags.at(key);
@@ -42,7 +42,7 @@ public:
     return result;
   }
 
-  bool operator==(TaggedAmount const &other) const;
+  bool operator==(TaggedAmount const& other) const;
 
   // Replaced with text::format::to_hex_string() / 20251022
   // tagged_amount::to_string ensures it does not override
@@ -61,7 +61,7 @@ using OptionalTaggedAmounts = std::optional<TaggedAmounts>;
 
 namespace std {
   template <> struct hash<TaggedAmount> {
-    std::size_t operator()(TaggedAmount const &ta) const noexcept {
+    std::size_t operator()(TaggedAmount const& ta) const noexcept {
 
     // Hash combine for TaggedAmount
     // TODO: Consider to consolidate 'hashing' for 'Value Id' to somehow
@@ -86,7 +86,7 @@ namespace std {
       hash_combine(result, static_cast<unsigned>(yyyymmdd.month()));
       hash_combine(result, static_cast<unsigned>(yyyymmdd.day()));
       hash_combine(result, ta.cents_amount());
-      for (auto const &[key, value] : ta.tags()) {
+      for (auto const& [key, value] : ta.tags()) {
 
         if (key == "_prev") continue; // disable link meta-data for now
 
@@ -98,10 +98,10 @@ namespace std {
   };
 } // namespace std
 
-TaggedAmount::ValueId to_value_id(TaggedAmount const &ta);
-std::ostream& operator<<(std::ostream &os, TaggedAmount const &ta);
-TaggedAmount::OptionalValueId to_value_id(std::string const &sid);
-TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const &sids);
+TaggedAmount::ValueId to_value_id(TaggedAmount const& ta);
+std::ostream& operator<<(std::ostream &os, TaggedAmount const& ta);
+TaggedAmount::OptionalValueId to_value_id(std::string const& sid);
+TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const& sids);
 
 // String conversion
 std::string to_string(TaggedAmount const& ta);
@@ -151,11 +151,11 @@ namespace zeroth {
       * If the insert location is between two other values, then 
       * the sequnce after the new value is re-linked.
       */
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert_value(TaggedAmount const &ta);
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert_value(TaggedAmount const& ta);
 
     // Accessors
     bool contains(TaggedAmount const& ta) const;
-    OptionalTaggedAmount at(ValueId const &value_id) const;
+    OptionalTaggedAmount at(ValueId const& value_id) const;
     TaggedAmountsCasRepository& cas();
 
     // Sequence
@@ -169,8 +169,8 @@ namespace zeroth {
     }
 
     TaggedAmounts tagged_amounts();    
-    OptionalTaggedAmounts to_tagged_amounts(ValueIds const &value_ids);
-    // const_subrange date_range_tas_view(zeroth::DateRange const &date_period);
+    OptionalTaggedAmounts to_tagged_amounts(ValueIds const& value_ids);
+    // const_subrange date_range_tas_view(zeroth::DateRange const& date_period);
     auto date_range_tas_view(zeroth::DateRange const& date_period) const {
       auto view = ordered_tas_view()
         | std::views::drop_while([&](auto const& ta) {
@@ -183,15 +183,15 @@ namespace zeroth {
     }
 
     // Mutation
-    DateOrderedTaggedAmountsContainer& erase(ValueId const &value_id);
+    DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id);
 
-    // DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const &other); // +=
-    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const &other); // +=
-    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const &other); // =
+    // DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const& other); // +=
+    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const& other); // +=
+    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const& other); // =
 
-    // DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const &tas); // +=
-    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_sequence(TaggedAmounts const &tas); // +=
-    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const &tas); // =
+    // DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const& tas); // +=
+    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_sequence(TaggedAmounts const& tas); // +=
+    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const& tas); // =
 
     DateOrderedTaggedAmountsContainer& clear();
 
@@ -242,7 +242,7 @@ namespace tas {
     using BASBuckets = std::map<BAS::AccountNo, TaggedAmounts>;
     BASBuckets bas_buckets{};
 
-    auto is_valid_bas_account_transaction = [](TaggedAmount const &ta) {
+    auto is_valid_bas_account_transaction = [](TaggedAmount const& ta) {
       if (ta.tags().contains("BAS") and
           !(BAS::to_account_no(ta.tags().at("BAS")))) {
         // Whine about invalid tagging of 'BAS' tag!
@@ -261,18 +261,18 @@ namespace tas {
                             and (ta.tags().at("type") != "saldo"))));
     };
 
-    for (auto const &ta : ordered_tas_view) {
+    for (auto const& ta : ordered_tas_view) {
       if (is_valid_bas_account_transaction(ta)) {
         bas_buckets[*BAS::to_account_no(ta.tags().at("BAS"))].push_back(ta);
       }
     }
 
-    for (auto const &[bas_account_no, tas] : bas_buckets) {
+    for (auto const& [bas_account_no, tas] : bas_buckets) {
       Date period_end_date{};
       logger::cout_proxy << "\n" << std::dec << bas_account_no;
       auto cents_saldo = std::accumulate(
           tas.begin(), tas.end(), CentsAmount{0},
-          [&period_end_date](auto acc, auto const &ta) {
+          [&period_end_date](auto acc, auto const& ta) {
             period_end_date =
                 std::max(period_end_date,
                          ta.date()); // Ensure we keep the latest date. NOTE: We

@@ -6,8 +6,8 @@
 #include <cctype> // std::isprint,
 
 namespace Key {
-    Path::Path(std::vector<std::string> const &v) : m_path{v} {}
-    Path::Path(std::string const &s_path, char delim)
+    Path::Path(std::vector<std::string> const& v) : m_path{v} {}
+    Path::Path(std::string const& s_path, char delim)
         : m_delim{delim},
           m_path(tokenize::splits(s_path, delim,
                                   tokenize::eAllowEmptyTokens::YES)) {
@@ -19,7 +19,7 @@ namespace Key {
                   << ") PATCHED to empty path";
       }
     };
-    Path Path::operator+(std::string const &key) const {
+    Path Path::operator+(std::string const& key) const {
       Path result{*this};
       result.m_path.push_back(key);
       return result;
@@ -29,7 +29,7 @@ namespace Key {
       os << *this;
       return os.str();
     }
-    Path& Path::operator+=(std::string const &key) {
+    Path& Path::operator+=(std::string const& key) {
       m_path.push_back(key);
       // std::cout << "\noperator+= :" << *this  << " size:" << this->size();
       return *this;
@@ -54,9 +54,9 @@ namespace Key {
     }
 
 
-  std::ostream &operator<<(std::ostream &os, Key::Path const &key_path) {
+  std::ostream &operator<<(std::ostream &os, Key::Path const& key_path) {
     int key_count{0};
-    for (auto const &key : key_path) {
+    for (auto const& key : key_path) {
       if (key_count++ > 0)
         os << key_path.m_delim;
       if (false) {
@@ -80,7 +80,7 @@ namespace Key {
     }
     return os;
   }
-  std::string to_string(Key::Path const &key_path) {
+  std::string to_string(Key::Path const& key_path) {
     std::ostringstream os{};
     os << key_path;
     return os.str();

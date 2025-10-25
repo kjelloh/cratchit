@@ -21,7 +21,7 @@ namespace BAS {
   using AccountNos = std::vector<AccountNo>;
   using OptionalAccountNos = std::optional<AccountNos>;
 
-  OptionalAccountNo to_account_no(std::string const &s);
+  OptionalAccountNo to_account_no(std::string const& s);
 } // namespace BAS
 
 namespace BAS {

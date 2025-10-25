@@ -39,7 +39,7 @@ public:
                 << shift_left_count; // Simple shift left distribution and no addition
       };
 
-      for (auto const &[key, value] : key_value_map) {
+      for (auto const& [key, value] : key_value_map) {
         hash_combine(result, key);
         hash_combine(result, value);
       }
@@ -86,9 +86,9 @@ namespace in {
   bool is_value_line(std::string const& line);
   std::pair<std::string, std::optional<Environment::ValueId>> to_name_and_id(std::string const& s);
   Environment::Value to_environment_value(std::string const& s);
-  // Environment indexed_environment_from_file(std::filesystem::path const &p);
+  // Environment indexed_environment_from_file(std::filesystem::path const& p);
 }
-Environment environment_from_file(std::filesystem::path const &p);
+Environment environment_from_file(std::filesystem::path const& p);
 
 // Processing environment -> out
 namespace out {
@@ -97,9 +97,9 @@ namespace out {
   std::ostream& operator<<(std::ostream& os,Environment const& env);
   std::string to_string(Environment::Value const& ev);
   std::string to_string(Environment::value_type const& entry);
-  // void indexed_environment_to_file(Environment const &environment,std::filesystem::path const &p);
+  // void indexed_environment_to_file(Environment const& environment,std::filesystem::path const& p);
 }
-void environment_to_file(Environment const &environment,std::filesystem::path const &p);
+void environment_to_file(Environment const& environment,std::filesystem::path const& p);
 
 struct EnvironmentPeriodSlice {
   Environment m_environment;

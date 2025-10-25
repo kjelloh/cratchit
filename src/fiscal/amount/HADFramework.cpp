@@ -61,7 +61,7 @@ OptionalHeadingAmountDateTransEntry to_had(Environment::Value const& ev) {
 	return result;
 }
 
-HeadingAmountDateTransEntries hads_from_environment(Environment const &environment) {
+HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
   if (true) {
     spdlog::info("BEGIN hads_from_environment");
     spdlog::default_logger()->flush();;
@@ -73,8 +73,8 @@ HeadingAmountDateTransEntries hads_from_environment(Environment const &environme
       spdlog::default_logger()->flush();;
     }
     auto const id_ev_pairs = environment.at("HeadingAmountDateTransEntry");
-    std::transform(id_ev_pairs.begin(), id_ev_pairs.end(), std::back_inserter(result), [](auto const &id_ev_pair) {
-      auto const &[id, ev] = id_ev_pair;
+    std::transform(id_ev_pairs.begin(), id_ev_pairs.end(), std::back_inserter(result), [](auto const& id_ev_pair) {
+      auto const& [id, ev] = id_ev_pair;
       if (auto ohad = to_had(ev); !ohad) {
         throw std::runtime_error(std::format("Invalid HeadingAmountDateTransEntry in environment: {}", id));
       }

@@ -52,15 +52,15 @@ namespace in {
     logger::development_trace("sev:{}",sev);
     Environment::Value result{};
     auto kvps = tokenize::splits(sev, ';');
-    for (auto const &kvp : kvps) {
-      auto const &[name, value] = tokenize::split(kvp, '=');
+    for (auto const& kvp : kvps) {
+      auto const& [name, value] = tokenize::split(kvp, '=');
       logger::development_trace("name:{} value:{}",name,value);
       result[name] = value;
     }
     return result;
   }
 
-  Environment indexed_environment_from_file(std::filesystem::path const &p) {
+  Environment indexed_environment_from_file(std::filesystem::path const& p) {
     logger::scope_logger raii_log{logger::development_trace,"indexed_environment_from_file"};
     Environment result{};
     try {
@@ -74,7 +74,7 @@ namespace in {
           std::string key{}, value_string{};
           in >> std::hex >> key >> std::quoted(value_string);
           logger::development_trace("key:{}, value_string:{}",key,value_string);
-          auto const &[name, id] = to_name_and_id(key);
+          auto const& [name, id] = to_name_and_id(key);
           if (id) {
             current_index[name] = *id;
           } else {
@@ -89,7 +89,7 @@ namespace in {
               Environment::MutableIdValuePair{current_index[name], to_environment_value(value_string)});
         }
       }
-    } catch (std::runtime_error const &e) {
+    } catch (std::runtime_error const& e) {
       // std::cout << "\nDESIGN_INSUFFICIENCY:ERROR - Read from " << p
       //           << " failed. Exception:" << e.what();
       logger::design_insufficiency(R"(DESIGN_INSUFFICIENCY:ERROR - Read from {} failed. Exception: {})", p.string(), e.what());
@@ -97,7 +97,7 @@ namespace in {
     if (true) {
       // std::cout << "\nenvironment_from_file(" << p << ")";
       logger::development_trace(R"(environment_from_file("{}"))", p.string());
-      for (auto const &[key, entry] : result) {
+      for (auto const& [key, entry] : result) {
         logger::development_trace(R"(key:"{}" count:{})", key, entry.size());
       }
     }
@@ -172,7 +172,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
           //   logger::development_trace("to_cas_environment: Not transformed {} ",out::to_string(indexed_ev));
           // }
 
-          if (false) {
+          if (true) {
             // Transform meta-data indexed _prev -> cas _prev (ordering link)
             if (indexed_ev.contains("_prev")) {
               auto const& s_indexed_id = indexed_ev.at("_prev");
@@ -219,7 +219,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
   return result;
 }
 
-Environment environment_from_file(std::filesystem::path const &p) {
+Environment environment_from_file(std::filesystem::path const& p) {
   logger::scope_logger raii_log{logger::development_trace,"environment_from_file"};
   return to_cas_environment(in::indexed_environment_from_file(p));
 }
@@ -227,7 +227,7 @@ Environment environment_from_file(std::filesystem::path const &p) {
 namespace out {
   std::ostream& operator<<(std::ostream& os,Environment::Value const& ev) {
     bool not_first{false};
-    std::for_each(ev.begin(), ev.end(), [&not_first, &os](auto const &entry) {
+    std::for_each(ev.begin(), ev.end(), [&not_first, &os](auto const& entry) {
       if (not_first) {
         os << ";"; // separator
       }
@@ -240,9 +240,9 @@ namespace out {
   }
 
   std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry) {
-    auto const &[key, id_ev_pairs] = entry;
+    auto const& [key, id_ev_pairs] = entry;
     for (auto iter = id_ev_pairs.begin(); iter != id_ev_pairs.end(); ++iter) {
-      auto const &[id, ev] = *iter;
+      auto const& [id, ev] = *iter;
       if (iter != id_ev_pairs.begin()) {
         os << "\n";
       }
@@ -279,12 +279,12 @@ namespace out {
     return os.str();
   }
 
-  void indexed_environment_to_file(Environment const &indexed_environment,std::filesystem::path const &p) {
+  void indexed_environment_to_file(Environment const& indexed_environment,std::filesystem::path const& p) {
     logger::scope_logger raii_log{logger::development_trace,"indexed_environment_to_file"};
     try {
       std::ofstream out{p};
       out << indexed_environment;
-    } catch (std::runtime_error const &e) {
+    } catch (std::runtime_error const& e) {
       logger::design_insufficiency(R"(ERROR - Write to {} failed. Exception: {})", p.string(), e.what());
     }
   }
@@ -376,7 +376,7 @@ Environment to_indexed_environment(Environment const& cas_environment) {
   return result;
 }
 
-void environment_to_file(Environment const &environment,std::filesystem::path const &p) {
+void environment_to_file(Environment const& environment,std::filesystem::path const& p) {
   logger::scope_logger raii_log{logger::development_trace,"environment_to_file"};
   return out::indexed_environment_to_file(to_indexed_environment(environment),p);
 }

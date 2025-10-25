@@ -25,7 +25,7 @@ namespace first {
   // 'Newer' taking period and environment
   FiscalPeriodState::FiscalPeriodState(
      FiscalPeriod fiscal_period
-    ,Environment const &parent_environment_ref)
+    ,Environment const& parent_environment_ref)
       : FiscalPeriodState(
          std::nullopt
         ,fiscal_period

@@ -89,7 +89,7 @@ namespace TEA {
       int num_divs = 0;
 
       // Loop through divs directly and render them in sections
-      for (auto const &div : body.children("div")) {
+      for (auto const& div : body.children("div")) {
         // Render the content of the div inside the windows
         const std::string text = div.text().as_string();
         const int max_lines = section_height - 2; // Accounting for borders
