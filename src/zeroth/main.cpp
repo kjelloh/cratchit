@@ -8692,7 +8692,7 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n" << ta;
         if (auto members_value = ta.tag_value("_members")) {
           auto members = Key::Sequence{*members_value};
-          if (auto value_ids = to_value_ids(members)) {
+          if (auto value_ids = to_maybe_value_ids(members)) {
             prompt << "\n\t<members>";
             if (auto tas = model->all_dotas.to_tagged_amounts(*value_ids)) {
               for (auto const& ta : *tas) {

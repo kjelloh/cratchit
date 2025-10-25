@@ -10,7 +10,7 @@
 int main(int argc, char *argv[]) {
 
     // See https://github.com/gabime/spdlog
-    auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 5 * 1024 * 1024, 5);
+    auto logger = spdlog::rotating_logger_mt("rotating_logger", "logs/rotating_log.txt", 25 * 1024 * 1024, 5);
     spdlog::set_pattern("[%H:%M:%S.%e] %v");
 
     spdlog::set_default_logger(logger);

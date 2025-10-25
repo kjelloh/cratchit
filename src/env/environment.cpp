@@ -143,9 +143,9 @@ Environment to_cas_environment(Environment const& indexed_environment) {
             auto const& s_indexed_members = indexed_ev.at("_members");
             auto indexed_members = Key::Sequence{s_indexed_members};
 
-            if (auto indexed_refs = to_value_ids(indexed_members)) {
+            if (auto maybe_indexed_refs = to_maybe_value_ids(indexed_members)) {
               Key::Sequence cas_refs{};
-              for (auto const& indexed_ref : indexed_refs.value()) {
+              for (auto const& indexed_ref : maybe_indexed_refs.value()) {
                 if (index_to_cas_id.contains(indexed_ref)) {
                   // Already in indexed_ref map OK (thus also already in cas_id_value_pairs)
                   // Transform reference from indexed to value_id in cas
@@ -176,7 +176,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
             // Transform meta-data indexed _prev -> cas _prev (ordering link)
             if (indexed_ev.contains("_prev")) {
               auto const& s_indexed_id = indexed_ev.at("_prev");
-              if (auto maybe_indexed_prev = to_value_id(s_indexed_id)) {
+              if (auto maybe_indexed_prev = to_maybe_value_id(s_indexed_id)) {
                 auto indexed_prev = maybe_indexed_prev.value();
                 if (index_to_cas_id.contains(indexed_prev)) {
                   auto cas_ref = index_to_cas_id.at(indexed_prev);
@@ -311,7 +311,7 @@ Environment to_indexed_environment(Environment const& cas_environment) {
           // transform the cas refs to index refs
           auto const& s_cas_members = cas_ev.at("_members");
           auto cas_members = Key::Sequence{s_cas_members};
-          if (auto maybe_cas_refs = to_value_ids(cas_members)) {
+          if (auto maybe_cas_refs = to_maybe_value_ids(cas_members)) {
             Key::Sequence index_refs{};
             for (auto const& cas_ref : maybe_cas_refs.value()) {
               if (id_to_index.contains(cas_ref)) {
@@ -339,7 +339,7 @@ Environment to_indexed_environment(Environment const& cas_environment) {
         if (true) {
           if (cas_ev.contains("_prev")) {
             auto s_cas_prev = cas_ev.at("_prev");
-            auto maybe_cas_prev = to_value_id(s_cas_prev);
+            auto maybe_cas_prev = to_maybe_value_id(s_cas_prev);
             if (maybe_cas_prev) {
               auto cas_prev = maybe_cas_prev.value();
               if (id_to_index.contains(cas_prev)) {

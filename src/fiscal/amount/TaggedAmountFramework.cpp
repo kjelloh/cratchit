@@ -49,7 +49,7 @@ TaggedAmount::ValueId to_value_id(TaggedAmount const& ta) {
 }
 
 std::ostream& operator<<(std::ostream &os, TaggedAmount const& ta) {
-  // os << TaggedAmount::to_string(to_value_id(ta));
+  // os <<  text::format::to_hex_string(to_value_id(ta));
   os << " " << ::to_string(ta.date());
   os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
   for (auto const& tag : ta.tags()) {
@@ -59,24 +59,24 @@ std::ostream& operator<<(std::ostream &os, TaggedAmount const& ta) {
 }
 
 // Hex listing string to Value Ids (for parsing tags that encodes references as valude Ids)
-TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const& sids) {
-  // std::cout << "\nto_value_ids()" << std::flush;
+TaggedAmount::OptionalValueIds to_maybe_value_ids(Key::Sequence const& sids) {
+  // std::cout << "\nto_maybe_value_ids()" << std::flush;
   TaggedAmount::OptionalValueIds result{};
   TaggedAmount::ValueIds value_ids{};
   for (auto const& sid : sids) {
-    if (auto maybe_value_id = to_value_id(sid)) {
+    if (auto maybe_value_id = to_maybe_value_id(sid)) {
       // std::cout << "\n\tA valid instance id sid=" << std::quoted(sid);
       value_ids.push_back(maybe_value_id.value());
     } else {
       std::cout
-          << "\nDESIGN_INSUFFICIENCY: to_value_ids: Not a valid instance id string sid="
+          << "\nDESIGN_INSUFFICIENCY: to_maybe_value_ids: Not a valid instance id string sid="
           << std::quoted(sid) << std::flush;
     }
   }
   if (value_ids.size() == sids.size()) {
     result = value_ids;
   } else {
-    std::cout << "\nDESIGN_INSUFFICIENCY: to_value_ids(Key::Sequence const& "
+    std::cout << "\nDESIGN_INSUFFICIENCY: to_maybe_value_ids(Key::Sequence const& "
               << sids.to_string() << ") Failed. Created" << value_ids.size()
               << " out of " << sids.size() << " possible.";
   }
@@ -84,8 +84,8 @@ TaggedAmount::OptionalValueIds to_value_ids(Key::Sequence const& sids) {
 }
 
 // Hex string to Value Id (for parsing tags that encodes references as valude Ids)
-TaggedAmount::OptionalValueId to_value_id(std::string const& sid) {
-  // std::cout << "\nto_value_id()" << std::flush;
+TaggedAmount::OptionalValueId to_maybe_value_id(std::string const& sid) {
+  // std::cout << "\nto_maybe_value_id()" << std::flush;
   TaggedAmount::OptionalValueId result{};
   TaggedAmount::ValueId value_id{};
   std::istringstream is{sid};
@@ -93,7 +93,7 @@ TaggedAmount::OptionalValueId to_value_id(std::string const& sid) {
     is >> std::hex >> value_id;
     result = value_id;
   } catch (...) {
-    std::cout << "\nto_value_id(" << std::quoted(sid)
+    std::cout << "\nto_maybe_value_id(" << std::quoted(sid)
               << ") failed. General Exception caught." << std::flush;
   }
   return result;
@@ -235,11 +235,15 @@ namespace zeroth {
 
     // Assert provided prev matches 'older' date auto ordering (no behavioral change)
     if (auto_order_compability_mode) {
+      logger::scope_logger scope_logger_raii{logger::development_trace,"AUTO ORDERING COMPABILITY MODE"};
       // Check consistency with 'older' auto_order design
       // We expect the order provided to match the auto-order (date ordering) we have applied so far
-      auto auto_ordered_prev = to_prev(ta);
-      if (auto_ordered_prev != maybe_prev) {
-        logger::design_insufficiency("dotas_append_value: Expetced provided _prev:{:x} to be auto-order prev:{:x}",maybe_prev.value_or(0),auto_ordered_prev.value_or(0));
+      auto auto_ordered_maybe_prev = to_prev(ta);
+      if (auto_ordered_maybe_prev != maybe_prev) {
+        logger::design_insufficiency(
+           "dotas_append_value: Expetced provided _prev:{:x} to be auto-order prev:{:x}"
+          ,maybe_prev.value_or(0)
+          ,auto_ordered_maybe_prev.value_or(0));
         return this->dotas_insert_auto_ordered_value(ta); // force old behavior
       }
     }
@@ -846,11 +850,11 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
     | std::ranges::to<std::vector>();
 
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
-    if (false) {
+    if (true) {
       // 'Newer' respect _prev encoded order
       auto maybe_s_prev = ta.tag_value("_prev");
       auto maybe_prev = maybe_s_prev.and_then([](std::string s_prev) {
-        return to_value_id(s_prev);
+        return to_maybe_value_id(s_prev);
       });
       auto [value_id,was_inserted] = result.dotas_append_value(maybe_prev,ta,true);
     }
