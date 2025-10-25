@@ -10222,7 +10222,7 @@ private:
             // skip directories (will process regular files and symlinks etc...)
           }
           // Process file
-          else if (auto maybe_tas = to_tas(statement_file_path)) {
+          else if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
             result = maybe_tas.value();
             std::cout << "\n\tValid entries count:" << maybe_tas->size();
             auto consumed_files_path = from_bank_or_skv_path / "consumed";

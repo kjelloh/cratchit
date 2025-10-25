@@ -712,7 +712,7 @@ namespace CSV {
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
 */
-OptionalTaggedAmounts to_tas(std::filesystem::path const& statement_file_path) {
+OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path) {
   if (true) {
     std::cout << "\nto_tagged_amounts(" << statement_file_path << ")";
   }

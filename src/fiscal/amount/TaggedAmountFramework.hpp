@@ -324,4 +324,4 @@ namespace CSV {
   }
 }
 
-OptionalTaggedAmounts to_tas(std::filesystem::path const& statement_file_path);
+OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path);
