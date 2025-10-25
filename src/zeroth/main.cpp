@@ -10252,7 +10252,7 @@ private:
     return result;
   }
 
-  DateOrderedTaggedAmountsContainer date_ordered_tagged_amounts_from_environment(Environment const& environment) {
+  DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
     if (false) {
       std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
     }
@@ -10260,11 +10260,11 @@ private:
     result.dotas_insert_auto_ordered_container(dotas_from_environment(environment));
 
     if (environment.contains("TaggedAmount") and (environment.at("TaggedAmount").size() != result.cas().size())) {
-      logger::design_insufficiency("date_ordered_tagged_amounts_from_environment: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
+      logger::design_insufficiency("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
     }
 
     if (true) {
-      logger::development_trace("date_ordered_tagged_amounts_from_environment: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
+      logger::development_trace("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
     }
 
     // Import any new account statements in dedicated "files from bank or skv" folder
@@ -10414,8 +10414,8 @@ private:
     if (false) {
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
-      // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
-      model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->date_ordered_tagged_amounts_from_environment(environment));
+      // model->all_date_ordered_tagged_amounts += this->dotas_from_environment_and_account_statement_files(environment);
+      model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->dotas_from_environment_and_account_statement_files(environment));
       // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
       for (auto const& [key,sie_environment] : model->sie_env_map) {
         this->synchronize_tagged_amounts_with_sie(model->all_date_ordered_tagged_amounts,sie_environment);
@@ -10428,8 +10428,8 @@ private:
         model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));	
       }
       prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
-      // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
-      model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->date_ordered_tagged_amounts_from_environment(environment));
+      // model->all_date_ordered_tagged_amounts += this->dotas_from_environment_and_account_statement_files(environment);
+      model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->dotas_from_environment_and_account_statement_files(environment));
     }
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
