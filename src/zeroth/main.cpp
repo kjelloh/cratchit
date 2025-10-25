@@ -8509,7 +8509,7 @@ Cmd Updater::operator()(Command const& command) {
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
           for (auto const& ta : model->all_date_ordered_tagged_amounts.date_range_tas_view({*begin,*end})) {
-            model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert_value(ta);
+            model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert_auto_ordered_value(ta);
           }				
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
@@ -10126,7 +10126,7 @@ private:
       TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
       saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
       saldo_ta.tags()["IB"] = "True";
-      result.date_ordered_tagged_amounts_insert_value(saldo_ta);
+      result.date_ordered_tagged_amounts_insert_auto_ordered_value(saldo_ta);
       if (true) {
         std::cout << "\n\tsaldo_ta : " << saldo_ta;
       }

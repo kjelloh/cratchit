@@ -464,7 +464,7 @@ namespace tests::atomics {
           auto last_date = original_tas.back().date(); // trust non-empty
           auto later_date = Date{std::chrono::sys_days{last_date} + std::chrono::days{1}};
           auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
-          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
+          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_auto_ordered_value(new_ta);
 
           auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
           auto result = (new_tas.back() == new_ta);
@@ -478,7 +478,7 @@ namespace tests::atomics {
           auto first_date = original_tas.front().date(); // trust non-empty
           auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
           auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
-          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
+          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_auto_ordered_value(new_ta);
 
           auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
           auto result = (new_tas.front() == new_ta);
@@ -511,7 +511,7 @@ namespace tests::atomics {
           auto first_date = original_tas.front().date(); // trust non-empty
           auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
           auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
-          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_value(new_ta);
+          auto [value_id,is_new_value] = dotas.date_ordered_tagged_amounts_insert_auto_ordered_value(new_ta);
 
           auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
 

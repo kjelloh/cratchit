@@ -151,7 +151,7 @@ namespace zeroth {
       * If the insert location is between two other values, then 
       * the sequnce after the new value is re-linked.
       */
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert_value(TaggedAmount const& ta);
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert_auto_ordered_value(TaggedAmount const& ta);
 
     // Accessors
     bool contains(TaggedAmount const& ta) const;
@@ -225,7 +225,9 @@ using DateOrderedTaggedAmountsContainer = zeroth::DateOrderedTaggedAmountsContai
 
 // namespace BAS with 'forwards' now in BAS.hpp
 
+// Date ordrered tagged amounts from environment
 DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env);
+
 // Environment -> TaggedAmounts (filtered by fiscal period)
 DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_container(FiscalPeriod period, const Environment &env);
 
