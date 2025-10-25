@@ -309,21 +309,25 @@ namespace zeroth {
       auto [maybe_prev,maybe_next] = prev_and_next_pair;
 
       if (auto put_result = m_tagged_amount_cas_repository.cas_repository_put(transformed_ta);put_result.second) {
-        logger::development_trace("New value at:{} value:{}",put_result.first,to_string(transformed_ta));
+        logger::development_trace(
+           "New value at:{} value:{}"
+          ,text::format::to_hex_string(put_result.first)
+          ,to_string(transformed_ta));
         // New linked value
         auto insert_pos = m_date_ordered_value_ids.begin(); // Default for no prev
 
         if (maybe_prev) {
+          // Not at begin = adjust insert_pos to actual insert pos
           logger::development_trace(
-             "Valid prev:{} {}"
-            ,maybe_prev.value()
+             "Valid prev:{} with value:{}"
+            ,text::format::to_hex_string(maybe_prev.value())
             ,to_string(this->at(maybe_prev.value()).value_or(TaggedAmount{Date{},CentsAmount{}})));
 
-            // Find iterator to this ValueId
-            insert_pos = std::ranges::find(m_date_ordered_value_ids, maybe_prev.value());
-            if (insert_pos != m_date_ordered_value_ids.end()) {
-                ++insert_pos; // Adjust to make std::vector::insert do what we want (inserts before iter)
-            }
+          // Find iterator to this ValueId
+          insert_pos = std::ranges::find(m_date_ordered_value_ids, maybe_prev.value());
+          if (insert_pos != m_date_ordered_value_ids.end()) {
+              ++insert_pos; // Adjust to make std::vector::insert do what we want (inserts before iter)
+          }
         }
 
         // If maybe_prev_vid is nullopt, insert_pos stays at begin() (insert at / before start)
@@ -331,10 +335,15 @@ namespace zeroth {
 
         // Log
         if (maybe_prev) {
-          logger::development_trace("m_date_ordered_value_ids inserted _prev:{} -> id:{}",maybe_prev.value(),put_result.first);
+          logger::development_trace(
+             "m_date_ordered_value_ids inserted _prev:{} -> id:{}"
+            ,text::format::to_hex_string(maybe_prev.value())
+            ,text::format::to_hex_string(put_result.first));
         }
         else {
-          logger::development_trace("m_date_ordered_value_ids inserted _prev:null -> id:{}",put_result.first);
+          logger::development_trace(
+             "m_date_ordered_value_ids inserted _prev:null -> id:{}"
+            ,text::format::to_hex_string(put_result.first));
         }
 
         // Re-link?
@@ -364,8 +373,14 @@ namespace zeroth {
       }
       else {
         // No op - transformed_ta (properly linked in ta) already in container (and CAS)
-        logger::development_trace("DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(transformed_ta));
-        logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));
+        logger::development_trace(
+          "DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED"
+          ,text::format::to_hex_string(put_result.first)
+          ,to_string(transformed_ta));
+        logger::development_trace(
+           "                                                                                         at:{} '{}' = IN CAS"
+          ,text::format::to_hex_string(put_result.first)
+          ,to_string(this->at(put_result.first).value()));
         return put_result;
       }
     }
@@ -399,8 +414,14 @@ namespace zeroth {
       } 
       else {
         // No op - ta already in container (and CAS)
-        logger::development_trace("DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
-        logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));      
+        logger::development_trace(
+           "DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED"
+          ,text::format::to_hex_string(put_result.first)
+          ,to_string(ta));
+        logger::development_trace(
+           "                                                                                         at:{} '{}' = IN CAS"
+          ,text::format::to_hex_string(put_result.first)
+          ,to_string(this->at(put_result.first).value()));      
       }
 
       if (m_date_ordered_value_ids.size() > m_tagged_amount_cas_repository.size()) {
@@ -527,14 +548,28 @@ namespace zeroth {
     if (true) {
       if (prev_and_next.first) {
         auto new_s_prev = text::format::to_hex_string(prev_and_next.first.value());
+        
         ta_with_prev.tags()["_prev"] = new_s_prev;
+      }
+      else {
+        // No prev
+        ta_with_prev.tags().erase("_prev");
+      }
 
-        if (true) {
-          auto maybe_s_prev = ta.tag_value("_prev");
-          logger::development_trace("to_prev_next_pair_and_transformed_ta: Re-linked _prev:{} to _prev:{}",maybe_s_prev.value_or("null"),new_s_prev);
+      // Log
+      if (true) {
+        auto maybe_s_prev_lhs = ta.tag_value("_prev");
+        auto maybe_s_prev_rhs = ta_with_prev.tag_value("_prev");
+        if (maybe_s_prev_lhs != maybe_s_prev_rhs) {
+          logger::development_trace(
+            "to_prev_next_pair_and_transformed_ta: Re-linked _prev:{} to _prev:{}"
+            ,maybe_s_prev_lhs.value_or("null")
+            ,maybe_s_prev_rhs.value_or("null"));
         }
       }
+
     }
+
 
     return {prev_and_next,ta_with_prev};
   }
