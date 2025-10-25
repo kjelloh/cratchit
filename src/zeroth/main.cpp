@@ -6677,8 +6677,8 @@ Cmd Updater::operator()(Command const& command) {
               // Accept the new tagged amounts created
               // model->all_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
               // model->selected_date_ordered_tagged_amounts += model->new_date_ordered_tagged_amounts;
-              model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(model->new_date_ordered_tagged_amounts);
-              model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(model->new_date_ordered_tagged_amounts);
+              model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(model->new_date_ordered_tagged_amounts);
+              model->selected_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(model->new_date_ordered_tagged_amounts);
 
               model->prompt_state = PromptState::TAIndex;
               prompt << "\n*Accepted*";
@@ -8509,7 +8509,7 @@ Cmd Updater::operator()(Command const& command) {
         if (begin and end) {
           model->selected_date_ordered_tagged_amounts.clear();
           for (auto const& ta : model->all_date_ordered_tagged_amounts.date_range_tas_view({*begin,*end})) {
-            model->selected_date_ordered_tagged_amounts.date_ordered_tagged_amounts_insert_auto_ordered_value(ta);
+            model->selected_date_ordered_tagged_amounts.dotas_insert_auto_ordered_value(ta);
           }				
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
@@ -10126,7 +10126,7 @@ private:
       TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
       saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
       saldo_ta.tags()["IB"] = "True";
-      result.date_ordered_tagged_amounts_insert_auto_ordered_value(saldo_ta);
+      result.dotas_insert_auto_ordered_value(saldo_ta);
       if (true) {
         std::cout << "\n\tsaldo_ta : " << saldo_ta;
       }
@@ -10137,7 +10137,7 @@ private:
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
       // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
 			// result += tagged_amounts;
-			result.date_ordered_tagged_amounts_put_sequence(tagged_amounts);
+			result.dotas_insert_auto_ordered_sequence(tagged_amounts);
 		};
 		for_each_meta_entry(sie_env,create_and_merge_to_result);
 		return result;
@@ -10257,7 +10257,7 @@ private:
       std::cout << "\ndate_ordered_tagged_amounts_from_environment" << std::flush;
     }
     DateOrderedTaggedAmountsContainer result{};
-    result.date_ordered_tagged_amounts_put_container(dotas_from_environment(environment));
+    result.dotas_insert_auto_ordered_container(dotas_from_environment(environment));
 
     if (environment.contains("TaggedAmount") and (environment.at("TaggedAmount").size() != result.cas().size())) {
       logger::design_insufficiency("date_ordered_tagged_amounts_from_environment: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
@@ -10268,7 +10268,7 @@ private:
     }
 
     // Import any new account statements in dedicated "files from bank or skv" folder
-    result.date_ordered_tagged_amounts_put_sequence(tagged_amounts_sequence_from_account_statement_file(environment));
+    result.dotas_insert_auto_ordered_sequence(tagged_amounts_sequence_from_account_statement_file(environment));
     return result;
   }
 
@@ -10415,7 +10415,7 @@ private:
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
-      model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(this->date_ordered_tagged_amounts_from_environment(environment));
+      model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->date_ordered_tagged_amounts_from_environment(environment));
       // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
       for (auto const& [key,sie_environment] : model->sie_env_map) {
         this->synchronize_tagged_amounts_with_sie(model->all_date_ordered_tagged_amounts,sie_environment);
@@ -10425,11 +10425,11 @@ private:
       // TODO 240219 - Replace this old implementation with the new one above
       for (auto const& sie_environments_entry : model->sie_env_map) {
         // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second);	
-        model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));	
+        model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->date_ordered_tagged_amounts_from_sie_environment(sie_environments_entry.second));	
       }
       prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
       // model->all_date_ordered_tagged_amounts += this->date_ordered_tagged_amounts_from_environment(environment);
-      model->all_date_ordered_tagged_amounts.date_ordered_tagged_amounts_put_container(this->date_ordered_tagged_amounts_from_environment(environment));
+      model->all_date_ordered_tagged_amounts.dotas_insert_auto_ordered_container(this->date_ordered_tagged_amounts_from_environment(environment));
     }
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?

@@ -237,15 +237,11 @@ namespace zeroth {
   //   return std::ranges::subrange(first, last);
   // }
 
-  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_auto_ordered_value(TaggedAmount const& ta) {
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value(TaggedAmount const& ta) {
 
     if (true) {
       // 'Newer' pre-linked-encoded ordering
-      logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_auto_ordered_value: prev-linked-encoded ordering"};
-
-      // logger::design_insufficiency("NOT IMPLEMENETD: DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_auto_ordered_value - : prev-linked-encoded ordering");
-      // auto put_result = m_tagged_amount_cas_repository.try_cas_repository_put(ta);
-      // return put_result;
+      logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: prev-linked-encoded ordering"};
 
       auto [prev_and_next_pair,transformed_ta] = this->to_prev_next_pair_and_transformed_ta(ta);
       auto [maybe_prev,maybe_next] = prev_and_next_pair;
@@ -306,7 +302,7 @@ namespace zeroth {
       }
       else {
         // No op - transformed_ta (properly linked in ta) already in container (and CAS)
-        logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(transformed_ta));
+        logger::development_trace("DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(transformed_ta));
         logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));
         return put_result;
       }
@@ -335,13 +331,13 @@ namespace zeroth {
         m_date_ordered_value_ids.insert(insert_pos, put_result.first);
 
         if (insert_pos != m_date_ordered_value_ids.end()) {
-          logger::design_insufficiency("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_auto_ordered_value: insert before end but no re-linking yet implemented");
+          logger::design_insufficiency("DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: insert before end but no re-linking yet implemented");
         }
 
       } 
       else {
         // No op - ta already in container (and CAS)
-        logger::development_trace("DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
+        logger::development_trace("DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value: Already in CAS at:{} '{}' = IGNORED",put_result.first,to_string(ta));
         logger::development_trace("                                                                                         at:{} '{}' = IN CAS",put_result.first,to_string(this->at(put_result.first).value()));      
       }
 
@@ -370,9 +366,9 @@ namespace zeroth {
     return *this;
   }
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const& other) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_container(DateOrderedTaggedAmountsContainer const& other) {
     std::ranges::for_each(other.ordered_tas_view(),[this](TaggedAmount const& ta) {
-      this->date_ordered_tagged_amounts_insert_auto_ordered_value(ta);
+      this->dotas_insert_auto_ordered_value(ta);
     });
 
     return *this;
@@ -386,16 +382,16 @@ namespace zeroth {
   }
 
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::date_ordered_tagged_amounts_put_sequence(TaggedAmounts const& tas) {
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas) {
     for (auto const& ta : tas)
-      this->date_ordered_tagged_amounts_insert_auto_ordered_value(ta);
+      this->dotas_insert_auto_ordered_value(ta);
     return *this;
   }
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(TaggedAmounts const& tas) {
     this->clear();
     // *this += tas;
-    this->date_ordered_tagged_amounts_put_sequence(tas);
+    this->dotas_insert_auto_ordered_sequence(tas);
     return *this;
   }
 
@@ -420,7 +416,7 @@ namespace zeroth {
       if (auto maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(value_id)) {
         return maybe_ta->date();
       }
-      logger::design_insufficiency("date_ordered_tagged_amounts_insert_auto_ordered_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
+      logger::design_insufficiency("dotas_insert_auto_ordered_value: Detected corrupt m_date_ordered_value_ids. Failed to map value_id:{} to value",value_id);
       return std::nullopt;
     };
 
@@ -775,7 +771,7 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
     | std::ranges::to<std::vector>();
 
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
-    result.date_ordered_tagged_amounts_insert_auto_ordered_value(ta); // put and apply ordering
+    result.dotas_insert_auto_ordered_value(ta); // put and apply ordering
   });
 
   return result;
@@ -798,7 +794,7 @@ DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_containe
     | std::ranges::to<std::vector>();
   
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
-    result.date_ordered_tagged_amounts_insert_auto_ordered_value(ta); // put and apply ordering
+    result.dotas_insert_auto_ordered_value(ta); // put and apply ordering
   });
 
   return result;

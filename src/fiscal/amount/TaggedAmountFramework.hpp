@@ -151,7 +151,7 @@ namespace zeroth {
       * If the insert location is between two other values, then 
       * the sequnce after the new value is re-linked.
       */
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> date_ordered_tagged_amounts_insert_auto_ordered_value(TaggedAmount const& ta);
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> dotas_insert_auto_ordered_value(TaggedAmount const& ta);
 
     // Accessors
     bool contains(TaggedAmount const& ta) const;
@@ -170,6 +170,7 @@ namespace zeroth {
 
     TaggedAmounts tagged_amounts();    
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const& value_ids);
+
     // const_subrange date_range_tas_view(zeroth::DateRange const& date_period);
     auto date_range_tas_view(zeroth::DateRange const& date_period) const {
       auto view = ordered_tas_view()
@@ -186,11 +187,11 @@ namespace zeroth {
     DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id);
 
     // DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const& other); // +=
-    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_container(DateOrderedTaggedAmountsContainer const& other); // +=
+    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_container(DateOrderedTaggedAmountsContainer const& other); // +=
     DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const& other); // =
 
     // DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const& tas); // +=
-    DateOrderedTaggedAmountsContainer& date_ordered_tagged_amounts_put_sequence(TaggedAmounts const& tas); // +=
+    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas); // +=
     DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const& tas); // =
 
     DateOrderedTaggedAmountsContainer& clear();
