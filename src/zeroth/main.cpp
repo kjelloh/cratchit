@@ -6136,9 +6136,9 @@ BAS::MetaEntry to_entry(SIE::Ver const& ver) {
 	return result;
 }
 
-OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path) {
+OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
   if (false) {
-    std::cout << "\nfrom_sie_file(" << sie_file_path << ")";
+    std::cout << "\nsie_from_sie_file(" << sie_file_path << ")";
   }
 	OptionalSIEEnvironment result{};
 	std::ifstream ifs{sie_file_path};
@@ -6207,7 +6207,7 @@ OptionalSIEEnvironment from_sie_file(std::filesystem::path const& sie_file_path)
 			}
 			else {
         if (false) {
-          std::cout << "\nfrom_sie_file(" << sie_file_path << ") FILE PARSED";
+          std::cout << "\nsie_from_sie_file(" << sie_file_path << ") FILE PARSED";
         }
         break;
       }
@@ -8792,10 +8792,10 @@ Cmd Updater::operator()(Command const& command) {
           // #1 command '-sie file-name' -> register "current" SIE file as provided name
           //    "current" is a place holder (no checks against actual current date and time)
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
-          if (auto sie_env = from_sie_file(*sie_file_path)) {
+          if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
             model->sie_env_map["current"] = std::move(*sie_env);
             // Update the list of staged entries
-            if (auto sse = from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
+            if (auto sse = sie_from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
               // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
               //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
               auto staged = model->sie_env_map["current"].stage(*sse);
@@ -8873,9 +8873,9 @@ Cmd Updater::operator()(Command const& command) {
         }
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
-          if (auto sie_env = from_sie_file(*sie_file_path)) {
+          if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
             model->sie_env_map[year_key] = std::move(*sie_env);
-            if (auto sse = from_sie_file(model->sie_env_map[year_key].staged_sie_file_path())) {
+            if (auto sse = sie_from_sie_file(model->sie_env_map[year_key].staged_sie_file_path())) {
               auto staged = model->sie_env_map[year_key].stage(*sse);
               auto unposted = model->sie_env_map[year_key].unposted();
               if (unposted.size() > 0) {
@@ -10360,7 +10360,7 @@ private:
         auto const& [id,ev] = id_ev_pair;
         for (auto const& [year_key,sie_file_name] : ev) {
           std::filesystem::path sie_file_path{sie_file_name};
-          if (auto sie_environment = from_sie_file(sie_file_path)) {
+          if (auto sie_environment = sie_from_sie_file(sie_file_path)) {
             model->sie_env_map[year_key] = std::move(*sie_environment);
             prompt << "\nsie_x[" << year_key << "] from " << sie_file_path;
           }
@@ -10376,7 +10376,7 @@ private:
     }
 
     for (auto const& [year_id,sie] : model->sie_env_map) {
-      if (auto sse = from_sie_file(model->sie_env_map[year_id].staged_sie_file_path())) {
+      if (auto sse = sie_from_sie_file(model->sie_env_map[year_id].staged_sie_file_path())) {
         // #4 model_from_environment ingests persistent sie file defined by model_from_environment
         //    and shows the user what was previously staged and what is now discovered to be posted
         //    * Staged are those in file model->staged_sie_file_path
