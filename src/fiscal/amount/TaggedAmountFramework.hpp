@@ -204,7 +204,7 @@ namespace zeroth {
     TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
                                                                   // as content addressable storage
                                                                   // repository
-    // TaggedAmounts m_date_ordered_tagged_amounts{}; // vector of tagged amount ordered by date
+    // TaggedAmounts m_dotas{}; // vector of tagged amount ordered by date
     ValueIds m_date_ordered_value_ids{};
 
     using PrevNextPair = std::pair<OptionalValueId,OptionalValueId>;
@@ -230,7 +230,7 @@ using DateOrderedTaggedAmountsContainer = zeroth::DateOrderedTaggedAmountsContai
 DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env);
 
 // Environment -> TaggedAmounts (filtered by fiscal period)
-DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_container(FiscalPeriod period, const Environment &env);
+DateOrderedTaggedAmountsContainer to_period_dotas_container(FiscalPeriod period, const Environment &env);
 
 namespace tas {
   // namespace for processing that produces tagged amounts

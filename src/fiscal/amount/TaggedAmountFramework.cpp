@@ -181,15 +181,15 @@ namespace zeroth {
   }
 
   // TaggedAmounts const& DateOrderedTaggedAmountsContainer::ordered_tas() const {
-  //   return m_date_ordered_tagged_amounts;
+  //   return m_dotas;
   // }
 
   // DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const {
-  //   return m_date_ordered_tagged_amounts.begin(); 
+  //   return m_dotas.begin(); 
   // }
 
   // DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const {
-  //   return m_date_ordered_tagged_amounts.end(); 
+  //   return m_dotas.end(); 
   // }
 
   TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
@@ -778,7 +778,7 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
 }
 
 // Environment -> TaggedAmounts (filtered by fiscal period)
-DateOrderedTaggedAmountsContainer to_period_date_ordered_tagged_amounts_container(FiscalPeriod period, const Environment &env) {
+DateOrderedTaggedAmountsContainer to_period_dotas_container(FiscalPeriod period, const Environment &env) {
   DateOrderedTaggedAmountsContainer result{};
   static constexpr auto section = "TaggedAmount";
   if (!env.contains(section)) {
