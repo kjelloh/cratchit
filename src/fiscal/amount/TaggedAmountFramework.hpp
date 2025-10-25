@@ -155,7 +155,8 @@ namespace zeroth {
 
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> dotas_append_value(
        DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
-      ,TaggedAmount const& ta);
+      ,TaggedAmount const& ta
+      ,bool auto_order_compability_mode = false);
 
     // Accessors
     bool contains(TaggedAmount const& ta) const;

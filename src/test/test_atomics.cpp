@@ -593,7 +593,7 @@ namespace tests::atomics {
         }
 
         // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueOlderFailTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueOlderOKTest) {
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
              Date{std::chrono::year{2025} / std::chrono::October / 25}
@@ -612,8 +612,32 @@ namespace tests::atomics {
           auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta);
 
           ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
-          ASSERT_FALSE(second_was_inserted) << std::format("second insert should have failed");
-          ASSERT_TRUE(dotas.ordered_tas_view().size() == 1) << std::format("Final size was not 1");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (expected forced append)");
+          ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 2");
+        }
+
+        // Test append value
+        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueOlderCompabilityFailTest) {
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto first_date = first_ta.date();
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+
+          auto second_ta = create_tagged_amount(
+             earlier_date
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert should have falied (compability mode)");
+          ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 1");
         }
 
 

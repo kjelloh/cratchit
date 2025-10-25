@@ -226,14 +226,15 @@ namespace zeroth {
 
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::dotas_append_value(
       DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
-    ,TaggedAmount const& ta) {
+    ,TaggedAmount const& ta
+    ,bool auto_order_compability_mode) {
 
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> result{0,false}; // default
 
     logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::dotas_append_value"};
 
     // Assert provided prev matches 'older' date auto ordering (no behavioral change)
-    if (true) {
+    if (auto_order_compability_mode) {
       // Check consistency with 'older' auto_order design
       // We expect the order provided to match the auto-order (date ordering) we have applied so far
       auto auto_ordered_prev = to_prev(ta);
@@ -816,7 +817,7 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
       auto maybe_prev = maybe_s_prev.and_then([](std::string s_prev) {
         return to_value_id(s_prev);
       });
-      auto [value_id,was_inserted] = result.dotas_append_value(maybe_prev,ta);
+      auto [value_id,was_inserted] = result.dotas_append_value(maybe_prev,ta,true);
     }
     else {
       // 'older' insert based on ta date
