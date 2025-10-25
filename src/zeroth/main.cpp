@@ -10198,9 +10198,9 @@ private:
     return result;
   }
 
-  TaggedAmounts tagged_amounts_sequence_from_account_statement_file(Environment const& environment) {
+  TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(Environment const& environment) {
     if (false) {
-      std::cout << "\ntagged_amounts_sequence_from_account_statement_file" << std::flush;
+      std::cout << "\n" << "tagged_amounts_sequence_from_bank_or_skv" << std::flush;
     }
     TaggedAmounts result{};
     // Ensure folder "from_bank_or_skv folder" exists
@@ -10245,7 +10245,7 @@ private:
     }
     if (true) {
       std::cout 
-        << "\ntagged_amounts_sequence_from_account_statement_file RETURNS " 
+        << "\n" << "tagged_amounts_sequence_from_bank_or_skv RETURNS " 
         << result.size() 
         << " entries";
     }
@@ -10254,7 +10254,7 @@ private:
 
   DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
     if (false) {
-      std::cout << "\ndotas_from_environment" << std::flush;
+      std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
     }
     DateOrderedTaggedAmountsContainer result{};
     result.dotas_insert_auto_ordered_container(dotas_from_environment(environment));
@@ -10268,7 +10268,7 @@ private:
     }
 
     // Import any new account statements in dedicated "files from bank or skv" folder
-    result.dotas_insert_auto_ordered_sequence(tagged_amounts_sequence_from_account_statement_file(environment));
+    result.dotas_insert_auto_ordered_sequence(tagged_amounts_sequence_from_bank_or_skv(environment));
     return result;
   }
 
