@@ -224,18 +224,79 @@ namespace zeroth {
     return result;
   }
 
-  // Now in header file based on range adaptors
-  // DateOrderedTaggedAmountsContainer::const_subrange DateOrderedTaggedAmountsContainer::date_range_tas_view(zeroth::DateRange const& date_period) {
-  //   auto first = std::find_if(this->begin(), this->end(),
-  //                             [&date_period](auto const& ta) {
-  //                               return (ta.date() >= date_period.begin());
-  //                             });
-  //   auto last = std::find_if(this->begin(), this->end(),
-  //                           [&date_period](auto const& ta) {
-  //                             return (ta.date() > date_period.end());
-  //                           });
-  //   return std::ranges::subrange(first, last);
-  // }
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::dotas_append_value(
+      DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
+    ,TaggedAmount const& ta) {
+
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> result{0,false}; // default
+
+    logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::dotas_append_value"};
+
+    // Assert provided prev matches 'older' date auto ordering (no behavioral change)
+    if (true) {
+      // Check consistency with 'older' auto_order design
+      // We expect the order provided to match the auto-order (date ordering) we have applied so far
+      auto auto_ordered_prev = to_prev(ta);
+      if (auto_ordered_prev != maybe_prev) {
+        logger::design_insufficiency("dotas_append_value: Expetced provided _prev:{:x} to be auto-order prev:{:x}",maybe_prev.value_or(0),auto_ordered_prev.value_or(0));
+        return this->dotas_insert_auto_ordered_value(ta); // force old behavior
+      }
+    }
+
+    if (maybe_prev) {
+      // Link to prev
+      auto prev = maybe_prev.value();
+      if (this->m_date_ordered_value_ids.back() == prev) {
+        // _prev is last - append OK
+
+        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
+        result = {value_id,was_inserted};
+
+        if (was_inserted) {
+          this->m_date_ordered_value_ids.push_back(value_id);
+        }
+        else {
+          logger::design_insufficiency(
+              "dotas_append_value: Failed - Can't append value that already exists in cas id:{} ta:{}"
+            ,text::format::to_hex_string(value_id)
+            ,to_string(ta));
+        }
+      }
+      else {
+        logger::design_insufficiency(
+            "dotas_append_value: Failed - Can't append value that is not last in m_date_ordered_value_ids _prev:{} ta:{}"
+          ,text::format::to_hex_string(prev)
+          ,to_string(ta));
+      }
+    }
+    else {
+      if (this->m_date_ordered_value_ids.size() == 0) {
+
+        // Empty sequence - null _prev OK
+
+        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
+        result = {value_id,was_inserted};
+
+        if (was_inserted) {
+          this->m_date_ordered_value_ids.push_back(value_id);
+        }
+        else {
+          logger::design_insufficiency(
+              "dotas_append_value: Failed - Empty m_date_ordered_value_ids but value exists in cas id:{} ta:{}"
+            ,text::format::to_hex_string(value_id)
+            ,to_string(ta));
+        }
+      }
+      else {
+        logger::design_insufficiency(
+            "dotas_append_value: Failed - Non Empty m_date_ordered_value_ids but provided _prev:null ta:{}"
+          ,to_string(ta));
+      }
+    }
+
+    return result;
+
+  }
 
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value(TaggedAmount const& ta) {
 
@@ -475,28 +536,6 @@ namespace zeroth {
     }
 
     return {prev_and_next,ta_with_prev};
-  }
-
-  // std::pair<
-  //    DateOrderedTaggedAmountsContainer::OptionalValueId
-  //   ,TaggedAmount> DateOrderedTaggedAmountsContainer::to_prev_and_transformed_ta(TaggedAmount const& ta) {
-  //   return {to_prev(ta),ta};
-  // }
-
-  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::append_value(ValueId prev,TaggedAmount const& ta) {
-    auto iter = std::ranges::find(m_date_ordered_value_ids,prev);
-    if (iter != m_date_ordered_value_ids.end()) {
-      auto linked_ta = ta;
-      linked_ta.tags()["_prev"] = *iter;
-      auto linked_put_result = m_tagged_amount_cas_repository.cas_repository_put(linked_ta);
-      m_date_ordered_value_ids.insert(iter,linked_put_result.first);
-      return linked_put_result;
-    }
-    // Failed to locate prev
-    logger::design_insufficiency("DateOrderedTaggedAmountsContainer::append_value: Expected prev:{} to exist for ta:{}"
-      ,prev
-      ,to_string(ta));
-    return {to_value_id(ta),false}; // BEWARE - returned value_id is NOT the value_id of a properly linked value
   }
 
   // END class DateOrderedTaggedAmountsContainer
@@ -771,7 +810,18 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
     | std::ranges::to<std::vector>();
 
   std::ranges::for_each(tas_sequence,[&result](TaggedAmount const& ta) {
-    result.dotas_insert_auto_ordered_value(ta); // put and apply ordering
+    if (false) {
+      // 'Newer' respect _prev encoded order
+      auto maybe_s_prev = ta.tag_value("_prev");
+      auto maybe_prev = maybe_s_prev.and_then([](std::string s_prev) {
+        return to_value_id(s_prev);
+      });
+      auto [value_id,was_inserted] = result.dotas_append_value(maybe_prev,ta);
+    }
+    else {
+      // 'older' insert based on ta date
+      result.dotas_insert_auto_ordered_value(ta); // put and apply auto (date) ordering
+    }
   });
 
   return result;

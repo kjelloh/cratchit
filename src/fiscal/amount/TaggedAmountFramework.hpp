@@ -153,6 +153,10 @@ namespace zeroth {
       */
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> dotas_insert_auto_ordered_value(TaggedAmount const& ta);
 
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> dotas_append_value(
+       DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
+      ,TaggedAmount const& ta);
+
     // Accessors
     bool contains(TaggedAmount const& ta) const;
     OptionalTaggedAmount at(ValueId const& value_id) const;
@@ -186,13 +190,11 @@ namespace zeroth {
     // Mutation
     DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id);
 
-    // DateOrderedTaggedAmountsContainer& merge(DateOrderedTaggedAmountsContainer const& other); // +=
     DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_container(DateOrderedTaggedAmountsContainer const& other); // +=
-    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const& other); // =
+    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const& other);
 
-    // DateOrderedTaggedAmountsContainer& merge(TaggedAmounts const& tas); // +=
-    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas); // +=
-    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const& tas); // =
+    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas);
+    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const& tas);
 
     DateOrderedTaggedAmountsContainer& clear();
 
@@ -216,8 +218,6 @@ namespace zeroth {
     // std::pair<OptionalValueId,TaggedAmount> to_prev_and_transformed_ta(TaggedAmount const& ta);
 
     std::pair<PrevNextPair,TaggedAmount> to_prev_next_pair_and_transformed_ta(TaggedAmount const& ta);
-
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> append_value(ValueId prev,TaggedAmount const& ta);
 
   }; // class DateOrderedTaggedAmountsContainer
 }

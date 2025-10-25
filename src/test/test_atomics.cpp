@@ -539,6 +539,10 @@ namespace tests::atomics {
           EXPECT_TRUE(result);
         }
 
+        // Test append value
+        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendValueTest) {
+          EXPECT_TRUE(false); // Dummy fail so far
+        }
 
     } // dotasfw_suite
     

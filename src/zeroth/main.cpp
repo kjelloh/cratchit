@@ -10269,6 +10269,7 @@ private:
 
     // Import any new account statements in dedicated "files from bank or skv" folder
     result.dotas_insert_auto_ordered_sequence(tagged_amounts_sequence_from_bank_or_skv(environment));
+    
     return result;
   }
 
