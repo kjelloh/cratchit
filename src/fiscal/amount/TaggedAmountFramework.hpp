@@ -171,6 +171,7 @@ namespace zeroth {
     bool contains(TaggedAmount const& ta) const;
     OptionalTaggedAmount at(ValueId const& value_id) const;
     TaggedAmountsCasRepository& cas();
+    TaggedAmountsCasRepository const& cas() const;
 
     // Sequence
     std::size_t sequence_size() const;

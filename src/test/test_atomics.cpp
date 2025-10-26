@@ -694,16 +694,16 @@ namespace tests::atomics {
           ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 1");
         }
 
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest)"};
+        class IsInvalidPrevLink {
+        public:
 
-          auto ordered_ids_view = fixture_dotas.ordered_ids_view();
+          IsInvalidPrevLink(DateOrderedTaggedAmountsContainer const& dotas_ref)
+            : m_dotas_ref{dotas_ref} {}
 
-          auto is_invalid_prev = [this](TaggedAmount::ValueId lhs, TaggedAmount::ValueId rhs) {
-
+          bool operator()(TaggedAmount::ValueId lhs, TaggedAmount::ValueId rhs) {
               // lhs == rhs[_prev]
 
-              auto maybe_rhs_ta = this->fixture_dotas.cas().cas_repository_get(rhs);
+              auto maybe_rhs_ta = m_dotas_ref.cas().cas_repository_get(rhs);
               if (!maybe_rhs_ta) return true;                       // missing RHS entry → treat as invalid
 
               auto maybe_prev_id = to_maybe_value_id(
@@ -713,13 +713,19 @@ namespace tests::atomics {
               auto result = lhs != *maybe_prev_id;                         // invalid if prev != lhs
 
               return result;
+          }
+        private:
+          DateOrderedTaggedAmountsContainer const& m_dotas_ref;
+        };
 
-          };
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest)"};
 
+          auto ordered_ids_view = fixture_dotas.ordered_ids_view();
 
           auto iter = std::ranges::adjacent_find(
              ordered_ids_view
-            ,is_invalid_prev);
+            ,IsInvalidPrevLink{fixture_dotas});
 
           auto is_all_prev_ordered = (iter == ordered_ids_view.end()); // no violations found
 
@@ -800,6 +806,32 @@ namespace tests::atomics {
             ,std::less{}
             ,[](auto const& ta){return ta.date();});
           ASSERT_TRUE(is_sorted);
+
+          auto ordered_ids_view = dotas.ordered_ids_view();
+
+          auto iter = std::ranges::adjacent_find(
+             ordered_ids_view
+            ,IsInvalidPrevLink{dotas});
+
+          auto is_all_prev_ordered = (iter == ordered_ids_view.end()); // no violations found
+
+          if (!is_all_prev_ordered) {
+            std::print("ordered_ids_view: null");
+            std::ranges::for_each(ordered_ids_view,[](auto value_id){
+              std::print(" -> {:x}",value_id);
+            });
+            auto lhs = *iter;
+            auto rhs = *(iter+1);
+            if (auto maybe_ta = fixture_dotas.at(rhs)) {
+              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:{}",lhs,rhs,to_string(maybe_ta.value()));
+            }
+            else {
+              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:null",lhs,rhs);
+            }
+          }
+
+          ASSERT_TRUE(is_all_prev_ordered);
+
         }
 
     } // dotasfw_suite

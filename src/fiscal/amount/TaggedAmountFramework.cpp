@@ -416,6 +416,11 @@ namespace zeroth {
   return m_tagged_amount_cas_repository;
   }
 
+  TaggedAmountsCasRepository const& DateOrderedTaggedAmountsContainer::cas() const {
+  return m_tagged_amount_cas_repository;
+  }
+
+
   // Sequence
 
   std::size_t DateOrderedTaggedAmountsContainer::sequence_size() const {
