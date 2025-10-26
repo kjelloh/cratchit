@@ -1,5 +1,6 @@
 #include "test_atomics.hpp"
 #include "test_fixtures.hpp"
+#include "logger/log.hpp" // logger::
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric> // std::accumulate,
@@ -399,7 +400,7 @@ namespace tests::atomics {
             return result;
         }
 
-        // Test fixture (optional if you want setup/teardown)
+        // Test fixture
         class DateOrderedTaggedAmountsContainerTest : public ::testing::Test {
         protected:
             DateOrderedTaggedAmountsContainer dotas;
@@ -662,8 +663,42 @@ namespace tests::atomics {
           ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 1");
         }
 
-
     } // dotasfw_suite
+
+    namespace env2dotas_suite {
+      // Environment to Date Ordered Tagged Amounts suite
+
+      Environment createSample() {
+        auto dotas = dotasfw_suite::createSample();
+        auto id_ev_pairs = 
+           dotas.ordered_tas_view()
+          | std::views::transform([](auto const& ta) -> Environment::MutableIdValuePair {
+              return {to_value_id(ta),to_environment_value(ta)};
+            });
+        Environment result{};
+        std::ranges::for_each(id_ev_pairs,[&result](auto const& pair){
+          result["TaggedAmount"].push_back(pair);
+        });
+        return result;
+      }
+
+      // Test fixture
+      class Env2DotasTestFixture : public ::testing::Test {
+      protected:
+          Environment fixture_env;
+
+          void SetUp() override {
+              fixture_env = createSample();
+          }
+      };
+
+      TEST_F(Env2DotasTestFixture,Env2DotasHappyPath) {
+        logger::scope_logger log_raii{logger::development_trace,"TEST_F(Env2DotasTestFixture,Env2DotasHappyPath)"};
+        ASSERT_TRUE(false) << std::format("Make Env2DotasHappyPath pass");
+      }
+
+    } // env2dotasfw_suite
+
     
     // bool run_all() {
     //     std::cout << "Running atomic tests..." << std::endl;
