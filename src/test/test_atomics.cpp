@@ -694,6 +694,49 @@ namespace tests::atomics {
           ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 1");
         }
 
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest)"};
+
+          auto ordered_ids_view = fixture_dotas.ordered_ids_view();
+
+          auto is_invalid_prev = [this](TaggedAmount::ValueId lhs,TaggedAmount::ValueId rhs) {
+              auto maybe_rhs_ta = this->fixture_dotas.cas().cas_repository_get(rhs);
+              auto maybe_rhs_prev = maybe_rhs_ta.and_then([](auto const& ta){
+                return to_maybe_value_id(ta.tag_value("_prev").value_or("0"));
+              });
+
+              auto result = (lhs != maybe_rhs_prev.value_or(0));
+
+              if (true) {
+                auto maybe_ta = fixture_dotas.at(maybe_rhs_prev.value_or(0));
+                if (maybe_ta) {
+                  std::println("{}: prev:{:x} <-x- {:x}:ta:{}",!result,lhs,rhs,to_string(maybe_ta.value()));
+                }
+                else {
+                  std::println("{}: prev:{:x} <-x- {:x}:ta:null",!result,lhs,rhs);
+                }
+              }
+
+              return result;
+            };
+
+
+          auto iter = std::ranges::adjacent_find(
+             ordered_ids_view
+            ,is_invalid_prev);
+
+          auto is_all_prev_ordered = (iter == ordered_ids_view.end()); // no violations found
+
+          if (!is_all_prev_ordered) {
+            std::print("ordered_ids_view: null");
+            std::ranges::for_each(ordered_ids_view,[](auto value_id){
+              std::print(" -> {:x}",value_id);
+            });
+          }
+
+          ASSERT_TRUE(is_all_prev_ordered);
+
+        }
 
         // Test append value
         TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderCompabilityFailTest) {
