@@ -699,26 +699,22 @@ namespace tests::atomics {
 
           auto ordered_ids_view = fixture_dotas.ordered_ids_view();
 
-          auto is_invalid_prev = [this](TaggedAmount::ValueId lhs,TaggedAmount::ValueId rhs) {
+          auto is_invalid_prev = [this](TaggedAmount::ValueId lhs, TaggedAmount::ValueId rhs) {
+
+              // lhs == rhs[_prev]
+
               auto maybe_rhs_ta = this->fixture_dotas.cas().cas_repository_get(rhs);
-              auto maybe_rhs_prev = maybe_rhs_ta.and_then([](auto const& ta){
-                return to_maybe_value_id(ta.tag_value("_prev").value_or("0"));
-              });
+              if (!maybe_rhs_ta) return true;                       // missing RHS entry → treat as invalid
 
-              auto result = (lhs != maybe_rhs_prev.value_or(0));
+              auto maybe_prev_id = to_maybe_value_id(
+                  maybe_rhs_ta->tag_value("_prev").value_or(std::string{"null"})); // empty string -> no tag
+              if (!maybe_prev_id) return true;                      // RHS missing _prev tag -> invalid
 
-              if (true) {
-                auto maybe_ta = fixture_dotas.at(maybe_rhs_prev.value_or(0));
-                if (maybe_ta) {
-                  std::println("{}: prev:{:x} <-x- {:x}:ta:{}",!result,lhs,rhs,to_string(maybe_ta.value()));
-                }
-                else {
-                  std::println("{}: prev:{:x} <-x- {:x}:ta:null",!result,lhs,rhs);
-                }
-              }
+              auto result = lhs != *maybe_prev_id;                         // invalid if prev != lhs
 
               return result;
-            };
+
+          };
 
 
           auto iter = std::ranges::adjacent_find(
@@ -732,6 +728,11 @@ namespace tests::atomics {
             std::ranges::for_each(ordered_ids_view,[](auto value_id){
               std::print(" -> {:x}",value_id);
             });
+            auto lhs = *iter;
+            auto rhs = *(iter+1);
+            if (auto maybe_ta = fixture_dotas.at(rhs)) {
+              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:{}",lhs,rhs,to_string(maybe_ta.value()));
+            }
           }
 
           ASSERT_TRUE(is_all_prev_ordered);
