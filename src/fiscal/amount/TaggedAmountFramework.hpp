@@ -25,7 +25,8 @@ public:
   using ValueIds = std::vector<ValueId>;
   using OptionalValueIds = std::optional<ValueIds>;
 
-  TaggedAmount(Date const& date, CentsAmount const& cents_amount,Tags &&tags = Tags{});
+  // TaggedAmount(Date const& date, CentsAmount const& cents_amount,Tags &&tags = Tags{});
+  TaggedAmount(Date date, CentsAmount cents_amount,Tags tags = Tags{});
 
   // Getters
   Date const& date() const { return m_date; }
@@ -43,6 +44,7 @@ public:
   }
 
   bool operator==(TaggedAmount const& other) const;
+  bool operator<(TaggedAmount const& other) const;
 
   // Replaced with text::format::to_hex_string() / 20251022
   // tagged_amount::to_string ensures it does not override
@@ -88,7 +90,7 @@ namespace std {
       hash_combine(result, ta.cents_amount());
       for (auto const& [key, value] : ta.tags()) {
 
-        if (key == "_prev") continue; // disable link meta-data for now
+        // if (key == "_prev") continue;
 
         hash_combine(result, key);
         hash_combine(result, value);
@@ -153,6 +155,10 @@ namespace zeroth {
       */
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> dotas_insert_auto_ordered_value(TaggedAmount const& ta);
 
+    /**
+      * Append provided value to provided prev.
+      * Will fail if date ordering does not hold between prev and value
+      */
     std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> dotas_append_value(
        DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
       ,TaggedAmount const& ta

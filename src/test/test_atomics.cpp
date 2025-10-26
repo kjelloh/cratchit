@@ -327,40 +327,40 @@ namespace tests::atomics {
 
 
         // Helper to create some example TaggedAmount objects for testing
-        std::vector<TaggedAmount> createSampleEntries() {
+        std::vector<TaggedAmount> createUnorderedSampleEntries() {
             using namespace std::chrono;
-            std::vector<TaggedAmount> entries;
+            std::vector<TaggedAmount> result;
 
             // You’ll need to replace these constructor calls with actual ones matching your TaggedAmount API.
             // Here's an example stub:
             // TaggedAmount(year_month_day{2025y / March / 19}, CentsAmount(6000), {{"Account", "NORDEA"}, {"Text", "Sample Text"}, {"yyyymmdd_date", "20250319"}});
             // Please adjust as needed.
 
-            // Example entries:
-            entries.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(6000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 1"}});
-            entries.emplace_back(year_month_day{2025y / March / 20}, CentsAmount(12000), TaggedAmount::Tags{{"Account", "OTHER"}, {"Text", "Payment 2"}});
-            entries.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(3000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 3"}});
-            return entries;
+            // Example result: (unordered)
+            result.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(6000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 1"}});
+            result.emplace_back(year_month_day{2025y / March / 20}, CentsAmount(12000), TaggedAmount::Tags{{"Account", "OTHER"}, {"Text", "Payment 2"}});
+            result.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(3000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 3"}});
+            return result;
         }
 
-        // Test fixture (optional if you want setup/teardown)
-        class TaggedAmountTest : public ::testing::Test {
+        // Test fixture
+        class TaggedAmountsFixture : public ::testing::Test {
         protected:
-            std::vector<TaggedAmount> entries;
+            std::vector<TaggedAmount> fixture_unordered_entries;
 
             void SetUp() override {
-                entries = createSampleEntries();
+                fixture_unordered_entries = createUnorderedSampleEntries();
             }
         };
 
         // Test filtering by Account and Date
-        TEST_F(TaggedAmountTest, FilterByAccountAndDate) {
+        TEST_F(TaggedAmountsFixture, FilterByAccountAndDate) {
             using namespace std::chrono;
 
             auto isNordea = tafw::keyEquals("Account", "NORDEA");
             auto isMarch19 = tafw::dateEquals(year_month_day{2025y / March / 19});
 
-            auto filtered = entries | std::views::filter(tafw::and_(isNordea, isMarch19));
+            auto filtered = fixture_unordered_entries | std::views::filter(tafw::and_(isNordea, isMarch19));
 
             std::vector<std::string> texts;
             for (auto const& ta : filtered) {
@@ -373,7 +373,8 @@ namespace tests::atomics {
         }
 
         // Test sorting by date
-        TEST_F(TaggedAmountTest, SortByDate) {
+        TEST_F(TaggedAmountsFixture, SortByDate) {
+            auto entries = fixture_unordered_entries;
             tafw::sortByDate(entries);
 
             // Verify entries sorted by date ascending
@@ -382,11 +383,48 @@ namespace tests::atomics {
             }
         }
 
+        TEST_F(TaggedAmountsFixture, TestValueCompare) {
+          ASSERT_TRUE(fixture_unordered_entries[0] == fixture_unordered_entries[0]);
+          auto cloned_ta = fixture_unordered_entries[0];
+          ASSERT_TRUE(fixture_unordered_entries[0] == cloned_ta);
+          auto original_ta = fixture_unordered_entries[0];
+          auto different_tag_ta = fixture_unordered_entries[0];
+          different_tag_ta.tags()["new_tag"] = "*new*";
+          ASSERT_FALSE(different_tag_ta == original_ta);
+          auto different_meta_tag_ta = fixture_unordered_entries[0];
+          different_meta_tag_ta.tags()["_new_meta_tag"] = "*new meta*";
+          ASSERT_FALSE(different_meta_tag_ta == original_ta);
+          auto later_date = Date{std::chrono::sys_days{original_ta.date()} + std::chrono::days{1}};
+          TaggedAmount later_ta{later_date,original_ta.cents_amount()};
+          later_ta.tags() = original_ta.tags();
+          ASSERT_TRUE(original_ta < later_ta);
+        }
+
+        TEST_F(TaggedAmountsFixture, TestCASCompare) {
+          auto original_ta = fixture_unordered_entries[0];
+          auto later_date = Date{std::chrono::sys_days{original_ta.date()} + std::chrono::days{1}};
+          auto later_ta = TaggedAmount{later_date,original_ta.cents_amount(),original_ta.tags()};
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(later_ta));
+          auto different_amount_ta = TaggedAmount{
+             original_ta.date()
+            ,original_ta.cents_amount() + CentsAmount{1}
+            ,original_ta.tags()};
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(different_amount_ta));
+
+          auto different_tag_ta = original_ta;
+          different_tag_ta.tags()["new_tag"] = "*new*";
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(different_tag_ta));
+          auto different_meta_tag_ta = fixture_unordered_entries[0];
+          different_meta_tag_ta.tags()["_new_meta_tag"] = "*new meta*";
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(different_meta_tag_ta));
+        }
+
+
     } // tafw_suite
 
     namespace dotasfw_suite {
 
-        // Date Ordrered Tagges Amounts Framework Test Suite
+        // Date Ordered Tagges Amounts Framework Test Suite
 
         TaggedAmount create_tagged_amount(Date date,CentsAmount cents_amount,TaggedAmount::Tags&& tags) {
           return TaggedAmount{date,cents_amount,std::move(tags)};
@@ -395,17 +433,19 @@ namespace tests::atomics {
         // Helper to create some example TaggedAmount objects for testing
         DateOrderedTaggedAmountsContainer createSample() {
             DateOrderedTaggedAmountsContainer result{};
-            auto tas = tests::atomics::tafw_suite::createSampleEntries();
+            auto tas = tests::atomics::tafw_suite::createUnorderedSampleEntries();
             result.dotas_insert_auto_ordered_sequence(tas);
             return result;
         }
 
         // Test fixture
-        class DateOrderedTaggedAmountsContainerTest : public ::testing::Test {
+        class DateOrderedTaggedAmountsContainerFixture : public ::testing::Test {
         protected:
             DateOrderedTaggedAmountsContainer dotas;
 
             void SetUp() override {
+                logger::scope_logger log_raii{logger::development_trace,"TEST_F DateOrderedTaggedAmountsContainerFixture::Setup"};
+
                 dotas = createSample();
             }
         };
@@ -430,9 +470,10 @@ namespace tests::atomics {
           }
           std::print("\n\n"); // Work with google test asuming post-newline logging
         }
-
+        
         // Test correct order by default
-        TEST_F(DateOrderedTaggedAmountsContainerTest, OrderedTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest)"};
 
           auto tas_view = dotas.ordered_tas_view();
 
@@ -459,7 +500,9 @@ namespace tests::atomics {
         }
 
         // Test to insert value at end
-        TEST_F(DateOrderedTaggedAmountsContainerTest, InsertLastTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertLastTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertLastTest)"};
+
           auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
 
           auto last_date = original_tas.back().date(); // trust non-empty
@@ -468,12 +511,14 @@ namespace tests::atomics {
           auto [value_id,is_new_value] = dotas.dotas_insert_auto_ordered_value(new_ta);
 
           auto new_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
-          auto result = (new_tas.back() == new_ta);
+          auto result = (new_tas.back().date() == new_ta.date());
           EXPECT_TRUE(result);
         }
 
         // Test to insert value at begining
-        TEST_F(DateOrderedTaggedAmountsContainerTest, InsertFirstTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertFirstTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertFirstTest)"};
+
           // Insert as first
           auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
           auto first_date = original_tas.front().date(); // trust non-empty
@@ -506,7 +551,9 @@ namespace tests::atomics {
         }
 
         // Test that insert extends lengt by one
-        TEST_F(DateOrderedTaggedAmountsContainerTest, InsertlengthTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertlengthTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertlengthTest)"};
+
           // Insert as first
           auto original_tas = std::ranges::to<TaggedAmounts>(dotas.ordered_tas_view());
           auto first_date = original_tas.front().date(); // trust non-empty
@@ -541,7 +588,9 @@ namespace tests::atomics {
         }
 
         // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendFirstValueTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendFirstValueTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendFirstValueTest)"};
+
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
              Date{std::chrono::year{2025} / std::chrono::October / 25}
@@ -553,7 +602,8 @@ namespace tests::atomics {
         }
 
         // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueTest)"};
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
              Date{std::chrono::year{2025} / std::chrono::October / 25}
@@ -573,7 +623,9 @@ namespace tests::atomics {
         }
 
         // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValuePrevNullFailTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValuePrevNullFailTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValuePrevNullFailTest)"};
+
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
              Date{std::chrono::year{2025} / std::chrono::October / 25}
@@ -594,7 +646,9 @@ namespace tests::atomics {
         }
 
         // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueOlderOKTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderOKTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderOKTest)"};
+
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
              Date{std::chrono::year{2025} / std::chrono::October / 25}
@@ -618,7 +672,9 @@ namespace tests::atomics {
         }
 
         // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueCompabilityTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueCompabilityTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueCompabilityTest)"};
+
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
              Date{std::chrono::year{2025} / std::chrono::October / 25}
@@ -640,7 +696,9 @@ namespace tests::atomics {
 
 
         // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerTest, AppendSecondValueOlderCompabilityFailTest) {
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderCompabilityFailTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderCompabilityFailTest)"};
+
           DateOrderedTaggedAmountsContainer dotas{};
           auto first_ta = create_tagged_amount(
              Date{std::chrono::year{2025} / std::chrono::October / 25}
@@ -688,13 +746,21 @@ namespace tests::atomics {
           Environment fixture_env;
 
           void SetUp() override {
+              logger::scope_logger log_raii{logger::development_trace,"TEST_F Env2DotasTestFixture::Setup"};
               fixture_env = createSample();
           }
       };
 
       TEST_F(Env2DotasTestFixture,Env2DotasHappyPath) {
         logger::scope_logger log_raii{logger::development_trace,"TEST_F(Env2DotasTestFixture,Env2DotasHappyPath)"};
-        ASSERT_TRUE(false) << std::format("Make Env2DotasHappyPath pass");
+
+        auto dotas = dotas_from_environment(fixture_env);
+
+        ASSERT_TRUE(dotas.ordered_tas_view().size() == fixture_env["TaggedAmount"].size()) 
+          << std::format(
+                 "Should be same environment:{} -> dotas:{}"
+                ,fixture_env["TaggedAmount"].size()
+                ,dotas.ordered_tas_view().size());
       }
 
     } // env2dotasfw_suite

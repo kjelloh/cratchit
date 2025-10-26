@@ -9,8 +9,14 @@
 
 // BEGIN class TaggedAmount
 
-TaggedAmount::TaggedAmount(Date const& date, CentsAmount const& cents_amount, Tags &&tags)
-    : m_date{date},m_cents_amount{cents_amount}, m_tags{tags} {}
+// TaggedAmount::TaggedAmount(Date const& date, CentsAmount const& cents_amount, Tags&& tags)
+//     : m_date{date},m_cents_amount{cents_amount}, m_tags{tags} {}
+
+// lvalue/rvalue constructor
+// An lvalue will be copied + moved.
+// An rvalue will be 'perfactly' moved
+TaggedAmount::TaggedAmount(Date date, CentsAmount cents_amount,Tags tags)
+    : m_date{std::move(date)},m_cents_amount{std::move(cents_amount)}, m_tags{std::move(tags)} {}
 
 // Replaced with text::format::to_hex_string
 // std::string TaggedAmount::to_string(TaggedAmount::ValueId value_id) {
@@ -27,18 +33,27 @@ TaggedAmount::TaggedAmount(Date const& date, CentsAmount const& cents_amount, Ta
 
 bool TaggedAmount::operator==(TaggedAmount const& other) const {
   auto result =
-      this->date() == other.date() and
-      this->cents_amount() == other.cents_amount() and
-      std::all_of(m_tags.begin(), m_tags.end(),
-                  [&other](Tags::value_type const& entry) {
-                    return ((entry.first.starts_with("_")) or
-                            (other.tags().contains(entry.first) and
-                             other.tags().at(entry.first) == entry.second));
-                  });
+      this->date() == other.date()
+      and this->cents_amount() == other.cents_amount()
+  //  and std::all_of(m_tags.begin(), m_tags.end(),
+  //                 [&other](Tags::value_type const& entry) {
+  //                   return ((entry.first.starts_with("_")) or
+  //                           (other.tags().contains(entry.first) and
+  //                            other.tags().at(entry.first) == entry.second));
+  //                 });
+
+      // Changed 20251026 - Now equal is all-tags-equal (no meta '_xxx' tag excepion)
+      and this->m_tags == other.m_tags;
 
   // std::cout << "\nTaggedAmountClass::operator== ";
   // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
   return result;
+}
+
+bool TaggedAmount::operator<(TaggedAmount const& other) const {
+  // Tagged Amounts are implicitally ordered by date
+  // DateOrderedTaggedAmountsContainer orders samet date values by upper_bound (insertion order for same date)
+  return this->date() < other.date();
 }
 
 // END class TaggedAmount
@@ -138,170 +153,6 @@ namespace zeroth {
   // BEGIN class DateOrderedTaggedAmountsContainer
 
   // Container
-
-  // Accessors
-  bool DateOrderedTaggedAmountsContainer::contains(TaggedAmount const& ta) const {
-    auto value_id = to_value_id(ta);
-    return m_tagged_amount_cas_repository.contains(value_id);
-  }
-
-  OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const& value_id) const {
-    if (false) {
-      logger::development_trace("DateOrderedTaggedAmountsContainer::at({})",text::format::to_hex_string(value_id));
-    }
-    OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
-    if (!result) {
-      logger::development_trace("DateOrderedTaggedAmountsContainer::at({}), No value -> returns std::nullopt",text::format::to_hex_string(value_id));
-    }
-    return result;
-  }
-
-  // OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const& value_id) const {
-  //   std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
-  //             << TaggedAmount::to_string(value_id) << ")" << std::flush;
-  //   OptionalTaggedAmount result{};
-  //   if (auto maybe_ta = this->at(value_id)) {
-  //     result = maybe_ta;
-  //   } else {
-  //     std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not "
-  //                 "find a mapping to value_id="
-  //               << TaggedAmount::to_string(value_id) << std::flush;
-  //   }
-  //   return result;
-  // }
-
-  TaggedAmountsCasRepository& DateOrderedTaggedAmountsContainer::cas() {
-  return m_tagged_amount_cas_repository;
-  }
-
-  // Sequence
-
-  std::size_t DateOrderedTaggedAmountsContainer::sequence_size() const {
-    return m_date_ordered_value_ids.size();
-  }
-
-  // TaggedAmounts const& DateOrderedTaggedAmountsContainer::ordered_tas() const {
-  //   return m_dotas;
-  // }
-
-  // DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const {
-  //   return m_dotas.begin(); 
-  // }
-
-  // DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const {
-  //   return m_dotas.end(); 
-  // }
-
-  TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
-    // Note: For now generate a container and return. This ensures
-    //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
-    return 
-        ordered_tas_view()
-      | std::ranges::to<TaggedAmounts>();
-  }
-
-  OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const& value_ids) {
-    std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()"
-              << std::flush;
-    OptionalTaggedAmounts result{};
-    TaggedAmounts tas{};
-    for (auto const& value_id : value_ids) {
-      if (auto maybe_ta = this->at(value_id)) {
-        tas.push_back(maybe_ta.value());
-      } else {
-        std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() "
-                    "failed. No instance found for value_id="
-                  << text::format::to_hex_string(value_id) << std::flush;
-      }
-    }
-    if (tas.size() == value_ids.size()) {
-      result = tas;
-    } else {
-      std::cout << "\nto_tagged_amounts() Failed. tas.size() = " << tas.size()
-                << " IS NOT provided value_ids.size() = " << value_ids.size()
-                << std::flush;
-    }
-    return result;
-  }
-
-  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::dotas_append_value(
-      DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
-    ,TaggedAmount const& ta
-    ,bool auto_order_compability_mode) {
-
-    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> result{0,false}; // default
-
-    logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::dotas_append_value"};
-
-    // Assert provided prev matches 'older' date auto ordering (no behavioral change)
-    if (auto_order_compability_mode) {
-      logger::scope_logger scope_logger_raii{logger::development_trace,"AUTO ORDERING COMPABILITY MODE"};
-      // Check consistency with 'older' auto_order design
-      // We expect the order provided to match the auto-order (date ordering) we have applied so far
-      auto auto_ordered_maybe_prev = to_prev(ta);
-      if (auto_ordered_maybe_prev != maybe_prev) {
-        logger::design_insufficiency(
-           "dotas_append_value: Expetced provided _prev:{:x} to be auto-order prev:{:x}"
-          ,maybe_prev.value_or(0)
-          ,auto_ordered_maybe_prev.value_or(0));
-        return this->dotas_insert_auto_ordered_value(ta); // force old behavior
-      }
-    }
-
-    if (maybe_prev) {
-      // Link to prev
-      auto prev = maybe_prev.value();
-      if (this->m_date_ordered_value_ids.back() == prev) {
-        // _prev is last - append OK
-
-        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
-        result = {value_id,was_inserted};
-
-        if (was_inserted) {
-          this->m_date_ordered_value_ids.push_back(value_id);
-        }
-        else {
-          logger::design_insufficiency(
-              "dotas_append_value: Failed - Can't append value that already exists in cas id:{} ta:{}"
-            ,text::format::to_hex_string(value_id)
-            ,to_string(ta));
-        }
-      }
-      else {
-        logger::design_insufficiency(
-            "dotas_append_value: Failed - Can't append value that is not last in m_date_ordered_value_ids _prev:{} ta:{}"
-          ,text::format::to_hex_string(prev)
-          ,to_string(ta));
-      }
-    }
-    else {
-      if (this->m_date_ordered_value_ids.size() == 0) {
-
-        // Empty sequence - null _prev OK
-
-        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
-        result = {value_id,was_inserted};
-
-        if (was_inserted) {
-          this->m_date_ordered_value_ids.push_back(value_id);
-        }
-        else {
-          logger::design_insufficiency(
-              "dotas_append_value: Failed - Empty m_date_ordered_value_ids but value exists in cas id:{} ta:{}"
-            ,text::format::to_hex_string(value_id)
-            ,to_string(ta));
-        }
-      }
-      else {
-        logger::design_insufficiency(
-            "dotas_append_value: Failed - Non Empty m_date_ordered_value_ids but provided _prev:null ta:{}"
-          ,to_string(ta));
-      }
-    }
-
-    return result;
-
-  }
 
   std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_value(TaggedAmount const& ta) {
 
@@ -435,6 +286,170 @@ namespace zeroth {
       return put_result;
 
     }
+  }
+
+  std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> DateOrderedTaggedAmountsContainer::dotas_append_value(
+      DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
+    ,TaggedAmount const& ta
+    ,bool auto_order_compability_mode) {
+
+    std::pair<DateOrderedTaggedAmountsContainer::ValueId,bool> result{0,false}; // default
+
+    logger::scope_logger scope_log_raii{logger::development_trace,"DateOrderedTaggedAmountsContainer::dotas_append_value"};
+
+    // Assert provided prev matches 'older' date auto ordering (no behavioral change)
+    if (auto_order_compability_mode) {
+      logger::scope_logger scope_logger_raii{logger::development_trace,"AUTO ORDERING COMPABILITY MODE"};
+      // Check consistency with 'older' auto_order design
+      // We expect the order provided to match the auto-order (date ordering) we have applied so far
+      auto auto_ordered_maybe_prev = to_prev(ta);
+      if (auto_ordered_maybe_prev != maybe_prev) {
+        logger::design_insufficiency(
+           "dotas_append_value: Expetced provided _prev:{:x} to be auto-order prev:{:x}"
+          ,maybe_prev.value_or(0)
+          ,auto_ordered_maybe_prev.value_or(0));
+        return this->dotas_insert_auto_ordered_value(ta); // force old behavior
+      }
+    }
+
+    if (maybe_prev) {
+      // Link to prev
+      auto prev = maybe_prev.value();
+      if (this->m_date_ordered_value_ids.back() == prev) {
+        // _prev is last - append OK
+
+        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
+        result = {value_id,was_inserted};
+
+        if (was_inserted) {
+          this->m_date_ordered_value_ids.push_back(value_id);
+        }
+        else {
+          logger::design_insufficiency(
+              "dotas_append_value: Failed - Can't append value that already exists in cas id:{} ta:{}"
+            ,text::format::to_hex_string(value_id)
+            ,to_string(ta));
+        }
+      }
+      else {
+        logger::design_insufficiency(
+            "dotas_append_value: Failed - Can't append value that is not last in m_date_ordered_value_ids _prev:{} ta:{}"
+          ,text::format::to_hex_string(prev)
+          ,to_string(ta));
+      }
+    }
+    else {
+      if (this->m_date_ordered_value_ids.size() == 0) {
+
+        // Empty sequence - null _prev OK
+
+        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
+        result = {value_id,was_inserted};
+
+        if (was_inserted) {
+          this->m_date_ordered_value_ids.push_back(value_id);
+        }
+        else {
+          logger::design_insufficiency(
+              "dotas_append_value: Failed - Empty m_date_ordered_value_ids but value exists in cas id:{} ta:{}"
+            ,text::format::to_hex_string(value_id)
+            ,to_string(ta));
+        }
+      }
+      else {
+        logger::design_insufficiency(
+            "dotas_append_value: Failed - Non Empty m_date_ordered_value_ids but provided _prev:null ta:{}"
+          ,to_string(ta));
+      }
+    }
+
+    return result;
+
+  }
+
+  // Accessors
+  bool DateOrderedTaggedAmountsContainer::contains(TaggedAmount const& ta) const {
+    auto value_id = to_value_id(ta);
+    return m_tagged_amount_cas_repository.contains(value_id);
+  }
+
+  OptionalTaggedAmount DateOrderedTaggedAmountsContainer::at(ValueId const& value_id) const {
+    if (false) {
+      logger::development_trace("DateOrderedTaggedAmountsContainer::at({})",text::format::to_hex_string(value_id));
+    }
+    OptionalTaggedAmount result{m_tagged_amount_cas_repository.cas_repository_get(value_id)};
+    if (!result) {
+      logger::development_trace("DateOrderedTaggedAmountsContainer::at({}), No value -> returns std::nullopt",text::format::to_hex_string(value_id));
+    }
+    return result;
+  }
+
+  // OptionalTaggedAmount DateOrderedTaggedAmountsContainer::operator[](ValueId const& value_id) const {
+  //   std::cout << "\nDateOrderedTaggedAmountsContainer::operator[]("
+  //             << TaggedAmount::to_string(value_id) << ")" << std::flush;
+  //   OptionalTaggedAmount result{};
+  //   if (auto maybe_ta = this->at(value_id)) {
+  //     result = maybe_ta;
+  //   } else {
+  //     std::cout << "\nDateOrderedTaggedAmountsContainer::operator[] could not "
+  //                 "find a mapping to value_id="
+  //               << TaggedAmount::to_string(value_id) << std::flush;
+  //   }
+  //   return result;
+  // }
+
+  TaggedAmountsCasRepository& DateOrderedTaggedAmountsContainer::cas() {
+  return m_tagged_amount_cas_repository;
+  }
+
+  // Sequence
+
+  std::size_t DateOrderedTaggedAmountsContainer::sequence_size() const {
+    return m_date_ordered_value_ids.size();
+  }
+
+  // TaggedAmounts const& DateOrderedTaggedAmountsContainer::ordered_tas() const {
+  //   return m_dotas;
+  // }
+
+  // DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::begin() const {
+  //   return m_dotas.begin(); 
+  // }
+
+  // DateOrderedTaggedAmountsContainer::const_iterator DateOrderedTaggedAmountsContainer::end() const {
+  //   return m_dotas.end(); 
+  // }
+
+  TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
+    // Note: For now generate a container and return. This ensures
+    //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
+    return 
+        ordered_tas_view()
+      | std::ranges::to<TaggedAmounts>();
+  }
+
+  OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const& value_ids) {
+    std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()"
+              << std::flush;
+    OptionalTaggedAmounts result{};
+    TaggedAmounts tas{};
+    for (auto const& value_id : value_ids) {
+      if (auto maybe_ta = this->at(value_id)) {
+        tas.push_back(maybe_ta.value());
+      } else {
+        std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts() "
+                    "failed. No instance found for value_id="
+                  << text::format::to_hex_string(value_id) << std::flush;
+      }
+    }
+    if (tas.size() == value_ids.size()) {
+      result = tas;
+    } else {
+      std::cout << "\nto_tagged_amounts() Failed. tas.size() = " << tas.size()
+                << " IS NOT provided value_ids.size() = " << value_ids.size()
+                << std::flush;
+    }
+    return result;
   }
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const& value_id) {
