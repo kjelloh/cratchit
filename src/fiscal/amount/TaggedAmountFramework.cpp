@@ -367,6 +367,20 @@ namespace zeroth {
 
   }
 
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_container(DateOrderedTaggedAmountsContainer const& other) {
+    std::ranges::for_each(other.ordered_tas_view(),[this](TaggedAmount const& ta) {
+      this->dotas_insert_auto_ordered_value(ta);
+    });
+
+    return *this;
+  }
+
+  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas) {
+    for (auto const& ta : tas)
+      this->dotas_insert_auto_ordered_value(ta);
+    return *this;
+  }
+
   // Accessors
   bool DateOrderedTaggedAmountsContainer::contains(TaggedAmount const& ta) const {
     auto value_id = to_value_id(ta);
@@ -468,25 +482,10 @@ namespace zeroth {
     return *this;
   }
 
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_container(DateOrderedTaggedAmountsContainer const& other) {
-    std::ranges::for_each(other.ordered_tas_view(),[this](TaggedAmount const& ta) {
-      this->dotas_insert_auto_ordered_value(ta);
-    });
-
-    return *this;
-  }
-
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::reset(DateOrderedTaggedAmountsContainer const& other) {
     this->m_date_ordered_value_ids = other.m_date_ordered_value_ids;
     this->m_tagged_amount_cas_repository = other.m_tagged_amount_cas_repository;
-    return *this;
-  }
-
-
-  DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas) {
-    for (auto const& ta : tas)
-      this->dotas_insert_auto_ordered_value(ta);
     return *this;
   }
 

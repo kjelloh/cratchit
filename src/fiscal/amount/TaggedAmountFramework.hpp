@@ -164,6 +164,9 @@ namespace zeroth {
       ,TaggedAmount const& ta
       ,bool auto_order_compability_mode = false);
 
+    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_container(DateOrderedTaggedAmountsContainer const& other);
+    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas);
+
     // Accessors
     bool contains(TaggedAmount const& ta) const;
     OptionalTaggedAmount at(ValueId const& value_id) const;
@@ -172,8 +175,13 @@ namespace zeroth {
     // Sequence
     std::size_t sequence_size() const;
 
+    auto ordered_ids_view() const {
+      return std::views::all(m_date_ordered_value_ids);
+    }
+
     auto ordered_tas_view() const {
-      return m_date_ordered_value_ids
+      return
+          ordered_ids_view()
         | std::views::transform([this](ValueId value_id) {
             return this->m_tagged_amount_cas_repository.cas_repository_get(value_id).value();
           });
@@ -196,13 +204,8 @@ namespace zeroth {
 
     // Mutation
     DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id);
-
-    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_container(DateOrderedTaggedAmountsContainer const& other); // +=
     DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const& other);
-
-    DateOrderedTaggedAmountsContainer& dotas_insert_auto_ordered_sequence(TaggedAmounts const& tas);
     DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const& tas);
-
     DateOrderedTaggedAmountsContainer& clear();
 
   private:

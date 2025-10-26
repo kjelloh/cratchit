@@ -66,7 +66,9 @@ namespace cas {
       }
       return result;
     }
+
     void clear() { return m_map.clear(); }
+    
     repository& operator=(const repository &other) {
       if (this != &other) {
         m_map = other.m_map;
