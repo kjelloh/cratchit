@@ -728,8 +728,30 @@ namespace tests::atomics {
           auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
 
           auto new_tas = fixture_dotas.ordered_tagged_amounts();
-          auto result = (new_tas.back().date() == new_ta.date());
-          EXPECT_TRUE(result);
+          auto length_diff = (new_tas.size() - original_tas.size());
+          auto did_grow_with_one = (length_diff == 1);
+
+          // Log
+          if (!did_grow_with_one) {
+            std::ranges::for_each(
+               original_tas
+              ,[](auto const& ta) {
+                std::print("\nORIGINAL:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+            std::ranges::for_each(
+               new_tas
+              ,[](auto const& ta) {
+                std::print("\nNEW:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+          }
+
+          EXPECT_TRUE(did_grow_with_one);
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);          
+          ASSERT_TRUE(is_all_prev_ordered);
         }
 
         // Test to insert value at begining
@@ -744,10 +766,10 @@ namespace tests::atomics {
           auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
 
           auto new_tas = fixture_dotas.ordered_tagged_amounts();
-          auto result = (new_tas.front() == new_ta);
+          auto was_inserted_first = (new_tas.front() == new_ta);
 
           // Log
-          if (!result) {
+          if (!was_inserted_first) {
             std::ranges::for_each(
                original_tas
               ,[](auto const& ta) {
@@ -764,44 +786,7 @@ namespace tests::atomics {
             std::print("\n");
           }
 
-          EXPECT_TRUE(result);
-        }
-
-        // Test that insert extends lengt by one
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertlengthTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertlengthTest)"};
-
-          // Insert as first
-          auto original_tas = fixture_dotas.ordered_tagged_amounts();
-          auto first_date = original_tas.front().date(); // trust non-empty
-          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
-          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
-          auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
-
-          auto new_tas = fixture_dotas.ordered_tagged_amounts();
-
-          auto length_diff = (new_tas.size() - original_tas.size());
-          auto result = (length_diff == 1);
-
-          // Log
-          if (!result) {
-            std::ranges::for_each(
-               original_tas
-              ,[](auto const& ta) {
-                std::print("\nORIGINAL:{}",to_string(ta));
-              }
-            );
-            std::print("\n");
-            std::ranges::for_each(
-               new_tas
-              ,[](auto const& ta) {
-                std::print("\nNEW:{}",to_string(ta));
-              }
-            );
-            std::print("\n");
-          }
-
-          EXPECT_TRUE(result);
+          EXPECT_TRUE(was_inserted_first);
           auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);          
           ASSERT_TRUE(is_all_prev_ordered);
 
