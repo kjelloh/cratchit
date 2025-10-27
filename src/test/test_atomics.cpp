@@ -431,9 +431,26 @@ namespace tests::atomics {
         }
 
         // Helper to create some example TaggedAmount objects for testing
+        std::vector<TaggedAmount> createOrderedSampleEntries() {
+            using namespace std::chrono;
+            std::vector<TaggedAmount> result;
+
+            // You’ll need to replace these constructor calls with actual ones matching your TaggedAmount API.
+            // Here's an example stub:
+            // TaggedAmount(year_month_day{2025y / March / 19}, CentsAmount(6000), {{"Account", "NORDEA"}, {"Text", "Sample Text"}, {"yyyymmdd_date", "20250319"}});
+            // Please adjust as needed.
+
+            // Example result: (unordered)
+            result.emplace_back(year_month_day{2025y / March / 18}, CentsAmount(6000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 1"}});
+            result.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(3000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 2"}});
+            result.emplace_back(year_month_day{2025y / March / 20}, CentsAmount(12000), TaggedAmount::Tags{{"Account", "OTHER"}, {"Text", "Payment 3"}});
+            return result;
+        }
+
+        // Helper to create some example TaggedAmount objects for testing
         DateOrderedTaggedAmountsContainer createSample() {
             DateOrderedTaggedAmountsContainer result{};
-            auto tas = tests::atomics::tafw_suite::createUnorderedSampleEntries();
+            auto tas = createOrderedSampleEntries();
             result.dotas_insert_auto_ordered_sequence(tas);
             return result;
         }
