@@ -90,7 +90,14 @@ namespace std {
       hash_combine(result, ta.cents_amount());
       for (auto const& [key, value] : ta.tags()) {
 
-        // if (key == "_prev") continue;
+        // How the value is linked is not part of the 'value'
+        // we care about.
+        // In this way an SIE created by cratchit and SIE imported from        
+        // sie-file will be 'the same' as long as it defines the same 
+        // amount, date and tagging (including aggregation)
+        // Note: So _members aggregation *is* part of the value!
+        //       We can't just milli vanilly exclude any _xxx meta value...
+        if (key == "_prev") continue;
 
         hash_combine(result, key);
         hash_combine(result, value);
