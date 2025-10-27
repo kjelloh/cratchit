@@ -439,14 +439,7 @@ namespace zeroth {
   //   return m_dotas.end(); 
   // }
 
-  TaggedAmounts DateOrderedTaggedAmountsContainer::ordered_tagged_amounts() {
-    // value-semantics by copy (safe for now)
-    return 
-        ordered_tas_view()
-      | std::ranges::to<TaggedAmounts>();
-  }
-
-  OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const& value_ids) {
+  OptionalTaggedAmounts DateOrderedTaggedAmountsContainer::to_tagged_amounts(ValueIds const& value_ids) const {
     std::cout << "\nDateOrderedTaggedAmountsContainer::to_tagged_amounts()"
               << std::flush;
     OptionalTaggedAmounts result{};
@@ -468,6 +461,20 @@ namespace zeroth {
                 << std::flush;
     }
     return result;
+  }
+
+  TaggedAmounts DateOrderedTaggedAmountsContainer::ordered_tagged_amounts() const {
+    // value-semantics by copy (safe for now)
+    return 
+        ordered_tas_view()
+      | std::ranges::to<TaggedAmounts>();
+  }
+
+  TaggedAmounts DateOrderedTaggedAmountsContainer::date_range_tagged_amounts(zeroth::DateRange const& date_period) const {
+    // value-semantics by copy (safe for now)
+    return 
+      this->date_range_tas_view(date_period)
+      | std::ranges::to<TaggedAmounts>();
   }
 
   DateOrderedTaggedAmountsContainer& DateOrderedTaggedAmountsContainer::erase(ValueId const& value_id) {

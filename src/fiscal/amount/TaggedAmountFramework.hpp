@@ -187,6 +187,30 @@ namespace zeroth {
       return std::views::all(m_date_ordered_value_ids);
     }
 
+    OptionalTaggedAmounts to_tagged_amounts(ValueIds const& value_ids) const;
+
+    TaggedAmounts ordered_tagged_amounts() const;
+    TaggedAmounts date_range_tagged_amounts(zeroth::DateRange const& date_period) const;
+
+    // Mutation
+    DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id);
+    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const& other);
+    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const& tas);
+    DateOrderedTaggedAmountsContainer& clear();
+
+  private:
+
+    // Note: Each tagged amount is stored twice. Once in a
+    // mapping between value_id and tagged amount and once in an iteratable sequence
+    // ordered by date.
+    TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
+                                                                  // as content addressable storage
+                                                                  // repository
+    // TaggedAmounts m_dotas{}; // vector of tagged amount ordered by date
+    ValueIds m_date_ordered_value_ids{};
+
+    using PrevNextPair = std::pair<OptionalValueId,OptionalValueId>;
+
     auto ordered_id_value_pairs_view() const {
       return 
           ordered_ids_view()
@@ -207,10 +231,6 @@ namespace zeroth {
           });
     }
 
-    TaggedAmounts ordered_tagged_amounts();    
-    OptionalTaggedAmounts to_tagged_amounts(ValueIds const& value_ids);
-
-    // const_subrange date_range_tas_view(zeroth::DateRange const& date_period);
     auto date_range_tas_view(zeroth::DateRange const& date_period) const {
       auto view = ordered_tas_view()
         | std::views::drop_while([&](auto const& ta) {
@@ -221,25 +241,6 @@ namespace zeroth {
         });
       return view;
     }
-
-    // Mutation
-    DateOrderedTaggedAmountsContainer& erase(ValueId const& value_id);
-    DateOrderedTaggedAmountsContainer& reset(DateOrderedTaggedAmountsContainer const& other);
-    DateOrderedTaggedAmountsContainer& reset(TaggedAmounts const& tas);
-    DateOrderedTaggedAmountsContainer& clear();
-
-  private:
-
-    // Note: Each tagged amount is stored twice. Once in a
-    // mapping between value_id and tagged amount and once in an iteratable sequence
-    // ordered by date.
-    TaggedAmountsCasRepository m_tagged_amount_cas_repository{};  // map <instance id> -> <tagged amount>
-                                                                  // as content addressable storage
-                                                                  // repository
-    // TaggedAmounts m_dotas{}; // vector of tagged amount ordered by date
-    ValueIds m_date_ordered_value_ids{};
-
-    using PrevNextPair = std::pair<OptionalValueId,OptionalValueId>;
 
     PrevNextPair to_prev_and_next(TaggedAmount const& ta);
 

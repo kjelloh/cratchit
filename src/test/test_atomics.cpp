@@ -460,7 +460,7 @@ namespace tests::atomics {
 
         void log_order(DateOrderedTaggedAmountsContainer const& dotas) {
           std::print("\nDateOrderedTaggedAmountsContainer ordering listing");
-          for (auto const& [lhs,rhs] : adjacent_pairs(dotas.ordered_tas_view())) {
+          for (auto const& [lhs,rhs] : adjacent_pairs(dotas.ordered_tagged_amounts())) {
             auto is_correct_order = (lhs.date() <= rhs.date());
             std::print(
                "\ncorrect order={}\n{}\n{}"
@@ -475,7 +475,7 @@ namespace tests::atomics {
         TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest)"};
 
-          auto tas_view = fixture_dotas.ordered_tas_view();
+          auto tas = fixture_dotas.ordered_tagged_amounts();
 
           auto is_invalid_order = [](TaggedAmount const& lhs,TaggedAmount const& rhs) {
               bool result = lhs.date() > rhs.date();
@@ -487,10 +487,10 @@ namespace tests::atomics {
 
 
           auto iter = std::ranges::adjacent_find(
-             tas_view
+             tas
             ,is_invalid_order);
 
-          auto is_all_date_ordered = (iter == tas_view.end()); // no violations found
+          auto is_all_date_ordered = (iter == tas.end()); // no violations found
 
           if (!is_all_date_ordered) {
             log_order(fixture_dotas);
@@ -503,14 +503,14 @@ namespace tests::atomics {
         TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertLastTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertLastTest)"};
 
-          auto original_tas = std::ranges::to<TaggedAmounts>(fixture_dotas.ordered_tas_view());
+          auto original_tas = fixture_dotas.ordered_tagged_amounts();
 
           auto last_date = original_tas.back().date(); // trust non-empty
           auto later_date = Date{std::chrono::sys_days{last_date} + std::chrono::days{1}};
           auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
           auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
 
-          auto new_tas = std::ranges::to<TaggedAmounts>(fixture_dotas.ordered_tas_view());
+          auto new_tas = fixture_dotas.ordered_tagged_amounts();
           auto result = (new_tas.back().date() == new_ta.date());
           EXPECT_TRUE(result);
         }
@@ -520,13 +520,13 @@ namespace tests::atomics {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertFirstTest)"};
 
           // Insert as first
-          auto original_tas = std::ranges::to<TaggedAmounts>(fixture_dotas.ordered_tas_view());
+          auto original_tas = fixture_dotas.ordered_tagged_amounts();
           auto first_date = original_tas.front().date(); // trust non-empty
           auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
           auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
           auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
 
-          auto new_tas = std::ranges::to<TaggedAmounts>(fixture_dotas.ordered_tas_view());
+          auto new_tas = fixture_dotas.ordered_tagged_amounts();
           auto result = (new_tas.front() == new_ta);
 
           // Log
@@ -555,13 +555,13 @@ namespace tests::atomics {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertlengthTest)"};
 
           // Insert as first
-          auto original_tas = std::ranges::to<TaggedAmounts>(fixture_dotas.ordered_tas_view());
+          auto original_tas = fixture_dotas.ordered_tagged_amounts();
           auto first_date = original_tas.front().date(); // trust non-empty
           auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
           auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
           auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
 
-          auto new_tas = std::ranges::to<TaggedAmounts>(fixture_dotas.ordered_tas_view());
+          auto new_tas = fixture_dotas.ordered_tagged_amounts();
 
           auto length_diff = (new_tas.size() - original_tas.size());
           auto result = (length_diff == 1);
@@ -619,7 +619,7 @@ namespace tests::atomics {
 
           ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
           ASSERT_TRUE(second_was_inserted) << std::format("second insert failed");
-          ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 2");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
         }
 
         // Test append value
@@ -642,7 +642,7 @@ namespace tests::atomics {
 
           ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
           ASSERT_FALSE(second_was_inserted) << std::format("second insert should have failed");
-          ASSERT_TRUE(dotas.ordered_tas_view().size() == 1) << std::format("Final size was not 1");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 1) << std::format("Final size was not 1");
         }
 
         // Test append value
@@ -668,7 +668,7 @@ namespace tests::atomics {
 
           ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
           ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (expected forced append)");
-          ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 2");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
         }
 
         // Test append value
@@ -691,7 +691,7 @@ namespace tests::atomics {
 
           ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
           ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (should have succeeded in compability mode)");
-          ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 1");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 1");
         }
 
         class IsInvalidPrevLink {
@@ -768,13 +768,13 @@ namespace tests::atomics {
 
           ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
           ASSERT_TRUE(second_was_inserted) << std::format("second insert should have falied (compability mode)");
-          ASSERT_TRUE(dotas.ordered_tas_view().size() == 2) << std::format("Final size was not 1");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 1");
         }
 
         TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertTas) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertTas)"};
 
-          auto original_tas = fixture_dotas.ordered_tas_view() | std::ranges::to<TaggedAmounts>();
+          auto original_tas = fixture_dotas.ordered_tagged_amounts();
           auto first_date = original_tas[0].date();
           auto lhs_tas = 
               std::views::iota(0)
@@ -802,7 +802,7 @@ namespace tests::atomics {
 
           ASSERT_TRUE(dotas.ordered_ids_view().size() == 6);
           bool is_sorted = std::ranges::is_sorted(
-             dotas.ordered_tas_view()
+             dotas.ordered_tagged_amounts()
             ,std::less{}
             ,[](auto const& ta){return ta.date();});
           ASSERT_TRUE(is_sorted);
@@ -842,7 +842,7 @@ namespace tests::atomics {
       Environment createSample() {
         auto dotas = dotasfw_suite::createSample();
         auto id_ev_pairs = 
-           dotas.ordered_tas_view()
+           dotas.ordered_tagged_amounts()
           | std::views::transform([](auto const& ta) -> Environment::MutableIdValuePair {
               return {to_value_id(ta),to_environment_value(ta)};
             });
@@ -869,11 +869,11 @@ namespace tests::atomics {
 
         auto dotas = dotas_from_environment(fixture_env);
 
-        ASSERT_TRUE(dotas.ordered_tas_view().size() == fixture_env["TaggedAmount"].size()) 
+        ASSERT_TRUE(dotas.ordered_ids_view().size() == fixture_env["TaggedAmount"].size()) 
           << std::format(
                  "Should be same environment:{} -> dotas:{}"
                 ,fixture_env["TaggedAmount"].size()
-                ,dotas.ordered_tas_view().size());
+                ,dotas.ordered_ids_view().size());
       }
 
     } // env2dotasfw_suite

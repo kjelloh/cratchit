@@ -5708,9 +5708,9 @@ public:
 
 	OptionalTaggedAmount selected_ta() {
     OptionalTaggedAmount result{};
-    auto sequence_view = this->selected_dotas.ordered_tas_view();
-    if (sequence_view.size() > this->ta_index) {
-      result = sequence_view[this->ta_index];
+    auto ordered_ids_view = this->selected_dotas.ordered_ids_view();
+    if (ordered_ids_view.size() > this->ta_index) {
+      result =  this->selected_dotas.at(ordered_ids_view[this->ta_index]);
     }
     return result;
 	}
@@ -5832,8 +5832,8 @@ IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) 
     auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
     if (financial_year_date_range) {
       std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
-      auto financial_year_tagged_amounts_range = model->all_dotas.date_range_tas_view(*financial_year_date_range); 
-      auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
+      auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range); 
+      auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts);
       for (auto const& ta : bas_account_accs) {
         IBPeriodUB entry{};
         std::string bas_account_string = ta.tags().at("BAS"); 
@@ -6611,7 +6611,7 @@ Cmd Updater::operator()(Command const& command) {
       prompt << "\n<SELECTED>";
       // for (auto const& ta : model->all_dotas.tagged_amounts()) {
       int index = 0;
-      for (auto const& ta : model->selected_dotas.ordered_tas_view()) {	
+      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {	
         prompt << "\n" << index++ << ". " << ta;
       }				
     }
@@ -8495,7 +8495,7 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n<SELECTED>";
         // for (auto const& ta : model->all_dotas.tagged_amounts()) {
         int index = 0;
-        for (auto const& ta : model->selected_dotas.ordered_tas_view()) {    	
+        for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    	
           prompt << "\n" << index++ << ". " << ta;
         }				
       }
@@ -8508,14 +8508,14 @@ Cmd Updater::operator()(Command const& command) {
         }
         if (begin and end) {
           model->selected_dotas.clear();
-          for (auto const& ta : model->all_dotas.date_range_tas_view({*begin,*end})) {
+          for (auto const& ta : model->all_dotas.date_range_tagged_amounts({*begin,*end})) {
             model->selected_dotas.dotas_insert_auto_ordered_value(ta);
           }				
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
           // for (auto const& ta : model->all_dotas.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta : model->selected_dotas.ordered_tas_view()) {    	
+          for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    	
             prompt << "\n" << index++ << ". " << ta;
           }				
 
@@ -8532,7 +8532,7 @@ Cmd Updater::operator()(Command const& command) {
         };
         TaggedAmounts reduced{};
         std::ranges::copy(
-            model->selected_dotas.ordered_tas_view()
+            model->selected_dotas.ordered_tagged_amounts()
           | std::views::filter(has_tag)
           ,std::back_inserter(reduced)
         );
@@ -8550,7 +8550,7 @@ Cmd Updater::operator()(Command const& command) {
         };
         TaggedAmounts reduced{};
         std::ranges::copy(
-            model->selected_dotas.ordered_tas_view()
+            model->selected_dotas.ordered_tagged_amounts()
           | std::views::filter(has_not_tag)
           ,std::back_inserter(reduced)
         );
@@ -8572,7 +8572,7 @@ Cmd Updater::operator()(Command const& command) {
           };
           TaggedAmounts reduced{};
           std::ranges::copy(
-              model->selected_dotas.ordered_tas_view()
+              model->selected_dotas.ordered_tagged_amounts()
             | std::views::filter(is_tagged)
             ,std::back_inserter(reduced)
           );
@@ -8598,7 +8598,7 @@ Cmd Updater::operator()(Command const& command) {
           };
           TaggedAmounts reduced{};
           std::ranges::copy(
-              model->selected_dotas.ordered_tas_view()
+              model->selected_dotas.ordered_tagged_amounts()
             | std::views::filter(is_not_tagged)
             ,std::back_inserter(reduced)
           );
@@ -8629,7 +8629,7 @@ Cmd Updater::operator()(Command const& command) {
             return result;
           };
           std::ranges::transform(
-             model->selected_dotas.ordered_tas_view()
+             model->selected_dotas.ordered_tagged_amounts()
             ,std::back_inserter(created)
             ,new_ta);
           // model->new_dotas = created;
@@ -8637,7 +8637,7 @@ Cmd Updater::operator()(Command const& command) {
           prompt << "\n<CREATED>";
           // for (auto const& ta : model->all_dotas.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta : model->new_dotas.ordered_tas_view()) {	
+          for (auto const& ta : model->new_dotas.ordered_tagged_amounts()) {	
             prompt << "\n\t" << index++ << ". " << ta;
           }				
           model->prompt_state = PromptState::AcceptNewTAs;
@@ -8654,7 +8654,7 @@ Cmd Updater::operator()(Command const& command) {
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
       using AmountTrailsMap = std::map<CentsAmount,TaggedAmounts>;
       AmountTrailsMap amount_trails_map{};
-      for (auto const& ta : model->selected_dotas.ordered_tas_view()) {    
+      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    
         amount_trails_map[abs(ta.cents_amount())].push_back(ta);
       }
       std::vector<std::pair<CentsAmount,TaggedAmounts>> date_ordered_amount_trails_map{};
@@ -8678,7 +8678,7 @@ Cmd Updater::operator()(Command const& command) {
       };
       TaggedAmounts reduced{};
       std::ranges::copy(
-          model->selected_dotas.ordered_tas_view()
+          model->selected_dotas.ordered_tagged_amounts()
         | std::views::filter(is_aggregate)
         ,std::back_inserter(reduced)
       );
@@ -8688,7 +8688,7 @@ Cmd Updater::operator()(Command const& command) {
       // List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
       std::cout << "\n<AGGREGATES>" << std::flush;
       prompt << "\n<AGGREGATES>";
-      for (auto const& ta : model->selected_dotas.ordered_tas_view()) {    
+      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    
         prompt << "\n" << ta;
         if (auto members_value = ta.tag_value("_members")) {
           auto members = Key::Sequence{*members_value};
@@ -8706,7 +8706,7 @@ Cmd Updater::operator()(Command const& command) {
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_hads") {
       prompt << "\nCreating Heading Amount Date entries (HAD:s) from selected Tagged Amounts";
       auto had_candidates_tas = 
-          model->selected_dotas.ordered_tas_view()
+          model->selected_dotas.ordered_tagged_amounts()
         | std::views::filter([&](auto const& ta){
             // Filter out SIE and BAS entries
             if (ta.tag_value("SIE").has_value()) return false;
@@ -8923,7 +8923,7 @@ Cmd Updater::operator()(Command const& command) {
         auto is_journal_entry = [](TaggedAmount const& ta) {
           return (ta.tags().contains("parent_SIE") or ta.tags().contains("IB"));
         };        
-        std::ranges::copy(model->all_dotas.date_range_tas_view(*financial_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
+        std::ranges::copy(model->all_dotas.date_range_tagged_amounts(*financial_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
         // 2. Group tagged amounts into same BAS account and a list of parent_SIE
         std::map<BAS::AccountNo,TaggedAmounts> huvudbok{};
         std::map<BAS::AccountNo,CentsAmount> opening_balance{};
@@ -9316,8 +9316,8 @@ Cmd Updater::operator()(Command const& command) {
       auto financial_year_date_range = model->sie_env_map["-1"].financial_year_date_range();
 
       if (false and financial_year_date_range) {
-        auto financial_year_tagged_amounts_range = model->all_dotas.date_range_tas_view(*financial_year_date_range); 
-        auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts_range);
+        auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range); 
+        auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts);
 
         if (true) {
           // Log Omslutning
@@ -10477,7 +10477,7 @@ private:
     if (not disable_ta_persistent_storage) {
   		// model->all_dotas.for_each(tagged_amount_to_environment);
       std::ranges::for_each(
-         model->all_dotas.ordered_tas_view()
+         model->all_dotas.ordered_tagged_amounts()
         ,tagged_amount_to_environment);
     }
 
@@ -10485,7 +10485,7 @@ private:
     if (true) {
       logger::scope_logger scope_raii{logger::development_trace,"Model -> Environment Log"};
       logger::development_trace("model->all_dotas.cas().size():{}",model->all_dotas.cas().size());
-      logger::development_trace("model->all_dotas.ordered_tas_view().size():{}",model->all_dotas.ordered_tas_view().size());
+      logger::development_trace("model->all_dotas.ordered_tagged_amounts().size():{}",model->all_dotas.ordered_tagged_amounts().size());
       if (result.contains("TaggedAmount")) {
         logger::development_trace(R"(result.at("TaggedAmount").size():{})",result.at("TaggedAmount").size());
       }
@@ -10494,8 +10494,8 @@ private:
       }
     }
 
-    if (result.contains("TaggedAmount") and (result.at("TaggedAmount").size() != model->all_dotas.ordered_tas_view().size())) {
-      logger::design_insufficiency(R"(environment_from_model: Failed. Expected same size model->all_dotas.ordered_tas_view():{} != result.at("TaggedAmount").size():{})",model->all_dotas.ordered_tas_view().size(),result.at("TaggedAmount").size());
+    if (result.contains("TaggedAmount") and (result.at("TaggedAmount").size() != model->all_dotas.ordered_tagged_amounts().size())) {
+      logger::design_insufficiency(R"(environment_from_model: Failed. Expected same size model->all_dotas.ordered_tagged_amounts():{} != result.at("TaggedAmount").size():{})",model->all_dotas.ordered_tagged_amounts().size(),result.at("TaggedAmount").size());
     }
 
 		// for (auto const& [index,entry] :  std::views::zip(std::views::iota(0),model->heading_amount_date_entries)) {
