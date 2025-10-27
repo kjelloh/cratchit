@@ -311,6 +311,15 @@ namespace zeroth {
         return this->dotas_insert_auto_ordered_value(ta); // force old behavior
       }
     }
+    else {
+      // Require pre and provided value to fullfill date order (less or equal is ok)
+      auto maybe_prev_ta = maybe_prev.and_then([this](auto prev){return this->at(prev);});
+      bool in_date_order = maybe_prev_ta.transform([&ta](auto const& prev_ta) {
+          return (prev_ta.date() <= ta.date());
+        }).value_or(true); // No prev is also 'in order'
+      
+      if (!in_date_order) return {0,false};
+    }
 
     auto linked_ta = to_linked_encoded_ta(maybe_prev,ta);
 
