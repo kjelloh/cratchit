@@ -57,6 +57,7 @@ namespace cas {
 
     bool contains(Cid const& cid) const { return m_map.contains(cid); }
 
+    // Return value copy (safe for now)
     MaybeValue cas_repository_get(Cid const& cid) const { 
       MaybeValue result{};
 

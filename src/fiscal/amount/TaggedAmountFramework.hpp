@@ -187,11 +187,23 @@ namespace zeroth {
       return std::views::all(m_date_ordered_value_ids);
     }
 
+    auto ordered_id_value_pairs_view() const {
+      return 
+          ordered_ids_view()
+        | std::views::transform([this](ValueId id)  {
+            auto const& maybe = m_tagged_amount_cas_repository.cas_repository_get(id);
+            // return id + value copy in optional (safe for now)
+            return std::pair{id, maybe.value()}; // assumes present (will throw if not)
+          });
+    }
+
     auto ordered_tas_view() const {
       return
-          ordered_ids_view()
-        | std::views::transform([this](ValueId value_id) {
-            return this->m_tagged_amount_cas_repository.cas_repository_get(value_id).value();
+          ordered_id_value_pairs_view()
+        | std::views::transform([this](auto const& pair) {
+            auto const& maybe_ta = this->m_tagged_amount_cas_repository.cas_repository_get(pair.first);
+            // return value copy in optional (safe for now)
+            return maybe_ta.value();
           });
     }
 
