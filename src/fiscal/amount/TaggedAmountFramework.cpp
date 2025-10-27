@@ -312,16 +312,18 @@ namespace zeroth {
       }
     }
 
+    auto linked_ta = to_linked_encoded_ta(maybe_prev,ta);
+
     if (maybe_prev) {
       // Link to prev
       auto prev = maybe_prev.value();
       if (this->m_date_ordered_value_ids.back() == prev) {
         // _prev is last - append OK
 
-        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
-        result = {value_id,was_inserted};
+        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(linked_ta);
 
         if (was_inserted) {
+          // Update ordering
           this->m_date_ordered_value_ids.push_back(value_id);
         }
         else {
@@ -330,6 +332,9 @@ namespace zeroth {
             ,text::format::to_hex_string(value_id)
             ,to_string(ta));
         }
+
+        result = {value_id,was_inserted};
+
       }
       else {
         logger::design_insufficiency(
@@ -343,8 +348,7 @@ namespace zeroth {
 
         // Empty sequence - null _prev OK
 
-        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(ta);
-        result = {value_id,was_inserted};
+        auto [value_id,was_inserted] = this->m_tagged_amount_cas_repository.cas_repository_put(linked_ta);
 
         if (was_inserted) {
           this->m_date_ordered_value_ids.push_back(value_id);
@@ -355,6 +359,9 @@ namespace zeroth {
             ,text::format::to_hex_string(value_id)
             ,to_string(ta));
         }
+
+        result = {value_id,was_inserted};
+
       }
       else {
         logger::design_insufficiency(
@@ -513,6 +520,23 @@ namespace zeroth {
     return *this;
   }
 
+  // Encode _prev into provided ta as defined by provided prev arg
+  TaggedAmount DateOrderedTaggedAmountsContainer::to_linked_encoded_ta(
+     DateOrderedTaggedAmountsContainer::OptionalValueId maybe_prev
+    ,TaggedAmount const& ta) {
+
+    auto result = ta;
+    if (maybe_prev) {
+      auto new_s_prev = text::format::to_hex_string(maybe_prev.value());      
+      result.tags()["_prev"] = new_s_prev;
+    }
+    else {
+      // No prev
+      result.tags().erase("_prev");
+    }
+    return result;
+  }
+
   DateOrderedTaggedAmountsContainer::PrevNextPair DateOrderedTaggedAmountsContainer::to_prev_and_next(TaggedAmount const& ta) {
 
     DateOrderedTaggedAmountsContainer::PrevNextPair result{};
@@ -575,15 +599,8 @@ namespace zeroth {
 
     // Transform meta-data prev-link reference
     if (true) {
-      if (prev_and_next.first) {
-        auto new_s_prev = text::format::to_hex_string(prev_and_next.first.value());
-        
-        ta_with_prev.tags()["_prev"] = new_s_prev;
-      }
-      else {
-        // No prev
-        ta_with_prev.tags().erase("_prev");
-      }
+
+      ta_with_prev = to_linked_encoded_ta(prev_and_next.first,ta);
 
       // Log
       if (true) {

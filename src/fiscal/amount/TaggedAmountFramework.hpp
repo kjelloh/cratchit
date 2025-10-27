@@ -211,6 +211,9 @@ namespace zeroth {
 
     using PrevNextPair = std::pair<OptionalValueId,OptionalValueId>;
 
+    // Encode _prev into provided ta as defined by provided prev arg
+    static TaggedAmount to_linked_encoded_ta(OptionalValueId maybe_prev,TaggedAmount const& ta);
+
     auto ordered_id_value_pairs_view() const {
       return 
           ordered_ids_view()
