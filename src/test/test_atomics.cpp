@@ -1,7 +1,7 @@
 #include "test_atomics.hpp"
 #include "test_fixtures.hpp"
 #include "logger/log.hpp" // logger::
-#include "functional/ranges.hpp" // adjacent_pairs,...
+#include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include "fiscal/amount/functional.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
@@ -469,12 +469,12 @@ namespace tests::atomics {
 
         // Now in functional/ranges unit / 20251027
         // template <std::ranges::range R>
-        // auto adjacent_pairs(R&& r) {
+        // auto adjacent_value_pairs(R&& r) {
 
         void log_order(DateOrderedTaggedAmountsContainer const& dotas) {
           std::print("\nDateOrderedTaggedAmountsContainer ordering listing");
-          using namespace cratchit::functional::ranges; // adjacent_pairs
-          for (auto const& [lhs,rhs] : adjacent_pairs(dotas.ordered_tagged_amounts())) {
+          using namespace cratchit::functional::ranges; // adjacent_value_pairs
+          for (auto const& [lhs,rhs] : adjacent_value_pairs(dotas.ordered_tagged_amounts())) {
             auto is_correct_order = (lhs.date() <= rhs.date());
             std::print(
                "\ncorrect order={}\n{}\n{}"

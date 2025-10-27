@@ -1,7 +1,7 @@
 #include "TaggedAmountFramework.hpp"
 #include "../../logger/log.hpp"
 #include "text/format.hpp"
-#include "functional/ranges.hpp" // adjacent_pairs,...
+#include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include <iostream> // ,std::cout
 #include <sstream> // std::ostringstream, std::istringstream
 #include <algorithm> // std::all_of,
@@ -214,15 +214,26 @@ namespace zeroth {
           auto begin = std::ranges::find(m_date_ordered_value_ids,maybe_next.value());
             
           std::ranges::for_each(
-            cratchit::functional::ranges::adjacent_pairs(
+            cratchit::functional::ranges::adjacent_value_pairs(
               std::ranges::subrange(begin, m_date_ordered_value_ids.end())
             )
             ,[this](auto const& pair){
-              logger::development_trace(
-                 "To link {}  <- {}: {}"
-                ,pair.first
-                ,pair.second
-                ,to_string(this->at(pair.second).value_or(TaggedAmount{Date{},CentsAmount{}})));
+
+              auto relinked_ta = to_linked_encoded_ta(
+                 pair.first
+                ,this->at(pair.second).value());
+
+              if (auto put_result = m_tagged_amount_cas_repository.cas_repository_put(relinked_ta);put_result.second) {
+
+                auto iter = std::ranges::find(this->m_date_ordered_value_ids,pair.second);
+                *iter = put_result.first; // replace value_id
+
+                logger::development_trace(
+                  "Re-linked {}  <- {}: {}"
+                  ,pair.first
+                  ,put_result.first
+                  ,to_string(relinked_ta));
+              }
             }
           );
 
