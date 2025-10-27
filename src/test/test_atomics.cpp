@@ -470,7 +470,198 @@ namespace tests::atomics {
           }
           std::print("\n\n"); // Work with google test asuming post-newline logging
         }
+
+        class IsInvalidPrevLink {
+        public:
+
+          IsInvalidPrevLink(DateOrderedTaggedAmountsContainer const& dotas_ref)
+            : m_dotas_ref{dotas_ref} {}
+
+          bool operator()(TaggedAmount::ValueId lhs, TaggedAmount::ValueId rhs) {
+              // lhs == rhs[_prev]
+
+              auto maybe_rhs_ta = m_dotas_ref.cas().cas_repository_get(rhs);
+              if (!maybe_rhs_ta) return true;                       // missing RHS entry → treat as invalid
+
+              auto maybe_prev_id = to_maybe_value_id(
+                  maybe_rhs_ta->tag_value("_prev").value_or(std::string{"null"})); // empty string -> no tag
+              if (!maybe_prev_id) return true;                      // RHS missing _prev tag -> invalid
+
+              auto result = lhs != *maybe_prev_id;                         // invalid if prev != lhs
+
+              return result;
+          }
+        private:
+          DateOrderedTaggedAmountsContainer const& m_dotas_ref;
+        };
+
+        bool prev_ordering_is_ok(DateOrderedTaggedAmountsContainer const& dotas) {
+
+          auto ordered_ids_view = dotas.ordered_ids_view();
+
+          auto iter = std::ranges::adjacent_find(
+             ordered_ids_view
+            ,IsInvalidPrevLink{dotas});
+
+          auto is_all_prev_ordered = (iter == ordered_ids_view.end()); // no violations found
+
+          // Log
+          if (!is_all_prev_ordered) {
+            std::print("ordered_ids_view: null");
+            std::ranges::for_each(ordered_ids_view,[](auto value_id){
+              std::print(" -> {:x}",value_id);
+            });
+            auto lhs = *iter;
+            auto rhs = *(iter+1);
+            if (auto maybe_ta = dotas.at(rhs)) {
+              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:{}",lhs,rhs,to_string(maybe_ta.value()));
+            }
+            else {
+              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:null",lhs,rhs);
+            }
+          }
+
+          return is_all_prev_ordered;
+        }
         
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendOrphanValueTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendOrphanValueTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto [value_id,was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          EXPECT_TRUE(was_inserted);
+          EXPECT_TRUE(dotas.ordered_ids_view().size() == 1);
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueTest)"};
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+          auto second_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
+          auto is_all_prev_ordered = prev_ordering_is_ok(dotas);          
+          ASSERT_TRUE(is_all_prev_ordered);
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValuePrevNullFailTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValuePrevNullFailTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto second_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(std::nullopt,second_ta);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_FALSE(second_was_inserted) << std::format("second insert should have failed");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 1) << std::format("Final size was not 1");
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueOlderFailedTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderOKTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto first_date = first_ta.date();
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+
+          auto second_ta = create_tagged_amount(
+             earlier_date
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta,false);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,false);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_FALSE(second_was_inserted) << std::format("Second Append older value should have failed (compability mode off)");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 1) << std::format("Final size was not 1");
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueCompabilityTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueCompabilityTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto second_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);          
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (should have succeeded in compability mode)");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
+          auto is_all_prev_ordered = prev_ordering_is_ok(dotas);          
+          ASSERT_TRUE(is_all_prev_ordered);
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueOlderCompabilityFailTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderCompabilityFailTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto first_date = first_ta.date();
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+
+          auto second_ta = create_tagged_amount(
+             earlier_date
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert should have falied (compability mode)");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 1");
+        }
+
         // Test correct order by default
         TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest)"};
@@ -497,6 +688,15 @@ namespace tests::atomics {
           }
 
           EXPECT_EQ(is_all_date_ordered,true);          
+        }
+
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest)"};
+
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);
+
+          ASSERT_TRUE(is_all_prev_ordered);
+
         }
 
         // Test to insert value at end
@@ -585,190 +785,9 @@ namespace tests::atomics {
           }
 
           EXPECT_TRUE(result);
-        }
-
-        // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendOrphanValueTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendOrphanValueTest)"};
-
-          DateOrderedTaggedAmountsContainer dotas{};
-          auto first_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*First*"}});
-
-          auto [value_id,was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
-          EXPECT_TRUE(was_inserted);
-        }
-
-        // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueTest)"};
-          DateOrderedTaggedAmountsContainer dotas{};
-          auto first_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*First*"}});
-          auto second_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*Second*"}});
-
-          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
-          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta);
-
-          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
-          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed");
-          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
-        }
-
-        // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValuePrevNullFailTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValuePrevNullFailTest)"};
-
-          DateOrderedTaggedAmountsContainer dotas{};
-          auto first_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*First*"}});
-
-          auto second_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*Second*"}});
-
-          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
-          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(std::nullopt,second_ta);
-
-          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
-          ASSERT_FALSE(second_was_inserted) << std::format("second insert should have failed");
-          ASSERT_TRUE(dotas.ordered_ids_view().size() == 1) << std::format("Final size was not 1");
-        }
-
-        // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderOKTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderOKTest)"};
-
-          DateOrderedTaggedAmountsContainer dotas{};
-          auto first_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*First*"}});
-
-          auto first_date = first_ta.date();
-          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
-
-          auto second_ta = create_tagged_amount(
-             earlier_date
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*Second*"}});
-
-          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
-          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta);
-
-          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
-          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (expected forced append)");
-          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
-        }
-
-        // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueCompabilityTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueCompabilityTest)"};
-
-          DateOrderedTaggedAmountsContainer dotas{};
-          auto first_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*First*"}});
-
-          auto second_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*Second*"}});
-
-          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);          
-          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
-
-          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
-          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (should have succeeded in compability mode)");
-          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 1");
-        }
-
-        class IsInvalidPrevLink {
-        public:
-
-          IsInvalidPrevLink(DateOrderedTaggedAmountsContainer const& dotas_ref)
-            : m_dotas_ref{dotas_ref} {}
-
-          bool operator()(TaggedAmount::ValueId lhs, TaggedAmount::ValueId rhs) {
-              // lhs == rhs[_prev]
-
-              auto maybe_rhs_ta = m_dotas_ref.cas().cas_repository_get(rhs);
-              if (!maybe_rhs_ta) return true;                       // missing RHS entry → treat as invalid
-
-              auto maybe_prev_id = to_maybe_value_id(
-                  maybe_rhs_ta->tag_value("_prev").value_or(std::string{"null"})); // empty string -> no tag
-              if (!maybe_prev_id) return true;                      // RHS missing _prev tag -> invalid
-
-              auto result = lhs != *maybe_prev_id;                         // invalid if prev != lhs
-
-              return result;
-          }
-        private:
-          DateOrderedTaggedAmountsContainer const& m_dotas_ref;
-        };
-
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest)"};
-
-          auto ordered_ids_view = fixture_dotas.ordered_ids_view();
-
-          auto iter = std::ranges::adjacent_find(
-             ordered_ids_view
-            ,IsInvalidPrevLink{fixture_dotas});
-
-          auto is_all_prev_ordered = (iter == ordered_ids_view.end()); // no violations found
-
-          if (!is_all_prev_ordered) {
-            std::print("ordered_ids_view: null");
-            std::ranges::for_each(ordered_ids_view,[](auto value_id){
-              std::print(" -> {:x}",value_id);
-            });
-            auto lhs = *iter;
-            auto rhs = *(iter+1);
-            if (auto maybe_ta = fixture_dotas.at(rhs)) {
-              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:{}",lhs,rhs,to_string(maybe_ta.value()));
-            }
-          }
-
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);          
           ASSERT_TRUE(is_all_prev_ordered);
 
-        }
-
-        // Test append value
-        TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderCompabilityFailTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderCompabilityFailTest)"};
-
-          DateOrderedTaggedAmountsContainer dotas{};
-          auto first_ta = create_tagged_amount(
-             Date{std::chrono::year{2025} / std::chrono::October / 25}
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*First*"}});
-
-          auto first_date = first_ta.date();
-          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
-
-          auto second_ta = create_tagged_amount(
-             earlier_date
-            ,CentsAmount{7000}
-            ,TaggedAmount::Tags{{"Text", "*Second*"}});
-
-          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
-          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
-
-          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
-          ASSERT_TRUE(second_was_inserted) << std::format("second insert should have falied (compability mode)");
-          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 1");
         }
 
         TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertTas) {
@@ -807,29 +826,8 @@ namespace tests::atomics {
             ,[](auto const& ta){return ta.date();});
           ASSERT_TRUE(is_sorted);
 
-          auto ordered_ids_view = dotas.ordered_ids_view();
-
-          auto iter = std::ranges::adjacent_find(
-             ordered_ids_view
-            ,IsInvalidPrevLink{dotas});
-
-          auto is_all_prev_ordered = (iter == ordered_ids_view.end()); // no violations found
-
-          if (!is_all_prev_ordered) {
-            std::print("ordered_ids_view: null");
-            std::ranges::for_each(ordered_ids_view,[](auto value_id){
-              std::print(" -> {:x}",value_id);
-            });
-            auto lhs = *iter;
-            auto rhs = *(iter+1);
-            if (auto maybe_ta = fixture_dotas.at(rhs)) {
-              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:{}",lhs,rhs,to_string(maybe_ta.value()));
-            }
-            else {
-              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:null",lhs,rhs);
-            }
-          }
-
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);
+          
           ASSERT_TRUE(is_all_prev_ordered);
 
         }
