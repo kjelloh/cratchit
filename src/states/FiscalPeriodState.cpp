@@ -32,7 +32,7 @@ namespace first {
         ,hads_from_environment(parent_environment_ref)
         // TODO: Attend to the innefficiency to instantiate the whole date ordered container and then all tagged amounts.
         //       We don't need potential conflicting histories and we need only instantiate tagged amounts in the period.
-        ,dotas_from_environment(parent_environment_ref).tagged_amounts()) {}
+        ,dotas_from_environment(parent_environment_ref).ordered_tagged_amounts()) {}
           
   std::string FiscalPeriodState::caption() const {
     if (m_caption.has_value()) {

@@ -207,7 +207,7 @@ namespace zeroth {
           });
     }
 
-    TaggedAmounts tagged_amounts();    
+    TaggedAmounts ordered_tagged_amounts();    
     OptionalTaggedAmounts to_tagged_amounts(ValueIds const& value_ids);
 
     // const_subrange date_range_tas_view(zeroth::DateRange const& date_period);

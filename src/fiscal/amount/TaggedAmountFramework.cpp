@@ -439,9 +439,8 @@ namespace zeroth {
   //   return m_dotas.end(); 
   // }
 
-  TaggedAmounts DateOrderedTaggedAmountsContainer::tagged_amounts() {
-    // Note: For now generate a container and return. This ensures
-    //       this will work also when we refactor the Tagged Amounts CAS that allows / detects branching paths 
+  TaggedAmounts DateOrderedTaggedAmountsContainer::ordered_tagged_amounts() {
+    // value-semantics by copy (safe for now)
     return 
         ordered_tas_view()
       | std::ranges::to<TaggedAmounts>();
