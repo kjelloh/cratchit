@@ -1,13 +1,13 @@
 #include "test_atomics.hpp"
 #include "test_fixtures.hpp"
 #include "logger/log.hpp" // logger::
+#include "functional/ranges.hpp" // adjacent_pairs,...
+#include "fiscal/amount/functional.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric> // std::accumulate,
 #include <ranges> // std::ranges::is_sorted,
 #include <print>
-
-#include "fiscal/amount/functional.hpp"
 
 namespace tests::atomics {
 
@@ -467,16 +467,13 @@ namespace tests::atomics {
             }
         };
 
-        template <std::ranges::range R>
-        auto adjacent_pairs(R&& r) {
-            return std::views::zip(
-                std::forward<R>(r) | std::views::take(r.size() - 1),
-                std::forward<R>(r) | std::views::drop(1)
-            );
-        }        
+        // Now in functional/ranges unit / 20251027
+        // template <std::ranges::range R>
+        // auto adjacent_pairs(R&& r) {
 
         void log_order(DateOrderedTaggedAmountsContainer const& dotas) {
           std::print("\nDateOrderedTaggedAmountsContainer ordering listing");
+          using namespace cratchit::functional::ranges; // adjacent_pairs
           for (auto const& [lhs,rhs] : adjacent_pairs(dotas.ordered_tagged_amounts())) {
             auto is_correct_order = (lhs.date() <= rhs.date());
             std::print(

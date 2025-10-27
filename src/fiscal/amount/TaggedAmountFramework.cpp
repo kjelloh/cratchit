@@ -1,6 +1,7 @@
 #include "TaggedAmountFramework.hpp"
 #include "../../logger/log.hpp"
 #include "text/format.hpp"
+#include "functional/ranges.hpp" // adjacent_pairs,...
 #include <iostream> // ,std::cout
 #include <sstream> // std::ostringstream, std::istringstream
 #include <algorithm> // std::all_of,
@@ -204,23 +205,26 @@ namespace zeroth {
         // Re-link?
         if (maybe_next) {
           logger::scope_logger scope_raii{logger::development_trace,"Re-link after insert"};
+
           logger::development_trace(
              "Valid next:{} {}"
             ,maybe_next.value()
             ,to_string(this->at(maybe_next.value()).value_or(TaggedAmount{Date{},CentsAmount{}})));
 
           auto begin = std::ranges::find(m_date_ordered_value_ids,maybe_next.value());
-
-          std::for_each(
-             begin
-            ,m_date_ordered_value_ids.end()
-            ,[this](auto const& value_id){
+            
+          std::ranges::for_each(
+            cratchit::functional::ranges::adjacent_pairs(
+              std::ranges::subrange(begin, m_date_ordered_value_ids.end())
+            )
+            ,[this](auto const& pair){
               logger::development_trace(
-                 "Not transformed:{}"
-                ,to_string(this->at(value_id).value_or(TaggedAmount{Date{},CentsAmount{}})));
+                 "To link {}  <- {}: {}"
+                ,pair.first
+                ,pair.second
+                ,to_string(this->at(pair.second).value_or(TaggedAmount{Date{},CentsAmount{}})));
             }
           );
-
 
         }
 
