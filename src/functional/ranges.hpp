@@ -20,6 +20,14 @@ namespace cratchit {
           return std::views::zip(iters, iters | std::views::drop(1));
       }
 
+      template<std::ranges::range R>
+      auto adjacent_iterator_pairs(R&& r) {
+          return adjacent_iterator_pairs(
+             std::ranges::begin(r)
+            ,std::ranges::end(r)
+          );
+      }      
+
     } // ranges
   } // functional
 } // cratchit

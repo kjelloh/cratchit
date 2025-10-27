@@ -89,6 +89,17 @@ namespace cas {
       return {cid,result.second};
     }
 
+    std::pair<Cid,bool> cas_repository_mutate_transient(Value const& value) {
+      auto cid = m_to_cid(value);
+      if (auto iter = m_map.find(cid); iter != m_map.end()) {
+        // The provided value has the 'same' cid as one already in the map.
+        // Asume value holds transient data that client needs to be mutated
+        iter->second = value;
+        return {cid,true};
+      }
+      return {cid,false}; // Cant update non-existent value
+    }
+
     auto erase(Cid cid) {
       return m_map.erase(cid);
     }

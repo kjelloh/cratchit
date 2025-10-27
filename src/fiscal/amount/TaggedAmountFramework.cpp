@@ -207,35 +207,84 @@ namespace zeroth {
           logger::scope_logger scope_raii{logger::development_trace,"Re-link after insert"};
 
           logger::development_trace(
-             "Valid next:{} {}"
+             "Valid next:{:x}: {}"
             ,maybe_next.value()
             ,to_string(this->at(maybe_next.value()).value_or(TaggedAmount{Date{},CentsAmount{}})));
 
           auto begin = std::ranges::find(m_date_ordered_value_ids,maybe_next.value());
-            
-          std::ranges::for_each(
-            cratchit::functional::ranges::adjacent_value_pairs(
-              std::ranges::subrange(begin, m_date_ordered_value_ids.end())
-            )
-            ,[this](auto const& pair){
 
-              auto relinked_ta = to_linked_encoded_ta(
-                 pair.first
-                ,this->at(pair.second).value());
+          using namespace cratchit::functional::ranges; // adjacent_iterator_pairs
+          for (auto [it, next] : adjacent_iterator_pairs(m_date_ordered_value_ids)) {
+              auto lhs_id = *it;
+              auto& rhs_id = *next;
 
-              if (auto put_result = m_tagged_amount_cas_repository.cas_repository_put(relinked_ta);put_result.second) {
+              if (auto maybe_ta = this->at(rhs_id)) {
+                  auto relinked_ta = to_linked_encoded_ta(lhs_id, maybe_ta.value());
+                  if (auto [new_id, ok] = m_tagged_amount_cas_repository.cas_repository_put(relinked_ta); ok) {
 
-                auto iter = std::ranges::find(this->m_date_ordered_value_ids,pair.second);
-                *iter = put_result.first; // replace value_id
+                    rhs_id = new_id; // in-place update
 
-                logger::development_trace(
-                  "Re-linked {}  <- {}: {}"
-                  ,pair.first
-                  ,put_result.first
-                  ,to_string(relinked_ta));
+                    // Log
+                    logger::development_trace(
+                      "Re-linked as new _prev:{:x} <- relinked_ta:{}"
+                      ,new_id
+                      ,to_string(relinked_ta)
+                    );
+
+                    // Whine
+                    logger::design_insufficiency(
+                       "Orphan value left in cas {}"
+                      ,to_string(maybe_ta.value()));
+
+                  }
+                  else if (auto [same_id,ok] = m_tagged_amount_cas_repository.cas_repository_mutate_transient(relinked_ta);ok) {
+                    // mutate as transient ok (cas accepted relinked_ta as a value already in cas but mutated it anyways)
+                    logger::development_trace(
+                      "Mutated (already in CAS) as transient {:x}: transformed_ta:{}"
+                      ,same_id
+                      ,to_string(relinked_ta)
+                    );
+                  }
+                  else {
+                    logger::development_trace(
+                      "Ignored (already in CAS) {:x}: transformed_ta:{}"
+                      ,new_id
+                      ,to_string(transformed_ta)
+                    );
+                  }
               }
-            }
-          );
+          }          
+            
+          // std::ranges::for_each(
+          //   cratchit::functional::ranges::adjacent_value_pairs(
+          //     std::ranges::subrange(begin, m_date_ordered_value_ids.end())
+          //   )
+          //   ,[this](auto const& pair){
+
+          //     auto relinked_ta = to_linked_encoded_ta(
+          //        pair.first
+          //       ,this->at(pair.second).value());
+
+          //     if (auto put_result = m_tagged_amount_cas_repository.cas_repository_put(relinked_ta);put_result.second) {
+
+          //       auto iter = std::ranges::find(this->m_date_ordered_value_ids,pair.second);
+          //       *iter = put_result.first; // replace value_id
+
+          //       logger::development_trace(
+          //         "Re-linked {}  <- {}: {}"
+          //         ,pair.first
+          //         ,put_result.first
+          //         ,to_string(relinked_ta));
+          //     }
+          //     else {
+          //       logger::development_trace(
+          //         "Ignored {}  <- {}: {}"
+          //         ,pair.first
+          //         ,put_result.first
+          //         ,to_string(relinked_ta));
+          //     }
+          //   }
+          // );
 
         }
 
