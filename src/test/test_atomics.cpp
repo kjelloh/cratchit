@@ -1022,6 +1022,20 @@ R"(#GEN 20251026
           ASSERT_TRUE(merged.journals_entry_count() == 0);
         }
 
+        TEST_F(SIEEnvsMergeFixture,EmptyPostThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
+          ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
+          SIEEnvironment merged{};
+
+          for (auto const& [series,journal] : fixture_three_entries_env.journals()) {
+            for (auto const& [verno,aje] : journal) {
+              merged.post({{.series=series,.verno=verno},aje});
+            }
+          }
+
+          ASSERT_TRUE(merged.journals_entry_count() == 3);
+        }
+
         TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
           SIEEnvironment merged{};
@@ -1032,7 +1046,6 @@ R"(#GEN 20251026
         }
     }
 
-    
     // bool run_all() {
     //     std::cout << "Running atomic tests..." << std::endl;
         
