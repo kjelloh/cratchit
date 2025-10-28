@@ -67,6 +67,14 @@ public:
 		}
 	}
 
+  std::size_t journals_entry_count() const {
+    std::size_t result{};
+    for (auto const& [series,journal] : this->m_journals) {
+      result += journal.size();
+    }
+    return result;
+  }
+
   // Try to stage all provided entries for posting
   // Returns actually staged entries
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {

@@ -920,9 +920,42 @@ namespace tests::atomics {
     namespace parse_sie_file_suite {
         // SIE file parsing test suite
 
-        char const* sz_test_sie_raw_text = 
+        char const* sz_minimal_sie_text = 
 R"(#GEN 20251026
 #RAR 0 20250501 20260430)";
+
+        char const* sz_sie_three_transactions_text = R"(
+#FLAGGA 0
+#FORMAT PC8
+#SIETYP 4
+#PROGRAM "Fortnox" 3.57.11
+#GEN 20250829
+#FNR 503072
+#FNAMN "The ITfied AB"
+#ADRESS "Adam Smith" "Gatan 7" "123 45 Bullerbyn" "123-567789" 
+#RAR 0 20240501 20250430
+#RAR -1 20230501 20240430
+#ORGNR 112233-4455
+#OMFATTN 20250430
+#KPTYP EUBAS97
+
+#VER A 1 20240512 "Korrigerad M4 för korrektur till nästa M1" 20240706
+{
+#TRANS 1650 {} 180 "" "Korrigera upp till M4 rapporterat belopp" 0
+#TRANS 2641 {} -180 "" "Korrigerad M4 för korrektur till nästa M1" 0
+}
+#VER A 2 20240504 "Account:SKV Text:Intäktsränta" 20240706
+{
+#TRANS 1630 {} 1 "" "" 0
+#TRANS 8314 {} -1 "" "" 0
+}
+#VER A 3 20240506 "Account:NORDEA Text:PRIS ENL SPEC" 20240706
+{
+#TRANS 1920 {} -3.7 "" "" 0
+#TRANS 6570 {} 3.7 "" "" 0
+}
+
+)";
 
         class SIEFileParseFixture : public ::testing::Test {
         protected:
@@ -940,11 +973,22 @@ R"(#GEN 20251026
           ASSERT_FALSE(maybe_sie.has_value());
         }
 
-        TEST_F(SIEFileParseFixture,ParseBasic) {
+        TEST_F(SIEFileParseFixture,ParseMinimal) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
-          std::istringstream iss{sz_test_sie_raw_text};
+          std::istringstream iss{sz_minimal_sie_text};
           auto maybe_sie = sie_from_stream(iss);
           ASSERT_TRUE(maybe_sie.has_value());
+        }
+
+        TEST_F(SIEFileParseFixture,ParseTransactions) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
+          std::istringstream iss{sz_sie_three_transactions_text};
+          auto maybe_sie = sie_from_stream(iss);
+          ASSERT_TRUE(maybe_sie.has_value());
+          int trans_count = maybe_sie.transform([](auto const& sie_env){
+            return sie_env.journals_entry_count();
+          }).value_or(-1);
+          ASSERT_TRUE(trans_count == 3) << std::format("Parsed {} transactions from sz_sie_three_transactions_text",trans_count);
         }
     }
 
