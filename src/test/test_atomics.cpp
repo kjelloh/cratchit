@@ -960,7 +960,23 @@ R"(#GEN 20251026
         class SIEFileParseFixture : public ::testing::Test {
         protected:
 
+            SIEEnvironment fixture_three_entries_env;
+
             void SetUp() override {
+
+              std::istringstream iss{sz_sie_three_transactions_text};
+              auto maybe_sie = sie_from_stream(iss);
+
+              try {
+                fixture_three_entries_env = maybe_sie.value();
+              }
+              catch (std::exception const& e) {
+                std::print("SIEFileParseFixture::SetUp: Failed - Exception:{}",e.what());
+              }
+              catch (...) {
+                std::print("SIEFileParseFixture::SetUp: Failed - Exception(...)");
+              }
+
             }
         };
 
@@ -972,14 +988,14 @@ R"(#GEN 20251026
           ASSERT_FALSE(maybe_sie.has_value());
         }
 
-        TEST_F(SIEFileParseFixture,ParseMinimal) {
+        TEST(SIEFileParseTests,ParseMinimal) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
           std::istringstream iss{sz_minimal_sie_text};
           auto maybe_sie = sie_from_stream(iss);
           ASSERT_TRUE(maybe_sie.has_value());
         }
 
-        TEST_F(SIEFileParseFixture,ParseTransactions) {
+        TEST(SIEFileParseTests,ParseTransactions) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
           std::istringstream iss{sz_sie_three_transactions_text};
           auto maybe_sie = sie_from_stream(iss);
@@ -989,30 +1005,30 @@ R"(#GEN 20251026
           }).value_or(-1);
           ASSERT_TRUE(trans_count == 3) << std::format("Parsed {} transactions from sz_sie_three_transactions_text",trans_count);
         }
-    }
+    } // parse_sie_file_suite
 
     namespace sie_envs_merge_suite {
       // SIE Environments merge test suite
 
-        class SIEEnvsMergeFixture : public ::testing::Test {
-        protected:
-
-            void SetUp() override {
-            }
-        };
+        using SIEEnvsMergeFixture = parse_sie_file_suite::SIEFileParseFixture;
 
         TEST(SIEEnvsMergeTests,EmptyStageEmptyTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvsMergeTests,EmptyStageEmptyTest)"};
           SIEEnvironment lhs{};
           SIEEnvironment rhs{};
           auto merged = lhs;
-          auto unposted = merged.stage(rhs);
-          ASSERT_TRUE(unposted.size() == 0);
+          auto stage_result = merged.stage(rhs);
+          ASSERT_TRUE(stage_result.size() == 0);
+          ASSERT_TRUE(merged.journals_entry_count() == 0);
         }
 
-        TEST_F(SIEEnvsMergeFixture,MergeSameTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,MergeSameTest)"};
-          ASSERT_TRUE(false);
+        TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
+          SIEEnvironment merged{};
+          auto stage_result = merged.stage(fixture_three_entries_env);
+          ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
+          ASSERT_TRUE(stage_result.size() == 3);
+          ASSERT_TRUE(merged.journals_entry_count() == 3);
         }
     }
 
