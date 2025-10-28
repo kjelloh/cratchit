@@ -57,6 +57,14 @@ namespace cas {
 
     bool contains(Cid const& cid) const { return m_map.contains(cid); }
 
+    auto ids_view() const {
+      return 
+          std::views::all(m_map)
+        | std::views::transform([](auto const& pair){
+            return pair.first;
+          });
+    }
+
     // Return value copy (safe for now)
     MaybeValue cas_repository_get(Cid const& cid) const { 
       MaybeValue result{};

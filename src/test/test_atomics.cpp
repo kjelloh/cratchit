@@ -431,14 +431,9 @@ namespace tests::atomics {
         }
 
         // Helper to create some example TaggedAmount objects for testing
-        std::vector<TaggedAmount> createOrderedSampleEntries() {
+        std::vector<TaggedAmount> createOrderedTasSample() {
             using namespace std::chrono;
             std::vector<TaggedAmount> result;
-
-            // You’ll need to replace these constructor calls with actual ones matching your TaggedAmount API.
-            // Here's an example stub:
-            // TaggedAmount(year_month_day{2025y / March / 19}, CentsAmount(6000), {{"Account", "NORDEA"}, {"Text", "Sample Text"}, {"yyyymmdd_date", "20250319"}});
-            // Please adjust as needed.
 
             // Example result: (unordered)
             result.emplace_back(year_month_day{2025y / March / 18}, CentsAmount(6000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 1"}});
@@ -450,7 +445,7 @@ namespace tests::atomics {
         // Helper to create some example TaggedAmount objects for testing
         DateOrderedTaggedAmountsContainer createSample() {
             DateOrderedTaggedAmountsContainer result{};
-            auto tas = createOrderedSampleEntries();
+            auto tas = createOrderedTasSample();
             result.dotas_insert_auto_ordered_sequence(tas);
             return result;
         }
@@ -874,6 +869,49 @@ namespace tests::atomics {
       }
 
     } // env2dotasfw_suite
+
+    namespace dotas_merge_suite {
+      // Date Ordered Tagged Amounts merge framework
+
+        class DotasMergeFixture : public ::testing::Test {
+        protected:
+
+            DateOrderedTaggedAmountsContainer fixture_lhs_dotas;
+            DateOrderedTaggedAmountsContainer fixture_rhs_dotas;
+
+
+            void SetUp() override {
+              fixture_lhs_dotas = dotasfw_suite::createSample();
+              fixture_rhs_dotas = dotasfw_suite::createSample();
+            }
+        };
+
+        TEST(DotasMergeTests,MergeEmptyDotas) {
+            DateOrderedTaggedAmountsContainer lhs_dotas{};
+            DateOrderedTaggedAmountsContainer rhs_dotas{};
+
+            auto merged_dotas = lhs_dotas.dotas_insert_auto_ordered_container(rhs_dotas);
+            ASSERT_TRUE(rhs_dotas.ordered_ids_view().size() == 0) << std::format("Expected zero sequence size but encountered size:{}",rhs_dotas.ordered_ids_view().size());
+            ASSERT_TRUE(rhs_dotas.cas().size() == 0) << std::format("Expected zero CAS size but encountered size:{}",rhs_dotas.cas().size());;
+        }
+
+        TEST_F(DotasMergeFixture,MergeSameTest) {
+            auto merged_dotas = fixture_lhs_dotas;
+            merged_dotas.dotas_insert_auto_ordered_container(fixture_rhs_dotas);
+            ASSERT_TRUE(merged_dotas.ordered_ids_view().size() == fixture_rhs_dotas.ordered_ids_view().size()) << std::format(
+               "Expected same size merged_dotas:{} fixture_rhs_dotas:{}"
+              ,merged_dotas.ordered_ids_view().size()
+              ,fixture_lhs_dotas.ordered_ids_view().size());
+            bool merged_is_equal_to_rhs = (
+                  std::ranges::equal(merged_dotas.ordered_ids_view(),fixture_rhs_dotas.ordered_ids_view())
+              and std::ranges::all_of(merged_dotas.cas().ids_view(),[this](auto cid){
+                return fixture_rhs_dotas.cas().contains(cid);
+              })
+              and (merged_dotas.cas().ids_view().size(),fixture_rhs_dotas.cas().ids_view().size())
+            );
+            ASSERT_TRUE(merged_is_equal_to_rhs) << std::format("Expected merged (lhs+rhs) and rhs dotas to be equal");;
+        }
+    }
 
     
     // bool run_all() {
