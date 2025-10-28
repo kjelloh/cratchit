@@ -960,7 +960,6 @@ R"(#GEN 20251026
         class SIEFileParseFixture : public ::testing::Test {
         protected:
 
-            
             void SetUp() override {
             }
         };
@@ -1002,9 +1001,13 @@ R"(#GEN 20251026
             }
         };
 
-        TEST(SIEEnvsMergeTests,MergeEmptyEnvs) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvsMergeTests,MergeEmptyEnvs)"};
-          ASSERT_TRUE(false);
+        TEST(SIEEnvsMergeTests,EmptyStageEmptyTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvsMergeTests,EmptyStageEmptyTest)"};
+          SIEEnvironment lhs{};
+          SIEEnvironment rhs{};
+          auto merged = lhs;
+          auto unposted = merged.stage(rhs);
+          ASSERT_TRUE(unposted.size() == 0);
         }
 
         TEST_F(SIEEnvsMergeFixture,MergeSameTest) {

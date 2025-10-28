@@ -1,6 +1,7 @@
 #include "SIEEnvironmentFramework.hpp"
 #include "logger/log.hpp"
 #include <fstream> // std::ifstream,...
+#include <vector>
 
 BAS::MetaEntry to_entry(SIE::Ver const& ver) {
   if (false) {
@@ -44,34 +45,41 @@ OptionalSIEEnvironment sie_from_stream(std::istream& is) {
     // Create a stream with the UTF8 encoded SIE file entries for internal parsing
     std::istringstream utf8_in{s_utf8};
 		SIEEnvironment sie_environment{};
+    std::vector<SIE::io::SIEFileEntry> parsed_elements{};
 		while (true) {
 			// logger::cout_proxy << "\nparse";
 			if (auto opt_entry = SIE::io::parse_ORGNR(utf8_in,"#ORGNR")) {
 				SIE::OrgNr orgnr = std::get<SIE::OrgNr>(*opt_entry);
 				sie_environment.organisation_no = orgnr;
+        parsed_elements.push_back(*opt_entry);
 			}
 			else if (auto opt_entry = SIE::io::parse_FNAMN(utf8_in,"#FNAMN")) {
 				SIE::FNamn fnamn = std::get<SIE::FNamn>(*opt_entry);
 				sie_environment.organisation_name = fnamn;
+        parsed_elements.push_back(*opt_entry);
 			}
 			else if (auto opt_entry = SIE::io::parse_ADRESS(utf8_in,"#ADRESS")) {
 				SIE::Adress adress = std::get<SIE::Adress>(*opt_entry);
 				sie_environment.organisation_address = adress;
+        parsed_elements.push_back(*opt_entry);
 			}
 			else if (auto opt_entry = SIE::io::parse_RAR(utf8_in,"#RAR")) {
 				SIE::Rar rar = std::get<SIE::Rar>(*opt_entry);
 				if (rar.year_no == 0) {
 					// Process only "current" year in read sie file
 					sie_environment.set_year_date_range(zeroth::DateRange{rar.first_day_yyyymmdd,rar.last_day_yyyymmdd});
+        parsed_elements.push_back(*opt_entry);
 				}
 			}
 			else if (auto opt_entry = SIE::io::parse_KONTO(utf8_in,"#KONTO")) {
 				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
 				sie_environment.set_account_name(konto.account_no,konto.name);
+        parsed_elements.push_back(*opt_entry);
 			}
 			else if (auto opt_entry = SIE::io::parse_SRU(utf8_in,"#SRU")) {
 				SIE::Sru sru = std::get<SIE::Sru>(*opt_entry);
 				sie_environment.set_account_SRU(sru.bas_account_no,sru.sru_account_no);
+        parsed_elements.push_back(*opt_entry);
 			}
 			else if (auto opt_entry = SIE::io::parse_IB(utf8_in,"#IB")) {
 				SIE::Ib ib = std::get<SIE::Ib>(*opt_entry);
@@ -82,12 +90,14 @@ OptionalSIEEnvironment sie_from_stream(std::istream& is) {
 				// Example:
 				// #RAR 0 20210501 20220430
 				// #RAR -1 20200501 20210430				
+        parsed_elements.push_back(*opt_entry);
 			}
 			else if (auto opt_entry = SIE::io::parse_VER(utf8_in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 				// logger::cout_proxy << "\n\tVER!";
 				auto me = to_entry(ver);
 				sie_environment.post(me);
+        parsed_elements.push_back(*opt_entry);
 			}
 			else if (auto opt_entry = SIE::io::parse_any_line(utf8_in)) {
 				SIE::io::AnonymousLine al = std::get<SIE::io::AnonymousLine>(*opt_entry);
@@ -100,7 +110,11 @@ OptionalSIEEnvironment sie_from_stream(std::istream& is) {
         break;
       }
 		}
-    result = std::move(sie_environment);
+    if (parsed_elements.size() > 0) {
+      // *crude* 'valid sie file' check (good enough for now...)
+      // TODO: Consider to extend to check for minimal SIE-file content requirements?
+      result = std::move(sie_environment);
+    }
 	}
   else {
     if (true) {

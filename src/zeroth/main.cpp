@@ -9926,11 +9926,13 @@ private:
     }
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
+
     if (environment.contains("sie_file")) {
       auto const id_ev_pairs = environment.at("sie_file");
-      if (id_ev_pairs.size() > 1) {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Expected at most one but found " << id_ev_pairs.size() << " 'sie_file' entries in environment file";
-      }
+
+      // Digest configured sie-files as mapped (year_id -> sie_file)
+      // In effect sync with sie-files as provided by external tool(s)
+      // model->sie_env_map[year_key] will reflect this external books 'truth'
       for (auto const& id_ev_pair : id_ev_pairs) {
         auto const& [id,ev] = id_ev_pair;
         for (auto const& [year_key,sie_file_name] : ev) {
@@ -9950,6 +9952,9 @@ private:
       std::cout << "\nNo sie_file entries found in environment";
     }
 
+    // Process 'staged' sie-entries.
+    // These are entries created by cratchit that extends external 'truth'
+    // from external sie-file.
     for (auto const& [year_id,sie] : model->sie_env_map) {
       if (auto sse = sie_from_sie_file(model->sie_env_map[year_id].staged_sie_file_path())) {
         // #4 model_from_environment ingests persistent sie file defined by model_from_environment
