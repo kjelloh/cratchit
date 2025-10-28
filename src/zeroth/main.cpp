@@ -6158,34 +6158,34 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
 		SIEEnvironment sie_environment{};
 		while (true) {
 			// std::cout << "\nparse";
-			if (auto opt_entry = SIE::parse_ORGNR(utf8_in,"#ORGNR")) {
+			if (auto opt_entry = SIE::io::parse_ORGNR(utf8_in,"#ORGNR")) {
 				SIE::OrgNr orgnr = std::get<SIE::OrgNr>(*opt_entry);
 				sie_environment.organisation_no = orgnr;
 			}
-			else if (auto opt_entry = SIE::parse_FNAMN(utf8_in,"#FNAMN")) {
+			else if (auto opt_entry = SIE::io::parse_FNAMN(utf8_in,"#FNAMN")) {
 				SIE::FNamn fnamn = std::get<SIE::FNamn>(*opt_entry);
 				sie_environment.organisation_name = fnamn;
 			}
-			else if (auto opt_entry = SIE::parse_ADRESS(utf8_in,"#ADRESS")) {
+			else if (auto opt_entry = SIE::io::parse_ADRESS(utf8_in,"#ADRESS")) {
 				SIE::Adress adress = std::get<SIE::Adress>(*opt_entry);
 				sie_environment.organisation_address = adress;
 			}
-			else if (auto opt_entry = SIE::parse_RAR(utf8_in,"#RAR")) {
+			else if (auto opt_entry = SIE::io::parse_RAR(utf8_in,"#RAR")) {
 				SIE::Rar rar = std::get<SIE::Rar>(*opt_entry);
 				if (rar.year_no == 0) {
 					// Process only "current" year in read sie file
 					sie_environment.set_year_date_range(zeroth::DateRange{rar.first_day_yyyymmdd,rar.last_day_yyyymmdd});
 				}
 			}
-			else if (auto opt_entry = SIE::parse_KONTO(utf8_in,"#KONTO")) {
+			else if (auto opt_entry = SIE::io::parse_KONTO(utf8_in,"#KONTO")) {
 				SIE::Konto konto = std::get<SIE::Konto>(*opt_entry);
 				sie_environment.set_account_name(konto.account_no,konto.name);
 			}
-			else if (auto opt_entry = SIE::parse_SRU(utf8_in,"#SRU")) {
+			else if (auto opt_entry = SIE::io::parse_SRU(utf8_in,"#SRU")) {
 				SIE::Sru sru = std::get<SIE::Sru>(*opt_entry);
 				sie_environment.set_account_SRU(sru.bas_account_no,sru.sru_account_no);
 			}
-			else if (auto opt_entry = SIE::parse_IB(utf8_in,"#IB")) {
+			else if (auto opt_entry = SIE::io::parse_IB(utf8_in,"#IB")) {
 				SIE::Ib ib = std::get<SIE::Ib>(*opt_entry);
 				// std::cout << "\nIB " << ib.account_no << " = " << ib.opening_balance;
 				if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no,ib.opening_balance); // Only use "current" year opening balance
@@ -6195,14 +6195,14 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
 				// #RAR 0 20210501 20220430
 				// #RAR -1 20200501 20210430				
 			}
-			else if (auto opt_entry = SIE::parse_VER(utf8_in)) {
+			else if (auto opt_entry = SIE::io::parse_VER(utf8_in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
 				// std::cout << "\n\tVER!";
 				auto me = to_entry(ver);
 				sie_environment.post(me);
 			}
-			else if (auto opt_entry = SIE::parse_any_line(utf8_in)) {
-				SIE::AnonymousLine al = std::get<SIE::AnonymousLine>(*opt_entry);
+			else if (auto opt_entry = SIE::io::parse_any_line(utf8_in)) {
+				SIE::io::AnonymousLine al = std::get<SIE::io::AnonymousLine>(*opt_entry);
 				// std::cout << "\n\tANY=" << al.str;
 			}
 			else {
@@ -6229,7 +6229,7 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
 void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
   logger::cout_proxy << "\nunposted_to_sie_file " << p;
 	std::ofstream os{p};
-	SIE::OStream sieos{os};
+	SIE::io::OStream sieos{os};
 	auto now = std::chrono::system_clock::now();
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
