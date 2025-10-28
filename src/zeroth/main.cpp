@@ -50,7 +50,6 @@ float const VERSION = 0.5;
 #include <sol/sol.hpp>
 #include <unicode/regex.h>
 #include <unicode/unistr.h>
-#include <expected>
 
 // Define a signal handler function that does nothing
 void handle_winch(int sig) {
@@ -2449,70 +2448,9 @@ using SRUEnvironments = std::map<std::string,SRUEnvironment>;
 // class SIEEnvironment {
 // using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 
-class SIEEnvironmentsMap {
-public:
-  using RelativeYearKey = std::string;
-  using ActualYearKey = RelativeYearKey; // Not refactored yet
-  using map_type = std::map<ActualYearKey,SIEEnvironment>;
-  SIEEnvironmentsMap() = default;
 
-  auto begin() const {return m_sie_envs_map.begin();}
-  auto end() const {return m_sie_envs_map.end();}
-  auto contains(RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
-  auto& operator[](RelativeYearKey key) {return m_sie_envs_map[key];}
-
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
-    std::optional<BAS::MetaEntry> result{};
-
-    // TODO: Refctor this 'mess' *sigh* (to many optionals...)
-
-    if (this->m_sie_envs_map.contains("current")) {
-      if (auto financial_year = this->m_sie_envs_map["current"].financial_year_date_range()) {
-        if (financial_year->contains(me.defacto.date)) {
-          return this->m_sie_envs_map["current"].stage(me);
-        }
-      }
-    }
-
-    if (this->m_sie_envs_map.contains("-1")) {
-      if (auto financial_year = this->m_sie_envs_map["-1"].financial_year_date_range()) {
-        if (financial_year->contains(me.defacto.date)) {
-          return this->m_sie_envs_map["-1"].stage(me);
-        }
-      }
-    }
-    return result;
-  }
-
-private:
-  map_type m_sie_envs_map;
-
-  std::expected<ActualYearKey, std::string> to_actual_year_key(
-     RelativeYearKey relative_year_key
-    ,FiscalYear current_fiscal_year) {
-
-    // Old mechanism: use relative key as-is
-    return relative_year_key;
-
-    // New mechanism - Use Date with the value of first day of financial year as key
-    // try {
-    //     auto relative_fiscal_year_index = std::stoi(relative_year_key);
-    //     if (relative_fiscal_year_index <= 0 && relative_fiscal_year_index >= -10) {
-    //         return current_fiscal_year.to_relative_fiscal_year(relative_fiscal_year_index).start();
-    //     } else {
-    //         return std::unexpected(std::format(
-    //             "Relative year index {} is out of bounds (>0 or < -10)",
-    //             relative_fiscal_year_index
-    //         ));
-    //     }
-    // } catch (...) {
-    //     return std::unexpected(std::format(
-    //         "Failed to interpret relative year index {}", relative_year_key
-    //     ));
-    // }
-  }
-
-};
+// Now in SIEEnvironmentFramework unit / 20251028
+// class SIEEnvironmentsMap {
 
 BAS::AccountMetas matches_bas_or_sru_account_no(BAS::AccountNo const& to_match_account_no,SIEEnvironment const& sie_env) {
 	BAS::AccountMetas result{};
