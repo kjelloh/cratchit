@@ -1,9 +1,10 @@
 #include "SIEEnvironmentFramework.hpp"
+#include "logger/log.hpp"
 #include <fstream> // std::ifstream,...
 
 BAS::MetaEntry to_entry(SIE::Ver const& ver) {
   if (false) {
-    std::cout << "\nto_entry(ver:" << ver.series << std::dec << ver.verno << " " << ver.verdate << " member count:" << ver.transactions.size()  << ")";
+    logger::cout_proxy << "\nto_entry(ver:" << ver.series << std::dec << ver.verno << " " << ver.verdate << " member count:" << ver.transactions.size()  << ")";
   }
 	BAS::MetaEntry result{
 		.meta = {
@@ -23,13 +24,13 @@ BAS::MetaEntry to_entry(SIE::Ver const& ver) {
 	return result;
 }
 
-OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
+OptionalSIEEnvironment sie_from_stream(std::istream& is) {
   if (false) {
-    std::cout << "\nsie_from_sie_file(" << sie_file_path << ")";
+    logger::cout_proxy << "\nsie_from_stream";
+
   }
 	OptionalSIEEnvironment result{};
-	std::ifstream ifs{sie_file_path};
-  encoding::CP437::istream cp437_in{ifs};
+  encoding::CP437::istream cp437_in{is};
 	if (cp437_in) {
     // Read in the SIE file and transcode it to UTF8
     std::string s_utf8{};
@@ -37,14 +38,14 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
       s_utf8 += *entry;
       s_utf8 += "\n";
       if (false) {
-        std::cout << "\nfrom cp437_in: " << std::quoted(*entry);
+        logger::cout_proxy << "\nfrom cp437_in: " << std::quoted(*entry);
       }
     }
     // Create a stream with the UTF8 encoded SIE file entries for internal parsing
     std::istringstream utf8_in{s_utf8};
 		SIEEnvironment sie_environment{};
 		while (true) {
-			// std::cout << "\nparse";
+			// logger::cout_proxy << "\nparse";
 			if (auto opt_entry = SIE::io::parse_ORGNR(utf8_in,"#ORGNR")) {
 				SIE::OrgNr orgnr = std::get<SIE::OrgNr>(*opt_entry);
 				sie_environment.organisation_no = orgnr;
@@ -74,7 +75,7 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
 			}
 			else if (auto opt_entry = SIE::io::parse_IB(utf8_in,"#IB")) {
 				SIE::Ib ib = std::get<SIE::Ib>(*opt_entry);
-				// std::cout << "\nIB " << ib.account_no << " = " << ib.opening_balance;
+				// logger::cout_proxy << "\nIB " << ib.account_no << " = " << ib.opening_balance;
 				if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no,ib.opening_balance); // Only use "current" year opening balance
 				// NOTE: The SIE-file defines a "year 0" that is "current year" as seen from the data in the file
 				// See the #RAR tag that maps year_no 0,-1,... to actual date range (period / accounting year)
@@ -84,31 +85,41 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
 			}
 			else if (auto opt_entry = SIE::io::parse_VER(utf8_in)) {
 				SIE::Ver ver = std::get<SIE::Ver>(*opt_entry);
-				// std::cout << "\n\tVER!";
+				// logger::cout_proxy << "\n\tVER!";
 				auto me = to_entry(ver);
 				sie_environment.post(me);
 			}
 			else if (auto opt_entry = SIE::io::parse_any_line(utf8_in)) {
 				SIE::io::AnonymousLine al = std::get<SIE::io::AnonymousLine>(*opt_entry);
-				// std::cout << "\n\tANY=" << al.str;
+				// logger::cout_proxy << "\n\tANY=" << al.str;
 			}
 			else {
         if (false) {
-          std::cout << "\nsie_from_sie_file(" << sie_file_path << ") FILE PARSED";
+          logger::cout_proxy << "\nsie_from_stream - STREAM PARSED";
         }
         break;
       }
 		}
-    // Inject source file path into environment
-    // Note: Due to refactored from model map to SIEEnviuronment aggregate
-    //       and SIEEnvironment has yet no constructor...
-    sie_environment.sie_file_path = sie_file_path;
-		result = std::move(sie_environment);
 	}
   else {
     if (true) {
-      std::cout << " NO SUCH FILE ";
+      logger::cout_proxy << "\nFailed to open stream ";
     }
   }
 	return result;
+}
+
+OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
+  if (false) {
+    logger::cout_proxy << "\nsie_from_sie_file(" << sie_file_path << ")";
+  }
+	std::ifstream is{sie_file_path};
+  auto result = sie_from_stream(is);
+  if (result) {
+    // Inject source file path into environment
+    // Note: Due to refactored from model map to SIEEnvironment aggregate
+    //       and SIEEnvironment has yet no constructor...
+    result->sie_file_path = sie_file_path;
+  }
+  return result;
 }
