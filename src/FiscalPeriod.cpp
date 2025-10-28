@@ -6,40 +6,59 @@
 
 namespace first {
 
-  FiscalPeriod::FiscalPeriod(Date start, Date end)
-      : m_start(start), m_end(end) {
-    m_is_valid = (Days(m_start) < Days(m_end));
+  DateRange::DateRange(Date start, Date last)
+      : m_start(start), m_last(last) {
+    m_is_valid = (Days(m_start) < Days(m_last));
   }
 
-  Date FiscalPeriod::start() const noexcept {
+  Date DateRange::start() const noexcept {
     return m_start;
   }
 
-  Date FiscalPeriod::end() const noexcept {
-    return m_end;
+  Date DateRange::last() const noexcept {
+    return m_last;
   }
 
-  bool FiscalPeriod::contains(Date date) const noexcept {
+  bool DateRange::contains(Date date) const noexcept {
     if (!m_is_valid)
       return false;
     auto d = Days(date);
-    return d >= Days(m_start) && d <= Days(m_end);
+    return d >= Days(m_start) && d <= Days(m_last);
   }
 
-  bool FiscalPeriod::is_valid() const noexcept {
+  bool DateRange::is_valid() const noexcept {
     return m_is_valid;
   }
 
-  FiscalPeriod FiscalPeriod::to_fiscal_year(Year fiscal_start_year, Month fiscal_start_month) {
-    // Calculate the start and end dates of the fiscal year
+  std::string DateRange::to_string() const {
+    return std::format("{:%Y-%m-%d} to {:%Y-%m-%d}", m_start, m_last);
+  }
+
+  DateRange DateRange::to_three_months_earlier() {
+    auto const quarter_duration = std::chrono::months{3};
+    // get the year and month for the date range to return
+    auto ballpark_end = m_last - quarter_duration;
+    // Adjust the last day to the correct one for the range last month
+    // Note: We do not need to adjust the begin day, as all month starts on day 1
+    auto last = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
+    return {m_start - quarter_duration,last};
+  }
+
+  std::ostream& operator<<(std::ostream& os, DateRange const& dr) {
+    os << dr.start() << "..." << dr.last();
+    return os;
+  }
+
+  DateRange to_fiscal_year_period(Year fiscal_start_year, Month fiscal_start_month) {
+    // Calculate the start and last dates of the fiscal year
     Date start_date{fiscal_start_year, fiscal_start_month, std::chrono::day{1}};
     Date end_date{start_date.year() + std::chrono::years{1}, start_date.month(), std::chrono::day{0}};
     end_date = std::chrono::sys_days(end_date); // Chrono trick to normalize day 0 to the last day of previous month
-    return FiscalPeriod(start_date, end_date);
+    return DateRange(start_date, end_date);
   }
 
-  FiscalPeriod FiscalPeriod::to_fiscal_quarter(QuarterIndex quarter_ix,Year year) {
-    // Calculate the start and end dates of the fiscal quarter
+  DateRange to_fiscal_quarter_period(Year year,QuarterIndex quarter_ix) {
+    // Calculate the start and last dates of the fiscal quarter
     Month start_month;
     switch (quarter_ix.m_ix) {
       case 1: start_month = Month{1}; break; // Q1
@@ -52,11 +71,7 @@ namespace first {
     Date start_date{year, start_month, std::chrono::day{1}};
     Date end_date{start_date.year(), start_date.month() + std::chrono::months{3}, std::chrono::day{0}};
     end_date = std::chrono::sys_days(end_date); // Chrono trick to normalize day 0 to the last day of previous month
-    return FiscalPeriod(start_date, end_date);
-  }
-
-  std::string FiscalPeriod::to_string() const {
-    return std::format("{:%Y-%m-%d} to {:%Y-%m-%d}", m_start, m_end);
+    return DateRange(start_date, end_date);
   }
 
   FiscalYear FiscalYear::to_current_fiscal_year(Month fiscal_start_month) {
@@ -115,6 +130,10 @@ namespace first {
     return FiscalQuarter(new_quarter, new_year);
   }
 
+  std::ostream& operator<<(std::ostream& os, FiscalQuarter const& quarter) {
+    os << quarter.period();
+    return os;
+  }
 
 } // namespace first
 
@@ -170,9 +189,11 @@ Date to_today() {
   return to_date(1900 + now_local->tm_year,1 + now_local->tm_mon,now_local->tm_mday);	
 }
 
-
+QuarterIndex to_quarter_index(Month const& month) {
+  return QuarterIndex{((static_cast<unsigned>(month)-1) / 3u)+ 1u}; // ((0..3) + 1
+}
 QuarterIndex to_quarter_index(Date const& a_period_date) {
-  return QuarterIndex{((static_cast<unsigned>(a_period_date.month())-1) / 3u)+ 1u}; // ((0..3) + 1
+  return to_quarter_index(a_period_date.month());
 }
 std::chrono::month to_quarter_begin(QuarterIndex const& quarter_ix) {
   unsigned begin_month_no = (quarter_ix.m_ix-1u) * 3u + 1u; // [0..3]*3 = [0,3,6,9] + 1 = [1,4,7,10]
@@ -191,21 +212,21 @@ namespace zeroth {
     auto begin_month = to_quarter_begin(quarter_ix);
     auto end_month = to_quarter_end(quarter_ix);
     auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
-    auto end = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
+    auto last = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
     if (false) {
-      spdlog::debug("to_quarter_range({}) --> {}..{}", to_string(a_period_date), to_string(begin), to_string(end));
+      spdlog::debug("to_quarter_range({}) --> {}..{}", to_string(a_period_date), to_string(begin), to_string(last));
     }
-    return {begin,end};
+    return {begin,last};
   }
 
   DateRange to_three_months_earlier(DateRange const& quarter) {
     auto const quarter_duration = std::chrono::months{3};
     // get the year and month for the date range to return
-    auto ballpark_end = quarter.end() - quarter_duration;
-    // Adjust the end day to the correct one for the range end month
-    auto end = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
+    auto ballpark_end = quarter.end() - quarter_duration; // yymmdd - months ok
+    // Adjust the last day to the correct one for the range last month
+    auto last = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
     // Note: We do not need to adjust the begin day as all month starts on day 1
-    return {quarter.begin() - quarter_duration,end};
+    return {quarter.begin() - quarter_duration,last}; // yymmdd - months ok
   }
 
   std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
@@ -228,5 +249,5 @@ namespace zeroth {
     return result;
   }
 
-}
+} // zeroth
 

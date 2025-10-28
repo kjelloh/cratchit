@@ -17,37 +17,41 @@ namespace first {
         : m_ix(ix), m_valid(ix >= 1 && ix <= 4) {}
   };
 
-  class FiscalPeriod {
+  class DateRange {
   public:
 
-    FiscalPeriod(Date start, Date end);
+    DateRange(Date start, Date last);
 
     Date start() const noexcept;
-    Date end() const noexcept;
+    Date last() const noexcept;
 
     bool contains(Date date) const noexcept;
     bool is_valid() const noexcept;
 
-    static FiscalPeriod to_fiscal_year(Year fiscal_start_year, Month fiscal_start_month);
-    static FiscalPeriod to_fiscal_quarter(QuarterIndex quarter_ix, Year year);
-
     std::string to_string() const;
+
+    DateRange to_three_months_earlier();
 
   private:
     Date m_start;
-    Date m_end;
+    Date m_last;
     bool m_is_valid;
   };
+
+  std::ostream& operator<<(std::ostream& os, DateRange const& date_range);
+
+  DateRange to_fiscal_year_period(Year fiscal_start_year, Month fiscal_start_month);
+  DateRange to_fiscal_quarter_period(Year year, QuarterIndex quarter_ix);
 
   class FiscalYear {
   public:
     FiscalYear(Year year, Month fiscal_start_month)
-      : m_period(FiscalPeriod::to_fiscal_year(year, fiscal_start_month)) {}
+      : m_period(to_fiscal_year_period(year, fiscal_start_month)) {}
 
-    const FiscalPeriod& period() const noexcept { return m_period; }
+    const DateRange& period() const noexcept { return m_period; }
 
     Date start() const noexcept { return m_period.start(); }
-    Date end() const noexcept { return m_period.end(); }
+    Date last() const noexcept { return m_period.last(); }
     bool contains(Date d) const noexcept { return m_period.contains(d); }
     bool is_valid() const noexcept { return m_period.is_valid(); }
 
@@ -57,18 +61,18 @@ namespace first {
     FiscalYear to_relative_fiscal_year(int offset) const;
 
   private:
-    FiscalPeriod m_period;
+    DateRange m_period;
   };
 
   class FiscalQuarter {
   public:
     FiscalQuarter(QuarterIndex quarter_ix, Year year)
-      : m_period(FiscalPeriod::to_fiscal_quarter(quarter_ix, year)) {}
+      : m_period(to_fiscal_quarter_period(year,quarter_ix)) {}
 
-    const FiscalPeriod& period() const noexcept { return m_period; }
+    const DateRange& period() const noexcept { return m_period; }
 
     Date start() const noexcept { return m_period.start(); }
-    Date end() const noexcept { return m_period.end(); }
+    Date last() const noexcept { return m_period.last(); }
     bool contains(Date d) const noexcept { return m_period.contains(d); }
     bool is_valid() const noexcept { return m_period.is_valid(); }
 
@@ -78,16 +82,23 @@ namespace first {
     FiscalQuarter to_relative_fiscal_quarter(int offset) const;
 
   private:
-    FiscalPeriod m_period;
+    DateRange m_period;
   };
+
+  std::ostream& operator<<(std::ostream& os, FiscalQuarter const& quarter);
+
+  using OptionalDateRange = std::optional<DateRange>;
 
 } // namespace first
 
+// Use first::
 using Date = first::Date;
 using Year = first::Year;
 using Month = first::Month;
+
+// Use first::
 using QuarterIndex = first::QuarterIndex;
-using FiscalPeriod = first::FiscalPeriod;
+using FiscalPeriod = first::DateRange;
 using FiscalYear = first::FiscalYear;
 
 // global namespace
@@ -97,6 +108,7 @@ std::string to_string(Date const& yyyymmdd);
 Date to_date(int year,unsigned month,unsigned day);
 OptionalDate to_date(std::string const& sYYYYMMDD);
 Date to_today();
+QuarterIndex to_quarter_index(Month const& month);
 QuarterIndex to_quarter_index(Date const& a_period_date);
 Month to_quarter_begin(QuarterIndex const& quarter_ix);
 Month to_quarter_end(QuarterIndex const& quarter_ix);
@@ -119,6 +131,7 @@ namespace zeroth {
               m_end = *end;
           }
       }
+
       Date begin() const {return m_begin;}
       Date end() const {return m_end;}
       bool contains(Date const& date) const { return begin() <= date and date <= end();}
@@ -146,7 +159,6 @@ namespace zeroth {
   std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end);
   
 } // zeroth
-
 
 // END -- Date framework
 
