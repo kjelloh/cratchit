@@ -251,12 +251,9 @@ private:
 		}
 		return result;
 	}
-	BAS::VerNo largest_verno(BAS::Series series) {
-		auto const& journal = m_journals[series];
-		return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
-			return (acc<entry.first)?entry.first:acc;
-		});
-	}
+
+	BAS::VerNo largest_verno(BAS::Series series);
+
 	bool already_in_posted(BAS::MetaEntry const& me) {
 		bool result{false};
 		if (me.meta.verno and *me.meta.verno > 0) {
@@ -276,3 +273,5 @@ private:
 		return result;
 	}
 }; // class SIEEnvironment
+using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
+

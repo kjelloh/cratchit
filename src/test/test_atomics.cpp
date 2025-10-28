@@ -913,6 +913,27 @@ namespace tests::atomics {
         }
     }
 
+    namespace parse_sie_file_suite {
+        // SIE file parsing test suite
+
+        class SIEFileParseFixture : public ::testing::Test {
+        protected:
+
+            
+
+            void SetUp() override {
+            }
+        };
+
+        TEST(SIEFileParseTests,MergeEmptyEnvs) {
+          ASSERT_TRUE(false);
+        }
+
+        TEST_F(SIEFileParseFixture,MergeSameTest) {
+          ASSERT_TRUE(false);
+        }
+    }
+
     namespace sie_envs_merge_suite {
       // SIE Environments merge test suite
 
