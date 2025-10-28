@@ -11,6 +11,7 @@ float const VERSION = 0.5;
 #include "fiscal/amount/HADFramework.hpp"
 #include "fiscal/BASFramework.hpp"
 #include "fiscal/SKVFramework.hpp"
+#include "sie/SIEEnvironmentFramework.hpp"
 #include "PersistentFile.hpp"
 #include "text/charset.hpp"
 #include "text/encoding.hpp"
@@ -1330,11 +1331,10 @@ unsigned first_digit(BAS::AccountNo account_no) {
 // MetaDefacto now in MetaDefacto.hpp
 // namespace BAS now in BASFramework unit
 
-
-// Forward (TODO: Reorganise if/when splitting into proper header/cpp file structure)
-Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
-Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
-void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f);
+// Now in BASFramework unit / 20251028
+// Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+// Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+// void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f);
 
 namespace BAS {
 
@@ -1484,7 +1484,8 @@ namespace BAS {
 		using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,AccountTransactionType>;
 		using TypedAccountTransaction = TypedAccountTransactions::value_type;
 		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
-	}
+	} // anonymous
+
 	using TypedMetaEntry = MetaDefacto<BAS::JournalEntryMeta,anonymous::TypedJournalEntry>;
 	using TypedMetaEntries = std::vector<TypedMetaEntry>;
 
@@ -1688,13 +1689,8 @@ auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BAS::AccountNos co
 
 */
 
-// Helper for stream output of otpional string
-std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_s) {
-	if (opt_s) {
-		os << std::quoted(*opt_s);
-	}
-	return os;
-}
+// Now in text/format unit
+// std::ostream& operator<<(std::ostream& os,std::optional<std::string> const& opt_s) {
 
 std::optional<std::filesystem::path> path_to_existing_file(std::string const& s) {
 	std::optional<std::filesystem::path> result{};
@@ -1751,79 +1747,80 @@ BAS::anonymous::OptionalAccountTransaction to_bas_account_transaction(std::vecto
 	return result;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at) {
-	if (BAS::global_account_metas().contains(at.account_no)) os << std::quoted(BAS::global_account_metas().at(at.account_no).name) << ":";
-	os << at.account_no;
-	os << " " << at.transtext;
-	os << " " << to_string(at.amount); // When amount is double there will be no formatting of the amount to ensure two decimal cents digits
-	return os;
-};
+// Now in BASFramework
+// std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at) {
+// 	if (BAS::global_account_metas().contains(at.account_no)) os << std::quoted(BAS::global_account_metas().at(at.account_no).name) << ":";
+// 	os << at.account_no;
+// 	os << " " << at.transtext;
+// 	os << " " << to_string(at.amount); // When amount is double there will be no formatting of the amount to ensure two decimal cents digits
+// 	return os;
+// };
 
-std::string to_string(BAS::anonymous::AccountTransaction const& at) {
-	std::ostringstream os{};
-	os << at;
-	return os.str();
-};
+// std::string to_string(BAS::anonymous::AccountTransaction const& at) {
+// 	std::ostringstream os{};
+// 	os << at;
+// 	return os.str();
+// };
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
-	for (auto const& at : ats) {
-		// os << "\n\t" << at; 
-		os << "\n  " << at; 
-	}
-	return os;
-}
+// std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
+// 	for (auto const& at : ats) {
+// 		// os << "\n\t" << at; 
+// 		os << "\n  " << at; 
+// 	}
+// 	return os;
+// }
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje) {
-	os << std::quoted(aje.caption) << " " << aje.date;
-	os << aje.account_transactions;
-	return os;
-};
+// std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje) {
+// 	os << std::quoted(aje.caption) << " " << aje.date;
+// 	os << aje.account_transactions;
+// 	return os;
+// };
 
-std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
-	if (verno and *verno!=0) os << *verno;
-	else os << " _ ";
-	return os;
-}
+// std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
+// 	if (verno and *verno!=0) os << *verno;
+// 	else os << " _ ";
+// 	return os;
+// }
 
-std::ostream& operator<<(std::ostream& os,std::optional<bool> flag) {
-	auto ch = (flag)?((*flag)?'*':' '):' '; // '*' if known and set, else ' '
-	os << ch;
-	return os;
-}
+// std::ostream& operator<<(std::ostream& os,std::optional<bool> flag) {
+// 	auto ch = (flag)?((*flag)?'*':' '):' '; // '*' if known and set, else ' '
+// 	os << ch;
+// 	return os;
+// }
 
-std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
-	os << jem.unposted_flag << jem.series << jem.verno;
-	return os;
-}
+// std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
+// 	os << jem.unposted_flag << jem.series << jem.verno;
+// 	return os;
+// }
 
-std::ostream& operator<<(std::ostream& os,BAS::MetaAccountTransaction const& mat) {
-	os << mat.meta.meta << " " << mat.defacto;
-	return os;
-};
+// std::ostream& operator<<(std::ostream& os,BAS::MetaAccountTransaction const& mat) {
+// 	os << mat.meta.meta << " " << mat.defacto;
+// 	return os;
+// };
 
-std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me) {
-	os << me.meta << " " << me.defacto;
-	return os;
-}
+// std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me) {
+// 	os << me.meta << " " << me.defacto;
+// 	return os;
+// }
 
-std::ostream& operator<<(std::ostream& os,BAS::MetaEntries const& mes) {
-	for (auto const& me : mes) {
-		os << "\n" << me;
-	}
-	return os;
-};
+// std::ostream& operator<<(std::ostream& os,BAS::MetaEntries const& mes) {
+// 	for (auto const& me : mes) {
+// 		os << "\n" << me;
+// 	}
+// 	return os;
+// };
 
-std::string to_string(BAS::anonymous::JournalEntry const& aje) {
-	std::ostringstream os{};
-	os << aje;
-	return os.str();
-};
+// std::string to_string(BAS::anonymous::JournalEntry const& aje) {
+// 	std::ostringstream os{};
+// 	os << aje;
+// 	return os.str();
+// };
 
-std::string to_string(BAS::MetaEntry const& me) {
-	std::ostringstream os{};
-	os << me;
-	return os.str();
-};
+// std::string to_string(BAS::MetaEntry const& me) {
+// 	std::ostringstream os{};
+// 	os << me;
+// 	return os.str();
+// };
 
 // TYPED ENTRY
 
@@ -1882,9 +1879,10 @@ std::ostream& operator<<(std::ostream& os,BAS::TypedMetaEntry const& tme) {
 
 // JOURNAL
 
-using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
-using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
-using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
+// Now in BASFramework unit / 20251028
+// using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
+// using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
+// using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
 
 TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransaction const& at) {
 	auto cents_amount = to_cents_amount(at.amount);
@@ -2078,30 +2076,8 @@ auto is_vat_account_at = [](BAS::anonymous::AccountTransaction const& at){
 	return is_vat_account(at.account_no);
 };
 
-Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
-		acc += (account_transaction.amount>0)?account_transaction.amount:0;
-		return acc;
-	});
-	return result;
-}
-
-Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
-		acc += (account_transaction.amount<0)?account_transaction.amount:0;
-		return acc;
-	});
-	return result;
-}
- 
-bool does_balance(BAS::anonymous::JournalEntry const& aje) {
-	auto positive_gross_transaction_amount = to_positive_gross_transaction_amount(aje);
-	auto negative_gross_amount = to_negative_gross_transaction_amount(aje);
-	// std::cout << "\ndoes_balance: positive_gross_transaction_amount=" << positive_gross_transaction_amount << "  negative_gross_amount=" << negative_gross_amount;
-	// std::cout << "\n\tsum=" << positive_gross_transaction_amount + negative_gross_amount;
-	// TODO: FIX Ronding errors somewhere that makes the positive and negative sum to be some infinitesimal value NOT zero ...
-	return (BAS::to_cents_amount(positive_gross_transaction_amount + negative_gross_amount) == 0); // Fix for amounts not correct to the cents...
-}
+// Now in BASFramework  unit / 20251028
+// bool does_balance(BAS::anonymous::JournalEntry const& aje) {
 
 // Pick the negative or positive gross amount and return it without sign
 OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
@@ -2462,304 +2438,15 @@ OEnvironmentValueOStream& operator<<(OEnvironmentValueOStream& env_val_os,SRUEnv
 
 using SRUEnvironments = std::map<std::string,SRUEnvironment>;
 
-struct Balance {
-	BAS::AccountNo account_no;
-	Amount opening_balance;
-	Amount change;
-	Amount end_balance;
-};
+// Now in BASFramework unit / 20251028
+// struct Balance {
+// std::ostream& operator<<(std::ostream& os,Balance const& balance) {
+// using Balances = std::vector<Balance>;
+// using BalancesMap = std::map<Date,Balances>;
+// std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 
-std::ostream& operator<<(std::ostream& os,Balance const& balance) {
-	os << balance.account_no << " ib:" << balance.opening_balance << " period:" << balance.change << " " << balance.end_balance;
-	return os;
-}
-
-using Balances = std::vector<Balance>;
-using BalancesMap = std::map<Date,Balances>;
-
-std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
-	for (auto const& [date,balances] : balances_map) {
-		os << date <<  " balances";
-		for (auto const& balance : balances) {
-			os << "\n\t" << balance;
-		}
-	}
-	return os;
-}
-
-class SIEEnvironment {
-public:
-  // Path to the file from which this environment originated (external tool SIE export)
-	std::filesystem::path sie_file_path{};
-
-	std::filesystem::path staged_sie_file_path() const {
-    if (this->year_date_range) {
-      return std::format("cratchit_{}_{}.se",this->year_date_range->begin(),this->year_date_range->end());
-    }
-    else {
-      return "cratchit.se"; // Hard coded and asuming only used for "current"
-    }
-  };
-
-	SIE::OrgNr organisation_no{};
-	SIE::FNamn organisation_name{};
-	SIE::Adress organisation_address{};
-
-	BASJournals& journals() {return m_journals;}
-	BASJournals const& journals() const {return m_journals;}
-	bool is_unposted(BAS::Series series, BAS::VerNo verno) const {
-		bool result{true}; // deafult unposted
-		if (verno_of_last_posted_to.contains(series)) result = (verno > this->verno_of_last_posted_to.at(series));
-		return result;
-	}
-	SKV::SRU::OptionalAccountNo sru_code(BAS::AccountNo const& bas_account_no) {
-		SKV::SRU::OptionalAccountNo result{};
-		try {
-			auto iter = std::find_if(account_metas().begin(),account_metas().end(),[&bas_account_no](auto const& entry){
-				return (entry.first == bas_account_no);
-			});
-			if (iter != account_metas().end()) {
-				result = iter->second.sru_code;
-			}
-		}
-		catch (std::exception const& e) {} // Ignore/silence
-		return result;
-	}
-	BAS::OptionalAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) {
-		BAS::OptionalAccountNos result{};
-		try {
-			BAS::AccountNos bas_account_nos{};
-			std::for_each(account_metas().begin(),account_metas().end(),[&sru_code,&bas_account_nos](auto const& entry){
-				if (entry.second.sru_code == sru_code) bas_account_nos.push_back(entry.first);
-			});
-			if (bas_account_nos.size() > 0) result = bas_account_nos;
-		}
-		catch (std::exception const& e) {
-			std::cout << "\nto_bas_accounts failed. Exception=" << std::quoted(e.what());
-		}
-		return result;
-	}
-
-	void post(BAS::MetaEntry const& me) {
-    // std::cout << "\npost(" << me << ")"; 
-		if (me.meta.verno) {
-			m_journals[me.meta.series][*me.meta.verno] = me.defacto;
-			verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
-		}
-		else {
-			std::cout << "\nSIEEnvironment::post failed - can't post an entry with null verno";
-		}
-	}
-
-  // Try to stage all provided entries for posting
-  // Returns actually staged entries
-	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {
-    // std::cout << "\nstage(staged_sie_environment)"  << std::flush; 
-		BAS::MetaEntries result{};
-		for (auto const& [series,journal] : staged_sie_environment.journals()) {
-			for (auto const& [verno,aje] : journal) {
-				auto je = this->stage({{.series=series,.verno=verno},aje});
-				if (!je) {
-					result.push_back({{.series=series,.verno=verno},aje}); // no longer staged
-				}
-			}
-		}
-		return result;
-	}
-	BAS::MetaEntries unposted() const {
-		// std::cout << "\nunposted()";
-		BAS::MetaEntries result{};
-    for (auto const& [series,journal] : this->m_journals) {
-      for (auto const& [verno,je] : journal) {
-        if (this->is_unposted(series,verno)) {
-          BAS::MetaEntry bjer{
-            .meta = {
-              .series = series
-              ,.verno = verno
-            }
-            ,.defacto = je
-          };
-          result.push_back(bjer);
-        }        
-      }
-    }
-		return result;
-	}
-
-	BAS::AccountMetas const&  account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
-
-	void set_year_date_range(zeroth::DateRange const& dr) {
-		this->year_date_range = dr;
-		// std::cout << "\nset_year_date_range <== " << *this->year_date_range;
-	}
-
-	void set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
-		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
-			if (BAS::detail::global_account_metas[bas_account_no].name != name) {
-				std::cout << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
-			}
-		}
-		BAS::detail::global_account_metas[bas_account_no].name = name; // Mutate global instance
-	}
-	void set_account_SRU(BAS::AccountNo bas_account_no, SKV::SRU::AccountNo sru_code) {
-		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
-			if (BAS::detail::global_account_metas[bas_account_no].sru_code) {
-				if (*BAS::detail::global_account_metas[bas_account_no].sru_code != sru_code) {
-					std::cout << "\nWARNING: BAS Account " << bas_account_no << " SRU Code " << *BAS::detail::global_account_metas[bas_account_no].sru_code << " changed to " << sru_code;
-				}
-			}
-		}
-		BAS::detail::global_account_metas[bas_account_no].sru_code = sru_code; // Mutate global instance
-	}
-
-	void set_opening_balance(BAS::AccountNo bas_account_no,Amount opening_balance) {
-		if (this->opening_balance.contains(bas_account_no) == false) this->opening_balance[bas_account_no] = opening_balance;
-		else {
-			std::cout << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
-			std::cout << " is already registered as " << this->opening_balance[bas_account_no] << ".";
-			std::cout << " Provided opening_balance:" << opening_balance << " IGNORED";
-		}
-	}
-
-	BalancesMap balances_at(Date date) {
-		BalancesMap result{};
-		for (auto const& ob : this->opening_balance) {
-			// struct Balance {
-			// 	BAS::AccountNo account_no;
-			// 	Amount opening_balance;
-			// 	Amount change;
-			// 	Date date;
-			// 	Amount end_balance;
-			// };				
-			result[date].push_back(Balance{
-				.account_no = ob.first
-				,.opening_balance = ob.second
-				,.change = -1
-				,.end_balance = -1
-			});
-		}
-		return result;
-	}
-
-	zeroth::OptionalDateRange financial_year_date_range() const {
-		return this->year_date_range;
-	}
-
-  OptionalAmount opening_balance_of(BAS::AccountNo bas_account_no) {
-    OptionalAmount result{};
-    if (this->opening_balance.contains(bas_account_no)) {
-      result = this->opening_balance.at(bas_account_no);
-    }
-    return result;
-  }
-
-  std::map<BAS::AccountNo,Amount> const& opening_balances() const {
-    return this->opening_balance;
-  }
-	
-private:
-	BASJournals m_journals{};
-	zeroth::OptionalDateRange year_date_range{};
-	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
-	std::map<BAS::AccountNo,Amount> opening_balance{};
-  friend class SIEEnvironmentsMap;
-
-  // Try to stage provided me.
-  // A succesfull stage either adds it ot uopdate an existing entry.
-  // This is to allow cratchit to edit an entry imported from an external tool.
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
-    // std::cout << "\nstage(" << me << ")"  << std::flush; 
-		std::optional<BAS::MetaEntry> result{};
-
-    if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
-      // Block adding an entry with a date outside an SIE envrionment financial date range
-      std::cout << "\nDate:" << me.defacto.date << " is not in financial year:";
-      if (this->financial_year_date_range()) std::cout << this->financial_year_date_range().value();
-      else std::cout << "*anonymous*";
-      return std::nullopt;
-    }
-		if (does_balance(me.defacto)) {
-			if (not this->already_in_posted(me)) {
-        // Not yet posted (in sie-file from external tool)
-        // So add it to make our internal sie-environment complete
-        result = this->add(me);
-      }
-			else {
-        // Is 'posted' to external tool
-        // But update it in case we have edited it
-        result = this->update(me);
-      }
-		}
-		else {
-			std::cout << "\nSorry, Failed to stage. Entry Does not Balance";
-		}
-		return result;
-	}
-
-	BAS::MetaEntry add(BAS::MetaEntry me) {
-    std::cout << "\nadd(" << me << ")"  << std::flush; 
-		BAS::MetaEntry result{me};
-		// Ensure a valid series
-		if (me.meta.series < 'A' or 'M' < me.meta.series) {
-			me.meta.series = 'A';
-			std::cout << "\nadd(me) assigned series 'A' to entry with no series assigned";
-		}
-		// Assign "actual" sequence number
-		auto verno = largest_verno(me.meta.series) + 1;
-    // std::cout << "\n\tSetting actual ver no:" << verno;
-		result.meta.verno = verno;
-    if (m_journals[me.meta.series].contains(verno) == false) {
-		  m_journals[me.meta.series][verno] = me.defacto;
-    }
-    else {
-      std::cout << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
-    }
-		return result;
-	}
-
-	BAS::MetaEntry update(BAS::MetaEntry const& me) {
-    std::cout << "\nupdate(" << me << ")" << std::flush; 
-		BAS::MetaEntry result{me};
-		if (me.meta.verno and *me.meta.verno > 0) {
-			auto journal_iter = m_journals.find(me.meta.series);
-			if (journal_iter != m_journals.end()) {
-				if (me.meta.verno) {
-					auto entry_iter = journal_iter->second.find(*me.meta.verno);
-					if (entry_iter != journal_iter->second.end()) {
-						entry_iter->second = me.defacto; // update
-            // std::cout << "\nupdated :" << entry_iter->second;
-            // std::cout << "\n    --> :" << me;
-					}
-				}
-			}
-		}
-		return result;
-	}
-	BAS::VerNo largest_verno(BAS::Series series) {
-		auto const& journal = m_journals[series];
-		return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
-			return (acc<entry.first)?entry.first:acc;
-		});
-	}
-	bool already_in_posted(BAS::MetaEntry const& me) {
-		bool result{false};
-		if (me.meta.verno and *me.meta.verno > 0) {
-			auto journal_iter = m_journals.find(me.meta.series);
-			if (journal_iter != m_journals.end()) {
-				if (me.meta.verno) {
-					auto entry_iter = journal_iter->second.find(*me.meta.verno);
-					result = (entry_iter != journal_iter->second.end());
-				}
-			}
-		}
-    if (true) {
-      std::cout << "\nalready_in_posted(me=" << me << ") = ";
-      if (result) std::cout << " TRUE";
-      else std::cout << " false";
-    }
-		return result;
-	}
-}; // class SIEEnvironment
+// Now in SIEEnvironment unit / 20251028
+// class SIEEnvironment {
 
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 
@@ -2873,12 +2560,6 @@ void for_each_meta_entry(SIEEnvironment const& sie_env,auto& f) {
 void for_each_meta_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
 		for_each_meta_entry(sie_env,f);
-	}
-}
-
-void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
-	for (auto const& at : aje.account_transactions) {
-		f(at);
 	}
 }
 

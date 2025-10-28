@@ -24,6 +24,26 @@ namespace BAS {
   OptionalAccountNo to_account_no(std::string const& s);
 } // namespace BAS
 
+// -----------------------
+// BEGIN Balance
+
+struct Balance {
+	BAS::AccountNo account_no;
+	Amount opening_balance;
+	Amount change;
+	Amount end_balance;
+};
+
+std::ostream& operator<<(std::ostream& os,Balance const& balance);
+
+using Balances = std::vector<Balance>;
+using BalancesMap = std::map<Date,Balances>;
+
+std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map);
+
+// END Balance
+// -----------------------
+
 namespace BAS {
 
 
@@ -95,13 +115,6 @@ namespace BAS {
 		return result;
 	}
 
-	// using BASAccountNumberPath = Key::Path;
-	// inline BASAccountNumberPath to_bas__account_number_path(BAS::AccountNo const& bas_account_no) {
-	// 	BASAccountNumberPath result{};
-	// 	// TODO: Search 
-	// 	return result;
-	// }
-
 	struct AccountMeta {
 		std::string name{};
 		OptionalAccountKind account_kind{};
@@ -170,6 +183,10 @@ namespace BAS {
 	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
 } // namespace BAS
 
+using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
+using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
+using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
+
 namespace BAS {
 	Amount mats_sum(BAS::MetaAccountTransactions const& mats);
 } // namespace BAS
@@ -209,3 +226,40 @@ private:
 	int m_sign;
 };
 
+// -----------------------------
+// BEGIN Accounting
+
+// TODO: Consider to try and refactor out a 'higher' domain
+//       that define cratching accounting operations 
+//       based on BAS <- SIE <- 'Accounting'? / 20251028
+
+Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
+	for (auto const& at : aje.account_transactions) {
+		f(at);
+	}
+}
+bool does_balance(BAS::anonymous::JournalEntry const& aje);
+
+// END Accounting
+// -----------------------------
+
+// -----------------------------
+// BGIN Accounting IO
+
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at);
+std::string to_string(BAS::anonymous::AccountTransaction const& at);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje);
+std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
+std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);
+std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem);
+std::ostream& operator<<(std::ostream& os,BAS::MetaAccountTransaction const& mat);
+std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me);
+std::ostream& operator<<(std::ostream& os,BAS::MetaEntries const& mes);
+std::string to_string(BAS::anonymous::JournalEntry const& aje);
+std::string to_string(BAS::MetaEntry const& me);
+
+// END Accounting IO
+// -----------------------------
