@@ -888,6 +888,8 @@ namespace tests::atomics {
         };
 
         TEST(DotasMergeTests,MergeEmptyDotas) {
+            logger::scope_logger log_raii{logger::development_trace,"TEST_F(DotasMergeFixture,MergeSameTest)"};
+
             DateOrderedTaggedAmountsContainer lhs_dotas{};
             DateOrderedTaggedAmountsContainer rhs_dotas{};
 
@@ -897,6 +899,7 @@ namespace tests::atomics {
         }
 
         TEST_F(DotasMergeFixture,MergeSameTest) {
+            logger::scope_logger log_raii{logger::development_trace,"TEST_F(DotasMergeFixture,MergeSameTest)"};
             auto merged_dotas = fixture_lhs_dotas;
             merged_dotas.dotas_insert_auto_ordered_container(fixture_rhs_dotas);
             ASSERT_TRUE(merged_dotas.ordered_ids_view().size() == fixture_rhs_dotas.ordered_ids_view().size()) << std::format(
@@ -917,8 +920,9 @@ namespace tests::atomics {
     namespace parse_sie_file_suite {
         // SIE file parsing test suite
 
-        char const* sz_test_sie_raw_text = R"(
-        )";
+        char const* sz_test_sie_raw_text = 
+R"(#GEN 20251026
+#RAR 0 20250501 20260430)";
 
         class SIEFileParseFixture : public ::testing::Test {
         protected:
@@ -929,13 +933,18 @@ namespace tests::atomics {
         };
 
         TEST(SIEFileParseTests,ParseEmpty) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEFileParseTests,ParseEmpty)"};
+
           std::istringstream iss{""};
           auto maybe_sie = sie_from_stream(iss);
           ASSERT_FALSE(maybe_sie.has_value());
         }
 
         TEST_F(SIEFileParseFixture,ParseBasic) {
-          ASSERT_TRUE(false);
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
+          std::istringstream iss{sz_test_sie_raw_text};
+          auto maybe_sie = sie_from_stream(iss);
+          ASSERT_TRUE(maybe_sie.has_value());
         }
     }
 
@@ -945,17 +954,17 @@ namespace tests::atomics {
         class SIEEnvsMergeFixture : public ::testing::Test {
         protected:
 
-
-
             void SetUp() override {
             }
         };
 
         TEST(SIEEnvsMergeTests,MergeEmptyEnvs) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvsMergeTests,MergeEmptyEnvs)"};
           ASSERT_TRUE(false);
         }
 
         TEST_F(SIEEnvsMergeFixture,MergeSameTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,MergeSameTest)"};
           ASSERT_TRUE(false);
         }
     }

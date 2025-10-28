@@ -100,6 +100,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& is) {
         break;
       }
 		}
+    result = std::move(sie_environment);
 	}
   else {
     if (true) {
