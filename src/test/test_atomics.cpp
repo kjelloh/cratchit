@@ -3,6 +3,7 @@
 #include "logger/log.hpp" // logger::
 #include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include "fiscal/amount/functional.hpp"
+#include "sie/SIEEnvironmentFramework.hpp" // sie_from_stream,...
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric> // std::accumulate,
@@ -916,20 +917,24 @@ namespace tests::atomics {
     namespace parse_sie_file_suite {
         // SIE file parsing test suite
 
+        char const* sz_test_sie_raw_text = R"(
+        )";
+
         class SIEFileParseFixture : public ::testing::Test {
         protected:
 
             
-
             void SetUp() override {
             }
         };
 
-        TEST(SIEFileParseTests,MergeEmptyEnvs) {
-          ASSERT_TRUE(false);
+        TEST(SIEFileParseTests,ParseEmpty) {
+          std::istringstream iss{""};
+          auto maybe_sie = sie_from_stream(iss);
+          ASSERT_FALSE(maybe_sie.has_value());
         }
 
-        TEST_F(SIEFileParseFixture,MergeSameTest) {
+        TEST_F(SIEFileParseFixture,ParseBasic) {
           ASSERT_TRUE(false);
         }
     }
