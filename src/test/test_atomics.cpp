@@ -913,6 +913,27 @@ namespace tests::atomics {
         }
     }
 
+    namespace sie_envs_merge_suite {
+      // SIE Environments merge test suite
+
+        class SIEEnvsMergeFixture : public ::testing::Test {
+        protected:
+
+
+
+            void SetUp() override {
+            }
+        };
+
+        TEST(SIEEnvsMergeTests,MergeEmptyEnvs) {
+          ASSERT_TRUE(false);
+        }
+
+        TEST_F(SIEEnvsMergeFixture,MergeSameTest) {
+          ASSERT_TRUE(false);
+        }
+    }
+
     
     // bool run_all() {
     //     std::cout << "Running atomic tests..." << std::endl;
