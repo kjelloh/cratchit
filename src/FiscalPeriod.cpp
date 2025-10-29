@@ -200,8 +200,11 @@ OptionalDate to_date(std::string const& sYYYYMMDD) {
     // if (result) std::cout << " = " << *result;
     // else std::cout << " = null";
   }
-  catch (std::exception const& e) {} // swallow silently
-  return result;
+  catch (std::exception const& e) {} // swallow silently (will result is nullopt)
+
+  return result.and_then([](auto const& date) {
+    return (date.ok()?OptionalDate(date):std::nullopt);
+  });
 }
 
 Date to_today() {

@@ -324,6 +324,28 @@ namespace tests::atomics {
 
     } // namespace functional_suite
 
+    namespace datefw_suite {
+
+        // Test fixture
+        class DateOpsFixture : public ::testing::Test {
+        protected:
+
+            void SetUp() override {
+            }
+        };
+
+        TEST(DateOpsTest,DateFromStringTest) {
+          auto maybe_date_1 = to_date("20250101");
+          ASSERT_TRUE(maybe_date_1.has_value());
+          auto maybe_date_2 = to_date("2025-01-01");
+          ASSERT_TRUE(maybe_date_2.has_value());
+
+          auto maybe_date_3 = to_date("2025-01-32");
+          ASSERT_FALSE(maybe_date_3.has_value());
+        }
+
+    } // datefw_suite
+
     namespace tafw_suite {
 
 
