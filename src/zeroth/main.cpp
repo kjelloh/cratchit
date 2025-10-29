@@ -4256,7 +4256,7 @@ namespace SKV { // SKV
 					// Otherwise create a had for current quarter
 					auto today = to_today();
 					auto current_quarter = zeroth::to_quarter_range(today);
-					auto previous_quarter = to_three_months_earlier(current_quarter);
+					auto previous_quarter = zeroth::to_three_months_earlier(current_quarter);
 					auto vat_returns_range = zeroth::DateRange{previous_quarter.begin(),current_quarter.end()}; // previous and "current" two quarters
 					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter aftre having created the VAT returns consolidation
 					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
@@ -4301,8 +4301,8 @@ namespace SKV { // SKV
 								}
 							}
 						}
-						current_quarter = to_three_months_earlier(current_quarter);
-						vat_returns_range = to_three_months_earlier(vat_returns_range);
+						current_quarter = zeroth::to_three_months_earlier(current_quarter);
+						vat_returns_range = zeroth::to_three_months_earlier(vat_returns_range);
 					}
 				}
 				catch (std::exception const& e) {
@@ -7151,8 +7151,8 @@ Cmd Updater::operator()(Command const& command) {
               // Create current quarter, previous quarter or two previous quarters option
               auto today = to_today();
               auto current_qr = zeroth::to_quarter_range(today);
-              auto previous_qr = to_three_months_earlier(current_qr);
-              auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
+              auto previous_qr = zeroth::to_three_months_earlier(current_qr);
+              auto quarter_before_previous_qr = zeroth::to_three_months_earlier(previous_qr);
               auto two_previous_quarters = zeroth::DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
 
               prompt << "\n0: Track Current Quarter " << current_qr;
@@ -7218,8 +7218,8 @@ Cmd Updater::operator()(Command const& command) {
         case PromptState::QuarterOptionIndex: {
           auto today = to_today();
           auto current_qr = zeroth::to_quarter_range(today);
-          auto previous_qr = to_three_months_earlier(current_qr);
-          auto quarter_before_previous_qr = to_three_months_earlier(previous_qr);
+          auto previous_qr = zeroth::to_three_months_earlier(current_qr);
+          auto quarter_before_previous_qr = zeroth::to_three_months_earlier(previous_qr);
           auto two_previous_quarters = zeroth::DateRange{quarter_before_previous_qr.begin(),previous_qr.end()};
           zeroth::OptionalDateRange period_range{};
           switch (ix) {

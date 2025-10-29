@@ -37,16 +37,6 @@ namespace first {
     return std::format("{:%Y-%m-%d} to {:%Y-%m-%d}", m_start, m_last);
   }
 
-  DateRange DateRange::to_three_months_earlier() const {
-    auto const quarter_duration = std::chrono::months{3};
-    // get the year and month for the date range to return
-    auto ballpark_end = m_last - quarter_duration;
-    // Adjust the last day to the correct one for the range last month
-    // Note: We do not need to adjust the begin day, as all month starts on day 1
-    auto last = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
-    return {m_start - quarter_duration,last};
-  }
-
   // END DateRange
   // --------------------
 
@@ -80,8 +70,20 @@ namespace first {
     return DateRange(start_date, end_date);
   }
 
+  DateRange to_fiscal_quarter_period(Date const& a_period_date) {
+    auto quarter_ix = to_quarter_index(a_period_date);
+    return to_fiscal_quarter_period(a_period_date.year(),quarter_ix);
+  }
+
+  // Backward compatible with zeroth::DateRange
   DateRange to_three_months_earlier(DateRange const& date_range) {
-    return date_range.to_three_months_earlier();
+    auto const quarter_duration = std::chrono::months{3};
+    // get the year and month for the date range to return
+    auto ballpark_end = date_range.end() - quarter_duration; // yymmdd - months ok
+    // Adjust the last day to the correct one for the range last month
+    auto last = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
+    // Note: We do not need to adjust the begin day as all month starts on day 1
+    return {date_range.begin() - quarter_duration,last}; // yymmdd - months ok
   }
 
   // --------------------
@@ -112,6 +114,12 @@ namespace first {
     return FiscalYear(new_year, fiscal_start_month);
   }
 
+  // END FiscalYear
+  // --------------------
+
+
+  // --------------------
+  // BEGIN FiscalQuarter
 
   FiscalQuarter FiscalQuarter::to_current_fiscal_quarter() {
     using namespace std::chrono;
@@ -142,6 +150,9 @@ namespace first {
 
     return FiscalQuarter(new_quarter, new_year);
   }
+
+  // END FiscalQuarter
+  // --------------------
 
   std::ostream& operator<<(std::ostream& os, FiscalQuarter const& quarter) {
     os << quarter.period();
@@ -219,33 +230,56 @@ std::chrono::month to_quarter_end(QuarterIndex const& quarter_ix) {
 
 namespace zeroth {
 
+  // BEGIN: first::DateRange compatible
+
+  DateRange to_three_months_earlier(first::DateRange const& date_range) {
+    return first::to_three_months_earlier(date_range);
+  }
+
   DateRange to_quarter_range(Date const& a_period_date) {
   // std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
-    auto quarter_ix = to_quarter_index(a_period_date);
-    auto begin_month = to_quarter_begin(quarter_ix);
-    auto end_month = to_quarter_end(quarter_ix);
-    auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
-    auto last = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
-    if (false) {
-      spdlog::debug("to_quarter_range({}) --> {}..{}", to_string(a_period_date), to_string(begin), to_string(last));
-    }
-    return {begin,last};
+    // auto quarter_ix = to_quarter_index(a_period_date);
+    // auto begin_month = to_quarter_begin(quarter_ix);
+    // auto end_month = to_quarter_end(quarter_ix);
+    // auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
+    // auto last = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
+    // if (false) {
+    //   spdlog::debug("to_quarter_range({}) --> {}..{}", to_string(a_period_date), to_string(begin), to_string(last));
+    // }
+    // return {begin,last};
+    return first::to_fiscal_quarter_period(a_period_date);
   }
 
-  DateRange to_three_months_earlier(DateRange const& quarter) {
-    auto const quarter_duration = std::chrono::months{3};
-    // get the year and month for the date range to return
-    auto ballpark_end = quarter.end() - quarter_duration; // yymmdd - months ok
-    // Adjust the last day to the correct one for the range last month
-    auto last = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
-    // Note: We do not need to adjust the begin day as all month starts on day 1
-    return {quarter.begin() - quarter_duration,last}; // yymmdd - months ok
-  }
+  // END: first::DateRange compatible
 
-  std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
-    os << dr.begin() << "..." << dr.end();
-    return os;
-  }
+
+  // DateRange to_quarter_range(Date const& a_period_date) {
+  // // std::cout << "\nto_quarter_range: a_period_date:" << a_period_date;
+  //   auto quarter_ix = to_quarter_index(a_period_date);
+  //   auto begin_month = to_quarter_begin(quarter_ix);
+  //   auto end_month = to_quarter_end(quarter_ix);
+  //   auto begin = Date{a_period_date.year()/begin_month/std::chrono::day{1u}};
+  //   auto last = Date{a_period_date.year()/end_month/std::chrono::last}; // trust operator/ to adjust the day to the last day of end_month
+  //   if (false) {
+  //     spdlog::debug("to_quarter_range({}) --> {}..{}", to_string(a_period_date), to_string(begin), to_string(last));
+  //   }
+  //   return {begin,last};
+  // }
+
+  // DateRange to_three_months_earlier(DateRange const& quarter) {
+  //   auto const quarter_duration = std::chrono::months{3};
+  //   // get the year and month for the date range to return
+  //   auto ballpark_end = quarter.end() - quarter_duration; // yymmdd - months ok
+  //   // Adjust the last day to the correct one for the range last month
+  //   auto last = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
+  //   // Note: We do not need to adjust the begin day as all month starts on day 1
+  //   return {quarter.begin() - quarter_duration,last}; // yymmdd - months ok
+  // }
+
+  // std::ostream& operator<<(std::ostream& os,DateRange const& dr) {
+  //   os << dr.begin() << "..." << dr.end();
+  //   return os;
+  // }
 
   // class IsPeriod here
 

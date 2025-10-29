@@ -31,7 +31,6 @@ namespace first {
     std::string to_string() const;
 
     // Backward compatible with zeroth::DateRange
-    DateRange to_three_months_earlier() const;
     Date begin() const noexcept { return m_start;}
     Date end() const noexcept { return m_last;}
 
@@ -45,9 +44,10 @@ namespace first {
 
   DateRange to_fiscal_year_period(Year fiscal_start_year, Month fiscal_start_month);
   DateRange to_fiscal_quarter_period(Year year, QuarterIndex quarter_ix);
+  DateRange to_fiscal_quarter_period(Date const& a_period_date);
 
   // Backward compatible with zeroth::DateRange
-  DateRange to_three_months_earlier(DateRange const& date_range);
+  DateRange to_three_months_earlier();
 
   class FiscalYear {
   public:
@@ -148,12 +148,12 @@ namespace zeroth {
   //     Date m_end{};
   // }; // DateRange
   using DateRange = first::DateRange;
-
   using OptionalDateRange = std::optional<DateRange>;
 
   DateRange to_quarter_range(Date const& a_period_date);
   DateRange to_three_months_earlier(DateRange const& quarter);
-  std::ostream& operator<<(std::ostream& os,DateRange const& dr);
+
+  // std::ostream& operator<<(std::ostream& os,DateRange const& dr);
 
   // struct IsPeriod {
   //     DateRange period;
