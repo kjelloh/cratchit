@@ -10,9 +10,12 @@ namespace first {
   // BEGIN DateRange
 
   DateRange::DateRange(Date start, Date last)
-      : m_start(start), m_last(last) {
-    m_is_valid = (Days(m_start) < Days(m_last));
-  }
+      :  m_start(start)
+        ,m_last(last)
+        ,m_is_valid(
+              start.ok() 
+          and last.ok() 
+          and (Days(m_start) < Days(m_last))) {}
 
   Date DateRange::start() const noexcept {
     return m_start;
