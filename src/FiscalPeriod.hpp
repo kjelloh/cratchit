@@ -30,7 +30,10 @@ namespace first {
 
     std::string to_string() const;
 
-    DateRange to_three_months_earlier();
+    // Backward compatible with zeroth::DateRange
+    DateRange to_three_months_earlier() const;
+    Date begin() const noexcept { return m_start;}
+    Date end() const noexcept { return m_last;}
 
   private:
     Date m_start;
@@ -42,6 +45,9 @@ namespace first {
 
   DateRange to_fiscal_year_period(Year fiscal_start_year, Month fiscal_start_month);
   DateRange to_fiscal_quarter_period(Year year, QuarterIndex quarter_ix);
+
+  // Backward compatible with zeroth::DateRange
+  DateRange to_three_months_earlier(DateRange const& date_range);
 
   class FiscalYear {
   public:
@@ -59,7 +65,7 @@ namespace first {
 
     static FiscalYear to_current_fiscal_year(Month fiscal_start_month);
     FiscalYear to_relative_fiscal_year(int offset) const;
-
+    
   private:
     DateRange m_period;
   };
@@ -119,28 +125,29 @@ namespace zeroth {
 
   // BEGIN -- Date framework (from original zeroth variant)
 
-  class DateRange {
-  public:
-      DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
-      DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-          OptionalDate begin{to_date(yyyymmdd_begin)};
-          OptionalDate end{to_date(yyyymmdd_end)};
-          if (begin and end) {
-              m_valid = true;
-              m_begin = *begin;
-              m_end = *end;
-          }
-      }
+  // class DateRange {
+  // public:
+  //     DateRange(Date const& begin,Date const& end) : m_begin{begin},m_end{end} {}
+  //     DateRange(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
+  //         OptionalDate begin{to_date(yyyymmdd_begin)};
+  //         OptionalDate end{to_date(yyyymmdd_end)};
+  //         if (begin and end) {
+  //             m_valid = true;
+  //             m_begin = *begin;
+  //             m_end = *end;
+  //         }
+  //     }
 
-      Date begin() const {return m_begin;}
-      Date end() const {return m_end;}
-      bool contains(Date const& date) const { return begin() <= date and date <= end();}
-      operator bool() const {return m_valid;}
-  private:
-      bool m_valid{};
-      Date m_begin{};
-      Date m_end{};
-  }; // DateRange
+  //     Date begin() const {return m_begin;}
+  //     Date end() const {return m_end;}
+  //     bool contains(Date const& date) const { return begin() <= date and date <= end();}
+  //     operator bool() const {return m_valid;}
+  // private:
+  //     bool m_valid{};
+  //     Date m_begin{};
+  //     Date m_end{};
+  // }; // DateRange
+  using DateRange = first::DateRange;
 
   using OptionalDateRange = std::optional<DateRange>;
 
@@ -148,15 +155,15 @@ namespace zeroth {
   DateRange to_three_months_earlier(DateRange const& quarter);
   std::ostream& operator<<(std::ostream& os,DateRange const& dr);
 
-  struct IsPeriod {
-      DateRange period;
-      bool operator()(Date const& date) const {
-          return period.contains(date);
-      }
-  };
+  // struct IsPeriod {
+  //     DateRange period;
+  //     bool operator()(Date const& date) const {
+  //         return period.contains(date);
+  //     }
+  // };
 
-  IsPeriod to_is_period(DateRange const& period);
-  std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end);
+  // IsPeriod to_is_period(DateRange const& period);
+  // std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end);
   
 } // zeroth
 

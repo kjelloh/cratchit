@@ -6,6 +6,9 @@
 
 namespace first {
 
+  // --------------------
+  // BEGIN DateRange
+
   DateRange::DateRange(Date start, Date last)
       : m_start(start), m_last(last) {
     m_is_valid = (Days(m_start) < Days(m_last));
@@ -34,7 +37,7 @@ namespace first {
     return std::format("{:%Y-%m-%d} to {:%Y-%m-%d}", m_start, m_last);
   }
 
-  DateRange DateRange::to_three_months_earlier() {
+  DateRange DateRange::to_three_months_earlier() const {
     auto const quarter_duration = std::chrono::months{3};
     // get the year and month for the date range to return
     auto ballpark_end = m_last - quarter_duration;
@@ -43,6 +46,9 @@ namespace first {
     auto last = ballpark_end.year() / ballpark_end.month() / std::chrono::last;
     return {m_start - quarter_duration,last};
   }
+
+  // END DateRange
+  // --------------------
 
   std::ostream& operator<<(std::ostream& os, DateRange const& dr) {
     os << dr.start() << "..." << dr.last();
@@ -73,6 +79,13 @@ namespace first {
     end_date = std::chrono::sys_days(end_date); // Chrono trick to normalize day 0 to the last day of previous month
     return DateRange(start_date, end_date);
   }
+
+  DateRange to_three_months_earlier(DateRange const& date_range) {
+    return date_range.to_three_months_earlier();
+  }
+
+  // --------------------
+  // BEGIN FiscalYear
 
   FiscalYear FiscalYear::to_current_fiscal_year(Month fiscal_start_month) {
     using namespace std::chrono;
@@ -236,18 +249,18 @@ namespace zeroth {
 
   // class IsPeriod here
 
-  IsPeriod to_is_period(DateRange const& period) {
-    return {period};
-  }
+  // IsPeriod to_is_period(DateRange const& period) {
+  //   return {period};
+  // }
 
-  std::optional<IsPeriod> to_is_period(std::string const& yyyymmdd_begin,std::string const& yyyymmdd_end) {
-    std::optional<IsPeriod> result{};
-    if (DateRange date_range{yyyymmdd_begin,yyyymmdd_end}) result = to_is_period(date_range);
-    else {
-      spdlog::error(R"(to_is_period failed. Invalid period "{}" ... "{}")", yyyymmdd_begin, yyyymmdd_end);
-    }
-    return result;
-  }
+  // std::optional<IsPeriod> to_is_period(std::string const& s_yyyymmdd_begin,std::string const& s_yyyymmdd_end) {
+  //   std::optional<IsPeriod> result{};
+  //   if (DateRange date_range{s_yyyymmdd_begin,s_yyyymmdd_end}) result = to_is_period(date_range);
+  //   else {
+  //     spdlog::error(R"(to_is_period failed. Invalid period "{}" ... "{}")", s_yyyymmdd_begin, s_yyyymmdd_end);
+  //   }
+  //   return result;
+  // }
 
 } // zeroth
 
