@@ -156,7 +156,7 @@ namespace zeroth {
   using OptionalDateRange = std::optional<DateRange>;
 
   DateRange to_quarter_range(Date const& a_period_date);
-  DateRange to_three_months_earlier(DateRange const& quarter);
+  DateRange to_three_months_earlier(DateRange const& date_range);
 
   // std::ostream& operator<<(std::ostream& os,DateRange const& dr);
 

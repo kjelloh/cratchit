@@ -397,6 +397,25 @@ namespace tests::atomics {
             ASSERT_FALSE(maybe_date_range.has_value()) << "Expected last > first to be rejected";
           }
         }
+
+        TEST(DateOpsTest,DateRangeTranslateTest) {
+          {
+            first::DateRange date_range(
+               to_date(2025,01,01)
+              ,to_date(2025,03,31));
+            auto three_months_earlier = zeroth::to_three_months_earlier(date_range);
+            ASSERT_TRUE(
+                 three_months_earlier.start() 
+              == (date_range.start() - std::chrono::months{3})
+            ) << std::format("Expected start to be three months earlier");
+            ASSERT_TRUE(
+                 three_months_earlier.last() 
+              == date_range.last() - std::chrono::months{3}
+            ) << std::format("Expected last to be three months earlier");
+
+          }
+        }
+
     } // datefw_suite
 
     namespace tafw_suite {
