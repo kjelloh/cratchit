@@ -63,6 +63,8 @@ namespace first {
 
     std::string to_string() const { return m_period.to_string(); }
 
+    // TODO: Rename to 'to_current' and 'to_relative'
+    //       when code has stabilized (these names are searchable) / 20251029
     static FiscalYear to_current_fiscal_year(Month fiscal_start_month);
     FiscalYear to_relative_fiscal_year(int offset) const;
     

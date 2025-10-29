@@ -1054,7 +1054,7 @@ R"(#GEN 20251026
         class SIEFileParseFixture : public ::testing::Test {
         protected:
 
-            SIEEnvironment fixture_three_entries_env;
+            SIEEnvironment fixture_three_entries_env{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
 
             void SetUp() override {
 
@@ -1108,8 +1108,8 @@ R"(#GEN 20251026
 
         TEST(SIEEnvsMergeTests,EmptyStageEmptyTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvsMergeTests,EmptyStageEmptyTest)"};
-          SIEEnvironment lhs{};
-          SIEEnvironment rhs{};
+          SIEEnvironment lhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+          SIEEnvironment rhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
           auto merged = lhs;
           auto stage_result = merged.stage(rhs);
           ASSERT_TRUE(stage_result.size() == 0);
@@ -1119,7 +1119,7 @@ R"(#GEN 20251026
         TEST_F(SIEEnvsMergeFixture,EmptyPostThreeTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
           ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
-          SIEEnvironment merged{};
+          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
 
           for (auto const& [series,journal] : fixture_three_entries_env.journals()) {
             for (auto const& [verno,aje] : journal) {
@@ -1132,7 +1132,7 @@ R"(#GEN 20251026
 
         TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
-          SIEEnvironment merged{}; 
+          SIEEnvironment merged{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
           // TODO: Prohibit SIEEnvironment without valid fiscal year
           //       for now stage fails because provided sie does not match dates accepted by merged...
           auto stage_result = merged.stage(fixture_three_entries_env);

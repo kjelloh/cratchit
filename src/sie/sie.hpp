@@ -16,7 +16,7 @@ namespace SIE {
   // #RAR -1 20200501 20210430	
   struct Rar {
     std::string tag;
-    int year_no;
+    int year_id;
     Date first_day_yyyymmdd;
     Date last_day_yyyymmdd;
   };

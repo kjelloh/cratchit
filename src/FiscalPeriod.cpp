@@ -120,7 +120,6 @@ namespace first {
   // END FiscalYear
   // --------------------
 
-
   // --------------------
   // BEGIN FiscalQuarter
 

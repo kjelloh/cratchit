@@ -2,19 +2,21 @@
 
 #include "sie.hpp"
 
-
 class SIEEnvironment {
 public:
+
+  SIEEnvironment(FiscalYear const& fiscal_year);
+
+  SIEEnvironment() = delete;
+
   // Path to the file from which this environment originated (external tool SIE export)
 	std::filesystem::path sie_file_path{};
 
 	std::filesystem::path staged_sie_file_path() const {
-    if (this->year_date_range) {
-      return std::format("cratchit_{}_{}.se",this->year_date_range->begin(),this->year_date_range->end());
-    }
-    else {
-      return "cratchit.se"; // Hard coded and asuming only used for "current"
-    }
+		return std::format(
+			 "cratchit_{}_{}.se"
+			,this->m_fiscal_year.start()
+			,this->m_fiscal_year.last());
   };
 
 	SIE::OrgNr organisation_no{};
@@ -41,7 +43,7 @@ public:
 		catch (std::exception const& e) {} // Ignore/silence
 		return result;
 	}
-	BAS::OptionalAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) {
+	BAS::OptionalAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) const {
 		BAS::OptionalAccountNos result{};
 		try {
 			BAS::AccountNos bas_account_nos{};
@@ -112,10 +114,10 @@ public:
 
 	BAS::AccountMetas const&  account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
 
-	void set_year_date_range(zeroth::DateRange const& dr) {
-		this->year_date_range = dr;
-		// std::cout << "\nset_year_date_range <== " << *this->year_date_range;
-	}
+	// void set_year_date_range(zeroth::DateRange const& dr) {
+	// 	this->m_year_date_range = dr;
+	// 	// std::cout << "\nset_year_date_range <== " << *this->year_date_range;
+	// }
 
 	void set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
@@ -165,8 +167,11 @@ public:
 		return result;
 	}
 
+	FiscalYear fiscal_year() const { return m_fiscal_year;}
+
+	// TODO: Remove optional / 20251029
 	zeroth::OptionalDateRange financial_year_date_range() const {
-		return this->year_date_range;
+		return this->fiscal_year().period();
 	}
 
   OptionalAmount opening_balance_of(BAS::AccountNo bas_account_no) {
@@ -183,7 +188,8 @@ public:
 	
 private:
 	BASJournals m_journals{};
-	zeroth::OptionalDateRange year_date_range{};
+	zeroth::OptionalDateRange m_year_date_range{};
+	FiscalYear m_fiscal_year;
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
   friend class SIEEnvironmentsMap;

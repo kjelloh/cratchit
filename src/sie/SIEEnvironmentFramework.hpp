@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SIEEnvironment.hpp"
+#include "logger/log.hpp"
 #include <istream>
 #include <filesystem>
 #include <expected>
@@ -19,7 +20,20 @@ public:
   auto begin() const {return m_sie_envs_map.begin();}
   auto end() const {return m_sie_envs_map.end();}
   auto contains(RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
-  auto& operator[](RelativeYearKey key) {return m_sie_envs_map[key];}
+  // auto& operator[](RelativeYearKey key) {return m_sie_envs_map[key];}
+  auto& operator[](RelativeYearKey key) {
+    auto iter = m_sie_envs_map.find(key);
+    if (iter != m_sie_envs_map.end()) {return iter->second;}
+
+    // No environment in map for key!
+    static SIEEnvironment dummy{FiscalYear{Date{}.year(),Date{}.month()}};
+    // TODO: Consider a design to not default construct SIEEnvironment as
+    logger::design_insufficiency(
+      "SIEEnvironmentsMap:operator['{}'] does not exist - Returns dummy / empty for fiscal year:{}"
+      ,dummy.fiscal_year().to_string()
+      ,key);
+    return dummy;
+  }
 
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
     std::optional<BAS::MetaEntry> result{};
@@ -27,17 +41,17 @@ public:
     // TODO: Refctor this 'mess' *sigh* (to many optionals...)
 
     if (this->m_sie_envs_map.contains("current")) {
-      if (auto financial_year = this->m_sie_envs_map["current"].financial_year_date_range()) {
+      if (auto financial_year = (*this)["current"].financial_year_date_range()) {
         if (financial_year->contains(me.defacto.date)) {
-          return this->m_sie_envs_map["current"].stage(me);
+          return (*this)["current"].stage(me);
         }
       }
     }
 
     if (this->m_sie_envs_map.contains("-1")) {
-      if (auto financial_year = this->m_sie_envs_map["-1"].financial_year_date_range()) {
+      if (auto financial_year = (*this)["-1"].financial_year_date_range()) {
         if (financial_year->contains(me.defacto.date)) {
-          return this->m_sie_envs_map["-1"].stage(me);
+          return (*this)["-1"].stage(me);
         }
       }
     }

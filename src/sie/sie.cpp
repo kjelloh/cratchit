@@ -100,7 +100,7 @@ namespace SIE {
       auto pos = utf8_in.tellg();
       YYYYMMdd_parser first_day_parser{rar.first_day_yyyymmdd};
       YYYYMMdd_parser last_day_parser{rar.last_day_yyyymmdd};
-      if (utf8_in >> Tag{sie_field_tag} >> rar.year_no >> first_day_parser >> last_day_parser) {
+      if (utf8_in >> Tag{sie_field_tag} >> rar.year_id >> first_day_parser >> last_day_parser) {
         result = rar;
         pos = utf8_in.tellg(); // accept new stream position
       }
