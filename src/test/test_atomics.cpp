@@ -344,6 +344,33 @@ namespace tests::atomics {
           ASSERT_FALSE(maybe_date_3.has_value());
         }
 
+        TEST(DateOpsTest,DateRangeFromStringsTest) {
+          {
+            auto maybe_date_range = to_date_range(
+              to_date("20250101")
+              ,to_date("20250331"));
+            ASSERT_TRUE(maybe_date_range.has_value());
+          }
+          {
+            auto maybe_date_range = to_date_range(
+              to_date("20250101")
+              ,to_date("2025101"));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected Zero length date range to be rejected";
+          }
+          {
+            auto maybe_date_range = to_date_range(
+              to_date("20250100")
+              ,to_date("2025101"));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected invalid start to be rejected";
+          }
+          {
+            auto maybe_date_range = to_date_range(
+              to_date("20250102")
+              ,to_date("2025101"));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected last > first to be rejected";
+          }
+        }
+
     } // datefw_suite
 
     namespace tafw_suite {

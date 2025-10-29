@@ -161,6 +161,22 @@ namespace first {
 
 } // namespace first
 
+// Use first::
+first::OptionalDateRange to_date_range(Date const& start,Date const& last) {
+  first::DateRange candidate{start,last};
+  if (candidate.is_valid()) {
+    return candidate;
+  }
+  return std::nullopt;
+}
+
+first::OptionalDateRange to_date_range(OptionalDate const& maybe_start,OptionalDate const& maybe_last) {
+  if (maybe_start and maybe_last) {
+    return to_date_range(maybe_start.value(),maybe_last.value());
+  }
+  return std::nullopt;
+}
+
 // Global namespace 
 
 std::ostream& operator<<(std::ostream& os, Date const& yyyymmdd) {
@@ -229,7 +245,6 @@ std::chrono::month to_quarter_begin(QuarterIndex const& quarter_ix) {
 std::chrono::month to_quarter_end(QuarterIndex const& quarter_ix) {
   return (to_quarter_begin(quarter_ix) + std::chrono::months{2});
 }
-
 
 namespace zeroth {
 

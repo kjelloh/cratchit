@@ -114,10 +114,15 @@ std::string to_string(Date const& yyyymmdd);
 Date to_date(int year,unsigned month,unsigned day);
 OptionalDate to_date(std::string const& sYYYYMMDD);
 Date to_today();
+
 QuarterIndex to_quarter_index(Month const& month);
 QuarterIndex to_quarter_index(Date const& a_period_date);
 Month to_quarter_begin(QuarterIndex const& quarter_ix);
 Month to_quarter_end(QuarterIndex const& quarter_ix);
+
+// Use first::
+first::OptionalDateRange to_date_range(Date const& start,Date const& last);
+first::OptionalDateRange to_date_range(OptionalDate const& maybe_start,OptionalDate const& maybe_last);
 
 namespace zeroth {
 
