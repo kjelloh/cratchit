@@ -19,10 +19,28 @@ SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
 bool SIEEnvironment::is_unposted(BAS::Series series, BAS::VerNo verno) const {
+
   bool result{true}; // deafult unposted
+
   if (verno_of_last_posted_to.contains(series)) {
     result = (verno > this->verno_of_last_posted_to.at(series));
+
+    logger::development_trace("is_unposted: verno_of_last_posted_to[{}] = {}"
+      ,series
+      ,this->verno_of_last_posted_to.at(series));
   }
+  else {
+    // No record = unposted
+    logger::development_trace("No 'is posted' record for {}{}",series,verno);
+  }
+
+  if (true) {
+    if (result)
+      logger::development_trace("NOT yet posted:{}{}",series,verno);
+    else
+      logger::development_trace("IS posted:{}{}",series,verno);
+  }
+
   return result;
 }
 
@@ -37,11 +55,42 @@ void SIEEnvironment::post(BAS::MetaEntry const& me) {
   if (me.meta.verno) {
     m_journals[me.meta.series][*me.meta.verno] = me.defacto;
     verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
+
+    // LOG
+    logger::development_trace("verno_of_last_posted_to[{}] = {} "
+      ,me.meta.series
+      ,verno_of_last_posted_to[me.meta.series]);
+
   }
   else {
     logger::cout_proxy << "\nSIEEnvironment::post failed - can't post an entry with null verno";
   }
 }
+
+BAS::MetaEntries SIEEnvironment::unposted() const {
+
+  logger::scope_logger log_raii{
+     logger::development_trace
+    ,std::format("SIEEnvironment::unposted:")};
+
+  BAS::MetaEntries result{};
+  for (auto const& [series,journal] : this->m_journals) {
+    for (auto const& [verno,je] : journal) {
+      if (this->is_unposted(series,verno)) {
+        BAS::MetaEntry bjer{
+          .meta = {
+            .series = series
+            ,.verno = verno
+          }
+          ,.defacto = je
+        };
+        result.push_back(bjer);
+      }        
+    }
+  }
+  return result;
+}
+
 
 BAS::MetaEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
   logger::scope_logger log_raii{
@@ -106,30 +155,30 @@ std::optional<BAS::MetaEntry> SIEEnvironment::stage(BAS::MetaEntry const& me) {
 BAS::MetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
-  // Log
-  if (me.meta.verno) {
-    logger::design_insufficiency(
-      "Exected provided me to not yet have a verno. But has ver:no:{}"
-      ,me.meta.verno.value());
-  }
-
   BAS::MetaEntry result{me};
 
   // Ensure a valid series
-  if (me.meta.series < 'A' or 'M' < me.meta.series) {
-    me.meta.series = 'A';
-    logger::cout_proxy << "\nadd(me) assigned series 'A' to entry with no series assigned";
+  if ((result.meta.series < 'A') or ('M' < result.meta.series)) {
+    result.meta.series = 'A';
+    logger::cout_proxy << "\nadd(me): assigned series 'A' to entry with no series assigned";
   }
 
-  // Assign "actual" sequence number
-  auto verno = largest_verno(me.meta.series) + 1;
-  // logger::cout_proxy << "\n\tSetting actual ver no:" << verno;
-  result.meta.verno = verno;
-  if (m_journals[me.meta.series].contains(verno) == false) {
-    m_journals[me.meta.series][verno] = me.defacto;
+  auto actual_verno = 
+    result.meta.verno
+    .value_or(largest_verno(me.meta.series) + 1);    
+
+  // LOG
+  if (!me.meta.verno) {
+    logger::development_trace("add(me): assigned verno:{} to entry with no verno assigned",actual_verno);
+  }
+
+  result.meta.verno = actual_verno;
+
+  if (!m_journals[me.meta.series].contains(result.meta.verno.value())) {
+    m_journals[me.meta.series][result.meta.verno.value()] = me.defacto;
   }
   else {
-    logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
+    logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << actual_verno;
   }
   return result;
 } // add
@@ -158,45 +207,27 @@ BAS::MetaEntry SIEEnvironment::update(BAS::MetaEntry const& me) {
 
 BAS::VerNo SIEEnvironment::largest_verno(BAS::Series series) {
 	auto const& journal = m_journals[series];
-  unsigned lowest_ver_no{1}; // default for empty journal (verno: 1,2,3...)
-	return std::accumulate(journal.begin(),journal.end(),lowest_ver_no,[](auto acc,auto const& entry){
+  // return 0 (empty) or 1...n for found largest
+	return std::accumulate(journal.begin(),journal.end(),unsigned{0},[](auto acc,auto const& entry){
 		return (acc<entry.first) ? entry.first : acc;
 	});
 }
 
 bool SIEEnvironment::already_in_posted(BAS::MetaEntry const& me) {
+
   bool result{false};
-  if (me.meta.verno and *me.meta.verno > 0) {
-    auto journal_iter = m_journals.find(me.meta.series);
-    if (journal_iter != m_journals.end()) {
-      if (me.meta.verno) {
-        auto entry_iter = journal_iter->second.find(*me.meta.verno);
-        // Posted if in journal
-        result = (entry_iter != journal_iter->second.end());
 
-        // Log
-        if (true) {
-          if (result and !(me.defacto == entry_iter->second)) {
-            // sie-id in posted but with another value
-            logger::design_insufficiency(
-              "already_in_posted but with another value!");
-          } 
-        }
-      }
-      else {
-        // me has no verification number
-            logger::design_insufficiency(
-              "already_in_posted failed - provided me has no verno");
-      }
-    }
+  if (!me.meta.verno) {
+    logger::design_insufficiency(
+      "already_in_posted failed - provided me has no verno");
+  }
+  else if (me.meta.verno.value() > 0) {
+    result = !this->is_unposted(me.meta.series,me.meta.verno.value());
+  }
+  else {
+    logger::design_insufficiency("already_in_posted(me): Failed - called with me having invalid verno:0");
   }
 
-  if (true) {
-    logger::development_trace("already_in_posted:{} for {}{}"
-      ,result
-      ,me.meta.series
-      ,logger::opt_to_string(me.meta.verno,"verno"));
-  }
   return result;
 }
 

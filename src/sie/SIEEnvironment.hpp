@@ -71,25 +71,7 @@ public:
   // Returns actually staged entries
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment);
 
-	BAS::MetaEntries unposted() const {
-		// logger::cout_proxy << "\nunposted()";
-		BAS::MetaEntries result{};
-    for (auto const& [series,journal] : this->m_journals) {
-      for (auto const& [verno,je] : journal) {
-        if (this->is_unposted(series,verno)) {
-          BAS::MetaEntry bjer{
-            .meta = {
-              .series = series
-              ,.verno = verno
-            }
-            ,.defacto = je
-          };
-          result.push_back(bjer);
-        }        
-      }
-    }
-		return result;
-	}
+	BAS::MetaEntries unposted() const;
 
 	BAS::AccountMetas const&  account_metas() const {return BAS::detail::global_account_metas;} // const ref global instance
 

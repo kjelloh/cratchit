@@ -1072,6 +1072,8 @@ R"(#GEN 20251026
 
             void SetUp() override {
 
+              logger::scope_logger log_raii{logger::development_trace,"TEST SIEFileParseFixture::SetUp"};
+
               std::istringstream iss{sz_sie_three_transactions_text};
               auto maybe_sie = sie_from_stream(iss);
 
@@ -1131,7 +1133,7 @@ R"(#GEN 20251026
         }
 
         TEST_F(SIEEnvsMergeFixture,EmptyPostThreeTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyPostThreeTest)"};
           ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
           SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
 
@@ -1152,10 +1154,9 @@ R"(#GEN 20251026
           auto stage_result = merged.stage(fixture_three_entries_env);
           ASSERT_TRUE(merged.journals_entry_count() == 3)
             << std::format("Expected 3 journal entries but found  :{}",merged.journals_entry_count());
-          ASSERT_TRUE(fixture_three_entries_env.unposted().size() == 3)
-            << std::format("Expected 3 staged entries but found unposted:{}",fixture_three_entries_env.unposted().size());
-          ASSERT_TRUE(stage_result.size() == 3);
-          ASSERT_TRUE(merged.journals_entry_count() == 3);
+          ASSERT_TRUE(merged.unposted().size() == 3)
+            << std::format("Expected 3 staged entries but found unposted:{}",merged.unposted().size());
+          ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
         }
     }
 
