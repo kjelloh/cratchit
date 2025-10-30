@@ -189,66 +189,14 @@ private:
   // This is to allow cratchit to edit an entry imported from an external tool.
 	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me);
 
-	BAS::MetaEntry add(BAS::MetaEntry me) {
-    logger::cout_proxy << "\nadd(" << me << ")"  << std::flush; 
-		BAS::MetaEntry result{me};
-		// Ensure a valid series
-		if (me.meta.series < 'A' or 'M' < me.meta.series) {
-			me.meta.series = 'A';
-			logger::cout_proxy << "\nadd(me) assigned series 'A' to entry with no series assigned";
-		}
-		// Assign "actual" sequence number
-		auto verno = largest_verno(me.meta.series) + 1;
-    // logger::cout_proxy << "\n\tSetting actual ver no:" << verno;
-		result.meta.verno = verno;
-    if (m_journals[me.meta.series].contains(verno) == false) {
-		  m_journals[me.meta.series][verno] = me.defacto;
-    }
-    else {
-      logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
-    }
-		return result;
-	}
+	BAS::MetaEntry add(BAS::MetaEntry me);
 
-	BAS::MetaEntry update(BAS::MetaEntry const& me) {
-    logger::cout_proxy << "\nupdate(" << me << ")" << std::flush; 
-		BAS::MetaEntry result{me};
-		if (me.meta.verno and *me.meta.verno > 0) {
-			auto journal_iter = m_journals.find(me.meta.series);
-			if (journal_iter != m_journals.end()) {
-				if (me.meta.verno) {
-					auto entry_iter = journal_iter->second.find(*me.meta.verno);
-					if (entry_iter != journal_iter->second.end()) {
-						entry_iter->second = me.defacto; // update
-            // logger::cout_proxy << "\nupdated :" << entry_iter->second;
-            // logger::cout_proxy << "\n    --> :" << me;
-					}
-				}
-			}
-		}
-		return result;
-	}
+	BAS::MetaEntry update(BAS::MetaEntry const& me);
 
 	BAS::VerNo largest_verno(BAS::Series series);
 
-	bool already_in_posted(BAS::MetaEntry const& me) {
-		bool result{false};
-		if (me.meta.verno and *me.meta.verno > 0) {
-			auto journal_iter = m_journals.find(me.meta.series);
-			if (journal_iter != m_journals.end()) {
-				if (me.meta.verno) {
-					auto entry_iter = journal_iter->second.find(*me.meta.verno);
-					result = (entry_iter != journal_iter->second.end());
-				}
-			}
-		}
-    if (true) {
-      logger::cout_proxy << "\nalready_in_posted(me=" << me << ") = ";
-      if (result) logger::cout_proxy << " TRUE";
-      else logger::cout_proxy << " false";
-    }
-		return result;
-	}
+	bool already_in_posted(BAS::MetaEntry const& me);
+
 }; // class SIEEnvironment
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 

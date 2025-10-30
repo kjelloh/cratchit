@@ -418,6 +418,20 @@ namespace tests::atomics {
 
     } // datefw_suite
 
+    namespace journalfw_suite {
+      // Journal Framework test suite
+
+      TEST(JournalFrameworkTest,JournalEntryTest) {
+        {
+          BAS::anonymous::JournalEntry lhs{};
+          BAS::anonymous::JournalEntry rhs{};
+          ASSERT_TRUE(lhs == rhs) << "Expected two emtpy entries to be equal";
+        }
+
+      }
+
+    } // basfw_suite
+
     namespace tafw_suite {
 
 
