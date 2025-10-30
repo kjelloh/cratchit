@@ -26,11 +26,9 @@ public:
 
 	BASJournals& journals() {return m_journals;}
 	BASJournals const& journals() const {return m_journals;}
-	bool is_unposted(BAS::Series series, BAS::VerNo verno) const {
-		bool result{true}; // deafult unposted
-		if (verno_of_last_posted_to.contains(series)) result = (verno > this->verno_of_last_posted_to.at(series));
-		return result;
-	}
+
+	bool is_unposted(BAS::Series series, BAS::VerNo verno) const;
+
 	SKV::SRU::OptionalAccountNo sru_code(BAS::AccountNo const& bas_account_no) {
 		SKV::SRU::OptionalAccountNo result{};
 		try {
@@ -59,16 +57,7 @@ public:
 		return result;
 	}
 
-	void post(BAS::MetaEntry const& me) {
-    // logger::cout_proxy << "\npost(" << me << ")"; 
-		if (me.meta.verno) {
-			m_journals[me.meta.series][*me.meta.verno] = me.defacto;
-			verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
-		}
-		else {
-			logger::cout_proxy << "\nSIEEnvironment::post failed - can't post an entry with null verno";
-		}
-	}
+	void post(BAS::MetaEntry const& me);
 
   std::size_t journals_entry_count() const {
     std::size_t result{};

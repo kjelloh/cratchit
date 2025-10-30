@@ -18,6 +18,31 @@ namespace logger {
 SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
+bool SIEEnvironment::is_unposted(BAS::Series series, BAS::VerNo verno) const {
+  bool result{true}; // deafult unposted
+  if (verno_of_last_posted_to.contains(series)) {
+    result = (verno > this->verno_of_last_posted_to.at(series));
+  }
+  return result;
+}
+
+void SIEEnvironment::post(BAS::MetaEntry const& me) {
+
+  logger::scope_logger log_raii{
+     logger::development_trace
+    ,std::format("SIEEnvironment::post(BAS::MetaEntry '{}{}')"
+      ,me.meta.series
+      ,logger::opt_to_string(me.meta.verno,"ver_no"))};
+
+  if (me.meta.verno) {
+    m_journals[me.meta.series][*me.meta.verno] = me.defacto;
+    verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
+  }
+  else {
+    logger::cout_proxy << "\nSIEEnvironment::post failed - can't post an entry with null verno";
+  }
+}
+
 BAS::MetaEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
   logger::scope_logger log_raii{
       logger::development_trace
@@ -81,6 +106,13 @@ std::optional<BAS::MetaEntry> SIEEnvironment::stage(BAS::MetaEntry const& me) {
 BAS::MetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
+  // Log
+  if (me.meta.verno) {
+    logger::design_insufficiency(
+      "Exected provided me to not yet have a verno. But has ver:no:{}"
+      ,me.meta.verno.value());
+  }
+
   BAS::MetaEntry result{me};
 
   // Ensure a valid series
@@ -139,6 +171,7 @@ bool SIEEnvironment::already_in_posted(BAS::MetaEntry const& me) {
     if (journal_iter != m_journals.end()) {
       if (me.meta.verno) {
         auto entry_iter = journal_iter->second.find(*me.meta.verno);
+        // Posted if in journal
         result = (entry_iter != journal_iter->second.end());
 
         // Log
@@ -149,6 +182,11 @@ bool SIEEnvironment::already_in_posted(BAS::MetaEntry const& me) {
               "already_in_posted but with another value!");
           } 
         }
+      }
+      else {
+        // me has no verification number
+            logger::design_insufficiency(
+              "already_in_posted failed - provided me has no verno");
       }
     }
   }
