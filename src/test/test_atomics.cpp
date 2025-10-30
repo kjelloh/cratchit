@@ -1159,9 +1159,9 @@ R"(#GEN 20251026
           ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
         }
 
-        TEST_F(SIEEnvsMergeFixture,PostThenStageTest) {
-          using namespace std::chrono;
+        SIEEnvironment create_posted_sie_env() {
           SIEEnvironment posted = {FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          using namespace std::chrono;
           {
             posted.post(BAS::MetaEntry{
               BAS::JournalEntryMeta{
@@ -1169,18 +1169,35 @@ R"(#GEN 20251026
                 ,.verno = 1
               }
               ,{
-			            .caption = "Event 1"
-			            ,.date = 2025y / 01 / 01d
-			            ,.account_transactions = {}
+                  .caption = "Event 1"
+                  ,.date = 2025y / 01 / 01d
+                  ,.account_transactions = {}
+              }});
+            posted.post(BAS::MetaEntry{
+              BAS::JournalEntryMeta{
+                .series = 'A'
+                ,.verno = 2
+              }
+              ,{
+                  .caption = "Event 2"
+                  ,.date = 2025y / 01 / 02d
+                  ,.account_transactions = {}
               }});
 
           }
+          return posted;
+        }
+
+        TEST(SIEEnvsMergeTests,StageToPostedOkTest) {
+          using namespace std::chrono;
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,StageToPostedOkTest)"};
+          auto posted = create_posted_sie_env();
           SIEEnvironment to_stage{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
           {
             to_stage.post(BAS::MetaEntry{
               BAS::JournalEntryMeta{
                 .series = 'A'
-                ,.verno = 1
+                ,.verno = 2
               }
               ,{
 			            .caption = "Event 1"
@@ -1192,6 +1209,30 @@ R"(#GEN 20251026
           ASSERT_TRUE(stage_result.size() == 1) 
             << std::format(
                    "Expected 'stage' to return one entry as already posted. stage_result.size() = {}"
+                  ,stage_result.size());
+        }
+
+        TEST(SIEEnvsMergeTests,StageToPostedFailTest) {
+          using namespace std::chrono;
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,StageToPostedFailTest)"};
+          auto posted = create_posted_sie_env();
+          SIEEnvironment to_stage{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          {
+            to_stage.post(BAS::MetaEntry{
+              BAS::JournalEntryMeta{
+                .series = 'A'
+                ,.verno = 1
+              }
+              ,{
+			            .caption = "Another Event"
+			            ,.date = 2025y / 01 / 01d
+			            ,.account_transactions = {}
+              }});
+          }
+          auto stage_result = posted.stage(to_stage);
+          ASSERT_TRUE(stage_result.size() == 17 /* TODO: Detect that stage failed */) 
+            << std::format(
+                   "Expected 'stage' to fail for entry with same series+verno as posetd one but different value to fail?"
                   ,stage_result.size());
         }
 
