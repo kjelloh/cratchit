@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sie.hpp"
+#include "logger/log.hpp"
 
 class SIEEnvironment {
 public:
@@ -53,19 +54,19 @@ public:
 			if (bas_account_nos.size() > 0) result = bas_account_nos;
 		}
 		catch (std::exception const& e) {
-			std::cout << "\nto_bas_accounts failed. Exception=" << std::quoted(e.what());
+			logger::cout_proxy << "\nto_bas_accounts failed. Exception=" << std::quoted(e.what());
 		}
 		return result;
 	}
 
 	void post(BAS::MetaEntry const& me) {
-    // std::cout << "\npost(" << me << ")"; 
+    // logger::cout_proxy << "\npost(" << me << ")"; 
 		if (me.meta.verno) {
 			m_journals[me.meta.series][*me.meta.verno] = me.defacto;
 			verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
 		}
 		else {
-			std::cout << "\nSIEEnvironment::post failed - can't post an entry with null verno";
+			logger::cout_proxy << "\nSIEEnvironment::post failed - can't post an entry with null verno";
 		}
 	}
 
@@ -79,21 +80,10 @@ public:
 
   // Try to stage all provided entries for posting
   // Returns actually staged entries
-	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment) {
-    // std::cout << "\nstage(staged_sie_environment)"  << std::flush; 
-		BAS::MetaEntries result{};
-		for (auto const& [series,journal] : staged_sie_environment.journals()) {
-			for (auto const& [verno,aje] : journal) {
-				auto je = this->stage({{.series=series,.verno=verno},aje});
-				if (!je) {
-					result.push_back({{.series=series,.verno=verno},aje}); // no longer staged
-				}
-			}
-		}
-		return result;
-	}
+	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment);
+
 	BAS::MetaEntries unposted() const {
-		// std::cout << "\nunposted()";
+		// logger::cout_proxy << "\nunposted()";
 		BAS::MetaEntries result{};
     for (auto const& [series,journal] : this->m_journals) {
       for (auto const& [verno,je] : journal) {
@@ -116,13 +106,13 @@ public:
 
 	// void set_year_date_range(zeroth::DateRange const& dr) {
 	// 	this->m_year_date_range = dr;
-	// 	// std::cout << "\nset_year_date_range <== " << *this->year_date_range;
+	// 	// logger::cout_proxy << "\nset_year_date_range <== " << *this->year_date_range;
 	// }
 
 	void set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].name != name) {
-				std::cout << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
+				logger::cout_proxy << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
 			}
 		}
 		BAS::detail::global_account_metas[bas_account_no].name = name; // Mutate global instance
@@ -131,7 +121,7 @@ public:
 		if (BAS::detail::global_account_metas.contains(bas_account_no)) {
 			if (BAS::detail::global_account_metas[bas_account_no].sru_code) {
 				if (*BAS::detail::global_account_metas[bas_account_no].sru_code != sru_code) {
-					std::cout << "\nWARNING: BAS Account " << bas_account_no << " SRU Code " << *BAS::detail::global_account_metas[bas_account_no].sru_code << " changed to " << sru_code;
+					logger::cout_proxy << "\nWARNING: BAS Account " << bas_account_no << " SRU Code " << *BAS::detail::global_account_metas[bas_account_no].sru_code << " changed to " << sru_code;
 				}
 			}
 		}
@@ -141,9 +131,9 @@ public:
 	void set_opening_balance(BAS::AccountNo bas_account_no,Amount opening_balance) {
 		if (this->opening_balance.contains(bas_account_no) == false) this->opening_balance[bas_account_no] = opening_balance;
 		else {
-			std::cout << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
-			std::cout << " is already registered as " << this->opening_balance[bas_account_no] << ".";
-			std::cout << " Provided opening_balance:" << opening_balance << " IGNORED";
+			logger::cout_proxy << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
+			logger::cout_proxy << " is already registered as " << this->opening_balance[bas_account_no] << ".";
+			logger::cout_proxy << " Provided opening_balance:" << opening_balance << " IGNORED";
 		}
 	}
 
@@ -197,58 +187,31 @@ private:
   // Try to stage provided me.
   // A succesfull stage either adds it ot uopdate an existing entry.
   // This is to allow cratchit to edit an entry imported from an external tool.
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
-    // std::cout << "\nstage(" << me << ")"  << std::flush; 
-		std::optional<BAS::MetaEntry> result{};
-
-    if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
-      // Block adding an entry with a date outside an SIE envrionment financial date range
-      std::cout << "\nDate:" << me.defacto.date << " is not in financial year:";
-      if (this->financial_year_date_range()) std::cout << this->financial_year_date_range().value();
-      else std::cout << "*anonymous*";
-      return std::nullopt;
-    }
-		if (does_balance(me.defacto)) {
-			if (not this->already_in_posted(me)) {
-        // Not yet posted (in sie-file from external tool)
-        // So add it to make our internal sie-environment complete
-        result = this->add(me);
-      }
-			else {
-        // Is 'posted' to external tool
-        // But update it in case we have edited it
-        result = this->update(me);
-      }
-		}
-		else {
-			std::cout << "\nSorry, Failed to stage. Entry Does not Balance";
-		}
-		return result;
-	}
+	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me);
 
 	BAS::MetaEntry add(BAS::MetaEntry me) {
-    std::cout << "\nadd(" << me << ")"  << std::flush; 
+    logger::cout_proxy << "\nadd(" << me << ")"  << std::flush; 
 		BAS::MetaEntry result{me};
 		// Ensure a valid series
 		if (me.meta.series < 'A' or 'M' < me.meta.series) {
 			me.meta.series = 'A';
-			std::cout << "\nadd(me) assigned series 'A' to entry with no series assigned";
+			logger::cout_proxy << "\nadd(me) assigned series 'A' to entry with no series assigned";
 		}
 		// Assign "actual" sequence number
 		auto verno = largest_verno(me.meta.series) + 1;
-    // std::cout << "\n\tSetting actual ver no:" << verno;
+    // logger::cout_proxy << "\n\tSetting actual ver no:" << verno;
 		result.meta.verno = verno;
     if (m_journals[me.meta.series].contains(verno) == false) {
 		  m_journals[me.meta.series][verno] = me.defacto;
     }
     else {
-      std::cout << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
+      logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << verno;
     }
 		return result;
 	}
 
 	BAS::MetaEntry update(BAS::MetaEntry const& me) {
-    std::cout << "\nupdate(" << me << ")" << std::flush; 
+    logger::cout_proxy << "\nupdate(" << me << ")" << std::flush; 
 		BAS::MetaEntry result{me};
 		if (me.meta.verno and *me.meta.verno > 0) {
 			auto journal_iter = m_journals.find(me.meta.series);
@@ -257,8 +220,8 @@ private:
 					auto entry_iter = journal_iter->second.find(*me.meta.verno);
 					if (entry_iter != journal_iter->second.end()) {
 						entry_iter->second = me.defacto; // update
-            // std::cout << "\nupdated :" << entry_iter->second;
-            // std::cout << "\n    --> :" << me;
+            // logger::cout_proxy << "\nupdated :" << entry_iter->second;
+            // logger::cout_proxy << "\n    --> :" << me;
 					}
 				}
 			}
@@ -280,9 +243,9 @@ private:
 			}
 		}
     if (true) {
-      std::cout << "\nalready_in_posted(me=" << me << ") = ";
-      if (result) std::cout << " TRUE";
-      else std::cout << " false";
+      logger::cout_proxy << "\nalready_in_posted(me=" << me << ") = ";
+      if (result) logger::cout_proxy << " TRUE";
+      else logger::cout_proxy << " false";
     }
 		return result;
 	}
