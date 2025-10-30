@@ -82,11 +82,13 @@ BAS::MetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
   BAS::MetaEntry result{me};
+
   // Ensure a valid series
   if (me.meta.series < 'A' or 'M' < me.meta.series) {
     me.meta.series = 'A';
     logger::cout_proxy << "\nadd(me) assigned series 'A' to entry with no series assigned";
   }
+
   // Assign "actual" sequence number
   auto verno = largest_verno(me.meta.series) + 1;
   // logger::cout_proxy << "\n\tSetting actual ver no:" << verno;
@@ -124,8 +126,9 @@ BAS::MetaEntry SIEEnvironment::update(BAS::MetaEntry const& me) {
 
 BAS::VerNo SIEEnvironment::largest_verno(BAS::Series series) {
 	auto const& journal = m_journals[series];
-	return std::accumulate(journal.begin(),journal.end(),unsigned{},[](auto acc,auto const& entry){
-		return (acc<entry.first)?entry.first:acc;
+  unsigned lowest_ver_no{1}; // default for empty journal (verno: 1,2,3...)
+	return std::accumulate(journal.begin(),journal.end(),lowest_ver_no,[](auto acc,auto const& entry){
+		return (acc<entry.first) ? entry.first : acc;
 	});
 }
 
