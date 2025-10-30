@@ -1158,6 +1158,43 @@ R"(#GEN 20251026
             << std::format("Expected 3 staged entries but found unposted:{}",merged.unposted().size());
           ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
         }
+
+        TEST_F(SIEEnvsMergeFixture,PostThenStageTest) {
+          using namespace std::chrono;
+          SIEEnvironment posted = {FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          {
+            posted.post(BAS::MetaEntry{
+              BAS::JournalEntryMeta{
+                .series = 'A'
+                ,.verno = 1
+              }
+              ,{
+			            .caption = "Event 1"
+			            ,.date = 2025y / 01 / 01d
+			            ,.account_transactions = {}
+              }});
+
+          }
+          SIEEnvironment to_stage{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          {
+            to_stage.post(BAS::MetaEntry{
+              BAS::JournalEntryMeta{
+                .series = 'A'
+                ,.verno = 1
+              }
+              ,{
+			            .caption = "Event 1"
+			            ,.date = 2025y / 01 / 01d
+			            ,.account_transactions = {}
+              }});
+          }
+          auto stage_result = posted.stage(to_stage);
+          ASSERT_TRUE(stage_result.size() == 1) 
+            << std::format(
+                   "Expected 'stage' to return one entry as already posted. stage_result.size() = {}"
+                  ,stage_result.size());
+        }
+
     }
 
     // bool run_all() {

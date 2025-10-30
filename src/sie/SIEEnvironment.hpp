@@ -42,6 +42,7 @@ public:
 		catch (std::exception const& e) {} // Ignore/silence
 		return result;
 	}
+
 	BAS::OptionalAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) const {
 		BAS::OptionalAccountNos result{};
 		try {
@@ -68,7 +69,7 @@ public:
   }
 
   // Try to stage all provided entries for posting
-  // Returns actually staged entries
+  // Returns entries that are discovered to be posted (no longer staged)
 	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment);
 
 	BAS::MetaEntries unposted() const;
