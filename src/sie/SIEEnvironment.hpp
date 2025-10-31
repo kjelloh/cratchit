@@ -7,8 +7,18 @@ class SIEEnvironment {
 public:
 
   SIEEnvironment(FiscalYear const& fiscal_year);
-
   SIEEnvironment() = delete;
+
+  // Entry API
+	void post(BAS::MetaEntry const& me);
+	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me);
+	BAS::MetaEntry add(BAS::MetaEntry me);
+	BAS::MetaEntry update(BAS::MetaEntry const& me);
+	BAS::VerNo largest_verno(BAS::Series series);
+	bool already_in_posted(BAS::MetaEntry const& me);
+
+  // Entries API
+	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment);
 
   // Path to the file from which this environment originated (external tool SIE export)
 	std::filesystem::path sie_file_path{};
@@ -58,7 +68,6 @@ public:
 		return result;
 	}
 
-	void post(BAS::MetaEntry const& me);
 
   std::size_t journals_entry_count() const {
     std::size_t result{};
@@ -67,10 +76,6 @@ public:
     }
     return result;
   }
-
-  // Try to stage all provided entries for posting
-  // Returns entries that are discovered to be posted (no longer staged)
-	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment);
 
 	BAS::MetaEntries unposted() const;
 
@@ -155,19 +160,6 @@ private:
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
   friend class SIEEnvironmentsMap;
-
-  // Try to stage provided me.
-  // A succesfull stage either adds it ot uopdate an existing entry.
-  // This is to allow cratchit to edit an entry imported from an external tool.
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me);
-
-	BAS::MetaEntry add(BAS::MetaEntry me);
-
-	BAS::MetaEntry update(BAS::MetaEntry const& me);
-
-	BAS::VerNo largest_verno(BAS::Series series);
-
-	bool already_in_posted(BAS::MetaEntry const& me);
 
 }; // class SIEEnvironment
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;

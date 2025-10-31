@@ -18,32 +18,7 @@ namespace logger {
 SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
-bool SIEEnvironment::is_unposted(BAS::Series series, BAS::VerNo verno) const {
-
-  bool result{true}; // deafult unposted
-
-  if (verno_of_last_posted_to.contains(series)) {
-    result = (verno > this->verno_of_last_posted_to.at(series));
-
-    logger::development_trace("is_unposted: verno_of_last_posted_to[{}] = {}"
-      ,series
-      ,this->verno_of_last_posted_to.at(series));
-  }
-  else {
-    // No record = unposted
-    logger::development_trace("No 'is posted' record for {}{}",series,verno);
-  }
-
-  if (true) {
-    if (result)
-      logger::development_trace("NOT yet posted:{}{}",series,verno);
-    else
-      logger::development_trace("IS posted:{}{}",series,verno);
-  }
-
-  return result;
-}
-
+// Entry API
 void SIEEnvironment::post(BAS::MetaEntry const& me) {
 
   logger::scope_logger log_raii{
@@ -66,49 +41,6 @@ void SIEEnvironment::post(BAS::MetaEntry const& me) {
     logger::cout_proxy << "\nSIEEnvironment::post failed - can't post an entry with null verno";
   }
 }
-
-BAS::MetaEntries SIEEnvironment::unposted() const {
-
-  logger::scope_logger log_raii{
-     logger::development_trace
-    ,std::format("SIEEnvironment::unposted:")};
-
-  BAS::MetaEntries result{};
-  for (auto const& [series,journal] : this->m_journals) {
-    for (auto const& [verno,je] : journal) {
-      if (this->is_unposted(series,verno)) {
-        BAS::MetaEntry bjer{
-          .meta = {
-            .series = series
-            ,.verno = verno
-          }
-          ,.defacto = je
-        };
-        result.push_back(bjer);
-      }        
-    }
-  }
-  return result;
-}
-
-
-BAS::MetaEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
-  logger::scope_logger log_raii{
-      logger::development_trace
-    ,std::format("stage(SIEEnvironment:{})",staged_sie_environment.journals_entry_count())};
-  BAS::MetaEntries result{};
-  for (auto const& [series,journal] : staged_sie_environment.journals()) {
-    for (auto const& [verno,aje] : journal) {
-      auto je = this->stage({{.series=series,.verno=verno},aje});
-      if (!je) {
-        result.push_back({{.series=series,.verno=verno},aje}); // no longer staged
-      }
-    }
-  }
-  return result;
-}
-
-// private:
 
 std::optional<BAS::MetaEntry> SIEEnvironment::stage(BAS::MetaEntry const& me) {
   std::optional<BAS::MetaEntry> result{};
@@ -230,4 +162,73 @@ bool SIEEnvironment::already_in_posted(BAS::MetaEntry const& me) {
 
   return result;
 }
+
+// Entries API
+BAS::MetaEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
+  logger::scope_logger log_raii{
+      logger::development_trace
+    ,std::format("stage(SIEEnvironment:{})",staged_sie_environment.journals_entry_count())};
+  BAS::MetaEntries result{};
+  for (auto const& [series,journal] : staged_sie_environment.journals()) {
+    for (auto const& [verno,aje] : journal) {
+      auto je = this->stage({{.series=series,.verno=verno},aje});
+      if (!je) {
+        result.push_back({{.series=series,.verno=verno},aje}); // no longer staged
+      }
+    }
+  }
+  return result;
+}
+
+bool SIEEnvironment::is_unposted(BAS::Series series, BAS::VerNo verno) const {
+
+  bool result{true}; // deafult unposted
+
+  if (verno_of_last_posted_to.contains(series)) {
+    result = (verno > this->verno_of_last_posted_to.at(series));
+
+    logger::development_trace("is_unposted: verno_of_last_posted_to[{}] = {}"
+      ,series
+      ,this->verno_of_last_posted_to.at(series));
+  }
+  else {
+    // No record = unposted
+    logger::development_trace("No 'is posted' record for {}{}",series,verno);
+  }
+
+  if (true) {
+    if (result)
+      logger::development_trace("NOT yet posted:{}{}",series,verno);
+    else
+      logger::development_trace("IS posted:{}{}",series,verno);
+  }
+
+  return result;
+}
+
+BAS::MetaEntries SIEEnvironment::unposted() const {
+
+  logger::scope_logger log_raii{
+     logger::development_trace
+    ,std::format("SIEEnvironment::unposted:")};
+
+  BAS::MetaEntries result{};
+  for (auto const& [series,journal] : this->m_journals) {
+    for (auto const& [verno,je] : journal) {
+      if (this->is_unposted(series,verno)) {
+        BAS::MetaEntry bjer{
+          .meta = {
+            .series = series
+            ,.verno = verno
+          }
+          ,.defacto = je
+        };
+        result.push_back(bjer);
+      }        
+    }
+  }
+  return result;
+}
+
+// private:
 
