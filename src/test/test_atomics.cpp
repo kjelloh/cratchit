@@ -1197,8 +1197,8 @@ R"(#GEN 20251026
           posted.post(entry_0);
           auto stage_result = posted.stage(entry_0);
 
-          ASSERT_TRUE(stage_result.has_value()) 
-            << std::format("Expected 'stage' to detect 'now posted");
+          ASSERT_TRUE(stage_result.now_posted()) 
+            << std::format("Expected 'stage' to detect 'now posted'");
         }
 
     }

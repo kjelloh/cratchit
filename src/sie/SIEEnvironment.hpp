@@ -11,9 +11,29 @@ public:
 
   // Entry API
 	void post(BAS::MetaEntry const& me);
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me);
-	BAS::MetaEntry add(BAS::MetaEntry me);
-	BAS::MetaEntry update(BAS::MetaEntry const& me);
+
+  class StageEntryResult {
+  public:
+    enum class Status {
+       Unknown
+      ,NowPosted
+      ,StagedOk
+      ,Undefined
+    };
+    StageEntryResult() = delete;
+    StageEntryResult(BAS::MetaEntry const& entry_ref,Status status = Status{})
+      : m_entry_ref{entry_ref},m_status{status} {}
+    bool now_posted() const {return m_status == Status::NowPosted;}
+    operator bool() const {return m_status == Status::StagedOk;}
+    BAS::MetaEntry const& entry_ref() const {return m_entry_ref;}
+    StageEntryResult& set_status(Status status) {m_status = status; return *this;}
+  private:
+    Status m_status{};
+    BAS::MetaEntry const& m_entry_ref;
+  };
+	StageEntryResult stage(BAS::MetaEntry const& me);
+	BAS::OptionalMetaEntry add(BAS::MetaEntry me);
+	BAS::OptionalMetaEntry update(BAS::MetaEntry const& me);
 	BAS::VerNo largest_verno(BAS::Series series);
 	bool already_in_posted(BAS::MetaEntry const& me);
 

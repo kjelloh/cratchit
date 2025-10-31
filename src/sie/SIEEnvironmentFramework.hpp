@@ -35,8 +35,8 @@ public:
     return dummy;
   }
 
-	std::optional<BAS::MetaEntry> stage(BAS::MetaEntry const& me) {
-    std::optional<BAS::MetaEntry> result{};
+	SIEEnvironment::StageEntryResult stage(BAS::MetaEntry const& me) {
+    SIEEnvironment::StageEntryResult result{me,SIEEnvironment::StageEntryResult::Status::Undefined};
 
     // TODO: Refctor this 'mess' *sigh* (to many optionals...)
 

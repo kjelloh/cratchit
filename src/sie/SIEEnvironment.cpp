@@ -42,8 +42,8 @@ void SIEEnvironment::post(BAS::MetaEntry const& me) {
   }
 }
 
-std::optional<BAS::MetaEntry> SIEEnvironment::stage(BAS::MetaEntry const& me) {
-  std::optional<BAS::MetaEntry> result{};
+SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MetaEntry const& me) {
+  StageEntryResult result{me,SIEEnvironment::StageEntryResult::Status::Undefined};
 
   // scope Log
   logger::scope_logger log_raii{
@@ -59,12 +59,12 @@ std::optional<BAS::MetaEntry> SIEEnvironment::stage(BAS::MetaEntry const& me) {
       if (not this->already_in_posted(me)) {
         // Not yet posted (in sie-file from external tool)
         // So add it to make our internal sie-environment complete
-        result = this->add(me);
+        result.set_status(this->add(me).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
       }
       else {
         // Is 'posted' to external tool
         // But update it in case we have edited it
-        result = this->update(me);
+        result.set_status(this->update(me).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
       }
     }
     else {
@@ -84,19 +84,22 @@ std::optional<BAS::MetaEntry> SIEEnvironment::stage(BAS::MetaEntry const& me) {
   return result;
 } // stage
 
-BAS::MetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
+
+BAS::OptionalMetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
-  BAS::MetaEntry result{me};
+  BAS::OptionalMetaEntry result{};
+
+  auto candidate = me;
 
   // Ensure a valid series
-  if ((result.meta.series < 'A') or ('M' < result.meta.series)) {
-    result.meta.series = 'A';
+  if ((candidate.meta.series < 'A') or ('M' < candidate.meta.series)) {
+    candidate.meta.series = 'A';
     logger::cout_proxy << "\nadd(me): assigned series 'A' to entry with no series assigned";
   }
 
   auto actual_verno = 
-    result.meta.verno
+    candidate.meta.verno
     .value_or(largest_verno(me.meta.series) + 1);    
 
   // LOG
@@ -104,10 +107,11 @@ BAS::MetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
     logger::development_trace("add(me): assigned verno:{} to entry with no verno assigned",actual_verno);
   }
 
-  result.meta.verno = actual_verno;
+  candidate.meta.verno = actual_verno;
 
-  if (!m_journals[me.meta.series].contains(result.meta.verno.value())) {
-    m_journals[me.meta.series][result.meta.verno.value()] = me.defacto;
+  if (!m_journals[candidate.meta.series].contains(candidate.meta.verno.value())) {
+    m_journals[candidate.meta.series][candidate.meta.verno.value()] = candidate.defacto;
+    result = candidate;
   }
   else {
     logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << actual_verno;
@@ -115,11 +119,12 @@ BAS::MetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
   return result;
 } // add
 
-BAS::MetaEntry SIEEnvironment::update(BAS::MetaEntry const& me) {
+BAS::OptionalMetaEntry SIEEnvironment::update(BAS::MetaEntry const& me) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
-
   logger::cout_proxy << "\nupdate(" << me << ")" << std::flush; 
-  BAS::MetaEntry result{me};
+
+  BAS::OptionalMetaEntry result{};
+
   if (me.meta.verno and *me.meta.verno > 0) {
     auto journal_iter = m_journals.find(me.meta.series);
     if (journal_iter != m_journals.end()) {
@@ -127,10 +132,20 @@ BAS::MetaEntry SIEEnvironment::update(BAS::MetaEntry const& me) {
         auto entry_iter = journal_iter->second.find(*me.meta.verno);
         if (entry_iter != journal_iter->second.end()) {
           entry_iter->second = me.defacto; // update
+          result = BAS::MetaEntry{me.meta,entry_iter->second};
           // logger::cout_proxy << "\nupdated :" << entry_iter->second;
           // logger::cout_proxy << "\n    --> :" << me;
         }
+        else {
+          logger::design_insufficiency("Can't update no-nexistent entry {}{}",me.meta.series,me.meta.verno.value());
+        }
       }
+      else {
+        logger::design_insufficiency("Can't update entry with null verno");
+      }
+    }
+    else {
+      logger::design_insufficiency("Can't update entry in non recorded series {}",me.meta.series);
     }
   }
   return result;
