@@ -1488,8 +1488,8 @@ namespace BAS {
 	using MDTypedJournalEntry = MetaDefacto<BAS::JournalEntryMeta,anonymous::TypedJournalEntry>;
 	using TypedMetaEntries = std::vector<MDTypedJournalEntry>;
 
-	void for_each_typed_account_transaction(BAS::MDTypedJournalEntry const& tme,auto& f) {
-		for (auto const& tat : tme.defacto.account_transactions) {
+	void for_each_typed_account_transaction(BAS::MDTypedJournalEntry const& mdtje,auto& f) {
+		for (auto const& tat : mdtje.defacto.account_transactions) {
 			f(tat);
 		}
 	}
@@ -1641,9 +1641,9 @@ Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
     // to_vat_returns_form_bas_accounts
     // to_vat_accounts
 
-auto is_any_of_accounts(BAS::MDAccountTransaction const mat,BAS::AccountNos const& account_nos) {
-	return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
-		return other == mat.defacto.account_no;
+auto is_any_of_accounts(BAS::MDAccountTransaction const mdat,BAS::AccountNos const& account_nos) {
+	return std::any_of(account_nos.begin(),account_nos.end(),[&mdat](auto other){
+		return other == mdat.defacto.account_no;
 	});
 }
 
@@ -2505,10 +2505,10 @@ void for_each_anonymous_account_transaction(SIEEnvironment const& sie_env,auto& 
 	for_each_anonymous_journal_entry(sie_env,f_caller);
 }
 
-void for_each_md_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
-	for (auto const& at : me.defacto.account_transactions) {
+void for_each_md_account_transaction(BAS::MDJournalEntry const& mdje,auto& f) {
+	for (auto const& at : mdje.defacto.account_transactions) {
 		f(BAS::MDAccountTransaction{
-			.meta = BAS::to_account_transaction_meta(me)
+			.meta = BAS::to_account_transaction_meta(mdje)
 			,.defacto = at
 		});
 	}
@@ -2542,9 +2542,9 @@ OptionalAmount to_ats_sum(SIEEnvironment const& sie_env,BAS::AccountNos const& b
 	OptionalAmount result{};
 	try {
 		Amount amount{};
-		auto f = [&amount,&bas_account_nos](BAS::MDAccountTransaction const& mat) {
-			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
-				amount += mat.defacto.amount;
+		auto f = [&amount,&bas_account_nos](BAS::MDAccountTransaction const& mdat) {
+			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mdat](auto const&  bas_account_no){ return (mdat.defacto.account_no==bas_account_no);})) {
+				amount += mdat.defacto.amount;
 			}
 		};
 		for_each_md_account_transaction(sie_env,f);
@@ -2560,9 +2560,9 @@ OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos
 	OptionalAmount result{};
 	try {
 		Amount amount{};
-		auto f = [&amount,&bas_account_nos](BAS::MDAccountTransaction const& mat) {
-			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
-				amount += mat.defacto.amount;
+		auto f = [&amount,&bas_account_nos](BAS::MDAccountTransaction const& mdat) {
+			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mdat](auto const&  bas_account_no){ return (mdat.defacto.account_no==bas_account_no);})) {
+				amount += mdat.defacto.amount;
 			}
 		};
 		for_each_md_account_transaction(sie_envs_map,f);
@@ -2826,15 +2826,15 @@ void for_each_typed_md_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 	for_each_md_journal_entry(sie_envs_map,f_caller);
 }
 
-using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::MDTypedJournalEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
-using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>; // hash -> TypeMetaEntry
+using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::MDTypedJournalEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
+using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEntriesMap>; // hash -> TypeMetaEntry
 // TODO: Consider to make MetaEntryTopologyMap an unordered_map (as it is already a map from hash -> TypedMetaEntry)
 //       All we should have to do is to define std::hash for this type to make std::unordered_map find it?
 
-MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_envs_map) {
-	MetaEntryTopologyMap result{};
+Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_envs_map) {
+	Kind2MDTypedJournalEntriesCAS result{};
 	// Group on Type Topology
-	MetaEntryTopologyMap meta_entry_topology_map{};
+	Kind2MDTypedJournalEntriesCAS meta_entry_topology_map{};
 	auto h = [&result](BAS::MDTypedJournalEntry const& tme){
 		auto types_topology = BAS::kind::to_types_topology(tme);
 		auto signature = BAS::kind::to_signature(types_topology);
@@ -3940,7 +3940,7 @@ namespace SKV { // SKV
 
 			std::ostream& operator<<(std::ostream& os,SKV::XML::VATReturns::FormBoxMap const& fbm) {
 				for (auto const& [boxno,mats] : fbm) {
-					auto mat_sum = BAS::mats_sum(mats);
+					auto mat_sum = BAS::to_mdats_sum(mats);
 					os << "\nVAT returns Form[" << boxno << "] = " << to_tax(to_form_sign(boxno,mat_sum)) << " (from sum " <<  mat_sum << ")";
 					Amount rolling_amount{};
 					for (auto const& mat : mats) {
@@ -4095,8 +4095,8 @@ namespace SKV { // SKV
 
 			BAS::MDAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
 				BAS::MDAccountTransactions result{};
-				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mat){
-					if (matches_mat(mat)) result.push_back(mat);
+				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mdat){
+					if (matches_mat(mdat)) result.push_back(mdat);
 				};
 				for_each_md_account_transaction(sie_env,x);
 				return result;
@@ -4104,8 +4104,8 @@ namespace SKV { // SKV
 
 			BAS::MDAccountTransactions to_mats(SIEEnvironmentsMap const& sie_envs_map,auto const& matches_mat) {
 				BAS::MDAccountTransactions result{};
-				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mat){
-					if (matches_mat(mat)) result.push_back(mat);
+				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mdat){
+					if (matches_mat(mdat)) result.push_back(mdat);
 				};
 				for_each_md_account_transaction(sie_envs_map,x);
 				return result;
@@ -4136,7 +4136,7 @@ namespace SKV { // SKV
 						//     <Period>202203</Period>
 						xml_map[p+"Period"] = form_meta.declaration_period_id;
 						for (auto const& [box_no,mats] : vat_returns_form_box_map)  {
-							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(to_form_sign(box_no,BAS::mats_sum(mats))));
+							xml_map[p+to_xml_tag(box_no)] = std::to_string(to_tax(to_form_sign(box_no,BAS::to_mdats_sum(mats))));
 						}
 						//     <ForsMomsEjAnnan>333200</ForsMomsEjAnnan>
 						//     <InkopVaruAnnatEg>6616</InkopVaruAnnatEg>
@@ -4159,7 +4159,7 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			BAS::MDAccountTransaction dummy_mat(Amount amount) {
+			BAS::MDAccountTransaction dummy_md_at(Amount amount) {
 				return {
 					.meta = {
 						.jem = {
@@ -4175,8 +4175,8 @@ namespace SKV { // SKV
 
 			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
-				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mat) {
-					return (mat_predicate(mat) and is_any_of_accounts(mat,account_nos));
+				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mdat) {
+					return (mat_predicate(mdat) and is_any_of_accounts(mdat,account_nos));
 				});
 			}
 
@@ -4213,7 +4213,7 @@ namespace SKV { // SKV
 					// box_map[60].push_back(dummy_mat(149));
 
 					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
-					box_map[49].push_back(dummy_mat(to_box_49_amount(box_map)));
+					box_map[49].push_back(dummy_md_at(to_box_49_amount(box_map)));
 
 					result = box_map;
 				}
@@ -4265,8 +4265,8 @@ namespace SKV { // SKV
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_envs_map,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
-							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountTransaction const& mat){
-								return vat_returns_meta->period.contains(mat.meta.date);
+							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountTransaction const& mdat){
+								return vat_returns_meta->period.contains(mdat.meta.date);
 							};
 							if (auto box_map = to_form_box_map(sie_envs_map,is_vat_returns_range)) {
 								// box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
@@ -4495,19 +4495,19 @@ namespace SKV { // SKV
 				return {os.str()};
 			}
 
-			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MDAccountTransaction const& mat) {
+			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MDAccountTransaction const& mdat) {
 				std::ostringstream os{};
-				if (!mat.defacto.transtext) {
-						os << "* transtext " << std::quoted("") << " for " << mat << " does not define the EU VAT ID for this transaction *";
+				if (!mdat.defacto.transtext) {
+						os << "* transtext " << std::quoted("") << " for " << mdat << " does not define the EU VAT ID for this transaction *";
 				}
 				else {
 					// See https://en.wikipedia.org/wiki/VAT_identification_number#European_Union_VAT_identification_numbers
 					const std::regex eu_vat_id("^[A-Z]{2}\\w*"); // Must begin with two uppercase charachters for the country code
-					if (std::regex_match(*mat.defacto.transtext,eu_vat_id)) {
-						os << *mat.defacto.transtext;
+					if (std::regex_match(*mdat.defacto.transtext,eu_vat_id)) {
+						os << *mdat.defacto.transtext;
 					}
 					else {
-						os << "* transtext " << std::quoted(*mat.defacto.transtext) << " for " << mat << " does not define the EU VAT ID for this transaction *";
+						os << "* transtext " << std::quoted(*mdat.defacto.transtext) << " for " << mdat << " does not define the EU VAT ID for this transaction *";
 					}
 				}
 				return {os.str()};
@@ -4527,11 +4527,11 @@ namespace SKV { // SKV
 
 						} break;
 						case 39: {
-							auto x = [box_no=box_no,&vat_id_map](BAS::MDAccountTransaction const& mat){
-								auto eu_vat_id = to_eu_vat_id(box_no,mat);
+							auto x = [box_no=box_no,&vat_id_map](BAS::MDAccountTransaction const& mdat){
+								auto eu_vat_id = to_eu_vat_id(box_no,mdat);
 								if (!vat_id_map.contains(eu_vat_id)) vat_id_map[eu_vat_id].vat_registration_id = eu_vat_id;
 								if (!vat_id_map[eu_vat_id].services_amount) vat_id_map[eu_vat_id].services_amount = 0;
-								*vat_id_map[eu_vat_id].services_amount += to_form_amount(mat.defacto.amount);
+								*vat_id_map[eu_vat_id].services_amount += to_form_amount(mdat.defacto.amount);
 							};
 							std::for_each(mats.begin(),mats.end(),x);
 						} break;
@@ -6264,9 +6264,9 @@ Cmd Updater::operator()(Command const& command) {
                 {
                   // Adjust the sum in box 49
                   had.optional.vat_returns_form_box_map_candidate->at(49).clear();
-                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_md_at(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_mdats_sum(mats);
                   }
                   BAS::MDJournalEntry mdje{
                     .meta = {
@@ -6419,7 +6419,7 @@ Cmd Updater::operator()(Command const& command) {
                   auto box_no = ix;
                   auto& mats = had.optional.vat_returns_form_box_map_candidate->at(box_no);
                   if (auto amount = to_amount(ast[1]);amount and mats.size()>0) {
-                    auto mats_sum = BAS::mats_sum(mats);
+                    auto mats_sum = BAS::to_mdats_sum(mats);
                     auto sign = (mats_sum<0)?-1:1;
                     // mats_sum + diff = amount
                     auto diff = sign*(abs(*amount)) - mats_sum;
@@ -6448,9 +6448,9 @@ Cmd Updater::operator()(Command const& command) {
                 {
                   // Adjust the sum in box 49
                   had.optional.vat_returns_form_box_map_candidate->at(49).clear();
-                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_mat(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_md_at(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
+                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_mdats_sum(mats);
                   }
                   BAS::MDJournalEntry mdje{
                     .meta = {
@@ -7249,8 +7249,8 @@ Cmd Updater::operator()(Command const& command) {
               SKV::XML::DeclarationMeta form_meta {
                 .declaration_period_id = vat_returns_meta->period_to_declare
               };
-              auto is_quarter = [&vat_returns_meta](BAS::MDAccountTransaction const& mat){
-                return vat_returns_meta->period.contains(mat.meta.date);
+              auto is_quarter = [&vat_returns_meta](BAS::MDAccountTransaction const& mdat){
+                return vat_returns_meta->period.contains(mdat.meta.date);
               };
               auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie_env_map,is_quarter);
               if (box_map) {

@@ -19,7 +19,7 @@ std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had
 		os << ' ';
 	}
 
-	// if (auto me = had.optional.series) {
+	// if (had.optional.series) {
 	// 	os << *had.optional.series;
 	// }
 	// else {

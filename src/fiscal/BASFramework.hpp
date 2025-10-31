@@ -109,6 +109,8 @@ namespace BAS {
 				case '6':
 				case '7': {result = AccountKind::Cost;} break;
 				case '8': {result = AccountKind::Result;} break;
+					// TODO: BAS Accounts 8xxx are MIXED Debit/Credit so consider
+					//       to device a way to pin-pint which are Debit and which are Credit?
 				case '9': {/* NOT a BAS account (free for use for use as seen fit) */} break;
 			}
 		}
@@ -244,7 +246,7 @@ using BASJournalId = char; // The Id of a single BAS journal is a series charact
 using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
 
 namespace BAS {
-	Amount mats_sum(BAS::MDAccountTransactions const& mats);
+	Amount to_mdats_sum(BAS::MDAccountTransactions const& mdats);
 } // namespace BAS
 
 
@@ -312,9 +314,9 @@ std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
 std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem);
 std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm);
-std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mat);
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mdat);
 std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& mdje);
-std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mes);
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mdjes);
 std::string to_string(BAS::anonymous::JournalEntry const& aje);
 std::string to_string(BAS::MDJournalEntry const& mdje);
 

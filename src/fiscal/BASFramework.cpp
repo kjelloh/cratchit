@@ -35,8 +35,8 @@ namespace BAS {
 		};
 	}
 
-	Amount mats_sum(BAS::MDAccountTransactions const& mats) {
-		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MDAccountTransaction const& mat){
+	Amount to_mdats_sum(BAS::MDAccountTransactions const& mdats) {
+		return std::accumulate(mdats.begin(),mdats.end(),Amount{},[](Amount acc,BAS::MDAccountTransaction const& mat){
 			acc += mat.defacto.amount;
 			return acc;
 		});
@@ -209,8 +209,8 @@ std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mat) {
-	os << mat.meta << " " << mat.defacto;
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mdat) {
+	os << mdat.meta << " " << mdat.defacto;
 	return os;
 };
 
