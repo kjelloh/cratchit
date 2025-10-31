@@ -171,4 +171,4 @@ namespace SIE {
 } // namespace SIE
 
 SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans);
-SIE::Ver to_sie_t(BAS::MDJournalEntry const& me);
+SIE::Ver to_sie_t(BAS::MDJournalEntry const& mdje);

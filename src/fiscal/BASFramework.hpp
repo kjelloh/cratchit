@@ -229,7 +229,7 @@ namespace BAS {
 		JournalEntryMeta jem; // Aggregate journal entry meta for convenience
 		std::string caption;
 	};
-	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& me);
+	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje);
 
 	// meta: {date, jem:{series,verno}} defacto:AccountTransaction
 	using MDAccountTransaction = MetaDefacto<BAS::AccountTransactionMeta,BAS::anonymous::AccountTransaction>;
@@ -313,10 +313,10 @@ std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem);
 std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm);
 std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mat);
-std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& me);
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& mdje);
 std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mes);
 std::string to_string(BAS::anonymous::JournalEntry const& aje);
-std::string to_string(BAS::MDJournalEntry const& me);
+std::string to_string(BAS::MDJournalEntry const& mdje);
 
 // END Accounting IO
 // -----------------------------

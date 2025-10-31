@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <expected>
 
-BAS::MDJournalEntry to_entry(SIE::Ver const& ver);
+BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
 OptionalSIEEnvironment sie_from_stream(std::istream& is);
 OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path);
 
@@ -35,23 +35,23 @@ public:
     return dummy;
   }
 
-	SIEEnvironment::StageEntryResult stage(BAS::MDJournalEntry const& me) {
-    SIEEnvironment::StageEntryResult result{me,SIEEnvironment::StageEntryResult::Status::Undefined};
+	SIEEnvironment::StageEntryResult stage(BAS::MDJournalEntry const& mdje) {
+    SIEEnvironment::StageEntryResult result{mdje,SIEEnvironment::StageEntryResult::Status::Undefined};
 
     // TODO: Refctor this 'mess' *sigh* (to many optionals...)
 
     if (this->m_sie_envs_map.contains("current")) {
       if (auto financial_year = (*this)["current"].financial_year_date_range()) {
-        if (financial_year->contains(me.defacto.date)) {
-          return (*this)["current"].stage(me);
+        if (financial_year->contains(mdje.defacto.date)) {
+          return (*this)["current"].stage(mdje);
         }
       }
     }
 
     if (this->m_sie_envs_map.contains("-1")) {
       if (auto financial_year = (*this)["-1"].financial_year_date_range()) {
-        if (financial_year->contains(me.defacto.date)) {
-          return (*this)["-1"].stage(me);
+        if (financial_year->contains(mdje.defacto.date)) {
+          return (*this)["-1"].stage(mdje);
         }
       }
     }

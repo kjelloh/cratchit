@@ -415,7 +415,7 @@ SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
 	return result;
 }
 
-SIE::Ver to_sie_t(BAS::MDJournalEntry const& me) {
+SIE::Ver to_sie_t(BAS::MDJournalEntry const& mdje) {
 		/*
 		Series series;
 		BAS::VerNo verno;
@@ -424,11 +424,11 @@ SIE::Ver to_sie_t(BAS::MDJournalEntry const& me) {
 		*/
 
 	SIE::Ver result{
-		.series = me.meta.series
-		,.verno = (me.meta.verno)?*me.meta.verno:0
-		,.verdate = me.defacto.date
-		,.vertext = me.defacto.caption};
-	for (auto const& trans : me.defacto.account_transactions) {
+		.series = mdje.meta.series
+		,.verno = (mdje.meta.verno)?*mdje.meta.verno:0
+		,.verdate = mdje.defacto.date
+		,.vertext = mdje.defacto.caption};
+	for (auto const& trans : mdje.defacto.account_transactions) {
 		result.transactions.push_back(to_sie_t(trans));
 	}
 	return result;

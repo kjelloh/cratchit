@@ -19,22 +19,22 @@ SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
 // Entry API
-void SIEEnvironment::post(BAS::MDJournalEntry const& me) {
+void SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
 
   logger::scope_logger log_raii{
      logger::development_trace
     ,std::format("SIEEnvironment::post(BAS::MetaEntry '{}{}')"
-      ,me.meta.series
-      ,logger::opt_to_string(me.meta.verno,"ver_no"))};
+      ,mdje.meta.series
+      ,logger::opt_to_string(mdje.meta.verno,"ver_no"))};
 
-  if (me.meta.verno) {
-    m_journals[me.meta.series][*me.meta.verno] = me.defacto;
-    verno_of_last_posted_to[me.meta.series] = *me.meta.verno;
+  if (mdje.meta.verno) {
+    m_journals[mdje.meta.series][*mdje.meta.verno] = mdje.defacto;
+    verno_of_last_posted_to[mdje.meta.series] = *mdje.meta.verno;
 
     // LOG
     logger::development_trace("verno_of_last_posted_to[{}] = {} "
-      ,me.meta.series
-      ,verno_of_last_posted_to[me.meta.series]);
+      ,mdje.meta.series
+      ,verno_of_last_posted_to[mdje.meta.series]);
 
   }
   else {
@@ -42,29 +42,29 @@ void SIEEnvironment::post(BAS::MDJournalEntry const& me) {
   }
 }
 
-SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const& me) {
-  StageEntryResult result{me,SIEEnvironment::StageEntryResult::Status::Undefined};
+SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje) {
+  StageEntryResult result{mdje,SIEEnvironment::StageEntryResult::Status::Undefined};
 
   // scope Log
   logger::scope_logger log_raii{
      logger::development_trace
     ,std::format("SIEEnvironment::stage(BAS::MetaEntry '{}{}')"
-      ,me.meta.series
-      ,logger::opt_to_string(me.meta.verno,"ver_no"))};
+      ,mdje.meta.series
+      ,logger::opt_to_string(mdje.meta.verno,"ver_no"))};
 
 
   // if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
-  if (this->fiscal_year().contains(me.defacto.date)) {
-    if (does_balance(me.defacto)) {
-      if (not this->already_in_posted(me)) {
+  if (this->fiscal_year().contains(mdje.defacto.date)) {
+    if (does_balance(mdje.defacto)) {
+      if (not this->already_in_posted(mdje)) {
         // Not yet posted (in sie-file from external tool)
         // So add it to make our internal sie-environment complete
-        result.set_status(this->add(me).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
+        result.set_status(this->add(mdje).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
       }
       else {
         // Is 'posted' to external tool
         // But update it in case we have edited it
-        result.set_status(this->update(me).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
+        result.set_status(this->update(mdje).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
       }
     }
     else {
@@ -76,7 +76,7 @@ SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const
 
     // Log
     if (true) {
-      logger::cout_proxy << "\nDate:" << me.defacto.date << " is not in financial year:";
+      logger::cout_proxy << "\nDate:" << mdje.defacto.date << " is not in financial year:";
       if (this->financial_year_date_range()) logger::cout_proxy << this->financial_year_date_range().value();
       else logger::cout_proxy << "*anonymous*";
     }
@@ -85,12 +85,12 @@ SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const
 } // stage
 
 
-BAS::OptionalMDJournalEntry SIEEnvironment::add(BAS::MDJournalEntry me) {
+BAS::OptionalMDJournalEntry SIEEnvironment::add(BAS::MDJournalEntry mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
   BAS::OptionalMDJournalEntry result{};
 
-  auto candidate = me;
+  auto candidate = mdje;
 
   // Ensure a valid series
   if ((candidate.meta.series < 'A') or ('M' < candidate.meta.series)) {
@@ -100,10 +100,10 @@ BAS::OptionalMDJournalEntry SIEEnvironment::add(BAS::MDJournalEntry me) {
 
   auto actual_verno = 
     candidate.meta.verno
-    .value_or(largest_verno(me.meta.series) + 1);    
+    .value_or(largest_verno(mdje.meta.series) + 1);
 
   // LOG
-  if (!me.meta.verno) {
+  if (!mdje.meta.verno) {
     logger::development_trace("add(me): assigned verno:{} to entry with no verno assigned",actual_verno);
   }
 
@@ -114,30 +114,30 @@ BAS::OptionalMDJournalEntry SIEEnvironment::add(BAS::MDJournalEntry me) {
     result = candidate;
   }
   else {
-    logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << me.meta.series << actual_verno;
+    logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << mdje.meta.series << actual_verno;
   }
   return result;
 } // add
 
-BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& me) {
+BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
-  logger::cout_proxy << "\nupdate(" << me << ")" << std::flush; 
+  logger::cout_proxy << "\nupdate(" << mdje << ")" << std::flush;
 
   BAS::OptionalMDJournalEntry result{};
 
-  if (me.meta.verno and *me.meta.verno > 0) {
-    auto journal_iter = m_journals.find(me.meta.series);
+  if (mdje.meta.verno and *mdje.meta.verno > 0) {
+    auto journal_iter = m_journals.find(mdje.meta.series);
     if (journal_iter != m_journals.end()) {
-      if (me.meta.verno) {
-        auto entry_iter = journal_iter->second.find(*me.meta.verno);
+      if (mdje.meta.verno) {
+        auto entry_iter = journal_iter->second.find(*mdje.meta.verno);
         if (entry_iter != journal_iter->second.end()) {
-          entry_iter->second = me.defacto; // update
-          result = BAS::MDJournalEntry{me.meta,entry_iter->second};
+          entry_iter->second = mdje.defacto; // update
+          result = BAS::MDJournalEntry{mdje.meta,entry_iter->second};
           // logger::cout_proxy << "\nupdated :" << entry_iter->second;
           // logger::cout_proxy << "\n    --> :" << me;
         }
         else {
-          logger::design_insufficiency("Can't update no-nexistent entry {}{}",me.meta.series,me.meta.verno.value());
+          logger::design_insufficiency("Can't update no-nexistent entry {}{}",mdje.meta.series,mdje.meta.verno.value());
         }
       }
       else {
@@ -145,7 +145,7 @@ BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& me
       }
     }
     else {
-      logger::design_insufficiency("Can't update entry in non recorded series {}",me.meta.series);
+      logger::design_insufficiency("Can't update entry in non recorded series {}",mdje.meta.series);
     }
   }
   return result;
@@ -160,19 +160,19 @@ BAS::VerNo SIEEnvironment::largest_verno(BAS::Series series) {
 	});
 }
 
-bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& me) {
+bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& mdje) {
 
   bool result{false};
 
-  if (!me.meta.verno) {
+  if (!mdje.meta.verno) {
     logger::design_insufficiency(
-      "already_in_posted failed - provided me has no verno");
+      "already_in_posted failed - provided mdje has no verno");
   }
-  else if (me.meta.verno.value() > 0) {
-    result = !this->is_unposted(me.meta.series,me.meta.verno.value());
+  else if (mdje.meta.verno.value() > 0) {
+    result = !this->is_unposted(mdje.meta.series,mdje.meta.verno.value());
   }
   else {
-    logger::design_insufficiency("already_in_posted(me): Failed - called with me having invalid verno:0");
+    logger::design_insufficiency("already_in_posted(me): Failed - called with mdje having invalid verno:0");
   }
 
   return result;
@@ -290,14 +290,14 @@ BAS::MDJournalEntries SIEEnvironment::unposted() const {
   for (auto const& [series,journal] : this->m_journals) {
     for (auto const& [verno,je] : journal) {
       if (this->is_unposted(series,verno)) {
-        BAS::MDJournalEntry bjer{
+        BAS::MDJournalEntry mdje{
           .meta = {
             .series = series
             ,.verno = verno
           }
           ,.defacto = je
         };
-        result.push_back(bjer);
+        result.push_back(mdje);
       }        
     }
   }

@@ -3,7 +3,7 @@
 #include <fstream> // std::ifstream,...
 #include <vector>
 
-BAS::MDJournalEntry to_entry(SIE::Ver const& ver) {
+BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
   if (false) {
     logger::cout_proxy << "\nto_entry(ver:" << ver.series << std::dec << ver.verno << " " << ver.verdate << " member count:" << ver.transactions.size()  << ")";
   }
@@ -110,7 +110,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
       if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no, ib.opening_balance);
     }
     else if (std::holds_alternative<SIE::Ver>(entry)) {
-      sie_environment.post(to_entry(std::get<SIE::Ver>(entry)));
+      sie_environment.post(to_md_entry(std::get<SIE::Ver>(entry)));
     }
   }
 

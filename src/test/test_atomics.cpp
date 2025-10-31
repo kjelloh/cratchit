@@ -1159,12 +1159,12 @@ R"(#GEN 20251026
           ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
         }
 
-        std::vector<BAS::MDJournalEntry> test_entries() {
-          std::vector<BAS::MDJournalEntry> entries{};
+        std::vector<BAS::MDJournalEntry> to_sample_md_entries() {
+          std::vector<BAS::MDJournalEntry> result{};
           {
             using namespace std::chrono;
 
-            entries.push_back(BAS::MDJournalEntry{
+            result.push_back(BAS::MDJournalEntry{
               BAS::JournalEntryMeta{
                 .series = 'A'
                 ,.verno = 1
@@ -1174,7 +1174,7 @@ R"(#GEN 20251026
                   ,.date = 2025y / 01 / 01d
                   ,.account_transactions = {}
               }});
-            entries.push_back(BAS::MDJournalEntry{
+            result.push_back(BAS::MDJournalEntry{
               BAS::JournalEntryMeta{
                 .series = 'A'
                 ,.verno = 2
@@ -1185,13 +1185,13 @@ R"(#GEN 20251026
 			            ,.account_transactions = {}
               }});
           }
-          return entries;
+          return result;
         }
 
         TEST(SIEEnvsMergeTests,StageToPostedOkTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,StageToPostedOkTest)"};
 
-          auto entries = test_entries();
+          auto entries = to_sample_md_entries();
           auto entry_0 = entries[0];
           SIEEnvironment posted{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
           posted.post(entry_0);

@@ -27,11 +27,11 @@ std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 
 namespace BAS {
 
-	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& me) {
+	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje) {
 		return AccountTransactionMeta{
-			.date = me.defacto.date
-		 ,.jem = me.meta
-		 ,.caption = me.defacto.caption
+			.date = mdje.defacto.date
+		 ,.jem = mdje.meta
+		 ,.caption = mdje.defacto.caption
 		};
 	}
 
@@ -214,14 +214,14 @@ std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mat) 
 	return os;
 };
 
-std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& me) {
-	os << me.meta << " " << me.defacto;
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& mdje) {
+	os << mdje.meta << " " << mdje.defacto;
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mes) {
-	for (auto const& me : mes) {
-		os << "\n" << me;
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mdjes) {
+	for (auto const& mdje : mdjes) {
+		os << "\n" << mdje;
 	}
 	return os;
 };
@@ -232,9 +232,9 @@ std::string to_string(BAS::anonymous::JournalEntry const& aje) {
 	return os.str();
 };
 
-std::string to_string(BAS::MDJournalEntry const& me) {
+std::string to_string(BAS::MDJournalEntry const& mdje) {
 	std::ostringstream os{};
-	os << me;
+	os << mdje;
 	return os.str();
 };
 
