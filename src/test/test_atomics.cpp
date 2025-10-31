@@ -1149,8 +1149,6 @@ R"(#GEN 20251026
         TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
           SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
-          // TODO: Prohibit SIEEnvironment without valid fiscal year
-          //       for now stage fails because provided sie does not match dates accepted by merged...
           auto stage_result = merged.stage(fixture_three_entries_env);
           ASSERT_TRUE(merged.journals_entry_count() == 3)
             << std::format("Expected 3 journal entries but found  :{}",merged.journals_entry_count());

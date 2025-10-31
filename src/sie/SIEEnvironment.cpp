@@ -59,7 +59,7 @@ SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const
       if (not this->already_in_posted(mdje)) {
         // Not yet posted (in sie-file from external tool)
         // So add it to make our internal sie-environment complete
-        result.set_status(this->add(mdje).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
+        result.set_status(this->add(mdje).has_value()?StageEntryResult::Status::Undefined:StageEntryResult::Status::NowPosted);
       }
       else {
         // Is 'posted' to external tool
@@ -186,8 +186,8 @@ BAS::MDJournalEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_env
   BAS::MDJournalEntries result{};
   for (auto const& [series,journal] : staged_sie_environment.journals()) {
     for (auto const& [verno,aje] : journal) {
-      auto je = this->stage({{.series=series,.verno=verno},aje});
-      if (!je) {
+      auto stage_result = this->stage({{.series=series,.verno=verno},aje});
+      if (stage_result.now_posted()) {
         result.push_back({{.series=series,.verno=verno},aje}); // no longer staged
       }
     }
