@@ -1340,7 +1340,7 @@ namespace BAS {
     // Now in BASFramework unit
     // 	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
 
-	using MatchesMetaEntry = std::function<bool(BAS::MetaEntry const& me)>;
+	using MatchesMetaEntry = std::function<bool(BAS::MDJournalEntry const& me)>;
 
 	BAS::OptionalAccountNo to_account_no(std::string const& s) {
 		return to_four_digit_positive_int(s);
@@ -1367,7 +1367,7 @@ namespace BAS {
 		return (abs(at1.amount) > abs(at2.amount));
 	};
 
-	BAS::MetaEntry& sort(BAS::MetaEntry& me,auto& comp) {
+	BAS::MDJournalEntry& sort(BAS::MDJournalEntry& me,auto& comp) {
 		std::sort(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),comp);
 		return me;
 	}
@@ -1375,7 +1375,7 @@ namespace BAS {
 	namespace filter {
 		struct is_series {
 			BAS::Series required_series;
-			bool operator()(MetaEntry const& me) {
+			bool operator()(MDJournalEntry const& me) {
 				return (me.meta.series == required_series);
 			}
 		};
@@ -1383,7 +1383,7 @@ namespace BAS {
 		class HasGrossAmount {
 		public:
 			HasGrossAmount(Amount gross_amount) : m_gross_amount(gross_amount) {}
-			bool operator()(BAS::MetaEntry const& me) {
+			bool operator()(BAS::MDJournalEntry const& me) {
 				if (m_gross_amount<0) {
 					return (to_negative_gross_transaction_amount(me.defacto) == m_gross_amount);
 				}
@@ -1398,7 +1398,7 @@ namespace BAS {
 		class HasTransactionToAccount {
 		public:
 			HasTransactionToAccount(BAS::AccountNo bas_account_no) : m_bas_account_no(bas_account_no) {}
-			bool operator()(BAS::MetaEntry const& me) {
+			bool operator()(BAS::MDJournalEntry const& me) {
 				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](BAS::anonymous::AccountTransaction const& at){
 					return (at.account_no == this->m_bas_account_no);
 				});
@@ -1408,14 +1408,14 @@ namespace BAS {
 		};
 
 		struct is_flagged_unposted {
-			bool operator()(MetaEntry const& me) {
+			bool operator()(MDJournalEntry const& me) {
 				return (me.meta.unposted_flag and *me.meta.unposted_flag); // Rely on C++ short-circuit (https://en.cppreference.com/w/cpp/language/operator_logical)
 			}
 		};
 
 		struct contains_account {
 			BAS::AccountNo account_no;
-			bool operator()(MetaEntry const& me) {
+			bool operator()(MDJournalEntry const& me) {
 				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](auto const& at){
 					return (this->account_no == at.account_no);
 				});
@@ -1424,14 +1424,14 @@ namespace BAS {
 
 		struct matches_meta {
 			JournalEntryMeta entry_meta;
-			bool operator()(MetaEntry const& me) {
+			bool operator()(MDJournalEntry const& me) {
 				return (me.meta == entry_meta);
 			}
 		};
 
 		struct matches_amount {
 			Amount amount;
-			bool operator()(MetaEntry const& me) {
+			bool operator()(MDJournalEntry const& me) {
 				return std::any_of(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[this](auto const& at){
 					return (this->amount == at.amount);
 				});
@@ -1440,7 +1440,7 @@ namespace BAS {
 
 		struct matches_heading {
 			std::string user_search_string;
-			bool operator()(MetaEntry const& me) {
+			bool operator()(MDJournalEntry const& me) {
 				bool result{false};
 				result = strings_share_tokens(user_search_string,me.defacto.caption);
 				if (!result) {
@@ -1455,7 +1455,7 @@ namespace BAS {
 
 		struct matches_user_search_criteria{
 			std::string user_search_string;
-			bool operator()(MetaEntry const& me) {
+			bool operator()(MDJournalEntry const& me) {
 				bool result{false};
 				if (!result and user_search_string.size()==1) {
 					result = is_series{user_search_string[0]}(me);
@@ -1566,7 +1566,7 @@ namespace BAS {
 						result = result ^ (h << 1);
 					}
 					return result;
-				}	
+				}
 			};
 
 			template <>
@@ -1578,11 +1578,11 @@ namespace BAS {
 						result = result ^ static_cast<std::size_t>((h << 1));
 					}
 					return result;
-				}	
+				}
 			};
 		} // namespace detail
 
-		BASAccountTopology to_accounts_topology(MetaEntry const& me) {
+		BASAccountTopology to_accounts_topology(MDJournalEntry const& me) {
 			BASAccountTopology result{};
 			auto f = [&result](BAS::anonymous::AccountTransaction const& at) {
 				result.insert(at.account_no);
@@ -1641,7 +1641,7 @@ Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
     // to_vat_returns_form_bas_accounts
     // to_vat_accounts
 
-auto is_any_of_accounts(BAS::MetaAccountTransaction const mat,BAS::AccountNos const& account_nos) {
+auto is_any_of_accounts(BAS::MMDDAccountTransaction const mat,BAS::AccountNos const& account_nos) {
 	return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
 		return other == mat.defacto.account_no;
 	});
@@ -1717,7 +1717,7 @@ OptionalNameHeadingAmountAT to_name_heading_amount(std::vector<std::string> cons
 		case 3: {
 			if (auto amount = to_amount(ast[2])) {
 				result = NameHeadingAmountAT{.account_name=ast[0],.trans_text=ast[1],.amount=*amount};
-			}		
+			}
 		} break;
 		default:;
 	}
@@ -1763,8 +1763,8 @@ BAS::anonymous::OptionalAccountTransaction to_bas_account_transaction(std::vecto
 
 // std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
 // 	for (auto const& at : ats) {
-// 		// os << "\n\t" << at; 
-// 		os << "\n  " << at; 
+// 		// os << "\n\t" << at;
+// 		os << "\n  " << at;
 // 	}
 // 	return os;
 // }
@@ -1891,7 +1891,7 @@ TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransactio
 	return result;
 }
 
-TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
+TaggedAmounts to_tagged_amounts(BAS::MDJournalEntry const& me) {
   if (false) {
     std::cout << "\nto_tagged_amounts(me)";
   }
@@ -1914,7 +1914,7 @@ TaggedAmounts to_tagged_amounts(BAS::MetaEntry const& me) {
 		result.push_back(ta);
 		value_ids += text::format::to_hex_string(to_value_id(ta));
 	};
-  
+
 	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
 	aggregate_ta.tags()["_members"] = value_ids.to_string();
 	result.push_back(aggregate_ta);
@@ -1958,14 +1958,14 @@ namespace CSV {
 			//       0         1      2      3            4                             5                                 6                78 9
 			// 2021-12-15;-419,65;51 86 87-9;;KORT             BEANSTALK APP   26;KORT             BEANSTALK APP   26;BEANSTALK APP   2656;;;SEK
 
-			// 
+			//
 			// Bokföringsdag	;Belopp		;Avsändare	;Mottagare	;Namn																	;Rubrik
 			// 2022/05/18			;-610,33	;51 86 87-9	;						;KORT             PAYPAL *HKSITES 26	;KORT             PAYPAL *HKSITES 26
 
 			// ;Meddelande						;Egna anteckningar	;Saldo			;Valuta
 			// ;PAYPAL *HKSITES 2656	;										;51981,54		;SEK
 
-			// 
+			//
 			if (auto sEntry = in.getline(encoding::unicode::to_utf8{})) {
 				auto tokens = tokenize::splits(*sEntry,';',tokenize::eAllowEmptyTokens::YES);
 				// LOG
@@ -2024,7 +2024,7 @@ namespace CSV {
 		}
 		in.raw_in.seekg(pos); // Reset position in case of failed parse
 		in.raw_in.clear(); // Reset failbit to allow try for other parse
-		return result;		
+		return result;
 	}
 
 	HeadingAmountDateTransEntries from_stream(auto& in,BAS::OptionalAccountNo gross_bas_account_no = std::nullopt) {
@@ -2034,7 +2034,7 @@ namespace CSV {
 			if (gross_bas_account_no) {
 // std::cout << "\nfrom_stream to gross_bas_account_no:" << *gross_bas_account_no;
 				// Add a template with the gross amount transacted to provided bas account no
-				BAS::MetaEntry me{
+				BAS::MDJournalEntry me{
 					.meta = {
 						.series = 'A'
 					}
@@ -2097,7 +2097,7 @@ OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& a
 		if (max_at_iter != aje.account_transactions.end()) result = abs(max_at_iter->amount);
 	}
 	// if (result) std::cout << "\n\t==> " << *result;
-	return result;	
+	return result;
 }
 
 BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
@@ -2156,7 +2156,7 @@ BAS::anonymous::OptionalAccountTransaction vat_account_transaction(BAS::anonymou
 
 class AccountTransactionTemplate {
 public:
-	AccountTransactionTemplate(Amount gross_amount,BAS::anonymous::AccountTransaction const& at) 
+	AccountTransactionTemplate(Amount gross_amount,BAS::anonymous::AccountTransaction const& at)
 		:  m_at{at}
 			,m_percent{static_cast<int>(round(at.amount*100 / gross_amount))}  {}
 	BAS::anonymous::AccountTransaction operator()(Amount amount) const {
@@ -2178,7 +2178,7 @@ using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
 class JournalEntryTemplate {
 public:
 
-	JournalEntryTemplate(BAS::Series series,BAS::MetaEntry const& me) : m_series{series} {
+	JournalEntryTemplate(BAS::Series series,BAS::MDJournalEntry const& me) : m_series{series} {
 		if (auto optional_gross_amount = to_gross_transaction_amount(me.defacto)) {
 			auto gross_amount = *optional_gross_amount;
 			if (gross_amount >= 0.01) {
@@ -2217,13 +2217,13 @@ private:
 using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
 using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
 
-OptionalJournalEntryTemplate to_template(BAS::MetaEntry const& me) {
+OptionalJournalEntryTemplate to_template(BAS::MDJournalEntry const& me) {
 	OptionalJournalEntryTemplate result({me.meta.series,me});
 	return result;
 }
 
-BAS::MetaEntry to_meta_entry(BAS::TypedMetaEntry const& tme) {
-	BAS::MetaEntry result {
+BAS::MDJournalEntry to_meta_entry(BAS::TypedMetaEntry const& tme) {
+	BAS::MDJournalEntry result {
 		.meta = tme.meta
 		,.defacto = {
 			.caption = tme.defacto.caption
@@ -2240,8 +2240,8 @@ OptionalJournalEntryTemplate to_template(BAS::TypedMetaEntry const& tme) {
 	return to_template(to_meta_entry(tme));
 }
 
-BAS::MetaEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
-	BAS::MetaEntry result{};
+BAS::MDJournalEntry to_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
+	BAS::MDJournalEntry result{};
 	result.meta = {
 		.series = jet.series()
 	};
@@ -2275,8 +2275,8 @@ bool are_same_and_less_than_100_cents_apart(Amount const& a1,Amount const& a2) {
 	return result;
 }
 
-BAS::MetaEntry swapped_ats_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& target_at,BAS::anonymous::AccountTransaction const& new_at) {
-	BAS::MetaEntry result{me};
+BAS::MDJournalEntry swapped_ats_entry(BAS::MDJournalEntry const& me,BAS::anonymous::AccountTransaction const& target_at,BAS::anonymous::AccountTransaction const& new_at) {
+	BAS::MDJournalEntry result{me};
 	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&target_at](auto const& entry){
 		return (entry.account_no == target_at.account_no);
 	});
@@ -2292,12 +2292,12 @@ BAS::MetaEntry swapped_ats_entry(BAS::MetaEntry const& me,BAS::anonymous::Accoun
 }
 
 // #3
-BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::AccountTransaction const& at) {
+BAS::MDJournalEntry updated_amounts_entry(BAS::MDJournalEntry const& me,BAS::anonymous::AccountTransaction const& at) {
 // std::cout << "\nupdated_amounts_entry";
 // std::cout << "\nme:" << me;
 // std::cout << "\nat:" << at;
-	
-	BAS::MetaEntry result{me};
+
+	BAS::MDJournalEntry result{me};
 	BAS::sort(result,BAS::has_greater_abs_amount);
 // std::cout << "\npre-result:" << result;
 
@@ -2364,7 +2364,7 @@ BAS::MetaEntry updated_amounts_entry(BAS::MetaEntry const& me,BAS::anonymous::Ac
 							// 4. Adjust Amount ex VAT and VAT to fit adjusted transaction amount
 							round_amount = at.amount;
 							// std::cout << "\ntrans_amount_sign " << trans_amount_sign;
-							// std::cout << "\nvat_sign " << vat_sign; 
+							// std::cout << "\nvat_sign " << vat_sign;
 							auto adjusted_trans_amount = abs(trans_amount+round_amount);
 							// std::cout << "\nadjusted_trans_amount " << trans_amount_sign*adjusted_trans_amount;
 							// std::cout << "\nvat_rate " << vat_rate;
@@ -2489,7 +2489,7 @@ void for_each_anonymous_journal_entry(SIEEnvironmentsMap const& sie_envs_map,aut
 void for_each_meta_entry(SIEEnvironment const& sie_env,auto& f) {
 	for (auto const& [series,journal] : sie_env.journals()) {
 		for (auto const& [verno,aje] : journal) {
-			f(BAS::MetaEntry{.meta ={.series=series,.verno=verno,.unposted_flag=sie_env.is_unposted(series,verno)},.defacto=aje});
+			f(BAS::MDJournalEntry{.meta ={.series=series,.verno=verno,.unposted_flag=sie_env.is_unposted(series,verno)},.defacto=aje});
 		}
 	}
 }
@@ -2505,22 +2505,22 @@ void for_each_anonymous_account_transaction(SIEEnvironment const& sie_env,auto& 
 	for_each_anonymous_journal_entry(sie_env,f_caller);
 }
 
-void for_each_meta_account_transaction(BAS::MetaEntry const& me,auto& f) {
+void for_each_meta_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
 	for (auto const& at : me.defacto.account_transactions) {
-		f(BAS::MetaAccountTransaction{
-			.meta = me
+		f(BAS::MMDDAccountTransaction{
+			.meta = me.meta
 			,.defacto = at
 		});
 	}
 }
 
 void for_each_meta_account_transaction(SIEEnvironment const& sie_env,auto& f) {
-	auto f_caller = [&f](BAS::MetaEntry const& me){for_each_meta_account_transaction(me,f);};
+	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_meta_account_transaction(me,f);};
 	for_each_meta_entry(sie_env,f_caller);
 }
 
 void for_each_meta_account_transaction(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	auto f_caller = [&f](BAS::MetaEntry const& me){for_each_meta_account_transaction(me,f);};
+	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_meta_account_transaction(me,f);};
 	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
 		for_each_meta_entry(sie_env,f_caller);
 	}
@@ -2542,7 +2542,7 @@ OptionalAmount to_ats_sum(SIEEnvironment const& sie_env,BAS::AccountNos const& b
 	OptionalAmount result{};
 	try {
 		Amount amount{};
-		auto f = [&amount,&bas_account_nos](BAS::MetaAccountTransaction const& mat) {
+		auto f = [&amount,&bas_account_nos](BAS::MMDDAccountTransaction const& mat) {
 			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
 				amount += mat.defacto.amount;
 			}
@@ -2560,7 +2560,7 @@ OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos
 	OptionalAmount result{};
 	try {
 		Amount amount{};
-		auto f = [&amount,&bas_account_nos](BAS::MetaAccountTransaction const& mat) {
+		auto f = [&amount,&bas_account_nos](BAS::MMDDAccountTransaction const& mat) {
 			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
 				amount += mat.defacto.amount;
 			}
@@ -2586,8 +2586,8 @@ std::optional<std::string> to_ats_sum_string(SIEEnvironmentsMap const& sie_envs_
 	return result;
 }
 
-auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
-	// std::cout << "\nto_typed_meta_entry: " << me; 
+auto to_typed_meta_entry = [](BAS::MDJournalEntry const& me) -> BAS::TypedMetaEntry {
+	// std::cout << "\nto_typed_meta_entry: " << me;
 	BAS::anonymous::TypedAccountTransactions typed_ats{};
 
   /*
@@ -2601,7 +2601,7 @@ auto to_typed_meta_entry = [](BAS::MetaEntry const& me) -> BAS::TypedMetaEntry {
   */
 
 	if (auto optional_gross_amount = to_gross_transaction_amount(me.defacto)) {
-		auto gross_amount = *optional_gross_amount; 
+		auto gross_amount = *optional_gross_amount;
 		// Direct type detection based on gross_amount and account meta data
 		for (auto const& at : me.defacto.account_transactions) {
 			if (round(abs(at.amount)) == round(gross_amount)) typed_ats[at].insert("gross");
@@ -2692,13 +2692,13 @@ enum class JournalEntryVATType {
 	,SwedishVAT = 1
 	,EUVAT = 2
 	,VATReturns = 3
-  ,VATClearing = 4 // VAT Returns Cleared by Swedish Skatteverket (SKV) 
+  ,VATClearing = 4 // VAT Returns Cleared by Swedish Skatteverket (SKV)
   ,SKVInterest = 6
   ,SKVFee = 7
 	,VATTransfer = 8 // VAT Clearing and Settlement in one Journal Entry
 	,Unknown
 // 	case 0: {
-		// No VAT in candidate. 
+		// No VAT in candidate.
 // case 1: {
 // 	// Swedish VAT detcted in candidate.
 // case 2: {
@@ -2726,7 +2726,7 @@ std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
 		case JournalEntryVATType::SwedishVAT: {os << "Swedish VAT";} break;
 		case JournalEntryVATType::EUVAT: {os << "EU VAT";} break;
 		case JournalEntryVATType::VATReturns: {os << "VAT Returns";} break;
-    case JournalEntryVATType::VATClearing: {os << "VAT Returns Clearing";} break; // VAT Returns Cleared by Swedish Skatteverket (SKV) 
+    case JournalEntryVATType::VATClearing: {os << "VAT Returns Clearing";} break; // VAT Returns Cleared by Swedish Skatteverket (SKV)
     case JournalEntryVATType::SKVInterest: {os << "SKV Interest";} break; // SKV applied interest to holding on the SKV account
     case JournalEntryVATType::SKVFee: {os << "SKV Fee";} break; // SKV applied a fee to be paied (e.g., for missing to leave a report before deadline)
 		case JournalEntryVATType::VATTransfer: {os << "VAT Transfer";} break;
@@ -2749,7 +2749,7 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	// LOG
 	if (log) {
 		for (auto const& [prop,count] : props_counter) {
-			std::cout << "\n" << std::quoted(prop) << " count:" << count; 
+			std::cout << "\n" << std::quoted(prop) << " count:" << count;
 		}
 	}
 	// Calculate total number of properties (NOTE: Can be more that the transactions as e.g., vat and eu_vat overlaps)
@@ -2764,7 +2764,7 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	}
   else if ((props_counter.size() == 2) and props_counter.contains("gross") and props_counter.contains("counter")) {
 		result = JournalEntryVATType::NoVAT; // NO VAT and only one gross and more than one counter gross
-		if (log) std::cout << "\nTemplate is an NO VAT, gross + counter gross transaction :)"; // gross,counter...    
+		if (log) std::cout << "\nTemplate is an NO VAT, gross + counter gross transaction :)"; // gross,counter...
   }
 	else if ((props_counter.size() == 3) and props_counter.contains("gross") and props_counter.contains("net") and props_counter.contains("vat") and !props_counter.contains("eu_vat")) {
 		if (props_sum == 3) {
@@ -2819,7 +2819,7 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 }
 
 void for_each_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	auto f_caller = [&f](BAS::MetaEntry const& me) {
+	auto f_caller = [&f](BAS::MDJournalEntry const& me) {
 		auto tme = to_typed_meta_entry(me);
 		f(tme);
 	};
@@ -2829,7 +2829,7 @@ void for_each_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
 using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>; // hash -> TypeMetaEntry
 // TODO: Consider to make MetaEntryTopologyMap an unordered_map (as it is already a map from hash -> TypedMetaEntry)
-//       All we should have to do is to define std::hash for this type to make std::unordered_map find it? 
+//       All we should have to do is to define std::hash for this type to make std::unordered_map find it?
 
 MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_envs_map) {
 	MetaEntryTopologyMap result{};
@@ -2838,7 +2838,7 @@ MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_en
 	auto h = [&result](BAS::TypedMetaEntry const& tme){
 		auto types_topology = BAS::kind::to_types_topology(tme);
 		auto signature = BAS::kind::to_signature(types_topology);
-		result[signature][types_topology].push_back(tme);							
+		result[signature][types_topology].push_back(tme);
 	};
 	for_each_typed_meta_entry(sie_envs_map,h);
 	return result;
@@ -2855,7 +2855,7 @@ std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
 }
 
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
-// that are all of the same "type" and that all sums to zero (do balance) 
+// that are all of the same "type" and that all sums to zero (do balance)
 std::vector<BAS::TypedMetaEntry> to_typed_sub_meta_entries(BAS::TypedMetaEntry const& tme) {
 	std::vector<BAS::TypedMetaEntry> result{};
 	// TODO: When needed, identify sub-entries of typed account transactions that balance (sums to zero)
@@ -2879,11 +2879,11 @@ BAS::TypedMetaEntry to_tats_swapped_tme(BAS::TypedMetaEntry const& tme,BAS::anon
 	return result;
 }
 
-BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Amount const& gross_amount) {
-	BAS::OptionalMetaEntry result{};
+BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Amount const& gross_amount) {
+	BAS::OptionalMDJournalEntry result{};
 	// TODO: Implement actual generation of a candidate using the provided typed meta entry and the gross amount
 	auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
-	BAS::MetaEntry me_candidate{
+	BAS::MDJournalEntry me_candidate{
 		.meta = tme.meta
 		,.defacto = {
 			.caption = tme.defacto.caption
@@ -2960,7 +2960,7 @@ BAS::OptionalMetaEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Am
 				// One gross + one counter gross trasnaction (EU Transactions between countries happens without charging the buyer with VAT)
 				// But to populate the VAT Returns form we need four more "fake" transactions
 				// One "fake" EU VAT + a counter "fake" VAT transactions (zero VAT to pay for the buyer)
-				// One "fake" EU Purchase + a counter EU Purchase (to not duble book the purchase in the buyers journal) 
+				// One "fake" EU Purchase + a counter EU Purchase (to not duble book the purchase in the buyers journal)
 				for (auto const& tat : tme.defacto.account_transactions) {
 					switch (BAS::kind::to_at_types_order(tat.second)) {
 						case 0x2: {
@@ -3053,7 +3053,7 @@ bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransactions 
 	return result;
 }
 
-bool are_same_and_less_than_100_cents_apart(BAS::MetaEntry const& me1, BAS::MetaEntry const& me2) {
+bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me1, BAS::MDJournalEntry const& me2) {
 	return (     	(me1.meta == me2.meta)
 						and (me1.defacto.caption == me2.defacto.caption)
 						and (me1.defacto.date == me2.defacto.date)
@@ -3162,16 +3162,16 @@ BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironmentsM
 }
 
 struct T2 {
-	BAS::MetaEntry me;
+	BAS::MDJournalEntry me;
 	struct CounterTrans {
 		BAS::AccountNo linking_account;
-		BAS::MetaEntry me;
+		BAS::MDJournalEntry me;
 	};
 	std::optional<CounterTrans> counter_trans{};
 };
 using T2s = std::vector<T2>;
 
-using T2Entry = std::pair<BAS::MetaEntry,T2::CounterTrans>;
+using T2Entry = std::pair<BAS::MDJournalEntry,T2::CounterTrans>;
 using T2Entries = std::vector<T2Entry>;
 
 std::ostream& operator<<(std::ostream& os,T2Entry const& t2e) {
@@ -3198,10 +3198,10 @@ T2Entries to_t2_entries(T2s const& t2s) {
 
 struct CollectT2s {
 	T2s t2s{};
-	T2Entries result() const { 
+	T2Entries result() const {
 		return to_t2_entries(t2s);
 	}
-	void operator() (BAS::MetaEntry const& me) {
+	void operator() (BAS::MDJournalEntry const& me) {
 		auto t2_iter = t2s.begin();
 		for (;t2_iter != t2s.end();++t2_iter) {
 			if (!t2_iter->counter_trans) {
@@ -3232,15 +3232,15 @@ T2Entries t2_entries(SIEEnvironmentsMap const& sie_envs_map) {
 	return collect_t2s.result();
 }
 
-BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vector<std::string> const& ast) {
-	BAS::OptionalMetaEntry result{};
+BAS::OptionalMDJournalEntry find_meta_entry(SIEEnvironment const& sie_env, std::vector<std::string> const& ast) {
+	BAS::OptionalMDJournalEntry result{};
 	try {
 		if ((ast.size()==1) and (ast[0].size()>=2)) {
 			// Assume A1,M13 etc as designation for the meta entry to find
 			auto series = ast[0][0];
 			auto s_verno = ast[0].substr(1);
 			auto verno = std::stoi(s_verno);
-			auto f = [&series,&verno,&result](BAS::MetaEntry const& me) {
+			auto f = [&series,&verno,&result](BAS::MDJournalEntry const& me) {
 				if (me.meta.series == series and me.meta.verno == verno) result = me;
 			};
 			for_each_meta_entry(sie_env,f);
@@ -3257,7 +3257,7 @@ BAS::OptionalMetaEntry find_meta_entry(SIEEnvironment const& sie_env, std::vecto
 namespace SKV { // SKV
 
 	int to_tax(Amount amount) {return to_double(trunc(amount));} // See https://www4.skatteverket.se/rattsligvagledning/2477.html?date=2014-01-01#section22-1
-	int to_fee(Amount amount) {return to_double(trunc(amount));} 
+	int to_fee(Amount amount) {return to_double(trunc(amount));}
 
 	zeroth::OptionalDateRange to_date_range(std::string const& period_id) {
 		zeroth::OptionalDateRange result{};
@@ -3306,14 +3306,14 @@ namespace SKV { // SKV
 
     using sru_amount_value_type = int;
 
-    sru_amount_value_type to_sru_amount(CentsAmount cents_amount) { 
+    sru_amount_value_type to_sru_amount(CentsAmount cents_amount) {
 
       // NOTE: It is a bit unclear if amounts should be rounded or truncated (or if it does not matter)?
       //       In my testing an online INK2 generator turned 0,70 SEK til 1 SEK (i.e., rounded)
       //       While 25024,84 was turned into 25024 (i.e., truncated)?
       //       For now, I round and hope this is in fact not an error either way?
 
-      //       In "Skatteregler för aktie-och handelsbolag" (https://skatteverket.se/download/18.7d2cc99c18b24bd07c38e19/1708607420810/skatteregler-for-aktie-och-handelsbolag-skv294-utgava22.pdf) 
+      //       In "Skatteregler för aktie-och handelsbolag" (https://skatteverket.se/download/18.7d2cc99c18b24bd07c38e19/1708607420810/skatteregler-for-aktie-och-handelsbolag-skv294-utgava22.pdf)
       //       SKV states;
 
               /* Kronor och avrundning
@@ -3324,7 +3324,7 @@ namespace SKV { // SKV
 
       // TODO: Clean up the 'amount strong type' mess?
       //       For now we have a lot (to many) of experimental strong-type-amounts?
-      //       But keep currency amounts strongly typed while being able to 
+      //       But keep currency amounts strongly typed while being able to
       //       apply correct rounding to integer amounts (possibly applying different roundings for different domains?).
       //       E.g., Swedish tax agencly may define one way to round to integer amounts? While BAS accounding, banks
       //       invoices etc. may apply (call for) roduing with truncation, floor, ceil etc?
@@ -3409,7 +3409,7 @@ namespace SKV { // SKV
 
 		SRUFileTagMap to_example_info_sru_file() {
 			SRUFileTagMap result{};
-			return result;	
+			return result;
 		}
 
 		SRUFileTagMap to_example_blanketter_sru_file() {
@@ -3494,7 +3494,7 @@ namespace SKV { // SKV
 			// os.sru_os << "\n" << "#POSTORT" << " " << "SKATTSTAD";
 			// os.sru_os << "\n" << "#POSTORT" << " " << "Järfälla";
 			os.sru_os << "\n" << sru_tag_value("#POSTORT",fm.info);
-			
+
 			// 14. #AVDELNING (ej obligatorisk)
 				// #AVDELNING Ekonomi
 			// 15. #KONTAKT (ej obligatorisk)
@@ -3515,19 +3515,19 @@ namespace SKV { // SKV
 		}
 
 		BlanketterOStream& operator<<(BlanketterOStream& os,FilesMapping const& fm) {
-			
+
 			for (int i=0;i<fm.blanketter.size();++i) {
 				if (i>0) os.sru_os << "\n"; // NOTE: Empty lines not allowed (so no new-line for first entry)
 
 				// Posterna i ett blankettblock måste förekomma i följande ordning:
 				// 1. #BLANKETT
 				// #BLANKETT N7-2013P1
-				// os.sru_os << "#BLANKETT" << " " << "N7-2013P1"; 
+				// os.sru_os << "#BLANKETT" << " " << "N7-2013P1";
 				os.sru_os << sru_tag_value("#BLANKETT",fm.blanketter[i].first);
 
 				// 2. #IDENTITET
 				// #IDENTITET 193510250100 20130426 174557
-				// os.sru_os << "\n" << "#IDENTITET" << " " << "193510250100 20130426 174557"; 
+				// os.sru_os << "\n" << "#IDENTITET" << " " << "193510250100 20130426 174557";
 				os.sru_os << "\n" << sru_tag_value("#IDENTITET",fm.blanketter[i].first);
 
 				// 3. #NAMN (ej obligatorisk)
@@ -3609,8 +3609,8 @@ namespace SKV { // SKV
 					FilesMapping fm {
 						.info = to_example_info_sru_file()
 					};
-					// Blankett blankett{SRUFileTagMaps{},SKV::SRU::SRUValueMap{}}; 
-					Blankett blankett{to_example_blanketter_sru_file(),SKV::SRU::SRUValueMap{}}; 
+					// Blankett blankett{SRUFileTagMaps{},SKV::SRU::SRUValueMap{}};
+					Blankett blankett{to_example_blanketter_sru_file(),SKV::SRU::SRUValueMap{}};
 					fm.blanketter.push_back(blankett);
 					result = fm;
 				}
@@ -3672,7 +3672,7 @@ namespace SKV { // SKV
 			}
 			else throw std::runtime_error(std::string{"to_entry failed, tag:"} + tag + " not defined");
 		}
-		
+
 		struct EmployerDeclarationOStream {
 			std::ostream& os;
 		};
@@ -3978,7 +3978,7 @@ namespace SKV { // SKV
 				os << "\n  " << R"(<Moms>)";
 				p += R"(Moms)";
 				// NOTE: It seems SKV requires the XML tags to come in a required sequence
-				// See DTD file 
+				// See DTD file
 				// <!ELEMENT Moms (Period, ForsMomsEjAnnan?, UttagMoms?, UlagMargbesk?, HyrinkomstFriv?, InkopVaruAnnatEg?, InkopTjanstAnnatEg?, InkopTjanstUtomEg?, InkopVaruSverige?, InkopTjanstSverige?, MomsUlagImport?, ForsVaruAnnatEg?, ForsVaruUtomEg?, InkopVaruMellan3p?, ForsVaruMellan3p?, ForsTjSkskAnnatEg?, ForsTjOvrUtomEg?, ForsKopareSkskSverige?, ForsOvrigt?, MomsUtgHog?, MomsUtgMedel?, MomsUtgLag?, MomsInkopUtgHog?, MomsInkopUtgMedel?, MomsInkopUtgLag?, MomsImportUtgHog?, MomsImportUtgMedel?, MomsImportUtgLag?, MomsIngAvdr?, MomsBetala?, TextUpplysningMoms?)>
 				//     <!ELEMENT Period (#PCDATA)>
 				//     <!ELEMENT ForsMomsEjAnnan (#PCDATA)>
@@ -4066,7 +4066,7 @@ namespace SKV { // SKV
 				if (BOXNO_XML_TAG_MAP.contains(box_no)) {
 					auto const& tag = BOXNO_XML_TAG_MAP.at(box_no);
 					if (tag.size() > 0) result = tag;
-					else throw std::runtime_error{std::string{"ERROR: to_xml_tag failed. tag for box_no:"} + std::to_string(box_no) + " of zero length"};  
+					else throw std::runtime_error{std::string{"ERROR: to_xml_tag failed. tag for box_no:"} + std::to_string(box_no) + " of zero length"};
 				}
 				else throw std::runtime_error{std::string{"ERROR: to_xml_tag failed. box_no:"} + std::to_string(box_no) + " not defined"};
 				return result;
@@ -4080,7 +4080,7 @@ namespace SKV { // SKV
 					case 11: if (result[6] != '-') throw std::runtime_error(std::string{"ERROR: to_11_digit_orgno failed, can't process org_no="} + generic_org_no);
 						break;
 					case 12: result = to_11_digit_orgno(result.substr(2)); // recurce with assumed prefix "16" removed
-						break;							
+						break;
 					default: throw std::runtime_error(std::string{"ERROR: to_11_digit_orgno failed, wrong length org_no="} + generic_org_no);
 						break;
 				}
@@ -4093,18 +4093,18 @@ namespace SKV { // SKV
 			// std::set<BAS::AccountNo> to_accounts(BoxNos const& box_nos) {
             // std::set<BAS::AccountNo> to_vat_accounts() {
 
-			BAS::MetaAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
-				BAS::MetaAccountTransactions result{};
-				auto x = [&matches_mat,&result](BAS::MetaAccountTransaction const& mat){
+			BAS::MMDDAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
+				BAS::MMDDAccountTransactions result{};
+				auto x = [&matches_mat,&result](BAS::MMDDAccountTransaction const& mat){
 					if (matches_mat(mat)) result.push_back(mat);
 				};
 				for_each_meta_account_transaction(sie_env,x);
 				return result;
 			}
 
-			BAS::MetaAccountTransactions to_mats(SIEEnvironmentsMap const& sie_envs_map,auto const& matches_mat) {
-				BAS::MetaAccountTransactions result{};
-				auto x = [&matches_mat,&result](BAS::MetaAccountTransaction const& mat){
+			BAS::MMDDAccountTransactions to_mats(SIEEnvironmentsMap const& sie_envs_map,auto const& matches_mat) {
+				BAS::MMDDAccountTransactions result{};
+				auto x = [&matches_mat,&result](BAS::MMDDAccountTransaction const& mat){
 					if (matches_mat(mat)) result.push_back(mat);
 				};
 				for_each_meta_account_transaction(sie_envs_map,x);
@@ -4159,7 +4159,7 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			BAS::MetaAccountTransaction dummy_mat(Amount amount) {
+			BAS::MMDDAccountTransaction dummy_mat(Amount amount) {
 				return {
 					.meta = {
 						.meta = {
@@ -4175,9 +4175,9 @@ namespace SKV { // SKV
 				};
 			}
 
-			BAS::MetaAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
+			BAS::MMDDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
-				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MetaAccountTransaction const& mat) {
+				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MMDDAccountTransaction const& mat) {
 					return (mat_predicate(mat) and is_any_of_accounts(mat,account_nos));
 				});
 			}
@@ -4248,7 +4248,7 @@ namespace SKV { // SKV
 				for_each_typed_meta_entry(sie_envs_map,f);
 				return result;
 			}
-			
+
 			HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironmentsMap const& sie_envs_map) {
 				HeadingAmountDateTransEntries result{};
 				try {
@@ -4261,13 +4261,13 @@ namespace SKV { // SKV
 					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter aftre having created the VAT returns consolidation
 					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
 
-					// Loop through quarters 
+					// Loop through quarters
 					for (int i=0;i<3;++i) {
 // std::cout << "\nto_vat_returns_hads, checking vat_returns_range " << vat_returns_range;
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_envs_map,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
-							auto is_vat_returns_range = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+							auto is_vat_returns_range = [&vat_returns_meta](BAS::MMDDAccountTransaction const& mat){
 								return vat_returns_meta->period.contains(mat.meta.defacto.date);
 							};
 							if (auto box_map = to_form_box_map(sie_envs_map,is_vat_returns_range)) {
@@ -4356,7 +4356,7 @@ namespace SKV { // SKV
 			};
 
 			struct Month {
-				// Månadskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 
+				// Månadskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021,
 				std::string yymm;
 			};
 
@@ -4369,11 +4369,11 @@ namespace SKV { // SKV
 
 			struct Contact {std::string name_max_35_characters;};
 			struct Phone {
-				// Swedish telephone numbers are between eight and ten digits long. 
-				// They start with a two to four digit area code. 
-				// A three digit code starting with 07 indicates that the number is for a mobile phone. 
-				// All national numbers start with one leading 0, and international calls are specified by 00 or +. 
-				// The numbers are written with the area code followed by a hyphen, 
+				// Swedish telephone numbers are between eight and ten digits long.
+				// They start with a two to four digit area code.
+				// A three digit code starting with 07 indicates that the number is for a mobile phone.
+				// All national numbers start with one leading 0, and international calls are specified by 00 or +.
+				// The numbers are written with the area code followed by a hyphen,
 				// and then two to three groups of digits separated by spaces.
 				std::string swedish_format_no_space_max_17_chars{}; // E.g., +CCAA-XXXXXXX where AA is area code without leading zero (070 => 70)
 			}; // Consider https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers#Sweden
@@ -4388,7 +4388,7 @@ namespace SKV { // SKV
 		• Månads- eller kvartalskoden för den månad eller det kalenderkvartal uppgifterna gäller, till exempel 2012 för december 2020, 2101 för januari 2021, 20-4 för fjärde kvartalet 2020 eller 21-1 för första kvartalet 2021.
 		• Namnet på personen som är ansvarig för de lämnade uppgifterna (högst 35 tecken).
 		• Telefonnummer till den som är ansvarig för uppgifterna (endast siffror, med bindestreck efter riktnumret eller utlandsnummer, som inleds med plustecken (högst 17 tecken)).
-		• Frivillig uppgift om e-postadress till den som är ansvarig för uppgifterna.		
+		• Frivillig uppgift om e-postadress till den som är ansvarig för uppgifterna.
 		*/
 		// Example: "556000016701;2001;Per Persson;0123-45690; post@filmkopia.se"
 			struct SecondRow {
@@ -4439,10 +4439,10 @@ namespace SKV { // SKV
 				OStream& os;
 				void operator()(Month const& month) {
 					os << month.yymm;
-				}	
+				}
 				void operator()(Quarter const& quarter) {
 					os << quarter.yy_hyphen_quarter_seq_no;
-				}	
+				}
 			};
 
 			OStream& operator<<(OStream& os,PeriodID const& period_id) {
@@ -4450,7 +4450,7 @@ namespace SKV { // SKV
 				std::visit(streamer,period_id);
 				return os;
 			}
-			
+
 			OStream& operator<<(OStream& os,FirstRow const& row) {
 				os.os << row.entry << ';';
 				return os;
@@ -4497,10 +4497,10 @@ namespace SKV { // SKV
 				return {os.str()};
 			}
 
-			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MetaAccountTransaction const& mat) {
+			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MMDDAccountTransaction const& mat) {
 				std::ostringstream os{};
 				if (!mat.defacto.transtext) {
-						os << "* transtext " << std::quoted("") << " for " << mat << " does not define the EU VAT ID for this transaction *";						
+						os << "* transtext " << std::quoted("") << " for " << mat << " does not define the EU VAT ID for this transaction *";
 				}
 				else {
 					// See https://en.wikipedia.org/wiki/VAT_identification_number#European_Union_VAT_identification_numbers
@@ -4509,7 +4509,7 @@ namespace SKV { // SKV
 						os << *mat.defacto.transtext;
 					}
 					else {
-						os << "* transtext " << std::quoted(*mat.defacto.transtext) << " for " << mat << " does not define the EU VAT ID for this transaction *";						
+						os << "* transtext " << std::quoted(*mat.defacto.transtext) << " for " << mat << " does not define the EU VAT ID for this transaction *";
 					}
 				}
 				return {os.str()};
@@ -4529,7 +4529,7 @@ namespace SKV { // SKV
 
 						} break;
 						case 39: {
-							auto x = [box_no=box_no,&vat_id_map](BAS::MetaAccountTransaction const& mat){
+							auto x = [box_no=box_no,&vat_id_map](BAS::MMDDAccountTransaction const& mat){
 								auto eu_vat_id = to_eu_vat_id(box_no,mat);
 								if (!vat_id_map.contains(eu_vat_id)) vat_id_map[eu_vat_id].vat_registration_id = eu_vat_id;
 								if (!vat_id_map[eu_vat_id].services_amount) vat_id_map[eu_vat_id].services_amount = 0;
@@ -4544,7 +4544,7 @@ namespace SKV { // SKV
 				});
 				return result;
 			}
-			
+
 			SwedishVATRegistrationID to_swedish_vat_registration_id(SKV::OrganisationMeta const& org_meta) {
 				std::ostringstream os{};
 				os << "SE" << to_10_digit_orgno(org_meta.org_no) << "01";
@@ -4565,7 +4565,7 @@ namespace SKV { // SKV
 					// 	std::optional<std::string> e_mail{};
 					// };
 					// Default example data
-					// 556000016701;2001;Per Persson;0123-45690; post@filmkopia.se					
+					// 556000016701;2001;Per Persson;0123-45690; post@filmkopia.se
 					SecondRow second_row{
 						.vat_registration_id = to_swedish_vat_registration_id(org_meta)
 						,.period_id = to_eu_list_quarter(period.end()) // Support for quarter Sales List form so far
@@ -4587,7 +4587,7 @@ namespace SKV { // SKV
 	} // namespace CSV {
 } // namespace SKV
 
-// Expose operator<< for type aliases defined in SKV::SRU (for SRU-file output) 
+// Expose operator<< for type aliases defined in SKV::SRU (for SRU-file output)
 using SKV::SRU::operator<<;
 // expose operator<< for type alias FormBoxMap, which being an std::map template is causing compiler to consider all std::operator<< in std and not in the one in SKV::XML::VATReturns
 // See https://stackoverflow.com/questions/13192947/argument-dependent-name-lookup-and-typedef
@@ -4606,7 +4606,7 @@ std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta sender_meta
 		if (tax_declarations.size()==0) throw std::runtime_error(std::string{"to_skv_xml_map failed - zero tax_declarations"});
 		// <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 		// <Skatteverket omrade="Arbetsgivardeklaration"
-		
+
 		p += "Skatteverket";
 		//   xmlns="http://xmls.skatteverket.se/se/skatteverket/da/instans/schema/1.1"
 		//   xmlns:agd="http://xmls.skatteverket.se/se/skatteverket/da/komponent/schema/1.1"
@@ -4848,7 +4848,7 @@ std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	s
 // std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key);
 
 class ImmutableFileManager {
-private:    
+private:
     std::filesystem::path directoryPath_;
     std::string prefix_;
     std::string suffix_;
@@ -4863,7 +4863,7 @@ private:
     std::map<key_type, std::filesystem::path,new_to_old> files_;
     /*
 error: invalid operands to binary expression (
-'const std::pair<std::chrono::year_month_day, std::chrono::hh_mm_ss<std::chrono::duration<long long>>>' and 
+'const std::pair<std::chrono::year_month_day, std::chrono::hh_mm_ss<std::chrono::duration<long long>>>' and
 'const std::pair<std::chrono::year_month_day, std::chrono::hh_mm_ss<std::chrono::duration<long long>>>')
     */
     void loadFiles() {
@@ -4889,18 +4889,18 @@ error: invalid operands to binary expression (
             files_[{ymd, tod}] = filePath;
             std::cout << "\n\t\tfile_count_before:" << file_count_before << " file_count_after:" << files_.size();
             if (files_.size() == file_count_before) std::cout << " Key CONFLICT!!";
-          }              
+          }
         }
-      }      
+      }
     }
 public:
-    ImmutableFileManager(std::filesystem::path const& directoryPath,std::string const& prefix,std::string const& suffix) 
-      :  directoryPath_{directoryPath} 
-        ,prefix_{prefix} 
+    ImmutableFileManager(std::filesystem::path const& directoryPath,std::string const& prefix,std::string const& suffix)
+      :  directoryPath_{directoryPath}
+        ,prefix_{prefix}
         ,suffix_{suffix} {
       this->loadFiles();
     }
-    
+
     std::optional<std::filesystem::path> getOldestFile() const {
       std::optional<std::filesystem::path> result{};
       if (not files_.empty()) {
@@ -4992,10 +4992,10 @@ void test_immutable_file_manager() {
 OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ) {
 	OptionalJournalEntryTemplate result{};
 	if (had) {
-		BAS::MetaEntries candidates{};
+		BAS::MDJournalEntries candidates{};
 		for (auto const& je : sie_environ.journals()) {
 			auto const& [series,journal] = je;
-			for (auto const& [verno,aje] : journal) {								
+			for (auto const& [verno,aje] : journal) {
 				if (aje.caption.find(had->heading) != std::string::npos) {
 					candidates.push_back({
 						.meta = {
@@ -5014,7 +5014,7 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 	return result;
 }
 
-OptionalHeadingAmountDateTransEntry to_had(BAS::MetaEntry const& me) {
+OptionalHeadingAmountDateTransEntry to_had(BAS::MDJournalEntry const& me) {
 	OptionalHeadingAmountDateTransEntry result{};
 	auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
 	HeadingAmountDateTransEntry had{
@@ -5062,7 +5062,7 @@ Environment::Value to_environment_value(SKV::ContactPersonMeta const& cpm) {
 
 // Now in TaggedAmountFramework unit
 // to_environment_value(TaggedAmount)
-// to_tagged_amount(EnvironmentValue) 
+// to_tagged_amount(EnvironmentValue)
 
 std::optional<SRUEnvironments::value_type> to_sru_environments_entry(Environment::Value const& ev) {
 	try {
@@ -5169,7 +5169,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("-tas <first date> <last date> : Selects tagged amounts in the period first date .. last date");
 			result.push_back("-tas : Selects last selected tagged amounts");
 			result.push_back("-csv <csv file path> : Imports Comma Seperated Value file of Web bank account transactions");
-			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");			
+			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");
 			result.push_back("'q' or 'Quit'");
 		} break;
     case PromptState::LUARepl: {
@@ -5333,7 +5333,7 @@ public:
 	std::optional<HeadingAmountDateTransEntries::iterator> selected_had() {
 		return to_had_iter(this->had_index);
 	}
-  
+
 	void erease_selected_had() {
 		if (auto had_iter = to_had_iter(this->had_index)) {
 			this->heading_amount_date_entries.erase(*had_iter);
@@ -5447,11 +5447,11 @@ IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) 
     auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
     if (financial_year_date_range) {
       std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
-      auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range); 
+      auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range);
       auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts);
       for (auto const& ta : bas_account_accs) {
         IBPeriodUB entry{};
-        std::string bas_account_string = ta.tags().at("BAS"); 
+        std::string bas_account_string = ta.tags().at("BAS");
         auto bas_account_no = *BAS::to_account_no(bas_account_string);
         if (opening_balances.contains(bas_account_no)) {
           entry.ib = to_cents_amount(opening_balances.at(bas_account_no));
@@ -5463,7 +5463,7 @@ IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) 
       }
       for (auto const& [bas_account_no,opening_balance] : opening_balances) {
         IBPeriodUB entry{};
-        std::string bas_account_string = std::to_string(bas_account_no); 
+        std::string bas_account_string = std::to_string(bas_account_no);
         entry.ib = to_cents_amount(opening_balance);
         entry.ub = entry.ib;
         result[bas_account_no] = entry;
@@ -5513,7 +5513,7 @@ namespace SKV {
                 // Experimental: It seems this specification just defines how to aggregate this value.
                 //               A '+' means add it, and '-' means subtract it?
                 //               The value itself should be positive if we kept the books in order
-                //               and flips the sign according to BAS account category (See below)? 
+                //               and flips the sign according to BAS account category (See below)?
                 //               A '*' seems to mean it does not take part in any expressions (so dont care)?
                 sru_value_aggregate_sign[*sru_code] = (field_row[4].find("-") != std::string::npos)?-1:1;
 
@@ -5544,24 +5544,24 @@ namespace SKV {
 
             CentsAmount acc{};
             int sign_adjust_factor{1};
-            
+
             for (auto const& bas_account_no : *bas_account_nos) {
 
               // Experimental: We need to adjust the sign of values of SRU to match the form.
               // After some thinking I have this theory.
-              // The Assets and Liabilities are entered into the form with signes flipped to 
+              // The Assets and Liabilities are entered into the form with signes flipped to
               // make BAS Debit Assets AND BAS Credit liabilities is positive in 'SRU form'.
               // This means we flip the sign on BAS liabilites to adjust for this.
               // The same goes for Revenues that we flip the sign on to get positive values for SRU
               // Expenses are positive in BAS so no sign flipping there.
-              // And 
+              // And
               switch (bas_account_no / 1000) {
                 case 1: sign_adjust_factor = 1; break; // Assets are positive in BAS ok
                 case 2: sign_adjust_factor = -1; break; // Liabilities are negative in BAS = flip sign
                 case 3: sign_adjust_factor = -1; break; // Revenues are negative in BAS = flip sign
                 case 4:
-                case 5: 
-                case 6: 
+                case 5:
+                case 6:
                 case 7: sign_adjust_factor = 1; break; // Expenses are positive in BAS ok.
                 case 8: {
 
@@ -5584,13 +5584,13 @@ namespace SKV {
                   // *sigh* - what a MESS!
                   if (bas_account_no >= 8400 and bas_account_no <= 8499) sign_adjust_factor = 1; // SRU:7522 positive for a cost
                 }
-                break; 
+                break;
               }
 
 
               logger::cout_proxy << "\n\tBAS:" << bas_account_no;
               if (ib_period_ub.contains(bas_account_no)) {
-                acc += ib_period_ub[bas_account_no].ub;                
+                acc += ib_period_ub[bas_account_no].ub;
                 logger::cout_proxy << " UB:" << ib_period_ub[bas_account_no].ub;
                 logger::cout_proxy << " Acc:" << acc;
               }
@@ -5680,7 +5680,7 @@ public:
 			,m_matches_meta_entry{matches_meta_entry} {}
 
 	void for_each(auto const& f) const {
-		auto f_if_match = [this,&f](BAS::MetaEntry const& me){
+		auto f_if_match = [this,&f](BAS::MDJournalEntry const& me){
 			if (this->m_matches_meta_entry(me)) f(me);
 		};
 		for_each_meta_entry(m_sie_environment,f_if_match);
@@ -5693,7 +5693,7 @@ private:
 std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered_sie_environment) {
 	struct stream_entry_to {
 		std::ostream& os;
-		void operator()(BAS::MetaEntry const& me) const {
+		void operator()(BAS::MDJournalEntry const& me) const {
 			os << '\n' << me;
 		}
 	};
@@ -5715,7 +5715,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 	for (auto const& je : sie_environment.journals()) {
 		auto& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {
-			BAS::MetaEntry me {
+			BAS::MDJournalEntry me {
 				.meta = {
 					 .series = series
 					,.verno = verno
@@ -5748,7 +5748,7 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
     sieos.os << "\n#RAR" << " 0 " << year_range.begin() << " " << year_range.end();
   }
 	for (auto const& entry : sie.unposted()) {
-    logger::cout_proxy << "\nUnposted:" << entry; 
+    logger::cout_proxy << "\nUnposted:" << entry;
 		sieos << to_sie_t(entry);
 	}
 }
@@ -5804,7 +5804,7 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::GrossDebitorCreditOption: {
 			prompt << "had:aggregate:gross 0+or-:";
 		} break;
-		case PromptState::CounterTransactionsAggregateOption: {		
+		case PromptState::CounterTransactionsAggregateOption: {
 			prompt << "had:aggregate:counter:";
 		} break;
 		case PromptState::GrossAccountInput: {
@@ -6073,7 +6073,7 @@ namespace lua_faced_ifc {
       lua_settable(L, -3);
 
       // Set the new table as the metatable of the original table
-      lua_setmetatable(L, -2);      
+      lua_setmetatable(L, -2);
 
       // The table is already on the stack, so just return the number of results
       return 1;
@@ -6120,9 +6120,9 @@ Cmd Updater::operator()(Command const& command) {
       prompt << "\n<SELECTED>";
       // for (auto const& ta : model->all_dotas.tagged_amounts()) {
       int index = 0;
-      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {	
+      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {
         prompt << "\n" << index++ << ". " << ta;
-      }				
+      }
     }
     else if (model->prompt_state == PromptState::AcceptNewTAs) {
       // Reject new tagged amounts
@@ -6159,7 +6159,7 @@ Cmd Updater::operator()(Command const& command) {
       ====================================================== */
     if (auto signed_ix = to_signed_ix(ast[0]);
               do_assign == false
-          and signed_ix 
+          and signed_ix
           and model->prompt_state != PromptState::EditAT
           and model->prompt_state != PromptState::EnterIncome
           and model->prompt_state != PromptState::EnterDividend) {
@@ -6253,12 +6253,12 @@ Cmd Updater::operator()(Command const& command) {
                 };
                 model->heading_amount_date_entries.push_back(initiating_had);
                 prompt << to_had_listing_prompt(model->refreshed_hads());
-              } 
+              }
               else {
                 prompt << "\nI failed to interpret " << std::quoted(ast[3]) << " as a date";
                 prompt << "\nPlease enter a valid date for the event that intiated the indexed had (Syntax: <had Index> -initiated_as <Heading> <Date>)";
               }
-            }            
+            }
             else {
               // selected HAD and list template options
               if (had.optional.vat_returns_form_box_map_candidate) {
@@ -6270,7 +6270,7 @@ Cmd Updater::operator()(Command const& command) {
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
                     prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
                   }
-                  BAS::MetaEntry me{
+                  BAS::MDJournalEntry me{
                     .meta = {
                       .series = 'M'
                     }
@@ -6371,7 +6371,7 @@ Cmd Updater::operator()(Command const& command) {
                   // };
 
                   Amount amount{1000};
-                  BAS::MetaEntry me{
+                  BAS::MDJournalEntry me{
                     .meta = {
                       .series = 'A'
                     }
@@ -6454,7 +6454,7 @@ Cmd Updater::operator()(Command const& command) {
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
                     prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
                   }
-                  BAS::MetaEntry me{
+                  BAS::MDJournalEntry me{
                     .meta = {
                       .series = 'M'
                     }
@@ -6536,7 +6536,7 @@ Cmd Updater::operator()(Command const& command) {
             auto& had = *(*had_iter);
             if (auto account_no = BAS::to_account_no(command)) {
               // Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
-              BAS::MetaEntry me{
+              BAS::MDJournalEntry me{
                 .defacto = {
                     .caption = had.heading
                   ,.date = had.date
@@ -6566,8 +6566,8 @@ Cmd Updater::operator()(Command const& command) {
                     prompt << "\nSorry, I encountered Unknown VAT type for " << tme;
                     break; // *NOP*
                   case JournalEntryVATType::NoVAT: {
-                    // No VAT in candidate. 
-                    // Continue with 
+                    // No VAT in candidate.
+                    // Continue with
                     // 1) Some proposed gross account transactions
                     // 2) a n x gross Counter aggregate
 
@@ -6583,7 +6583,7 @@ Cmd Updater::operator()(Command const& command) {
                   } break;
                   case JournalEntryVATType::SwedishVAT: {
                     // Swedish VAT detcted in candidate.
-                    // Continue with 
+                    // Continue with
                     // 2) a n x {net,vat} counter aggregate
                     auto tp = to_template(*tme_iter);
                     if (tp) {
@@ -6595,10 +6595,10 @@ Cmd Updater::operator()(Command const& command) {
                   } break;
                   case JournalEntryVATType::EUVAT: {
                     // EU VAT detected in candidate.
-                    // Continue with a 
+                    // Continue with a
                     // 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
                     // #1 hard code for EU VAT Candidate
-                    BAS::MetaEntry me {
+                    BAS::MDJournalEntry me {
                       .defacto = {
                         .caption = had.heading
                         ,.date = had.date
@@ -6624,7 +6624,7 @@ Cmd Updater::operator()(Command const& command) {
                         me.defacto.account_transactions.push_back(new_at);
                         prompt << "\nNOTE: Assumed 25% VAT for " << new_at;
                       }
-                    }											
+                    }
                     prompt << "\nEU VAT candidate " << me;
                     had.optional.current_candidate = me;
                     model->prompt_state = PromptState::JEAggregateOptionIndex;
@@ -6640,7 +6640,7 @@ Cmd Updater::operator()(Command const& command) {
 
                     // TODO: Consider to iterate over all bas accounts defined for VAT Return form
                     //       and create a candidate that will zero out these for period given by date (end of VAT period)
-                    BAS::MetaEntry me {
+                    BAS::MDJournalEntry me {
                       .defacto = {
                         .caption = had.heading
                         ,.date = had.date
@@ -6687,7 +6687,7 @@ Cmd Updater::operator()(Command const& command) {
                       prompt << "\nVAT clearing candidate " << me;
                       had.optional.current_candidate = me;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
-                    }                  
+                    }
                   } break;
                   case JournalEntryVATType::SKVInterest: {
                     auto tp = to_template(*tme_iter);
@@ -6724,7 +6724,7 @@ Cmd Updater::operator()(Command const& command) {
                         }
                         return (abs(entry.first.amount) == amount);
                       })) {
-                        BAS::MetaEntry me {
+                        BAS::MDJournalEntry me {
                           .defacto = {
                             .caption = had.heading
                             ,.date = had.date
@@ -6809,7 +6809,7 @@ Cmd Updater::operator()(Command const& command) {
                   case 1: {
                     // {net,VAT} counter transactions aggregate
                     model->prompt_state = PromptState::NetVATAccountInput;
-                  } break;										
+                  } break;
                   default: {
                     prompt << "\nPlease enter a valid index. I don't know how to interpret option " << ix;
                   }
@@ -6844,7 +6844,7 @@ Cmd Updater::operator()(Command const& command) {
                     }
                     );
                     prompt << "\nmutated candidate:" << *had.optional.current_candidate;
-                    model->prompt_state = PromptState::JEAggregateOptionIndex;											
+                    model->prompt_state = PromptState::JEAggregateOptionIndex;
                   }
                   else {
                     prompt << "\nPlease enter a a valid single gross counter amount account number (it seems I don't understand your input " << std::quoted(command) << ")";
@@ -6919,22 +6919,22 @@ Cmd Updater::operator()(Command const& command) {
               // We need a typed entry to do some clever decisions
               auto tme = to_typed_meta_entry(*had.optional.current_candidate);
               prompt << "\n" << tme;
-              auto vat_type = to_vat_type(tme); 
+              auto vat_type = to_vat_type(tme);
               switch (vat_type) {
                 case JournalEntryVATType::NoVAT: {
-                  // No VAT in candidate. 
-                  // Continue with 
+                  // No VAT in candidate.
+                  // Continue with
                   // 1) Some propose gross account transactions
                   // 2) a n x gross Counter aggregate
                 } break;
                 case JournalEntryVATType::SwedishVAT: {
                   // Swedish VAT detcted in candidate.
-                  // Continue with 
+                  // Continue with
                   // 2) a n x {net,vat} counter aggregate
                 } break;
                 case JournalEntryVATType::EUVAT: {
                   // EU VAT detected in candidate.
-                  // Continue with a 
+                  // Continue with a
                   // 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
                 } break;
                 case JournalEntryVATType::VATReturns: {
@@ -6950,7 +6950,7 @@ Cmd Updater::operator()(Command const& command) {
               // 	for (auto const& prop : props) props_counter[prop]++;
               // }
               // for (auto const& [prop,count] : props_counter) {
-              // 	prompt << "\n" << std::quoted(prop) << " count:" << count; 
+              // 	prompt << "\n" << std::quoted(prop) << " count:" << count;
               // }
               // auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
               // 	acc += entry.second;
@@ -7029,7 +7029,7 @@ Cmd Updater::operator()(Command const& command) {
                   if (!vat_at) std::cout << "\nNo vat_at";
                   if (net_at and vat_at) {
                     had.optional.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
-                    
+
                     BAS::anonymous::AccountTransactions ats_to_keep{};
                     std::remove_copy_if(
                       had.optional.current_candidate->defacto.account_transactions.begin()
@@ -7073,7 +7073,7 @@ Cmd Updater::operator()(Command const& command) {
                 }
                 default: {
                   prompt << "\nPlease enter a valid had index";
-                } break;			
+                } break;
               }
             }
             else {
@@ -7123,7 +7123,7 @@ Cmd Updater::operator()(Command const& command) {
           }
           else {
             prompt << "\nSorry, I seems to have lost track of the HAD you selected. Please re-select a valid HAD";
-            model->prompt_state = PromptState::HADIndex;            
+            model->prompt_state = PromptState::HADIndex;
           }
 
         } break;
@@ -7156,7 +7156,7 @@ Cmd Updater::operator()(Command const& command) {
               prompt << "\n1: Report Previous Quarter " << previous_qr;
               prompt << "\n2: Check Quarter before previous " << quarter_before_previous_qr;
               prompt << "\n3: Check Previous two Quarters " << two_previous_quarters;
-              model->prompt_state = PromptState::QuarterOptionIndex;								
+              model->prompt_state = PromptState::QuarterOptionIndex;
             } break;
             case 2: {
               // Create K10 form files
@@ -7200,7 +7200,7 @@ Cmd Updater::operator()(Command const& command) {
               Amount dividend = get_K10_Dividend(model);
               prompt << "\n2: K10 1.6 Utdelning = " << dividend;
               prompt << "\n3: Continue (Create K10 and INK1)";
-              model->prompt_state = PromptState::K10INK1EditOptions;					
+              model->prompt_state = PromptState::K10INK1EditOptions;
             } break;
             case 4: {
               // "\n4: INK2 + INK2S + INK2R (Company Tax Returns form(s))";
@@ -7251,7 +7251,7 @@ Cmd Updater::operator()(Command const& command) {
               SKV::XML::DeclarationMeta form_meta {
                 .declaration_period_id = vat_returns_meta->period_to_declare
               };
-              auto is_quarter = [&vat_returns_meta](BAS::MetaAccountTransaction const& mat){
+              auto is_quarter = [&vat_returns_meta](BAS::MMDDAccountTransaction const& mat){
                 return vat_returns_meta->period.contains(mat.meta.defacto.date);
               };
               auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie_env_map,is_quarter);
@@ -7276,8 +7276,8 @@ Cmd Updater::operator()(Command const& command) {
                 // Generate an EU Sales List form for the VAt Returns form
                 if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(*box_map,org_meta,*period_range)) {
                   auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range->end());
-                  std::filesystem::path skv_files_folder{"to_skv"};						
-                  std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + "_" + to_string(today) + ".csv"};						
+                  std::filesystem::path skv_files_folder{"to_skv"};
+                  std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + "_" + to_string(today) + ".csv"};
                   std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
                   std::filesystem::create_directories(eu_list_form_file_path.parent_path());
                   std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
@@ -7299,7 +7299,7 @@ Cmd Updater::operator()(Command const& command) {
             }
             else {
               prompt << "\nSorry, failed to gather meta-data for the VAT returns form for period " << *period_range;
-            }									
+            }
           }
         } break;
         case PromptState::SKVTaxReturnEntryIndex: {
@@ -7318,7 +7318,7 @@ Cmd Updater::operator()(Command const& command) {
                   (*xml_map)[R"(Skatteverket^agd:Blankett^agd:Blankettinnehall^agd:IU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
                   (*xml_map)[R"(Skatteverket^agd:Kontaktperson^agd:Blankettinnehall^agd:HU^agd:RedovisningsPeriod faltkod="006")"] = period_to_declare;
                   std::filesystem::path skv_files_folder{"to_skv"};
-                  std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};						
+                  std::filesystem::path skv_file_name{std::string{"arbetsgivaredeklaration_"} + period_to_declare + ".xml"};
                   std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
                   std::filesystem::create_directories(skv_file_path.parent_path());
                   std::ofstream skv_file{skv_file_path};
@@ -7334,7 +7334,7 @@ Cmd Updater::operator()(Command const& command) {
                   else {
                     prompt << "\nSorry, failed to create " << skv_file_path;
                   }
-                }	
+                }
                 else {
                   prompt << "\nSorry, failed to acquire required data to generate xml-file to SKV";
                 }
@@ -7425,7 +7425,7 @@ Cmd Updater::operator()(Command const& command) {
                     // Assume we are to send in with sender being this company?
                     // 9. #ORGNR
                       // #ORGNR 191111111111
-                    info_sru_file_tag_map["#ORGNR"] = model->sie_env_map["current"].organisation_no.CIN;		
+                    info_sru_file_tag_map["#ORGNR"] = model->sie_env_map["current"].organisation_no.CIN;
                     // 10. #NAMN
                       // #NAMN Databokföraren
                     info_sru_file_tag_map["#NAMN"] = model->sie_env_map["current"].organisation_name.company_name;
@@ -7444,7 +7444,7 @@ Cmd Updater::operator()(Command const& command) {
                     // 13. #POSTORT
                       // #POSTORT SKATTSTAD
                     if (postal_address_tokens.size() > 1) {
-                      info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
+                      info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1];
                     }
                     else {
                       info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
@@ -7462,7 +7462,7 @@ Cmd Updater::operator()(Command const& command) {
                       os << " " << model->employee_birth_ids[0];
                     }
                     else {
-                      os << " " << "?PERSONNR?";											
+                      os << " " << "?PERSONNR?";
                     }
                     auto today = to_today();
                     os << " " << today;
@@ -7481,7 +7481,7 @@ Cmd Updater::operator()(Command const& command) {
                       os << " " << model->employee_birth_ids[0];
                     }
                     else {
-                      os << " " << "?PERSONNR?";											
+                      os << " " << "?PERSONNR?";
                     }
                     auto today = to_today();
                     os << " " << today;
@@ -7492,9 +7492,9 @@ Cmd Updater::operator()(Command const& command) {
                   SKV::SRU::FilesMapping fm {
                     .info = info_sru_file_tag_map
                   };
-                  SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map}; 
+                  SKV::SRU::Blankett k10_blankett{k10_sru_file_tag_map,*k10_sru_value_map};
                   fm.blanketter.push_back(k10_blankett);
-                  SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map}; 
+                  SKV::SRU::Blankett ink1_blankett{ink1_sru_file_tag_map,*ink1_sru_value_map};
                   fm.blanketter.push_back(ink1_blankett);
 
                   std::filesystem::path info_file_path{"to_skv/SRU/INFO.SRU"};
@@ -7525,7 +7525,7 @@ Cmd Updater::operator()(Command const& command) {
 
                 }
                 else {
-                  prompt << "\nSorry, Failed to acquirer the data for the K10 and INK1 forms";									
+                  prompt << "\nSorry, Failed to acquirer the data for the K10 and INK1 forms";
                 }
               } // if false
             } break;
@@ -7711,7 +7711,7 @@ Cmd Updater::operator()(Command const& command) {
                   else {
                     ink2s_sru_value_map.value()[7670] = to_string(ink2s_acc);
                   }
-                  
+
                 }
                 else {
                   logger::cout_proxy << "\nSorry, failed to acquire a valid template for the INK2S form";
@@ -7763,7 +7763,7 @@ Cmd Updater::operator()(Command const& command) {
                   // 7. #DATABESKRIVNING_SLUT
                   // 8. #MEDIELEV_START
                   // 9. #ORGNR
-                  info_sru_file_tag_map["#ORGNR"] = model->sie_env_map[model->selected_year_index].organisation_no.CIN;		
+                  info_sru_file_tag_map["#ORGNR"] = model->sie_env_map[model->selected_year_index].organisation_no.CIN;
                   // 10. #NAMN
                   info_sru_file_tag_map["#NAMN"] = model->sie_env_map[model->selected_year_index].organisation_name.company_name;
 
@@ -7780,7 +7780,7 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   // 13. #POSTORT
                   if (postal_address_tokens.size() > 1) {
-                    info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1]; 
+                    info_sru_file_tag_map["#POSTORT"] = postal_address_tokens[1];
                   }
                   else {
                     info_sru_file_tag_map["#POSTORT"] = "?POSTORT?";
@@ -7805,7 +7805,7 @@ Cmd Updater::operator()(Command const& command) {
                 {
                   // #BLANKETT INK2R-2024P1
                   ink2r_sru_file_tag_map["#BLANKETT"] = " INK2R-2025P1"; // See _Nyheter_from_beskattningsperiod_2024P4.pdf
-                  
+
                   // #IDENTITET 165567828172 20240727 195839
                   std::ostringstream os{};
                   os <<  " " << model->sie_env_map[model->selected_year_index].organisation_no.CIN;
@@ -7837,7 +7837,7 @@ Cmd Updater::operator()(Command const& command) {
                   // #BLANKETTSLUT
 
                 }
-                SKV::SRU::Blankett ink2r_blankett{ink2r_sru_file_tag_map,*ink2r_sru_value_map}; 
+                SKV::SRU::Blankett ink2r_blankett{ink2r_sru_file_tag_map,*ink2r_sru_value_map};
                 fm.blanketter.push_back(ink2r_blankett); // blankett is tags and values
 
                 // #BLANKETT INK2S-2024P1
@@ -7872,10 +7872,10 @@ Cmd Updater::operator()(Command const& command) {
                   // NOTE: INK2S carries NO values from BAS accounting!
                   //       These values are all 'skattemässiga justeringar' and needs values from
                   //       the tax / skv domain
-                  
+
 
                 }
-                SKV::SRU::Blankett ink2s_blankett{ink2s_sru_file_tag_map,*ink2s_sru_value_map}; 
+                SKV::SRU::Blankett ink2s_blankett{ink2s_sru_file_tag_map,*ink2s_sru_value_map};
                 fm.blanketter.push_back(ink2s_blankett); // blankett is tags and values
 
                 SKV::SRU::SRUFileTagMap ink2_sru_file_tag_map{};
@@ -7900,7 +7900,7 @@ Cmd Updater::operator()(Command const& command) {
                   // #UPPGIFT 7114 205963
                   // #BLANKETTSLUT
                 }
-                SKV::SRU::Blankett ink2_blankett{ink2_sru_file_tag_map,*ink2_sru_value_map}; 
+                SKV::SRU::Blankett ink2_blankett{ink2_sru_file_tag_map,*ink2_sru_value_map};
                 fm.blanketter.push_back(ink2_blankett); // blankett is tags and values
 
                 // Create the SRU files from the files mapping 'fm'
@@ -7909,7 +7909,7 @@ Cmd Updater::operator()(Command const& command) {
                 std::filesystem::path info_file_path{"to_skv/INK2/SRU/INFO.SRU"};
                 std::filesystem::create_directories(info_file_path.parent_path());
 
-                // Create the info.sru file from 
+                // Create the info.sru file from
                 auto info_std_os = std::ofstream{info_file_path};
                 SKV::SRU::OStream info_sru_os{info_std_os};
                 SKV::SRU::InfoOStream info_os{info_sru_os};
@@ -7934,7 +7934,7 @@ Cmd Updater::operator()(Command const& command) {
                   // Note: SKV provides a web interface to test SRU-files at https://www.skatteverket.se/foretag/etjansterochblanketter/allaetjanster/tjanster/filoverforing.4.1f604301062bf0c47e8000527.html
                   // See section "Testa filer
                   //              Testa att dina filer uppfyller Skatteverkets krav på det tekniska formatet. Du behöver ingen e-legitimation för att använda tjänsten."
-                  
+
                 }
                 else {
                   prompt << "\nSorry, FAILED to create " << blanketter_file_path;
@@ -7942,7 +7942,7 @@ Cmd Updater::operator()(Command const& command) {
 
               }
               else {
-                prompt << "\nSorry, Failed to acquirer the data for the INK2 forms";									
+                prompt << "\nSorry, Failed to acquirer the data for the INK2 forms";
               }
 
             } break;
@@ -8004,29 +8004,29 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n<SELECTED>";
         // for (auto const& ta : model->all_dotas.tagged_amounts()) {
         int index = 0;
-        for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    	
+        for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {
           prompt << "\n" << index++ << ". " << ta;
-        }				
+        }
       }
       else {
         // Period required
         OptionalDate begin{}, end{};
         if (ast.size() == 3) {
             begin = to_date(ast[1]);
-            end = to_date(ast[2]);					
+            end = to_date(ast[2]);
         }
         if (begin and end) {
           model->selected_dotas.clear();
           for (auto const& ta : model->all_dotas.date_range_tagged_amounts({*begin,*end})) {
             model->selected_dotas.dotas_insert_auto_ordered_value(ta);
-          }				
+          }
           model->prompt_state = PromptState::TAIndex;
           prompt << "\n<SELECTED>";
           // for (auto const& ta : model->all_dotas.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    	
+          for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {
             prompt << "\n" << index++ << ". " << ta;
-          }				
+          }
 
         }
         else {
@@ -8076,7 +8076,7 @@ Cmd Updater::operator()(Command const& command) {
         auto [tag,pattern] = tokenize::split(ast[1],'=');
         if (tag.size()>0) {
           auto is_tagged = [tag=tag,pattern=pattern](TaggedAmount const& ta) {
-            const std::regex pattern_regex(pattern); 
+            const std::regex pattern_regex(pattern);
             return (ta.tags().contains(tag) and std::regex_match(ta.tags().at(tag),pattern_regex));
           };
           TaggedAmounts reduced{};
@@ -8102,7 +8102,7 @@ Cmd Updater::operator()(Command const& command) {
         auto [tag,pattern] = tokenize::split(ast[1],'=');
         if (tag.size()>0) {
           auto is_not_tagged = [tag=tag,pattern=pattern](TaggedAmount const& ta) {
-            const std::regex pattern_regex(pattern); 
+            const std::regex pattern_regex(pattern);
             return (ta.tags().contains(tag)==false or std::regex_match(ta.tags().at(tag),pattern_regex)==false);
           };
           TaggedAmounts reduced{};
@@ -8146,9 +8146,9 @@ Cmd Updater::operator()(Command const& command) {
           prompt << "\n<CREATED>";
           // for (auto const& ta : model->all_dotas.tagged_amounts()) {
           int index = 0;
-          for (auto const& ta : model->new_dotas.ordered_tagged_amounts()) {	
+          for (auto const& ta : model->new_dotas.ordered_tagged_amounts()) {
             prompt << "\n\t" << index++ << ". " << ta;
-          }				
+          }
           model->prompt_state = PromptState::AcceptNewTAs;
           prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
         }
@@ -8163,7 +8163,7 @@ Cmd Updater::operator()(Command const& command) {
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
       using AmountTrailsMap = std::map<CentsAmount,TaggedAmounts>;
       AmountTrailsMap amount_trails_map{};
-      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    
+      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {
         amount_trails_map[abs(ta.cents_amount())].push_back(ta);
       }
       std::vector<std::pair<CentsAmount,TaggedAmounts>> date_ordered_amount_trails_map{};
@@ -8197,7 +8197,7 @@ Cmd Updater::operator()(Command const& command) {
       // List by bucketing on aggregates (listing orphan (non-aggregated) tagged amounts separatly)
       std::cout << "\n<AGGREGATES>" << std::flush;
       prompt << "\n<AGGREGATES>";
-      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {    
+      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {
         prompt << "\n" << ta;
         if (auto members_value = ta.tag_value("_members")) {
           auto members = Key::Sequence{*members_value};
@@ -8214,7 +8214,7 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_hads") {
       prompt << "\nCreating Heading Amount Date entries (HAD:s) from selected Tagged Amounts";
-      auto had_candidates_tas = 
+      auto had_candidates_tas =
           model->selected_dotas.ordered_tagged_amounts()
         | std::views::filter([&](auto const& ta){
             // Filter out SIE and BAS entries
@@ -8246,7 +8246,7 @@ Cmd Updater::operator()(Command const& command) {
           std::filesystem::path resources_folder{"./resources"};
           std::filesystem::directory_iterator dir_iter{resources_folder};
           for (auto const& dir_entry : std::filesystem::directory_iterator{resources_folder}) {
-            prompt << "\n" << dir_entry.path(); // TODO: Remove .path() when stdc++ library supports streaming of std::filesystem::directory_entry 
+            prompt << "\n" << dir_entry.path(); // TODO: Remove .path() when stdc++ library supports streaming of std::filesystem::directory_entry
           }
         }
         else {
@@ -8271,7 +8271,7 @@ Cmd Updater::operator()(Command const& command) {
       // Import sie and add as base of our environment
       if (ast.size()==1) {
         // List current sie environment
-        prompt << model->sie_env_map["current"];				
+        prompt << model->sie_env_map["current"];
         // std::cout << model->sie_env_map["current"];
       }
       else if (ast.size()==2) {
@@ -8316,10 +8316,10 @@ Cmd Updater::operator()(Command const& command) {
               else {
                 prompt << "\nAll staged entries are now posted OK";
               }
-            }							
+            }
           }
           else {
-            // failed to parse sie-file into an SIE Environment 
+            // failed to parse sie-file into an SIE Environment
             prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
           }
         }
@@ -8344,10 +8344,10 @@ Cmd Updater::operator()(Command const& command) {
                     prompt << "\n       VAT Type:" << to_vat_type(tme);
                     prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
                     prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
-                    // TEST that we are able to operate on journal entries with this topology? 
+                    // TEST that we are able to operate on journal entries with this topology?
                     auto test_result = test_typed_meta_entry(model->sie_env_map,tme);
                     prompt << "\n       TEST: " << test_result;
-                    if (test_result.failed) failed_tmes.push_back(tme);											
+                    if (test_result.failed) failed_tmes.push_back(tme);
                   }
                 }
               }
@@ -8369,7 +8369,7 @@ Cmd Updater::operator()(Command const& command) {
           // assume user search criteria on transaction heading and comments
           FilteredSIEEnvironment filtered_sie{model->sie_env_map["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
           prompt << "\nNot '*', existing year id or existing file: " << std::quoted(ast[1]);
-          prompt << "\nFilter current sie for " << std::quoted(ast[1]); 
+          prompt << "\nFilter current sie for " << std::quoted(ast[1]);
           prompt << filtered_sie;
         }
       }
@@ -8394,10 +8394,10 @@ Cmd Updater::operator()(Command const& command) {
               else {
                 prompt << "\nAll staged entries are now posted OK";
               }
-            }							
+            }
           }
           else {
-            // failed to parse sie-file into an SIE Environment 
+            // failed to parse sie-file into an SIE Environment
             prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
           }
         }
@@ -8431,12 +8431,12 @@ Cmd Updater::operator()(Command const& command) {
         TaggedAmounts tas{}; // journal entries
         auto is_journal_entry = [](TaggedAmount const& ta) {
           return (ta.tags().contains("parent_SIE") or ta.tags().contains("IB"));
-        };        
-        std::ranges::copy(model->all_dotas.date_range_tagged_amounts(*financial_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));				
+        };
+        std::ranges::copy(model->all_dotas.date_range_tagged_amounts(*financial_year_date_range) | std::views::filter(is_journal_entry),std::back_inserter(tas));
         // 2. Group tagged amounts into same BAS account and a list of parent_SIE
         std::map<BAS::AccountNo,TaggedAmounts> huvudbok{};
         std::map<BAS::AccountNo,CentsAmount> opening_balance{};
-        
+
         for (auto const& ta : tas) {
           if (ta.tags().contains("BAS")) {
             auto opt_bas_account_no = BAS::to_account_no(ta.tags().at("BAS"));
@@ -8470,7 +8470,7 @@ Cmd Updater::operator()(Command const& command) {
           for (auto const& ta : tas) {
             prompt << "\n\t" << ta;
             acc += ta.cents_amount();
-            prompt << "\tsaldo:" << to_units_and_cents(acc); 
+            prompt << "\tsaldo:" << to_units_and_cents(acc);
           }
           prompt << "\n\tclosing balance\t" << to_units_and_cents(acc);
         }
@@ -8606,19 +8606,19 @@ Cmd Updater::operator()(Command const& command) {
       auto ats = to_gross_account_transactions(model->sie_env_map);
       for (auto const& at : ats) {
         prompt << "\n" << at;
-      }				
+      }
     }
     else if (ast[0] == "-net") {
       auto ats = to_net_account_transactions(model->sie_env_map);
       for (auto const& at : ats) {
         prompt << "\n" << at;
-      }				
+      }
     }
     else if (ast[0] == "-vat") {
       auto vats = to_vat_account_transactions(model->sie_env_map);
       for (auto const& vat : vats) {
         prompt << "\n" << vat;
-      }				
+      }
     }
     else if (ast[0] == "-t2") {
       auto t2s = t2_entries(model->sie_env_map);
@@ -8679,8 +8679,8 @@ Cmd Updater::operator()(Command const& command) {
             return result;
           });
           // 2) Don't add a had that is already accounted for as an sie entry
-          auto sie_hads_reducer = [&hads](BAS::MetaEntry const& me) {
-            // Remove the had if it matches me 
+          auto sie_hads_reducer = [&hads](BAS::MDJournalEntry const& me) {
+            // Remove the had if it matches me
             std::erase_if(hads,[&me](HeadingAmountDateTransEntry const& had) {
               bool result{false};
               if (me.defacto.date == had.date) {
@@ -8744,7 +8744,7 @@ Cmd Updater::operator()(Command const& command) {
       // model->prompt_state = PromptState::Root;
       auto new_state = model->to_previous_state(model->prompt_state);
       prompt << model->to_prompt_for_entering_state(new_state);
-      model->prompt_state = new_state;      
+      model->prompt_state = new_state;
     }
     else if (ast[0] == "-omslutning") {
       // Report yearly change for each BAS account
@@ -8783,7 +8783,7 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\t" << std::setw(w) << "<IB>";
         prompt << "\t" << std::setw(w) << "<period>";
         prompt << "\t" << std::setw(w) <<  "<UB>";
-      
+
         for (auto const& [bas_account_no,entry] : bas_omslutning_map) {
           prompt << "\n";
           prompt << std::setw(w) << bas_account_no;
@@ -8797,7 +8797,7 @@ Cmd Updater::operator()(Command const& command) {
       }
       else {
         prompt << "\nTry '-omslutning' with no argument for current year or enter a valid fiscal year id 'current','-1','-2',...";
-      }      
+      }
     }
     else if (ast[0] == "-ar_vs_bas") {
       auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2024_mapping_to_k2_ar_text);
@@ -8825,7 +8825,7 @@ Cmd Updater::operator()(Command const& command) {
       auto financial_year_date_range = model->sie_env_map["-1"].financial_year_date_range();
 
       if (false and financial_year_date_range) {
-        auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range); 
+        auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range);
         auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts);
 
         if (true) {
@@ -8833,11 +8833,11 @@ Cmd Updater::operator()(Command const& command) {
           std::cout << "\nOmslutning {";
           for (auto const& ta : bas_account_accs) {
             auto omslutning = to_units_and_cents(ta.cents_amount());
-            std::string bas_account_string = ta.tags().at("BAS"); 
+            std::string bas_account_string = ta.tags().at("BAS");
             std::cout << "\n\tkonto:" << bas_account_string;
             auto ib = model->sie_env_map["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
             if (ib) {
-              auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib)); 
+              auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib));
               std::cout << " IB:" << to_string(ib_units_and_cents);
               std::cout << " omslutning:" << to_string(omslutning);
               std::cout << " UB:" << to_string(to_units_and_cents(to_cents_amount(*ib) + ta.cents_amount()));
@@ -8850,7 +8850,7 @@ Cmd Updater::operator()(Command const& command) {
         }
 
         auto not_accumulated = bas_account_accs;
-        for (auto const& ta : bas_account_accs) {	
+        for (auto const& ta : bas_account_accs) {
           for (auto& ar_entry : ar_entries) {
             if (ta.tags().contains("BAS")) {
               if (auto bas_account_no = BAS::to_account_no(ta.tags().at("BAS"))) {
@@ -8882,7 +8882,7 @@ Cmd Updater::operator()(Command const& command) {
         prompt << "\n} // Årsredovisning";
 
         prompt << "\nNOT Accumulated {";
-        for (auto const& ta : not_accumulated) {	
+        for (auto const& ta : not_accumulated) {
           prompt << "\n\t" << ta;
         }
         prompt << "\n} // NOT Accumulated";
@@ -8894,14 +8894,14 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-plain_ink2") {
       // SKV Tax return according to K2 rules (plain text)
-      // 
+      //
 
       // Parse BAS::SRU::INK2_19_P1_intervall_vers_2_csv to get a mapping between SRU Codes and field designations on SKV TAX Return and BAS Account ranges
       // From https://www.bas.se/kontoplaner/sru/
       // Also in resources/INK2_19_P1-intervall-vers-2.csv
 
       // Create tagged amounts that aggregates BAS Accounts to a saldo and SRU=<SRU code> TAX_RETURN_ID=<SKV Tax Return form box id>
-      // and the aggregates BAS accounts to accumulate for this Tax Return Field Saldo - members=id;id;id;... 
+      // and the aggregates BAS accounts to accumulate for this Tax Return Field Saldo - members=id;id;id;...
 
       BAS::SRU::INK2::parse(BAS::SRU::INK2::INK2_19_P1_intervall_vers_2_csv);
 
@@ -8934,7 +8934,7 @@ Cmd Updater::operator()(Command const& command) {
       {
         *annual_report_balance_sheet << doc::plain_text("Balansräkning");
       }
-      // ==> The fifth document seems to be the 5) notes (noter)?			
+      // ==> The fifth document seems to be the 5) notes (noter)?
       auto annual_report_annual_report_notes = doc::separate_page();
       {
         *annual_report_annual_report_notes << doc::plain_text("Noter");
@@ -9072,7 +9072,7 @@ The ITfied AB
             prompt << "\nmacOS: brew install --cask mactex";
             prompt << "\nLinux: 'sudo apt-get install texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra'";
           }
-        }					
+        }
 
 
       }
@@ -9119,7 +9119,7 @@ The ITfied AB
               case 0: {
                 prompt << "\nPlease enter:";
                 prompt << "\n\t Heading + Amount (to add a transaction aggregate with a caption)";
-                prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";							
+                prompt << "\n\t Heading          (to add a transaction aggregate with a caption and full remaining amount)";
               } break;
               case 1: {
                 if (auto amount = to_amount(ast[0])) {
@@ -9214,7 +9214,7 @@ The ITfied AB
                 }
                 else {
                   // The user entered a search criteria for a BAS account name
-                  ams = matches_bas_account_name(ast[0],model->sie_env_map["current"]);										
+                  ams = matches_bas_account_name(ast[0],model->sie_env_map["current"]);
                 }
                 if (ams.size() == 0) {
                   prompt << "\nSorry, failed to match your input to any BAS or SRU account";
@@ -9236,7 +9236,7 @@ The ITfied AB
                     BAS::TypedMetaEntries template_candidates{};
                     std::string transtext = (ast.size() == 4)?ast[3]:"";
                     for (auto series : std::string{"ABCDEIM"}) {
-                      BAS::MetaEntry me{
+                      BAS::MDJournalEntry me{
                         .meta = {
                           .series = series
                         }
@@ -9276,11 +9276,11 @@ The ITfied AB
             } // ast[1] == '='
             else {
               prompt << "Please provide a space on both sides of the '=' in your input " << std::quoted(command);
-            }							
+            }
           }
           else {
             prompt << "\nSorry, I seem to have lost track of what had you selected.";
-            prompt << "\nPlease try again with a new had.";														
+            prompt << "\nPlease try again with a new had.";
           }
         }
         else {
@@ -9326,7 +9326,7 @@ The ITfied AB
             prompt << "\n" << (*had_iter)->optional.current_candidate->defacto.caption << " " << (*had_iter)->optional.current_candidate->defacto.date;
             for (auto const& at : (*had_iter)->optional.current_candidate->defacto.account_transactions) {
               prompt << "\n  " << i++ << " " << at;
-            }				
+            }
           }
           else {
             prompt << "\nPlease enter a valid Account Transaction Index";
@@ -9416,7 +9416,7 @@ The ITfied AB
           Amount dividend = get_K10_Dividend(model);
           prompt << "\n2) K10 1.6 Utdelning = " << dividend;
           prompt << "\n3) Continue (Create K10 and INK1)";
-          model->prompt_state = PromptState::K10INK1EditOptions;								
+          model->prompt_state = PromptState::K10INK1EditOptions;
         }
         else {
           prompt << "\nPlease enter a valid amount";
@@ -9430,7 +9430,7 @@ The ITfied AB
           Amount dividend = get_K10_Dividend(model);
           prompt << "\n2) K10 1.6 Utdelning = " << dividend;
           prompt << "\n3) Continue (Create K10 and INK1)";
-          model->prompt_state = PromptState::K10INK1EditOptions;								
+          model->prompt_state = PromptState::K10INK1EditOptions;
         }
         else {
           prompt << "\nPlease enter a valid amount";
@@ -9472,7 +9472,7 @@ The ITfied AB
       }
     }
   }
-  if (prompt.str().size()>0) prompt << "\n"; 
+  if (prompt.str().size()>0) prompt << "\n";
   prompt << prompt_line(model->prompt_state);
   model->prompt = prompt.str();
   return {};
@@ -9488,7 +9488,7 @@ Cmd Updater::operator()(Quit const& quit) {
 Cmd Updater::operator()(Nop const& nop) {
   // std::cout << "\noperator(Nop)";
   return {};
-}	
+}
 BAS::TypedMetaEntries Updater::all_years_template_candidates(auto const& matches) {
   BAS::TypedMetaEntries result{};
   auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie_env_map);
@@ -9528,7 +9528,7 @@ std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState 
 
 class Cratchit {
 public:
-	Cratchit(std::filesystem::path const& p) 
+	Cratchit(std::filesystem::path const& p)
 		: cratchit_file_path{p}
           ,m_persistent_environment_file{p,::environment_from_file,::environment_to_file} {}
 
@@ -9568,7 +9568,7 @@ public:
             auto model_environment = environment_from_model(model);
             auto cratchit_environment = this->add_cratchit_environment(model_environment);
             this->m_persistent_environment_file.update(cratchit_environment);
-            // #3 unposted_to_sie_files save unstaged entries per environment (unique file names) 
+            // #3 unposted_to_sie_files save unstaged entries per environment (unique file names)
             unposted_to_sie_files(model->sie_env_map);
             // Update/create the skv xml-file (employer monthly tax declaration)
             // std::cout << R"(\nmodel->sie_env_map["current"].organisation_no.CIN=)" << model->sie_env_map["current"].organisation_no.CIN;
@@ -9584,7 +9584,7 @@ public:
 		return ux;
 	}
 private:
-    PersistentFile<Environment> m_persistent_environment_file; 
+    PersistentFile<Environment> m_persistent_environment_file;
 	std::filesystem::path cratchit_file_path{};
 	std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
 		std::vector<SKV::ContactPersonMeta> result{};
@@ -9640,7 +9640,7 @@ private:
         std::cout << "\n\tsaldo_ta : " << saldo_ta;
       }
     }
-		auto create_and_merge_to_result = [&result](BAS::MetaEntry const& me) {
+		auto create_and_merge_to_result = [&result](BAS::MDJournalEntry const& me) {
 			auto tagged_amounts = to_tagged_amounts(me);
       // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)

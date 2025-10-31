@@ -19,7 +19,7 @@ SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
 // Entry API
-void SIEEnvironment::post(BAS::MetaEntry const& me) {
+void SIEEnvironment::post(BAS::MDJournalEntry const& me) {
 
   logger::scope_logger log_raii{
      logger::development_trace
@@ -42,7 +42,7 @@ void SIEEnvironment::post(BAS::MetaEntry const& me) {
   }
 }
 
-SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MetaEntry const& me) {
+SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const& me) {
   StageEntryResult result{me,SIEEnvironment::StageEntryResult::Status::Undefined};
 
   // scope Log
@@ -85,10 +85,10 @@ SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MetaEntry const& me)
 } // stage
 
 
-BAS::OptionalMetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
+BAS::OptionalMDJournalEntry SIEEnvironment::add(BAS::MDJournalEntry me) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
-  BAS::OptionalMetaEntry result{};
+  BAS::OptionalMDJournalEntry result{};
 
   auto candidate = me;
 
@@ -119,11 +119,11 @@ BAS::OptionalMetaEntry SIEEnvironment::add(BAS::MetaEntry me) {
   return result;
 } // add
 
-BAS::OptionalMetaEntry SIEEnvironment::update(BAS::MetaEntry const& me) {
+BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& me) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
   logger::cout_proxy << "\nupdate(" << me << ")" << std::flush; 
 
-  BAS::OptionalMetaEntry result{};
+  BAS::OptionalMDJournalEntry result{};
 
   if (me.meta.verno and *me.meta.verno > 0) {
     auto journal_iter = m_journals.find(me.meta.series);
@@ -132,7 +132,7 @@ BAS::OptionalMetaEntry SIEEnvironment::update(BAS::MetaEntry const& me) {
         auto entry_iter = journal_iter->second.find(*me.meta.verno);
         if (entry_iter != journal_iter->second.end()) {
           entry_iter->second = me.defacto; // update
-          result = BAS::MetaEntry{me.meta,entry_iter->second};
+          result = BAS::MDJournalEntry{me.meta,entry_iter->second};
           // logger::cout_proxy << "\nupdated :" << entry_iter->second;
           // logger::cout_proxy << "\n    --> :" << me;
         }
@@ -160,7 +160,7 @@ BAS::VerNo SIEEnvironment::largest_verno(BAS::Series series) {
 	});
 }
 
-bool SIEEnvironment::already_in_posted(BAS::MetaEntry const& me) {
+bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& me) {
 
   bool result{false};
 
@@ -179,11 +179,11 @@ bool SIEEnvironment::already_in_posted(BAS::MetaEntry const& me) {
 }
 
 // Entries API
-BAS::MetaEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
+BAS::MDJournalEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
   logger::scope_logger log_raii{
       logger::development_trace
     ,std::format("stage(SIEEnvironment:{})",staged_sie_environment.journals_entry_count())};
-  BAS::MetaEntries result{};
+  BAS::MDJournalEntries result{};
   for (auto const& [series,journal] : staged_sie_environment.journals()) {
     for (auto const& [verno,aje] : journal) {
       auto je = this->stage({{.series=series,.verno=verno},aje});
@@ -280,17 +280,17 @@ std::size_t SIEEnvironment::journals_entry_count() const {
   return result;
 }
 
-BAS::MetaEntries SIEEnvironment::unposted() const {
+BAS::MDJournalEntries SIEEnvironment::unposted() const {
 
   logger::scope_logger log_raii{
      logger::development_trace
     ,std::format("SIEEnvironment::unposted:")};
 
-  BAS::MetaEntries result{};
+  BAS::MDJournalEntries result{};
   for (auto const& [series,journal] : this->m_journals) {
     for (auto const& [verno,je] : journal) {
       if (this->is_unposted(series,verno)) {
-        BAS::MetaEntry bjer{
+        BAS::MDJournalEntry bjer{
           .meta = {
             .series = series
             ,.verno = verno

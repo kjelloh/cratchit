@@ -6,11 +6,11 @@
 
 class SIEEnvironment {
 
-  // MetaEntry Is a meta-representation of a 'journal entry' in a DAG
+  // MetaEntry Is a meta-defacto representation of a 'journal entry' in a DAG
 
   // JournalEntryMeta: Record {Series:series, OptionalVerNo:verno}
   // MetaEntry: pair {JournalEntryMeta:meta , JournalEntry:defacto}
-  
+
   // SIEEnvironment store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
 
   // AccountTransaction: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
@@ -25,7 +25,7 @@ public:
   SIEEnvironment() = delete;
 
   // Entry API
-	void post(BAS::MetaEntry const& me);
+	void post(BAS::MDJournalEntry const& me);
 
   class StageEntryResult {
   public:
@@ -36,26 +36,26 @@ public:
       ,Undefined
     };
     StageEntryResult() = delete;
-    StageEntryResult(BAS::MetaEntry const& entry,Status status = Status{})
+    StageEntryResult(BAS::MDJournalEntry const& entry,Status status = Status{})
       : m_entry{entry},m_status{status} {}
     bool now_posted() const {return m_status == Status::NowPosted;}
     operator bool() const {return m_status == Status::StagedOk;}
-    BAS::MetaEntry const& entry() const {return m_entry;}
+    BAS::MDJournalEntry const& entry() const {return m_entry;}
     StageEntryResult& set_status(Status status) {m_status = status; return *this;}
   private:
     Status m_status{};
-    BAS::MetaEntry m_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
+    BAS::MDJournalEntry m_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
                             //       So we store a ref-safe clone to return as result
                             //       This may e.g., allow for returning a mutated entry.
   };
-	StageEntryResult stage(BAS::MetaEntry const& me);
-	BAS::OptionalMetaEntry add(BAS::MetaEntry me);
-	BAS::OptionalMetaEntry update(BAS::MetaEntry const& me);
+	StageEntryResult stage(BAS::MDJournalEntry const& me);
+	BAS::OptionalMDJournalEntry add(BAS::MDJournalEntry me);
+	BAS::OptionalMDJournalEntry update(BAS::MDJournalEntry const& me);
 	BAS::VerNo largest_verno(BAS::Series series);
-	bool already_in_posted(BAS::MetaEntry const& me);
+	bool already_in_posted(BAS::MDJournalEntry const& me);
 
   // Entries API
-	BAS::MetaEntries stage(SIEEnvironment const& staged_sie_environment);
+	BAS::MDJournalEntries stage(SIEEnvironment const& staged_sie_environment);
 
   // file API
 	std::filesystem::path staged_sie_file_path() const;
@@ -86,7 +86,7 @@ public:
 	zeroth::OptionalDateRange financial_year_date_range() const;
   OptionalAmount opening_balance_of(BAS::AccountNo bas_account_no) const;
   std::map<BAS::AccountNo,Amount> const& opening_balances() const;
-	BAS::MetaEntries unposted() const;
+	BAS::MDJournalEntries unposted() const;
 	
 private:
 	BASJournals m_journals{};

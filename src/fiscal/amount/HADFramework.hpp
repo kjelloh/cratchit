@@ -13,7 +13,7 @@ struct HeadingAmountDateTransEntry {
 	struct Optional {
 		// std::optional<char> series{};
 		std::optional<BAS::AccountNo> gross_account_no{};
-		BAS::OptionalMetaEntry current_candidate{};
+		BAS::OptionalMDJournalEntry current_candidate{};
 		std::optional<ToNetVatAccountTransactions> counter_ats_producer{};
 		std::optional<SKV::XML::VATReturns::FormBoxMap> vat_returns_form_box_map_candidate{};
 	};

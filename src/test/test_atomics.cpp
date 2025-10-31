@@ -1159,12 +1159,12 @@ R"(#GEN 20251026
           ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
         }
 
-        std::vector<BAS::MetaEntry> test_entries() {
-          std::vector<BAS::MetaEntry> entries{};
+        std::vector<BAS::MDJournalEntry> test_entries() {
+          std::vector<BAS::MDJournalEntry> entries{};
           {
             using namespace std::chrono;
 
-            entries.push_back(BAS::MetaEntry{
+            entries.push_back(BAS::MDJournalEntry{
               BAS::JournalEntryMeta{
                 .series = 'A'
                 ,.verno = 1
@@ -1174,7 +1174,7 @@ R"(#GEN 20251026
                   ,.date = 2025y / 01 / 01d
                   ,.account_transactions = {}
               }});
-            entries.push_back(BAS::MetaEntry{
+            entries.push_back(BAS::MDJournalEntry{
               BAS::JournalEntryMeta{
                 .series = 'A'
                 ,.verno = 2

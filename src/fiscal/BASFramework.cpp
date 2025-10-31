@@ -26,8 +26,8 @@ std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 // -----------------------
 
 namespace BAS {
-	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
-		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
+	Amount mats_sum(BAS::MMDDAccountTransactions const& mats) {
+		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MMDDAccountTransaction const& mat){
 			acc += mat.defacto.amount;
 			return acc;
 		});
@@ -195,17 +195,17 @@ std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MetaAccountTransaction const& mat) {
-	os << mat.meta.meta << " " << mat.defacto;
+std::ostream& operator<<(std::ostream& os,BAS::MMDDAccountTransaction const& mat) {
+	os << mat.meta << " " << mat.defacto;
 	return os;
 };
 
-std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me) {
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& me) {
 	os << me.meta << " " << me.defacto;
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MetaEntries const& mes) {
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mes) {
 	for (auto const& me : mes) {
 		os << "\n" << me;
 	}
@@ -218,7 +218,7 @@ std::string to_string(BAS::anonymous::JournalEntry const& aje) {
 	return os.str();
 };
 
-std::string to_string(BAS::MetaEntry const& me) {
+std::string to_string(BAS::MDJournalEntry const& me) {
 	std::ostringstream os{};
 	os << me;
 	return os.str();

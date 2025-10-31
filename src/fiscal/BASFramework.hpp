@@ -210,21 +210,40 @@ namespace BAS {
 	};
 	using OptionalJournalEntryMeta = std::optional<JournalEntryMeta>;
 
-	using MetaEntry = MetaDefacto<JournalEntryMeta,BAS::anonymous::JournalEntry>;
-	using OptionalMetaEntry = std::optional<MetaEntry>;
-	using MetaEntries = std::vector<MetaEntry>;
+	// 'MD' = MetaDefacto journal entry
+	using MDJournalEntry = MetaDefacto<JournalEntryMeta,BAS::anonymous::JournalEntry>;
+	using OptionalMDJournalEntry = std::optional<MDJournalEntry>;
+	using MDJournalEntries = std::vector<MDJournalEntry>;
 
-	using MetaAccountTransaction = MetaDefacto<BAS::MetaEntry,BAS::anonymous::AccountTransaction>;
-	using OptionalMetaAccountTransaction = std::optional<MetaAccountTransaction>;
-	using MetaAccountTransactions = std::vector<MetaAccountTransaction>;
+	// TODO: Consider to refactor this strange type?
+	//       It uses meta: MDJournalEntry which itself is meta: {series,verno} defacto: {heading,date,transactions}
+	//       Why is this a 'good' idea?
+	//       It seems code using this type actually want meta:{series,verno,date} and MDJournalEntry
+	//       kind of does the job (with empty/unused transactions member)
+	// MMD -> meta: MDJournalEntry D -> defacto: AccountTransaction
+	// MMDD = Meta-MetaDefacto-Defacto Account Transaction
+	using MMDDAccountTransaction = MetaDefacto<BAS::MDJournalEntry,BAS::anonymous::AccountTransaction>;
+
+	// TODO: Try to replace meta:MDJournalEntry with a 'proper' meta aggregate for MMDDAccountTransaction?
+	/*
+	struct AccountTransactionMeta {
+		Date date;
+		JournalEntryMeta jem;
+	};
+	using MMDDAccountTransaction = MetaDefacto<BAS::AccountTransactionMeta,BAS::anonymous::AccountTransaction>;
+	*/
+
+	using OptionalMMDDAccountTransaction = std::optional<MMDDAccountTransaction>;
+	using MMDDAccountTransactions = std::vector<MMDDAccountTransaction>;
 } // namespace BAS
 
+// Journal 'DAG' storage <journal id / series> -> <verno> -> record:entry {heading,date,transactions}
 using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
 using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
 
 namespace BAS {
-	Amount mats_sum(BAS::MetaAccountTransactions const& mats);
+	Amount mats_sum(BAS::MMDDAccountTransactions const& mats);
 } // namespace BAS
 
 
@@ -291,11 +310,11 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aj
 std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
 std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);
 std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem);
-std::ostream& operator<<(std::ostream& os,BAS::MetaAccountTransaction const& mat);
-std::ostream& operator<<(std::ostream& os,BAS::MetaEntry const& me);
-std::ostream& operator<<(std::ostream& os,BAS::MetaEntries const& mes);
+std::ostream& operator<<(std::ostream& os,BAS::MMDDAccountTransaction const& mat);
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& me);
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mes);
 std::string to_string(BAS::anonymous::JournalEntry const& aje);
-std::string to_string(BAS::MetaEntry const& me);
+std::string to_string(BAS::MDJournalEntry const& me);
 
 // END Accounting IO
 // -----------------------------

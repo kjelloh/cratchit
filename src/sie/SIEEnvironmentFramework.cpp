@@ -3,11 +3,11 @@
 #include <fstream> // std::ifstream,...
 #include <vector>
 
-BAS::MetaEntry to_entry(SIE::Ver const& ver) {
+BAS::MDJournalEntry to_entry(SIE::Ver const& ver) {
   if (false) {
     logger::cout_proxy << "\nto_entry(ver:" << ver.series << std::dec << ver.verno << " " << ver.verdate << " member count:" << ver.transactions.size()  << ")";
   }
-	BAS::MetaEntry result{
+	BAS::MDJournalEntry result{
 		.meta = {
 			.series = ver.series
 			,.verno = ver.verno

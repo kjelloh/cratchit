@@ -415,7 +415,7 @@ SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
 	return result;
 }
 
-SIE::Ver to_sie_t(BAS::MetaEntry const& me) {
+SIE::Ver to_sie_t(BAS::MDJournalEntry const& me) {
 		/*
 		Series series;
 		BAS::VerNo verno;
