@@ -2505,7 +2505,7 @@ void for_each_anonymous_account_transaction(SIEEnvironment const& sie_env,auto& 
 	for_each_anonymous_journal_entry(sie_env,f_caller);
 }
 
-void for_each_meta_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
+void for_each_md_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
 	for (auto const& at : me.defacto.account_transactions) {
 		f(BAS::MDAccountTransaction{
 			.meta = BAS::to_account_transaction_meta(me)
@@ -2514,13 +2514,13 @@ void for_each_meta_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
 	}
 }
 
-void for_each_meta_account_transaction(SIEEnvironment const& sie_env,auto& f) {
-	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_meta_account_transaction(me,f);};
+void for_each_md_account_transaction(SIEEnvironment const& sie_env,auto& f) {
+	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_md_account_transaction(me,f);};
 	for_each_md_journal_entry(sie_env,f_caller);
 }
 
-void for_each_meta_account_transaction(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_meta_account_transaction(me,f);};
+void for_each_md_account_transaction(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
+	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_md_account_transaction(me,f);};
 	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
 		for_each_md_journal_entry(sie_env,f_caller);
 	}
@@ -2547,7 +2547,7 @@ OptionalAmount to_ats_sum(SIEEnvironment const& sie_env,BAS::AccountNos const& b
 				amount += mat.defacto.amount;
 			}
 		};
-		for_each_meta_account_transaction(sie_env,f);
+		for_each_md_account_transaction(sie_env,f);
 		result = amount;
 	}
 	catch (std::exception const& e) {
@@ -2565,7 +2565,7 @@ OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos
 				amount += mat.defacto.amount;
 			}
 		};
-		for_each_meta_account_transaction(sie_envs_map,f);
+		for_each_md_account_transaction(sie_envs_map,f);
 		result = amount;
 	}
 	catch (std::exception const& e) {
@@ -4098,7 +4098,7 @@ namespace SKV { // SKV
 				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mat){
 					if (matches_mat(mat)) result.push_back(mat);
 				};
-				for_each_meta_account_transaction(sie_env,x);
+				for_each_md_account_transaction(sie_env,x);
 				return result;
 			}
 
@@ -4107,7 +4107,7 @@ namespace SKV { // SKV
 				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mat){
 					if (matches_mat(mat)) result.push_back(mat);
 				};
-				for_each_meta_account_transaction(sie_envs_map,x);
+				for_each_md_account_transaction(sie_envs_map,x);
 				return result;
 			}
 
