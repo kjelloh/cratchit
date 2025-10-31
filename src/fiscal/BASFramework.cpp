@@ -26,8 +26,17 @@ std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 // -----------------------
 
 namespace BAS {
-	Amount mats_sum(BAS::MMDDAccountTransactions const& mats) {
-		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MMDDAccountTransaction const& mat){
+
+	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& me) {
+		return AccountTransactionMeta{
+			.date = me.defacto.date
+		 ,.jem = me.meta
+		 ,.caption = me.defacto.caption
+		};
+	}
+
+	Amount mats_sum(BAS::MDAccountTransactions const& mats) {
+		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MDAccountTransaction const& mat){
 			acc += mat.defacto.amount;
 			return acc;
 		});
@@ -195,7 +204,12 @@ std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MMDDAccountTransaction const& mat) {
+std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm) {
+	os << atm.date << " " << atm.jem /* << atm.caption */;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mat) {
 	os << mat.meta << " " << mat.defacto;
 	return os;
 };

@@ -1641,7 +1641,7 @@ Sru2BasMap sru_to_bas_map(BAS::AccountMetas const& metas) {
     // to_vat_returns_form_bas_accounts
     // to_vat_accounts
 
-auto is_any_of_accounts(BAS::MMDDAccountTransaction const mat,BAS::AccountNos const& account_nos) {
+auto is_any_of_accounts(BAS::MDAccountTransaction const mat,BAS::AccountNos const& account_nos) {
 	return std::any_of(account_nos.begin(),account_nos.end(),[&mat](auto other){
 		return other == mat.defacto.account_no;
 	});
@@ -2507,8 +2507,8 @@ void for_each_anonymous_account_transaction(SIEEnvironment const& sie_env,auto& 
 
 void for_each_meta_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
 	for (auto const& at : me.defacto.account_transactions) {
-		f(BAS::MMDDAccountTransaction{
-			.meta = me.meta
+		f(BAS::MDAccountTransaction{
+			.meta = BAS::to_account_transaction_meta(me)
 			,.defacto = at
 		});
 	}
@@ -2542,7 +2542,7 @@ OptionalAmount to_ats_sum(SIEEnvironment const& sie_env,BAS::AccountNos const& b
 	OptionalAmount result{};
 	try {
 		Amount amount{};
-		auto f = [&amount,&bas_account_nos](BAS::MMDDAccountTransaction const& mat) {
+		auto f = [&amount,&bas_account_nos](BAS::MDAccountTransaction const& mat) {
 			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
 				amount += mat.defacto.amount;
 			}
@@ -2560,7 +2560,7 @@ OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos
 	OptionalAmount result{};
 	try {
 		Amount amount{};
-		auto f = [&amount,&bas_account_nos](BAS::MMDDAccountTransaction const& mat) {
+		auto f = [&amount,&bas_account_nos](BAS::MDAccountTransaction const& mat) {
 			if (std::any_of(bas_account_nos.begin(),bas_account_nos.end(),[&mat](auto const&  bas_account_no){ return (mat.defacto.account_no==bas_account_no);})) {
 				amount += mat.defacto.amount;
 			}
@@ -3945,7 +3945,7 @@ namespace SKV { // SKV
 					Amount rolling_amount{};
 					for (auto const& mat : mats) {
 						rolling_amount += mat.defacto.amount;
-						os << "\n\t" << to_string(mat.meta.defacto.date) << " " << mat << " " << rolling_amount;
+						os << "\n\t" << to_string(mat.meta.date) << " " << mat << " " << rolling_amount;
 					}
 				}
 				return os;
@@ -4093,18 +4093,18 @@ namespace SKV { // SKV
 			// std::set<BAS::AccountNo> to_accounts(BoxNos const& box_nos) {
             // std::set<BAS::AccountNo> to_vat_accounts() {
 
-			BAS::MMDDAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
-				BAS::MMDDAccountTransactions result{};
-				auto x = [&matches_mat,&result](BAS::MMDDAccountTransaction const& mat){
+			BAS::MDAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
+				BAS::MDAccountTransactions result{};
+				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mat){
 					if (matches_mat(mat)) result.push_back(mat);
 				};
 				for_each_meta_account_transaction(sie_env,x);
 				return result;
 			}
 
-			BAS::MMDDAccountTransactions to_mats(SIEEnvironmentsMap const& sie_envs_map,auto const& matches_mat) {
-				BAS::MMDDAccountTransactions result{};
-				auto x = [&matches_mat,&result](BAS::MMDDAccountTransaction const& mat){
+			BAS::MDAccountTransactions to_mats(SIEEnvironmentsMap const& sie_envs_map,auto const& matches_mat) {
+				BAS::MDAccountTransactions result{};
+				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mat){
 					if (matches_mat(mat)) result.push_back(mat);
 				};
 				for_each_meta_account_transaction(sie_envs_map,x);
@@ -4159,15 +4159,13 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			BAS::MMDDAccountTransaction dummy_mat(Amount amount) {
+			BAS::MDAccountTransaction dummy_mat(Amount amount) {
 				return {
 					.meta = {
-						.meta = {
+						.jem = {
 							.series = 'X'
 						}
-						,.defacto = {
-							.caption = "Dummy..."
-						}
+						,.caption = "Dummy..."
 					}
 					,.defacto = {
 						.amount = amount
@@ -4175,9 +4173,9 @@ namespace SKV { // SKV
 				};
 			}
 
-			BAS::MMDDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
+			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
-				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MMDDAccountTransaction const& mat) {
+				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mat) {
 					return (mat_predicate(mat) and is_any_of_accounts(mat,account_nos));
 				});
 			}
@@ -4267,8 +4265,8 @@ namespace SKV { // SKV
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_envs_map,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
-							auto is_vat_returns_range = [&vat_returns_meta](BAS::MMDDAccountTransaction const& mat){
-								return vat_returns_meta->period.contains(mat.meta.defacto.date);
+							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountTransaction const& mat){
+								return vat_returns_meta->period.contains(mat.meta.date);
 							};
 							if (auto box_map = to_form_box_map(sie_envs_map,is_vat_returns_range)) {
 								// box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
@@ -4281,7 +4279,7 @@ namespace SKV { // SKV
 									std::cout << "\n\t[" << box_no << "]";
 									for (auto const& mat : mats) {
 										account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-										std::cout << "\n\t\t" << to_string(mat.meta.defacto.date) << " account_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << account_amounts[mat.defacto.account_no];
+										std::cout << "\n\t\t" << to_string(mat.meta.date) << " account_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << account_amounts[mat.defacto.account_no];
 									}
 								}
 
@@ -4497,7 +4495,7 @@ namespace SKV { // SKV
 				return {os.str()};
 			}
 
-			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MMDDAccountTransaction const& mat) {
+			EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MDAccountTransaction const& mat) {
 				std::ostringstream os{};
 				if (!mat.defacto.transtext) {
 						os << "* transtext " << std::quoted("") << " for " << mat << " does not define the EU VAT ID for this transaction *";
@@ -4529,7 +4527,7 @@ namespace SKV { // SKV
 
 						} break;
 						case 39: {
-							auto x = [box_no=box_no,&vat_id_map](BAS::MMDDAccountTransaction const& mat){
+							auto x = [box_no=box_no,&vat_id_map](BAS::MDAccountTransaction const& mat){
 								auto eu_vat_id = to_eu_vat_id(box_no,mat);
 								if (!vat_id_map.contains(eu_vat_id)) vat_id_map[eu_vat_id].vat_registration_id = eu_vat_id;
 								if (!vat_id_map[eu_vat_id].services_amount) vat_id_map[eu_vat_id].services_amount = 0;
@@ -7251,8 +7249,8 @@ Cmd Updater::operator()(Command const& command) {
               SKV::XML::DeclarationMeta form_meta {
                 .declaration_period_id = vat_returns_meta->period_to_declare
               };
-              auto is_quarter = [&vat_returns_meta](BAS::MMDDAccountTransaction const& mat){
-                return vat_returns_meta->period.contains(mat.meta.defacto.date);
+              auto is_quarter = [&vat_returns_meta](BAS::MDAccountTransaction const& mat){
+                return vat_returns_meta->period.contains(mat.meta.date);
               };
               auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie_env_map,is_quarter);
               if (box_map) {
