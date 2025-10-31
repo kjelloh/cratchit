@@ -2034,7 +2034,7 @@ namespace CSV {
 			if (gross_bas_account_no) {
 // std::cout << "\nfrom_stream to gross_bas_account_no:" << *gross_bas_account_no;
 				// Add a template with the gross amount transacted to provided bas account no
-				BAS::MDJournalEntry me{
+				BAS::MDJournalEntry mdje{
 					.meta = {
 						.series = 'A'
 					}
@@ -2047,8 +2047,8 @@ namespace CSV {
 					.account_no = *gross_bas_account_no
 					,.amount = had->amount
 				};
-				me.defacto.account_transactions.push_back(gross_at);
-				had->optional.current_candidate = me;
+				mdje.defacto.account_transactions.push_back(gross_at);
+				had->optional.current_candidate = mdje;
 			}
 			result.push_back(*had);
 		}
@@ -2586,7 +2586,7 @@ std::optional<std::string> to_ats_sum_string(SIEEnvironmentsMap const& sie_envs_
 	return result;
 }
 
-auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJournalEntry {
+auto to_typed_md_entry = [](BAS::MDJournalEntry const& mdje) -> BAS::MDTypedJournalEntry {
 	// std::cout << "\nto_typed_meta_entry: " << me;
 	BAS::anonymous::TypedAccountTransactions typed_ats{};
 
@@ -2600,10 +2600,10 @@ auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJourna
   "counter" (for non VAT amount that counters (balances) the gross amount)
   */
 
-	if (auto optional_gross_amount = to_gross_transaction_amount(me.defacto)) {
+	if (auto optional_gross_amount = to_gross_transaction_amount(mdje.defacto)) {
 		auto gross_amount = *optional_gross_amount;
 		// Direct type detection based on gross_amount and account meta data
-		for (auto const& at : me.defacto.account_transactions) {
+		for (auto const& at : mdje.defacto.account_transactions) {
 			if (round(abs(at.amount)) == round(gross_amount)) typed_ats[at].insert("gross");
 			if (is_vat_account_at(at)) typed_ats[at].insert("vat");
 			if (abs(at.amount) < 1) typed_ats[at].insert("cents");
@@ -2612,7 +2612,7 @@ auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJourna
 
 		// Ex vat amount Detection
 		Amount ex_vat_amount{},vat_amount{};
-		for (auto const& at : me.defacto.account_transactions) {
+		for (auto const& at : mdje.defacto.account_transactions) {
 			if (!typed_ats.contains(at)) {
 				// Not gross, Not VAT (above) => candidate for ex VAT
 				ex_vat_amount += at.amount;
@@ -2625,7 +2625,7 @@ auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJourna
 		if (abs(round(abs(ex_vat_amount)) + round(abs(vat_amount)) - gross_amount) <= 1) {
 			// ex_vat + vat within cents of gross
 			// tag non typed ats as ex-vat
-			for (auto const& at : me.defacto.account_transactions) {
+			for (auto const& at : mdje.defacto.account_transactions) {
 				if (!typed_ats.contains(at)) {
 					typed_ats[at].insert(net_or_counter_tag);
 				}
@@ -2645,7 +2645,7 @@ auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJourna
 	// 	 eu_purchase : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
 	// 	 gross : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
 	Amount eu_vat_amount{},eu_purchase_amount{};
-	for (auto const& at : me.defacto.account_transactions) {
+	for (auto const& at : mdje.defacto.account_transactions) {
 		// Identify transactions to EU VAT and EU Purchase tagged accounts
 		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,at)) {
 			typed_ats[at].insert("eu_vat");
@@ -2656,13 +2656,13 @@ auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJourna
 			eu_purchase_amount = at.amount;
 		}
 	}
-	for (auto const& at : me.defacto.account_transactions) {
+	for (auto const& at : mdje.defacto.account_transactions) {
 		// Identify counter transactions to EU VAT and EU Purchase tagged accounts
 		if (at.amount == -eu_vat_amount) typed_ats[at].insert("eu_vat"); // The counter trans for EU VAT
 		if ((first_digit(at.account_no) == 4 or first_digit(at.account_no) == 9) and (at.amount == -eu_purchase_amount)) typed_ats[at].insert("eu_purchase"); // The counter trans for EU Purchase
 	}
 	// Mark gross accounts for EU VAT transaction journal entry
-	for (auto const& at : me.defacto.account_transactions) {
+	for (auto const& at : mdje.defacto.account_transactions) {
 		// We expect two accounts left unmarked and they are the gross accounts
 		if (!typed_ats.contains(at) and (abs(at.amount) == abs(eu_purchase_amount))) {
 			typed_ats[at].insert("gross");
@@ -2670,15 +2670,15 @@ auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJourna
 	}
 
 	// Finally add any still untyped at with empty property set
-	for (auto const& at : me.defacto.account_transactions) {
+	for (auto const& at : mdje.defacto.account_transactions) {
 		if (!typed_ats.contains(at)) typed_ats.insert({at,{}});
 	}
 
 	BAS::MDTypedJournalEntry result{
-		.meta = me.meta
+		.meta = mdje.meta
 		,.defacto = {
-			.caption = me.defacto.caption
-			,.date = me.defacto.date
+			.caption = mdje.defacto.caption
+			,.date = mdje.defacto.date
 			,.account_transactions = typed_ats
 		}
 	};
@@ -2883,7 +2883,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 	BAS::OptionalMDJournalEntry result{};
 	// TODO: Implement actual generation of a candidate using the provided typed meta entry and the gross amount
 	auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
-	BAS::MDJournalEntry me_candidate{
+	BAS::MDJournalEntry mdje_candidate{
 		.meta = tme.meta
 		,.defacto = {
 			.caption = tme.defacto.caption
@@ -2906,7 +2906,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 					switch (BAS::kind::to_at_types_order(tat.second)) {
 						case 0x3: {
 							// gross
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = gross_amount
@@ -2914,7 +2914,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						}; break;
 						case 0x4: {
 							// net
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = static_cast<Amount>(gross_amount*0.8) // NOTE: Hard coded 25% VAT
@@ -2922,7 +2922,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						}; break;
 						case 0x6: {
 							// VAT
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = static_cast<Amount>(gross_amount*0.2) // NOTE: Hard coded 25% VAT
@@ -2930,7 +2930,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						}; break;
 						case 0x7: {
 							// Cents
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = static_cast<Amount>(0.0) // NOTE: No rounding here
@@ -2942,7 +2942,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						}; break;
 					}
 				}
-				result = me_candidate;
+				result = mdje_candidate;
 			}
 			else {
 				// Multipple counter transaction aggretates not yet supported
@@ -2965,7 +2965,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 					switch (BAS::kind::to_at_types_order(tat.second)) {
 						case 0x2: {
 							// eu_purchase +/-
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
@@ -2973,7 +2973,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						} break;
 						case 0x3: {
 							// gross +/-
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
@@ -2982,7 +2982,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						case 0x5: {
 							// eu_vat +/-
 							auto vat_amount = static_cast<Amount>(((tat.first.amount<0)?-1.0:1.0) * 0.2 * abs(gross_amount));
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = vat_amount
@@ -2991,7 +2991,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						// NOTE: case 0x6: vat will hit the same transaction as the eu_vat tagged account trasnactiopn is also tagged vat ;)
 					} // switch
 				} // for ats
-				result = me_candidate;
+				result = mdje_candidate;
 			}
 
 		} break;
@@ -3004,7 +3004,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 					switch (BAS::kind::to_at_types_order(tat.second)) {
 						case 0x3: {
 							// gross +/-
-							me_candidate.defacto.account_transactions.push_back({
+							mdje_candidate.defacto.account_transactions.push_back({
 								.account_no = tat.first.account_no
 								,.transtext = tat.first.transtext
 								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
@@ -3012,7 +3012,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 						}; break;
 					} // switch
 				} // for ats
-				result = me_candidate;
+				result = mdje_candidate;
 			}
 			else {
 				// Multipple gounter gross accounts not yet supportered
@@ -3240,8 +3240,8 @@ BAS::OptionalMDJournalEntry find_meta_entry(SIEEnvironment const& sie_env, std::
 			auto series = ast[0][0];
 			auto s_verno = ast[0].substr(1);
 			auto verno = std::stoi(s_verno);
-			auto f = [&series,&verno,&result](BAS::MDJournalEntry const& me) {
-				if (me.meta.series == series and me.meta.verno == verno) result = me;
+			auto f = [&series,&verno,&result](BAS::MDJournalEntry const& mdje) {
+				if (mdje.meta.series == series and mdje.meta.verno == verno) result = mdje;
 			};
 			for_each_md_journal_entry(sie_env,f);
 		}
@@ -5678,8 +5678,8 @@ public:
 			,m_matches_meta_entry{matches_meta_entry} {}
 
 	void for_each(auto const& f) const {
-		auto f_if_match = [this,&f](BAS::MDJournalEntry const& me){
-			if (this->m_matches_meta_entry(me)) f(me);
+		auto f_if_match = [this,&f](BAS::MDJournalEntry const& mdje){
+			if (this->m_matches_meta_entry(mdje)) f(mdje);
 		};
 		for_each_md_journal_entry(m_sie_environment,f_if_match);
 	}
@@ -6268,7 +6268,7 @@ Cmd Updater::operator()(Command const& command) {
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
                     prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
                   }
-                  BAS::MDJournalEntry me{
+                  BAS::MDJournalEntry mdje{
                     .meta = {
                       .series = 'M'
                     }
@@ -6297,24 +6297,24 @@ Cmd Updater::operator()(Command const& command) {
                     // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
                     // Book this on BAS 1650 for now (1650 = "VAT to receive")
                     if (account_no==0) {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 1650
                         ,.amount = trunc(-amount)
                       });
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 3740
                         ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
                       });
                     }
                     else {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = account_no
                         ,.amount = BAS::to_cents_amount(-amount)
                       });
                     }
                     // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
                     if (account_no == 9021) {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 9099
                         ,.transtext = "Avbokning (20) 9021"
                         ,.amount = BAS::to_cents_amount(amount)
@@ -6322,16 +6322,16 @@ Cmd Updater::operator()(Command const& command) {
                     }
                     // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
                     if (account_no == 3308) {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 9099
                         ,.transtext = "Avbokning (39) 3308"
                         ,.amount = BAS::to_cents_amount(amount)
                       });
                     }
                   }
-                  had.optional.current_candidate = me;
+                  had.optional.current_candidate = mdje;
 
-                  prompt << "\nCandidate: " << me;
+                  prompt << "\nCandidate: " << mdje;
                   model->prompt_state = PromptState::VATReturnsFormIndex;
                 }
               }
@@ -6369,7 +6369,7 @@ Cmd Updater::operator()(Command const& command) {
                   // };
 
                   Amount amount{1000};
-                  BAS::MDJournalEntry me{
+                  BAS::MDJournalEntry mdje{
                     .meta = {
                       .series = 'A'
                     }
@@ -6390,10 +6390,10 @@ Cmd Updater::operator()(Command const& command) {
                     .account_no = 2641
                     ,.amount = static_cast<Amount>(amount*0.2f)
                   };
-                  me.defacto.account_transactions.push_back(gross_at);
-                  me.defacto.account_transactions.push_back(net_at);
-                  me.defacto.account_transactions.push_back(vat_at);
-                  model->template_candidates.push_back(to_typed_md_entry(me));
+                  mdje.defacto.account_transactions.push_back(gross_at);
+                  mdje.defacto.account_transactions.push_back(net_at);
+                  mdje.defacto.account_transactions.push_back(vat_at);
+                  model->template_candidates.push_back(to_typed_md_entry(mdje));
                 }
 
                 // List options for how the HAD may be registered into the books based on available candidates
@@ -6452,7 +6452,7 @@ Cmd Updater::operator()(Command const& command) {
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
                     prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::mats_sum(mats);
                   }
-                  BAS::MDJournalEntry me{
+                  BAS::MDJournalEntry mdje{
                     .meta = {
                       .series = 'M'
                     }
@@ -6480,24 +6480,24 @@ Cmd Updater::operator()(Command const& command) {
                     // Book this on BAS 2650
                     // NOTE: If "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
                     if (account_no==0) {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 2650
                         ,.amount = trunc(-amount)
                       });
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 3740
                         ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
                       });
                     }
                     else {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = account_no
                         ,.amount = BAS::to_cents_amount(-amount)
                       });
                     }
                     // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
                     if (account_no == 9021) {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 9099
                         ,.transtext = "Avbokning (20) 9021"
                         ,.amount = BAS::to_cents_amount(amount)
@@ -6505,16 +6505,16 @@ Cmd Updater::operator()(Command const& command) {
                     }
                     // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
                     if (account_no == 3308) {
-                      me.defacto.account_transactions.push_back({
+                      mdje.defacto.account_transactions.push_back({
                         .account_no = 9099
                         ,.transtext = "Avbokning (39) 3308"
                         ,.amount = BAS::to_cents_amount(amount)
                       });
                     }
                   }
-                  had.optional.current_candidate = me;
+                  had.optional.current_candidate = mdje;
 
-                  prompt << "\nCandidate: " << me;
+                  prompt << "\nCandidate: " << mdje;
                   model->prompt_state = PromptState::VATReturnsFormIndex;
                 }
               }
@@ -6534,15 +6534,15 @@ Cmd Updater::operator()(Command const& command) {
             auto& had = *(*had_iter);
             if (auto account_no = BAS::to_account_no(command)) {
               // Assume user entered an account number for a Gross + 1..n <Ex vat, Vat> account entries
-              BAS::MDJournalEntry me{
+              BAS::MDJournalEntry mdje{
                 .defacto = {
                     .caption = had.heading
                   ,.date = had.date
                 }
               };
-              me.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
-              had.optional.current_candidate = me;
-              prompt << "\ncandidate:" << me;
+              mdje.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
+              had.optional.current_candidate = mdje;
+              prompt << "\ncandidate:" << mdje;
               model->prompt_state = PromptState::GrossDebitorCreditOption;
             }
             else {
@@ -6596,7 +6596,7 @@ Cmd Updater::operator()(Command const& command) {
                     // Continue with a
                     // 2) n x gross counter aggregate + an EU VAT Returns "virtual" aggregate
                     // #1 hard code for EU VAT Candidate
-                    BAS::MDJournalEntry me {
+                    BAS::MDJournalEntry mdje {
                       .defacto = {
                         .caption = had.heading
                         ,.date = had.date
@@ -6610,7 +6610,7 @@ Cmd Updater::operator()(Command const& command) {
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount)
                         };
-                        me.defacto.account_transactions.push_back(new_at);
+                        mdje.defacto.account_transactions.push_back(new_at);
                       }
                       else if (props.contains("vat")) {
                         int sign = (at.amount < 0)?-1:1; // 0 treated as +
@@ -6619,12 +6619,12 @@ Cmd Updater::operator()(Command const& command) {
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount*0.2f)
                         };
-                        me.defacto.account_transactions.push_back(new_at);
+                        mdje.defacto.account_transactions.push_back(new_at);
                         prompt << "\nNOTE: Assumed 25% VAT for " << new_at;
                       }
                     }
-                    prompt << "\nEU VAT candidate " << me;
-                    had.optional.current_candidate = me;
+                    prompt << "\nEU VAT candidate " << mdje;
+                    had.optional.current_candidate = mdje;
                     model->prompt_state = PromptState::JEAggregateOptionIndex;
                   } break;
                   case JournalEntryVATType::VATReturns: {
@@ -6638,44 +6638,44 @@ Cmd Updater::operator()(Command const& command) {
 
                     // TODO: Consider to iterate over all bas accounts defined for VAT Return form
                     //       and create a candidate that will zero out these for period given by date (end of VAT period)
-                    BAS::MDJournalEntry me {
+                    BAS::MDJournalEntry mdje {
                       .defacto = {
                         .caption = had.heading
                         ,.date = had.date
                       }
                     };
-                    me.defacto.account_transactions.push_back({
+                    mdje.defacto.account_transactions.push_back({
                       .account_no = 2610 // "Utgående moms, 25 %"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    me.defacto.account_transactions.push_back({
+                    mdje.defacto.account_transactions.push_back({
                       .account_no = 2614 // "Utgående moms omvänd skattskyldighet, 25 %"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    me.defacto.account_transactions.push_back({
+                    mdje.defacto.account_transactions.push_back({
                       .account_no = 2640 // "Ingående moms"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    me.defacto.account_transactions.push_back({
+                    mdje.defacto.account_transactions.push_back({
                       .account_no = 2641 // "Debiterad ingående moms"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    me.defacto.account_transactions.push_back({
+                    mdje.defacto.account_transactions.push_back({
                       .account_no = 2650 // "Redovisningskonto för moms"
                       ,.transtext = std::nullopt
                       ,.amount = had.amount
                     });
-                    me.defacto.account_transactions.push_back({
+                    mdje.defacto.account_transactions.push_back({
                       .account_no = 3740 // "Öres- och kronutjämning"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    prompt << "\nVAT Consolidate candidate " << me;
-                    had.optional.current_candidate = me;
+                    prompt << "\nVAT Consolidate candidate " << mdje;
+                    had.optional.current_candidate = mdje;
                     model->prompt_state = PromptState::JEAggregateOptionIndex;
                   } break;
                   case JournalEntryVATType::VATClearing: {
@@ -6722,7 +6722,7 @@ Cmd Updater::operator()(Command const& command) {
                         }
                         return (abs(entry.first.amount) == amount);
                       })) {
-                        BAS::MDJournalEntry me {
+                        BAS::MDJournalEntry mdje {
                           .defacto = {
                             .caption = had.heading
                             ,.date = had.date
@@ -6730,14 +6730,14 @@ Cmd Updater::operator()(Command const& command) {
                         };
                         for (auto const& tat : tme.defacto.account_transactions) {
                           auto sign = (tat.first.amount < 0)?-1:+1;
-                          me.defacto.account_transactions.push_back({
+                          mdje.defacto.account_transactions.push_back({
                             .account_no = tat.first.account_no
                             ,.transtext = std::nullopt
                             ,.amount = sign*abs(had.amount)
                           });
                         }
-                        had.optional.current_candidate = me;
-                        prompt << "\nVAT Settlement candidate " << me;
+                        had.optional.current_candidate = mdje;
+                        prompt << "\nVAT Settlement candidate " << mdje;
                         model->prompt_state = PromptState::JEAggregateOptionIndex;
                       }
                     }
@@ -8677,24 +8677,24 @@ Cmd Updater::operator()(Command const& command) {
             return result;
           });
           // 2) Don't add a had that is already accounted for as an sie entry
-          auto sie_hads_reducer = [&hads](BAS::MDJournalEntry const& me) {
+          auto sie_hads_reducer = [&hads](BAS::MDJournalEntry const& mdje) {
             // Remove the had if it matches me
-            std::erase_if(hads,[&me](HeadingAmountDateTransEntry const& had) {
+            std::erase_if(hads,[&mdje](HeadingAmountDateTransEntry const& had) {
               bool result{false};
-              if (me.defacto.date == had.date) {
+              if (mdje.defacto.date == had.date) {
                 if (had.amount > 0) {
-                  auto gross_amount = to_positive_gross_transaction_amount(me.defacto);
+                  auto gross_amount = to_positive_gross_transaction_amount(mdje.defacto);
                   result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
                 }
                 else {
-                  auto gross_amount = to_negative_gross_transaction_amount(me.defacto);
+                  auto gross_amount = to_negative_gross_transaction_amount(mdje.defacto);
                   result = (BAS::to_cents_amount(had.amount) == BAS::to_cents_amount(gross_amount));
                 }
               }
               if (result) {
                 std::cout << "\nHAD ALREADY AS SIE: ";
                 std::cout << "\n\t" << had;
-                std::cout << "\n\t" << me;
+                std::cout << "\n\t" << mdje;
               }
               return result;
             });
@@ -9234,7 +9234,7 @@ The ITfied AB
                     BAS::TypedMetaEntries template_candidates{};
                     std::string transtext = (ast.size() == 4)?ast[3]:"";
                     for (auto series : std::string{"ABCDEIM"}) {
-                      BAS::MDJournalEntry me{
+                      BAS::MDJournalEntry mdje{
                         .meta = {
                           .series = series
                         }
@@ -9248,8 +9248,8 @@ The ITfied AB
                         ,.transtext = transtext
                         ,.amount = transaction_amount
                       };
-                      me.defacto.account_transactions.push_back(new_at);
-                      template_candidates.push_back(to_typed_md_entry(me));
+                      mdje.defacto.account_transactions.push_back(new_at);
+                      template_candidates.push_back(to_typed_md_entry(mdje));
                     }
                     model->template_candidates.clear();
                     std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
@@ -9638,8 +9638,8 @@ private:
         std::cout << "\n\tsaldo_ta : " << saldo_ta;
       }
     }
-		auto create_and_merge_to_result = [&result](BAS::MDJournalEntry const& me) {
-			auto tagged_amounts = to_tagged_amounts(me);
+		auto create_and_merge_to_result = [&result](BAS::MDJournalEntry const& mdje) {
+			auto tagged_amounts = to_tagged_amounts(mdje);
       // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
       //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
       // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
