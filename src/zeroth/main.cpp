@@ -1424,8 +1424,8 @@ namespace BAS {
 
 		struct matches_meta {
 			JournalEntryMeta entry_meta;
-			bool operator()(MDJournalEntry const& me) {
-				return (me.meta == entry_meta);
+			bool operator()(MDJournalEntry const& mdje) {
+				return (mdje.meta == entry_meta);
 			}
 		};
 
@@ -1455,22 +1455,22 @@ namespace BAS {
 
 		struct matches_user_search_criteria{
 			std::string user_search_string;
-			bool operator()(MDJournalEntry const& me) {
+			bool operator()(MDJournalEntry const& mdje) {
 				bool result{false};
 				if (!result and user_search_string.size()==1) {
-					result = is_series{user_search_string[0]}(me);
+					result = is_series{user_search_string[0]}(mdje);
 				}
 				if (auto account_no = to_account_no(user_search_string);!result and account_no) {
-					result = contains_account{*account_no}(me);
+					result = contains_account{*account_no}(mdje);
 				}
 				if (auto meta = to_journal_meta(user_search_string);!result and meta) {
-					result = matches_meta{*meta}(me);
+					result = matches_meta{*meta}(mdje);
 				}
 				if (auto amount = to_amount(user_search_string);!result and amount) {
-					result = matches_amount{*amount}(me);
+					result = matches_amount{*amount}(mdje);
 				}
 				if (!result) {
-					result = matches_heading{user_search_string}(me);
+					result = matches_heading{user_search_string}(mdje);
 				}
 				return result;
 			}
@@ -1485,10 +1485,10 @@ namespace BAS {
 		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
 	} // anonymous
 
-	using TypedMetaEntry = MetaDefacto<BAS::JournalEntryMeta,anonymous::TypedJournalEntry>;
-	using TypedMetaEntries = std::vector<TypedMetaEntry>;
+	using MDTypedJournalEntry = MetaDefacto<BAS::JournalEntryMeta,anonymous::TypedJournalEntry>;
+	using TypedMetaEntries = std::vector<MDTypedJournalEntry>;
 
-	void for_each_typed_account_transaction(BAS::TypedMetaEntry const& tme,auto& f) {
+	void for_each_typed_account_transaction(BAS::MDTypedJournalEntry const& tme,auto& f) {
 		for (auto const& tat : tme.defacto.account_transactions) {
 			f(tat);
 		}
@@ -1582,16 +1582,16 @@ namespace BAS {
 			};
 		} // namespace detail
 
-		BASAccountTopology to_accounts_topology(MDJournalEntry const& me) {
+		BASAccountTopology to_accounts_topology(MDJournalEntry const& mdje) {
 			BASAccountTopology result{};
 			auto f = [&result](BAS::anonymous::AccountTransaction const& at) {
 				result.insert(at.account_no);
 			};
-			for_each_anonymous_account_transaction(me.defacto,f);
+			for_each_anonymous_account_transaction(mdje.defacto,f);
 			return result;
 		}
 
-		BASAccountTopology to_accounts_topology(TypedMetaEntry const& tme) {
+		BASAccountTopology to_accounts_topology(MDTypedJournalEntry const& tme) {
 			BASAccountTopology result{};
 			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
 				auto const& [at,props] = tat;
@@ -1601,7 +1601,7 @@ namespace BAS {
 			return result;
 		}
 
-		AccountTransactionTypeTopology to_types_topology(TypedMetaEntry const& tme) {
+		AccountTransactionTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
 			AccountTransactionTypeTopology result{};
 			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
 				auto const& [at,props] = tat;
@@ -1871,7 +1871,7 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedJournalEntry cons
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::TypedMetaEntry const& tme) {
+std::ostream& operator<<(std::ostream& os,BAS::MDTypedJournalEntry const& tme) {
 	os << tme.meta << " " << tme.defacto;
 	return os;
 }
@@ -1891,19 +1891,19 @@ TaggedAmount to_tagged_amount(Date const& date,BAS::anonymous::AccountTransactio
 	return result;
 }
 
-TaggedAmounts to_tagged_amounts(BAS::MDJournalEntry const& me) {
+TaggedAmounts to_tagged_amounts(BAS::MDJournalEntry const& mdje) {
   if (false) {
     std::cout << "\nto_tagged_amounts(me)";
   }
 	TaggedAmounts result{};
-	auto journal_id = me.meta.series;
-	auto verno = me.meta.verno;
-	auto date = me.defacto.date;
-	auto gross_cents_amount = to_cents_amount(to_positive_gross_transaction_amount(me.defacto));
+	auto journal_id = mdje.meta.series;
+	auto verno = mdje.meta.verno;
+	auto date = mdje.defacto.date;
+	auto gross_cents_amount = to_cents_amount(to_positive_gross_transaction_amount(mdje.defacto));
 	TaggedAmount::Tags tags{};
 	tags["type"] = "aggregate";
 	if (verno) tags["SIE"] = journal_id+std::to_string(*verno);
-	tags["vertext"] = me.defacto.caption;
+	tags["vertext"] = mdje.defacto.caption;
 	TaggedAmount aggregate_ta{date,gross_cents_amount,std::move(tags)};
 	Key::Sequence value_ids{};
 
@@ -1915,7 +1915,7 @@ TaggedAmounts to_tagged_amounts(BAS::MDJournalEntry const& me) {
 		value_ids += text::format::to_hex_string(to_value_id(ta));
 	};
 
-	for_each_anonymous_account_transaction(me.defacto,push_back_as_tagged_amount);
+	for_each_anonymous_account_transaction(mdje.defacto,push_back_as_tagged_amount);
 	aggregate_ta.tags()["_members"] = value_ids.to_string();
 	result.push_back(aggregate_ta);
 	return result;
@@ -2178,11 +2178,11 @@ using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
 class JournalEntryTemplate {
 public:
 
-	JournalEntryTemplate(BAS::Series series,BAS::MDJournalEntry const& me) : m_series{series} {
-		if (auto optional_gross_amount = to_gross_transaction_amount(me.defacto)) {
+	JournalEntryTemplate(BAS::Series series,BAS::MDJournalEntry const& mdje) : m_series{series} {
+		if (auto optional_gross_amount = to_gross_transaction_amount(mdje.defacto)) {
 			auto gross_amount = *optional_gross_amount;
 			if (gross_amount >= 0.01) {
-				std::transform(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& at){
+				std::transform(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& at){
 					AccountTransactionTemplate result{gross_amount,at};
 					return result;
 				});
@@ -2217,12 +2217,12 @@ private:
 using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
 using OptionalJournalEntryTemplate = std::optional<JournalEntryTemplate>;
 
-OptionalJournalEntryTemplate to_template(BAS::MDJournalEntry const& me) {
-	OptionalJournalEntryTemplate result({me.meta.series,me});
+OptionalJournalEntryTemplate to_template(BAS::MDJournalEntry const& mdje) {
+	OptionalJournalEntryTemplate result({mdje.meta.series,mdje});
 	return result;
 }
 
-BAS::MDJournalEntry to_md_entry(BAS::TypedMetaEntry const& tme) {
+BAS::MDJournalEntry to_md_entry(BAS::MDTypedJournalEntry const& tme) {
 	BAS::MDJournalEntry result {
 		.meta = tme.meta
 		,.defacto = {
@@ -2236,11 +2236,11 @@ BAS::MDJournalEntry to_md_entry(BAS::TypedMetaEntry const& tme) {
 	return result;
 }
 
-OptionalJournalEntryTemplate to_template(BAS::TypedMetaEntry const& tme) {
+OptionalJournalEntryTemplate to_template(BAS::MDTypedJournalEntry const& tme) {
 	return to_template(to_md_entry(tme));
 }
 
-BAS::MDJournalEntry to_journal_md_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
+BAS::MDJournalEntry to_md_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
 	BAS::MDJournalEntry result{};
 	result.meta = {
 		.series = jet.series()
@@ -2515,12 +2515,12 @@ void for_each_md_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
 }
 
 void for_each_md_account_transaction(SIEEnvironment const& sie_env,auto& f) {
-	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_md_account_transaction(me,f);};
+	auto f_caller = [&f](BAS::MDJournalEntry const& mdje){for_each_md_account_transaction(mdje,f);};
 	for_each_md_journal_entry(sie_env,f_caller);
 }
 
 void for_each_md_account_transaction(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_md_account_transaction(me,f);};
+	auto f_caller = [&f](BAS::MDJournalEntry const& mdje){for_each_md_account_transaction(mdje,f);};
 	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
 		for_each_md_journal_entry(sie_env,f_caller);
 	}
@@ -2586,7 +2586,7 @@ std::optional<std::string> to_ats_sum_string(SIEEnvironmentsMap const& sie_envs_
 	return result;
 }
 
-auto to_typed_meta_entry = [](BAS::MDJournalEntry const& me) -> BAS::TypedMetaEntry {
+auto to_typed_md_entry = [](BAS::MDJournalEntry const& me) -> BAS::MDTypedJournalEntry {
 	// std::cout << "\nto_typed_meta_entry: " << me;
 	BAS::anonymous::TypedAccountTransactions typed_ats{};
 
@@ -2674,7 +2674,7 @@ auto to_typed_meta_entry = [](BAS::MDJournalEntry const& me) -> BAS::TypedMetaEn
 		if (!typed_ats.contains(at)) typed_ats.insert({at,{}});
 	}
 
-	BAS::TypedMetaEntry result{
+	BAS::MDTypedJournalEntry result{
 		.meta = me.meta
 		,.defacto = {
 			.caption = me.defacto.caption
@@ -2738,7 +2738,7 @@ std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
 	return os;
 }
 
-JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
+JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
 	JournalEntryVATType result{JournalEntryVATType::Undefined};
 	static bool const log{true};
 	// Count each type of property (NOTE: Can be less than transaction count as they may overlap, e.g., two or more gross account transactions)
@@ -2818,15 +2818,15 @@ JournalEntryVATType to_vat_type(BAS::TypedMetaEntry const& tme) {
 	return result;
 }
 
-void for_each_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	auto f_caller = [&f](BAS::MDJournalEntry const& me) {
-		auto tme = to_typed_meta_entry(me);
+void for_each_typed_md_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
+	auto f_caller = [&f](BAS::MDJournalEntry const& mdje) {
+		auto tme = to_typed_md_entry(mdje);
 		f(tme);
 	};
 	for_each_md_journal_entry(sie_envs_map,f_caller);
 }
 
-using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
+using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::MDTypedJournalEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
 using MetaEntryTopologyMap = std::map<std::size_t,TypedMetaEntryMap>; // hash -> TypeMetaEntry
 // TODO: Consider to make MetaEntryTopologyMap an unordered_map (as it is already a map from hash -> TypedMetaEntry)
 //       All we should have to do is to define std::hash for this type to make std::unordered_map find it?
@@ -2835,12 +2835,12 @@ MetaEntryTopologyMap to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_en
 	MetaEntryTopologyMap result{};
 	// Group on Type Topology
 	MetaEntryTopologyMap meta_entry_topology_map{};
-	auto h = [&result](BAS::TypedMetaEntry const& tme){
+	auto h = [&result](BAS::MDTypedJournalEntry const& tme){
 		auto types_topology = BAS::kind::to_types_topology(tme);
 		auto signature = BAS::kind::to_signature(types_topology);
 		result[signature][types_topology].push_back(tme);
 	};
-	for_each_typed_meta_entry(sie_envs_map,h);
+	for_each_typed_md_entry(sie_envs_map,h);
 	return result;
 }
 
@@ -2856,8 +2856,8 @@ std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
 
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
 // that are all of the same "type" and that all sums to zero (do balance)
-std::vector<BAS::TypedMetaEntry> to_typed_sub_meta_entries(BAS::TypedMetaEntry const& tme) {
-	std::vector<BAS::TypedMetaEntry> result{};
+std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJournalEntry const& tme) {
+	std::vector<BAS::MDTypedJournalEntry> result{};
 	// TODO: When needed, identify sub-entries of typed account transactions that balance (sums to zero)
 	result.push_back(tme); // For now, return input as the single sub-entry
 	return result;
@@ -2869,17 +2869,17 @@ BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEEnvironmentsMap 
 	return result;
 }
 
-bool operator==(BAS::TypedMetaEntry const& tme1,BAS::TypedMetaEntry const& tme2) {
+bool operator==(BAS::MDTypedJournalEntry const& tme1,BAS::MDTypedJournalEntry const& tme2) {
 	return (BAS::kind::to_types_topology(tme1) == BAS::kind::to_types_topology(tme2));
 }
 
-BAS::TypedMetaEntry to_tats_swapped_tme(BAS::TypedMetaEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
-	BAS::TypedMetaEntry result{tme};
+BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
+	BAS::MDTypedJournalEntry result{tme};
 	// TODO: Implement actual swap of tats
 	return result;
 }
 
-BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::TypedMetaEntry const& tme,Amount const& gross_amount) {
+BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry const& tme,Amount const& gross_amount) {
 	BAS::OptionalMDJournalEntry result{};
 	// TODO: Implement actual generation of a candidate using the provided typed meta entry and the gross amount
 	auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
@@ -3060,7 +3060,7 @@ bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me1, BAS:
 						and (are_same_and_less_than_100_cents_apart(me1.defacto.account_transactions,me2.defacto.account_transactions)));
 }
 
-TestResult test_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,BAS::TypedMetaEntry const& tme) {
+TestResult test_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,BAS::MDTypedJournalEntry const& tme) {
 	TestResult result{};
 	result.prompt << "test_typed_meta_entry=";
 	auto sub_tmes = to_typed_sub_meta_entries(tme);
@@ -3100,7 +3100,7 @@ using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountT
 
 AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) {
 	AccountsTopologyMap result{};
-	auto g = [&result](BAS::TypedMetaEntry const& tme) {
+	auto g = [&result](BAS::MDTypedJournalEntry const& tme) {
 		auto accounts_topology = BAS::kind::to_accounts_topology(tme);
 		auto signature = BAS::kind::to_signature(accounts_topology);
 		result[signature][accounts_topology].push_back(tme);
@@ -3201,27 +3201,27 @@ struct CollectT2s {
 	T2Entries result() const {
 		return to_t2_entries(t2s);
 	}
-	void operator() (BAS::MDJournalEntry const& me) {
+	void operator() (BAS::MDJournalEntry const& mdje) {
 		auto t2_iter = t2s.begin();
 		for (;t2_iter != t2s.end();++t2_iter) {
 			if (!t2_iter->counter_trans) {
 				// No counter trans found yet
-				auto at_iter1 = std::find_if(me.defacto.account_transactions.begin(),me.defacto.account_transactions.end(),[&t2_iter](BAS::anonymous::AccountTransaction const& at1){
+				auto at_iter1 = std::find_if(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),[&t2_iter](BAS::anonymous::AccountTransaction const& at1){
 					auto  at_iter2 = std::find_if(t2_iter->mdje.defacto.account_transactions.begin(),t2_iter->mdje.defacto.account_transactions.end(),[&at1](BAS::anonymous::AccountTransaction const& at2){
 						return (at1.account_no == at2.account_no) and (at1.amount == -at2.amount);
 					});
 					return (at_iter2 != t2_iter->mdje.defacto.account_transactions.end());
 				});
-				if (at_iter1 != me.defacto.account_transactions.end()) {
+				if (at_iter1 != mdje.defacto.account_transactions.end()) {
 					// iter refers to an account transaction in me to the same account but a counter amount as in t2.je
-					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.mdje = me};
+					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.mdje = mdje};
 					t2_iter->counter_trans = counter_trans;
 					break;
 				}
 			}
 		}
 		if (t2_iter == t2s.end()) {
-			t2s.push_back(T2{.mdje = me});
+			t2s.push_back(T2{.mdje = mdje});
 		}
 	}
 };
@@ -4225,7 +4225,7 @@ namespace SKV { // SKV
 
 			bool quarter_has_VAT_consilidation_entry(SIEEnvironmentsMap const& sie_envs_map,zeroth::DateRange const& period) {
 				bool result{};
-				auto f = [&period,&result](BAS::TypedMetaEntry const& tme) {
+				auto f = [&period,&result](BAS::MDTypedJournalEntry const& tme) {
 					auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
 					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2020-04-01 - 2020-06-30 20200630
 					// gross vat cents = sort_code: 0x367  M2 Momsrapport 2020-07-01 - 2020-09-30 20200930
@@ -4243,7 +4243,7 @@ namespace SKV { // SKV
 						result = result or  (order_code == 0x56) or (order_code == 0x367) or (order_code == 0x567);
 					}
 				};
-				for_each_typed_meta_entry(sie_envs_map,f);
+				for_each_typed_md_entry(sie_envs_map,f);
 				return result;
 			}
 
@@ -6393,7 +6393,7 @@ Cmd Updater::operator()(Command const& command) {
                   me.defacto.account_transactions.push_back(gross_at);
                   me.defacto.account_transactions.push_back(net_at);
                   me.defacto.account_transactions.push_back(vat_at);
-                  model->template_candidates.push_back(to_typed_meta_entry(me));
+                  model->template_candidates.push_back(to_typed_md_entry(me));
                 }
 
                 // List options for how the HAD may be registered into the books based on available candidates
@@ -6573,7 +6573,7 @@ Cmd Updater::operator()(Command const& command) {
 
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_journal_md_entry(had,*tp);
+                      auto me = to_md_journal_entry(had,*tp);
                       prompt << "\nPlain transfer " << me;
                       had.optional.current_candidate = me;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
@@ -6585,7 +6585,7 @@ Cmd Updater::operator()(Command const& command) {
                     // 2) a n x {net,vat} counter aggregate
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_journal_md_entry(had,*tp);
+                      auto me = to_md_journal_entry(had,*tp);
                       prompt << "\nSwedish VAT candidate " << me;
                       had.optional.current_candidate = me;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
@@ -6681,7 +6681,7 @@ Cmd Updater::operator()(Command const& command) {
                   case JournalEntryVATType::VATClearing: {
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_journal_md_entry(had,*tp);
+                      auto me = to_md_journal_entry(had,*tp);
                       prompt << "\nVAT clearing candidate " << me;
                       had.optional.current_candidate = me;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
@@ -6690,7 +6690,7 @@ Cmd Updater::operator()(Command const& command) {
                   case JournalEntryVATType::SKVInterest: {
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_journal_md_entry(had,*tp);
+                      auto me = to_md_journal_entry(had,*tp);
                       prompt << "\nTax free SKV interest " << me;
                       had.optional.current_candidate = me;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
@@ -6915,7 +6915,7 @@ Cmd Updater::operator()(Command const& command) {
             auto& had = *(*had_iter);
             if (had.optional.current_candidate) {
               // We need a typed entry to do some clever decisions
-              auto tme = to_typed_meta_entry(*had.optional.current_candidate);
+              auto tme = to_typed_md_entry(*had.optional.current_candidate);
               prompt << "\n" << tme;
               auto vat_type = to_vat_type(tme);
               switch (vat_type) {
@@ -8325,7 +8325,7 @@ Cmd Updater::operator()(Command const& command) {
           // Group on Type Topology
           auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie_env_map);
           // Prepare to record journal entries we could not use as template for new entries
-          std::vector<BAS::TypedMetaEntry> failed_tmes{};
+          std::vector<BAS::MDTypedJournalEntry> failed_tmes{};
           std::set<BAS::kind::AccountTransactionTypeTopology> detected_topologies{};
           // List grouped on type topology
           for (auto const& [signature,tme_map] : meta_entry_topology_map) {
@@ -9249,7 +9249,7 @@ The ITfied AB
                         ,.amount = transaction_amount
                       };
                       me.defacto.account_transactions.push_back(new_at);
-                      template_candidates.push_back(to_typed_meta_entry(me));
+                      template_candidates.push_back(to_typed_md_entry(me));
                     }
                     model->template_candidates.clear();
                     std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
