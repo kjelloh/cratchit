@@ -7007,7 +7007,7 @@ Cmd Updater::operator()(Command const& command) {
                   else {
                     // Stage as-is
                     if (auto stage_result = model->sie_env_map.stage(*had.optional.current_candidate)) {
-                      prompt << "\n" << stage_result.entry_ref() << " STAGED";
+                      prompt << "\n" << stage_result.entry() << " STAGED";
                       model->heading_amount_date_entries.erase(*had_iter);
                       model->prompt_state = PromptState::HADIndex;
                     }
@@ -7062,7 +7062,7 @@ Cmd Updater::operator()(Command const& command) {
                 case 3: {
                   // Stage the candidate
                   if (auto stage_result = model->sie_env_map.stage(*had.optional.current_candidate)) {
-                    prompt << "\n" << stage_result.entry_ref() << " STAGED";
+                    prompt << "\n" << stage_result.entry() << " STAGED";
                     model->heading_amount_date_entries.erase(*had_iter);
                     model->prompt_state = PromptState::HADIndex;
                   }
@@ -9176,7 +9176,7 @@ The ITfied AB
               // Stage the journal entry
               auto stage_result = model->sie_env_map.stage(*had.optional.current_candidate);
               if (stage_result) {
-                prompt << "\n" << stage_result.entry_ref() << " STAGED";
+                prompt << "\n" << stage_result.entry() << " STAGED";
                 model->heading_amount_date_entries.erase(*had_iter);
                 model->prompt_state = PromptState::HADIndex;
               }

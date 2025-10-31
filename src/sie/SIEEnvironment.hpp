@@ -3,7 +3,22 @@
 #include "sie.hpp"
 #include "logger/log.hpp"
 
+
 class SIEEnvironment {
+
+  // MetaEntry Is a meta-representation of a 'journal entry' in a DAG
+
+  // JournalEntryMeta: Record {Series:series, OptionalVerNo:verno}
+  // MetaEntry: pair {JournalEntryMeta:meta , JournalEntry:defacto}
+  
+  // SIEEnvironment store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
+
+  // AccountTransaction: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
+  // AccountTransactions: vetcor AccountTransaction
+  // JournalEntry: Record {string:caption, Date:date, AccountTransactions:account_transactions}
+  // BASJournal: Map BAS::VerNo -> BAS::anonymous::JournalEntry (E.g., 7 -> JournalEntry) 
+  // BASJournals: Map BASJournalId -> BASJournal E.g., 'A' -> BASJournal
+
 public:
 
   SIEEnvironment(FiscalYear const& fiscal_year);
@@ -21,15 +36,17 @@ public:
       ,Undefined
     };
     StageEntryResult() = delete;
-    StageEntryResult(BAS::MetaEntry const& entry_ref,Status status = Status{})
-      : m_entry_ref{entry_ref},m_status{status} {}
+    StageEntryResult(BAS::MetaEntry const& entry,Status status = Status{})
+      : m_entry{entry},m_status{status} {}
     bool now_posted() const {return m_status == Status::NowPosted;}
     operator bool() const {return m_status == Status::StagedOk;}
-    BAS::MetaEntry const& entry_ref() const {return m_entry_ref;}
+    BAS::MetaEntry const& entry() const {return m_entry;}
     StageEntryResult& set_status(Status status) {m_status = status; return *this;}
   private:
     Status m_status{};
-    BAS::MetaEntry const& m_entry_ref;
+    BAS::MetaEntry m_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
+                            //       So we store a ref-safe clone to return as result
+                            //       This may e.g., allow for returning a mutated entry.
   };
 	StageEntryResult stage(BAS::MetaEntry const& me);
 	BAS::OptionalMetaEntry add(BAS::MetaEntry me);
