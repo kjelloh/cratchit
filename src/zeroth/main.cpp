@@ -3213,7 +3213,7 @@ struct CollectT2s {
 					return (at_iter2 != t2_iter->mdje.defacto.account_transactions.end());
 				});
 				if (at_iter1 != mdje.defacto.account_transactions.end()) {
-					// iter refers to an account transaction in me to the same account but a counter amount as in t2.je
+					// iter refers to an account transaction in mdje to the same account but a counter amount as in t2.je
 					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.mdje = mdje};
 					t2_iter->counter_trans = counter_trans;
 					break;
@@ -5713,7 +5713,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 	for (auto const& je : sie_environment.journals()) {
 		auto& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {
-			BAS::MDJournalEntry me {
+			BAS::MDJournalEntry mdje {
 				.meta = {
 					 .series = series
 					,.verno = verno
@@ -5721,7 +5721,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 				}
 				,.defacto = entry
 			};
-			os << '\n' << me;
+			os << '\n' << mdje;
 		}
 	}
 	return os;
@@ -6573,9 +6573,9 @@ Cmd Updater::operator()(Command const& command) {
 
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_md_journal_entry(had,*tp);
-                      prompt << "\nPlain transfer " << me;
-                      had.optional.current_candidate = me;
+                      auto mdje = to_md_journal_entry(had,*tp);
+                      prompt << "\nPlain transfer " << mdje;
+                      had.optional.current_candidate = mdje;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
                     }
                   } break;
@@ -6585,9 +6585,9 @@ Cmd Updater::operator()(Command const& command) {
                     // 2) a n x {net,vat} counter aggregate
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_md_journal_entry(had,*tp);
-                      prompt << "\nSwedish VAT candidate " << me;
-                      had.optional.current_candidate = me;
+                      auto mdje = to_md_journal_entry(had,*tp);
+                      prompt << "\nSwedish VAT candidate " << mdje;
+                      had.optional.current_candidate = mdje;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
                     }
                   } break;
@@ -6681,18 +6681,18 @@ Cmd Updater::operator()(Command const& command) {
                   case JournalEntryVATType::VATClearing: {
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_md_journal_entry(had,*tp);
-                      prompt << "\nVAT clearing candidate " << me;
-                      had.optional.current_candidate = me;
+                      auto mdje = to_md_journal_entry(had,*tp);
+                      prompt << "\nVAT clearing candidate " << mdje;
+                      had.optional.current_candidate = mdje;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
                     }
                   } break;
                   case JournalEntryVATType::SKVInterest: {
                     auto tp = to_template(*tme_iter);
                     if (tp) {
-                      auto me = to_md_journal_entry(had,*tp);
-                      prompt << "\nTax free SKV interest " << me;
-                      had.optional.current_candidate = me;
+                      auto mdje = to_md_journal_entry(had,*tp);
+                      prompt << "\nTax free SKV interest " << mdje;
+                      had.optional.current_candidate = mdje;
                       model->prompt_state = PromptState::JEAggregateOptionIndex;
                     }
                   } break;
@@ -9434,15 +9434,18 @@ The ITfied AB
           prompt << "\nPlease enter a valid amount";
         }
       }
-      else if (auto me = find_meta_entry(model->sie_env_map["current"],ast)) {
+      else if (auto mdje = find_meta_entry(model->sie_env_map["current"],ast)) {
         // The user has entered a search term for a specific journal entry (to edit)
         // Allow the user to edit individual account transactions
-        if (auto had = to_had(*me)) {
+        if (auto had = to_had(*mdje)) {
           model->heading_amount_date_entries.push_back(*had);
           model->had_index = 0; // index zero is the "last" (newest) one
           unsigned int i{};
-          std::for_each(had->optional.current_candidate->defacto.account_transactions.begin(),had->optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
-            prompt << "\n  " << i++ << " " << at;
+          std::for_each(
+             had->optional.current_candidate->defacto.account_transactions.begin()
+            ,had->optional.current_candidate->defacto.account_transactions.end()
+            ,[&i,&prompt](auto const& at) {
+              prompt << "\n  " << i++ << " " << at;
           });
           model->prompt_state = PromptState::ATIndex;
         }
@@ -9496,8 +9499,8 @@ BAS::TypedMetaEntries Updater::all_years_template_candidates(auto const& matches
       for (auto const& [signature,bat_map] : accounts_topology_map) {
         for (auto const& [topology,tmes] : bat_map) {
           for (auto const& tme : tmes) {
-            auto me = to_md_entry(tme);
-            if (matches(me.defacto)) result.push_back(tme);
+            auto mdje = to_md_entry(tme);
+            if (matches(mdje.defacto)) result.push_back(tme);
           }
         }
       }
