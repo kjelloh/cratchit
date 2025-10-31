@@ -2486,7 +2486,7 @@ void for_each_anonymous_journal_entry(SIEEnvironmentsMap const& sie_envs_map,aut
 	}
 }
 
-void for_each_md_entry(SIEEnvironment const& sie_env,auto& f) {
+void for_each_md_journal_entry(SIEEnvironment const& sie_env,auto& f) {
 	for (auto const& [series,journal] : sie_env.journals()) {
 		for (auto const& [verno,aje] : journal) {
 			f(BAS::MDJournalEntry{.meta ={.series=series,.verno=verno,.unposted_flag=sie_env.is_unposted(series,verno)},.defacto=aje});
@@ -2494,9 +2494,9 @@ void for_each_md_entry(SIEEnvironment const& sie_env,auto& f) {
 	}
 }
 
-void for_each_md_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
+void for_each_md_journal_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
-		for_each_md_entry(sie_env,f);
+		for_each_md_journal_entry(sie_env,f);
 	}
 }
 
@@ -2516,13 +2516,13 @@ void for_each_meta_account_transaction(BAS::MDJournalEntry const& me,auto& f) {
 
 void for_each_meta_account_transaction(SIEEnvironment const& sie_env,auto& f) {
 	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_meta_account_transaction(me,f);};
-	for_each_md_entry(sie_env,f_caller);
+	for_each_md_journal_entry(sie_env,f_caller);
 }
 
 void for_each_meta_account_transaction(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 	auto f_caller = [&f](BAS::MDJournalEntry const& me){for_each_meta_account_transaction(me,f);};
 	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
-		for_each_md_entry(sie_env,f_caller);
+		for_each_md_journal_entry(sie_env,f_caller);
 	}
 }
 
@@ -2823,7 +2823,7 @@ void for_each_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 		auto tme = to_typed_meta_entry(me);
 		f(tme);
 	};
-	for_each_md_entry(sie_envs_map,f_caller);
+	for_each_md_journal_entry(sie_envs_map,f_caller);
 }
 
 using TypedMetaEntryMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::TypedMetaEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
@@ -3228,7 +3228,7 @@ struct CollectT2s {
 
 T2Entries t2_entries(SIEEnvironmentsMap const& sie_envs_map) {
 	CollectT2s collect_t2s{};
-	for_each_md_entry(sie_envs_map,collect_t2s);
+	for_each_md_journal_entry(sie_envs_map,collect_t2s);
 	return collect_t2s.result();
 }
 
@@ -3243,7 +3243,7 @@ BAS::OptionalMDJournalEntry find_meta_entry(SIEEnvironment const& sie_env, std::
 			auto f = [&series,&verno,&result](BAS::MDJournalEntry const& me) {
 				if (me.meta.series == series and me.meta.verno == verno) result = me;
 			};
-			for_each_md_entry(sie_env,f);
+			for_each_md_journal_entry(sie_env,f);
 		}
 	}
 	catch (std::exception const& e) {
@@ -5681,7 +5681,7 @@ public:
 		auto f_if_match = [this,&f](BAS::MDJournalEntry const& me){
 			if (this->m_matches_meta_entry(me)) f(me);
 		};
-		for_each_md_entry(m_sie_environment,f_if_match);
+		for_each_md_journal_entry(m_sie_environment,f_if_match);
 	}
 private:
 	SIEEnvironment const& m_sie_environment;
@@ -8699,7 +8699,7 @@ Cmd Updater::operator()(Command const& command) {
               return result;
             });
           };
-          for_each_md_entry(model->sie_env_map["current"],sie_hads_reducer);
+          for_each_md_journal_entry(model->sie_env_map["current"],sie_hads_reducer);
           std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
         }
         else {
@@ -9646,7 +9646,7 @@ private:
 			// result += tagged_amounts;
 			result.dotas_insert_auto_ordered_sequence(tagged_amounts);
 		};
-		for_each_md_entry(sie_env,create_and_merge_to_result);
+		for_each_md_journal_entry(sie_env,create_and_merge_to_result);
 		return result;
 	}
 
