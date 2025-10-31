@@ -5259,9 +5259,6 @@ public:
   std::string prompt{};
 	bool quit{};
 
-  // Now aggregated by the SIEEnvironment itself
-	// std::map<std::string,std::filesystem::path> sie_file_path{};
-
 	SIEEnvironmentsMap sie_env_map{}; // 'Older' SIE envrionemtns map
   FiscalYear current_fiscal_year{FiscalYear::to_current_fiscal_year(std::chrono::month{5})}; // month hard coded for now
 
@@ -10026,7 +10023,7 @@ private:
 		std::string sev = std::accumulate(model->sie_env_map.begin(),model->sie_env_map.end(),std::string{},[](auto acc,auto const& entry){
 			std::ostringstream os{};
 			if (acc.size()>0) os << acc << ";";
-			os << entry.first << "=" << entry.second.sie_file_path.string();
+			os << entry.first << "=" << entry.second.source_sie_file_path().string();
 			return os.str();
 		});
 		result["sie_file"].push_back({0,in::to_environment_value(sev)});

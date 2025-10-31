@@ -127,8 +127,7 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
   if (result) {
     // Inject source file path into environment
     // Note: Due to refactored from model map to SIEEnvironment aggregate
-    //       and SIEEnvironment has yet no constructor...
-    result->sie_file_path = sie_file_path;
+    result->set_source_sie_file_path(sie_file_path);
   }
   return result;
 }
