@@ -1120,43 +1120,6 @@ R"(#GEN 20251026
     namespace sie_envs_merge_suite {
       // SIE Environments merge test suite
 
-        using SIEEnvsMergeFixture = parse_sie_file_suite::SIEFileParseFixture;
-
-        TEST(SIEEnvsMergeTests,EmptyStageEmptyTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvsMergeTests,EmptyStageEmptyTest)"};
-          SIEEnvironment lhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
-          SIEEnvironment rhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
-          auto merged = lhs;
-          auto stage_result = merged.stage(rhs);
-          ASSERT_TRUE(stage_result.size() == 0);
-          ASSERT_TRUE(merged.journals_entry_count() == 0);
-        }
-
-        TEST_F(SIEEnvsMergeFixture,EmptyPostThreeTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyPostThreeTest)"};
-          ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
-          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
-
-          for (auto const& [series,journal] : fixture_three_entries_env.journals()) {
-            for (auto const& [verno,aje] : journal) {
-              merged.post({{.series=series,.verno=verno},aje});
-            }
-          }
-
-          ASSERT_TRUE(merged.journals_entry_count() == 3);
-        }
-
-        TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,EmptyStageThreeTest)"};
-          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
-          auto stage_result = merged.stage(fixture_three_entries_env);
-          ASSERT_TRUE(merged.journals_entry_count() == 3)
-            << std::format("Expected 3 journal entries but found  :{}",merged.journals_entry_count());
-          ASSERT_TRUE(merged.unposted().size() == 3)
-            << std::format("Expected 3 staged entries but found unposted:{}",merged.unposted().size());
-          ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
-        }
-
         std::vector<BAS::MDJournalEntry> to_sample_md_entries() {
           std::vector<BAS::MDJournalEntry> result{};
           {
@@ -1186,8 +1149,73 @@ R"(#GEN 20251026
           return result;
         }
 
-        TEST(SIEEnvsMergeTests,StageToPostedOkTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvsMergeFixture,StageToPostedOkTest)"};
+        using SIEEnvironmentTestFixture = parse_sie_file_suite::SIEFileParseFixture;
+
+        TEST(SIEEnvironmentTests,EntryAPITest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryAPITest)"};
+
+          auto entries = to_sample_md_entries();
+          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+
+          {
+            auto post_result = sie_env.post(entries[0]);
+            ASSERT_TRUE(post_result) << "Expected post to empty env to succeed";
+          }
+          {
+            auto post_result = sie_env.post(entries[1]);
+            ASSERT_TRUE(post_result) << "Expected post valid entry to to succeed";
+          }
+          {
+            auto post_result = sie_env.post(entries[0]);
+            ASSERT_TRUE(post_result) << "Expected re-post previous entry to to succeed";
+          }
+          {
+            auto mutated_entry_0 = entries[0];
+            mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
+            auto post_result = sie_env.post(mutated_entry_0);
+            ASSERT_TRUE(!post_result) << "Expected re-post mutated previous entry to fail";
+          }
+
+
+        }
+
+        TEST(SIEEnvironmentTests,EmptyStageEmptyTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvironmentTests,EmptyStageEmptyTest)"};
+          SIEEnvironment lhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+          SIEEnvironment rhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+          auto merged = lhs;
+          auto stage_result = merged.stage(rhs);
+          ASSERT_TRUE(stage_result.size() == 0);
+          ASSERT_TRUE(merged.journals_entry_count() == 0);
+        }
+
+        TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest)"};
+          ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
+          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
+
+          for (auto const& [series,journal] : fixture_three_entries_env.journals()) {
+            for (auto const& [verno,aje] : journal) {
+              merged.post({{.series=series,.verno=verno},aje});
+            }
+          }
+
+          ASSERT_TRUE(merged.journals_entry_count() == 3);
+        }
+
+        TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest)"};
+          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
+          auto stage_result = merged.stage(fixture_three_entries_env);
+          ASSERT_TRUE(merged.journals_entry_count() == 3)
+            << std::format("Expected 3 journal entries but found  :{}",merged.journals_entry_count());
+          ASSERT_TRUE(merged.unposted().size() == 3)
+            << std::format("Expected 3 staged entries but found unposted:{}",merged.unposted().size());
+          ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
+        }
+
+        TEST(SIEEnvironmentTests,StageToPostedOkTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,StageToPostedOkTest)"};
 
           auto entries = to_sample_md_entries();
           auto entry_0 = entries[0];

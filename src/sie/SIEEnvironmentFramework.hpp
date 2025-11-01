@@ -35,8 +35,8 @@ public:
     return dummy;
   }
 
-	SIEEnvironment::StageEntryResult stage(BAS::MDJournalEntry const& mdje) {
-    SIEEnvironment::StageEntryResult result{mdje,SIEEnvironment::StageEntryResult::Status::Undefined};
+	SIEEnvironment::EnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje) {
+    SIEEnvironment::EnvironmentChangeResult result{mdje,SIEEnvironment::EnvironmentChangeResult::Status::Undefined};
 
     // TODO: Refctor this 'mess' *sigh* (to many optionals...)
 

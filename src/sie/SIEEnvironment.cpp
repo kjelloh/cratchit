@@ -19,7 +19,9 @@ SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
 // Entry API
-void SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
+SIEEnvironment::EnvironmentChangeResult SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
+
+  EnvironmentChangeResult result{mdje};
 
   logger::scope_logger log_raii{
      logger::development_trace
@@ -28,8 +30,28 @@ void SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
       ,logger::opt_to_string(mdje.meta.verno,"ver_no"))};
 
   if (mdje.meta.verno) {
-    m_journals[mdje.meta.series][*mdje.meta.verno] = mdje.defacto;
-    verno_of_last_posted_to[mdje.meta.series] = *mdje.meta.verno;
+    auto verno  = mdje.meta.verno.value();
+    if (not m_journals[mdje.meta.series].contains(verno)) {
+      m_journals[mdje.meta.series][verno] = mdje.defacto;
+      verno_of_last_posted_to[mdje.meta.series] = verno;
+      result = result.with_status(EnvironmentChangeResult::Status::NowPosted);
+    }
+    else {
+      // series,verno already exists
+      auto const& existing_defacto = m_journals[mdje.meta.series][verno];
+      if (existing_defacto == mdje.defacto) {
+        result = result.with_status(EnvironmentChangeResult::Status::NowPosted);
+      }
+      else {
+        // Can't post an already pested series/verno entry with a new value
+        logger::design_insufficiency(
+          "post failed. Can't post an already posted entry with a new value at {}{}: \nold:{} \nnew:{}"
+          ,mdje.meta.series
+          ,verno
+          ,to_string(existing_defacto)
+          ,to_string(mdje.defacto));
+      }
+    }
 
     // LOG
     logger::development_trace("verno_of_last_posted_to[{}] = {} "
@@ -40,10 +62,12 @@ void SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
   else {
     logger::cout_proxy << "\nSIEEnvironment::post failed - can't post an entry with null verno";
   }
+
+  return result;
 }
 
-SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje) {
-  StageEntryResult result{mdje,SIEEnvironment::StageEntryResult::Status::Undefined};
+SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje) {
+  EnvironmentChangeResult result{mdje};
 
   // scope Log
   logger::scope_logger log_raii{
@@ -59,12 +83,12 @@ SIEEnvironment::StageEntryResult SIEEnvironment::stage(BAS::MDJournalEntry const
       if (not this->already_in_posted(mdje)) {
         // Not yet posted (in sie-file from external tool)
         // So add it to make our internal sie-environment complete
-        result.set_status(this->add(mdje).has_value()?StageEntryResult::Status::Undefined:StageEntryResult::Status::NowPosted);
+        result = result.with_status(this->add(mdje).has_value()?EnvironmentChangeResult::Status::Undefined:EnvironmentChangeResult::Status::NowPosted);
       }
       else {
         // Is 'posted' to external tool
         // But update it in case we have edited it
-        result.set_status(this->update(mdje).has_value()?StageEntryResult::Status::NowPosted:StageEntryResult::Status::Undefined);
+        result = result.with_status(this->update(mdje).has_value()?EnvironmentChangeResult::Status::NowPosted:EnvironmentChangeResult::Status::Undefined);
       }
     }
     else {

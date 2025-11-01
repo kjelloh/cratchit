@@ -25,9 +25,8 @@ public:
   SIEEnvironment() = delete;
 
   // Entry API
-	void post(BAS::MDJournalEntry const& mdje);
 
-  class StageEntryResult {
+  class EnvironmentChangeResult {
   public:
     enum class Status {
        Unknown
@@ -35,22 +34,33 @@ public:
       ,StagedOk
       ,Undefined
     };
-    StageEntryResult() = delete;
-    StageEntryResult(BAS::MDJournalEntry const& mdje,Status status = Status{})
+    EnvironmentChangeResult() = delete;
+    EnvironmentChangeResult(BAS::MDJournalEntry const& mdje,Status status = Status{})
       : m_md_entry{mdje},m_status{status} {}
+    EnvironmentChangeResult with_status(Status status) const {
+      EnvironmentChangeResult result{*this};
+      result.m_status = status;
+      return result;
+    }
     bool now_posted() const {return m_status == Status::NowPosted;}
-    operator bool() const {return m_status == Status::StagedOk;}
+    operator bool() const {
+      // true if a meaningful status
+      return (m_status != Status::Unknown) 
+        and (m_status != Status::Undefined); }
     BAS::MDJournalEntry const& md_entry() const {return m_md_entry;}
-    StageEntryResult& set_status(Status status) {m_status = status; return *this;}
   private:
     Status m_status{};
     BAS::MDJournalEntry m_md_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
                             //       So we store a ref-safe clone to return as result
                             //       This may e.g., allow for returning a mutated entry.
   };
-	StageEntryResult stage(BAS::MDJournalEntry const& mdje);
+
+	EnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
+	EnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
+
 	BAS::OptionalMDJournalEntry add(BAS::MDJournalEntry mdje);
 	BAS::OptionalMDJournalEntry update(BAS::MDJournalEntry const& mdje);
+
 	BAS::VerNo largest_verno(BAS::Series series);
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);
 
