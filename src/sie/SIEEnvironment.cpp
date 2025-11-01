@@ -119,26 +119,34 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry 
   // Ensure a valid series
   if ((candidate.meta.series < 'A') or ('M' < candidate.meta.series)) {
     candidate.meta.series = 'A';
-    logger::cout_proxy << "\nadd(me): assigned series 'A' to entry with no series assigned";
+    logger::development_trace(
+       "add(me): assigned series '{}' to entry with no series assigned"
+      ,candidate.meta.series);
   }
 
   auto actual_verno = 
     candidate.meta.verno
-    .value_or(largest_verno(mdje.meta.series) + 1);
+    .value_or(largest_verno(candidate.meta.series) + 1);
+
+  candidate.meta.verno = actual_verno;
 
   // LOG
   if (!mdje.meta.verno) {
-    logger::development_trace("add(me): assigned verno:{} to entry with no verno assigned",actual_verno);
+    logger::development_trace("add(me): assigned verno:{} to entry with no verno assigned",candidate.meta.verno.value());
   }
-
-  candidate.meta.verno = actual_verno;
 
   if (!m_journals[candidate.meta.series].contains(candidate.meta.verno.value())) {
     m_journals[candidate.meta.series][candidate.meta.verno.value()] = candidate.defacto;
     result = {candidate,EnvironmentChangeResult::Status::StagedOk};
+    logger::development_trace(
+      "add(me): Added {}"
+      ,to_string(candidate));
   }
   else {
-    logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << mdje.meta.series << actual_verno;
+    logger::design_insufficiency(
+      "DESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID {}{}"
+      ,candidate.meta.series
+      ,candidate.meta.verno.value());
   }
   return result;
 } // add
@@ -177,9 +185,14 @@ BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& md
 
 
 BAS::VerNo SIEEnvironment::largest_verno(BAS::Series series) {
+  logger::scope_logger log_raii{
+     logger::development_trace
+    ,std::format("largest_verno: series:{}",series)};
+
 	auto const& journal = m_journals[series];
   // return 0 (empty) or 1...n for found largest
 	return std::accumulate(journal.begin(),journal.end(),unsigned{0},[](auto acc,auto const& entry){
+    logger::development_trace("acc:{} entry.first:{}",acc,entry.first);
 		return (acc<entry.first) ? entry.first : acc;
 	});
 }

@@ -1100,6 +1100,7 @@ R"(#GEN 20251026
 
         TEST(SIEFileParseTests,ParseMinimal) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
+
           std::istringstream iss{sz_minimal_sie_text};
           auto maybe_sie = sie_from_stream(iss);
           ASSERT_TRUE(maybe_sie.has_value());
@@ -1107,6 +1108,7 @@ R"(#GEN 20251026
 
         TEST(SIEFileParseTests,ParseTransactions) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
+
           std::istringstream iss{sz_sie_three_transactions_text};
           auto maybe_sie = sie_from_stream(iss);
           ASSERT_TRUE(maybe_sie.has_value());
@@ -1152,7 +1154,7 @@ R"(#GEN 20251026
         using SIEEnvironmentTestFixture = parse_sie_file_suite::SIEFileParseFixture;
 
         TEST(SIEEnvironmentTests,EntryAddTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryPostTest)"};
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryAddTest)"};
 
           auto entries = to_sample_md_entries();
           SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
@@ -1168,6 +1170,14 @@ R"(#GEN 20251026
           {
             auto add_result = sie_env.add(entries[0]);
             ASSERT_FALSE(add_result) << "Expected re-add same value previous entry to fail";
+          }
+          {
+            auto no_series_entry_0 = entries[0];
+            no_series_entry_0.meta.series = ' ';
+            no_series_entry_0.meta.verno = std::nullopt;
+            auto add_result = sie_env.add(no_series_entry_0);
+            ASSERT_TRUE(add_result) << "Expected add of anonymous series,verno entry to succeed";
+            ASSERT_TRUE(add_result.md_entry().meta.series == 'A') << "Expected add of anonymous series,verno entry to be addes in series 'A'";
           }
           {
             auto mutated_entry_0 = entries[0];
