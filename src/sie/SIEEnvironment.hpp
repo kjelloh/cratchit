@@ -58,7 +58,7 @@ public:
 	EnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
 	EnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
 
-	BAS::OptionalMDJournalEntry add(BAS::MDJournalEntry mdje);
+	EnvironmentChangeResult add(BAS::MDJournalEntry mdje);
 	BAS::OptionalMDJournalEntry update(BAS::MDJournalEntry const& mdje);
 
 	BAS::VerNo largest_verno(BAS::Series series);

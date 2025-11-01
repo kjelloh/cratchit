@@ -83,7 +83,7 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
       if (not this->already_in_posted(mdje)) {
         // Not yet posted (in sie-file from external tool)
         // So add it to make our internal sie-environment complete
-        result = result.with_status(this->add(mdje).has_value()?EnvironmentChangeResult::Status::Undefined:EnvironmentChangeResult::Status::NowPosted);
+        result = this->add(mdje);
       }
       else {
         // Is 'posted' to external tool
@@ -109,10 +109,10 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
 } // stage
 
 
-BAS::OptionalMDJournalEntry SIEEnvironment::add(BAS::MDJournalEntry mdje) {
+SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
-  BAS::OptionalMDJournalEntry result{};
+  EnvironmentChangeResult result{mdje};
 
   auto candidate = mdje;
 
@@ -135,7 +135,7 @@ BAS::OptionalMDJournalEntry SIEEnvironment::add(BAS::MDJournalEntry mdje) {
 
   if (!m_journals[candidate.meta.series].contains(candidate.meta.verno.value())) {
     m_journals[candidate.meta.series][candidate.meta.verno.value()] = candidate.defacto;
-    result = candidate;
+    result = {candidate,EnvironmentChangeResult::Status::StagedOk};
   }
   else {
     logger::cout_proxy << "\nDESIGN INSUFFICIENCY: Ignored adding new voucher with already existing ID " << mdje.meta.series << actual_verno;

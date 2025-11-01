@@ -1151,8 +1151,34 @@ R"(#GEN 20251026
 
         using SIEEnvironmentTestFixture = parse_sie_file_suite::SIEFileParseFixture;
 
-        TEST(SIEEnvironmentTests,EntryAPITest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryAPITest)"};
+        TEST(SIEEnvironmentTests,EntryAddTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryPostTest)"};
+
+          auto entries = to_sample_md_entries();
+          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+
+          {
+            auto add_result = sie_env.add(entries[0]);
+            ASSERT_TRUE(add_result) << "Expected add to empty env to succeed";
+          }
+          {
+            auto add_result = sie_env.add(entries[1]);
+            ASSERT_TRUE(add_result) << "Expected add new valid entry to to succeed";
+          }
+          {
+            auto add_result = sie_env.add(entries[0]);
+            ASSERT_FALSE(add_result) << "Expected re-add same value previous entry to fail";
+          }
+          {
+            auto mutated_entry_0 = entries[0];
+            mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
+            auto add_result = sie_env.add(mutated_entry_0);
+            ASSERT_FALSE(add_result) << "Expected re-add mutated previous entry to fail";
+          }
+        }
+
+        TEST(SIEEnvironmentTests,EntryPostTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryPostTest)"};
 
           auto entries = to_sample_md_entries();
           SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
@@ -1175,8 +1201,6 @@ R"(#GEN 20251026
             auto post_result = sie_env.post(mutated_entry_0);
             ASSERT_TRUE(!post_result) << "Expected re-post mutated previous entry to fail";
           }
-
-
         }
 
         TEST(SIEEnvironmentTests,EmptyStageEmptyTest) {
