@@ -1197,6 +1197,18 @@ R"(#GEN 20251026
             auto update_result = sie_env.update(entries[0]);
             ASSERT_FALSE(update_result) << "Expected update to empty env to faile (no entry to update)";
           }
+          if (auto add_result = sie_env.add(entries[0])) {
+            auto update_result = sie_env.update(entries[0]);
+            ASSERT_TRUE(update_result) << "Expected update to existing same value to succeed";
+
+            {
+              auto mutated_entry_0 = entries[0];
+              mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
+              
+              auto update_result = sie_env.update(mutated_entry_0);
+              ASSERT_FALSE(update_result) << "Expected update to existing entry with new value to fail";
+            }
+          }
         }
 
         TEST(SIEEnvironmentTests,EntryPostTest) {

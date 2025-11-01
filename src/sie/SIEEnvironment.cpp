@@ -153,7 +153,10 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry 
 
 BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
-  logger::cout_proxy << "\nupdate(" << mdje << ")" << std::flush;
+
+  logger::development_trace("update {}{}"
+    ,mdje.meta.series
+    ,mdje.meta.verno.value_or(-1));
 
   BAS::OptionalMDJournalEntry result{};
 
@@ -165,8 +168,9 @@ BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& md
         if (entry_iter != journal_iter->second.end()) {
           entry_iter->second = mdje.defacto; // update
           result = BAS::MDJournalEntry{mdje.meta,entry_iter->second};
-          // logger::cout_proxy << "\nupdated :" << entry_iter->second;
-          // logger::cout_proxy << "\n    --> :" << me;
+
+          logger::development_trace("Update: new_value:{}"
+            ,to_string(mdje));
         }
         else {
           logger::design_insufficiency("Can't update no-nexistent entry {}{}",mdje.meta.series,mdje.meta.verno.value());
