@@ -32,6 +32,7 @@ public:
        Unknown
       ,NowPosted
       ,StagedOk
+      ,SameValueAssigned
       ,Undefined
     };
     EnvironmentChangeResult() = delete;
@@ -59,7 +60,7 @@ public:
 	EnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
 
 	EnvironmentChangeResult add(BAS::MDJournalEntry mdje);
-	BAS::OptionalMDJournalEntry update(BAS::MDJournalEntry const& mdje);
+	EnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
 
 	BAS::VerNo largest_verno(BAS::Series series);
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);

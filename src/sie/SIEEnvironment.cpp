@@ -87,8 +87,10 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
       }
       else {
         // Is 'posted' to external tool
-        // But update it in case we have edited it
-        result = result.with_status(this->update(mdje).has_value()?EnvironmentChangeResult::Status::NowPosted:EnvironmentChangeResult::Status::Undefined);
+        // But update it in case transient data exists that needs to be mutated?
+        if (auto update_result = this->update(mdje)) {
+          result = result.with_status(EnvironmentChangeResult::Status::NowPosted);
+        }
       }
     }
     else {
@@ -151,14 +153,14 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry 
   return result;
 } // add
 
-BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& mdje) {
+SIEEnvironment::EnvironmentChangeResult SIEEnvironment::update(BAS::MDJournalEntry const& mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
 
   logger::development_trace("update {}{}"
     ,mdje.meta.series
     ,mdje.meta.verno.value_or(-1));
 
-  BAS::OptionalMDJournalEntry result{};
+  SIEEnvironment::EnvironmentChangeResult result{mdje};
 
   if (mdje.meta.verno and *mdje.meta.verno > 0) {
     auto journal_iter = m_journals.find(mdje.meta.series);
@@ -169,10 +171,14 @@ BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& md
         if (entry_iter != journal_iter->second.end()) {
 
           if (entry_iter->second == mdje.defacto) {
-            // Same value = no effect OK
+            // Same value = no effect on immutability (allow for transient data?)
             entry_iter->second = mdje.defacto; // update (if future transient data to mutate?)
-            result = BAS::MDJournalEntry{mdje.meta,entry_iter->second};
-            logger::development_trace("Update: {}{} same_value ok {}"
+
+            result = {
+               BAS::MDJournalEntry{mdje.meta,entry_iter->second}
+              ,EnvironmentChangeResult::Status::SameValueAssigned};
+
+            logger::development_trace("Update: {}{} same_value (transient assigned) ok new: {}"
               ,journal_iter->first
               ,entry_iter->first
               ,to_string(entry_iter->second));
