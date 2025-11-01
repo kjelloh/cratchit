@@ -10034,13 +10034,19 @@ private:
         result["HeadingAmountDateTransEntry"].push_back({index, env_val});
     }
 
-		std::string sev = std::accumulate(model->sie_env_map.begin(),model->sie_env_map.end(),std::string{},[](auto acc,auto const& entry){
-			std::ostringstream os{};
-			if (acc.size()>0) os << acc << ";";
-			os << entry.first << "=" << entry.second.source_sie_file_path().string();
-			return os.str();
+    // Assemble sie file paths from existing sie environments
+		std::string sev = std::accumulate(
+       model->sie_env_map.begin()
+      ,model->sie_env_map.end()
+      ,std::string{}
+      ,[](auto acc,auto const& entry) {
+        std::ostringstream os{};
+        if (acc.size()>0) os << acc << ";";
+        os << entry.first << "=" << entry.second.source_sie_file_path().string();
+        return os.str();
 		});
 		result["sie_file"].push_back({0,in::to_environment_value(sev)});
+
 		for (auto const& [index,entry] : std::views::zip(std::views::iota(0),model->organisation_contacts)) {
 			result["contact"].push_back({index,to_environment_value(entry)});
 		}
