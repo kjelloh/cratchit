@@ -1195,7 +1195,7 @@ R"(#GEN 20251026
 
           {
             auto update_result = sie_env.update(entries[0]);
-            ASSERT_FALSE(update_result) << "Expected update to empty env to faile (no entry to update)";
+            ASSERT_FALSE(update_result) << "Expected update to empty env to fail (no entry to update)";
           }
           if (auto add_result = sie_env.add(entries[0])) {
             auto update_result = sie_env.update(entries[0]);
@@ -1206,7 +1206,18 @@ R"(#GEN 20251026
               mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
               
               auto update_result = sie_env.update(mutated_entry_0);
-              ASSERT_FALSE(update_result) << "Expected update to existing entry with new value to fail";
+              ASSERT_FALSE(update_result) << "Expected update to existing entry with different caption to fail";
+            }
+            {
+              auto mutated_entry_0 = entries[0];
+              mutated_entry_0.defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                 .account_no = 1920
+                ,.transtext = std::string{"*New transaction*"}
+                ,.amount = to_amount("12,00").value_or(0)
+              });
+              
+              auto update_result = sie_env.update(mutated_entry_0);
+              ASSERT_FALSE(update_result) << "Expected update to existing entry with different trasnactions to fail";
             }
           }
         }

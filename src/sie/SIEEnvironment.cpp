@@ -164,13 +164,23 @@ BAS::OptionalMDJournalEntry SIEEnvironment::update(BAS::MDJournalEntry const& md
     auto journal_iter = m_journals.find(mdje.meta.series);
     if (journal_iter != m_journals.end()) {
       if (mdje.meta.verno) {
-        auto entry_iter = journal_iter->second.find(*mdje.meta.verno);
+        auto verno = mdje.meta.verno.value();
+        auto entry_iter = journal_iter->second.find(verno);
         if (entry_iter != journal_iter->second.end()) {
-          entry_iter->second = mdje.defacto; // update
-          result = BAS::MDJournalEntry{mdje.meta,entry_iter->second};
 
-          logger::development_trace("Update: new_value:{}"
+          if (entry_iter->second == mdje.defacto) {
+            // Same value = no effect OK
+            entry_iter->second = mdje.defacto; // update (if future transient data to mutate?)
+            result = BAS::MDJournalEntry{mdje.meta,entry_iter->second};
+            logger::development_trace("Update: {}{} same_value ok {}"
+              ,journal_iter->first
+              ,entry_iter->first
+              ,to_string(entry_iter->second));
+          }
+          else {
+            logger::design_insufficiency("update failed. Doesn't allow mutation to new value: {}"
             ,to_string(mdje));
+          }
         }
         else {
           logger::design_insufficiency("Can't update no-nexistent entry {}{}",mdje.meta.series,mdje.meta.verno.value());
