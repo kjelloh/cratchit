@@ -1187,6 +1187,18 @@ R"(#GEN 20251026
           }
         }
 
+        TEST(SIEEnvironmentTests,EntryUpdateTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryUpdateTest)"};
+
+          auto entries = to_sample_md_entries();
+          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+
+          {
+            auto update_result = sie_env.update(entries[0]);
+            ASSERT_FALSE(update_result) << "Expected update to empty env to faile (no entry to update)";
+          }
+        }
+
         TEST(SIEEnvironmentTests,EntryPostTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryPostTest)"};
 
