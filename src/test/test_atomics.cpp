@@ -1280,7 +1280,10 @@ R"(#GEN 20251026
             << std::format("Expected 3 journal entries but found  :{}",merged.journals_entry_count());
           ASSERT_TRUE(merged.unposted().size() == 3)
             << std::format("Expected 3 staged entries but found unposted:{}",merged.unposted().size());
-          ASSERT_TRUE(stage_result.size() == 0) << std::format("Expected stage_result.size() to be 0 (now posted) but found:{}",stage_result.size());
+          ASSERT_TRUE(stage_result.size() == 3) << std::format("Expected stage_result.size() to be 3 (all staged accounted for) but found:{}",stage_result.size());
+          ASSERT_TRUE(std::ranges::all_of(
+             stage_result
+            ,[](auto const& e){return static_cast<bool>(e);})) << "Expetced all entries to be staged ok";
         }
 
         TEST(SIEEnvironmentTests,StageToPostedOkTest) {

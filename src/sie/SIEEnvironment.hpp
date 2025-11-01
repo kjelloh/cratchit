@@ -66,7 +66,7 @@ public:
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);
 
   // Entries API
-	BAS::MDJournalEntries stage(SIEEnvironment const& staged_sie_environment);
+	std::vector<EnvironmentChangeResult> stage(SIEEnvironment const& staged_sie_environment);
 
   // file API
 	std::filesystem::path staged_sie_file_path() const;

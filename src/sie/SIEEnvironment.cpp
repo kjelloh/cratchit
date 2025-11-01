@@ -236,17 +236,17 @@ bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& mdje) {
 }
 
 // Entries API
-BAS::MDJournalEntries SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
+std::vector<SIEEnvironment::EnvironmentChangeResult> SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
+
   logger::scope_logger log_raii{
       logger::development_trace
     ,std::format("stage(SIEEnvironment:{})",staged_sie_environment.journals_entry_count())};
-  BAS::MDJournalEntries result{};
+
+  std::vector<EnvironmentChangeResult> result{};
   for (auto const& [series,journal] : staged_sie_environment.journals()) {
     for (auto const& [verno,aje] : journal) {
       auto stage_result = this->stage({{.series=series,.verno=verno},aje});
-      if (stage_result.now_posted()) {
-        result.push_back({{.series=series,.verno=verno},aje}); // no longer staged
-      }
+      result.push_back(stage_result);
     }
   }
   return result;

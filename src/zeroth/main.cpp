@@ -9897,11 +9897,24 @@ private:
         //    and shows the user what was previously staged and what is now discovered to be posted
         //    * Staged are those in file model->staged_sie_file_path
         //    * Posted are those now in "current" sie in (imported from external tool)
-        auto staged = model->sie_env_map[year_id].stage(*sse);
-        if (staged.size()>0) {
-          prompt << "\n<STAGED>";
-          prompt << "\n" << staged;
+        auto stage_result = model->sie_env_map[year_id].stage(*sse);
+
+        if (std::ranges::any_of(
+          stage_result
+          ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
+          // At least one element is “false”
+          prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
+          prompt << std::format("\nEntries in sie-file:{} overrides values in cratchit staged entries"
+            ,model->sie_env_map[year_id].source_sie_file_path().string());
         }
+        std::ranges::for_each(stage_result,[&prompt](auto const& entry_result){
+          if (!entry_result) {
+            prompt << std::format(
+              "\nCONFLICTED! : No longer valid entry {}"
+              ,static_cast<bool>(entry_result)
+              ,to_string(entry_result.md_entry()));
+          }
+        });
         auto unposted = model->sie_env_map[year_id].unposted();
         prompt << "\n<Still UNPOSTED>";
         if (unposted.size() > 0) prompt << "\n" << unposted;
