@@ -5410,3 +5410,18 @@ private:
 }; // ConcreteModel
 
 using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around the same instance)
+
+std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment);
+std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment);
+SRUEnvironments srus_from_environment(Environment const& environment);
+DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment);
+TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cratchit_file_path, Environment const& environment);
+void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment);
+DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env);
+struct SKVSpecsDummy {}; 
+SKVSpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment);
+
+namespace zeroth {
+	Model model_from_environment(std::filesystem::path cratchit_file_path,Environment const& environment);
+  Environment environment_from_model(Model const& model);
+}

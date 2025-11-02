@@ -4182,269 +4182,17 @@ public:
 private:
     PersistentFile<Environment> m_persistent_environment_file;
 	std::filesystem::path cratchit_file_path{};
-	std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
-		std::vector<SKV::ContactPersonMeta> result{};
-		// auto [begin,end] = environment.equal_range("contact");
-		// if (begin == end) {
-		// 	// Instantiate default values if required
-		// 	result.push_back({
-		// 			.name = "Ville Vessla"
-		// 			,.phone = "555-244454"
-		// 			,.e_mail = "ville.vessla@foretaget.se"
-		// 		});
-		// }
-		// else {
-		// 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-		// 		return *to_contact(entry.second); // Assume success
-		// 	});
-		// }
-    if (environment.contains("contact")) {
-  		auto const& id_ev_pairs = environment.at("contact");
-			std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
-        auto const& [id,ev] = id_ev_pair;
-				return *to_contact(ev); // Assume success
-			});
-    }
-    else {
-			// Instantiate default values if required
-			result.push_back({
-					.name = "Ville Vessla"
-					,.phone = "555-244454"
-					,.e_mail = "ville.vessla@foretaget.se"
-				});
-    }
 
-		return result;
-	}
-
-	DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
-    if (true) {
-		  std::cout << "\ndotas_from_sie_environment" << std::flush;
-    }
-		DateOrderedTaggedAmountsContainer result{};
-    // Create / add opening balances for BAS accounts as tagged amounts
-    auto financial_year_date_range = sie_env.financial_year_date_range();
-    auto opening_saldo_date = financial_year_date_range->begin();
-    std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
-    for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
-      auto saldo_cents_amount = to_cents_amount(saldo);
-      TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
-      saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
-      saldo_ta.tags()["IB"] = "True";
-      result.dotas_insert_auto_ordered_value(saldo_ta);
-      if (true) {
-        std::cout << "\n\tsaldo_ta : " << saldo_ta;
-      }
-    }
-		auto create_and_merge_to_result = [&result](BAS::MDJournalEntry const& mdje) {
-			auto tagged_amounts = to_tagged_amounts(mdje);
-      // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
-      //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
-      // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
-			// result += tagged_amounts;
-			result.dotas_insert_auto_ordered_sequence(tagged_amounts);
-		};
-		for_each_md_journal_entry(sie_env,create_and_merge_to_result);
-		return result;
-	}
-
-  struct SKVSpecsDummy {}; 
-
-  SKVSpecsDummy skv_specs_mapping_from_csv_files(Environment const& environment) {
-    // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
-    SKVSpecsDummy result{};
-		auto skv_specs_path = this->cratchit_file_path.parent_path() /  "skv_specs";
-		std::filesystem::create_directories(skv_specs_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-		if (std::filesystem::exists(skv_specs_path) == true) {
-			// Process all files in skv_specs_path
-			std::cout << "\nBEGIN: Processing files in " << skv_specs_path;
-			for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_path}) {
-				auto skv_specs_member_path = dir_entry.path();
-        if (std::filesystem::is_directory(skv_specs_member_path)) {
-          std::cout << "\n\nBEGIN Folder: " << skv_specs_member_path;
-    			for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_member_path}) {
-    				auto financial_year_member_path = dir_entry.path();
-            std::cout << "\n\tBEGIN " <<  financial_year_member_path;
-            if (std::filesystem::is_regular_file(financial_year_member_path) and (financial_year_member_path.extension() == ".csv")) {
-              auto ifs = std::ifstream{financial_year_member_path};
-              encoding::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
-              if (auto field_rows = CSV::to_field_rows(utf8_in,';')) {
-                std::cout << "\n\tNo Operation implemented";
-                // std::cout << "\n\t<Entries>";
-                for (int i=0;i<field_rows->size();++i) {
-                  auto field_row = field_rows->at(i);
-                  // std::cout << "\n\t\t[" << i << "] : ";
-                  for (int j=0;j<field_row.size();++j) {
-                    // [14] :  [0]1.1 Årets gränsbelopp enligt förenklingsregeln [1]4511 [2]Numeriskt_B [3]N [4]+ [5]Regel_E
-                    // index 1 = SRU Code
-                    // Index 0 = Readable field name on actual human readable form
-                    // The other fields defines representation and "rules"
-                    // std::cout << " [" << j << "]" << field_row[j];
-                  }
-                }
-              }
-              else {
-                std::cout << "\n\tFAILED PARSING FILE " <<  financial_year_member_path;
-              }
-            }
-            else {
-              std::cout << "\n\tSKIPPED UNUSED FILE" <<  financial_year_member_path;
-            }
-            std::cout << "\n\tEND " <<  financial_year_member_path;
-          }
-          std::cout << "\nEND Folder: " << skv_specs_member_path;
-        }
-        else {
-          std::cout << "\n\tSKIPPED NON FOLDER PATH " << skv_specs_member_path;
-        }
-      }
-			std::cout << "\nEND: Processing files in " << skv_specs_path;
-    }
-    return result;
-  }
-
-  TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(Environment const& environment) {
-    if (false) {
-      std::cout << "\n" << "tagged_amounts_sequence_from_bank_or_skv" << std::flush;
-    }
-    TaggedAmounts result{};
-    // Ensure folder "from_bank_or_skv folder" exists
-    auto from_bank_or_skv_path = this->cratchit_file_path.parent_path() /  "from_bank_or_skv";
-    std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-    if (std::filesystem::exists(from_bank_or_skv_path) == true) {
-      // Process all files in from_bank_or_skv_path
-      std::cout << "\nBEGIN: Processing files in " << from_bank_or_skv_path << std::flush;
-      // auto dir_entries = std::filesystem::directory_iterator{}; // Test empty iterator (does heap error disappear?) - YES!
-      // TODO 240611 - Locate heap error detected here for g++ built with address sanitizer
-      // NOTE: Seems to be all std::filesystem::directory_iterator usage in this code (Empty iterator here makes another loop cause heap error)
-      for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) { 
-        // 240612 Test if g++14 with sanitizer detects heap violation also for an empty std::filesystem::directory_iterator loop?
-        //        YES - c++14 with "-fsanitize=address,undefined" reports runtime heap violation error on the for statement above!
-        if (true) {
-          auto statement_file_path = dir_entry.path();
-          std::cout << "\n\nBEGIN File: " << statement_file_path << std::flush;
-          if (dir_entry.is_directory()) {
-            // skip directories (will process regular files and symlinks etc...)
-          }
-          // Process file
-          else if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
-            result = maybe_tas.value();
-            std::cout << "\n\tValid entries count:" << maybe_tas->size();
-            auto consumed_files_path = from_bank_or_skv_path / "consumed";
-            if (false) {
-              std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-              std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
-              std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / statement_file_path.filename();
-            }
-            else {
-              std::cout << "\n\tConsumed account statement file move DISABLED = NOT moved to " << consumed_files_path / statement_file_path.filename();
-            }
-          }
-          else {
-            std::cout << "\n*Ignored* " << statement_file_path << " (Failed to understand file content)";
-          }
-          std::cout << "\nEND File: " << statement_file_path;
-        }
-      }
-      std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
-    }
-    if (true) {
-      std::cout 
-        << "\n" << "tagged_amounts_sequence_from_bank_or_skv RETURNS " 
-        << result.size() 
-        << " entries";
-    }
-    return result;
-  }
-
-  DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
-    if (false) {
-      std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
-    }
-    DateOrderedTaggedAmountsContainer result{};
-    result.dotas_insert_auto_ordered_container(dotas_from_environment(environment));
-
-    if (environment.contains("TaggedAmount") and (environment.at("TaggedAmount").size() != result.cas().size())) {
-      logger::design_insufficiency("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
-    }
-
-    if (true) {
-      logger::development_trace("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
-    }
-
-    // Import any new account statements in dedicated "files from bank or skv" folder
-    result.dotas_insert_auto_ordered_sequence(tagged_amounts_sequence_from_bank_or_skv(environment));
-    
-    return result;
-  }
-
-  void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
-    // TODO: Base the implementation on DateOrderedTaggedAmountsContainer handling 'branching' on CAS based value-id ordering?
-
-    logger::scope_logger scope_raii{logger::development_trace,"SYNHRONIZE TAGGED AMOUNTS WITH SIE"};
-    if (auto financial_year_date_range = sie_environment.financial_year_date_range()) {
-      std::cout << "\n\tSIE fiscal year:" << *financial_year_date_range;
-      auto dotas_from_sie_environment = this->dotas_from_sie_environment(sie_environment);      
-
-      // TODO: 'put' all tagged amounts in dotas_from_sie_environment
-      //       into 'all_dotas' and trust it to detect branching
-      //       for conflicting ordering (when implemented)
-
-    }
-    else {
-      std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
-    }
-  }
-
-	SRUEnvironments srus_from_environment(Environment const& environment) {
-		SRUEnvironments result{};
-		// auto [begin,end] = environment.equal_range("SRU:S");
-		// std::transform(begin,end,std::inserter(result,result.end()),[](auto const& entry){
-		// 	if (auto result_entry = to_sru_environments_entry(entry.second)) return *result_entry;
-		// 	return SRUEnvironments::value_type{"null",{}};
-		// });
-    if (environment.contains("SRU:S")) {
-      auto const id_ev_pairs = environment.at("SRU:S");
-      std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::inserter(result,result.end()),[](auto const& id_ev_pair){
-        auto const& [id,ev] = id_ev_pair;
-        if (auto result_entry = to_sru_environments_entry(ev)) return *result_entry;
-        return SRUEnvironments::value_type{"null",{}};
-      });
-    }
-    else {
-      // Nop
-    }
-		return result;
-	}
-
-	std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
-		std::vector<std::string> result{};
-		// auto [begin,end] = environment.equal_range("employee");
-		// if (begin == end) {
-		// 	// Instantiate default values if required
-		// 	result.push_back({"198202252386"});
-		// }
-		// else {
-		// 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
-		// 		return *to_employee(entry.second); // dereference optional = Assume success
-		// 	});
-		// }
-    if (environment.contains("employee")) {
-  		auto const id_ev_pairs = environment.at("employee");
-			std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
-        auto const [id,ev] = id_ev_pair;
-				return *to_employee(ev); // dereference optional = Assume success
-			});
-    }
-    else {
-			// Instantiate default values if required
-			result.push_back({"198202252386"});
-    }
-
-		return result;
-	}
-	
-    // Now stand-alone: HeadingAmountDateTransEntries hads_from_environment(Environment const& environment)
+  // Now free functions
+	// std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
+	// DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
+  // SKVSpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+  // TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(Environment const& environment) {
+  // DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
+  // void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
+	// SRUEnvironments srus_from_environment(Environment const& environment) {
+	// std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
+  // HeadingAmountDateTransEntries hads_from_environment(Environment const& environment)
 
 	bool is_value_line(std::string const& line) {
 		// Now in environment unit
@@ -4452,6 +4200,341 @@ private:
 	}
 
 	Model model_from_environment(Environment const& environment) {
+		return zeroth::model_from_environment(this->cratchit_file_path,environment);
+	}
+
+  // indexed_env_entries_from now in HADFramework
+  // std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {
+
+	Environment environment_from_model(Model const& model) {
+    return zeroth::environment_from_model(model);
+	}
+	Environment add_cratchit_environment(Environment const& environment) {
+		Environment result{environment};
+		// Add cratchit environment values if/when there are any
+		return result;
+	}
+
+}; // class Cratchit
+
+class REPL {
+public:
+    REPL(std::filesystem::path const& environment_file_path) : cratchit{environment_file_path} {}
+
+	void run(Command const& command) {
+    auto model = cratchit.init(command);
+		auto ux = cratchit.view(model);
+		render_ux(ux);
+		while (true) {
+			try {
+				// process events (user input)
+				if (in.size()>0) {
+					auto msg = in.front();
+					in.pop();
+					// std::cout << "\nmsg[" << msg.index() << "]";
+					// Turn Event (Msg) into updated model
+					// std::cout << "\nREPL::run before cratchit.update " << std::flush;
+					auto [updated_model,cmd] = cratchit.update(msg,std::move(model));
+					// std::cout << "\nREPL::run cratchit.update ok" << std::flush;
+					model = std::move(updated_model);
+					// std::cout << "\nREPL::run model moved ok" << std::flush;
+					if (cmd.msg) in.push(*cmd.msg);
+					// std::cout << "\nREPL::run before view" << std::flush;
+					auto ux = cratchit.view(model);
+					// std::cout << "\nREPL::run before render" << std::flush;
+					render_ux(ux);
+					if (model->quit) break; // Done
+				}
+				else {
+					// Get more buffered user input
+					std::string user_input{};
+					std::getline(std::cin,user_input);
+					auto cmd = to_cmd(user_input);
+					if (cmd.msg) this->in.push(*cmd.msg);
+				}
+			}
+			catch (std::exception& e) {
+				std::cout << "\nERROR: run() loop failed, exception=" << e.what() << std::flush;
+			}
+		}
+		// std::cout << "\nREPL::run exit" << std::flush;
+	}
+private:
+    Cratchit cratchit;
+		void render_ux(Ux const& ux) {
+			for (auto const&  row : ux) {
+				if (row.size()>0) std::cout << row;
+			}
+		}
+    std::queue<Msg> in{};
+}; // Cratchit
+
+std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
+  std::vector<SKV::ContactPersonMeta> result{};
+  // auto [begin,end] = environment.equal_range("contact");
+  // if (begin == end) {
+  // 	// Instantiate default values if required
+  // 	result.push_back({
+  // 			.name = "Ville Vessla"
+  // 			,.phone = "555-244454"
+  // 			,.e_mail = "ville.vessla@foretaget.se"
+  // 		});
+  // }
+  // else {
+  // 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+  // 		return *to_contact(entry.second); // Assume success
+  // 	});
+  // }
+  if (environment.contains("contact")) {
+    auto const& id_ev_pairs = environment.at("contact");
+    std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
+      auto const& [id,ev] = id_ev_pair;
+      return *to_contact(ev); // Assume success
+    });
+  }
+  else {
+    // Instantiate default values if required
+    result.push_back({
+        .name = "Ville Vessla"
+        ,.phone = "555-244454"
+        ,.e_mail = "ville.vessla@foretaget.se"
+      });
+  }
+
+  return result;
+} // contacts_from_environment
+
+std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
+  std::vector<std::string> result{};
+  // auto [begin,end] = environment.equal_range("employee");
+  // if (begin == end) {
+  // 	// Instantiate default values if required
+  // 	result.push_back({"198202252386"});
+  // }
+  // else {
+  // 	std::transform(begin,end,std::back_inserter(result),[](auto const& entry){
+  // 		return *to_employee(entry.second); // dereference optional = Assume success
+  // 	});
+  // }
+  if (environment.contains("employee")) {
+    auto const id_ev_pairs = environment.at("employee");
+    std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::back_inserter(result),[](auto const& id_ev_pair){
+      auto const [id,ev] = id_ev_pair;
+      return *to_employee(ev); // dereference optional = Assume success
+    });
+  }
+  else {
+    // Instantiate default values if required
+    result.push_back({"198202252386"});
+  }
+
+  return result;
+} // employee_birth_ids_from_environment
+
+SRUEnvironments srus_from_environment(Environment const& environment) {
+  SRUEnvironments result{};
+  // auto [begin,end] = environment.equal_range("SRU:S");
+  // std::transform(begin,end,std::inserter(result,result.end()),[](auto const& entry){
+  // 	if (auto result_entry = to_sru_environments_entry(entry.second)) return *result_entry;
+  // 	return SRUEnvironments::value_type{"null",{}};
+  // });
+  if (environment.contains("SRU:S")) {
+    auto const id_ev_pairs = environment.at("SRU:S");
+    std::transform(id_ev_pairs.begin(),id_ev_pairs.end(),std::inserter(result,result.end()),[](auto const& id_ev_pair){
+      auto const& [id,ev] = id_ev_pair;
+      if (auto result_entry = to_sru_environments_entry(ev)) return *result_entry;
+      return SRUEnvironments::value_type{"null",{}};
+    });
+  }
+  else {
+    // Nop
+  }
+  return result;
+} // srus_from_environment
+
+DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+  if (false) {
+    std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
+  }
+  DateOrderedTaggedAmountsContainer result{};
+  result.dotas_insert_auto_ordered_container(dotas_from_environment(environment));
+
+  if (environment.contains("TaggedAmount") and (environment.at("TaggedAmount").size() != result.cas().size())) {
+    logger::design_insufficiency("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
+  }
+
+  if (true) {
+    logger::development_trace("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
+  }
+
+  // Import any new account statements in dedicated "files from bank or skv" folder
+  result.dotas_insert_auto_ordered_sequence(tagged_amounts_sequence_from_bank_or_skv(
+     cratchit_file_path
+    ,environment));
+  
+  return result;
+} // dotas_from_environment_and_account_statement_files
+
+TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cratchit_file_path, Environment const& environment) {
+  if (false) {
+    std::cout << "\n" << "tagged_amounts_sequence_from_bank_or_skv" << std::flush;
+  }
+  TaggedAmounts result{};
+  // Ensure folder "from_bank_or_skv folder" exists
+  auto from_bank_or_skv_path = cratchit_file_path.parent_path() /  "from_bank_or_skv";
+  std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+  if (std::filesystem::exists(from_bank_or_skv_path) == true) {
+    // Process all files in from_bank_or_skv_path
+    std::cout << "\nBEGIN: Processing files in " << from_bank_or_skv_path << std::flush;
+    // auto dir_entries = std::filesystem::directory_iterator{}; // Test empty iterator (does heap error disappear?) - YES!
+    // TODO 240611 - Locate heap error detected here for g++ built with address sanitizer
+    // NOTE: Seems to be all std::filesystem::directory_iterator usage in this code (Empty iterator here makes another loop cause heap error)
+    for (auto const& dir_entry : std::filesystem::directory_iterator{from_bank_or_skv_path}) { 
+      // 240612 Test if g++14 with sanitizer detects heap violation also for an empty std::filesystem::directory_iterator loop?
+      //        YES - c++14 with "-fsanitize=address,undefined" reports runtime heap violation error on the for statement above!
+      if (true) {
+        auto statement_file_path = dir_entry.path();
+        std::cout << "\n\nBEGIN File: " << statement_file_path << std::flush;
+        if (dir_entry.is_directory()) {
+          // skip directories (will process regular files and symlinks etc...)
+        }
+        // Process file
+        else if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
+          result = maybe_tas.value();
+          std::cout << "\n\tValid entries count:" << maybe_tas->size();
+          auto consumed_files_path = from_bank_or_skv_path / "consumed";
+          if (false) {
+            std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+            std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
+            std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / statement_file_path.filename();
+          }
+          else {
+            std::cout << "\n\tConsumed account statement file move DISABLED = NOT moved to " << consumed_files_path / statement_file_path.filename();
+          }
+        }
+        else {
+          std::cout << "\n*Ignored* " << statement_file_path << " (Failed to understand file content)";
+        }
+        std::cout << "\nEND File: " << statement_file_path;
+      }
+    }
+    std::cout << "\nEND: Processed Files in " << from_bank_or_skv_path;
+  }
+  if (true) {
+    std::cout 
+      << "\n" << "tagged_amounts_sequence_from_bank_or_skv RETURNS " 
+      << result.size() 
+      << " entries";
+  }
+  return result;
+} // tagged_amounts_sequence_from_bank_or_skv
+
+void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
+  // TODO: Base the implementation on DateOrderedTaggedAmountsContainer handling 'branching' on CAS based value-id ordering?
+
+  logger::scope_logger scope_raii{logger::development_trace,"SYNHRONIZE TAGGED AMOUNTS WITH SIE"};
+  if (auto financial_year_date_range = sie_environment.financial_year_date_range()) {
+    std::cout << "\n\tSIE fiscal year:" << *financial_year_date_range;
+    auto environment_dotas = dotas_from_sie_environment(sie_environment);      
+
+    // TODO: 'put' all tagged amounts in environment_dotas
+    //       into 'all_dotas' and trust it to detect branching
+    //       for conflicting ordering (when implemented)
+    logger::design_insufficiency("synchronize_tagged_amounts_with_sie NOT YET IMPLEMENTED");
+
+  }
+  else {
+    std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
+  }
+} // synchronize_tagged_amounts_with_sie
+
+DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
+  if (true) {
+    std::cout << "\ndotas_from_sie_environment" << std::flush;
+  }
+  DateOrderedTaggedAmountsContainer result{};
+  // Create / add opening balances for BAS accounts as tagged amounts
+  auto financial_year_date_range = sie_env.financial_year_date_range();
+  auto opening_saldo_date = financial_year_date_range->begin();
+  std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
+  for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
+    auto saldo_cents_amount = to_cents_amount(saldo);
+    TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
+    saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
+    saldo_ta.tags()["IB"] = "True";
+    result.dotas_insert_auto_ordered_value(saldo_ta);
+    if (true) {
+      std::cout << "\n\tsaldo_ta : " << saldo_ta;
+    }
+  }
+  auto create_and_merge_to_result = [&result](BAS::MDJournalEntry const& mdje) {
+    auto tagged_amounts = to_tagged_amounts(mdje);
+    // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
+    //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
+    // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
+    // result += tagged_amounts;
+    result.dotas_insert_auto_ordered_sequence(tagged_amounts);
+  };
+  for_each_md_journal_entry(sie_env,create_and_merge_to_result);
+  return result;
+} // dotas_from_sie_environment
+
+SKVSpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+  // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
+  SKVSpecsDummy result{};
+  auto skv_specs_path = cratchit_file_path.parent_path() /  "skv_specs";
+  std::filesystem::create_directories(skv_specs_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+  if (std::filesystem::exists(skv_specs_path) == true) {
+    // Process all files in skv_specs_path
+    std::cout << "\nBEGIN: Processing files in " << skv_specs_path;
+    for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_path}) {
+      auto skv_specs_member_path = dir_entry.path();
+      if (std::filesystem::is_directory(skv_specs_member_path)) {
+        std::cout << "\n\nBEGIN Folder: " << skv_specs_member_path;
+        for (auto const& dir_entry : std::filesystem::directory_iterator{skv_specs_member_path}) {
+          auto financial_year_member_path = dir_entry.path();
+          std::cout << "\n\tBEGIN " <<  financial_year_member_path;
+          if (std::filesystem::is_regular_file(financial_year_member_path) and (financial_year_member_path.extension() == ".csv")) {
+            auto ifs = std::ifstream{financial_year_member_path};
+            encoding::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
+            if (auto field_rows = CSV::to_field_rows(utf8_in,';')) {
+              std::cout << "\n\tNo Operation implemented";
+              // std::cout << "\n\t<Entries>";
+              for (int i=0;i<field_rows->size();++i) {
+                auto field_row = field_rows->at(i);
+                // std::cout << "\n\t\t[" << i << "] : ";
+                for (int j=0;j<field_row.size();++j) {
+                  // [14] :  [0]1.1 Årets gränsbelopp enligt förenklingsregeln [1]4511 [2]Numeriskt_B [3]N [4]+ [5]Regel_E
+                  // index 1 = SRU Code
+                  // Index 0 = Readable field name on actual human readable form
+                  // The other fields defines representation and "rules"
+                  // std::cout << " [" << j << "]" << field_row[j];
+                }
+              }
+            }
+            else {
+              std::cout << "\n\tFAILED PARSING FILE " <<  financial_year_member_path;
+            }
+          }
+          else {
+            std::cout << "\n\tSKIPPED UNUSED FILE" <<  financial_year_member_path;
+          }
+          std::cout << "\n\tEND " <<  financial_year_member_path;
+        }
+        std::cout << "\nEND Folder: " << skv_specs_member_path;
+      }
+      else {
+        std::cout << "\n\tSKIPPED NON FOLDER PATH " << skv_specs_member_path;
+      }
+    }
+    std::cout << "\nEND: Processing files in " << skv_specs_path;
+  }
+  return result;
+} // skv_specs_mapping_from_csv_files
+
+namespace zeroth {
+
+	Model model_from_environment(std::filesystem::path cratchit_file_path,Environment const& environment) {
     if (true) {
       std::cout << "\nmodel_from_environment";
     }
@@ -4518,9 +4601,9 @@ private:
     }
 
 		model->heading_amount_date_entries = hads_from_environment(environment);
-		model->organisation_contacts = this->contacts_from_environment(environment);
-		model->employee_birth_ids = this->employee_birth_ids_from_environment(environment);
-		model->sru = this->srus_from_environment(environment);
+		model->organisation_contacts = contacts_from_environment(environment);
+		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
+		model->sru = srus_from_environment(environment);
 
     // TODO 240216 #SIE: Consider a way to ensure the tagged amounts are in sync with the actual SIE file contents.
     // Note that we read the SIE files before reading in the existing tagged amounts.
@@ -4538,30 +4621,34 @@ private:
     if (false) {
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
-      // model->all_dotas += this->dotas_from_environment_and_account_statement_files(environment);
-      model->all_dotas.dotas_insert_auto_ordered_container(this->dotas_from_environment_and_account_statement_files(environment));
+      model->all_dotas.dotas_insert_auto_ordered_container(
+        dotas_from_environment_and_account_statement_files(
+           cratchit_file_path
+          ,environment));
       // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
       for (auto const& [key,sie_environment] : model->sie_env_map) {
-        this->synchronize_tagged_amounts_with_sie(model->all_dotas,sie_environment);
+        synchronize_tagged_amounts_with_sie(model->all_dotas,sie_environment);
       }
     }
     else {
       // TODO 240219 - Replace this old implementation with the new one above
       for (auto const& sie_environments_entry : model->sie_env_map) {
-        // model->all_dotas += this->dotas_from_sie_environment(sie_environments_entry.second);	
-        model->all_dotas.dotas_insert_auto_ordered_container(this->dotas_from_sie_environment(sie_environments_entry.second));	
+        model->all_dotas.dotas_insert_auto_ordered_container(
+          dotas_from_sie_environment(sie_environments_entry.second));	
       }
       prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
-      // model->all_dotas += this->dotas_from_environment_and_account_statement_files(environment);
-      model->all_dotas.dotas_insert_auto_ordered_container(this->dotas_from_environment_and_account_statement_files(environment));
+      model->all_dotas.dotas_insert_auto_ordered_container(
+        dotas_from_environment_and_account_statement_files(
+           cratchit_file_path
+          ,environment));
     }
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
-    auto dummy = this->skv_specs_mapping_from_csv_files(environment);
+    auto dummy = skv_specs_mapping_from_csv_files(cratchit_file_path,environment);
 
 		model->prompt = prompt.str();
 		return model;
-	}
+	} // model_from_environment
 
   // indexed_env_entries_from now in HADFramework
   // std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {
@@ -4656,82 +4743,14 @@ private:
       result["SRU:S"].push_back({index,in::to_environment_value(os.str())});
     }
 		return result;
-	}
-	Environment add_cratchit_environment(Environment const& environment) {
-		Environment result{environment};
-		// Add cratchit environment values if/when there are any
-		return result;
-	}
+	} // environment_from_model
 
-}; // class Cratchit
-
-class REPL {
-public:
-    REPL(std::filesystem::path const& environment_file_path) : cratchit{environment_file_path} {}
-
-	void run(Command const& command) {
-    auto model = cratchit.init(command);
-		auto ux = cratchit.view(model);
-		render_ux(ux);
-		while (true) {
-			try {
-				// process events (user input)
-				if (in.size()>0) {
-					auto msg = in.front();
-					in.pop();
-					// std::cout << "\nmsg[" << msg.index() << "]";
-					// Turn Event (Msg) into updated model
-					// std::cout << "\nREPL::run before cratchit.update " << std::flush;
-					auto [updated_model,cmd] = cratchit.update(msg,std::move(model));
-					// std::cout << "\nREPL::run cratchit.update ok" << std::flush;
-					model = std::move(updated_model);
-					// std::cout << "\nREPL::run model moved ok" << std::flush;
-					if (cmd.msg) in.push(*cmd.msg);
-					// std::cout << "\nREPL::run before view" << std::flush;
-					auto ux = cratchit.view(model);
-					// std::cout << "\nREPL::run before render" << std::flush;
-					render_ux(ux);
-					if (model->quit) break; // Done
-				}
-				else {
-					// Get more buffered user input
-					std::string user_input{};
-					std::getline(std::cin,user_input);
-					auto cmd = to_cmd(user_input);
-					if (cmd.msg) this->in.push(*cmd.msg);
-				}
-			}
-			catch (std::exception& e) {
-				std::cout << "\nERROR: run() loop failed, exception=" << e.what() << std::flush;
-			}
-		}
-		// std::cout << "\nREPL::run exit" << std::flush;
-	}
-private:
-    Cratchit cratchit;
-		void render_ux(Ux const& ux) {
-			for (auto const&  row : ux) {
-				if (row.size()>0) std::cout << row;
-			}
-		}
-    std::queue<Msg> in{};
-};
-
-// void test_directory_iterator() {
-//   // Code from https://en.cppreference.com/w/cpp/filesystem/directory_iterator 
-//     const std::filesystem::path sandbox{"sandbox"};
-//     std::filesystem::create_directories(sandbox/"dir1"/"dir2");
-//     std::ofstream{sandbox/"file1.txt"};
-//     std::ofstream{sandbox/"file2.txt"};
- 
-//     std::cout << "directory_iterator:\n";
-//     // directory_iterator can be iterated using a range-for loop
-//     for (auto const& dir_entry : std::filesystem::directory_iterator{sandbox}) {}
-// }
+}
 
 // namespace to isolate this 'zeroth' variant of cratchin 'main' until refactored to 'next' variant
 // (This whole file conatins the 'zeroth' version of cratchit)
 namespace zeroth {
+
 	int main(int argc, char *argv[]) {
 
     logger::business("zeroth::main sais << Hello >> --------------------------------- ");
@@ -4769,7 +4788,7 @@ namespace zeroth {
 		return 0;
 	}
 
-}
+} // zeroth
 
 // char const* ACCOUNT_VAT_CSV now in SKVFramework unit
 
