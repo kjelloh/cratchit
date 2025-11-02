@@ -82,7 +82,8 @@ add_executable(cratchit
         src/states/AccountStatementState.cpp
         src/text/format.cpp
         src/sie/SIEEnvironment.cpp
-        src/sie/SIEEnvironmentframework.cpp)
+        src/sie/SIEEnvironmentframework.cpp
+        src/test/zeroth/test_zeroth.cpp)
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)
