@@ -4186,7 +4186,7 @@ private:
   // Now free functions
 	// std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
 	// DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
-  // SKVSpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+  // SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
   // TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(Environment const& environment) {
   // DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
   // void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
@@ -4268,6 +4268,9 @@ private:
 		}
     std::queue<Msg> in{};
 }; // Cratchit
+
+
+// Environment -> Model
 
 std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
   std::vector<SKV::ContactPersonMeta> result{};
@@ -4352,6 +4355,58 @@ SRUEnvironments srus_from_environment(Environment const& environment) {
   return result;
 } // srus_from_environment
 
+void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
+  // TODO: Base the implementation on DateOrderedTaggedAmountsContainer handling 'branching' on CAS based value-id ordering?
+
+  logger::scope_logger scope_raii{logger::development_trace,"SYNHRONIZE TAGGED AMOUNTS WITH SIE"};
+  if (auto financial_year_date_range = sie_environment.financial_year_date_range()) {
+    std::cout << "\n\tSIE fiscal year:" << *financial_year_date_range;
+    auto environment_dotas = dotas_from_sie_environment(sie_environment);      
+
+    // TODO: 'put' all tagged amounts in environment_dotas
+    //       into 'all_dotas' and trust it to detect branching
+    //       for conflicting ordering (when implemented)
+    logger::design_insufficiency("synchronize_tagged_amounts_with_sie NOT YET IMPLEMENTED");
+
+  }
+  else {
+    std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
+  }
+} // synchronize_tagged_amounts_with_sie
+
+DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
+  if (true) {
+    std::cout << "\ndotas_from_sie_environment" << std::flush;
+  }
+  DateOrderedTaggedAmountsContainer result{};
+  // Create / add opening balances for BAS accounts as tagged amounts
+  auto financial_year_date_range = sie_env.financial_year_date_range();
+  auto opening_saldo_date = financial_year_date_range->begin();
+  std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
+  for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
+    auto saldo_cents_amount = to_cents_amount(saldo);
+    TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
+    saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
+    saldo_ta.tags()["IB"] = "True";
+    result.dotas_insert_auto_ordered_value(saldo_ta);
+    if (true) {
+      std::cout << "\n\tsaldo_ta : " << saldo_ta;
+    }
+  }
+  auto create_and_merge_to_result = [&result](BAS::MDJournalEntry const& mdje) {
+    auto tagged_amounts = to_tagged_amounts(mdje);
+    // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
+    //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
+    // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
+    // result += tagged_amounts;
+    result.dotas_insert_auto_ordered_sequence(tagged_amounts);
+  };
+  for_each_md_journal_entry(sie_env,create_and_merge_to_result);
+  return result;
+} // dotas_from_sie_environment
+
+// Environment + cratchit_file_path -> Model
+
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
   if (false) {
     std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
@@ -4429,59 +4484,9 @@ TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cra
   return result;
 } // tagged_amounts_sequence_from_bank_or_skv
 
-void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
-  // TODO: Base the implementation on DateOrderedTaggedAmountsContainer handling 'branching' on CAS based value-id ordering?
-
-  logger::scope_logger scope_raii{logger::development_trace,"SYNHRONIZE TAGGED AMOUNTS WITH SIE"};
-  if (auto financial_year_date_range = sie_environment.financial_year_date_range()) {
-    std::cout << "\n\tSIE fiscal year:" << *financial_year_date_range;
-    auto environment_dotas = dotas_from_sie_environment(sie_environment);      
-
-    // TODO: 'put' all tagged amounts in environment_dotas
-    //       into 'all_dotas' and trust it to detect branching
-    //       for conflicting ordering (when implemented)
-    logger::design_insufficiency("synchronize_tagged_amounts_with_sie NOT YET IMPLEMENTED");
-
-  }
-  else {
-    std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
-  }
-} // synchronize_tagged_amounts_with_sie
-
-DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
-  if (true) {
-    std::cout << "\ndotas_from_sie_environment" << std::flush;
-  }
-  DateOrderedTaggedAmountsContainer result{};
-  // Create / add opening balances for BAS accounts as tagged amounts
-  auto financial_year_date_range = sie_env.financial_year_date_range();
-  auto opening_saldo_date = financial_year_date_range->begin();
-  std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
-  for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
-    auto saldo_cents_amount = to_cents_amount(saldo);
-    TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
-    saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
-    saldo_ta.tags()["IB"] = "True";
-    result.dotas_insert_auto_ordered_value(saldo_ta);
-    if (true) {
-      std::cout << "\n\tsaldo_ta : " << saldo_ta;
-    }
-  }
-  auto create_and_merge_to_result = [&result](BAS::MDJournalEntry const& mdje) {
-    auto tagged_amounts = to_tagged_amounts(mdje);
-    // TODO #SIE: Consider to check here is we already have tagged amounts reflecting the same SIE transaction (This one in the SIE file is the one to use)
-    //       Can we first delete any existing tagged amounts for the same SIE transaction (to ensure we do not get dublikates for SIE transactions edited externally?)
-    // Hm...problem is that here we do not have access to the other tagged amounts already in the environment...
-    // result += tagged_amounts;
-    result.dotas_insert_auto_ordered_sequence(tagged_amounts);
-  };
-  for_each_md_journal_entry(sie_env,create_and_merge_to_result);
-  return result;
-} // dotas_from_sie_environment
-
-SKVSpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
   // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
-  SKVSpecsDummy result{};
+  SKV::SpecsDummy result{};
   auto skv_specs_path = cratchit_file_path.parent_path() /  "skv_specs";
   std::filesystem::create_directories(skv_specs_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
   if (std::filesystem::exists(skv_specs_path) == true) {
