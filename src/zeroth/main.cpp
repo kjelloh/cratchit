@@ -4539,6 +4539,27 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
 
 namespace zeroth {
 
+  using ConfiguredSIEFilePaths = std::map<std::string,std::filesystem::path>;
+  ConfiguredSIEFilePaths to_configured_posted_sie_file_paths(
+    Environment const& environment) {
+    ConfiguredSIEFilePaths result{};
+
+    if (environment.contains("sie_file")) {
+      auto const id_ev_pairs = environment.at("sie_file");
+      for (auto const& id_ev_pair : id_ev_pairs) {
+        auto const& [id,ev] = id_ev_pair;
+        for (auto const& [year_key,sie_file_name] : ev) {
+          std::filesystem::path sie_file_path{sie_file_name};
+          result[year_key] = sie_file_path;
+        }
+      }
+    }
+    else {
+      logger::development_trace("to_configured_posted_sie_file_paths:No sie_file entries found in environment");
+    }
+    return result;
+  }
+
 	Model model_from_environment(std::filesystem::path cratchit_file_path,Environment const& environment) {
     if (true) {
       std::cout << "\nmodel_from_environment";
@@ -4546,30 +4567,17 @@ namespace zeroth {
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
 
-    if (environment.contains("sie_file")) {
-      auto const id_ev_pairs = environment.at("sie_file");
-
-      // Digest configured sie-files as mapped (year_id -> sie_file)
-      // In effect sync with sie-files as provided by external tool(s)
-      // model->sie_env_map[year_key] will reflect this external books 'truth'
-      for (auto const& id_ev_pair : id_ev_pairs) {
-        auto const& [id,ev] = id_ev_pair;
-        for (auto const& [year_key,sie_file_name] : ev) {
-          std::filesystem::path sie_file_path{sie_file_name};
-          if (auto sie_environment = sie_from_sie_file(sie_file_path)) {
-            model->sie_env_map[year_key] = std::move(*sie_environment);
-            prompt << "\nsie_x[" << year_key << "] from " << sie_file_path;
-          }
-          else {
-            prompt << "\nsie_x[" << year_key << "] from " << sie_file_path << " - *FAILED*";
-          }
-        }
-
+    auto configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+    std::ranges::for_each(configured_sie_file_paths,[&model,&prompt](auto const& id_path_pair){
+      auto const& [year_key,sie_file_path] = id_path_pair;
+      if (auto sie_environment = sie_from_sie_file(sie_file_path)) {
+        model->sie_env_map[year_key] = std::move(*sie_environment);
+        prompt << "\nsie_x[" << year_key << "] from " << sie_file_path;
       }
-    }
-    else {
-      std::cout << "\nNo sie_file entries found in environment";
-    }
+      else {
+        prompt << "\nsie_x[" << year_key << "] from " << sie_file_path << " - *FAILED*";
+      }
+    });
 
     // Process 'staged' sie-entries.
     // These are entries created by cratchit that extends external 'truth'
@@ -4594,7 +4602,6 @@ namespace zeroth {
           if (!entry_result) {
             prompt << std::format(
               "\nCONFLICTED! : No longer valid entry {}"
-              ,static_cast<bool>(entry_result)
               ,to_string(entry_result.md_entry()));
           }
         });
@@ -4636,12 +4643,14 @@ namespace zeroth {
       }
     }
     else {
+
       // TODO 240219 - Replace this old implementation with the new one above
       for (auto const& sie_environments_entry : model->sie_env_map) {
         model->all_dotas.dotas_insert_auto_ordered_container(
           dotas_from_sie_environment(sie_environments_entry.second));	
       }
       prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
+
       model->all_dotas.dotas_insert_auto_ordered_container(
         dotas_from_environment_and_account_statement_files(
            cratchit_file_path
