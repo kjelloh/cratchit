@@ -4601,21 +4601,13 @@ namespace zeroth {
 		std::ostringstream prompt{};
 
     auto configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
-    auto configured_sie_input_streams = to_configured_sie_input_streams(configured_sie_file_paths);
 
     std::ranges::for_each(
-       configured_sie_input_streams
-      ,[&](auto const& id_ptr_pair){
+       configured_sie_file_paths
+      ,[&](auto const& id_path_pair){
 
-        auto const& [year_key,stream_ptr] = id_ptr_pair;
-        if (auto sie_environment = sie_from_stream(*stream_ptr)) {
-          model->sie_env_map[year_key] = std::move(*sie_environment);
-          prompt << "\nsie_x[" << year_key << "] from " << configured_sie_file_paths[year_key];
-        }
-        else {
-          prompt << "\nsie_x[" << year_key << "] from " << configured_sie_file_paths[year_key] << " - *FAILED*";
-        }
-
+        auto const& [year_key,sie_file_path] = id_path_pair;
+        auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,sie_file_path);
     });
 
     // Process 'staged' sie-entries.
@@ -4634,8 +4626,17 @@ namespace zeroth {
           ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
           // At least one element is “false”
           prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
-          prompt << std::format("\nEntries in sie-file:{} overrides values in cratchit staged entries"
-            ,model->sie_env_map[year_id].source_sie_file_path().string());
+          if (model->sie_env_map.meta().posted_sie_files.contains(year_id)) {
+            prompt << std::format(
+              "\nEntries in sie-file:{} overrides values in cratchit staged entries"
+              // ,model->sie_env_map[year_id].source_sie_file_path().string());
+              ,model->sie_env_map.meta().posted_sie_files.at(year_id).string());
+          }
+          else {
+            logger::design_insufficiency(
+               "model_from_environment: Expected posted_sie_files[{}] to exist for failed staging of entries"
+              ,year_id);
+          }
         }
         std::ranges::for_each(stage_result,[&prompt](auto const& entry_result){
           if (!entry_result) {
@@ -4768,16 +4769,16 @@ namespace zeroth {
     for (auto const& [index, env_val] : indexed_env_entries_from(model->heading_amount_date_entries)) {
         result["HeadingAmountDateTransEntry"].push_back({index, env_val});
     }
-
+    
     // Assemble sie file paths from existing sie environments
 		std::string sev = std::accumulate(
-       model->sie_env_map.begin()
-      ,model->sie_env_map.end()
+       model->sie_env_map.meta().posted_sie_files.begin()
+      ,model->sie_env_map.meta().posted_sie_files.end()
       ,std::string{}
       ,[](auto acc,auto const& entry) {
         std::ostringstream os{};
         if (acc.size()>0) os << acc << ";";
-        os << entry.first << "=" << entry.second.source_sie_file_path().string();
+        os << entry.first << "=" << entry.second.string();
         return os.str();
 		});
 		result["sie_file"].push_back({0,in::to_environment_value(sev)});

@@ -259,14 +259,13 @@ std::filesystem::path SIEEnvironment::staged_sie_file_path() const {
     ,this->m_fiscal_year.last());
 };
 
-std::filesystem::path SIEEnvironment::source_sie_file_path() const {
-  return this->sie_file_path;
-}
+// std::filesystem::path SIEEnvironment::source_sie_file_path() const {
+//   return this->sie_file_path;
+// }
 
-void SIEEnvironment::set_source_sie_file_path(std::filesystem::path const& source_sie_file_path) {
-  this->sie_file_path = source_sie_file_path;
-}
-
+// void SIEEnvironment::set_source_sie_file_path(std::filesystem::path const& source_sie_file_path) {
+//   this->sie_file_path = source_sie_file_path;
+// }
 
 // Journals API
 BASJournals& SIEEnvironment::journals() {return m_journals;}

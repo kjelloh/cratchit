@@ -118,6 +118,10 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
   return result;
 }
 
+MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
+  return MaybeSIEInStream{std::make_unique<std::ifstream>(sie_file_path)};
+}
+
 OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
   if (false) {
     logger::cout_proxy << "\nsie_from_sie_file(" << sie_file_path << ")";
@@ -125,9 +129,10 @@ OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_p
 	std::ifstream is{sie_file_path};
   auto result = sie_from_stream(is);
   if (result) {
+    // Now in SIEEnvironmentsMap::meta()
     // Inject source file path into environment
     // Note: Due to refactored from model map to SIEEnvironment aggregate
-    result->set_source_sie_file_path(sie_file_path);
+    // result->set_source_sie_file_path(sie_file_path);
   }
   return result;
 }

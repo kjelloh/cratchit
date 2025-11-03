@@ -66,12 +66,15 @@ public:
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);
 
   // Entries API
-	std::vector<EnvironmentChangeResult> stage(SIEEnvironment const& staged_sie_environment);
+  using EnvironmentChangeResults = std::vector<EnvironmentChangeResult>;
+	EnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
 
   // file API
 	std::filesystem::path staged_sie_file_path() const;
-  std::filesystem::path source_sie_file_path() const;
-  void set_source_sie_file_path(std::filesystem::path const& source_sie_file_path);
+
+  // Now in SIEEnvironmentsMap::meta
+  // std::filesystem::path source_sie_file_path() const;
+  // void set_source_sie_file_path(std::filesystem::path const& source_sie_file_path);
 
   // Meta data API
 	SIE::OrgNr organisation_no{};
@@ -106,8 +109,10 @@ private:
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
   friend class SIEEnvironmentsMap;
+
+  // Now in SIEEnvironmentsMap::meta
   // Path to the file from which this environment originated (external tool SIE export)
-	std::filesystem::path sie_file_path{};
+	// std::filesystem::path sie_file_path{};
 
 }; // class SIEEnvironment
 
