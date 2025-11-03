@@ -4561,27 +4561,25 @@ namespace zeroth {
   }
 
   struct ConfiguredSIEInputFileStreams {
-    // A *hack* to be able to create a movable string -> index -> ifstream map thingy. 
-    std::vector<std::ifstream> streams;
-    std::map<std::string, std::size_t> indecies;
+    using unique_istream_ptr = std::unique_ptr<std::istream>;
+    std::map<std::string, unique_istream_ptr> map;
 
-    // Note: The problem is that C++ stream objects are NOT copyable.
-    // So we can't store stream objects in an std::map now an std::pair.
-    // But we can store them in an std::vector.
-    // This vector and thus also this object is movable.
-    // But then we cant have a map<string,stream&> as C++ refs are not copyable nor movable.
-    // Also, we cant use map<string,stream*> as the objects in streams gets new adresses when moved (invalidates mapped stream*)
-    // The solution is for now to map string -> index -> stream.
-    // The location (index) of the stream in the vector is not invaldiated on move.
-    // So this is a bit cumbersome - buit at least the stream objects remains on the stack.
-    // And a client can look-up the steram ascociated with a 'year id' string. 
+    // Note: There is no real gain trying to keep streams on the stack (and thus in cache).
+    // For one, the internal data of streams lives on the heap anyways.
+    // And the very nature of streams reading from external storage means 
+    // the data has to arrive to the cache at some later date anyhows.
+    // I tried a design with mstream objects in a vector. This works as
+    // stream objects are movable and so is vector. And I used a map
+    // string -> index to help with looking up the streams in the vector.
+    // This worked but was cumbersome.
+    // Final conclusion: Making std::stream which is not copyable live on the stack
+    // opened up a whole can of worms best kept closed shut!
   };
   ConfiguredSIEInputFileStreams to_configured_sie_input_streams(ConfiguredSIEFilePaths const& configured_sie_file_paths) {
     ConfiguredSIEInputFileStreams result{};
     std::ranges::for_each(configured_sie_file_paths,[&result](auto const& id_path_pair){
       auto const& [year_id,sie_file_path] = id_path_pair;
-      result.indecies[year_id] = result.streams.size(); // index 0.. into streams
-      result.streams.emplace_back(std::ifstream{sie_file_path});
+      result.map[year_id] = std::make_unique<std::ifstream>(sie_file_path);
     });
     return result;
   }
@@ -4597,11 +4595,11 @@ namespace zeroth {
     auto configured_sie_input_streams = to_configured_sie_input_streams(configured_sie_file_paths);
 
     std::ranges::for_each(
-       configured_sie_input_streams.indecies
-      ,[&](auto const& id_index_pair){
+       configured_sie_input_streams.map
+      ,[&](auto const& id_ptr_pair){
 
-        auto const& [year_key,index] = id_index_pair;
-        if (auto sie_environment = sie_from_stream(configured_sie_input_streams.streams[index])) {
+        auto const& [year_key,stream_ptr] = id_ptr_pair;
+        if (auto sie_environment = sie_from_stream(*stream_ptr)) {
           model->sie_env_map[year_key] = std::move(*sie_environment);
           prompt << "\nsie_x[" << year_key << "] from " << configured_sie_file_paths[year_key];
         }
