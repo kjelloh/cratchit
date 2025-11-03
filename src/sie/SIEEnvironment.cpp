@@ -240,7 +240,7 @@ std::vector<SIEEnvironment::EnvironmentChangeResult> SIEEnvironment::stage(SIEEn
 
   logger::scope_logger log_raii{
       logger::development_trace
-    ,std::format("stage(SIEEnvironment:{})",staged_sie_environment.journals_entry_count())};
+    ,std::format("stage(SIEEnvironment size:{})",staged_sie_environment.journals_entry_count())};
 
   std::vector<EnvironmentChangeResult> result{};
   for (auto const& [series,journal] : staged_sie_environment.journals()) {

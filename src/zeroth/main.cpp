@@ -4539,7 +4539,7 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
 
 namespace zeroth {
 
-  using ConfiguredSIEFilePaths = std::map<std::string,std::filesystem::path>;
+  using ConfiguredSIEFilePaths = std::vector<std::pair<std::string,std::filesystem::path>>;
   ConfiguredSIEFilePaths to_configured_posted_sie_file_paths(
     Environment const& environment) {
     ConfiguredSIEFilePaths result{};
@@ -4550,13 +4550,22 @@ namespace zeroth {
         auto const& [id,ev] = id_ev_pair;
         for (auto const& [year_key,sie_file_name] : ev) {
           std::filesystem::path sie_file_path{sie_file_name};
-          result[year_key] = sie_file_path;
+          result.push_back({year_key,sie_file_path});
         }
       }
     }
     else {
       logger::development_trace("to_configured_posted_sie_file_paths:No sie_file entries found in environment");
     }
+
+    // Return year id order old to new ...,"-3","-2","-1","current" / "0"
+    // This will make cratchit consume posted sie-files in 'date order' old to new
+    std::ranges::sort(result, [](auto const& lhs, auto const& rhs){
+        if (lhs.first == "current") return false;
+        if (rhs.first == "current") return true;
+        return std::stoi(lhs.first) < std::stoi(rhs.first);
+    });
+
     return result;
   }
 
