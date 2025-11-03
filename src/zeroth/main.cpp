@@ -4560,23 +4560,55 @@ namespace zeroth {
     return result;
   }
 
+  struct ConfiguredSIEInputFileStreams {
+    // A *hack* to be able to create a movable string -> index -> ifstream map thingy. 
+    std::vector<std::ifstream> streams;
+    std::map<std::string, std::size_t> indecies;
+
+    // Note: The problem is that C++ stream objects are NOT copyable.
+    // So we can't store stream objects in an std::map now an std::pair.
+    // But we can store them in an std::vector.
+    // This vector and thus also this object is movable.
+    // But then we cant have a map<string,stream&> as C++ refs are not copyable nor movable.
+    // Also, we cant use map<string,stream*> as the objects in streams gets new adresses when moved (invalidates mapped stream*)
+    // The solution is for now to map string -> index -> stream.
+    // The location (index) of the stream in the vector is not invaldiated on move.
+    // So this is a bit cumbersome - buit at least the stream objects remains on the stack.
+    // And a client can look-up the steram ascociated with a 'year id' string. 
+  };
+  ConfiguredSIEInputFileStreams to_configured_sie_input_streams(ConfiguredSIEFilePaths const& configured_sie_file_paths) {
+    ConfiguredSIEInputFileStreams result{};
+    std::ranges::for_each(configured_sie_file_paths,[&result](auto const& id_path_pair){
+      auto const& [year_id,sie_file_path] = id_path_pair;
+      result.indecies[year_id] = result.streams.size(); // index 0.. into streams
+      result.streams.emplace_back(std::ifstream{sie_file_path});
+    });
+    return result;
+  }
+
 	Model model_from_environment(std::filesystem::path cratchit_file_path,Environment const& environment) {
-    if (true) {
-      std::cout << "\nmodel_from_environment";
-    }
+
+    logger::scope_logger log_raii{logger::development_trace,"model_from_environment"};
+
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
 
     auto configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
-    std::ranges::for_each(configured_sie_file_paths,[&model,&prompt](auto const& id_path_pair){
-      auto const& [year_key,sie_file_path] = id_path_pair;
-      if (auto sie_environment = sie_from_sie_file(sie_file_path)) {
-        model->sie_env_map[year_key] = std::move(*sie_environment);
-        prompt << "\nsie_x[" << year_key << "] from " << sie_file_path;
-      }
-      else {
-        prompt << "\nsie_x[" << year_key << "] from " << sie_file_path << " - *FAILED*";
-      }
+    auto configured_sie_input_streams = to_configured_sie_input_streams(configured_sie_file_paths);
+
+    std::ranges::for_each(
+       configured_sie_input_streams.indecies
+      ,[&](auto const& id_index_pair){
+
+        auto const& [year_key,index] = id_index_pair;
+        if (auto sie_environment = sie_from_stream(configured_sie_input_streams.streams[index])) {
+          model->sie_env_map[year_key] = std::move(*sie_environment);
+          prompt << "\nsie_x[" << year_key << "] from " << configured_sie_file_paths[year_key];
+        }
+        else {
+          prompt << "\nsie_x[" << year_key << "] from " << configured_sie_file_paths[year_key] << " - *FAILED*";
+        }
+
     });
 
     // Process 'staged' sie-entries.

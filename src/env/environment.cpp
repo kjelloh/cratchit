@@ -161,7 +161,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
               auto s_cas_members = cas_refs.to_string();
               cas_ta.tags()["_members"] = s_cas_members;
               // ta_ev = to_environment_value(ta); // transformed environment value
-              logger::development_trace("to_cas_environment: Transformed \n'{}' -> \n'{}'",out::to_string(indexed_ev),out::to_string(cas_ev));
+              logger::development_trace("to_cas_environment: Transformed \n'{}' -> \n'{}'",out::to_string(indexed_ev),to_string(cas_ta));
             }
             else {
               logger::design_insufficiency("to_cas_environment: Failed to parse inter-value refs from '{}'",s_indexed_members);
@@ -199,7 +199,7 @@ Environment to_cas_environment(Environment const& indexed_environment) {
           // Update map index -> cas_id
           auto cas_ta_id = to_value_id(cas_ta);
           index_to_cas_id[index] = cas_ta_id;          
-          logger::development_trace("to_cas_environment: index:{} -> tagged amount id:{}",index,cas_ta_id);
+          logger::development_trace("to_cas_environment: index:{} -> tagged amount id:{:x}",index,cas_ta_id);
 
           // Update transformed content (tarnsformed ta -> cas_ev)
           cas_ev = to_environment_value(cas_ta);

@@ -62,10 +62,9 @@ OptionalHeadingAmountDateTransEntry to_had(Environment::Value const& ev) {
 }
 
 HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
-  if (true) {
-    spdlog::info("BEGIN hads_from_environment");
-    spdlog::default_logger()->flush();;
-  }
+
+  logger::scope_logger log_raii{logger::development_trace,"hads_from_environment"};
+
   HeadingAmountDateTransEntries result{};
   if (environment.contains("HeadingAmountDateTransEntry")) {
     if (true) {
