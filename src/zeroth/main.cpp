@@ -4602,6 +4602,54 @@ namespace zeroth {
     return result;
   }
 
+  std::string to_user_cli_feedback(
+     Model const& model
+    ,SIEEnvironmentsMap::RelativeYearKey year_id
+    ,SIEEnvironment::EnvironmentChangeResults const& change_results) {
+
+		std::ostringstream prompt{};
+
+    if (std::ranges::any_of(
+      change_results
+      ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
+      // At least one element is “false”
+      prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
+      if (model->sie_env_map.meta().posted_sie_files.contains(year_id)) {
+        prompt << std::format(
+          "\nEntries in sie-file:{} overrides values in cratchit staged entries"
+          // ,model->sie_env_map[year_id].source_sie_file_path().string());
+          ,model->sie_env_map.meta().posted_sie_files.at(year_id).string());
+      }
+      else {
+        logger::design_insufficiency(
+            "model_from_environment: Expected posted_sie_files[{}] to exist for failed staging of entries"
+          ,year_id);
+      }
+    }
+
+    std::ranges::for_each(
+       change_results
+      ,[&prompt](auto const& entry_result) {
+          if (!entry_result) {
+            prompt << std::format(
+              "\nCONFLICTED! : No longer valid entry {}"
+              ,to_string(entry_result.md_entry()));
+          }
+        }
+    );
+
+    auto unposted = model->sie_env_map[year_id].unposted();
+    if (unposted.size() > 0) {
+      prompt << "\n year id:" << year_id << " - STAGED for posting";
+      prompt << "\n" << unposted;
+    }
+    else {
+      prompt << "\n year id:" << year_id << " - ALL POSTED OK";
+    }
+
+    return prompt.str();
+  }
+
 	Model model_from_environment(std::filesystem::path cratchit_file_path,Environment const& environment) {
 
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment"};
@@ -4615,51 +4663,10 @@ namespace zeroth {
        configured_sie_file_paths
       ,[&](auto const& id_path_pair){
 
-        auto const& [year_key,sie_file_path] = id_path_pair;
-        auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,sie_file_path);
+        auto const& [year_id,sie_file_path] = id_path_pair;
+        auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
+        prompt << to_user_cli_feedback(model,year_id,update_posted_result);
     });
-
-    // Process 'staged' sie-entries.
-    // These are entries created by cratchit that extends external 'truth'
-    // from external sie-file.
-    for (auto const& [year_id,sie] : model->sie_env_map) {
-      if (auto sse = sie_from_sie_file(model->sie_env_map[year_id].staged_sie_file_path())) {
-        // #4 model_from_environment ingests persistent sie file defined by model_from_environment
-        //    and shows the user what was previously staged and what is now discovered to be posted
-        //    * Staged are those in file model->staged_sie_file_path
-        //    * Posted are those now in "current" sie in (imported from external tool)
-        auto stage_result = model->sie_env_map[year_id].stage(*sse);
-
-        if (std::ranges::any_of(
-          stage_result
-          ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
-          // At least one element is “false”
-          prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
-          if (model->sie_env_map.meta().posted_sie_files.contains(year_id)) {
-            prompt << std::format(
-              "\nEntries in sie-file:{} overrides values in cratchit staged entries"
-              // ,model->sie_env_map[year_id].source_sie_file_path().string());
-              ,model->sie_env_map.meta().posted_sie_files.at(year_id).string());
-          }
-          else {
-            logger::design_insufficiency(
-               "model_from_environment: Expected posted_sie_files[{}] to exist for failed staging of entries"
-              ,year_id);
-          }
-        }
-        std::ranges::for_each(stage_result,[&prompt](auto const& entry_result){
-          if (!entry_result) {
-            prompt << std::format(
-              "\nCONFLICTED! : No longer valid entry {}"
-              ,to_string(entry_result.md_entry()));
-          }
-        });
-        auto unposted = model->sie_env_map[year_id].unposted();
-        prompt << "\n<Still UNPOSTED>";
-        if (unposted.size() > 0) prompt << "\n" << unposted;
-        else prompt << "\n*None*";
-      }
-    }
 
 		model->heading_amount_date_entries = hads_from_environment(environment);
 		model->organisation_contacts = contacts_from_environment(environment);
