@@ -20,7 +20,8 @@ struct MaybeSIEInStream {
 };
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path);
 
-OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path);
+// Replaced by SIEEnvironmentsMap::update_posted_from_file
+// OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path);
 
 class SIEEnvironmentsMap {
 public:

@@ -5428,6 +5428,10 @@ TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cra
 SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment);
 
 namespace zeroth {
+  std::string to_user_cli_feedback(
+     Model const& model
+    ,SIEEnvironmentsMap::RelativeYearKey year_id
+    ,SIEEnvironment::EnvironmentChangeResults const& change_results);
 	Model model_from_environment(std::filesystem::path cratchit_file_path,Environment const& environment);
   Environment environment_from_model(Model const& model);
 }

@@ -2893,28 +2893,32 @@ Cmd Updater::operator()(Command const& command) {
         else if (auto sie_file_path = path_to_existing_file(ast[1])) {
           // #1 command '-sie file-name' -> register "current" SIE file as provided name
           //    "current" is a place holder (no checks against actual current date and time)
+          SIEEnvironmentsMap::RelativeYearKey year_key{"current"};
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
-          if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
-            model->sie_env_map["current"] = std::move(*sie_env);
-            // Update the list of staged entries
-            if (auto sse = sie_from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
-              // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
-              //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
-              auto staged = model->sie_env_map["current"].stage(*sse);
-              auto unposted = model->sie_env_map["current"].unposted();
-              if (unposted.size() > 0) {
-                prompt << "\n<UNPOSTED>";
-                prompt << unposted;
-              }
-              else {
-                prompt << "\nAll staged entries are now posted OK";
-              }
-            }
-          }
-          else {
-            // failed to parse sie-file into an SIE Environment
-            prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
-          }
+          auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
+          prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+
+          // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
+          //   model->sie_env_map["current"] = std::move(*sie_env);
+          //   // Update the list of staged entries
+          //   if (auto sse = sie_from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
+          //     // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
+          //     //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
+          //     auto staged = model->sie_env_map["current"].stage(*sse);
+          //     auto unposted = model->sie_env_map["current"].unposted();
+          //     if (unposted.size() > 0) {
+          //       prompt << "\n<UNPOSTED>";
+          //       prompt << unposted;
+          //     }
+          //     else {
+          //       prompt << "\nAll staged entries are now posted OK";
+          //     }
+          //   }
+          // }
+          // else {
+          //   // failed to parse sie-file into an SIE Environment
+          //   prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
+          // }
         }
         else if (ast[1] == "-types") {
           // Group on Type Topology
@@ -2975,24 +2979,27 @@ Cmd Updater::operator()(Command const& command) {
         }
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
-          if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
-            model->sie_env_map[year_key] = std::move(*sie_env);
-            if (auto sse = sie_from_sie_file(model->sie_env_map[year_key].staged_sie_file_path())) {
-              auto staged = model->sie_env_map[year_key].stage(*sse);
-              auto unposted = model->sie_env_map[year_key].unposted();
-              if (unposted.size() > 0) {
-                prompt << "\n<UNPOSTED>";
-                prompt << unposted;
-              }
-              else {
-                prompt << "\nAll staged entries are now posted OK";
-              }
-            }
-          }
-          else {
-            // failed to parse sie-file into an SIE Environment
-            prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
-          }
+          auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
+          prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+
+          // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
+          //   model->sie_env_map[year_key] = std::move(*sie_env);
+          //   if (auto sse = sie_from_sie_file(model->sie_env_map[year_key].staged_sie_file_path())) {
+          //     auto staged = model->sie_env_map[year_key].stage(*sse);
+          //     auto unposted = model->sie_env_map[year_key].unposted();
+          //     if (unposted.size() > 0) {
+          //       prompt << "\n<UNPOSTED>";
+          //       prompt << unposted;
+          //     }
+          //     else {
+          //       prompt << "\nAll staged entries are now posted OK";
+          //     }
+          //   }
+          // }
+          // else {
+          //   // failed to parse sie-file into an SIE Environment
+          //   prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
+          // }
         }
         else {
           // assume user search criteria on transaction heading and comments
