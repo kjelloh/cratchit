@@ -220,6 +220,9 @@ namespace zeroth {
 
               if (auto maybe_ta = this->at(rhs_id)) {
                   auto relinked_ta = to_linked_encoded_ta(lhs_id, maybe_ta.value());
+
+                  if (relinked_ta == maybe_ta.value()) break; // The chain is unbroken from here
+
                   if (auto [new_id, ok] = m_tagged_amount_cas_repository.cas_repository_put(relinked_ta); ok) {
 
                     rhs_id = new_id; // in-place update
