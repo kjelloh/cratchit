@@ -4560,9 +4560,17 @@ namespace zeroth {
     return result;
   }
 
-  struct ConfiguredSIEInputFileStreams {
+  class ConfiguredSIEInputFileStreams {
+  public:
     using unique_istream_ptr = std::unique_ptr<std::istream>;
-    std::map<std::string, unique_istream_ptr> map;
+    ConfiguredSIEInputFileStreams& insert(std::string year_id,std::filesystem::path sie_file_path) {
+      m_map[year_id] = std::make_unique<std::ifstream>(sie_file_path);
+      return *this;
+    }
+    auto begin() const { return m_map.begin();}
+    auto end() const { return m_map.end();}
+  private:
+    std::map<std::string, unique_istream_ptr> m_map;
 
     // Note: There is no real gain trying to keep streams on the stack (and thus in cache).
     // For one, the internal data of streams lives on the heap anyways.
@@ -4575,11 +4583,12 @@ namespace zeroth {
     // Final conclusion: Making std::stream which is not copyable live on the stack
     // opened up a whole can of worms best kept closed shut!
   };
+  
   ConfiguredSIEInputFileStreams to_configured_sie_input_streams(ConfiguredSIEFilePaths const& configured_sie_file_paths) {
     ConfiguredSIEInputFileStreams result{};
     std::ranges::for_each(configured_sie_file_paths,[&result](auto const& id_path_pair){
       auto const& [year_id,sie_file_path] = id_path_pair;
-      result.map[year_id] = std::make_unique<std::ifstream>(sie_file_path);
+      result.insert(year_id,sie_file_path);
     });
     return result;
   }
@@ -4595,7 +4604,7 @@ namespace zeroth {
     auto configured_sie_input_streams = to_configured_sie_input_streams(configured_sie_file_paths);
 
     std::ranges::for_each(
-       configured_sie_input_streams.map
+       configured_sie_input_streams
       ,[&](auto const& id_ptr_pair){
 
         auto const& [year_key,stream_ptr] = id_ptr_pair;
