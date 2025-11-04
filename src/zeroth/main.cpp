@@ -4194,7 +4194,7 @@ private:
 	// std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
 	// DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
   // SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
-  // TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(Environment const& environment) {
+  // TaggedAmounts dotas_from_consumed_account_statement_files(Environment const& environment) {
   // DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
   // void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
 	// SRUEnvironments srus_from_environment(Environment const& environment) {
@@ -4419,7 +4419,7 @@ DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesy
 
   // Import any new account statements in dedicated "files from bank or skv" folder
   result.dotas_insert_auto_ordered_sequence(
-    tagged_amounts_sequence_from_bank_or_skv(
+    dotas_from_consumed_account_statement_files(
        cratchit_file_path));
 
   return result;
@@ -4440,9 +4440,25 @@ DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_f
   return result;
 } // dotas_from_environment_and_account_statement_files
 
-TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cratchit_file_path) {
+std::pair<std::filesystem::path,bool> make_consumed(std::filesystem::path statement_file_path) {
+  auto consumed_files_path = statement_file_path.parent_path() / "consumed";
+  auto consumed_file_path = consumed_files_path / statement_file_path.filename();
+  bool was_consumed{true};
+  try {
+    std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+    std::filesystem::rename(statement_file_path,consumed_file_path);
+  }
+  catch ( std::filesystem::filesystem_error const& e) {
+    // 
+    logger::design_insufficiency("make_consumed: Exception: {}",e.what());
+    was_consumed = false;
+  }
+  return {consumed_file_path,was_consumed};
+}
+
+TaggedAmounts dotas_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path) {
   if (false) {
-    std::cout << "\n" << "tagged_amounts_sequence_from_bank_or_skv" << std::flush;
+    std::cout << "\n" << "dotas_from_consumed_account_statement_files" << std::flush;
   }
   TaggedAmounts result{};
   // Ensure folder "from_bank_or_skv folder" exists
@@ -4468,10 +4484,16 @@ TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cra
           result = maybe_tas.value();
           std::cout << "\n\tValid entries count:" << maybe_tas->size();
           auto consumed_files_path = from_bank_or_skv_path / "consumed";
-          if (false) {
-            std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-            std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
-            std::cout << "\n\tConsumed account statement file moved to " << consumed_files_path / statement_file_path.filename();
+          if (true) {
+            // std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+            // std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
+            auto make_consumed_result = make_consumed(statement_file_path);
+            if (make_consumed_result.second == true) {
+              std::cout << "\n\tConsumed account statement file moved to " << make_consumed_result.first;
+            }
+            else {
+              std::cout << "\nSorry, It seems I failed to move statement file " << statement_file_path << " to " << make_consumed_result.first;
+            }
           }
           else {
             std::cout << "\n\tConsumed account statement file move DISABLED = NOT moved to " << consumed_files_path / statement_file_path.filename();
@@ -4487,12 +4509,12 @@ TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cra
   }
   if (true) {
     std::cout 
-      << "\n" << "tagged_amounts_sequence_from_bank_or_skv RETURNS " 
+      << "\n" << "dotas_from_consumed_account_statement_files RETURNS " 
       << result.size() 
       << " entries";
   }
   return result;
-} // tagged_amounts_sequence_from_bank_or_skv
+} // dotas_from_consumed_account_statement_files
 
 SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
   // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
@@ -4735,6 +4757,9 @@ namespace zeroth {
 
     model->all_dotas.dotas_insert_auto_ordered_container(
       dotas_from_account_statement_files(cratchit_file_path));
+    prompt << std::format(
+      "\nAccount Statement Files --> Tagged Amounts = size:{}"
+      ,model->all_dotas.sequence_size());
 
     model->prompt = prompt.str();
     return model;
