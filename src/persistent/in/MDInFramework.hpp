@@ -7,6 +7,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 namespace persistent {
 
@@ -28,8 +29,7 @@ namespace persistent {
     };
 
     MaybeIStream to_maybe_istream(std::filesystem::path sie_file_path);
-
-    using MDIStream = MetaDefacto<FileStreamMeta,MaybeIStream>;
+    MaybeIStream from_string(std::string const& s);
 
   }
 } // persistent

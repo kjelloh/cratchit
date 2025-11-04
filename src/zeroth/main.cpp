@@ -4141,7 +4141,7 @@ public:
           prompt << cratchit_file_path;
           m_persistent_environment_file.init();
           if (auto const& cached_env = m_persistent_environment_file.cached()) {
-            auto model = this->model_from_environment(*cached_env);
+            auto model = this->model_from_environment_and_files(*cached_env);
             model->prompt_state = PromptState::Root;
             prompt << "\n" << prompt_line(model->prompt_state);
             model->prompt += prompt.str();
@@ -4206,8 +4206,8 @@ private:
 		return in::is_value_line(line);
 	}
 
-	Model model_from_environment(Environment const& environment) {
-		return zeroth::model_from_environment(this->cratchit_file_path,environment);
+	Model model_from_environment_and_files(Environment const& environment) {
+		return zeroth::model_from_environment_and_files(this->cratchit_file_path,environment);
 	}
 
   // indexed_env_entries_from now in HADFramework
@@ -4629,7 +4629,7 @@ namespace zeroth {
       }
       else {
         logger::design_insufficiency(
-            "model_from_environment: Expected posted_sie_files[{}] to exist for failed staging of entries"
+            "model_from_environment_and_files: Expected posted_sie_files[{}] to exist for failed staging of entries"
           ,year_id);
       }
     }
@@ -4657,9 +4657,31 @@ namespace zeroth {
     return prompt.str();
   }
 
-	Model model_from_environment(std::filesystem::path cratchit_file_path,Environment const& environment) {
+  Model to_model_with_sie_envs(Model&& model,SIEEnvironmentsMap&& sie_envs) {
+    Model result = std::move(model);
+    return model;
+  }
 
+  Model model_from_environment(Environment const& environment) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment"};
+
+		Model model = std::make_unique<ConcreteModel>();
+		std::ostringstream prompt{};
+
+		model->heading_amount_date_entries = hads_from_environment(environment);
+		model->organisation_contacts = contacts_from_environment(environment);
+		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
+		model->sru = srus_from_environment(environment);
+    model->all_dotas = dotas_from_environment(environment);
+
+		model->prompt = prompt.str();
+		return model;
+
+  }
+
+	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+
+    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
 
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
@@ -4725,7 +4747,7 @@ namespace zeroth {
 
 		model->prompt = prompt.str();
 		return model;
-	} // model_from_environment
+	} // model_from_environment_and_files
 
   // indexed_env_entries_from now in HADFramework
   // std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {

@@ -8,5 +8,9 @@ namespace persistent {
       return MaybeIStream{std::make_unique<std::ifstream>(sie_file_path)};
     }
 
+    MaybeIStream from_string(std::string const& s) {
+      return MaybeIStream{std::make_unique<std::istringstream>(s)};
+    }
+
   }
 } // persistent
