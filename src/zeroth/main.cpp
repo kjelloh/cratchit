@@ -4657,9 +4657,12 @@ namespace zeroth {
     return prompt.str();
   }
 
-  Model to_model_with_sie_envs(Model&& model,SIEEnvironmentsMap&& sie_envs) {
-    Model result = std::move(model);
-    return model;
+  SIEEnvironmentsMap sie_env_map_from_all_dotas(DateOrderedTaggedAmountsContainer const& all_dotas) {
+    logger::scope_logger log_raii{logger::development_trace,"sie_env_map_from_all_dotas"};
+
+    SIEEnvironmentsMap result{};
+    logger::design_insufficiency("sie_env_map_from_all_dotas: NOT YET IMPLEMENTED");
+    return result;
   }
 
   Model model_from_environment(Environment const& environment) {
@@ -4673,10 +4676,28 @@ namespace zeroth {
 		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
 		model->sru = srus_from_environment(environment);
     model->all_dotas = dotas_from_environment(environment);
+    model->sie_env_map = sie_env_map_from_all_dotas(model->all_dotas);
 
 		model->prompt = prompt.str();
 		return model;
+  }
 
+  Model model_with_posted_sie_files(Model&& model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
+    Model result = std::move(model);
+		std::ostringstream prompt{};
+
+    {
+      std::ranges::for_each(
+        configured_sie_file_paths
+        ,[&](auto const& id_path_pair){
+          auto const& [year_id,sie_file_path] = id_path_pair;
+          auto update_posted_result = result->sie_env_map.update_posted_from_file(year_id,sie_file_path);
+          prompt << to_user_cli_feedback(result,year_id,update_posted_result);
+      });
+    }
+
+    result->prompt += prompt.str();
+    return result;
   }
 
 	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
@@ -4686,16 +4707,12 @@ namespace zeroth {
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
 
-    auto configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
-
-    std::ranges::for_each(
-       configured_sie_file_paths
-      ,[&](auto const& id_path_pair){
-
-        auto const& [year_id,sie_file_path] = id_path_pair;
-        auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
-        prompt << to_user_cli_feedback(model,year_id,update_posted_result);
-    });
+    model = std::move( 
+      model_with_posted_sie_files(
+         std::move(model)
+        ,to_configured_posted_sie_file_paths(environment)
+      )
+    );
 
 		model->heading_amount_date_entries = hads_from_environment(environment);
 		model->organisation_contacts = contacts_from_environment(environment);
