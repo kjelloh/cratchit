@@ -4456,6 +4456,32 @@ std::pair<std::filesystem::path,bool> make_consumed(std::filesystem::path statem
   return {consumed_file_path,was_consumed};
 }
 
+TaggedAmounts dotas_from_consumed_account_statement_file(std::filesystem::path statement_file_path) {
+  TaggedAmounts result{};
+  if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
+    result = maybe_tas.value();
+    std::cout << "\n\tValid entries count:" << maybe_tas->size();
+    if (false) {
+      // std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
+      // std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
+      auto make_consumed_result = make_consumed(statement_file_path);
+      if (make_consumed_result.second == true) {
+        std::cout << "\n\tConsumed account statement file moved to " << make_consumed_result.first;
+      }
+      else {
+        std::cout << "\nSorry, It seems I failed to move statement file " << statement_file_path << " to " << make_consumed_result.first;
+      }
+    }
+    else {
+      std::cout << "\n\tConsumed account statement file move DISABLED = Remains at " << statement_file_path;
+    }
+  }
+  else {
+    std::cout << "\n*Note* " << statement_file_path << " (produced zero entries)";
+  }  
+  return result;
+}
+
 TaggedAmounts dotas_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path) {
   if (false) {
     std::cout << "\n" << "dotas_from_consumed_account_statement_files" << std::flush;
@@ -4480,27 +4506,13 @@ TaggedAmounts dotas_from_consumed_account_statement_files(std::filesystem::path 
           // skip directories (will process regular files and symlinks etc...)
         }
         // Process file
-        else if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
-          result = maybe_tas.value();
-          std::cout << "\n\tValid entries count:" << maybe_tas->size();
-          auto consumed_files_path = from_bank_or_skv_path / "consumed";
-          if (true) {
-            // std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-            // std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
-            auto make_consumed_result = make_consumed(statement_file_path);
-            if (make_consumed_result.second == true) {
-              std::cout << "\n\tConsumed account statement file moved to " << make_consumed_result.first;
-            }
-            else {
-              std::cout << "\nSorry, It seems I failed to move statement file " << statement_file_path << " to " << make_consumed_result.first;
-            }
-          }
-          else {
-            std::cout << "\n\tConsumed account statement file move DISABLED = NOT moved to " << consumed_files_path / statement_file_path.filename();
-          }
+        else if (
+           auto tas = dotas_from_consumed_account_statement_file(statement_file_path)
+          ;tas.size() > 0) {
+          result.insert(result.end(),tas.begin(),tas.end());
         }
         else {
-          std::cout << "\n*Ignored* " << statement_file_path << " (Failed to understand file content)";
+          std::cout << "\n*Ignored* " << statement_file_path << " (File empty or failed to understand file content)";
         }
         std::cout << "\nEND File: " << statement_file_path;
       }
