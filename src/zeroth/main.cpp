@@ -4707,17 +4707,17 @@ namespace zeroth {
 		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
 
+		model->heading_amount_date_entries = hads_from_environment(environment);
+		model->organisation_contacts = contacts_from_environment(environment);
+		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
+		model->sru = srus_from_environment(environment);
+
     model = std::move( 
       model_with_posted_sie_files(
          std::move(model)
         ,to_configured_posted_sie_file_paths(environment)
       )
     );
-
-		model->heading_amount_date_entries = hads_from_environment(environment);
-		model->organisation_contacts = contacts_from_environment(environment);
-		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
-		model->sru = srus_from_environment(environment);
 
     // TODO 240216 #SIE: Consider a way to ensure the tagged amounts are in sync with the actual SIE file contents.
     // Note that we read the SIE files before reading in the existing tagged amounts.
