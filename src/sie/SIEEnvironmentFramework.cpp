@@ -119,7 +119,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
 }
 
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
-  return MaybeSIEInStream{std::make_unique<std::ifstream>(sie_file_path)};
+  return persistent::in::to_maybe_istream(sie_file_path);
 }
 
 // OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {

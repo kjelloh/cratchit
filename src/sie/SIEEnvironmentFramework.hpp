@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SIEEnvironment.hpp"
+#include "persistent/in/MDInFramework.hpp"
 #include "logger/log.hpp"
 #include <istream>
 #include <filesystem>
@@ -8,16 +9,8 @@
 
 BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
 OptionalSIEEnvironment sie_from_stream(std::istream& is);
-struct MaybeSIEInStream {
-  std::unique_ptr<std::istream> m_istream_ptr{};
-  operator bool() const {return m_istream_ptr != nullptr;}
-  std::istream& value() {
-    if (*this) {
-      return *m_istream_ptr;
-    }
-    throw std::runtime_error("Access to MaybeSIEInStream with null stream");
-  }
-};
+
+using MaybeSIEInStream = persistent::in::MaybeIStream;
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path);
 
 // Replaced by SIEEnvironmentsMap::update_posted_from_file
