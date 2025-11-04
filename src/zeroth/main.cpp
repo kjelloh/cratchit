@@ -4682,8 +4682,7 @@ namespace zeroth {
 		return model;
   }
 
-  Model model_with_posted_sie_files(Model&& model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
-    Model result = std::move(model);
+  Model model_with_posted_sie_files(Model model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
 		std::ostringstream prompt{};
 
     {
@@ -4691,33 +4690,28 @@ namespace zeroth {
         configured_sie_file_paths
         ,[&](auto const& id_path_pair){
           auto const& [year_id,sie_file_path] = id_path_pair;
-          auto update_posted_result = result->sie_env_map.update_posted_from_file(year_id,sie_file_path);
-          prompt << to_user_cli_feedback(result,year_id,update_posted_result);
+          auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
+          prompt << to_user_cli_feedback(model,year_id,update_posted_result);
       });
     }
 
-    result->prompt += prompt.str();
-    return result;
+    model->prompt = prompt.str();
+    return model;
   }
 
 	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
-
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
 
-		Model model = std::make_unique<ConcreteModel>();
 		std::ostringstream prompt{};
 
-		model->heading_amount_date_entries = hads_from_environment(environment);
-		model->organisation_contacts = contacts_from_environment(environment);
-		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
-		model->sru = srus_from_environment(environment);
+    Model model = model_from_environment(environment);
+    prompt << model->prompt;
 
-    model = std::move( 
-      model_with_posted_sie_files(
-         std::move(model)
-        ,to_configured_posted_sie_file_paths(environment)
-      )
+    model = model_with_posted_sie_files(
+      std::move(model)
+      ,to_configured_posted_sie_file_paths(environment)
     );
+    prompt << model->prompt;
 
     // TODO 240216 #SIE: Consider a way to ensure the tagged amounts are in sync with the actual SIE file contents.
     // Note that we read the SIE files before reading in the existing tagged amounts.
@@ -4729,15 +4723,15 @@ namespace zeroth {
 
     1) Read the SIE-files last to ensure the tagged amounts are in sync with the actual SIE file contents.
     2) Make inserting of SIE aggregates into tagged amounts detect SIE entries with the same series and sequence number within the same fiscal year.
-       For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
-       
+      For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
+      
     */
     if (false) {
       // TODO 240219 - switch to this new implementation
       // 1) Read in tagged amounts from persistent storage
       model->all_dotas.dotas_insert_auto_ordered_container(
         dotas_from_environment_and_account_statement_files(
-           cratchit_file_path
+          cratchit_file_path
           ,environment));
       // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
       for (auto const& [key,sie_environment] : model->sie_env_map) {
@@ -4755,12 +4749,13 @@ namespace zeroth {
 
       model->all_dotas.dotas_insert_auto_ordered_container(
         dotas_from_environment_and_account_statement_files(
-           cratchit_file_path
+          cratchit_file_path
           ,environment));
     }
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
     auto dummy = skv_specs_mapping_from_csv_files(cratchit_file_path,environment);
+
 
 		model->prompt = prompt.str();
 		return model;
