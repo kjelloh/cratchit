@@ -5424,7 +5424,8 @@ namespace SKV {
 
 // Environment + cratchit_file_path -> Model
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment);
-TaggedAmounts dotas_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path);
+TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path);
+TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path);
 SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment);
 
 namespace zeroth {

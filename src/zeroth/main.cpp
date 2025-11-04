@@ -4194,7 +4194,7 @@ private:
 	// std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
 	// DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
   // SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
-  // TaggedAmounts dotas_from_consumed_account_statement_files(Environment const& environment) {
+  // TaggedAmounts tas_sequence_from_consumed_account_statement_files(Environment const& environment) {
   // DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
   // void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
 	// SRUEnvironments srus_from_environment(Environment const& environment) {
@@ -4419,7 +4419,7 @@ DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesy
 
   // Import any new account statements in dedicated "files from bank or skv" folder
   result.dotas_insert_auto_ordered_sequence(
-    dotas_from_consumed_account_statement_files(
+    tas_sequence_from_consumed_account_statement_files(
        cratchit_file_path));
 
   return result;
@@ -4456,7 +4456,7 @@ std::pair<std::filesystem::path,bool> make_consumed(std::filesystem::path statem
   return {consumed_file_path,was_consumed};
 }
 
-TaggedAmounts dotas_from_consumed_account_statement_file(std::filesystem::path statement_file_path) {
+TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path) {
   TaggedAmounts result{};
   if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
     result = maybe_tas.value();
@@ -4482,9 +4482,9 @@ TaggedAmounts dotas_from_consumed_account_statement_file(std::filesystem::path s
   return result;
 }
 
-TaggedAmounts dotas_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path) {
+TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path) {
   if (false) {
-    std::cout << "\n" << "dotas_from_consumed_account_statement_files" << std::flush;
+    std::cout << "\n" << "tas_sequence_from_consumed_account_statement_files" << std::flush;
   }
   TaggedAmounts result{};
   // Ensure folder "from_bank_or_skv folder" exists
@@ -4507,7 +4507,7 @@ TaggedAmounts dotas_from_consumed_account_statement_files(std::filesystem::path 
         }
         // Process file
         else if (
-           auto tas = dotas_from_consumed_account_statement_file(statement_file_path)
+           auto tas = tas_sequence_from_consumed_account_statement_file(statement_file_path)
           ;tas.size() > 0) {
           result.insert(result.end(),tas.begin(),tas.end());
         }
@@ -4521,12 +4521,12 @@ TaggedAmounts dotas_from_consumed_account_statement_files(std::filesystem::path 
   }
   if (true) {
     std::cout 
-      << "\n" << "dotas_from_consumed_account_statement_files RETURNS " 
+      << "\n" << "tas_sequence_from_consumed_account_statement_files RETURNS " 
       << result.size() 
       << " entries";
   }
   return result;
-} // dotas_from_consumed_account_statement_files
+} // tas_sequence_from_consumed_account_statement_files
 
 SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
   // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
