@@ -4414,30 +4414,33 @@ DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment cons
 
 // Environment + cratchit_file_path -> Model
 
+DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesystem::path cratchit_file_path) {
+  DateOrderedTaggedAmountsContainer result{};
+
+  // Import any new account statements in dedicated "files from bank or skv" folder
+  result.dotas_insert_auto_ordered_sequence(
+    tagged_amounts_sequence_from_bank_or_skv(
+       cratchit_file_path));
+
+  return result;
+}
+
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
   if (false) {
     std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
   }
   DateOrderedTaggedAmountsContainer result{};
-  result.dotas_insert_auto_ordered_container(dotas_from_environment(environment));
 
-  if (environment.contains("TaggedAmount") and (environment.at("TaggedAmount").size() != result.cas().size())) {
-    logger::design_insufficiency("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
-  }
+  result.dotas_insert_auto_ordered_container(
+    dotas_from_environment(environment));
 
-  if (true) {
-    logger::development_trace("dotas_from_environment_and_account_statement_files: env count:{} -> result count:{}",environment.at("TaggedAmount").size(),result.cas().size());
-  }
-
-  // Import any new account statements in dedicated "files from bank or skv" folder
-  result.dotas_insert_auto_ordered_sequence(tagged_amounts_sequence_from_bank_or_skv(
-     cratchit_file_path
-    ,environment));
+  result.dotas_insert_auto_ordered_container(
+    dotas_from_account_statement_files(cratchit_file_path));
   
   return result;
 } // dotas_from_environment_and_account_statement_files
 
-TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cratchit_file_path, Environment const& environment) {
+TaggedAmounts tagged_amounts_sequence_from_bank_or_skv(std::filesystem::path cratchit_file_path) {
   if (false) {
     std::cout << "\n" << "tagged_amounts_sequence_from_bank_or_skv" << std::flush;
   }
@@ -4699,6 +4702,44 @@ namespace zeroth {
     return model;
   }
 
+  Model model_with_dotas_from_sie_envs(Model model) {
+		std::ostringstream prompt{};
+
+    {
+      for (auto const& sie_environments_entry : model->sie_env_map) {
+        model->all_dotas.dotas_insert_auto_ordered_container(
+          dotas_from_sie_environment(sie_environments_entry.second));	
+        prompt << std::format(
+          "\nSIE year id:{} --> Tagged Amounts = size:{}"
+          ,sie_environments_entry.first
+          ,model->all_dotas.sequence_size());
+      }
+    }
+
+    model->prompt = prompt.str();
+    return model;
+  }
+
+  Model model_with_dotas_from_environment(Model model,Environment const& environment) {
+		std::ostringstream prompt{};
+
+    model->all_dotas.dotas_insert_auto_ordered_container(
+      dotas_from_environment(environment));      
+
+    model->prompt = prompt.str();
+    return model;
+  }
+
+  Model model_with_dotas_from_account_statement_files(Model model,std::filesystem::path cratchit_file_path) {
+		std::ostringstream prompt{};
+
+    model->all_dotas.dotas_insert_auto_ordered_container(
+      dotas_from_account_statement_files(cratchit_file_path));
+
+    model->prompt = prompt.str();
+    return model;
+  }
+
 	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
 
@@ -4713,49 +4754,21 @@ namespace zeroth {
     );
     prompt << model->prompt;
 
-    // TODO 240216 #SIE: Consider a way to ensure the tagged amounts are in sync with the actual SIE file contents.
-    // Note that we read the SIE files before reading in the existing tagged amounts.
-    // This is important for how we should implement a way to ensure the SIE file content is the map of the world we MUST use!
-    // Also note that the all_dotas type DateOrderedTaggedAmountsContainer has an overloaded operator+= that ensures no duplicates are added.
-    // So given we first read the SIE file with the values to keep, we should (?) be safe to modify the "equals" operator to ensure special treatment for SIE aggregates and its members?
-    /*
-    240218 Consider to implement "last in wins" for SIE aggregates and its members?
+    model = model_with_dotas_from_sie_envs(std::move(model));
+    prompt << model->prompt;
 
-    1) Read the SIE-files last to ensure the tagged amounts are in sync with the actual SIE file contents.
-    2) Make inserting of SIE aggregates into tagged amounts detect SIE entries with the same series and sequence number within the same fiscal year.
-      For any pre-existing SIE aggregate in tagged amounts -> delete the aggregate and its mebers before inserting the new SIE aggregate.
-      
-    */
-    if (false) {
-      // TODO 240219 - switch to this new implementation
-      // 1) Read in tagged amounts from persistent storage
-      model->all_dotas.dotas_insert_auto_ordered_container(
-        dotas_from_environment_and_account_statement_files(
-          cratchit_file_path
-          ,environment));
-      // 2) Synchronize SIE tagged amounts with external SIE files (any edits and changes made externally)
-      for (auto const& [key,sie_environment] : model->sie_env_map) {
-        synchronize_tagged_amounts_with_sie(model->all_dotas,sie_environment);
-      }
-    }
-    else {
+    model = model_with_dotas_from_environment(
+       std::move(model)
+      ,environment);
+    prompt << model->prompt;
 
-      // TODO 240219 - Replace this old implementation with the new one above
-      for (auto const& sie_environments_entry : model->sie_env_map) {
-        model->all_dotas.dotas_insert_auto_ordered_container(
-          dotas_from_sie_environment(sie_environments_entry.second));	
-      }
-      prompt << "\nDESIGN_UNSUFFICIENCY - No proper synchronization of tagged amounts with SIE files yet in place (dublicate SIE entries may remain in tagged amounts)";
-
-      model->all_dotas.dotas_insert_auto_ordered_container(
-        dotas_from_environment_and_account_statement_files(
-          cratchit_file_path
-          ,environment));
-    }
+    model = model_with_dotas_from_account_statement_files(
+       std::move(model)
+      ,cratchit_file_path);
+    prompt << model->prompt;
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
     auto dummy = skv_specs_mapping_from_csv_files(cratchit_file_path,environment);
-
 
 		model->prompt = prompt.str();
 		return model;
@@ -4794,7 +4807,7 @@ namespace zeroth {
     // 20251008 - Disable mechanism controlled with 'disable_ta_persistent_storage' flag
 
     // static const bool disable_ta_persistent_storage = true;
-    static const bool disable_ta_persistent_storage = false;
+    static const bool disable_ta_persistent_storage = true;
     if (not disable_ta_persistent_storage) {
   		// model->all_dotas.for_each(tagged_amount_to_environment);
       std::ranges::for_each(
