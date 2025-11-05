@@ -5435,7 +5435,7 @@ struct CratchitFSDefacto {
   };
   using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
   using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
-  MDMaybeSIEIStreams to_md_sie_istreams(ConfiguredSIEFilePaths const& configured_sie_file_paths) {
+  virtual MDMaybeSIEIStreams to_md_sie_istreams(ConfiguredSIEFilePaths const& configured_sie_file_paths) const {
     return configured_sie_file_paths
       | std::views::transform([](auto const& configured_sie_file_path){
           return MDMaybeSIEIStream {
@@ -5449,7 +5449,8 @@ struct CratchitFSDefacto {
       | std::ranges::to<MDMaybeSIEIStreams>();
   }
 };
-using CratchitMDFileSystem = MetaDefacto<CratchitFSMeta,CratchitFSDefacto>;
+using CratchitFSDefactoPtr = std::unique_ptr<CratchitFSDefacto>;
+using CratchitMDFileSystem = MetaDefacto<CratchitFSMeta,CratchitFSDefactoPtr>;
 
 // Environment + cratchit_environment_file_path -> Model
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);
@@ -5463,7 +5464,7 @@ namespace zeroth {
     ,SIEEnvironmentsMap::RelativeYearKey year_id
     ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results);
 	Model model_from_environment(Environment const& environment);  
-	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem runtime);
+	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem const& runtime);
 	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);
 
   Environment environment_from_model(Model const& model);

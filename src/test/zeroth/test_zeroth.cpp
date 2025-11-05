@@ -11,6 +11,33 @@ namespace tests::zeroth {
 
   namespace modelfw_suite {
 
+    struct TestCratchitMDFileSystemDefacto : public CratchitMDFileSystem::defacto_value_type {
+      std::map<std::string,char const*> posted_sies_content{
+        {"current",R"()"}
+        ,{"-1",R"()"}
+      };
+      virtual CratchitFSDefacto::MDMaybeSIEIStreams to_md_sie_istreams(ConfiguredSIEFilePaths const& configured_sie_file_paths) const final {
+        return configured_sie_file_paths
+          | std::views::transform([this](auto const& configured_sie_file_path){
+              return CratchitFSDefacto::MDMaybeSIEIStream {
+                .meta = {
+                  .m_year_id = configured_sie_file_path.first
+                  ,.m_file_path = configured_sie_file_path.second
+                }
+                ,.defacto = persistent::in::to_maybe_istream(
+                    posted_sies_content.at(configured_sie_file_path.second))
+              };
+            })
+          | std::ranges::to<CratchitFSDefacto::MDMaybeSIEIStreams>();
+
+      }
+    };
+
+    CratchitMDFileSystem::Defacto to_test_cfs_defacto() {
+      CratchitFSDefacto* ptr = new TestCratchitMDFileSystemDefacto();
+      return std::make_unique<TestCratchitMDFileSystemDefacto>();
+    }
+
     TEST(ModelTests, Environment2ModelTest) {
       logger::scope_logger log_raii{logger::development_trace,"TEST(ModelTests, Environment2ModelTest)"};
 
@@ -24,7 +51,7 @@ namespace tests::zeroth {
 
       CratchitMDFileSystem md_cfs{
          .meta = {.m_root_path = "*test*"}
-        ,.defacto = {}
+        ,.defacto = to_test_cfs_defacto()
       };
 
       auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);

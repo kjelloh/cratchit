@@ -4817,7 +4817,7 @@ namespace zeroth {
     return model;
   }
 
-	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem md_cfs) {
+	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem const& md_cfs) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_md_filesystem"};
 		std::ostringstream prompt{};
     auto cratchit_environment_file_path = md_cfs.meta.m_root_path;
@@ -4830,7 +4830,7 @@ namespace zeroth {
       auto configured_posted_sie_file_paths = to_configured_posted_sie_file_paths(environment);
 
       // // Use CratchitMDFileSystem to project paths to meta-defacto maybe istreams
-      auto md_posted_sie_istreams = md_cfs.defacto.to_md_sie_istreams(configured_posted_sie_file_paths);
+      auto md_posted_sie_istreams = md_cfs.defacto->to_md_sie_istreams(configured_posted_sie_file_paths);
       // // Create meta-defacto sie environments
       // auto md_posted_sie_envs = to_md_sie_envs(md_posted_sie_istreams);
 
@@ -4857,15 +4857,16 @@ namespace zeroth {
     }
     else {
       // Before refactored
-      md_cfs.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+
+      // Work around const& md_cfs immutable meta
+      // NOTE: This mutates teh value also at the caller site. But for now this should be safe...
+      const_cast<CratchitMDFileSystem&>(md_cfs).meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
       model = model_with_posted_sie_files(
         std::move(model)
         ,md_cfs
       );
       prompt << model->prompt;
     }
-
-
 
     model = model_with_dotas_from_sie_envs(std::move(model));
     prompt << model->prompt;
