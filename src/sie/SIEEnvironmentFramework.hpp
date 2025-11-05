@@ -71,22 +71,23 @@ public:
 
   }
 
-
-  UpdateFromPostedResult update_posted_from_file(
+  UpdateFromPostedResult update_posted_from_md_istream(
      RelativeYearKey year_id
-    ,std::filesystem::path sie_file_path) {
+    ,persistent::in::MDMaybeIFStream& md_maybe_istream) {
 
     logger::scope_logger log_raii{
        logger::development_trace
       ,std::format(
-         "update_posted_from_file: year_id:{}, file{}"
+         "update_posted_from_md_istream: year_id:{}, meta.file_path:{}"
         ,year_id
-        ,sie_file_path.string())
+        ,md_maybe_istream.meta.file_path.string())
     };
+
+    auto const& sie_file_path = md_maybe_istream.meta.file_path;
 
     UpdateFromPostedResult result{};
 
-    auto maybe_posted_sie_istream = to_maybe_sie_istream(sie_file_path);
+    auto& maybe_posted_sie_istream = md_maybe_istream.defacto;
     if (maybe_posted_sie_istream) {
       if (auto maybe_posted_sie_env = sie_from_stream(maybe_posted_sie_istream.value())) {
         auto const& posted_sie_env = maybe_posted_sie_env.value();
@@ -121,24 +122,6 @@ public:
                 ?this->m_meta.posted_sie_files.at(year_id).string()
                 :"null");
         }
-
-        // auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(*sie_env));
-
-        // if (was_inserted) {
-        //   // Inserted ok
-        //   logger::development_trace("Inserted OK");
-        //   this->m_meta.posted_sie_files[year_id] = sie_file_path;
-        //   // Consolidate 'staged' with the 'now posted'
-        //   auto maybe_staged_sie_stream = to_maybe_sie_istream(iter->second.staged_sie_file_path());
-        //   if (auto sse = sie_from_stream(maybe_staged_sie_stream.value())) {
-        //     // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
-        //     //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
-        //     result = iter->second.stage(*sse);
-        //   }
-        // }
-        // else {
-        //   logger::development_trace("Insert FAILED");
-        // }
       }
     }
     else {
@@ -148,6 +131,88 @@ public:
     // sie_from_sie_file();
 
     return result;
+  }
+
+
+  UpdateFromPostedResult update_posted_from_file(
+     RelativeYearKey year_id
+    ,std::filesystem::path sie_file_path) {
+
+    logger::scope_logger log_raii{
+       logger::development_trace
+      ,std::format(
+         "update_posted_from_file: year_id:{}, file{}"
+        ,year_id
+        ,sie_file_path.string())
+    };
+
+    auto md_maybe_istream = persistent::in::to_md_maybe_istream(sie_file_path);
+    return update_posted_from_md_istream(year_id,md_maybe_istream);
+
+    // UpdateFromPostedResult result{};
+
+    // auto maybe_posted_sie_istream = to_maybe_sie_istream(sie_file_path);
+    // if (maybe_posted_sie_istream) {
+    //   if (auto maybe_posted_sie_env = sie_from_stream(maybe_posted_sie_istream.value())) {
+    //     auto const& posted_sie_env = maybe_posted_sie_env.value();
+
+    //     // if (this->m_sie_envs_map.contains(year_id)) {
+    //     //   logger::development_trace(
+    //     //    "update_posted_from_file: Replaced existing sie for year id: {}"
+    //     //   ,year_id);
+    //     // }
+
+    //     if (auto maybe_staged_sie_stream = to_maybe_sie_istream(posted_sie_env.staged_sie_file_path())) {
+    //       if (auto maybe_staged_sie = sie_from_stream(maybe_staged_sie_stream.value())) {
+    //         result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,maybe_staged_sie.value());
+    //       }
+    //       else {
+    //         result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,SIEEnvironment{posted_sie_env.fiscal_year()});
+    //       }
+    //     }
+    //     else {
+    //         result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,SIEEnvironment{posted_sie_env.fiscal_year()});
+    //     }
+
+    //     if (result.second) {
+    //       // inserty/update posted ok
+    //       this->m_meta.posted_sie_files[year_id] = sie_file_path;
+    //     }
+    //     else {
+    //       logger::design_insufficiency(
+    //          "update_posted_from_file: Failed. m_meta.posted_sie_files[{}] left unchanged:{}"
+    //         ,year_id
+    //         ,this->m_meta.posted_sie_files.contains(year_id)
+    //             ?this->m_meta.posted_sie_files.at(year_id).string()
+    //             :"null");
+    //     }
+
+    //     // auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(*sie_env));
+
+    //     // if (was_inserted) {
+    //     //   // Inserted ok
+    //     //   logger::development_trace("Inserted OK");
+    //     //   this->m_meta.posted_sie_files[year_id] = sie_file_path;
+    //     //   // Consolidate 'staged' with the 'now posted'
+    //     //   auto maybe_staged_sie_stream = to_maybe_sie_istream(iter->second.staged_sie_file_path());
+    //     //   if (auto sse = sie_from_stream(maybe_staged_sie_stream.value())) {
+    //     //     // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
+    //     //     //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
+    //     //     result = iter->second.stage(*sse);
+    //     //   }
+    //     // }
+    //     // else {
+    //     //   logger::development_trace("Insert FAILED");
+    //     // }
+    //   }
+    // }
+    // else {
+    //   // Should not happen
+    // }
+
+    // // sie_from_sie_file();
+
+    // return result;
   }
 
   auto begin() const {return m_sie_envs_map.begin();}
