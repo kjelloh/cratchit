@@ -4719,6 +4719,20 @@ namespace zeroth {
 		return model;
   }
 
+  Model model_with_posted_and_staged_env(
+     Model model
+    ,SIEEnvironmentsMap::RelativeYearKey year_id
+    ,SIEEnvironment const& posted_env
+    ,SIEEnvironment const& staged_env) {
+    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_and_staged_env"};
+		std::ostringstream prompt{};
+
+    model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
+
+    model->prompt = prompt.str();
+    return model;
+  }
+
   Model model_with_posted_sie_files(Model model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
 		std::ostringstream prompt{};
 

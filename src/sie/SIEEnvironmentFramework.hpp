@@ -29,6 +29,41 @@ public:
 
   Meta const& meta() const {return m_meta;}
 
+  SIEEnvironment::EnvironmentChangeResults update_from_posted_and_staged_sie_env(
+     RelativeYearKey year_id
+    ,SIEEnvironment const& posted_sie_env
+    ,SIEEnvironment const& staged_sie_env) {
+
+    logger::scope_logger log_raii{
+       logger::development_trace
+      ,std::format(
+         "update_posted_from_sie_env: year_id:{}, posted sie year:{} staged sie year:{}"
+        ,year_id
+        ,posted_sie_env.fiscal_year().to_string()
+        ,staged_sie_env.fiscal_year().to_string())
+    };
+
+    SIEEnvironment::EnvironmentChangeResults result{};
+
+    auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(posted_sie_env));
+    if (was_inserted) {
+      // Inserted ok
+      logger::development_trace("Inserted OK");
+      // Consolidate 'staged' with the 'now posted'
+
+      // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
+      //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
+      result = iter->second.stage(staged_sie_env);
+    }
+    else {
+      logger::development_trace("Insert posted FAILED");
+    }
+
+    return result;
+
+  }
+
+
   SIEEnvironment::EnvironmentChangeResults update_posted_from_file(
      RelativeYearKey year_id
     ,std::filesystem::path sie_file_path) {
