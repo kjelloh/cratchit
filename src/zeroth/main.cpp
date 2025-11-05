@@ -4802,19 +4802,6 @@ namespace zeroth {
     return model;
   }
 
-  // Now done by model_from_environment
-  // Model model_with_dotas_from_environment(Model model,Environment const& environment) {
-
-  //   logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_environment"};
-	// 	std::ostringstream prompt{};
-
-  //   model->all_dotas.dotas_insert_auto_ordered_container(
-  //     dotas_from_environment(environment));      
-
-  //   model->prompt = prompt.str();
-  //   return model;
-  // }
-
   Model model_with_dotas_from_account_statement_files(Model model,std::filesystem::path cratchit_environment_file_path) {
 
     logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_account_statement_files"};
@@ -4838,21 +4825,50 @@ namespace zeroth {
     Model model = model_from_environment(environment);
     prompt << model->prompt;
 
-    md_cfs.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
-    model = model_with_posted_sie_files(
-       std::move(model)
-      ,md_cfs
-    );
-    prompt << model->prompt;
+    if (false) {
+      // Refactored 251105
+      auto configured_posted_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+
+      // // Use CratchitMDFileSystem to project paths to meta-defacto maybe istreams
+      auto md_posted_sie_istreams = md_cfs.defacto.to_md_sie_istreams(configured_posted_sie_file_paths);
+      // // Create meta-defacto sie environments
+      // auto md_posted_sie_envs = to_md_sie_envs(md_posted_sie_istreams);
+
+      // auto md_staged_sie_file_paths = to_md_staged_sie_file_paths(md_posted_sie_envs);
+      // auto md_staged_sie_istreams = md_cfs.defacto.to_md_istreams(md_staged_sie_fil_paths);
+
+
+      // auto md_staged_sie_envs = to_md_sie_envs(md_staged_sie_istreams);
+
+      // auto stage_to_posted_results =
+      //     std::views::zip(md_posted_sie_envs,md_staged_sie_envs)
+      //   | std::transform([&model](auto const& md_posted_sie,auto const& md_staged_sie){
+      //       return model->sie_env_map.update_from_posted_and_staged_sie_env(
+      //          md_posted_sie
+      //         ,md_staged_sie
+      //       );
+      //     })
+      //   | std::ranges::to<std::vector<SIEEnvironmentsMap::UpdateFromPostedResult>;
+
+      // std::ranges::for_each(stage_to_posted_results,[&prompt](auto const& stage_to_posted_result){
+      //   prompt << std::format("\n");
+      // });
+
+    }
+    else {
+      // Before refactored
+      md_cfs.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+      model = model_with_posted_sie_files(
+        std::move(model)
+        ,md_cfs
+      );
+      prompt << model->prompt;
+    }
+
+
 
     model = model_with_dotas_from_sie_envs(std::move(model));
     prompt << model->prompt;
-
-    // Now in model_from_environment
-    // model = model_with_dotas_from_environment(
-    //    std::move(model)
-    //   ,environment);
-    // prompt << model->prompt;
 
     model = model_with_dotas_from_account_statement_files(
        std::move(model)
