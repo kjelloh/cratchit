@@ -23,11 +23,6 @@ namespace tests::zeroth {
       );
       auto model = ::zeroth::model_from_environment(environment);
 
-      // Test conflict resolution posted + stage sie entries
-      {
-        
-      }
-
       ASSERT_FALSE(true) << "TODO: Implement this test";
 
     }

@@ -4649,47 +4649,55 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,SIEEnvironmentsMap::RelativeYearKey year_id
-    ,SIEEnvironment::EnvironmentChangeResults const& change_results) {
+    ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results) {
 
 		std::ostringstream prompt{};
 
-    if (std::ranges::any_of(
-      change_results
-      ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
-      // At least one element is “false”
-      prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
-      if (model->sie_env_map.meta().posted_sie_files.contains(year_id)) {
-        prompt << std::format(
-          "\nEntries in sie-file:{} overrides values in cratchit staged entries"
-          // ,model->sie_env_map[year_id].source_sie_file_path().string());
-          ,model->sie_env_map.meta().posted_sie_files.at(year_id).string());
-      }
-      else {
-        logger::design_insufficiency(
-            "model_from_environment_and_files: Expected posted_sie_files[{}] to exist for failed staging of entries"
-          ,year_id);
-      }
-    }
-
-    std::ranges::for_each(
-       change_results
-      ,[&prompt](auto const& entry_result) {
-          if (!entry_result) {
-            prompt << std::format(
-              "\nCONFLICTED! : No longer valid entry {}"
-              ,to_string(entry_result.md_entry()));
-          }
-        }
-    );
-
-    auto unposted = model->sie_env_map[year_id].unposted();
-    if (unposted.size() > 0) {
-      prompt << "\n year id:" << year_id << " - STAGED for posting";
-      prompt << "\n" << unposted;
+    if (!change_results.second) {
+      // Insert/assign posted failed
+      prompt << std::format("Sorry, Update posted for year id:{} failed",year_id);
     }
     else {
-      prompt << "\n year id:" << year_id << " - ALL POSTED OK";
+      if (std::ranges::any_of(
+        change_results.first
+        ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
+        // At least one element is “false”
+        prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
+        if (model->sie_env_map.meta().posted_sie_files.contains(year_id)) {
+          prompt << std::format(
+            "\nEntries in sie-file:{} overrides values in cratchit staged entries"
+            // ,model->sie_env_map[year_id].source_sie_file_path().string());
+            ,model->sie_env_map.meta().posted_sie_files.at(year_id).string());
+        }
+        else {
+          logger::design_insufficiency(
+              "model_from_environment_and_files: Expected posted_sie_files[{}] to exist for failed staging of entries"
+            ,year_id);
+        }
+      }
+
+      std::ranges::for_each(
+        change_results.first
+        ,[&prompt](auto const& entry_result) {
+            if (!entry_result) {
+              prompt << std::format(
+                "\nCONFLICTED! : No longer valid entry {}"
+                ,to_string(entry_result.md_entry()));
+            }
+          }
+      );
+
+      auto unposted = model->sie_env_map[year_id].unposted();
+      if (unposted.size() > 0) {
+        prompt << "\n year id:" << year_id << " - STAGED for posting";
+        prompt << "\n" << unposted;
+      }
+      else {
+        prompt << "\n year id:" << year_id << " - ALL POSTED OK";
+      }
+
     }
+
 
     return prompt.str();
   }
@@ -4724,6 +4732,7 @@ namespace zeroth {
     ,SIEEnvironmentsMap::RelativeYearKey year_id
     ,SIEEnvironment const& posted_env
     ,SIEEnvironment const& staged_env) {
+
     logger::scope_logger log_raii{logger::development_trace,"model_with_posted_and_staged_env"};
 		std::ostringstream prompt{};
 
@@ -4734,6 +4743,8 @@ namespace zeroth {
   }
 
   Model model_with_posted_sie_files(Model model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
+
+    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files"};
 		std::ostringstream prompt{};
 
     {
@@ -4751,6 +4762,8 @@ namespace zeroth {
   }
 
   Model model_with_dotas_from_sie_envs(Model model) {
+
+    logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_sie_envs"};
 		std::ostringstream prompt{};
 
     {
@@ -4769,6 +4782,8 @@ namespace zeroth {
   }
 
   Model model_with_dotas_from_environment(Model model,Environment const& environment) {
+
+    logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_environment"};
 		std::ostringstream prompt{};
 
     model->all_dotas.dotas_insert_auto_ordered_container(
@@ -4779,6 +4794,8 @@ namespace zeroth {
   }
 
   Model model_with_dotas_from_account_statement_files(Model model,std::filesystem::path cratchit_file_path) {
+
+    logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_account_statement_files"};
 		std::ostringstream prompt{};
 
     model->all_dotas.dotas_insert_auto_ordered_container(
@@ -4829,6 +4846,9 @@ namespace zeroth {
   // std_overload::generator<EnvironmentIdValuePair> indexed_env_entries_from(HeadingAmountDateTransEntries const& entries) {
 
 	Environment environment_from_model(Model const& model) {
+
+    logger::scope_logger log_raii{logger::development_trace,"environment_from_model"};
+
 		Environment result{};
 		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
       // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
@@ -4868,7 +4888,7 @@ namespace zeroth {
 
     // Log
     if (true) {
-      logger::scope_logger scope_raii{logger::development_trace,"Model -> Environment Log"};
+      logger::scope_logger log_raii{logger::development_trace,"Model -> Environment Log"};
       logger::development_trace("model->all_dotas.cas().size():{}",model->all_dotas.cas().size());
       logger::development_trace("model->all_dotas.ordered_tagged_amounts().size():{}",model->all_dotas.ordered_tagged_amounts().size());
       if (result.contains("TaggedAmount")) {

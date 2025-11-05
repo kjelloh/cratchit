@@ -29,7 +29,8 @@ public:
 
   Meta const& meta() const {return m_meta;}
 
-  SIEEnvironment::EnvironmentChangeResults update_from_posted_and_staged_sie_env(
+  using UpdateFromPostedResult = std::pair<SIEEnvironment::EnvironmentChangeResults,bool>;
+  UpdateFromPostedResult update_from_posted_and_staged_sie_env(
      RelativeYearKey year_id
     ,SIEEnvironment const& posted_sie_env
     ,SIEEnvironment const& staged_sie_env) {
@@ -43,17 +44,24 @@ public:
         ,staged_sie_env.fiscal_year().to_string())
     };
 
-    SIEEnvironment::EnvironmentChangeResults result{};
+    UpdateFromPostedResult result{};
 
     auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(posted_sie_env));
+    result.second = was_inserted;
+
     if (was_inserted) {
-      // Inserted ok
-      logger::development_trace("Inserted OK");
+
+      if (this->m_sie_envs_map.contains(year_id)) {
+        logger::development_trace(
+        "update_from_posted_and_staged_sie_env: Replaced existing sie for year id: {}"
+        ,year_id);
+      }
+
       // Consolidate 'staged' with the 'now posted'
 
       // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
       //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
-      result = iter->second.stage(staged_sie_env);
+      result.first = iter->second.stage(staged_sie_env);
     }
     else {
       logger::development_trace("Insert posted FAILED");
@@ -64,7 +72,7 @@ public:
   }
 
 
-  SIEEnvironment::EnvironmentChangeResults update_posted_from_file(
+  UpdateFromPostedResult update_posted_from_file(
      RelativeYearKey year_id
     ,std::filesystem::path sie_file_path) {
 
@@ -76,36 +84,61 @@ public:
         ,sie_file_path.string())
     };
 
-    SIEEnvironment::EnvironmentChangeResults result{};
+    UpdateFromPostedResult result{};
 
     auto maybe_posted_sie_istream = to_maybe_sie_istream(sie_file_path);
     if (maybe_posted_sie_istream) {
-      if (auto sie_env = sie_from_stream(maybe_posted_sie_istream.value())) {
+      if (auto maybe_posted_sie_env = sie_from_stream(maybe_posted_sie_istream.value())) {
+        auto const& posted_sie_env = maybe_posted_sie_env.value();
 
-        if (this->m_sie_envs_map.contains(year_id)) {
-          logger::development_trace(
-           "update_posted_from_file: Replaced existing sie for year id: {}"
-          ,year_id);
-        }
+        // if (this->m_sie_envs_map.contains(year_id)) {
+        //   logger::development_trace(
+        //    "update_posted_from_file: Replaced existing sie for year id: {}"
+        //   ,year_id);
+        // }
 
-        // this->m_sie_envs_map[year_id] = std::move(*sie_env);
-        auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(*sie_env));
-
-        if (was_inserted) {
-          // Inserted ok
-          logger::development_trace("Inserted OK");
-          this->m_meta.posted_sie_files[year_id] = sie_file_path;
-          // Consolidate 'staged' with the 'now posted'
-          auto maybe_staged_sie_stream = to_maybe_sie_istream(iter->second.staged_sie_file_path());
-          if (auto sse = sie_from_stream(maybe_staged_sie_stream.value())) {
-            // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
-            //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
-            result = iter->second.stage(*sse);
+        if (auto maybe_staged_sie_stream = to_maybe_sie_istream(posted_sie_env.staged_sie_file_path())) {
+          if (auto maybe_staged_sie = sie_from_stream(maybe_staged_sie_stream.value())) {
+            result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,maybe_staged_sie.value());
+          }
+          else {
+            result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,SIEEnvironment{posted_sie_env.fiscal_year()});
           }
         }
         else {
-          logger::development_trace("Insert FAILED");
+            result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,SIEEnvironment{posted_sie_env.fiscal_year()});
         }
+
+        if (result.second) {
+          // inserty/update posted ok
+          this->m_meta.posted_sie_files[year_id] = sie_file_path;
+        }
+        else {
+          logger::design_insufficiency(
+             "update_posted_from_file: Failed. m_meta.posted_sie_files[{}] left unchanged:{}"
+            ,year_id
+            ,this->m_meta.posted_sie_files.contains(year_id)
+                ?this->m_meta.posted_sie_files.at(year_id).string()
+                :"null");
+        }
+
+        // auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(*sie_env));
+
+        // if (was_inserted) {
+        //   // Inserted ok
+        //   logger::development_trace("Inserted OK");
+        //   this->m_meta.posted_sie_files[year_id] = sie_file_path;
+        //   // Consolidate 'staged' with the 'now posted'
+        //   auto maybe_staged_sie_stream = to_maybe_sie_istream(iter->second.staged_sie_file_path());
+        //   if (auto sse = sie_from_stream(maybe_staged_sie_stream.value())) {
+        //     // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
+        //     //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
+        //     result = iter->second.stage(*sse);
+        //   }
+        // }
+        // else {
+        //   logger::development_trace("Insert FAILED");
+        // }
       }
     }
     else {

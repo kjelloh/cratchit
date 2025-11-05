@@ -5432,7 +5432,7 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,SIEEnvironmentsMap::RelativeYearKey year_id
-    ,SIEEnvironment::EnvironmentChangeResults const& change_results);
+    ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results);
 	Model model_from_environment(Environment const& environment);
 	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment);
   Environment environment_from_model(Model const& model);
