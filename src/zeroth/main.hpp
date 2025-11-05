@@ -5422,9 +5422,12 @@ namespace SKV {
   struct SpecsDummy {};
 }
 
-struct Runtime {
+struct RuntimeMeta {
   std::filesystem::path m_root_path;
 };
+struct RuntimeDefacto {
+};
+using Runtime = MetaDefacto<RuntimeMeta,RuntimeDefacto>;
 
 // Environment + cratchit_file_path -> Model
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment);
