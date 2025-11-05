@@ -4808,10 +4808,10 @@ namespace zeroth {
     return model;
   }
 
-	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
-    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
-
+	Model model_from_environment_and_runtime(Runtime runtime,Environment const& environment) {
+    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_runtime"};
 		std::ostringstream prompt{};
+    auto cratchit_file_path = runtime.m_root_path;
 
     Model model = model_from_environment(environment);
     prompt << model->prompt;
@@ -4840,6 +4840,12 @@ namespace zeroth {
 
 		model->prompt = prompt.str();
 		return model;
+  }
+
+	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
+    Runtime runtime{cratchit_file_path};
+    return model_from_environment_and_runtime(runtime,environment);
 	} // model_from_environment_and_files
 
   // indexed_env_entries_from now in HADFramework

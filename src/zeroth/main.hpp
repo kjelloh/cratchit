@@ -5422,6 +5422,10 @@ namespace SKV {
   struct SpecsDummy {};
 }
 
+struct Runtime {
+  std::filesystem::path m_root_path;
+};
+
 // Environment + cratchit_file_path -> Model
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment);
 TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path);
@@ -5433,7 +5437,9 @@ namespace zeroth {
      Model const& model
     ,SIEEnvironmentsMap::RelativeYearKey year_id
     ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results);
-	Model model_from_environment(Environment const& environment);
+	Model model_from_environment(Environment const& environment);  
+	Model model_from_environment_and_runtime(Runtime runtime,Environment const& environment);
 	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment);
+
   Environment environment_from_model(Model const& model);
 }

@@ -21,6 +21,7 @@ namespace tests::zeroth {
       auto maybe_istringstream = persistent::in::from_string(
         sz_sie_file_content
       );
+
       auto model = ::zeroth::model_from_environment(environment);
 
       ASSERT_FALSE(true) << "TODO: Implement this test";
