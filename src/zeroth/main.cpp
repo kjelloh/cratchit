@@ -2895,7 +2895,12 @@ Cmd Updater::operator()(Command const& command) {
           //    "current" is a place holder (no checks against actual current date and time)
           SIEEnvironmentsMap::RelativeYearKey year_key{"current"};
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
-          auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
+          // auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
+          auto md_maybe_istream = persistent::in::to_md_maybe_istream(*sie_file_path);
+          auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
+             year_key
+            ,md_maybe_istream);
+
           prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
 
           // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
@@ -2979,7 +2984,12 @@ Cmd Updater::operator()(Command const& command) {
         }
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
-          auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
+          // auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
+          auto md_maybe_istream = persistent::in::to_md_maybe_istream(*sie_file_path);
+          auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
+             year_key
+            ,md_maybe_istream);
+
           prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
 
           // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
@@ -4752,7 +4762,11 @@ namespace zeroth {
         configured_sie_file_paths
         ,[&](auto const& id_path_pair){
           auto const& [year_id,sie_file_path] = id_path_pair;
-          auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
+          // auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
+          auto md_maybe_istream = persistent::in::to_md_maybe_istream(sie_file_path);
+          auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
+             year_id
+            ,md_maybe_istream);
           prompt << to_user_cli_feedback(model,year_id,update_posted_result);
       });
     }
