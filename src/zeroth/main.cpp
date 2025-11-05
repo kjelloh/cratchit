@@ -4729,7 +4729,14 @@ namespace zeroth {
 		model->organisation_contacts = contacts_from_environment(environment);
 		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
 		model->sru = srus_from_environment(environment);
-    model->all_dotas = dotas_from_environment(environment);
+
+    // With dotas_insert_auto_ordered_container we are safe
+    // to move the order we insert to all_dotas. Here we 'know'
+    // we are 'first' as we initiate model above, but future cut-and-paste
+    // may move this code some place else in soace and time ;)
+    model->all_dotas.dotas_insert_auto_ordered_container(
+      dotas_from_environment(environment));      
+
     model->sie_env_map = sie_env_map_from_all_dotas(model->all_dotas);
 
 		model->prompt = prompt.str();
@@ -4795,17 +4802,18 @@ namespace zeroth {
     return model;
   }
 
-  Model model_with_dotas_from_environment(Model model,Environment const& environment) {
+  // Now done by model_from_environment
+  // Model model_with_dotas_from_environment(Model model,Environment const& environment) {
 
-    logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_environment"};
-		std::ostringstream prompt{};
+  //   logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_environment"};
+	// 	std::ostringstream prompt{};
 
-    model->all_dotas.dotas_insert_auto_ordered_container(
-      dotas_from_environment(environment));      
+  //   model->all_dotas.dotas_insert_auto_ordered_container(
+  //     dotas_from_environment(environment));      
 
-    model->prompt = prompt.str();
-    return model;
-  }
+  //   model->prompt = prompt.str();
+  //   return model;
+  // }
 
   Model model_with_dotas_from_account_statement_files(Model model,std::filesystem::path cratchit_environment_file_path) {
 
@@ -4840,10 +4848,11 @@ namespace zeroth {
     model = model_with_dotas_from_sie_envs(std::move(model));
     prompt << model->prompt;
 
-    model = model_with_dotas_from_environment(
-       std::move(model)
-      ,environment);
-    prompt << model->prompt;
+    // Now in model_from_environment
+    // model = model_with_dotas_from_environment(
+    //    std::move(model)
+    //   ,environment);
+    // prompt << model->prompt;
 
     model = model_with_dotas_from_account_statement_files(
        std::move(model)
