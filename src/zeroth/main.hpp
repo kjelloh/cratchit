@@ -5422,8 +5422,10 @@ namespace SKV {
   struct SpecsDummy {};
 }
 
+using ConfiguredSIEFilePaths = std::vector<std::pair<std::string,std::filesystem::path>>;
 struct RuntimeMeta {
   std::filesystem::path m_root_path;
+  ConfiguredSIEFilePaths m_configured_sie_file_paths{};
 };
 struct RuntimeDefacto {
 };

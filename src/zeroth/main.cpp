@@ -4583,7 +4583,6 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
 
 namespace zeroth {
 
-  using ConfiguredSIEFilePaths = std::vector<std::pair<std::string,std::filesystem::path>>;
   ConfiguredSIEFilePaths to_configured_posted_sie_file_paths(
     Environment const& environment) {
     ConfiguredSIEFilePaths result{};
@@ -4742,9 +4741,10 @@ namespace zeroth {
     return model;
   }
 
-  Model model_with_posted_sie_files(Model model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
+  Model model_with_posted_sie_files(Model model,Runtime const& runtime) {
+    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(runtime)"};
+    auto const& configured_sie_file_paths = runtime.meta.m_configured_sie_file_paths;
 
-    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files"};
 		std::ostringstream prompt{};
 
     {
@@ -4760,6 +4760,26 @@ namespace zeroth {
     model->prompt = prompt.str();
     return model;
   }
+
+  // Replaced with model_with_posted_sie_files(model,runtime)
+  // Model model_with_posted_sie_files(Model model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
+
+  //   logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(configured_sie_file_paths)"};
+	// 	std::ostringstream prompt{};
+
+  //   {
+  //     std::ranges::for_each(
+  //       configured_sie_file_paths
+  //       ,[&](auto const& id_path_pair){
+  //         auto const& [year_id,sie_file_path] = id_path_pair;
+  //         auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
+  //         prompt << to_user_cli_feedback(model,year_id,update_posted_result);
+  //     });
+  //   }
+
+  //   model->prompt = prompt.str();
+  //   return model;
+  // }
 
   Model model_with_dotas_from_sie_envs(Model model) {
 
@@ -4816,9 +4836,10 @@ namespace zeroth {
     Model model = model_from_environment(environment);
     prompt << model->prompt;
 
+    runtime.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
     model = model_with_posted_sie_files(
-      std::move(model)
-      ,to_configured_posted_sie_file_paths(environment)
+       std::move(model)
+      ,runtime
     );
     prompt << model->prompt;
 
@@ -4844,7 +4865,10 @@ namespace zeroth {
 
 	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
-    Runtime runtime{cratchit_file_path,{}};
+    Runtime runtime{{
+        .m_root_path = cratchit_file_path
+      },{
+      }};
     return model_from_environment_and_runtime(runtime,environment);
 	} // model_from_environment_and_files
 
