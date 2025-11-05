@@ -4751,9 +4751,9 @@ namespace zeroth {
     return model;
   }
 
-  Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_fs) {
-    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(md_fs)"};
-    auto const& configured_sie_file_paths = md_fs.meta.m_configured_sie_file_paths;
+  Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_cfs) {
+    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(md_cfs)"};
+    auto const& configured_sie_file_paths = md_cfs.meta.m_configured_sie_file_paths;
 
 		std::ostringstream prompt{};
 
@@ -4822,18 +4822,18 @@ namespace zeroth {
     return model;
   }
 
-	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem md_fs) {
+	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem md_cfs) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_md_filesystem"};
 		std::ostringstream prompt{};
-    auto cratchit_environment_file_path = md_fs.meta.m_root_path;
+    auto cratchit_environment_file_path = md_cfs.meta.m_root_path;
 
     Model model = model_from_environment(environment);
     prompt << model->prompt;
 
-    md_fs.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+    md_cfs.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
     model = model_with_posted_sie_files(
        std::move(model)
-      ,md_fs
+      ,md_cfs
     );
     prompt << model->prompt;
 
@@ -4859,11 +4859,11 @@ namespace zeroth {
 
 	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
-    CratchitMDFileSystem md_fs{{
+    CratchitMDFileSystem md_cfs{{
         .m_root_path = cratchit_environment_file_path
       },{
       }};
-    return model_from_environment_and_md_filesystem(environment,md_fs);
+    return model_from_environment_and_md_filesystem(environment,md_cfs);
 	} // model_from_environment_and_files
 
   // indexed_env_entries_from now in HADFramework

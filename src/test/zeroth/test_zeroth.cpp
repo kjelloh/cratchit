@@ -22,12 +22,12 @@ namespace tests::zeroth {
         sz_sie_file_content
       );
 
-      CratchitMDFileSystem md_fs{
+      CratchitMDFileSystem md_cfs{
          .meta = {.m_root_path = "*test*"}
         ,.defacto = {}
       };
 
-      auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_fs);
+      auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
       std::println("prompt:{}",model->prompt);
 
       ASSERT_FALSE(true) << "TODO: Implement this test";
