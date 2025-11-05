@@ -4142,13 +4142,13 @@ std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState 
 class Cratchit {
 public:
 	Cratchit(std::filesystem::path const& p)
-		: cratchit_file_path{p}
+		: cratchit_environment_file_path{p}
           ,m_persistent_environment_file{p,::environment_from_file,::environment_to_file} {}
 
         Model init(Command const& command) {
           std::ostringstream prompt{};
           prompt << "\nInit from ";
-          prompt << cratchit_file_path;
+          prompt << cratchit_environment_file_path;
           m_persistent_environment_file.init();
           if (auto const& cached_env = m_persistent_environment_file.cached()) {
             auto model = this->model_from_environment_and_files(*cached_env);
@@ -4157,7 +4157,7 @@ public:
             model->prompt += prompt.str();
             return model;
           } else {
-            prompt << "\nSorry, Failed to load environment from " << cratchit_file_path;
+            prompt << "\nSorry, Failed to load environment from " << cratchit_environment_file_path;
             auto model = std::make_unique<ConcreteModel>();
             model->prompt = prompt.str();
             model->prompt_state = PromptState::Root;
@@ -4197,13 +4197,13 @@ public:
 		return ux;
 	}
 private:
-    PersistentFile<Environment> m_persistent_environment_file;
-	std::filesystem::path cratchit_file_path{};
+  PersistentFile<Environment> m_persistent_environment_file;
+	std::filesystem::path cratchit_environment_file_path{};
 
   // Now free functions
 	// std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
 	// DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
-  // SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+  // SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
   // TaggedAmounts tas_sequence_from_consumed_account_statement_files(Environment const& environment) {
   // DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
   // void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
@@ -4217,7 +4217,7 @@ private:
 	}
 
 	Model model_from_environment_and_files(Environment const& environment) {
-		return zeroth::model_from_environment_and_files(this->cratchit_file_path,environment);
+		return zeroth::model_from_environment_and_files(this->cratchit_environment_file_path,environment);
 	}
 
   // indexed_env_entries_from now in HADFramework
@@ -4422,20 +4422,20 @@ DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment cons
   return result;
 } // dotas_from_sie_environment
 
-// Environment + cratchit_file_path -> Model
+// Environment + cratchit_environment_file_path -> Model
 
-DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesystem::path cratchit_file_path) {
+DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesystem::path cratchit_environment_file_path) {
   DateOrderedTaggedAmountsContainer result{};
 
   // Import any new account statements in dedicated "files from bank or skv" folder
   result.dotas_insert_auto_ordered_sequence(
     tas_sequence_from_consumed_account_statement_files(
-       cratchit_file_path));
+       cratchit_environment_file_path));
 
   return result;
 }
 
-DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
   if (false) {
     std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
   }
@@ -4445,7 +4445,7 @@ DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_f
     dotas_from_environment(environment));
 
   result.dotas_insert_auto_ordered_container(
-    dotas_from_account_statement_files(cratchit_file_path));
+    dotas_from_account_statement_files(cratchit_environment_file_path));
   
   return result;
 } // dotas_from_environment_and_account_statement_files
@@ -4492,13 +4492,13 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem:
   return result;
 }
 
-TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path) {
+TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem::path cratchit_environment_file_path) {
   if (false) {
     std::cout << "\n" << "tas_sequence_from_consumed_account_statement_files" << std::flush;
   }
   TaggedAmounts result{};
   // Ensure folder "from_bank_or_skv folder" exists
-  auto from_bank_or_skv_path = cratchit_file_path.parent_path() /  "from_bank_or_skv";
+  auto from_bank_or_skv_path = cratchit_environment_file_path.parent_path() /  "from_bank_or_skv";
   std::filesystem::create_directories(from_bank_or_skv_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
   if (std::filesystem::exists(from_bank_or_skv_path) == true) {
     // Process all files in from_bank_or_skv_path
@@ -4538,10 +4538,10 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem
   return result;
 } // tas_sequence_from_consumed_account_statement_files
 
-SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
   // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
   SKV::SpecsDummy result{};
-  auto skv_specs_path = cratchit_file_path.parent_path() /  "skv_specs";
+  auto skv_specs_path = cratchit_environment_file_path.parent_path() /  "skv_specs";
   std::filesystem::create_directories(skv_specs_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
   if (std::filesystem::exists(skv_specs_path) == true) {
     // Process all files in skv_specs_path
@@ -4751,9 +4751,9 @@ namespace zeroth {
     return model;
   }
 
-  Model model_with_posted_sie_files(Model model,Runtime const& runtime) {
-    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(runtime)"};
-    auto const& configured_sie_file_paths = runtime.meta.m_configured_sie_file_paths;
+  Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_fs) {
+    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(md_fs)"};
+    auto const& configured_sie_file_paths = md_fs.meta.m_configured_sie_file_paths;
 
 		std::ostringstream prompt{};
 
@@ -4774,26 +4774,6 @@ namespace zeroth {
     model->prompt = prompt.str();
     return model;
   }
-
-  // Replaced with model_with_posted_sie_files(model,runtime)
-  // Model model_with_posted_sie_files(Model model,ConfiguredSIEFilePaths const& configured_sie_file_paths) {
-
-  //   logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(configured_sie_file_paths)"};
-	// 	std::ostringstream prompt{};
-
-  //   {
-  //     std::ranges::for_each(
-  //       configured_sie_file_paths
-  //       ,[&](auto const& id_path_pair){
-  //         auto const& [year_id,sie_file_path] = id_path_pair;
-  //         auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
-  //         prompt << to_user_cli_feedback(model,year_id,update_posted_result);
-  //     });
-  //   }
-
-  //   model->prompt = prompt.str();
-  //   return model;
-  // }
 
   Model model_with_dotas_from_sie_envs(Model model) {
 
@@ -4827,13 +4807,13 @@ namespace zeroth {
     return model;
   }
 
-  Model model_with_dotas_from_account_statement_files(Model model,std::filesystem::path cratchit_file_path) {
+  Model model_with_dotas_from_account_statement_files(Model model,std::filesystem::path cratchit_environment_file_path) {
 
     logger::scope_logger log_raii{logger::development_trace,"model_with_dotas_from_account_statement_files"};
 		std::ostringstream prompt{};
 
     model->all_dotas.dotas_insert_auto_ordered_container(
-      dotas_from_account_statement_files(cratchit_file_path));
+      dotas_from_account_statement_files(cratchit_environment_file_path));
     prompt << std::format(
       "\nAccount Statement Files --> Tagged Amounts = size:{}"
       ,model->all_dotas.sequence_size());
@@ -4842,18 +4822,18 @@ namespace zeroth {
     return model;
   }
 
-	Model model_from_environment_and_runtime(Runtime runtime,Environment const& environment) {
-    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_runtime"};
+	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem md_fs) {
+    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_md_filesystem"};
 		std::ostringstream prompt{};
-    auto cratchit_file_path = runtime.meta.m_root_path;
+    auto cratchit_environment_file_path = md_fs.meta.m_root_path;
 
     Model model = model_from_environment(environment);
     prompt << model->prompt;
 
-    runtime.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+    md_fs.meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
     model = model_with_posted_sie_files(
        std::move(model)
-      ,runtime
+      ,md_fs
     );
     prompt << model->prompt;
 
@@ -4867,23 +4847,23 @@ namespace zeroth {
 
     model = model_with_dotas_from_account_statement_files(
        std::move(model)
-      ,cratchit_file_path);
+      ,cratchit_environment_file_path);
     prompt << model->prompt;
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
-    auto dummy = skv_specs_mapping_from_csv_files(cratchit_file_path,environment);
+    auto dummy = skv_specs_mapping_from_csv_files(cratchit_environment_file_path,environment);
 
 		model->prompt = prompt.str();
 		return model;
   }
 
-	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment) {
+	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
-    Runtime runtime{{
-        .m_root_path = cratchit_file_path
+    CratchitMDFileSystem md_fs{{
+        .m_root_path = cratchit_environment_file_path
       },{
       }};
-    return model_from_environment_and_runtime(runtime,environment);
+    return model_from_environment_and_md_filesystem(environment,md_fs);
 	} // model_from_environment_and_files
 
   // indexed_env_entries_from now in HADFramework

@@ -5423,19 +5423,20 @@ namespace SKV {
 }
 
 using ConfiguredSIEFilePaths = std::vector<std::pair<std::string,std::filesystem::path>>;
-struct RuntimeMeta {
+
+struct CratchitFSMeta {
   std::filesystem::path m_root_path;
   ConfiguredSIEFilePaths m_configured_sie_file_paths{};
 };
-struct RuntimeDefacto {
+struct CratchitFSDefacto {
 };
-using Runtime = MetaDefacto<RuntimeMeta,RuntimeDefacto>;
+using CratchitMDFileSystem = MetaDefacto<CratchitFSMeta,CratchitFSDefacto>;
 
-// Environment + cratchit_file_path -> Model
-DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_file_path,Environment const& environment);
+// Environment + cratchit_environment_file_path -> Model
+DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);
 TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path);
-TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem::path cratchit_file_path);
-SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_file_path,Environment const& environment);
+TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem::path cratchit_environment_file_path);
+SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);
 
 namespace zeroth {
   std::string to_user_cli_feedback(
@@ -5443,8 +5444,8 @@ namespace zeroth {
     ,SIEEnvironmentsMap::RelativeYearKey year_id
     ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results);
 	Model model_from_environment(Environment const& environment);  
-	Model model_from_environment_and_runtime(Runtime runtime,Environment const& environment);
-	Model model_from_environment_and_files(std::filesystem::path cratchit_file_path,Environment const& environment);
+	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem runtime);
+	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);
 
   Environment environment_from_model(Model const& model);
 }
