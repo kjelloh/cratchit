@@ -22,7 +22,13 @@ namespace tests::zeroth {
         sz_sie_file_content
       );
 
-      auto model = ::zeroth::model_from_environment(environment);
+      Runtime runtime{
+         .meta = {.m_root_path = "*test*"}
+        ,.defacto = {}
+      };
+
+      auto model = ::zeroth::model_from_environment_and_runtime(runtime,environment);
+      std::println("prompt:{}",model->prompt);
 
       ASSERT_FALSE(true) << "TODO: Implement this test";
 
