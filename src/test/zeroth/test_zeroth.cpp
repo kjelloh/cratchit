@@ -12,24 +12,20 @@ namespace tests::zeroth {
   namespace modelfw_suite {
 
     struct TestCratchitMDFileSystemDefacto : public CratchitMDFileSystem::defacto_value_type {
-      std::map<std::string,char const*> posted_sies_content{
-        {"current",R"()"}
-        ,{"-1",R"()"}
-      };
-      virtual MDMaybeSIEIStreams to_md_sie_istreams(ConfiguredSIEFilePaths const& configured_sie_file_paths) const final {
-        return configured_sie_file_paths
-          | std::views::transform([this](auto const& configured_sie_file_path){
-              return MDMaybeSIEIStream {
-                .meta = {
-                  .m_year_id = configured_sie_file_path.first
-                  ,.m_file_path = configured_sie_file_path.second
-                }
-                ,.defacto = persistent::in::to_maybe_istream(
-                    posted_sies_content.at(configured_sie_file_path.second))
-              };
-            })
-          | std::ranges::to<MDMaybeSIEIStreams>();
-
+      virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const final {
+        std::map<std::string,std::string> posted_sies_content{
+          {"current",R"()"}
+          ,{"-1",R"()"}
+        };
+        std::println("TestCratchitMDFileSystemDefacto::to_md_sie_istream('{}')",configured_sie_file_path.first);
+        return MDMaybeSIEIStream {
+          .meta = {
+            .m_year_id = configured_sie_file_path.first
+            ,.m_file_path = configured_sie_file_path.second
+          }
+          ,.defacto = persistent::in::to_maybe_istream(
+              posted_sies_content[configured_sie_file_path.first])
+        };
       }
     };
 
@@ -42,6 +38,15 @@ namespace tests::zeroth {
       logger::scope_logger log_raii{logger::development_trace,"TEST(ModelTests, Environment2ModelTest)"};
 
       Environment environment{};
+      // sie_file:0 "-1=sie_in/TheITfiedAB20250829_181631.se;-2=sie_in/TheITfiedAB20250828_143351.se;current=sie_in/TheITfiedAB20250812_145743.se"
+      environment["sie_file"].push_back({ // pair<size_t,map<string,string>>
+         0
+        ,{
+           {"-1","sie_in/TheITfiedAB20250829_181631.se"}
+          ,{"-2","sie_in/TheITfiedAB20250828_143351.se"}
+          ,{"current","sie_in/TheITfiedAB20250812_145743.se"}
+        }
+      });
 
       char const* sz_sie_file_content = "??";
 

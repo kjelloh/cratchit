@@ -5422,10 +5422,12 @@ namespace SKV {
   struct SpecsDummy {};
 }
 
-using ConfiguredSIEFilePaths = std::vector<std::pair<std::string,std::filesystem::path>>;
+
+using ConfiguredSIEFilePath = std::pair<std::string,std::filesystem::path>;
 
 struct CratchitFSMeta {
   std::filesystem::path m_root_path;
+  using ConfiguredSIEFilePaths = std::vector<ConfiguredSIEFilePath>;
   ConfiguredSIEFilePaths m_configured_sie_file_paths{};
 };
 struct MaybeSIEStreamMeta {
@@ -5435,18 +5437,14 @@ struct MaybeSIEStreamMeta {
 using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
 using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
 struct CratchitFSDefacto {
-  virtual MDMaybeSIEIStreams to_md_sie_istreams(ConfiguredSIEFilePaths const& configured_sie_file_paths) const {
-    return configured_sie_file_paths
-      | std::views::transform([](auto const& configured_sie_file_path){
-          return MDMaybeSIEIStream {
-            .meta = {
-               .m_year_id = configured_sie_file_path.first
-              ,.m_file_path = configured_sie_file_path.second
-            }
-            ,.defacto = persistent::in::to_maybe_istream(configured_sie_file_path.second)
-          };
-        })
-      | std::ranges::to<MDMaybeSIEIStreams>();
+  virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const {
+    return MDMaybeSIEIStream {
+      .meta = {
+          .m_year_id = configured_sie_file_path.first
+        ,.m_file_path = configured_sie_file_path.second
+      }
+      ,.defacto = persistent::in::to_maybe_istream(configured_sie_file_path.second)
+    };
   }
 };
 using CratchitFSDefactoPtr = std::unique_ptr<CratchitFSDefacto>;
