@@ -17,6 +17,22 @@ namespace tests::zeroth {
           {"current",R"(
 #GEN 20251105
 #RAR 0 20250501 20260430
+
+#VER A 1 20250506 "Account:NORDEA Text:PRIS ENL SPEC" 20250812
+{
+#TRANS 1920 {} -1.85 "" "" 0
+#TRANS 6570 {} 1.85 "" "" 0
+}
+#VER A 2 20250512 "Account:SKV Text:Moms jan 2025 - mars 2025" 20250812
+{
+#TRANS 1630 {} 1997 "" "" 0
+#TRANS 1650 {} -1997 "" "" 0
+}
+#VER A 3 20250516 "Account:NORDEA Text:BG KONTOINS Message:5050-1030 SK5567828172" 20250812
+{
+#TRANS 1630 {} -1997 "" "" 0
+#TRANS 1920 {} 1997 "" "" 0
+}
           )"}
           ,{"-1",R"()"}
         };
