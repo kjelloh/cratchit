@@ -14,7 +14,7 @@ namespace tests::zeroth {
     struct TestCratchitMDFileSystemDefacto : public CratchitMDFileSystem::defacto_value_type {
       virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const final {
         static std::map<std::string,std::string> posted_sies_content{
-          {"current",R"(
+          {"TheITfiedAB20250812_145743.se",R"(
 #GEN 20251105
 #RAR 0 20250501 20260430
 
@@ -34,7 +34,10 @@ namespace tests::zeroth {
 #TRANS 1920 {} 1997 "" "" 0
 }
           )"}
-          ,{"-1",R"()"}
+          ,{"cratchit_2025-05-01_2026-04-30.se",R"(
+#GEN 20251105
+#RAR 0 20250501 20260430
+          )"}
         };
         std::println("TestCratchitMDFileSystemDefacto::to_md_sie_istream('{}')",configured_sie_file_path.first);
         return MDMaybeSIEIStream {
@@ -43,7 +46,7 @@ namespace tests::zeroth {
             ,.m_file_path = configured_sie_file_path.second
           }
           ,.defacto = persistent::in::from_string(
-              posted_sies_content[configured_sie_file_path.first])
+              posted_sies_content[configured_sie_file_path.second.filename()])
         };
       }
     };

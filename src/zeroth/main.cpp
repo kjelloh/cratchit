@@ -4763,6 +4763,7 @@ namespace zeroth {
 
   Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_cfs) {
     logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(md_cfs)"};
+
     auto const& configured_sie_file_paths = md_cfs.meta.m_configured_sie_file_paths;
 
 		std::ostringstream prompt{};
@@ -4839,11 +4840,14 @@ namespace zeroth {
       // // Use CratchitMDFileSystem to project paths to meta-defacto maybe istreams
       auto md_posted_sie_istreams = configured_posted_sie_file_paths
         | std::views::transform([&md_cfs,&prompt](auto const& configured_sie_file_path) {
+
             prompt << NL << std::format(
                "\n\tconfigured_sie_file_path: {}:{}"
               ,configured_sie_file_path.first
               ,configured_sie_file_path.second.string());
+
             return md_cfs.defacto->to_md_sie_istream(configured_sie_file_path);
+
           })
         | std::ranges::to<MDMaybeSIEIStreams>();
 
@@ -4878,25 +4882,34 @@ namespace zeroth {
 
       prompt << NL << std::format("md_posted_sie_envs size:{}",md_posted_sie_envs.size());
 
-      // auto md_staged_sie_file_paths = to_md_staged_sie_file_paths(md_posted_sie_envs);
-      // auto md_staged_sie_istreams = md_cfs.defacto.to_md_istreams(md_staged_sie_fil_paths);
+      std::ranges::for_each(md_posted_sie_envs,[&prompt,&model,&md_cfs](auto& md_sie_env){
+        if (md_sie_env.defacto) {
+          auto staged_sie_file_path = md_sie_env.defacto->staged_sie_file_path();
+          ConfiguredSIEFilePath staged_sie_file_config{
+             md_sie_env.meta.m_year_id
+            ,staged_sie_file_path
+          };
 
+          auto md_staged_sie_istream = md_cfs.defacto->to_md_sie_istream(staged_sie_file_config);
+          SIEEnvironment staged_sie_env = md_staged_sie_istream.defacto
+            .and_then([](auto& istream) {
+              return sie_from_stream(istream);
+            })
+            .value_or(SIEEnvironment{md_sie_env.defacto->fiscal_year()});
 
-      // auto md_staged_sie_envs = to_md_sie_envs(md_staged_sie_istreams);
+          if (md_staged_sie_istream.defacto) {
 
-      // auto stage_to_posted_results =
-      //     std::views::zip(md_posted_sie_envs,md_staged_sie_envs)
-      //   | std::transform([&model](auto const& md_posted_sie,auto const& md_staged_sie){
-      //       return model->sie_env_map.update_from_posted_and_staged_sie_env(
-      //          md_posted_sie
-      //         ,md_staged_sie
-      //       );
-      //     })
-      //   | std::ranges::to<std::vector<SIEEnvironmentsMap::UpdateFromPostedResult>;
+            model = model_with_posted_and_staged_env(
+               std::move(model)
+              ,md_sie_env.meta.m_year_id
+              ,md_sie_env.defacto.value()
+              ,staged_sie_env);
 
-      // std::ranges::for_each(stage_to_posted_results,[&prompt](auto const& stage_to_posted_result){
-      //   prompt << std::format("\n");
-      // });
+            prompt << model->prompt;
+
+          }
+        }
+      });
 
       prompt << NL << "END REFACTORED posted SIE digest";
 
