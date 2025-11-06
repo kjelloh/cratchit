@@ -4435,6 +4435,16 @@ DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesy
   return result;
 }
 
+// using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
+MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream) {
+  MDMaybeSIEEnvironment result{};
+  result.defacto = md_posted_sie_istream.defacto
+    .and_then([meta = md_posted_sie_istream.meta](auto& sie_istream){
+      return sie_from_stream(sie_istream);
+    });
+  return result;
+}
+
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
   if (false) {
     std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
@@ -4822,17 +4832,44 @@ namespace zeroth {
 		std::ostringstream prompt{};
     auto cratchit_environment_file_path = md_cfs.meta.m_root_path;
 
+    prompt << "\nBEGIN: model_from_environment_and_md_filesystem ";
+
     Model model = model_from_environment(environment);
     prompt << model->prompt;
 
-    if (false) {
+    if (true) {
       // Refactored 251105
+      prompt << "\nREFACTORED posted SIE digest!";
       auto configured_posted_sie_file_paths = to_configured_posted_sie_file_paths(environment);
 
       // // Use CratchitMDFileSystem to project paths to meta-defacto maybe istreams
       auto md_posted_sie_istreams = md_cfs.defacto->to_md_sie_istreams(configured_posted_sie_file_paths);
       // // Create meta-defacto sie environments
-      // auto md_posted_sie_envs = to_md_sie_envs(md_posted_sie_istreams);
+      auto md_posted_sie_envs = md_posted_sie_istreams
+        | std::views::transform([&prompt](auto const& md_sie_stream){
+          auto md_maybe_sie_environment = MDMaybeSIEEnvironment{
+             .meta = md_sie_stream.meta
+            ,.defacto = md_sie_stream.defacto
+              .and_then([](auto& istream){
+                  return sie_from_stream(istream);
+                })
+          };
+          if (md_maybe_sie_environment.defacto) {
+            prompt << std::format(
+               "Read posted SIE[{}]: from:{} -> entry count:{}"
+              ,md_maybe_sie_environment.meta.m_year_id
+              ,md_maybe_sie_environment.meta.m_file_path.string()
+              ,md_maybe_sie_environment.defacto->journals_entry_count());
+          }
+          else {
+            prompt << std::format(
+               "FAILED to read posted SIE[{}]: from:{}"
+              ,md_maybe_sie_environment.meta.m_year_id
+              ,md_maybe_sie_environment.meta.m_file_path.string());
+          }
+          return md_maybe_sie_environment;
+        })
+        | std::ranges::to<std::vector<MDMaybeSIEEnvironment>>();
 
       // auto md_staged_sie_file_paths = to_md_staged_sie_file_paths(md_posted_sie_envs);
       // auto md_staged_sie_istreams = md_cfs.defacto.to_md_istreams(md_staged_sie_fil_paths);

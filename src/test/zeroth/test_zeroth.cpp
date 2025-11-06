@@ -16,10 +16,10 @@ namespace tests::zeroth {
         {"current",R"()"}
         ,{"-1",R"()"}
       };
-      virtual CratchitFSDefacto::MDMaybeSIEIStreams to_md_sie_istreams(ConfiguredSIEFilePaths const& configured_sie_file_paths) const final {
+      virtual MDMaybeSIEIStreams to_md_sie_istreams(ConfiguredSIEFilePaths const& configured_sie_file_paths) const final {
         return configured_sie_file_paths
           | std::views::transform([this](auto const& configured_sie_file_path){
-              return CratchitFSDefacto::MDMaybeSIEIStream {
+              return MDMaybeSIEIStream {
                 .meta = {
                   .m_year_id = configured_sie_file_path.first
                   ,.m_file_path = configured_sie_file_path.second
@@ -28,7 +28,7 @@ namespace tests::zeroth {
                     posted_sies_content.at(configured_sie_file_path.second))
               };
             })
-          | std::ranges::to<CratchitFSDefacto::MDMaybeSIEIStreams>();
+          | std::ranges::to<MDMaybeSIEIStreams>();
 
       }
     };
