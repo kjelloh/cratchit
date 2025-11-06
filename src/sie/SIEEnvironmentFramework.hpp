@@ -51,10 +51,14 @@ public:
 
     if (was_inserted) {
 
+      // TODO: Refactor so we can update posted_sie_files here.
+      //       This meta-hell just continues...
+      // this->meta().posted_sie_files[year_id] = ...
+
       if (this->m_sie_envs_map.contains(year_id)) {
         logger::development_trace(
-        "update_from_posted_and_staged_sie_env: Replaced existing sie for year id: {}"
-        ,year_id);
+          "update_from_posted_and_staged_sie_env: Posted updated for year id: {}"
+          ,year_id);
       }
 
       // Consolidate 'staged' with the 'now posted'

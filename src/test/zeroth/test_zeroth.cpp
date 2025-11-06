@@ -12,7 +12,7 @@ namespace tests::zeroth {
   namespace modelfw_suite {
 
     struct TestCratchitMDFileSystemDefacto : public CratchitMDFileSystem::defacto_value_type {
-      virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const final {
+      virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & final {
         static std::map<std::string,std::string> posted_sies_content{
           {"TheITfiedAB20250812_145743.se",R"(
 #GEN 20251105

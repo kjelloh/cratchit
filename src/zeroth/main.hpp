@@ -5437,7 +5437,7 @@ struct MaybeSIEStreamMeta {
 using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
 using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
 struct CratchitFSDefacto {
-  virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const {
+  virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & {
     return MDMaybeSIEIStream {
       .meta = {
           .m_year_id = configured_sie_file_path.first

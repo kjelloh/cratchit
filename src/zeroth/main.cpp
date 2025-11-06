@@ -4755,7 +4755,7 @@ namespace zeroth {
     logger::scope_logger log_raii{logger::development_trace,"model_with_posted_and_staged_env"};
 		std::ostringstream prompt{};
 
-    model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
+    auto update_result = model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
 
     model->prompt = prompt.str();
     return model;
@@ -4944,10 +4944,12 @@ namespace zeroth {
 
 	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
-    CratchitMDFileSystem md_cfs{{
+    CratchitMDFileSystem md_cfs{
+      .meta = {
         .m_root_path = cratchit_environment_file_path
-      },{
-      }};
+      }
+      ,.defacto = std::make_unique<CratchitFSDefacto>()
+    };
     return model_from_environment_and_md_filesystem(environment,md_cfs);
 	} // model_from_environment_and_files
 
