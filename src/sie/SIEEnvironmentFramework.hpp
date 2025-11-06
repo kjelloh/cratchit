@@ -13,12 +13,26 @@ OptionalSIEEnvironment sie_from_stream(std::istream& is);
 using MaybeSIEInStream = persistent::in::MaybeIStream;
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path);
 
+namespace sie {
+  using RelativeYearKey = std::string;
+  using ActualYearKey = RelativeYearKey; // Not refactored yet
+}
+
+struct MaybeSIEStreamMeta {
+  sie::RelativeYearKey m_year_id;
+  std::filesystem::path m_file_path;
+};
+using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
+using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
+using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
+MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
+
 // Replaced by SIEEnvironmentsMap::update_posted_from_file
 // OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path);
 
 class SIEEnvironmentsMap {
 public:
-  using RelativeYearKey = std::string;
+  using RelativeYearKey = sie::RelativeYearKey;
   using ActualYearKey = RelativeYearKey; // Not refactored yet
   using map_type = std::map<ActualYearKey,SIEEnvironment>;
   SIEEnvironmentsMap() = default;

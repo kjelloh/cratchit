@@ -5425,17 +5425,21 @@ namespace SKV {
 
 using ConfiguredSIEFilePath = std::pair<std::string,std::filesystem::path>;
 
+// Now in SIEEnvironmentFramework unit
+// struct MaybeSIEStreamMeta {
+//   SIEEnvironmentsMap::RelativeYearKey m_year_id;
+//   std::filesystem::path m_file_path;
+// };
+// using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
+// using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
+// using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
+// MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
+
 struct CratchitFSMeta {
   std::filesystem::path m_root_path;
   using ConfiguredSIEFilePaths = std::vector<ConfiguredSIEFilePath>;
   ConfiguredSIEFilePaths m_configured_sie_file_paths{};
 };
-struct MaybeSIEStreamMeta {
-  SIEEnvironmentsMap::RelativeYearKey m_year_id;
-  std::filesystem::path m_file_path;
-};
-using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
-using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
 struct CratchitFSDefacto {
   virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & {
     return MDMaybeSIEIStream {
@@ -5451,8 +5455,6 @@ using CratchitFSDefactoPtr = std::unique_ptr<CratchitFSDefacto>;
 using CratchitMDFileSystem = MetaDefacto<CratchitFSMeta,CratchitFSDefactoPtr>;
 
 // Environment + cratchit_environment_file_path -> Model
-using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
-MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);
 TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path);
 TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem::path cratchit_environment_file_path);

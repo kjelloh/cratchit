@@ -4435,15 +4435,16 @@ DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesy
   return result;
 }
 
-// using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
-MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream) {
-  MDMaybeSIEEnvironment result{};
-  result.defacto = md_posted_sie_istream.defacto
-    .and_then([meta = md_posted_sie_istream.meta](auto& sie_istream){
-      return sie_from_stream(sie_istream);
-    });
-  return result;
-}
+// Now in SIEENvironmentFramework unit
+// // using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
+// MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream) {
+//   MDMaybeSIEEnvironment result{};
+//   result.defacto = md_posted_sie_istream.defacto
+//     .and_then([meta = md_posted_sie_istream.meta](auto& sie_istream){
+//       return sie_from_stream(sie_istream);
+//     });
+//   return result;
+// }
 
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
   if (false) {
