@@ -5446,15 +5446,15 @@ struct CratchitFSDefacto {
   virtual persistent::in::MaybeIStream to_maybe_istream(std::filesystem::path file_path) const & {
     return persistent::in::to_maybe_istream(file_path);
   }
-  virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & {
-    return MDMaybeSIEIStream {
-      .meta = {
-          .m_year_id = configured_sie_file_path.first
-        ,.m_file_path = configured_sie_file_path.second
-      }
-      ,.defacto = persistent::in::to_maybe_istream(configured_sie_file_path.second)
-    };
-  }
+  // virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & {
+  //   return MDMaybeSIEIStream {
+  //     .meta = {
+  //         .m_year_id = configured_sie_file_path.first
+  //       ,.m_file_path = configured_sie_file_path.second
+  //     }
+  //     ,.defacto = persistent::in::to_maybe_istream(configured_sie_file_path.second)
+  //   };
+  // }
 };
 using CratchitFSDefactoPtr = std::unique_ptr<CratchitFSDefacto>;
 using CratchitMDFileSystem = MetaDefacto<CratchitFSMeta,CratchitFSDefactoPtr>;

@@ -44,17 +44,17 @@ namespace tests::zeroth {
           posted_sies_content[file_path.filename()]);
       }
 
-      virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & final {
-        std::println("TestCratchitMDFileSystemDefacto::to_md_sie_istream('{}')",configured_sie_file_path.first);
-        return MDMaybeSIEIStream {
-          .meta = {
-            .m_year_id = configured_sie_file_path.first
-            ,.m_file_path = configured_sie_file_path.second
-          }
-          ,.defacto = persistent::in::from_string(
-              posted_sies_content[configured_sie_file_path.second.filename()])
-        };
-      }
+      // virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & final {
+      //   std::println("TestCratchitMDFileSystemDefacto::to_md_sie_istream('{}')",configured_sie_file_path.first);
+      //   return MDMaybeSIEIStream {
+      //     .meta = {
+      //       .m_year_id = configured_sie_file_path.first
+      //       ,.m_file_path = configured_sie_file_path.second
+      //     }
+      //     ,.defacto = persistent::in::from_string(
+      //         posted_sies_content[configured_sie_file_path.second.filename()])
+      //   };
+      // }
     };
 
     CratchitMDFileSystem::Defacto to_test_cfs_defacto() {

@@ -123,14 +123,14 @@ MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
 }
 
 // using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
-MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream) {
-  MDMaybeSIEEnvironment result{};
-  result.defacto = md_posted_sie_istream.defacto
-    .and_then([meta = md_posted_sie_istream.meta](auto& sie_istream){
-      return sie_from_stream(sie_istream);
-    });
-  return result;
-}
+// MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream) {
+//   MDMaybeSIEEnvironment result{};
+//   result.defacto = md_posted_sie_istream.defacto
+//     .and_then([meta = md_posted_sie_istream.meta](auto& sie_istream){
+//       return sie_from_stream(sie_istream);
+//     });
+//   return result;
+// }
 
 // OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
 //   if (false) {

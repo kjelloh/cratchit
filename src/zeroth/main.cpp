@@ -4926,18 +4926,6 @@ namespace zeroth {
       prompt << NL << "END REFACTORED posted SIE digest";
 
     }
-    // else {
-    //   // Before refactored
-
-    //   // Work around const& md_cfs immutable meta
-    //   // NOTE: This mutates teh value also at the caller site. But for now this should be safe...
-    //   const_cast<CratchitMDFileSystem&>(md_cfs).meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
-    //   model = model_with_posted_sie_files(
-    //     std::move(model)
-    //     ,md_cfs
-    //   );
-    //   prompt << model->prompt;
-    // }
 
     model = model_with_dotas_from_sie_envs(std::move(model));
     prompt << model->prompt;

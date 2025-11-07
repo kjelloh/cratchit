@@ -14,18 +14,18 @@ namespace sie {
   using RelativeYearKey = std::string;
 }
 
-struct MaybeSIEStreamMeta {
-  sie::RelativeYearKey m_year_id;
-  std::filesystem::path m_file_path;
-};
-using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
-using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
+// struct MaybeSIEStreamMeta {
+//   sie::RelativeYearKey m_year_id;
+//   std::filesystem::path m_file_path;
+// };
+// using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
+// using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
 
 BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
 OptionalSIEEnvironment sie_from_stream(std::istream& is);
 
-using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
-MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
+// using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
+// MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
 
 // Replaced by SIEEnvironmentsMap::update_posted_from_file
 // OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path);
