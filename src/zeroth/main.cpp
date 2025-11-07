@@ -2896,53 +2896,36 @@ Cmd Updater::operator()(Command const& command) {
           sie::RelativeYearKey year_key{"current"};
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
 
-          auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
-            .and_then([](auto& istream){
-              return sie_from_stream(istream);
-            })
-            .and_then([this,year_key](auto const& sie_env){
-              auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
-                .and_then([](auto& istream){
-                  return sie_from_stream(istream);
-                })
-                .value_or(SIEEnvironment{sie_env.fiscal_year()});
+          // TODO: Considert a way to refactor the following scope into a helper function
+          //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
+          {
+            // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
+            auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+              .and_then([](auto& istream){
+                return sie_from_stream(istream);
+              })
+              .and_then([this,year_key](auto const& sie_env){
+                auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                  .and_then([](auto& istream){
+                    return sie_from_stream(istream);
+                  })
+                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
 
-              return model->sie_env_map.update_from_posted_and_staged_sie_env(
-                 year_key
-                ,sie_env
-                ,staged_sie_env);
+                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                  year_key
+                  ,sie_env
+                  ,staged_sie_env);
 
-            });
+              });
 
-          if (update_posted_result) {
-            model->posted_sie_files[year_key] = *sie_file_path;
-            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result.value());
+            if (update_posted_result) {
+              model->posted_sie_files[year_key] = *sie_file_path;
+              prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result.value());
+            }
+            else {
+              prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
+            }
           }
-          else {
-            prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
-          }
-
-          // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
-          //   model->sie_env_map["current"] = std::move(*sie_env);
-          //   // Update the list of staged entries
-          //   if (auto sse = sie_from_sie_file(model->sie_env_map["current"].staged_sie_file_path())) {
-          //     // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
-          //     //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
-          //     auto staged = model->sie_env_map["current"].stage(*sse);
-          //     auto unposted = model->sie_env_map["current"].unposted();
-          //     if (unposted.size() > 0) {
-          //       prompt << "\n<UNPOSTED>";
-          //       prompt << unposted;
-          //     }
-          //     else {
-          //       prompt << "\nAll staged entries are now posted OK";
-          //     }
-          //   }
-          // }
-          // else {
-          //   // failed to parse sie-file into an SIE Environment
-          //   prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
-          // }
         }
         else if (ast[1] == "-types") {
           // Group on Type Topology
@@ -3004,31 +2987,37 @@ Cmd Updater::operator()(Command const& command) {
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
 
-          auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
-            .and_then([](auto& istream){
-              return sie_from_stream(istream);
-            })
-            .and_then([this,year_key](auto const& sie_env){
-              auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
-                .and_then([](auto& istream){
-                  return sie_from_stream(istream);
-                })
-                .value_or(SIEEnvironment{sie_env.fiscal_year()});
+          // TODO: Considert a way to refactor the following scope into a helper function
+          //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
+          {
+            // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
+            auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+              .and_then([](auto& istream){
+                return sie_from_stream(istream);
+              })
+              .and_then([this,year_key](auto const& sie_env){
+                auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                  .and_then([](auto& istream){
+                    return sie_from_stream(istream);
+                  })
+                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
 
-              return model->sie_env_map.update_from_posted_and_staged_sie_env(
-                 year_key
-                ,sie_env
-                ,staged_sie_env);
+                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                  year_key
+                  ,sie_env
+                  ,staged_sie_env);
 
-            });
+              });
 
-          if (update_posted_result) {
-            model->posted_sie_files[year_key] = *sie_file_path;
-            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result.value());
+            if (update_posted_result) {
+              model->posted_sie_files[year_key] = *sie_file_path;
+              prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result.value());
+            }
+            else {
+              prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
+            }
           }
-          else {
-            prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
-          }
+
 
           // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
           //   model->sie_env_map[year_key] = std::move(*sie_env);
@@ -4896,83 +4885,42 @@ namespace zeroth {
 
       auto configured_posted_sie_file_paths = to_configured_posted_sie_file_paths(environment);
 
-      // // Use CratchitMDFileSystem to project paths to meta-defacto maybe istreams
-      auto md_posted_sie_istreams = configured_posted_sie_file_paths
-        | std::views::transform([&md_cfs,&prompt](auto const& configured_sie_file_path) {
+      std::ranges::for_each(
+        configured_posted_sie_file_paths
+        ,[&](auto const& id_path_pair){
+          auto const& [year_id,sie_file_path] = id_path_pair;
 
-            prompt << NL << std::format(
-               "\n\tconfigured_sie_file_path: {}:{}"
-              ,configured_sie_file_path.first
-              ,configured_sie_file_path.second.string());
-
-            return md_cfs.defacto->to_md_sie_istream(configured_sie_file_path);
-
-          })
-        | std::ranges::to<MDMaybeSIEIStreams>();
-
-      prompt << NL << std::format("md_posted_sie_istreams size:{}",md_posted_sie_istreams.size());
-
-      // // Create meta-defacto sie environments
-      auto md_posted_sie_envs = md_posted_sie_istreams
-        | std::views::transform([&prompt](auto const& md_sie_stream){
-          auto md_maybe_sie_environment = MDMaybeSIEEnvironment{
-             .meta = md_sie_stream.meta
-            ,.defacto = md_sie_stream.defacto
+          // TODO: Considert a way to refactor the following scope into a helper function
+          //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
+          {
+            // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
+            auto update_posted_result = md_cfs.defacto->to_maybe_istream(sie_file_path)
               .and_then([](auto& istream){
-                  return sie_from_stream(istream);
-                })
-          };
-          if (md_maybe_sie_environment.defacto) {
-            prompt << NL << std::format(
-               "Read posted SIE[{}]: from:{} -> entry count:{}"
-              ,md_maybe_sie_environment.meta.m_year_id
-              ,md_maybe_sie_environment.meta.m_file_path.string()
-              ,md_maybe_sie_environment.defacto->journals_entry_count());
-          }
-          else {
-            prompt << NL << std::format(
-               "FAILED to read posted SIE[{}]: from:{}"
-              ,md_maybe_sie_environment.meta.m_year_id
-              ,md_maybe_sie_environment.meta.m_file_path.string());
-          }
-          return md_maybe_sie_environment;
-        })
-        | std::ranges::to<std::vector<MDMaybeSIEEnvironment>>();
+                return sie_from_stream(istream);
+              })
+              .and_then([&md_cfs,&model,year_id](auto const& sie_env){
+                auto staged_sie_env = md_cfs.defacto->to_maybe_istream(sie_env.staged_sie_file_path())
+                  .and_then([](auto& istream){
+                    return sie_from_stream(istream);
+                  })
+                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
 
-      prompt << NL << std::format("md_posted_sie_envs size:{}",md_posted_sie_envs.size());
+                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                  year_id
+                  ,sie_env
+                  ,staged_sie_env);
 
-      std::ranges::for_each(md_posted_sie_envs,[&prompt,&model,&md_cfs](auto& md_sie_env){
-        if (md_sie_env.defacto) {
-          auto staged_sie_file_path = md_sie_env.defacto->staged_sie_file_path();
-          ConfiguredSIEFilePath staged_sie_file_config{
-             md_sie_env.meta.m_year_id
-            ,staged_sie_file_path
-          };
+              });
 
-          auto md_staged_sie_istream = md_cfs.defacto->to_md_sie_istream(staged_sie_file_config);
-          SIEEnvironment staged_sie_env = md_staged_sie_istream.defacto
-            .and_then([](auto& istream) {
-              return sie_from_stream(istream);
-            })
-            .value_or(SIEEnvironment{md_sie_env.defacto->fiscal_year()});
-
-          if (md_staged_sie_istream.defacto) {
-
-            auto model_with_result = model_with_posted_and_staged_env(
-               std::move(model)
-              ,md_sie_env.meta.m_year_id
-              ,md_sie_env.defacto.value()
-              ,staged_sie_env);
-
-            if (model_with_result.second) {
-              model = std::move(model_with_result.first);
-              model->posted_sie_files[md_sie_env.meta.m_year_id] = md_sie_env.meta.m_file_path;
+            if (update_posted_result) {
+              model->posted_sie_files[year_id] = sie_file_path;
+              prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
             }
-
-            prompt << model->prompt;
-
+            else {
+              prompt << NL << "Sorry, Failed to update posted SIE from " << sie_file_path;
+            }
           }
-        }
+
       });
 
       prompt << NL << "END REFACTORED posted SIE digest";
