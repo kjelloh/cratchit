@@ -2895,14 +2895,28 @@ Cmd Updater::operator()(Command const& command) {
           //    "current" is a place holder (no checks against actual current date and time)
           sie::RelativeYearKey year_key{"current"};
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
-          // auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
-          auto md_maybe_istream = persistent::in::to_md_maybe_istream(*sie_file_path);
-          auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
-             year_key
-            ,md_maybe_istream);
-          if (update_posted_result.second) {
+
+          auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+            .and_then([](auto& istream){
+              return sie_from_stream(istream);
+            })
+            .and_then([this,year_key](auto const& sie_env){
+              auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                .and_then([](auto& istream){
+                  return sie_from_stream(istream);
+                })
+                .value_or(SIEEnvironment{sie_env.fiscal_year()});
+
+              return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                 year_key
+                ,sie_env
+                ,staged_sie_env);
+
+            });
+
+          if (update_posted_result) {
             model->posted_sie_files[year_key] = *sie_file_path;
-            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result.value());
           }
           else {
             prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
@@ -2989,14 +3003,28 @@ Cmd Updater::operator()(Command const& command) {
         }
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
-          // auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
-          auto md_maybe_istream = persistent::in::to_md_maybe_istream(*sie_file_path);
-          auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
-             year_key
-            ,md_maybe_istream);
-          if (update_posted_result.second) {
+
+          auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+            .and_then([](auto& istream){
+              return sie_from_stream(istream);
+            })
+            .and_then([this,year_key](auto const& sie_env){
+              auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                .and_then([](auto& istream){
+                  return sie_from_stream(istream);
+                })
+                .value_or(SIEEnvironment{sie_env.fiscal_year()});
+
+              return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                 year_key
+                ,sie_env
+                ,staged_sie_env);
+
+            });
+
+          if (update_posted_result) {
             model->posted_sie_files[year_key] = *sie_file_path;
-            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result.value());
           }
           else {
             prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
@@ -4682,55 +4710,47 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,sie::RelativeYearKey year_id
-    ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results) {
+    ,SIEEnvironment::EnvironmentChangeResults const& change_results) {
 
 		std::ostringstream prompt{};
 
-    if (!change_results.second) {
-      // Insert/assign posted failed
-      prompt << std::format("Sorry, Update posted for year id:{} failed",year_id);
-    }
-    else {
-      if (std::ranges::any_of(
-        change_results.first
-        ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
-        // At least one element is “false”
-        prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
-        if (model->posted_sie_files.contains(year_id)) {
-          prompt << std::format(
-            "\nEntries in sie-file:{} overrides values in cratchit staged entries"
-            // ,model->sie_env_map[year_id].source_sie_file_path().string());
-            ,model->posted_sie_files.at(year_id).string());
-        }
-        else {
-          logger::design_insufficiency(
-              "model_from_environment_and_files: Expected posted_sie_files[{}] to exist for failed staging of entries"
-            ,year_id);
-        }
-      }
-
-      std::ranges::for_each(
-        change_results.first
-        ,[&prompt](auto const& entry_result) {
-            if (!entry_result) {
-              prompt << std::format(
-                "\nCONFLICTED! : No longer valid entry {}"
-                ,to_string(entry_result.md_entry()));
-            }
-          }
-      );
-
-      auto unposted = model->sie_env_map[year_id].unposted();
-      if (unposted.size() > 0) {
-        prompt << "\n year id:" << year_id << " - STAGED for posting";
-        prompt << "\n" << unposted;
+    if (std::ranges::any_of(
+      change_results
+      ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
+      // At least one element is “false”
+      prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
+      if (model->posted_sie_files.contains(year_id)) {
+        prompt << std::format(
+          "\nEntries in sie-file:{} overrides values in cratchit staged entries"
+          // ,model->sie_env_map[year_id].source_sie_file_path().string());
+          ,model->posted_sie_files.at(year_id).string());
       }
       else {
-        prompt << "\n year id:" << year_id << " - ALL POSTED OK";
+        logger::design_insufficiency(
+            "model_from_environment_and_files: Expected posted_sie_files[{}] to exist for failed staging of entries"
+          ,year_id);
       }
-
     }
 
+    std::ranges::for_each(
+      change_results
+      ,[&prompt](auto const& entry_result) {
+          if (!entry_result) {
+            prompt << std::format(
+              "\nCONFLICTED! : No longer valid entry {}"
+              ,to_string(entry_result.md_entry()));
+          }
+        }
+    );
+
+    auto unposted = model->sie_env_map[year_id].unposted();
+    if (unposted.size() > 0) {
+      prompt << "\n year id:" << year_id << " - STAGED for posting";
+      prompt << "\n" << unposted;
+    }
+    else {
+      prompt << "\n year id:" << year_id << " - ALL POSTED OK";
+    }
 
     return prompt.str();
   }
@@ -4767,15 +4787,15 @@ namespace zeroth {
 		std::ostringstream prompt{};
 
     auto update_posted_result = model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
-    if (update_posted_result.second) {
-      prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result);
+    if (update_posted_result) {
+      prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
     }
     else {
       prompt << NL << "Sorry, Failed to update posted SIE for year id: " << year_id;
     }
 
     model->prompt = prompt.str();
-    return {std::move(model),update_posted_result.second};
+    return {std::move(model),update_posted_result.has_value()};
   }
 
   Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_cfs) {
@@ -4790,18 +4810,33 @@ namespace zeroth {
         configured_sie_file_paths
         ,[&](auto const& id_path_pair){
           auto const& [year_id,sie_file_path] = id_path_pair;
-          // auto update_posted_result = model->sie_env_map.update_posted_from_file(year_id,sie_file_path);
-          auto md_maybe_istream = persistent::in::to_md_maybe_istream(sie_file_path);
-          auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
-             year_id
-            ,md_maybe_istream);
-          if (update_posted_result.second) {
+
+          auto update_posted_result = persistent::in::to_maybe_istream(sie_file_path)
+            .and_then([](auto& istream){
+              return sie_from_stream(istream);
+            })
+            .and_then([&model,year_id](auto const& sie_env){
+              auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                .and_then([](auto& istream){
+                  return sie_from_stream(istream);
+                })
+                .value_or(SIEEnvironment{sie_env.fiscal_year()});
+
+              return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                 year_id
+                ,sie_env
+                ,staged_sie_env);
+
+            });
+
+          if (update_posted_result) {
             model->posted_sie_files[year_id] = sie_file_path;
-            prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result);
+            prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
           }
           else {
             prompt << NL << "Sorry, Failed to update posted SIE from " << sie_file_path;
           }
+
       });
     }
 
