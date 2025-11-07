@@ -14,21 +14,8 @@ namespace sie {
   using RelativeYearKey = std::string;
 }
 
-// struct MaybeSIEStreamMeta {
-//   sie::RelativeYearKey m_year_id;
-//   std::filesystem::path m_file_path;
-// };
-// using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
-// using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
-
 BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
 OptionalSIEEnvironment sie_from_stream(std::istream& is);
-
-// using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
-// MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
-
-// Replaced by SIEEnvironmentsMap::update_posted_from_file
-// OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path);
 
 class SIEEnvironmentsMap {
 public:
@@ -82,47 +69,6 @@ public:
 
     return result;
   }
-
-  // Redlaced with update_from_posted_and_staged_sie_env
-  // UpdateFromPostedResult update_posted_from_md_istream(
-  //    sie::RelativeYearKey year_id
-  //   ,persistent::in::MDMaybeIFStream& md_maybe_istream) {
-
-  //   logger::scope_logger log_raii{
-  //      logger::development_trace
-  //     ,std::format(
-  //        "update_posted_from_md_istream: year_id:{}, meta.file_path:{}"
-  //       ,year_id
-  //       ,md_maybe_istream.meta.file_path.string())
-  //   };
-
-  //   auto const& sie_file_path = md_maybe_istream.meta.file_path;
-
-  //   UpdateFromPostedResult result{};
-
-  //   auto& maybe_posted_sie_istream = md_maybe_istream.defacto;
-  //   if (maybe_posted_sie_istream) {
-  //     if (auto maybe_posted_sie_env = sie_from_stream(maybe_posted_sie_istream.value())) {
-  //       auto const& posted_sie_env = maybe_posted_sie_env.value();
-
-  //       if (auto maybe_staged_sie_stream = to_maybe_sie_istream(posted_sie_env.staged_sie_file_path())) {
-  //         if (auto maybe_staged_sie = sie_from_stream(maybe_staged_sie_stream.value())) {
-  //           result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,maybe_staged_sie.value());
-  //         }
-  //         else {
-  //           result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,SIEEnvironment{posted_sie_env.fiscal_year()});
-  //         }
-  //       }
-  //       else {
-  //           result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,SIEEnvironment{posted_sie_env.fiscal_year()});
-  //       }
-  //     }
-  //   }
-  //   else {
-  //     // Should not happen
-  //   }
-  //   return result;
-  // }
 
   auto begin() const {return m_sie_envs_map.begin();}
   auto end() const {return m_sie_envs_map.end();}

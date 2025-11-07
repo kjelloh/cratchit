@@ -4462,17 +4462,6 @@ DateOrderedTaggedAmountsContainer dotas_from_account_statement_files(std::filesy
   return result;
 }
 
-// Now in SIEENvironmentFramework unit
-// // using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
-// MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream) {
-//   MDMaybeSIEEnvironment result{};
-//   result.defacto = md_posted_sie_istream.defacto
-//     .and_then([meta = md_posted_sie_istream.meta](auto& sie_istream){
-//       return sie_from_stream(sie_istream);
-//     });
-//   return result;
-// }
-
 DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
   if (false) {
     std::cout << "\ndotas_from_environment_and_account_statement_files" << std::flush;
@@ -4786,53 +4775,6 @@ namespace zeroth {
     model->prompt = prompt.str();
     return {std::move(model),update_posted_result.has_value()};
   }
-
-  // Replaced with model_with_posted_and_staged_env
-  // Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_cfs) {
-  //   logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(md_cfs)"};
-
-  //   auto const& configured_sie_file_paths = md_cfs.meta.m_configured_sie_file_paths;
-
-	// 	std::ostringstream prompt{};
-
-  //   {
-  //     std::ranges::for_each(
-  //       configured_sie_file_paths
-  //       ,[&](auto const& id_path_pair){
-  //         auto const& [year_id,sie_file_path] = id_path_pair;
-
-  //         auto update_posted_result = persistent::in::to_maybe_istream(sie_file_path)
-  //           .and_then([](auto& istream){
-  //             return sie_from_stream(istream);
-  //           })
-  //           .and_then([&model,year_id](auto const& sie_env){
-  //             auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
-  //               .and_then([](auto& istream){
-  //                 return sie_from_stream(istream);
-  //               })
-  //               .value_or(SIEEnvironment{sie_env.fiscal_year()});
-
-  //             return model->sie_env_map.update_from_posted_and_staged_sie_env(
-  //                year_id
-  //               ,sie_env
-  //               ,staged_sie_env);
-
-  //           });
-
-  //         if (update_posted_result) {
-  //           model->posted_sie_files[year_id] = sie_file_path;
-  //           prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
-  //         }
-  //         else {
-  //           prompt << NL << "Sorry, Failed to update posted SIE from " << sie_file_path;
-  //         }
-
-  //     });
-  //   }
-
-  //   model->prompt = prompt.str();
-  //   return model;
-  // }
 
   Model model_with_dotas_from_sie_envs(Model model) {
 
