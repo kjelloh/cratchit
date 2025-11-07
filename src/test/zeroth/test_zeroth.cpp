@@ -11,10 +11,8 @@ namespace tests::zeroth {
 
   namespace modelfw_suite {
 
-    struct TestCratchitMDFileSystemDefacto : public CratchitMDFileSystem::defacto_value_type {
-      virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & final {
         static std::map<std::string,std::string> posted_sies_content{
-          {"TheITfiedAB20250812_145743.se",R"(
+          { "TheITfiedAB20250812_145743.se", R"(
 #GEN 20251105
 #RAR 0 20250501 20260430
 
@@ -34,11 +32,19 @@ namespace tests::zeroth {
 #TRANS 1920 {} 1997 "" "" 0
 }
           )"}
-          ,{"cratchit_2025-05-01_2026-04-30.se",R"(
+          ,{"cratchit_2025-05-01_2026-04-30.se", R"(
 #GEN 20251105
 #RAR 0 20250501 20260430
           )"}
         };
+
+    struct TestCratchitMDFileSystemDefacto : public CratchitMDFileSystem::defacto_value_type {    
+      virtual persistent::in::MaybeIStream to_maybe_istream(std::filesystem::path file_path) const & final {
+        return persistent::in::from_string(
+          posted_sies_content[file_path.filename()]);
+      }
+
+      virtual MDMaybeSIEIStream to_md_sie_istream(ConfiguredSIEFilePath const& configured_sie_file_path) const & final {
         std::println("TestCratchitMDFileSystemDefacto::to_md_sie_istream('{}')",configured_sie_file_path.first);
         return MDMaybeSIEIStream {
           .meta = {
