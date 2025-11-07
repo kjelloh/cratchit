@@ -4798,51 +4798,52 @@ namespace zeroth {
     return {std::move(model),update_posted_result.has_value()};
   }
 
-  Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_cfs) {
-    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(md_cfs)"};
+  // Replaced with model_with_posted_and_staged_env
+  // Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_cfs) {
+  //   logger::scope_logger log_raii{logger::development_trace,"model_with_posted_sie_files(md_cfs)"};
 
-    auto const& configured_sie_file_paths = md_cfs.meta.m_configured_sie_file_paths;
+  //   auto const& configured_sie_file_paths = md_cfs.meta.m_configured_sie_file_paths;
 
-		std::ostringstream prompt{};
+	// 	std::ostringstream prompt{};
 
-    {
-      std::ranges::for_each(
-        configured_sie_file_paths
-        ,[&](auto const& id_path_pair){
-          auto const& [year_id,sie_file_path] = id_path_pair;
+  //   {
+  //     std::ranges::for_each(
+  //       configured_sie_file_paths
+  //       ,[&](auto const& id_path_pair){
+  //         auto const& [year_id,sie_file_path] = id_path_pair;
 
-          auto update_posted_result = persistent::in::to_maybe_istream(sie_file_path)
-            .and_then([](auto& istream){
-              return sie_from_stream(istream);
-            })
-            .and_then([&model,year_id](auto const& sie_env){
-              auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
-                .and_then([](auto& istream){
-                  return sie_from_stream(istream);
-                })
-                .value_or(SIEEnvironment{sie_env.fiscal_year()});
+  //         auto update_posted_result = persistent::in::to_maybe_istream(sie_file_path)
+  //           .and_then([](auto& istream){
+  //             return sie_from_stream(istream);
+  //           })
+  //           .and_then([&model,year_id](auto const& sie_env){
+  //             auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+  //               .and_then([](auto& istream){
+  //                 return sie_from_stream(istream);
+  //               })
+  //               .value_or(SIEEnvironment{sie_env.fiscal_year()});
 
-              return model->sie_env_map.update_from_posted_and_staged_sie_env(
-                 year_id
-                ,sie_env
-                ,staged_sie_env);
+  //             return model->sie_env_map.update_from_posted_and_staged_sie_env(
+  //                year_id
+  //               ,sie_env
+  //               ,staged_sie_env);
 
-            });
+  //           });
 
-          if (update_posted_result) {
-            model->posted_sie_files[year_id] = sie_file_path;
-            prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
-          }
-          else {
-            prompt << NL << "Sorry, Failed to update posted SIE from " << sie_file_path;
-          }
+  //         if (update_posted_result) {
+  //           model->posted_sie_files[year_id] = sie_file_path;
+  //           prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
+  //         }
+  //         else {
+  //           prompt << NL << "Sorry, Failed to update posted SIE from " << sie_file_path;
+  //         }
 
-      });
-    }
+  //     });
+  //   }
 
-    model->prompt = prompt.str();
-    return model;
-  }
+  //   model->prompt = prompt.str();
+  //   return model;
+  // }
 
   Model model_with_dotas_from_sie_envs(Model model) {
 
@@ -4889,7 +4890,7 @@ namespace zeroth {
     Model model = model_from_environment(environment);
     prompt << model->prompt;
 
-    if (true) {
+    {
       // Refactored 251105
       prompt << NL << "BEGIN REFACTORED posted SIE digest";
 
@@ -4977,18 +4978,18 @@ namespace zeroth {
       prompt << NL << "END REFACTORED posted SIE digest";
 
     }
-    else {
-      // Before refactored
+    // else {
+    //   // Before refactored
 
-      // Work around const& md_cfs immutable meta
-      // NOTE: This mutates teh value also at the caller site. But for now this should be safe...
-      const_cast<CratchitMDFileSystem&>(md_cfs).meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
-      model = model_with_posted_sie_files(
-        std::move(model)
-        ,md_cfs
-      );
-      prompt << model->prompt;
-    }
+    //   // Work around const& md_cfs immutable meta
+    //   // NOTE: This mutates teh value also at the caller site. But for now this should be safe...
+    //   const_cast<CratchitMDFileSystem&>(md_cfs).meta.m_configured_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+    //   model = model_with_posted_sie_files(
+    //     std::move(model)
+    //     ,md_cfs
+    //   );
+    //   prompt << model->prompt;
+    // }
 
     model = model_with_dotas_from_sie_envs(std::move(model));
     prompt << model->prompt;
