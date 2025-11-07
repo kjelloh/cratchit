@@ -2893,15 +2893,20 @@ Cmd Updater::operator()(Command const& command) {
         else if (auto sie_file_path = path_to_existing_file(ast[1])) {
           // #1 command '-sie file-name' -> register "current" SIE file as provided name
           //    "current" is a place holder (no checks against actual current date and time)
-          SIEEnvironmentsMap::RelativeYearKey year_key{"current"};
+          sie::RelativeYearKey year_key{"current"};
           prompt << "\nImporting SIE to current year from " << *sie_file_path;
           // auto update_posted_result = model->sie_env_map.update_posted_from_file(year_key,*sie_file_path);
           auto md_maybe_istream = persistent::in::to_md_maybe_istream(*sie_file_path);
           auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
              year_key
             ,md_maybe_istream);
-
-          prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+          if (update_posted_result.second) {
+            model->posted_sie_files[year_key] = *sie_file_path;
+            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+          }
+          else {
+            prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
+          }
 
           // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
           //   model->sie_env_map["current"] = std::move(*sie_env);
@@ -2989,8 +2994,13 @@ Cmd Updater::operator()(Command const& command) {
           auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
              year_key
             ,md_maybe_istream);
-
-          prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+          if (update_posted_result.second) {
+            model->posted_sie_files[year_key] = *sie_file_path;
+            prompt << zeroth::to_user_cli_feedback(model,year_key,update_posted_result);
+          }
+          else {
+            prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
+          }
 
           // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
           //   model->sie_env_map[year_key] = std::move(*sie_env);
@@ -4671,7 +4681,7 @@ namespace zeroth {
 
   std::string to_user_cli_feedback(
      Model const& model
-    ,SIEEnvironmentsMap::RelativeYearKey year_id
+    ,sie::RelativeYearKey year_id
     ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results) {
 
 		std::ostringstream prompt{};
@@ -4686,11 +4696,11 @@ namespace zeroth {
         ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
         // At least one element is “false”
         prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
-        if (model->sie_env_map.meta().posted_sie_files.contains(year_id)) {
+        if (model->posted_sie_files.contains(year_id)) {
           prompt << std::format(
             "\nEntries in sie-file:{} overrides values in cratchit staged entries"
             // ,model->sie_env_map[year_id].source_sie_file_path().string());
-            ,model->sie_env_map.meta().posted_sie_files.at(year_id).string());
+            ,model->posted_sie_files.at(year_id).string());
         }
         else {
           logger::design_insufficiency(
@@ -4747,19 +4757,25 @@ namespace zeroth {
 		return model;
   }
 
-  Model model_with_posted_and_staged_env(
+  std::pair<Model,bool> model_with_posted_and_staged_env(
      Model model
-    ,SIEEnvironmentsMap::RelativeYearKey year_id
+    ,sie::RelativeYearKey year_id
     ,SIEEnvironment const& posted_env
     ,SIEEnvironment const& staged_env) {
 
     logger::scope_logger log_raii{logger::development_trace,"model_with_posted_and_staged_env"};
 		std::ostringstream prompt{};
 
-    auto update_result = model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
+    auto update_posted_result = model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
+    if (update_posted_result.second) {
+      prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result);
+    }
+    else {
+      prompt << NL << "Sorry, Failed to update posted SIE for year id: " << year_id;
+    }
 
     model->prompt = prompt.str();
-    return model;
+    return {std::move(model),update_posted_result.second};
   }
 
   Model model_with_posted_sie_files(Model model,CratchitMDFileSystem const& md_cfs) {
@@ -4779,7 +4795,13 @@ namespace zeroth {
           auto update_posted_result = model->sie_env_map.update_posted_from_md_istream(
              year_id
             ,md_maybe_istream);
-          prompt << to_user_cli_feedback(model,year_id,update_posted_result);
+          if (update_posted_result.second) {
+            model->posted_sie_files[year_id] = sie_file_path;
+            prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result);
+          }
+          else {
+            prompt << NL << "Sorry, Failed to update posted SIE from " << sie_file_path;
+          }
       });
     }
 
@@ -4900,11 +4922,16 @@ namespace zeroth {
 
           if (md_staged_sie_istream.defacto) {
 
-            model = model_with_posted_and_staged_env(
+            auto model_with_result = model_with_posted_and_staged_env(
                std::move(model)
               ,md_sie_env.meta.m_year_id
               ,md_sie_env.defacto.value()
               ,staged_sie_env);
+
+            if (model_with_result.second) {
+              model = std::move(model_with_result.first);
+              model->posted_sie_files[md_sie_env.meta.m_year_id] = md_sie_env.meta.m_file_path;
+            }
 
             prompt << model->prompt;
 
@@ -5025,8 +5052,8 @@ namespace zeroth {
     
     // Assemble sie file paths from existing sie environments
 		std::string sev = std::accumulate(
-       model->sie_env_map.meta().posted_sie_files.begin()
-      ,model->sie_env_map.meta().posted_sie_files.end()
+       model->posted_sie_files.begin()
+      ,model->posted_sie_files.end()
       ,std::string{}
       ,[](auto acc,auto const& entry) {
         std::ostringstream os{};

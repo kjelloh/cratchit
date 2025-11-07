@@ -7,15 +7,11 @@
 #include <filesystem>
 #include <expected>
 
-BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
-OptionalSIEEnvironment sie_from_stream(std::istream& is);
-
 using MaybeSIEInStream = persistent::in::MaybeIStream;
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path);
 
 namespace sie {
   using RelativeYearKey = std::string;
-  using ActualYearKey = RelativeYearKey; // Not refactored yet
 }
 
 struct MaybeSIEStreamMeta {
@@ -24,6 +20,10 @@ struct MaybeSIEStreamMeta {
 };
 using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
 using MDMaybeSIEIStreams = std::vector<MDMaybeSIEIStream>;
+
+BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
+OptionalSIEEnvironment sie_from_stream(std::istream& is);
+
 using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
 MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
 
@@ -32,20 +32,24 @@ MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream);
 
 class SIEEnvironmentsMap {
 public:
-  using RelativeYearKey = sie::RelativeYearKey;
-  using ActualYearKey = RelativeYearKey; // Not refactored yet
+  // TODO: Consider to design a domain using an actual FiscalYear as key?
+  //       SIE files are based on relative key 0,-1,-2.
+  //       Cratchit may benefit from operating in FiscalYear defigned domain?
+  using ActualYearKey = sie::RelativeYearKey;
   using map_type = std::map<ActualYearKey,SIEEnvironment>;
+
   SIEEnvironmentsMap() = default;
 
-  struct Meta {
-    std::map<RelativeYearKey,std::filesystem::path> posted_sie_files{};
-  };
-
-  Meta const& meta() const {return m_meta;}
+  // Moved to Model
+  // struct Meta {
+  //   std::map<RelativeYearKey,std::filesystem::path> posted_sie_files{};
+  // };
+  // Meta const& meta() const {return m_meta;}
 
   using UpdateFromPostedResult = std::pair<SIEEnvironment::EnvironmentChangeResults,bool>;
+  
   UpdateFromPostedResult update_from_posted_and_staged_sie_env(
-     RelativeYearKey year_id
+     sie::RelativeYearKey year_id
     ,SIEEnvironment const& posted_sie_env
     ,SIEEnvironment const& staged_sie_env) {
 
@@ -61,36 +65,26 @@ public:
     UpdateFromPostedResult result{};
 
     auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(posted_sie_env));
-    result.second = was_inserted;
+
+    result.first = iter->second.stage(staged_sie_env);
+    result.second = true; // insert_or_assign never fails (true=inserted, false = assigned)
 
     if (was_inserted) {
-
-      // TODO: Refactor so we can update posted_sie_files here.
-      //       This meta-hell just continues...
-      // this->meta().posted_sie_files[year_id] = ...
-
-      if (this->m_sie_envs_map.contains(year_id)) {
-        logger::development_trace(
-          "update_from_posted_and_staged_sie_env: Posted updated for year id: {}"
-          ,year_id);
-      }
-
-      // Consolidate 'staged' with the 'now posted'
-
-      // #2 staged_sie_file_path is the path to SIE entries NOT in "current" import
-      //    That is, asumed to be added or edited  by cratchit (and not yet known by external tool)
-      result.first = iter->second.stage(staged_sie_env);
+      logger::development_trace(
+        "update_from_posted_and_staged_sie_env: Update to *NEW* posted id: {}"
+        ,year_id);
     }
     else {
-      logger::development_trace("Insert posted FAILED");
+      // Was assigned
+      logger::development_trace(
+        "update_from_posted_and_staged_sie_env: Update to EXISTING posted id: {}"
+        ,year_id);
     }
-
     return result;
-
   }
 
   UpdateFromPostedResult update_posted_from_md_istream(
-     RelativeYearKey year_id
+     sie::RelativeYearKey year_id
     ,persistent::in::MDMaybeIFStream& md_maybe_istream) {
 
     logger::scope_logger log_raii{
@@ -122,18 +116,18 @@ public:
             result = this->update_from_posted_and_staged_sie_env(year_id,posted_sie_env,SIEEnvironment{posted_sie_env.fiscal_year()});
         }
 
-        if (result.second) {
-          // inserty/update posted ok
-          this->m_meta.posted_sie_files[year_id] = sie_file_path;
-        }
-        else {
-          logger::design_insufficiency(
-             "update_posted_from_md_istream: Failed. m_meta.posted_sie_files[{}] left unchanged:{}"
-            ,year_id
-            ,this->m_meta.posted_sie_files.contains(year_id)
-                ?this->m_meta.posted_sie_files.at(year_id).string()
-                :"null");
-        }
+        // if (result.second) {
+        //   // inserty/update posted ok
+        //   this->m_meta.posted_sie_files[year_id] = sie_file_path;
+        // }
+        // else {
+        //   logger::design_insufficiency(
+        //      "update_posted_from_md_istream: Failed. m_meta.posted_sie_files[{}] left unchanged:{}"
+        //     ,year_id
+        //     ,this->m_meta.posted_sie_files.contains(year_id)
+        //         ?this->m_meta.posted_sie_files.at(year_id).string()
+        //         :"null");
+        // }
       }
     }
     else {
@@ -164,9 +158,9 @@ public:
 
   auto begin() const {return m_sie_envs_map.begin();}
   auto end() const {return m_sie_envs_map.end();}
-  auto contains(RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
+  auto contains(sie::RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
 
-  auto& operator[](RelativeYearKey key) {
+  auto& operator[](sie::RelativeYearKey key) {
     auto iter = m_sie_envs_map.find(key);
     if (iter != m_sie_envs_map.end()) {return iter->second;}
 
@@ -204,11 +198,13 @@ public:
   }
 
 private:
-  Meta m_meta{};
+  // Replaced with posted sie files map in Model
+  // Meta m_meta{};
+
   map_type m_sie_envs_map;
 
   std::expected<ActualYearKey, std::string> to_actual_year_key(
-     RelativeYearKey relative_year_key
+     sie::RelativeYearKey relative_year_key
     ,FiscalYear current_fiscal_year) {
 
     // Old mechanism: use relative key as-is

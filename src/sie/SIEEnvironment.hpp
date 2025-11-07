@@ -24,6 +24,8 @@ public:
   SIEEnvironment(FiscalYear const& fiscal_year);
   SIEEnvironment() = delete;
 
+  SIEEnvironment& operator=(SIEEnvironment const& other) = default;
+
   // Entry API
 
   class EnvironmentChangeResult {

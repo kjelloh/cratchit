@@ -5240,7 +5240,11 @@ inline PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_
 
 class ConcreteModel {
 public:
+
+  std::map<sie::RelativeYearKey,std::filesystem::path> posted_sie_files{};
+
   lua_State* L{nullptr}; // LUA void* to its environment
+
   ~ConcreteModel() {
     if (L != nullptr) {
       lua_close(this->L);
@@ -5251,10 +5255,8 @@ public:
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
-	// BAS::MetaEntries template_candidates{};
 	BAS::TypedMetaEntries template_candidates{};
 	BAS::anonymous::AccountTransactions at_candidates{};
-	// BAS::anonymous::AccountTransaction at{};
   std::size_t at_index{};
   std::string prompt{};
 	bool quit{};
@@ -5427,7 +5429,7 @@ using ConfiguredSIEFilePath = std::pair<std::string,std::filesystem::path>;
 
 // Now in SIEEnvironmentFramework unit
 // struct MaybeSIEStreamMeta {
-//   SIEEnvironmentsMap::RelativeYearKey m_year_id;
+//   sie::RelativeYearKey m_year_id;
 //   std::filesystem::path m_file_path;
 // };
 // using MDMaybeSIEIStream = MetaDefacto<MaybeSIEStreamMeta,MaybeSIEInStream>;
@@ -5463,7 +5465,7 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
 namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
-    ,SIEEnvironmentsMap::RelativeYearKey year_id
+    ,sie::RelativeYearKey year_id
     ,SIEEnvironmentsMap::UpdateFromPostedResult const& change_results);
 	Model model_from_environment(Environment const& environment);  
 	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem const& runtime);
