@@ -5432,7 +5432,7 @@ struct CratchitFSMeta {
   // ConfiguredSIEFilePaths m_configured_sie_file_paths{};
 };
 struct CratchitFSDefacto {
-  virtual persistent::in::MaybeIStream to_maybe_istream(std::filesystem::path file_path) const & {
+  virtual persistent::in::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & {
     return persistent::in::to_maybe_istream(file_path);
   }
 };
