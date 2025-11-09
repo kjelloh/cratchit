@@ -67,10 +67,11 @@ public:
   auto end() const {return m_sie_envs_map.end();}
   auto contains(sie::RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
 
-  std::optional<SIEEnvironment*> at(sie::RelativeYearKey key) {
-    auto iter = m_sie_envs_map.find(key);
-    if (iter != m_sie_envs_map.end()) {return &iter->second;}
-    return nullptr;    
+  using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEEnvironment>;
+  MybeSIEEnvironmentRef at(sie::RelativeYearKey key) {
+      auto it = m_sie_envs_map.find(key);
+      if (it == m_sie_envs_map.end()) return {};
+      return MybeSIEEnvironmentRef::from(it->second);
   }
 
   auto& operator[](sie::RelativeYearKey key) {

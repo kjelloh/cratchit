@@ -83,8 +83,8 @@ namespace tests::zeroth {
 
       // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
       ASSERT_TRUE(model->sie_env_map.contains("current")) << std::format("Expected 'current' SIE Environment to exist ok");
-      ASSERT_TRUE(model->sie_env_map.at("current").value()->unposted().size() == 1 ) << std::format("Expected one staged SIE entry");
-      ASSERT_TRUE(model->sie_env_map.at("current").value()->journals_entry_count() == 4 ) << std::format("Expected a total of four SIE entries");
+      ASSERT_TRUE(model->sie_env_map.at("current").value().unposted().size() == 1 ) << std::format("Expected one staged SIE entry");
+      ASSERT_TRUE(model->sie_env_map.at("current").value().journals_entry_count() == 4 ) << std::format("Expected a total of four SIE entries");
     }
 
     TEST(ModelTests, Model2EnvironmentTest) {

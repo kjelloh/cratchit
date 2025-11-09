@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 
     // shoe horned in conan package manager test code (just to keep it for now)
     if (true) {
-        cratchit();
+        conan_gen_print_build_properties();
         std::vector<std::string> vec;
         vec.push_back("test_package");
         cratchit_print_vector(vec);
