@@ -27,14 +27,7 @@ public:
 
   SIEEnvironmentsMap() = default;
 
-  // Moved to Model
-  // struct Meta {
-  //   std::map<RelativeYearKey,std::filesystem::path> posted_sie_files{};
-  // };
-  // Meta const& meta() const {return m_meta;}
-
   using UpdateFromPostedResult = std::optional<SIEEnvironment::EnvironmentChangeResults>;
-
   UpdateFromPostedResult update_from_posted_and_staged_sie_env(
      sie::RelativeYearKey year_id
     ,SIEEnvironment const& posted_sie_env
@@ -73,6 +66,12 @@ public:
   auto begin() const {return m_sie_envs_map.begin();}
   auto end() const {return m_sie_envs_map.end();}
   auto contains(sie::RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
+
+  std::optional<SIEEnvironment*> at(sie::RelativeYearKey key) {
+    auto iter = m_sie_envs_map.find(key);
+    if (iter != m_sie_envs_map.end()) {return &iter->second;}
+    return nullptr;    
+  }
 
   auto& operator[](sie::RelativeYearKey key) {
     auto iter = m_sie_envs_map.find(key);

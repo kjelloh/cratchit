@@ -4822,6 +4822,79 @@ namespace zeroth {
     prompt << model->prompt;
 
     {
+      // Consider chatGPT proposed 'monadic' composition with prompt assembly as a sid-channel
+
+      {
+
+        // monadic helpers
+        // auto load_posted(CratchitMDFileSystem const& md_cfs, std::filesystem::path const& p)
+        //     -> ResultWithLog<SIEEnvironment>
+        // {
+        //     auto maybe = md_cfs.defacto->to_maybe_istream(p);
+        //     if (!maybe)
+        //         return { std::unexpected("Could not open posted SIE: " + p.string()),
+        //                 "Failed to read posted file: " + p.string() + "\n" };
+
+        //     auto sie = sie_from_stream(*maybe);
+        //     return { std::expected<SIEEnvironment, std::string>(sie),
+        //             "Loaded posted SIE: " + p.string() + "\n" };
+        // }
+
+        // auto load_staged(CratchitMDFileSystem const& md_cfs, SIEEnvironment const& posted)
+        //     -> ResultWithLog<SIEEnvironment>
+        // {
+        //     auto maybe = md_cfs.defacto->to_maybe_istream(posted.staged_sie_file_path());
+        //     if (!maybe)
+        //         return { std::expected<SIEEnvironment, std::string>(SIEEnvironment{posted.fiscal_year()}),
+        //                 "No staged SIE; using fallback.\n" };
+
+        //     auto sie = sie_from_stream(*maybe);
+        //     return { std::expected<SIEEnvironment, std::string>(sie),
+        //             "Loaded staged SIE.\n" };
+        // }
+
+        // auto update_model(Model* model, Year year_id,
+        //                   SIEEnvironment const& posted,
+        //                   SIEEnvironment const& staged)
+        //     -> ResultWithLog<UpdateResult>
+        // {
+        //     auto result = model->sie_env_map
+        //         .update_from_posted_and_staged_sie_env(year_id, posted, staged);
+
+        //     return { std::expected<UpdateResult, std::string>(result),
+        //             "Merged posted + staged for FY " + std::to_string(year_id) + "\n" };
+        // }
+
+
+        // Main pipe-line
+        // prompt << NL << "BEGIN REFACTORED posted SIE digest";
+
+        // for (auto const& [year_id, posted_path] : configured_posted_sie_file_paths) {
+
+        //     auto r =
+        //         load_posted(md_cfs, posted_path)
+        //         | [&](auto const& posted) {
+        //               return load_staged(md_cfs, posted)
+        //               | [&](auto const& staged) {
+        //                     return update_model(model, year_id, posted, staged);
+        //                 };
+        //           };
+
+        //     prompt << r.log;
+
+        //     if (r.result) {
+        //         model->posted_sie_files[year_id] = posted_path;
+        //         prompt << zeroth::to_user_cli_feedback(model, year_id, r.result.value());
+        //     } else {
+        //         prompt << NL << "Failed updating posted SIE for "
+        //               << posted_path << ": " << r.result.error();
+        //     }
+        // }
+
+        // prompt << NL << "END REFACTORED posted SIE digest";
+
+      }
+
       // Refactored 251105
       prompt << NL << "BEGIN REFACTORED posted SIE digest";
 
