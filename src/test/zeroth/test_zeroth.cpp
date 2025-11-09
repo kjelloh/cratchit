@@ -93,7 +93,7 @@ namespace tests::zeroth {
 
       {
         CratchitMDFileSystem md_cfs{
-          .meta = {.m_root_path = "*test part 1*"}
+          .meta = {.m_root_path = "*test dummy path*"}
           ,.defacto = to_test_cfs_defacto(
              szThreePostedSIE
             ,szOneNewStagedSIE)
@@ -108,12 +108,52 @@ namespace tests::zeroth {
         ASSERT_TRUE(model->sie_env_map.at("current").value().journals_entry_count() == 4 ) << std::format("Expected a total of four SIE entries");
       }
 
+    }
+
+    TEST(ModelTests, Environment2ModelSIEStageConflictsTest) {
+      logger::scope_logger log_raii{logger::development_trace,"TEST(ModelTests, Environment2ModelSIEStageConflictsTest)"};
+
+      Environment environment{};
+      // sie_file:0 "-1=sie_in/TheITfiedAB20250829_181631.se;-2=sie_in/TheITfiedAB20250828_143351.se;current=sie_in/TheITfiedAB20250812_145743.se"
+      environment["sie_file"].push_back({ // pair<size_t,map<string,string>>
+        0
+        ,{
+          //  {"-1","sie_in/TheITfiedAB20250829_181631.se"}
+          // ,{"-2","sie_in/TheITfiedAB20250828_143351.se"}
+          // ,{"current","sie_in/TheITfiedAB20250812_145743.se"}
+          {"current","sie_in/TheITfiedAB20250812_145743.se"}
+        }
+      });
+
       {
         CratchitMDFileSystem md_cfs{
-          .meta = {.m_root_path = "*test part 2*"}
+          .meta = {.m_root_path = "*test dummy path*"}
           ,.defacto = to_test_cfs_defacto(
              szThreePostedSIE
             ,szOneNowPostedStagedSIE)
+        };
+
+        auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
+        std::println("prompt:{}",model->prompt);
+
+        // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
+        auto const& sie_env = model->sie_env_map.at("current").value();
+        auto const&  unposted = sie_env.unposted();
+        auto journals_entry_count = sie_env.journals_entry_count();
+        ASSERT_TRUE(unposted.size() == 0 ) << std::format(
+           "Expected zero now staged SIE entry but encountered:{}"
+          ,unposted.size());
+        ASSERT_TRUE(journals_entry_count == 3 ) << std::format(
+           "Expected a total of three now posted SIE entries but encountered:{}"
+          ,journals_entry_count);
+      }
+
+      {
+        CratchitMDFileSystem md_cfs{
+          .meta = {.m_root_path = "*test dummy path*"}
+          ,.defacto = to_test_cfs_defacto(
+             szThreePostedSIE
+            ,szThreePostedSIE) // staged = posted (all should cancel out)
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
