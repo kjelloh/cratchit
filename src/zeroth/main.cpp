@@ -4713,7 +4713,12 @@ namespace zeroth {
     std::ranges::for_each(
       change_results
       ,[&prompt](auto const& entry_result) {
-          if (!entry_result) {
+          if (entry_result) {
+            prompt << std::format(
+              "\nOK - valid entry {}"
+              ,to_string(entry_result.md_entry()));
+          }
+          else {
             prompt << std::format(
               "\nCONFLICTED! : No longer valid entry {}"
               ,to_string(entry_result.md_entry()));
