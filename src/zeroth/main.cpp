@@ -4498,9 +4498,7 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem:
   if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
     result = maybe_tas.value();
     std::cout << "\n\tValid entries count:" << maybe_tas->size();
-    if (false) {
-      // std::filesystem::create_directories(consumed_files_path); // Returns false both if already exists and if it fails (so useless to check...I think?)
-      // std::filesystem::rename(statement_file_path,consumed_files_path / statement_file_path.filename());
+    if (true) {
       auto make_consumed_result = make_consumed(statement_file_path);
       if (make_consumed_result.second == true) {
         std::cout << "\n\tConsumed account statement file moved to " << make_consumed_result.first;
