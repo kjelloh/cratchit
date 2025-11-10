@@ -1,5 +1,13 @@
 # cratchit developers manual
 
+## git command reference (good to remember)
+
+To get a 'proper' visual feed back how branches relates to master the 'git log' with '--graph' seems to do the job and show branches 'indented' in paralell with 'matsre' as I like to have it visualised?
+
+```sh
+git log --oneline --graph --decorate --all
+```
+
 ## macOS BUILD issues
 
 At times it seems the tool-chain builds the binary with an unacceptable 'code sign'?
