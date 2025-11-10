@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had
 		os << ' ' << *had.optional.gross_account_no << ' ';
 	}
 	else {
-		os << " nnnn ";
+		os << " ?BAS? ";
 	}
 
 	os << had.heading;

@@ -3125,21 +3125,6 @@ Cmd Updater::operator()(Command const& command) {
       if (ast.size()==1) {
         prompt << to_had_listing_prompt(hads);
         model->prompt_state = PromptState::HADIndex;
-
-      // 	// Expose current hads (Heading Amount Date transaction entries) to the user
-      // 	auto& hads = model->heading_amount_date_entries;
-      // 	unsigned int index{0};
-      // 	std::vector<std::string> sHads{};
-      // 	std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index](auto const& had){
-      // 		std::stringstream os{};
-      // 		os << index++ << " " << had;
-      // 		return os.str();
-      // 	});
-      // 	prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
-      // 		acc += "\n  " + entry;
-      // 		return acc;
-      // 	});
-      // 	model->prompt_state = PromptState::HADIndex;
       }
       else if (ast.size()==2) {
         // Assume the user has entered text to macth against had Heading
