@@ -28,7 +28,7 @@ namespace WrappedCentsAmount {
     explicit CentsAmount(CentsAmount::cents_value_type cents_value)
         : m_in_cents_value{cents_value} {}
 
-    CentsAmount &operator+=(CentsAmount const &other) {
+    CentsAmount &operator+=(CentsAmount const& other) {
       this->m_in_cents_value += other.m_in_cents_value;
       return *this;
     }
@@ -38,7 +38,7 @@ namespace WrappedCentsAmount {
       return *this;
     }
 
-    CentsAmount operator+(CentsAmount const &other) const {
+    CentsAmount operator+(CentsAmount const& other) const {
       CentsAmount result{*this};
       result += other;
       return result;
@@ -48,40 +48,40 @@ namespace WrappedCentsAmount {
       return CentsAmount{-this->m_in_cents_value};
     }
 
-    auto operator<=>(CentsAmount const &other) const = default;
+    auto operator<=>(CentsAmount const& other) const = default;
 
-    bool operator!=(CentsAmount::cents_value_type const &cents_value) const {
+    bool operator!=(CentsAmount::cents_value_type const& cents_value) const {
       return not(this->m_in_cents_value == cents_value);
     }
 
-    friend CentsAmount::cents_value_type to_amount_in_cents_integer(CentsAmount const &cents_amount);
+    friend CentsAmount::cents_value_type to_amount_in_cents_integer(CentsAmount const& cents_amount);
 
   private:
     cents_value_type m_in_cents_value;
   }; // class CentsAmount
 
-  inline CentsAmount::cents_value_type to_amount_in_cents_integer(CentsAmount const &cents_amount) {
+  inline CentsAmount::cents_value_type to_amount_in_cents_integer(CentsAmount const& cents_amount) {
     return cents_amount.m_in_cents_value;
   }
 
-  inline CentsAmount abs(CentsAmount const &cents_amount) {
+  inline CentsAmount abs(CentsAmount const& cents_amount) {
     return CentsAmount{std::abs(to_amount_in_cents_integer(cents_amount))};
   }
 
-  inline CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const &cents_amount) {
+  inline CentsAmount::cents_value_type to_whole_part_integer(CentsAmount const& cents_amount) {
     return to_amount_in_cents_integer(cents_amount) / 100;
   }
 
-  inline CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const &cents_amount) {
+  inline CentsAmount::cents_value_type to_cents_part_integer(CentsAmount const& cents_amount) {
     return to_amount_in_cents_integer(cents_amount) % 100;
   }
 
-  inline std::ostream &operator<<(std::ostream &os, CentsAmount const &cents_amount) {
+  inline std::ostream &operator<<(std::ostream &os, CentsAmount const& cents_amount) {
     os << to_amount_in_cents_integer(cents_amount); // keep value in integer cents
     return os;
   }
 
-  std::string to_string(CentsAmount const &cents_amount);
+  std::string to_string(CentsAmount const& cents_amount);
 
 } // namespace WrappedCentsAmount
 
@@ -159,24 +159,24 @@ namespace WrappedDoubleAmount {
     }
 
     friend double to_double(Amount const& amount);
-    friend Amount operator*(double a, Amount const &b);
+    friend Amount operator*(double a, Amount const& b);
     
   private:
     double m_double_value;
   }; // class Amount
 
   // double + Amount
-  inline Amount operator+(double a, Amount const &b) {
+  inline Amount operator+(double a, Amount const& b) {
     return Amount{a} + b; // Do Amount + Amount
   }
 
   // double - Amount
-  inline Amount operator-(double a, Amount const &b) {
+  inline Amount operator-(double a, Amount const& b) {
     return Amount{a} - b; // Do Amount - Amount
   }
 
   // double * Amount
-  inline Amount operator*(double a, Amount const &b) {
+  inline Amount operator*(double a, Amount const& b) {
     return Amount{a} * b.m_double_value; // Do Amount * double
   }
 

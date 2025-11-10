@@ -1,10 +1,42 @@
 #include "BASFramework.hpp"
+#include "text/format.hpp" // operator<<(std::optional<std::string>),...
 #include "tokenize.hpp"
 #include <numeric> // std::accumulate,
 
+
+// -----------------------
+// BEGIN Balance
+
+std::ostream& operator<<(std::ostream& os,Balance const& balance) {
+	os << balance.account_no << " ib:" << balance.opening_balance << " period:" << balance.change << " " << balance.end_balance;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
+	for (auto const& [date,balances] : balances_map) {
+		os << date <<  " balances";
+		for (auto const& balance : balances) {
+			os << "\n\t" << balance;
+		}
+	}
+	return os;
+}
+
+// END Balance
+// -----------------------
+
 namespace BAS {
-	Amount mats_sum(BAS::MetaAccountTransactions const& mats) {
-		return std::accumulate(mats.begin(),mats.end(),Amount{},[](Amount acc,BAS::MetaAccountTransaction const& mat){
+
+	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje) {
+		return AccountTransactionMeta{
+			.date = mdje.defacto.date
+		 ,.jem = mdje.meta
+		 ,.caption = mdje.defacto.caption
+		};
+	}
+
+	Amount to_mdats_sum(BAS::MDAccountTransactions const& mdats) {
+		return std::accumulate(mdats.begin(),mdats.end(),Amount{},[](Amount acc,BAS::MDAccountTransaction const& mat){
 			acc += mat.defacto.amount;
 			return acc;
 		});
@@ -92,6 +124,122 @@ namespace BAS {
 		}
 	}
 } // namespace BAS
+
+// -----------------------------
+// BEGIN Accounting
+
+Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
+	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
+		acc += (account_transaction.amount>0)?account_transaction.amount:0;
+		return acc;
+	});
+	return result;
+}
+
+Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
+	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
+		acc += (account_transaction.amount<0)?account_transaction.amount:0;
+		return acc;
+	});
+	return result;
+}
+
+bool does_balance(BAS::anonymous::JournalEntry const& aje) {
+	auto positive_gross_transaction_amount = to_positive_gross_transaction_amount(aje);
+	auto negative_gross_amount = to_negative_gross_transaction_amount(aje);
+	// std::cout << "\ndoes_balance: positive_gross_transaction_amount=" << positive_gross_transaction_amount << "  negative_gross_amount=" << negative_gross_amount;
+	// std::cout << "\n\tsum=" << positive_gross_transaction_amount + negative_gross_amount;
+	// TODO: FIX Ronding errors somewhere that makes the positive and negative sum to be some infinitesimal value NOT zero ...
+	return (BAS::to_cents_amount(positive_gross_transaction_amount + negative_gross_amount) == 0); // Fix for amounts not correct to the cents...
+}
+
+// END Accounting
+// -----------------------------
+
+// -----------------------------
+// BGIN Accounting IO
+
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at) {
+	if (BAS::global_account_metas().contains(at.account_no)) os << std::quoted(BAS::global_account_metas().at(at.account_no).name) << ":";
+	os << at.account_no;
+	os << " " << at.transtext;
+	os << " " << to_string(at.amount); // When amount is double there will be no formatting of the amount to ensure two decimal cents digits
+	return os;
+};
+
+std::string to_string(BAS::anonymous::AccountTransaction const& at) {
+	std::ostringstream os{};
+	os << at;
+	return os.str();
+};
+
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
+	for (auto const& at : ats) {
+		// os << "\n\t" << at; 
+		os << "\n  " << at; 
+	}
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje) {
+	os << std::quoted(aje.caption) << " " << aje.date;
+	os << aje.account_transactions;
+	return os;
+};
+
+std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
+	if (verno and *verno!=0) os << *verno;
+	else os << " _ ";
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,std::optional<bool> flag) {
+	auto ch = (flag)?((*flag)?'*':' '):' '; // '*' if known and set, else ' '
+	os << ch;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
+	os << jem.unposted_flag << jem.series << jem.verno;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm) {
+	os << atm.date << " " << atm.jem /* << atm.caption */;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mdat) {
+	os << mdat.meta << " " << mdat.defacto;
+	return os;
+};
+
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& mdje) {
+	os << mdje.meta << " " << mdje.defacto;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mdjes) {
+	for (auto const& mdje : mdjes) {
+		os << "\n" << mdje;
+	}
+	return os;
+};
+
+std::string to_string(BAS::anonymous::JournalEntry const& aje) {
+	std::ostringstream os{};
+	os << aje;
+	return os.str();
+};
+
+std::string to_string(BAS::MDJournalEntry const& mdje) {
+	std::ostringstream os{};
+	os << mdje;
+	return os.str();
+};
+
+// END Accounting IO
+// -----------------------------
 
 // extern text string literals
 namespace BAS {

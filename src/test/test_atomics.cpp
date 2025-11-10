@@ -1,10 +1,14 @@
 #include "test_atomics.hpp"
 #include "test_fixtures.hpp"
+#include "logger/log.hpp" // logger::
+#include "functional/ranges.hpp" // adjacent_value_pairs,...
+#include "fiscal/amount/functional.hpp"
+#include "sie/SIEEnvironmentFramework.hpp" // sie_from_stream,...
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric> // std::accumulate,
-
-#include "fiscal/amount/functional.hpp"
+#include <ranges> // std::ranges::is_sorted,
+#include <print>
 
 namespace tests::atomics {
 
@@ -320,43 +324,152 @@ namespace tests::atomics {
 
     } // namespace functional_suite
 
+    namespace datefw_suite {
+
+        // Test fixture
+        class DateOpsFixture : public ::testing::Test {
+        protected:
+
+            void SetUp() override {
+            }
+        };
+
+        TEST(DateOpsTest,DateFromStringTest) {
+          auto maybe_date_1 = to_date("20250101");
+          ASSERT_TRUE(maybe_date_1.has_value());
+          auto maybe_date_2 = to_date("2025-01-01");
+          ASSERT_TRUE(maybe_date_2.has_value());
+
+          auto maybe_date_3 = to_date("2025-01-32");
+          ASSERT_FALSE(maybe_date_3.has_value());
+        }
+
+        TEST(DateOpsTest,DateRangeFromStringsTest) {
+          {
+            auto maybe_date_range = to_date_range(
+               to_date("20250101")
+              ,to_date("20250331"));
+            ASSERT_TRUE(maybe_date_range.has_value());
+          }
+          {
+            auto maybe_date_range = to_date_range(
+               to_date("20250101")
+              ,to_date("2025101"));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected Zero length date range to be rejected";
+          }
+          {
+            auto maybe_date_range = to_date_range(
+               to_date("20250100")
+              ,to_date("20250101"));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected invalid start to be rejected";
+          }
+          {
+            auto maybe_date_range = to_date_range(
+               to_date("20250102")
+              ,to_date("20250101"));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected last > first to be rejected";
+          }
+        }
+
+        TEST(DateOpsTest,DateRangeFromDatesTest) {
+          {
+            auto maybe_date_range = to_date_range(
+               to_date(2025,01,01)
+              ,to_date(2025,03,31));
+            ASSERT_TRUE(maybe_date_range.has_value());
+          }
+          {
+            auto maybe_date_range = to_date_range(
+               to_date(2025,01,01)
+              ,to_date(2025,01,01));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected Zero length date range to be rejected";
+          }
+          {
+            auto maybe_date_range = to_date_range(
+               to_date(2025,01,00)
+              ,to_date(2025,01,01));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected invalid start to be rejected";
+          }
+          {
+            auto maybe_date_range = to_date_range(
+               to_date(2025,01,02)
+              ,to_date(2025,01,01));
+            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected last > first to be rejected";
+          }
+        }
+
+        TEST(DateOpsTest,DateRangeTranslateTest) {
+          {
+            first::DateRange date_range(
+               to_date(2025,01,01)
+              ,to_date(2025,03,31));
+            auto three_months_earlier = zeroth::to_three_months_earlier(date_range);
+            ASSERT_TRUE(
+                 three_months_earlier.start() 
+              == (date_range.start() - std::chrono::months{3})
+            ) << std::format("Expected start to be three months earlier");
+            ASSERT_TRUE(
+                 three_months_earlier.last() 
+              == date_range.last() - std::chrono::months{3}
+            ) << std::format("Expected last to be three months earlier");
+
+          }
+        }
+
+    } // datefw_suite
+
+    namespace journalfw_suite {
+      // Journal Framework test suite
+
+      TEST(JournalFrameworkTest,JournalEntryTest) {
+        {
+          BAS::anonymous::JournalEntry lhs{};
+          BAS::anonymous::JournalEntry rhs{};
+          ASSERT_TRUE(lhs == rhs) << "Expected two emtpy entries to be equal";
+        }
+
+      }
+
+    } // basfw_suite
+
     namespace tafw_suite {
 
+
         // Helper to create some example TaggedAmount objects for testing
-        std::vector<TaggedAmount> createSampleEntries() {
+        std::vector<TaggedAmount> createUnorderedSampleEntries() {
             using namespace std::chrono;
-            std::vector<TaggedAmount> entries;
+            std::vector<TaggedAmount> result;
 
             // You’ll need to replace these constructor calls with actual ones matching your TaggedAmount API.
             // Here's an example stub:
             // TaggedAmount(year_month_day{2025y / March / 19}, CentsAmount(6000), {{"Account", "NORDEA"}, {"Text", "Sample Text"}, {"yyyymmdd_date", "20250319"}});
             // Please adjust as needed.
 
-            // Example entries:
-            entries.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(6000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 1"}});
-            entries.emplace_back(year_month_day{2025y / March / 20}, CentsAmount(12000), TaggedAmount::Tags{{"Account", "OTHER"}, {"Text", "Payment 2"}});
-            entries.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(3000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 3"}});
-            return entries;
+            // Example result: (unordered)
+            result.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(6000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 1"}});
+            result.emplace_back(year_month_day{2025y / March / 20}, CentsAmount(12000), TaggedAmount::Tags{{"Account", "OTHER"}, {"Text", "Payment 2"}});
+            result.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(3000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 3"}});
+            return result;
         }
 
-        // Test fixture (optional if you want setup/teardown)
-        class TaggedAmountTest : public ::testing::Test {
+        // Test fixture
+        class TaggedAmountsFixture : public ::testing::Test {
         protected:
-            std::vector<TaggedAmount> entries;
+            std::vector<TaggedAmount> fixture_unordered_entries;
 
             void SetUp() override {
-                entries = createSampleEntries();
+                fixture_unordered_entries = createUnorderedSampleEntries();
             }
         };
 
         // Test filtering by Account and Date
-        TEST_F(TaggedAmountTest, FilterByAccountAndDate) {
+        TEST_F(TaggedAmountsFixture, FilterByAccountAndDate) {
             using namespace std::chrono;
 
             auto isNordea = tafw::keyEquals("Account", "NORDEA");
             auto isMarch19 = tafw::dateEquals(year_month_day{2025y / March / 19});
 
-            auto filtered = entries | std::views::filter(tafw::and_(isNordea, isMarch19));
+            auto filtered = fixture_unordered_entries | std::views::filter(tafw::and_(isNordea, isMarch19));
 
             std::vector<std::string> texts;
             for (auto const& ta : filtered) {
@@ -369,7 +482,8 @@ namespace tests::atomics {
         }
 
         // Test sorting by date
-        TEST_F(TaggedAmountTest, SortByDate) {
+        TEST_F(TaggedAmountsFixture, SortByDate) {
+            auto entries = fixture_unordered_entries;
             tafw::sortByDate(entries);
 
             // Verify entries sorted by date ascending
@@ -378,16 +492,823 @@ namespace tests::atomics {
             }
         }
 
-    } 
-    
-    bool run_all() {
-        std::cout << "Running atomic tests..." << std::endl;
+        TEST_F(TaggedAmountsFixture, TestValueCompare) {
+          ASSERT_TRUE(fixture_unordered_entries[0] == fixture_unordered_entries[0]);
+          auto cloned_ta = fixture_unordered_entries[0];
+          ASSERT_TRUE(fixture_unordered_entries[0] == cloned_ta);
+          auto original_ta = fixture_unordered_entries[0];
+          auto different_tag_ta = fixture_unordered_entries[0];
+          different_tag_ta.tags()["new_tag"] = "*new*";
+          ASSERT_FALSE(different_tag_ta == original_ta);
+          auto different_meta_tag_ta = fixture_unordered_entries[0];
+          different_meta_tag_ta.tags()["_new_meta_tag"] = "*new meta*";
+          ASSERT_FALSE(different_meta_tag_ta == original_ta);
+          auto later_date = Date{std::chrono::sys_days{original_ta.date()} + std::chrono::days{1}};
+          TaggedAmount later_ta{later_date,original_ta.cents_amount()};
+          later_ta.tags() = original_ta.tags();
+          ASSERT_TRUE(original_ta < later_ta);
+        }
+
+        TEST_F(TaggedAmountsFixture, TestCASCompare) {
+          auto original_ta = fixture_unordered_entries[0];
+          auto later_date = Date{std::chrono::sys_days{original_ta.date()} + std::chrono::days{1}};
+          auto later_ta = TaggedAmount{later_date,original_ta.cents_amount(),original_ta.tags()};
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(later_ta));
+          auto different_amount_ta = TaggedAmount{
+             original_ta.date()
+            ,original_ta.cents_amount() + CentsAmount{1}
+            ,original_ta.tags()};
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(different_amount_ta));
+
+          auto different_tag_ta = original_ta;
+          different_tag_ta.tags()["new_tag"] = "*new*";
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(different_tag_ta));
+          auto different_meta_tag_ta = fixture_unordered_entries[0];
+          different_meta_tag_ta.tags()["_new_meta_tag"] = "*new meta*";
+          ASSERT_FALSE(to_value_id(original_ta) == to_value_id(different_meta_tag_ta));
+        }
+
+
+    } // tafw_suite
+
+    namespace dotasfw_suite {
+
+        // Date Ordered Tagges Amounts Framework Test Suite
+
+        TaggedAmount create_tagged_amount(Date date,CentsAmount cents_amount,TaggedAmount::Tags&& tags) {
+          return TaggedAmount{date,cents_amount,std::move(tags)};
+        }
+
+        // Helper to create some example TaggedAmount objects for testing
+        std::vector<TaggedAmount> createOrderedTasSample() {
+            using namespace std::chrono;
+            std::vector<TaggedAmount> result;
+
+            // Example result: (unordered)
+            result.emplace_back(year_month_day{2025y / March / 18}, CentsAmount(6000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 1"}});
+            result.emplace_back(year_month_day{2025y / March / 19}, CentsAmount(3000), TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "Payment 2"}});
+            result.emplace_back(year_month_day{2025y / March / 20}, CentsAmount(12000), TaggedAmount::Tags{{"Account", "OTHER"}, {"Text", "Payment 3"}});
+            return result;
+        }
+
+        // Helper to create some example TaggedAmount objects for testing
+        DateOrderedTaggedAmountsContainer createSample() {
+            DateOrderedTaggedAmountsContainer result{};
+            auto tas = createOrderedTasSample();
+            result.dotas_insert_auto_ordered_sequence(tas);
+            return result;
+        }
+
+        // Test fixture
+        class DateOrderedTaggedAmountsContainerFixture : public ::testing::Test {
+        protected:
+            DateOrderedTaggedAmountsContainer fixture_dotas;
+
+            void SetUp() override {
+                logger::scope_logger log_raii{logger::development_trace,"TEST_F DateOrderedTaggedAmountsContainerFixture::Setup"};
+
+                fixture_dotas = createSample();
+            }
+        };
+
+        // Now in functional/ranges unit / 20251027
+        // template <std::ranges::range R>
+        // auto adjacent_value_pairs(R&& r) {
+
+        void log_order(DateOrderedTaggedAmountsContainer const& dotas) {
+          std::print("\nDateOrderedTaggedAmountsContainer ordering listing");
+          using namespace cratchit::functional::ranges; // adjacent_value_pairs
+          for (auto const& [lhs,rhs] : adjacent_value_pairs(dotas.ordered_tagged_amounts())) {
+            auto is_correct_order = (lhs.date() <= rhs.date());
+            std::print(
+               "\ncorrect order={}\n{}\n{}"
+              ,is_correct_order
+              ,to_string(lhs)
+              ,to_string(rhs));
+          }
+          std::print("\n\n"); // Work with google test asuming post-newline logging
+        }
+
+        class IsInvalidPrevLink {
+        public:
+
+          IsInvalidPrevLink(DateOrderedTaggedAmountsContainer const& dotas_ref)
+            : m_dotas_ref{dotas_ref} {}
+
+          bool operator()(TaggedAmount::ValueId lhs, TaggedAmount::ValueId rhs) {
+              // lhs == rhs[_prev]
+
+              auto maybe_rhs_ta = m_dotas_ref.cas().cas_repository_get(rhs);
+              if (!maybe_rhs_ta) return true;                       // missing RHS entry → treat as invalid
+
+              auto maybe_prev_id = to_maybe_value_id(
+                  maybe_rhs_ta->tag_value("_prev").value_or(std::string{"null"})); // empty string -> no tag
+              if (!maybe_prev_id) return true;                      // RHS missing _prev tag -> invalid
+
+              auto result = lhs != *maybe_prev_id;                         // invalid if prev != lhs
+
+              return result;
+          }
+        private:
+          DateOrderedTaggedAmountsContainer const& m_dotas_ref;
+        };
+
+        bool prev_ordering_is_ok(DateOrderedTaggedAmountsContainer const& dotas) {
+
+          auto ordered_ids_view = dotas.ordered_ids_view();
+
+          auto iter = std::ranges::adjacent_find(
+             ordered_ids_view
+            ,IsInvalidPrevLink{dotas});
+
+          auto is_all_prev_ordered = (iter == ordered_ids_view.end()); // no violations found
+
+          // Log
+          if (!is_all_prev_ordered) {
+            std::print("ordered_ids_view: null");
+            std::ranges::for_each(ordered_ids_view,[](auto value_id){
+              std::print(" -> {:x}",value_id);
+            });
+            auto lhs = *iter;
+            auto rhs = *(iter+1);
+            if (auto maybe_ta = dotas.at(rhs)) {
+              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:{}",lhs,rhs,to_string(maybe_ta.value()));
+            }
+            else {
+              std::println("\nFailed at lhs:{:x} rhs:{:x} ta:null",lhs,rhs);
+            }
+          }
+
+          return is_all_prev_ordered;
+        }
         
-        // Run gtest with filter for atomic tests only
-        ::testing::GTEST_FLAG(filter) = "AtomicTests.*";
-        int result = RUN_ALL_TESTS();
-        
-        return result == 0;
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendOrphanValueTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendOrphanValueTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto [value_id,was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          EXPECT_TRUE(was_inserted);
+          EXPECT_TRUE(dotas.ordered_ids_view().size() == 1);
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueTest)"};
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+          auto second_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
+          auto is_all_prev_ordered = prev_ordering_is_ok(dotas);          
+          ASSERT_TRUE(is_all_prev_ordered);
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValuePrevNullFailTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValuePrevNullFailTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto second_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(std::nullopt,second_ta);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_FALSE(second_was_inserted) << std::format("second insert should have failed");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 1) << std::format("Final size was not 1");
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueOlderFailedTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderOKTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto first_date = first_ta.date();
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+
+          auto second_ta = create_tagged_amount(
+             earlier_date
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta,false);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,false);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_FALSE(second_was_inserted) << std::format("Second Append older value should have failed (compability mode off)");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 1) << std::format("Final size was not 1");
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueCompabilityTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueCompabilityTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto second_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);          
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert failed (should have succeeded in compability mode)");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 2");
+          auto is_all_prev_ordered = prev_ordering_is_ok(dotas);          
+          ASSERT_TRUE(is_all_prev_ordered);
+        }
+
+        // Test append value
+        TEST(DateOrderedTaggedAmountsContainerTests, AppendSecondValueOlderCompabilityFailTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, AppendSecondValueOlderCompabilityFailTest)"};
+
+          DateOrderedTaggedAmountsContainer dotas{};
+          auto first_ta = create_tagged_amount(
+             Date{std::chrono::year{2025} / std::chrono::October / 25}
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*First*"}});
+
+          auto first_date = first_ta.date();
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+
+          auto second_ta = create_tagged_amount(
+             earlier_date
+            ,CentsAmount{7000}
+            ,TaggedAmount::Tags{{"Text", "*Second*"}});
+
+          auto [first_value_id,first_was_inserted] = dotas.dotas_append_value(std::nullopt,first_ta);
+          auto [second_value_id,second_was_inserted] = dotas.dotas_append_value(first_value_id,second_ta,true);
+
+          ASSERT_TRUE(first_was_inserted) << std::format("First insert failed");
+          ASSERT_TRUE(second_was_inserted) << std::format("second insert should have falied (compability mode)");
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 2) << std::format("Final size was not 1");
+        }
+
+        // Test correct order by default
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, OrderedTest)"};
+
+          auto tas = fixture_dotas.ordered_tagged_amounts();
+
+          auto is_invalid_order = [](TaggedAmount const& lhs,TaggedAmount const& rhs) {
+              bool result = lhs.date() > rhs.date();
+              if (result) {
+                std::print("\nInvalid Order\n{}\n{}",to_string(lhs),to_string(rhs));
+              }
+              return result;
+            };
+
+
+          auto iter = std::ranges::adjacent_find(
+             tas
+            ,is_invalid_order);
+
+          auto is_all_date_ordered = (iter == tas.end()); // no violations found
+
+          if (!is_all_date_ordered) {
+            log_order(fixture_dotas);
+          }
+
+          EXPECT_EQ(is_all_date_ordered,true);          
+        }
+
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, PrevOrderingTest)"};
+
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);
+
+          ASSERT_TRUE(is_all_prev_ordered);
+
+        }
+
+        // Test to insert value at end
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertLastTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertLastTest)"};
+
+          auto original_tas = fixture_dotas.ordered_tagged_amounts();
+
+          auto last_date = original_tas.back().date(); // trust non-empty
+          auto later_date = Date{std::chrono::sys_days{last_date} + std::chrono::days{1}};
+          auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
+          auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
+
+          auto new_tas = fixture_dotas.ordered_tagged_amounts();
+          auto length_diff = (new_tas.size() - original_tas.size());
+          auto did_grow_with_one = (length_diff == 1);
+
+          // Log
+          if (!did_grow_with_one) {
+            std::ranges::for_each(
+               original_tas
+              ,[](auto const& ta) {
+                std::print("\nORIGINAL:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+            std::ranges::for_each(
+               new_tas
+              ,[](auto const& ta) {
+                std::print("\nNEW:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+          }
+
+          EXPECT_TRUE(did_grow_with_one);
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);          
+          ASSERT_TRUE(is_all_prev_ordered);
+        }
+
+        // Test to insert value at begining
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertFirstTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertFirstTest)"};
+
+          // Insert as first
+          auto original_tas = fixture_dotas.ordered_tagged_amounts();
+          auto first_date = original_tas.front().date(); // trust non-empty
+          auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
+          auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
+          auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
+
+          auto new_tas = fixture_dotas.ordered_tagged_amounts();
+          auto was_inserted_first = (new_tas.front() == new_ta);
+
+          // Log
+          if (!was_inserted_first) {
+            std::ranges::for_each(
+               original_tas
+              ,[](auto const& ta) {
+                std::print("\nORIGINAL:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+            std::ranges::for_each(
+               new_tas
+              ,[](auto const& ta) {
+                std::print("\nNEW:{}",to_string(ta));
+              }
+            );
+            std::print("\n");
+          }
+
+          EXPECT_TRUE(was_inserted_first);
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);          
+          ASSERT_TRUE(is_all_prev_ordered);
+
+        }
+
+        TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertTas) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(DateOrderedTaggedAmountsContainerFixture, InsertTas)"};
+
+          auto original_tas = fixture_dotas.ordered_tagged_amounts();
+          auto first_date = original_tas[0].date();
+          auto lhs_tas = 
+              std::views::iota(0)
+            | std::views::take(3)
+            | std::views::transform([first_date,&original_tas](auto i){
+                auto const& ta = original_tas[i];
+                auto date = Date{std::chrono::sys_days{first_date} + std::chrono::days{2*i}};
+                return TaggedAmount{date,ta.cents_amount(),ta.tags()};
+              })
+            | std::ranges::to<TaggedAmounts>();
+
+          auto rhs_tas = 
+              std::views::iota(0)
+            | std::views::take(3)
+            | std::views::transform([first_date,&original_tas](auto i){
+                auto const& ta = original_tas[i];
+                auto date = Date{std::chrono::sys_days{first_date} + std::chrono::days{2*i+1}}; // Interleaved dates
+                return TaggedAmount{date,ta.cents_amount(),ta.tags()};
+              })
+            | std::ranges::to<TaggedAmounts>();
+
+          auto dotas = DateOrderedTaggedAmountsContainer{};
+          dotas.dotas_insert_auto_ordered_sequence(lhs_tas);
+          dotas.dotas_insert_auto_ordered_sequence(rhs_tas);
+
+          ASSERT_TRUE(dotas.ordered_ids_view().size() == 6);
+          bool is_sorted = std::ranges::is_sorted(
+             dotas.ordered_tagged_amounts()
+            ,std::less{}
+            ,[](auto const& ta){return ta.date();});
+          ASSERT_TRUE(is_sorted);
+
+          auto is_all_prev_ordered = prev_ordering_is_ok(fixture_dotas);
+          
+          ASSERT_TRUE(is_all_prev_ordered);
+
+        }
+
+    } // dotasfw_suite
+
+    namespace env2dotas_suite {
+      // Environment to Date Ordered Tagged Amounts suite
+
+      Environment createSample() {
+        auto dotas = dotasfw_suite::createSample();
+        auto id_ev_pairs = 
+           dotas.ordered_tagged_amounts()
+          | std::views::transform([](auto const& ta) -> Environment::MutableIdValuePair {
+              return {to_value_id(ta),to_environment_value(ta)};
+            });
+        Environment result{};
+        std::ranges::for_each(id_ev_pairs,[&result](auto const& pair){
+          result["TaggedAmount"].push_back(pair);
+        });
+        return result;
+      }
+
+      // Test fixture
+      class Env2DotasTestFixture : public ::testing::Test {
+      protected:
+          Environment fixture_env;
+
+          void SetUp() override {
+              logger::scope_logger log_raii{logger::development_trace,"TEST_F Env2DotasTestFixture::Setup"};
+              fixture_env = createSample();
+          }
+      };
+
+      TEST_F(Env2DotasTestFixture,Env2DotasHappyPath) {
+        logger::scope_logger log_raii{logger::development_trace,"TEST_F(Env2DotasTestFixture,Env2DotasHappyPath)"};
+
+        auto dotas = dotas_from_environment(fixture_env);
+
+        ASSERT_TRUE(dotas.ordered_ids_view().size() == fixture_env["TaggedAmount"].size()) 
+          << std::format(
+                 "Should be same environment:{} -> dotas:{}"
+                ,fixture_env["TaggedAmount"].size()
+                ,dotas.ordered_ids_view().size());
+      }
+
+    } // env2dotasfw_suite
+
+    namespace dotas_merge_suite {
+      // Date Ordered Tagged Amounts merge framework
+
+        class DotasMergeFixture : public ::testing::Test {
+        protected:
+
+            DateOrderedTaggedAmountsContainer fixture_lhs_dotas;
+            DateOrderedTaggedAmountsContainer fixture_rhs_dotas;
+
+
+            void SetUp() override {
+              fixture_lhs_dotas = dotasfw_suite::createSample();
+              fixture_rhs_dotas = dotasfw_suite::createSample();
+            }
+        };
+
+        TEST(DotasMergeTests,MergeEmptyDotas) {
+            logger::scope_logger log_raii{logger::development_trace,"TEST_F(DotasMergeFixture,MergeSameTest)"};
+
+            DateOrderedTaggedAmountsContainer lhs_dotas{};
+            DateOrderedTaggedAmountsContainer rhs_dotas{};
+
+            auto merged_dotas = lhs_dotas.dotas_insert_auto_ordered_container(rhs_dotas);
+            ASSERT_TRUE(rhs_dotas.ordered_ids_view().size() == 0) << std::format("Expected zero sequence size but encountered size:{}",rhs_dotas.ordered_ids_view().size());
+            ASSERT_TRUE(rhs_dotas.cas().size() == 0) << std::format("Expected zero CAS size but encountered size:{}",rhs_dotas.cas().size());;
+        }
+
+        TEST_F(DotasMergeFixture,MergeSameTest) {
+            logger::scope_logger log_raii{logger::development_trace,"TEST_F(DotasMergeFixture,MergeSameTest)"};
+            auto merged_dotas = fixture_lhs_dotas;
+            merged_dotas.dotas_insert_auto_ordered_container(fixture_rhs_dotas);
+            ASSERT_TRUE(merged_dotas.ordered_ids_view().size() == fixture_rhs_dotas.ordered_ids_view().size()) << std::format(
+               "Expected same size merged_dotas:{} fixture_rhs_dotas:{}"
+              ,merged_dotas.ordered_ids_view().size()
+              ,fixture_lhs_dotas.ordered_ids_view().size());
+            bool merged_is_equal_to_rhs = (
+                  std::ranges::equal(merged_dotas.ordered_ids_view(),fixture_rhs_dotas.ordered_ids_view())
+              and std::ranges::all_of(merged_dotas.cas().ids_view(),[this](auto cid){
+                return fixture_rhs_dotas.cas().contains(cid);
+              })
+              and (merged_dotas.cas().ids_view().size(),fixture_rhs_dotas.cas().ids_view().size())
+            );
+            ASSERT_TRUE(merged_is_equal_to_rhs) << std::format("Expected merged (lhs+rhs) and rhs dotas to be equal");;
+        }
     }
+
+    namespace parse_sie_file_suite {
+        // SIE file parsing test suite
+
+        char const* sz_minimal_sie_text = 
+R"(#GEN 20251026
+#RAR 0 20250501 20260430)";
+
+        char const* sz_sie_three_transactions_text = R"(
+#FLAGGA 0
+#FORMAT PC8
+#SIETYP 4
+#PROGRAM "Fortnox" 3.57.11
+#GEN 20250829
+#FNR 503072
+#FNAMN "The ITfied AB"
+#ADRESS "Adam Smith" "Gatan 7" "123 45 Bullerbyn" "123-567789" 
+#RAR 0 20240501 20250430
+#RAR -1 20230501 20240430
+#ORGNR 112233-4455
+#OMFATTN 20250430
+#KPTYP EUBAS97
+
+#VER A 1 20240512 "Korrigerad M4 för korrektur till nästa M1" 20240706
+{
+#TRANS 1650 {} 180 "" "Korrigera upp till M4 rapporterat belopp" 0
+#TRANS 2641 {} -180 "" "Korrigerad M4 för korrektur till nästa M1" 0
+}
+#VER A 2 20240504 "Account:SKV Text:Intäktsränta" 20240706
+{
+#TRANS 1630 {} 1 "" "" 0
+#TRANS 8314 {} -1 "" "" 0
+}
+#VER A 3 20240506 "Account:NORDEA Text:PRIS ENL SPEC" 20240706
+{
+#TRANS 1920 {} -3.7 "" "" 0
+#TRANS 6570 {} 3.7 "" "" 0
+}
+
+)";
+
+        class SIEFileParseFixture : public ::testing::Test {
+        protected:
+
+            SIEEnvironment fixture_three_entries_env{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+
+            void SetUp() override {
+
+              logger::scope_logger log_raii{logger::development_trace,"TEST SIEFileParseFixture::SetUp"};
+
+              std::istringstream iss{sz_sie_three_transactions_text};
+              auto maybe_sie = sie_from_stream(iss);
+
+              try {
+                fixture_three_entries_env = maybe_sie.value();
+              }
+              catch (std::exception const& e) {
+                std::print("SIEFileParseFixture::SetUp: Failed - Exception:{}",e.what());
+              }
+              catch (...) {
+                std::print("SIEFileParseFixture::SetUp: Failed - Exception(...)");
+              }
+
+            }
+        };
+
+        TEST(SIEFileParseTests,ParseEmpty) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEFileParseTests,ParseEmpty)"};
+
+          std::istringstream iss{""};
+          auto maybe_sie = sie_from_stream(iss);
+          ASSERT_FALSE(maybe_sie.has_value());
+        }
+
+        TEST(SIEFileParseTests,ParseMinimal) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
+
+          std::istringstream iss{sz_minimal_sie_text};
+          auto maybe_sie = sie_from_stream(iss);
+          ASSERT_TRUE(maybe_sie.has_value());
+        }
+
+        TEST(SIEFileParseTests,ParseTransactions) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
+
+          std::istringstream iss{sz_sie_three_transactions_text};
+          auto maybe_sie = sie_from_stream(iss);
+          ASSERT_TRUE(maybe_sie.has_value());
+          int trans_count = maybe_sie.transform([](auto const& sie_env){
+            return sie_env.journals_entry_count();
+          }).value_or(-1);
+          ASSERT_TRUE(trans_count == 3) << std::format("Parsed {} transactions from sz_sie_three_transactions_text",trans_count);
+        }
+    } // parse_sie_file_suite
+
+    namespace sie_envs_merge_suite {
+      // SIE Environments merge test suite
+
+        std::vector<BAS::MDJournalEntry> to_sample_md_entries() {
+          std::vector<BAS::MDJournalEntry> result{};
+          {
+            using namespace std::chrono;
+
+            result.push_back(BAS::MDJournalEntry{
+              BAS::JournalEntryMeta{
+                .series = 'A'
+                ,.verno = 1
+              }
+              ,{
+                  .caption = "Event 1"
+                  ,.date = 2025y / 01 / 01d
+                  ,.account_transactions = {}
+              }});
+            result.push_back(BAS::MDJournalEntry{
+              BAS::JournalEntryMeta{
+                .series = 'A'
+                ,.verno = 2
+              }
+              ,{
+			            .caption = "Event 2"
+			            ,.date = 2025y / 01 / 01d
+			            ,.account_transactions = {}
+              }});
+          }
+          return result;
+        }
+
+        using SIEEnvironmentTestFixture = parse_sie_file_suite::SIEFileParseFixture;
+
+        TEST(SIEEnvironmentTests,EntryAddTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryAddTest)"};
+
+          auto entries = to_sample_md_entries();
+          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+
+          {
+            auto add_result = sie_env.add(entries[0]);
+            ASSERT_TRUE(add_result) << "Expected add to empty env to succeed";
+          }
+          {
+            auto add_result = sie_env.add(entries[1]);
+            ASSERT_TRUE(add_result) << "Expected add new valid entry to to succeed";
+          }
+          {
+            auto add_result = sie_env.add(entries[0]);
+            ASSERT_FALSE(add_result) << "Expected re-add same value previous entry to fail";
+          }
+          {
+            auto no_series_entry_0 = entries[0];
+            no_series_entry_0.meta.series = ' ';
+            no_series_entry_0.meta.verno = std::nullopt;
+            auto add_result = sie_env.add(no_series_entry_0);
+            ASSERT_TRUE(add_result) << "Expected add of anonymous series,verno entry to succeed";
+            ASSERT_TRUE(add_result.md_entry().meta.series == 'A') << "Expected add of anonymous series,verno entry to be addes in series 'A'";
+          }
+          {
+            auto mutated_entry_0 = entries[0];
+            mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
+            auto add_result = sie_env.add(mutated_entry_0);
+            ASSERT_FALSE(add_result) << "Expected re-add mutated previous entry to fail";
+          }
+        }
+
+        TEST(SIEEnvironmentTests,EntryUpdateTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryUpdateTest)"};
+
+          auto entries = to_sample_md_entries();
+          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+
+          {
+            auto update_result = sie_env.update(entries[0]);
+            ASSERT_FALSE(update_result) << "Expected update to empty env to fail (no entry to update)";
+          }
+          if (auto add_result = sie_env.add(entries[0])) {
+            auto update_result = sie_env.update(entries[0]);
+            ASSERT_TRUE(update_result) << "Expected update to existing same value to succeed";
+
+            {
+              auto mutated_entry_0 = entries[0];
+              mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
+              
+              auto update_result = sie_env.update(mutated_entry_0);
+              ASSERT_FALSE(update_result) << "Expected update to existing entry with different caption to fail";
+            }
+            {
+              auto mutated_entry_0 = entries[0];
+              mutated_entry_0.defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                 .account_no = 1920
+                ,.transtext = std::string{"*New transaction*"}
+                ,.amount = to_amount("12,00").value_or(0)
+              });
+              
+              auto update_result = sie_env.update(mutated_entry_0);
+              ASSERT_FALSE(update_result) << "Expected update to existing entry with different trasnactions to fail";
+            }
+          }
+        }
+
+        TEST(SIEEnvironmentTests,EntryPostTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryPostTest)"};
+
+          auto entries = to_sample_md_entries();
+          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+
+          {
+            auto post_result = sie_env.post(entries[0]);
+            ASSERT_TRUE(post_result) << "Expected post to empty env to succeed";
+          }
+          {
+            auto post_result = sie_env.post(entries[1]);
+            ASSERT_TRUE(post_result) << "Expected post valid entry to to succeed";
+          }
+          {
+            auto post_result = sie_env.post(entries[0]);
+            ASSERT_TRUE(post_result) << "Expected re-post previous entry to to succeed";
+          }
+          {
+            auto mutated_entry_0 = entries[0];
+            mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
+            auto post_result = sie_env.post(mutated_entry_0);
+            ASSERT_TRUE(!post_result) << "Expected re-post mutated previous entry to fail";
+          }
+        }
+
+        TEST(SIEEnvironmentTests,EmptyStageEmptyTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvironmentTests,EmptyStageEmptyTest)"};
+          SIEEnvironment lhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+          SIEEnvironment rhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+          auto merged = lhs;
+          auto stage_result = merged.stage(rhs);
+          ASSERT_TRUE(stage_result.size() == 0);
+          ASSERT_TRUE(merged.journals_entry_count() == 0);
+        }
+
+        TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest)"};
+          ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
+          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
+
+          for (auto const& [series,journal] : fixture_three_entries_env.journals()) {
+            for (auto const& [verno,aje] : journal) {
+              merged.post({{.series=series,.verno=verno},aje});
+            }
+          }
+
+          ASSERT_TRUE(merged.journals_entry_count() == 3);
+        }
+
+        TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest)"};
+          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
+          auto stage_result = merged.stage(fixture_three_entries_env);
+          ASSERT_TRUE(merged.journals_entry_count() == 3)
+            << std::format("Expected 3 journal entries but found  :{}",merged.journals_entry_count());
+          ASSERT_TRUE(merged.unposted().size() == 3)
+            << std::format("Expected 3 staged entries but found unposted:{}",merged.unposted().size());
+          ASSERT_TRUE(stage_result.size() == 3) << std::format("Expected stage_result.size() to be 3 (all staged accounted for) but found:{}",stage_result.size());
+          ASSERT_TRUE(std::ranges::all_of(
+             stage_result
+            ,[](auto const& e){return static_cast<bool>(e);})) << "Expetced all entries to be staged ok";
+        }
+
+        TEST(SIEEnvironmentTests,StageToPostedOkTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,StageToPostedOkTest)"};
+
+          auto entries = to_sample_md_entries();
+          auto entry_0 = entries[0];
+          SIEEnvironment posted{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          posted.post(entry_0);
+          auto stage_result = posted.stage(entry_0);
+
+          ASSERT_TRUE(stage_result.now_posted()) 
+            << std::format("Expected 'stage' to detect 'now posted'");
+        }
+
+    }
+
+    // bool run_all() {
+    //     std::cout << "Running atomic tests..." << std::endl;
+        
+    //     // Run gtest with filter for atomic tests only
+    //     ::testing::GTEST_FLAG(filter) = "AtomicTests.*";
+    //     int result = RUN_ALL_TESTS();
+        
+    //     return result == 0;
+    // }
 }
 

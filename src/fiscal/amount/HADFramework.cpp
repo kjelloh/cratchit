@@ -12,21 +12,21 @@ bool HeadingAmountDateTransEntry::operator==(HeadingAmountDateTransEntry const& 
 }
 
 std::ostream& operator<<(std::ostream& os,HeadingAmountDateTransEntry const& had) {
-	if (auto me = had.optional.current_candidate) {
+	if (had.optional.current_candidate) {
 		os << '*';
 	}
 	else {
 		os << ' ';
 	}
 
-	// if (auto me = had.optional.series) {
+	// if (had.optional.series) {
 	// 	os << *had.optional.series;
 	// }
 	// else {
 	// 	os << '-';
 	// }
 
-	if (auto me = had.optional.gross_account_no) {
+	if (had.optional.gross_account_no) {
 		os << ' ' << *had.optional.gross_account_no << ' ';
 	}
 	else {
@@ -45,7 +45,7 @@ std::string to_string(HeadingAmountDateTransEntry const& had) {
   return oss.str();
 }
 
-OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
+OptionalHeadingAmountDateTransEntry to_had(Environment::Value const& ev) {
 	OptionalHeadingAmountDateTransEntry result{};
 	HeadingAmountDateTransEntry had{};
 	while (true) {
@@ -61,11 +61,10 @@ OptionalHeadingAmountDateTransEntry to_had(EnvironmentValue const& ev) {
 	return result;
 }
 
-HeadingAmountDateTransEntries hads_from_environment(Environment const &environment) {
-  if (true) {
-    spdlog::info("BEGIN hads_from_environment");
-    spdlog::default_logger()->flush();;
-  }
+HeadingAmountDateTransEntries hads_from_environment(Environment const& environment) {
+
+  logger::scope_logger log_raii{logger::development_trace,"hads_from_environment"};
+
   HeadingAmountDateTransEntries result{};
   if (environment.contains("HeadingAmountDateTransEntry")) {
     if (true) {
@@ -73,8 +72,8 @@ HeadingAmountDateTransEntries hads_from_environment(Environment const &environme
       spdlog::default_logger()->flush();;
     }
     auto const id_ev_pairs = environment.at("HeadingAmountDateTransEntry");
-    std::transform(id_ev_pairs.begin(), id_ev_pairs.end(), std::back_inserter(result), [](auto const &id_ev_pair) {
-      auto const &[id, ev] = id_ev_pair;
+    std::transform(id_ev_pairs.begin(), id_ev_pairs.end(), std::back_inserter(result), [](auto const& id_ev_pair) {
+      auto const& [id, ev] = id_ev_pair;
       if (auto ohad = to_had(ev); !ohad) {
         throw std::runtime_error(std::format("Invalid HeadingAmountDateTransEntry in environment: {}", id));
       }
@@ -101,11 +100,11 @@ OptionalHeadingAmountDateTransEntry to_had(std::vector<std::string> const& token
 // ----------------------------------------------
 // <-- HAD(s)
 
-EnvironmentValue to_environment_value(HeadingAmountDateTransEntry const had) {
+Environment::Value to_environment_value(HeadingAmountDateTransEntry const had) {
 	// std::cout << "\nto_environment_value: had.amount" << had.amount << " had.date" << had.date;
 	std::ostringstream os{};
 	os << had.amount;
-	EnvironmentValue ev{};
+	Environment::Value ev{};
 	ev["rubrik"] = had.heading;
 	ev["belopp"] = os.str();
 	ev["datum"] = to_string(had.date);

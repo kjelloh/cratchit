@@ -83,7 +83,7 @@ namespace first {
     StateImpl(std::optional<std::string> caption = std::nullopt);
     virtual ~StateImpl();
     virtual std::string caption() const;
-    UX const &ux() const;
+    UX const& ux() const;
     UpdateOptions const& update_options() const;
 
     // State TEA update mechanism

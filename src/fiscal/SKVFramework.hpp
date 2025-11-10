@@ -12,7 +12,7 @@ namespace SKV {
 	namespace XML {
 		namespace VATReturns {
             using BoxNo = unsigned int;
-            using FormBoxMap = std::map<BoxNo,BAS::MetaAccountTransactions>;
+            using FormBoxMap = std::map<BoxNo,BAS::MDAccountTransactions>;
             using BoxNos = std::vector<BoxNo>;
 
 			BoxNos const EU_VAT_BOX_NOS{30,31,32};

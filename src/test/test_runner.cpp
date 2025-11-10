@@ -13,10 +13,13 @@ namespace tests {
         // Set up global test environment with preserve setting
         ::testing::AddGlobalTestEnvironment(fixtures::TestEnvironment::GetInstance());
         
-        bool atomics_pass = atomics::run_all();
-        bool integrations_pass = integrations::run_all();
+        // bool atomics_pass = atomics::run_all();
+        // bool integrations_pass = integrations::run_all();
         
-        bool all_pass = atomics_pass && integrations_pass;
+        // bool all_pass = atomics_pass && integrations_pass;
+
+        int result = RUN_ALL_TESTS();        
+        auto all_pass = (result == 0);
         
         std::cout << "All tests " << (all_pass ? "PASSED" : "FAILED") << std::endl;
         return all_pass;

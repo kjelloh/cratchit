@@ -1,5 +1,35 @@
 # cratchit developers manual
 
+## macOS BUILD issues
+
+At times it seems the tool-chain builds the binary with an unacceptable 'code sign'?
+
+Youy can check for this pn macOS in zsh-shell by running cratchit through the lldb debugger.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % lldb workspace/cratchit
+(lldb) target create "workspace/cratchit"
+Current executable set to '/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/cratchit' (arm64).
+(lldb) run
+Process 90231 launched: '/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/cratchit' (arm64)
+Process 90231 exited with status = 9 (0x00000009) Terminated due to code signing error
+(lldb) quit
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit %
+```
+
+In case the error is 'Terminated due to code signing error' you can generate an acceptable one with the macOS code signing tool.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % codesign -s - --force --deep workspace/cratchit
+
+workspace/cratchit: replacing existing signature
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit %
+```
+
+Now macOS should allow the cratchit binary to execute again (fingers crossed).
+
+Note: As of 20251103 I do not know exactly when and why this happens.
+
 ## SIE file handling
 
 An SIE file contains registered financial events using Swedish BAS framework.

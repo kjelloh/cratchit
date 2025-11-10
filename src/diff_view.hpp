@@ -10,8 +10,8 @@ template <
 class diff_view {
 public:
   diff_view(
-      T const &lhs,
-      T const &rhs,
+      T const& lhs,
+      T const& rhs,
       FiscalPeriod period,
       DateProj date_projection,
       ValueProj value_projection)
@@ -20,7 +20,7 @@ public:
         m_date_projection(date_projection),
         m_value_projection(value_projection) {
 
-    auto in_period = [&](auto const &it) {
+    auto in_period = [&](auto const& it) {
       auto date = m_date_projection(*it);
       bool result = m_period.contains(date);
       // spdlog::info("in_period? {} -> {}", to_string(date), result);
@@ -64,8 +64,8 @@ public:
   }
 
   private:
-    T const &m_lhs;
-    T const &m_rhs;
+    T const& m_lhs;
+    T const& m_rhs;
     FiscalPeriod m_period;
     DateProj m_date_projection;
     ValueProj m_value_projection;

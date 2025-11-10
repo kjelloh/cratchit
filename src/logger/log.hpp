@@ -88,3 +88,6 @@ namespace logger {
   }; 
   
 } // logger
+
+static char const* NL = "\n";
+static char const* NLT = "\n\t";

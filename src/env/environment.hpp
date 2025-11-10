@@ -1,78 +1,105 @@
 #pragma once
 
 #include "FiscalPeriod.hpp"
-#include "cas.hpp"
+#include "cas/cas.hpp"
+// #include "Environment.hpp"
+// #include "CASEnvironment.hpp"
 #include <string>
 #include <vector>
 #include <map>
 #include <filesystem>
 
-// namespace cas now in cas unit
+class Environment {
+public:
 
-/*
+  using ValueName = std::string;
+  using Value = std::map<std::string,std::string>; // vector of name-value pairs
+  using ValueId = std::size_t;
 
-  The Environment persistent file is a text file on the form:
+  class Hasher {
+  public:
 
-  <type>:<index> <value>
+    ValueId operator()(Value const& key_value_map) const {
+      std::size_t result{};
 
-  Where <index> is the reference used to encode structure (e.g. TaggedAmount aggregates SIE -> BAS members)
-  And <value> is a tag-value sequence <tag>=<value>;<tag>=<value>;...
+      // Hash combine for Environment::Value
+      // TODO: Consider to consolidate 'hashing' for 'Value Id' to somehow
+      //       E.g., Also see hash_combine for TaggedAmount...
+      auto hash_combine = [](std::size_t &seed, auto const& v) {
+        constexpr auto shift_left_count = 1;
+        constexpr std::size_t max_size_t = std::numeric_limits<std::size_t>::max();
+        constexpr std::size_t mask = max_size_t >> shift_left_count;
+        using ValueType = std::remove_cvref_t<decltype(v)>;
+        std::hash<ValueType> hasher;
+        // Note: I decided to NOT use boost::hash_combine code as it will cause
+        // integer overflow and thus undefined behaviour.
+        // seed ^= hasher(v) + 0x9e3779b9 + ((seed & mask) <<6) + (seed>>2); //
+        // *magic* dustribution as defined by boost::hash_combine
+        seed ^= (hasher(v) & mask)
+                << shift_left_count; // Simple shift left distribution and no addition
+      };
 
-  E.g., 
+      for (auto const& [key, value] : key_value_map) {
+        hash_combine(result, key);
+        hash_combine(result, value);
+      }
+      return result;
+    }
+  };
 
-  HeadingAmountDateTransEntry:0 "belopp=879.10;datum=20250930;rubrik=Momsrapport 2025-07-01...2025-09-30"
-  ...
-  TaggedAmount:665c9188f6246be "BAS=1920;Ix=0;cents_amount=-235900;parent_SIE=E2;yyyymmdd_date=20250616"
-  ...
-  contact:0 "e-mail=ville.vessla@foretaget.se;name=Ville Vessla;phone=555-244454"
-  employee:0 "birth-id=198202252386"
-  sie_file:0 "-1=sie_in/TheITfiedAB20250829_181631.se;-2=sie_in/TheITfiedAB20250828_143351.se;current=sie_in/TheITfiedAB20250812_145743.se"%                                                                              
+  using Values_cas_repository = cas::repository<ValueId,Value,Hasher>;
+  using MutableIdValuePair = Values_cas_repository::mutable_cid_value_type;
+  using MutableIdValuePairs = std::vector<MutableIdValuePair>; // To model the order in persistent file
+  using Container = std::map<ValueName,MutableIdValuePairs>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
 
-*/
+  using value_type = Container::value_type;
+  auto& operator[](ValueName const& section) {
+    return m_container[section];
+  }
+  auto begin() const {
+    return m_container.begin();
+  }
+  auto end() const {
+    return m_container.end();
+  }
 
-/*
+  bool contains(ValueName const& section) const {
+    return m_container.contains(section);
+  }
+  auto const& at(ValueName const& section) const {
+    return m_container.at(section);
+  }
 
-  The internal model Environment is a map of each <type> into a section.
-  Each section is a CAS (content addressable storage).
+  auto operator<=>(const Environment&) const = default;
 
-  Now parsing from the persistent storage to an Environment instance is done
-  by first use the <index> in the persistent file as the 'instance id' for the CAS.
-  Thus, when parsing the app trusts the index in the file and does not map the value to an id of its own.
-  In this way the file is trusted to model the structure even if the index may not map to 
-  current value->id function of the app.
+  auto size() const {
+    return m_container.size();
+  }
 
-*/
-
-// TODO: Consider to refactor into clear 'PeristentEnvironment' vs 'Environment'
-//       to more clearly see how the persistent file is parsed into the internal Environment representation? / 20251012
-using EnvironmentValue = std::map<std::string,std::string>; // vector of name-value pairs
-using EnvironmentValueName = std::string;
-using EnvironmentValueId = std::size_t;
-using EnvironmentValues_cas_repository = cas::repository<EnvironmentValueId,EnvironmentValue>;
-using EnvironmentIdValuePair = EnvironmentValues_cas_repository::value_type; // mutable id-value pair
-using EnvironmentCasEntryVector = std::vector<EnvironmentIdValuePair>; // To model the order in persistent file
-using Environment = std::map<EnvironmentValueName,EnvironmentCasEntryVector>; // Note: Uses a vector of cas repository entries <id,Node> to keep ordering to-and-from file
+private:
+  Container m_container{};
+};
 
 // parsing environment in -> Environment
 namespace in {
   bool is_comment_line(std::string const& line);
   bool is_value_line(std::string const& line);
-  std::pair<std::string, std::optional<EnvironmentValueId>> to_name_and_id(std::string key);
-  EnvironmentValue to_environment_value(std::string const s);
-  Environment environment_from_file(std::filesystem::path const &p);
+  std::pair<std::string, std::optional<Environment::ValueId>> to_name_and_id(std::string const& s);
+  Environment::Value to_environment_value(std::string const& s);
+  // Environment indexed_environment_from_file(std::filesystem::path const& p);
 }
-Environment environment_from_file(std::filesystem::path const &p);
+Environment environment_from_file(std::filesystem::path const& p);
 
 // Processing environment -> out
 namespace out {
-  std::ostream& operator<<(std::ostream& os,EnvironmentValue const& ev);
+  std::ostream& operator<<(std::ostream& os,Environment::Value const& ev);
   std::ostream& operator<<(std::ostream& os,Environment::value_type const& entry);
   std::ostream& operator<<(std::ostream& os,Environment const& env);
-  std::string to_string(EnvironmentValue const& ev);
+  std::string to_string(Environment::Value const& ev);
   std::string to_string(Environment::value_type const& entry);
-  void environment_to_file(Environment const &environment,std::filesystem::path const &p);
+  // void indexed_environment_to_file(Environment const& environment,std::filesystem::path const& p);
 }
-void environment_to_file(Environment const &environment,std::filesystem::path const &p);
+void environment_to_file(Environment const& environment,std::filesystem::path const& p);
 
 struct EnvironmentPeriodSlice {
   Environment m_environment;

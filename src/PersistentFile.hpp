@@ -57,12 +57,15 @@ public:
     }
 
     void update(const E& current) {
-        if (!cached_ || *cached_ != current) {
+        if (!cached_ || (*cached_ != current)) {
             if (std::filesystem::exists(path_)) {
                 std::filesystem::rename(path_, make_backup_filename(path_));
             }
             save_func_(current, path_);
             cached_ = current; // Store the new value in the cache
+        }
+        else {
+          logger::development_trace("PersistentFile::update: cashed and current is the same -> Nothing written to file");
         }
     }
 

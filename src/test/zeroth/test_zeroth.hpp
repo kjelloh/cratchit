@@ -1,5 +1,5 @@
 #pragma once
 
-namespace tests::integrations {
+namespace tests::zeroth {
     // bool run_all();
 }

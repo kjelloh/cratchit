@@ -67,7 +67,7 @@ current_date_to_year_id_map(financial_year_start_month:5,index_count:7)
         index:-6 range:20190501...20200430
         index:0 range:20250501...20260430
 model_from_environment
-date_ordered_tagged_amounts_from_sie_environment
+dotas_from_sie_environment
 Opening Saldo Date:20230501
         saldo_ta :  20230501 162495,27
         |--> "BAS=1221"
@@ -126,7 +126,7 @@ Opening Saldo Date:20230501
         saldo_ta :  20230501 -5000,00
         |--> "BAS=2898"
         |--> "IB=True"
-date_ordered_tagged_amounts_from_sie_environment
+dotas_from_sie_environment
 Opening Saldo Date:20240501
         saldo_ta :  20240501 162495,27
         |--> "BAS=1221"
@@ -208,7 +208,7 @@ to_tagged_amounts("/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/
         Consumed account statement file move DISABLED = NOT moved to "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed/bokf_trans_165567828172.skv"
 END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/bokf_trans_165567828172.skv"
 END: Processed Files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv"
-date_ordered_tagged_amounts_from_account_statement_files RETURNS 14 entries
+dotas_from_account_statement_files RETURNS 14 entries
 BEGIN: Processing files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/skv_specs"
 END: Processing files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/skv_specs"
 sie[-1] from "sie_in/TheITfiedAB20250211_145723.se"

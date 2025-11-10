@@ -1,5 +1,5 @@
 #pragma once
 
 namespace tests::atomics {
-    bool run_all();
+    // bool run_all();
 }

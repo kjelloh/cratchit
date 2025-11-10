@@ -6,7 +6,7 @@ namespace first {
     : unicode_int_code_point{unicode_int_code_point}, MsgImpl{} {}
 
   // ----------------------------------
-  PushStateMsg::PushStateMsg(State const &state)
+  PushStateMsg::PushStateMsg(State const& state)
       :  MsgImpl{}
         ,m_state{state} {}
 
