@@ -253,3 +253,14 @@ UnitsAndCents to_units_and_cents(CentsAmount const& cents_amount);
 Amount to_amount(UnitsAndCents const& units_and_cents);
 std::ostream& operator<<(std::ostream& os,UnitsAndCents const& units_and_cents);
 std::string to_string(UnitsAndCents const& units_and_cents);
+
+inline bool have_opposite_signs(Amount a1,Amount a2) {
+	return ((a1 > 0) and (a2 < 0)) or ((a1 < 0) and (a2 > 0)); // Note: false also for a1==a2==0
+}
+
+inline bool are_same_and_less_than_100_cents_apart(Amount const& a1,Amount const& a2) {
+	bool result = (abs(abs(a1) - abs(a2)) < 1.0);
+	return result;
+}
+
+

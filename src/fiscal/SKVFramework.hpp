@@ -30,6 +30,9 @@ namespace SKV {
 
 std::set<BAS::AccountNo> to_vat_returns_form_bas_accounts(SKV::XML::VATReturns::BoxNos const& box_nos);
 std::set<BAS::AccountNo> const& to_vat_accounts();
+bool is_vat_returns_form_at(std::vector<SKV::XML::VATReturns::BoxNo> const& box_nos,BAS::anonymous::AccountTransaction const& at);
+bool is_vat_account(BAS::AccountNo account_no);
+bool is_vat_account_at(BAS::anonymous::AccountTransaction const& at);
 
 std::optional<unsigned int> to_four_digit_positive_int(std::string const& s);
 

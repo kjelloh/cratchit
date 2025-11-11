@@ -4,6 +4,7 @@
 #include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include "fiscal/amount/functional.hpp"
 #include "sie/SIEEnvironmentFramework.hpp" // sie_from_stream,...
+#include "HAD2JournalEntryFramework.hpp" // all_years_template_candidates,...
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric> // std::accumulate,
@@ -1299,7 +1300,20 @@ R"(#GEN 20251026
             << std::format("Expected 'stage' to detect 'now posted'");
         }
 
-    }
+    } // sie_envs_merge_suite
+
+    namespace had_to_template_test_suite {
+
+      TEST(HAD2TemplateTests,DummyTest) {
+        SIEEnvironmentsMap sie_envs_map{};
+        HeadingAmountDateTransEntry had{};
+        auto template_candidates = all_years_template_candidates(
+           sie_envs_map
+          ,[had](BAS::anonymous::JournalEntry const& aje){
+            return had_matches_trans(had,aje);
+          });
+      }
+    } // had_to_template_test_suite
 
     // bool run_all() {
     //     std::cout << "Running atomic tests..." << std::endl;

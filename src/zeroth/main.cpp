@@ -1,4 +1,5 @@
 #include "zeroth/main.hpp"
+#include "HAD2JournalEntryFramework.hpp" // to_md_entry,...
 
 // Cpp file to isolate this 'zeroth' variant of cratchin until refactored to 'next' variant
 // (This whole file conatins the 'zeroth' version of cratchit)
@@ -679,6 +680,38 @@ namespace lua_faced_ifc {
 
 } // namespace lua
 
+namespace SKV {
+	namespace XML {
+
+		namespace VATReturns {
+			bool quarter_has_VAT_consilidation_entry(SIEEnvironmentsMap const& sie_envs_map,zeroth::DateRange const& period) {
+				bool result{};
+				auto f = [&period,&result](BAS::MDTypedJournalEntry const& tme) {
+					auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
+					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2020-04-01 - 2020-06-30 20200630
+					// gross vat cents = sort_code: 0x367  M2 Momsrapport 2020-07-01 - 2020-09-30 20200930
+					// gross vat cents = sort_code: 0x367  M3 Momsrapport 2020-10-01 - 2020-12-31 20201231
+					// gross vat cents = sort_code: 0x367  M4 Momsrapport 2021-01-01 - 2021-03-31 20210331
+					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2021-04-01 - 2021-06-30 20210630
+					// eu_vat vat cents = sort_code: 0x567 M2 Momsrapport 2021-07-01 - 2021-09-30 20210930
+					// [ eu_vat vat = sort_code: 0x56] M3 "Momsrapport 20211001...20211230" 20211230
+
+					// NOTE: A VAT consolidation entry will have a detectable gross VAT entry if we have no income to declare.
+					if (period.contains(tme.defacto.date)) {
+// std::cout << "\nquarter_has_VAT_consilidation_entry, scanning " << tme.meta.series;
+// if (tme.meta.verno) std::cout << *tme.meta.verno;
+// std::cout << " order_code:" << std::hex << order_code << std::dec;
+						result = result or  (order_code == 0x56) or (order_code == 0x367) or (order_code == 0x567);
+					}
+				};
+				for_each_typed_md_entry(sie_envs_map,f);
+				return result;
+			}
+
+    } // VATRetruns
+  } // XML
+} // SKV
+
 // ==================================================
 // *** class Updater declaration ***
 // ==================================================
@@ -689,7 +722,8 @@ public:
 	Cmd operator()(Quit const& quit);
   Cmd operator()(Nop const& nop);
 private:
-	BAS::TypedMetaEntries all_years_template_candidates(auto const& matches);
+  // Now a free function / 20251111
+	// BAS::TypedMetaEntries all_years_template_candidates(auto const& matches);
   std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state);
 };
 
@@ -946,7 +980,9 @@ Cmd Updater::operator()(Command const& command) {
               else {
                 // Selected HAD is "naked" (no candidate for book keeping assigned)
                 model->had_index = ix;
-                model->template_candidates = this->all_years_template_candidates([had](BAS::anonymous::JournalEntry const& aje){
+                model->template_candidates = all_years_template_candidates(
+                   model->sie_env_map
+                  ,[had](BAS::anonymous::JournalEntry const& aje){
                   return had_matches_trans(had,aje);
                 });
 
@@ -3136,7 +3172,7 @@ Cmd Updater::operator()(Command const& command) {
         auto text = ast[1];
         std::transform(hads.begin(),hads.end(),std::back_inserter(sHads),[&index,&text](auto const& had){
           std::stringstream os{};
-          if (strings_share_tokens(text,had.heading)) os << index << " " << had;
+          if (text::functional::strings_share_tokens(text,had.heading)) os << index << " " << had;
           ++index; // count even if not listed
           return os.str();
         });
@@ -3720,7 +3756,7 @@ The ITfied AB
         // Assume the user has enterd text to search for suitable accounts
         // Assume match to account name
         for (auto const& [account_no,am] : model->sie_env_map["current"].account_metas()) {
-          if (first_in_second_case_insensitive(ast[1],am.name)) {
+          if (text::functional::first_in_second_case_insensitive(ast[1],am.name)) {
             prompt << "\n  " << account_no << " " << std::quoted(am.name);
             if (am.sru_code) prompt << " SRU:" << *am.sru_code;
           }
@@ -3907,8 +3943,10 @@ The ITfied AB
         }
         else {
           // Assume the user has entered a new search criteria for template candidates
-          model->template_candidates = this->all_years_template_candidates([&command](BAS::anonymous::JournalEntry const& aje){
-            return strings_share_tokens(command,aje.caption);
+          model->template_candidates = all_years_template_candidates(
+             model->sie_env_map
+            ,[&command](BAS::anonymous::JournalEntry const& aje){
+            return text::functional::strings_share_tokens(command,aje.caption);
           });
           int ix{0};
           for (int i = 0; i < model->template_candidates.size(); ++i) {
@@ -3919,10 +3957,10 @@ The ITfied AB
           model->at_candidates.clear();
           std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
             bool result{false};
-            if (at.transtext) result |= strings_share_tokens(command,*at.transtext);
+            if (at.transtext) result |= text::functional::strings_share_tokens(command,*at.transtext);
             if (model->sie_env_map["current"].account_metas().contains(at.account_no)) {
               auto const& meta = model->sie_env_map["current"].account_metas().at(at.account_no);
-              result |= strings_share_tokens(command,meta.name);
+              result |= text::functional::strings_share_tokens(command,meta.name);
             }
             return result;
           });
@@ -4114,24 +4152,26 @@ Cmd Updater::operator()(Nop const& nop) {
   // std::cout << "\noperator(Nop)";
   return {};
 }
-BAS::TypedMetaEntries Updater::all_years_template_candidates(auto const& matches) {
-  BAS::TypedMetaEntries result{};
-  auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie_env_map);
-  for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-    for (auto const& [topology,tmes] : tme_map) {
-      auto accounts_topology_map = to_accounts_topology_map(tmes);
-      for (auto const& [signature,bat_map] : accounts_topology_map) {
-        for (auto const& [topology,tmes] : bat_map) {
-          for (auto const& tme : tmes) {
-            auto mdje = to_md_entry(tme);
-            if (matches(mdje.defacto)) result.push_back(tme);
-          }
-        }
-      }
-    }
-  }
-  return result;
-}
+
+// Updater::all_years_template_candidates now a free function / 20251111
+// BAS::TypedMetaEntries Updater::all_years_template_candidates(auto const& matches) {
+//   BAS::TypedMetaEntries result{};
+//   auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie_env_map);
+//   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
+//     for (auto const& [topology,tmes] : tme_map) {
+//       auto accounts_topology_map = to_accounts_topology_map(tmes);
+//       for (auto const& [signature,bat_map] : accounts_topology_map) {
+//         for (auto const& [topology,tmes] : bat_map) {
+//           for (auto const& tme : tmes) {
+//             auto mdje = to_md_entry(tme);
+//             if (matches(mdje.defacto)) result.push_back(tme);
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return result;
+// }
 std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
   std::ostringstream prompt{};
   switch (to_state) {
@@ -4297,7 +4337,6 @@ private:
 		}
     std::queue<Msg> in{};
 }; // Cratchit
-
 
 // Environment -> Model
 
@@ -5054,7 +5093,7 @@ namespace zeroth {
 		return result;
 	} // environment_from_model
 
-}
+} // zeroth
 
 // namespace to isolate this 'zeroth' variant of cratchin 'main' until refactored to 'next' variant
 // (This whole file conatins the 'zeroth' version of cratchit)

@@ -22,7 +22,12 @@ namespace BAS {
   using OptionalAccountNos = std::optional<AccountNos>;
 
   OptionalAccountNo to_account_no(std::string const& s);
+
 } // namespace BAS
+
+inline unsigned first_digit(BAS::AccountNo account_no) {
+  return account_no / 1000;
+}
 
 // -----------------------
 // BEGIN Balance
@@ -291,6 +296,37 @@ private:
 //       that define cratching accounting operations 
 //       based on BAS <- SIE <- 'Accounting'? / 20251028
 
+inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransaction const& at1, BAS::anonymous::AccountTransaction const& at2) {
+	return (     (at1.account_no == at2.account_no)
+	         and (at1.transtext == at2.transtext)
+					 and (are_same_and_less_than_100_cents_apart(at1.amount,at2.amount)));
+}
+
+inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransactions const& ats1, BAS::anonymous::AccountTransactions const& ats2) {
+	bool result{true};
+	if (ats1.size() >= ats2.size()) {
+		for (int i=0;i<ats1.size() and result;++i) {
+			if (i<ats2.size()) {
+				result = are_same_and_less_than_100_cents_apart(ats1[i],ats2[i]);
+			}
+			else {
+				result = abs(ats1[i].amount) < 1.0; // Do not care about cents
+			}
+		}
+	}
+	else {
+		return are_same_and_less_than_100_cents_apart(ats2,ats1); // Recurse with swapped arguments
+	}
+	return result;
+}
+
+inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me1, BAS::MDJournalEntry const& me2) {
+	return (     	(me1.meta == me2.meta)
+						and (me1.defacto.caption == me2.defacto.caption)
+						and (me1.defacto.date == me2.defacto.date)
+						and (are_same_and_less_than_100_cents_apart(me1.defacto.account_transactions,me2.defacto.account_transactions)));
+}
+
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
@@ -299,6 +335,11 @@ void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& 
 	}
 }
 bool does_balance(BAS::anonymous::JournalEntry const& aje);
+
+// Pick the negative or positive gross amount and return it without sign
+OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
+BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje);
+Amount to_account_transactions_sum(BAS::anonymous::AccountTransactions const& ats);
 
 // END Accounting
 // -----------------------------

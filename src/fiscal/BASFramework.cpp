@@ -153,6 +153,45 @@ bool does_balance(BAS::anonymous::JournalEntry const& aje) {
 	return (BAS::to_cents_amount(positive_gross_transaction_amount + negative_gross_amount) == 0); // Fix for amounts not correct to the cents...
 }
 
+OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
+	// std::cout << "\nto_gross_transaction_amount: " << aje;
+	OptionalAmount result{};
+	if (does_balance(aje)) {
+		result = to_positive_gross_transaction_amount(aje); // Pick the positive alternative
+	}
+	else if (aje.account_transactions.size() == 1) {
+		result = abs(aje.account_transactions.front().amount);
+	}
+	else {
+		// Does NOT balance, and more than one account transaction.
+		// Define the gross amount as the largest account absolute transaction amount
+		auto max_at_iter = std::max_element(aje.account_transactions.begin(),aje.account_transactions.end(),[](auto const& at1,auto const& at2) {
+			return abs(at1.amount) < abs(at2.amount);
+		});
+		if (max_at_iter != aje.account_transactions.end()) result = abs(max_at_iter->amount);
+	}
+	// if (result) std::cout << "\n\t==> " << *result;
+	return result;
+}
+
+BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
+	BAS::anonymous::OptionalAccountTransaction result{};
+	auto trans_amount = to_positive_gross_transaction_amount(aje);
+	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
+		return abs(at.amount) == trans_amount;
+	});
+	if (iter != aje.account_transactions.end()) result = *iter;
+	return result;
+}
+
+Amount to_account_transactions_sum(BAS::anonymous::AccountTransactions const& ats) {
+	Amount result = std::accumulate(ats.begin(),ats.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& at){
+		acc += at.amount;
+		return acc;
+	});
+	return result;
+}
+
 // END Accounting
 // -----------------------------
 

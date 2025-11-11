@@ -143,3 +143,18 @@ private:
   }
 
 };
+
+inline void for_each_md_journal_entry(SIEEnvironment const& sie_env,auto& f) {
+	for (auto const& [series,journal] : sie_env.journals()) {
+		for (auto const& [verno,aje] : journal) {
+			f(BAS::MDJournalEntry{.meta ={.series=series,.verno=verno,.unposted_flag=sie_env.is_unposted(series,verno)},.defacto=aje});
+		}
+	}
+}
+
+inline void for_each_md_journal_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
+	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
+		for_each_md_journal_entry(sie_env,f);
+	}
+}
+

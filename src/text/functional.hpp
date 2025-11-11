@@ -1,14 +1,60 @@
 #pragma once
+#include "tokenize.hpp" // TODO: Consider to move here?
 #include <string>
 #include <algorithm> // std::copy_if,
 
 namespace functional {
   namespace text {
     // TODO: Refactor away?
-    std::string filtered(std::string const& s,auto filter) {
+    inline std::string filtered(std::string const& s,auto filter) {
       std::string result{};;
       std::copy_if(s.begin(),s.end(),std::back_inserter(result),filter);
       return result;
     }
+  }
+}
+
+namespace text {
+  namespace functional {
+
+
+      inline std::string utf_ignore_to_upper(std::string const& s) {
+
+        auto utf_ignore_to_upper_f = [](char ch) {
+          if (ch <= 0x7F) return static_cast<char>(std::toupper(ch));
+          return ch;
+        };
+
+        std::string result{};
+        std::transform(s.begin(),s.end(),std::back_inserter(result),utf_ignore_to_upper_f);
+        return result;
+      }
+
+      inline std::vector<std::string> utf_ignore_to_upper(std::vector<std::string> const& tokens) {
+        std::vector<std::string> result{};
+        auto f = [](std::string s) {return utf_ignore_to_upper(s);};
+        std::transform(tokens.begin(),tokens.end(),std::back_inserter(result),f);
+        return result;
+      }
+
+
+    inline bool strings_share_tokens(std::string const& s1,std::string const& s2) {
+      bool result{false};
+      auto s1_words = utf_ignore_to_upper(tokenize::splits(s1));
+      auto s2_words = utf_ignore_to_upper(tokenize::splits(s2));
+      for (int i=0; (i < s1_words.size()) and !result;++i) {
+        for (int j=0; (j < s2_words.size()) and !result;++j) {
+          result = (s1_words[i] == s2_words[j]);
+        }
+      }
+      return result;
+    }
+
+    inline bool first_in_second_case_insensitive(std::string const& s1, std::string const& s2) {
+      auto upper_s1 = utf_ignore_to_upper(s1);
+      auto upper_s2 = utf_ignore_to_upper(s2);
+      return (upper_s2.find(upper_s1) != std::string::npos);
+    }
+  
   }
 }
