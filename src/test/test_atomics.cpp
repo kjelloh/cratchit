@@ -4,12 +4,14 @@
 #include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include "fiscal/amount/functional.hpp"
 #include "sie/SIEEnvironmentFramework.hpp" // sie_from_stream,...
+#include "FiscalPeriod.hpp" // DateRange,FiscalYear,FiscalQuarter
 #include "HAD2JournalEntryFramework.hpp" // all_years_template_candidates,...
 #include <gtest/gtest.h>
 #include <iostream>
 #include <numeric> // std::accumulate,
 #include <ranges> // std::ranges::is_sorted,
 #include <print>
+#include <gmock/gmock.h>
 
 namespace tests::atomics {
 
@@ -355,8 +357,8 @@ namespace tests::atomics {
           {
             auto maybe_date_range = to_date_range(
                to_date("20250101")
-              ,to_date("2025101"));
-            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected Zero length date range to be rejected";
+              ,to_date("20250101"));
+            ASSERT_TRUE(maybe_date_range.has_value()) << "Expected single day length date range to be accepted";
           }
           {
             auto maybe_date_range = to_date_range(
@@ -383,7 +385,7 @@ namespace tests::atomics {
             auto maybe_date_range = to_date_range(
                to_date(2025,01,01)
               ,to_date(2025,01,01));
-            ASSERT_FALSE(maybe_date_range.has_value()) << "Expected Zero length date range to be rejected";
+            ASSERT_TRUE(maybe_date_range.has_value()) << "Expected single day date range to be accepted";
           }
           {
             auto maybe_date_range = to_date_range(
@@ -416,6 +418,31 @@ namespace tests::atomics {
 
           }
         }
+
+      TEST(DateOpsTest,FiscalYearAndQuarterHappyPath) {
+        auto today = to_today();
+
+        auto qi = to_quarter_index(today);
+        ASSERT_TRUE((1 <= qi.value()) and (qi.value() <= 4)) 
+          << std::format("Expected quarter index 1..4 but encountered qi:{}",qi.value());
+
+        auto fqp = first::to_fiscal_quarter_period(today.year(),qi);
+        ASSERT_TRUE(fqp.start().year() == fqp.last().year())
+          << std::format("Expected fiscal quarter start and last in '{}' to be within the same year"
+                ,fqp.to_string());
+
+        auto qp = first::to_fiscal_quarter_period(today);
+        ASSERT_TRUE(qp.start().year() == qp.last().year())
+          << std::format("Expected fiscal quarter start and last in '{}' to be within the same year"
+                ,qp.to_string());
+
+
+        auto current_quarter = zeroth::to_quarter_range(today);
+        auto previous_quarter = zeroth::to_three_months_earlier(current_quarter);
+        auto vat_returns_range = zeroth::DateRange{previous_quarter.begin(),current_quarter.end()}; // previous and "current" two quarters
+
+      }
+
 
     } // datefw_suite
 

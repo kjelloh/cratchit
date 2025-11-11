@@ -15,7 +15,7 @@ namespace first {
         ,m_is_valid(
               start.ok() 
           and last.ok() 
-          and (Days(m_start) < Days(m_last))) {}
+          and (Days(m_start) <= Days(m_last))) {} // single day is OK
 
   Date DateRange::start() const noexcept {
     return m_start;
@@ -29,7 +29,7 @@ namespace first {
     if (!m_is_valid)
       return false;
     auto d = Days(date);
-    return d >= Days(m_start) && d <= Days(m_last);
+    return (d >= Days(m_start)) && (d <= Days(m_last));
   }
 
   bool DateRange::is_valid() const noexcept {
@@ -68,8 +68,15 @@ namespace first {
     }
     
     Date start_date{year, start_month, std::chrono::day{1}};
-    Date end_date{start_date.year(), start_date.month() + std::chrono::months{3}, std::chrono::day{0}};
-    end_date = std::chrono::sys_days(end_date); // Chrono trick to normalize day 0 to the last day of previous month
+
+    // TODO: Consider to figure out the canonical way to find the last day
+    //       of the third month from quarter start month.
+    //       I failed to use year_month_day arithmetic, sys_days arithmetic
+    //       or some combination of these.
+    std::chrono::year_month end_yymm{start_date.year(),start_date.month() + std::chrono::months{2}};
+
+    Date end_date = end_yymm / std::chrono::last;
+
     return DateRange(start_date, end_date);
   }
 

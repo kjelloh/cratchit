@@ -15,6 +15,8 @@ namespace first {
 
     explicit QuarterIndex(unsigned ix)
         : m_ix(ix), m_valid(ix >= 1 && ix <= 4) {}
+
+    auto value() const {return m_ix;}
   };
 
   class DateRange {

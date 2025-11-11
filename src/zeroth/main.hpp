@@ -3226,6 +3226,9 @@ namespace SKV { // SKV
 					if (matches_mat(mdat)) result.push_back(mdat);
 				};
 				for_each_md_account_transaction(sie_envs_map,x);
+        if (true) {
+          logger::design_insufficiency("to_mats: result::size:{}",result.size());
+        }
 				return result;
 			}
 
@@ -3293,6 +3296,10 @@ namespace SKV { // SKV
 
 			inline BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
+        // Log
+        if (true) {
+          logger::development_trace("to_vat_returns_mats: box_no:{} account_nos::size:{}",box_no,account_nos.size());
+        }
 				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mdat) {
 					return (mat_predicate(mdat) and is_any_of_accounts(mdat,account_nos));
 				});
@@ -3301,6 +3308,7 @@ namespace SKV { // SKV
             // to_box_49_amount now in SKVFramework unit
 
 			inline std::optional<FormBoxMap> to_form_box_map(SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
+        logger::scope_logger log_raii(logger::development_trace,"to_form_box_map");
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
@@ -3332,6 +3340,12 @@ namespace SKV { // SKV
 
 					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
 					box_map[49].push_back(dummy_md_at(to_box_49_amount(box_map)));
+
+          if (true) {
+            std::ranges::for_each(box_map,[](auto const& entry){
+              logger::development_trace("box:[{}] size:{}",entry.first,entry.second.size());
+            });
+          }
 
 					result = box_map;
 				}
