@@ -874,35 +874,43 @@ Cmd Updater::operator()(Command const& command) {
   }
   if (ast.size() == 0) {
     // User hit <Enter> with no input
-    if (model->prompt_state == PromptState::TAIndex) {
-      prompt << options_list_of_prompt_state(model->prompt_state);
-      // List current selection
-      prompt << "\n<SELECTED>";
-      // for (auto const& ta : model->all_dotas.tagged_amounts()) {
-      int index = 0;
-      for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {
-        prompt << "\n" << index++ << ". " << ta;
-      }
-    }
-    else if (model->prompt_state == PromptState::AcceptNewTAs) {
-      // Reject new tagged amounts
-      model->prompt_state = PromptState::TAIndex;
-      prompt << "\n*Rejected*";
-    }
-    else if (model->prompt_state == PromptState::VATReturnsFormIndex) {
-      // Assume the user wants to accept current Journal Entry Candidate
-      if (auto had_iter = model->selected_had()) {
-        auto& had = *(*had_iter);
-        if (had.optional.current_candidate) {
-          // We have a journal entry candidate - reset any VAT Returns form candidate for current had
-          had.optional.vat_returns_form_box_map_candidate = std::nullopt;
-          prompt << "VAT Consilidation Candidate " << *had.optional.current_candidate;
-          model->prompt_state = PromptState::JEAggregateOptionIndex;
+
+    switch (model->prompt_state) {
+      case PromptState::HADIndex: {
+        prompt << to_had_listing_prompt(model->refreshed_hads());
+        prompt << options_list_of_prompt_state(model->prompt_state);
+      } break;
+
+      case PromptState::TAIndex: {
+        prompt << options_list_of_prompt_state(model->prompt_state);
+        // List current selection
+        prompt << "\n<SELECTED>";
+        // for (auto const& ta : model->all_dotas.tagged_amounts()) {
+        int index = 0;
+        for (auto const& ta : model->selected_dotas.ordered_tagged_amounts()) {
+          prompt << "\n" << index++ << ". " << ta;
         }
+      } break;
+      case PromptState::AcceptNewTAs: {
+        // Reject new tagged amounts
+        model->prompt_state = PromptState::TAIndex;
+        prompt << "\n*Rejected*";
+      } break;
+      case PromptState::VATReturnsFormIndex: {
+        // Assume the user wants to accept current Journal Entry Candidate
+        if (auto had_iter = model->selected_had()) {
+          auto& had = *(*had_iter);
+          if (had.optional.current_candidate) {
+            // We have a journal entry candidate - reset any VAT Returns form candidate for current had
+            had.optional.vat_returns_form_box_map_candidate = std::nullopt;
+            prompt << "VAT Consilidation Candidate " << *had.optional.current_candidate;
+            model->prompt_state = PromptState::JEAggregateOptionIndex;
+          }
+        }
+      } break;
+      default: {
+        prompt << options_list_of_prompt_state(model->prompt_state);
       }
-    }
-    else {
-      prompt << options_list_of_prompt_state(model->prompt_state);
     }
   }
   else {
@@ -1182,6 +1190,7 @@ Cmd Updater::operator()(Command const& command) {
         case PromptState::MaybeVATAdjust: {
           switch (ix) {
             case 0: {
+              model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
               prompt << "Prev Mx Adjusted with Axx --> OK";
@@ -1195,6 +1204,7 @@ Cmd Updater::operator()(Command const& command) {
         case PromptState::MaybeVATRebortSummary: {
           switch (ix) {
             case 0: {
+              model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
               prompt << "Prev Mx Adjusted with Axx --> OK";
@@ -1208,6 +1218,7 @@ Cmd Updater::operator()(Command const& command) {
         case PromptState::MaybeVATReportM: {
           switch (ix) {
             case 0: {
+              model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
               prompt << "Mx journaled OK";
@@ -1221,9 +1232,11 @@ Cmd Updater::operator()(Command const& command) {
         case PromptState::MaybeVATReportFiles: {
           switch (ix) {
             case 0: {
+              model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
               prompt << "VAT Report DONE ok";
+              prompt << to_had_listing_prompt(model->refreshed_hads());
               model->prompt_state = PromptState::HADIndex;
             } break;
             default: {
