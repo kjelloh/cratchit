@@ -787,6 +787,74 @@ namespace SKV {
 				return result;
 			}
 
+      BAS::MDJournalEntry to_VAT_consilidation_md_journal_entry(
+         BAS::Series series
+        ,std::string const& caption
+        ,Date date
+        ,ToAccountAmountsResult::AccountAmounts account_amounts) {
+
+        // Initiate the M journal entry
+        BAS::MDJournalEntry mdje{
+          .meta = {
+            .series = series
+          }
+          ,.defacto = {
+            .caption = caption
+            ,.date = date
+          }
+        };
+
+        for (auto const& [account_no,amount] : account_amounts) {
+          // account_amounts[0] = 4190.54
+          // account_amounts[2614] = -2364.4
+          // account_amounts[2640] = 2364.4
+          // account_amounts[2641] = 4190.54
+          // account_amounts[3308] = -888.1
+          // account_amounts[9021] = 11822
+
+          // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
+          // Book this on BAS 1650 for now (1650 = "VAT to receive")
+          if (account_no==0) {
+            // amount to tax + rounding cents = VAT Amount (+ -> to receive, - to pay )
+            auto vat_tax_amount = SKV::to_tax(amount);
+            auto rounding_amount = amount - vat_tax_amount;
+            mdje.defacto.account_transactions.push_back({
+              .account_no = 1650 // VAT to receive
+              ,.amount = vat_tax_amount
+            });
+            mdje.defacto.account_transactions.push_back({
+              .account_no = 3740 // rounding cents
+              ,.amount = rounding_amount
+            });
+          }
+          else {
+            // Book a 'zeroing' of the account (trust it is accumulated correct into 'dummy' net account)
+            mdje.defacto.account_transactions.push_back({
+              .account_no = account_no
+              ,.amount = -amount
+            });
+          }
+
+          // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
+          if (account_no == 9021) {
+            mdje.defacto.account_transactions.push_back({
+              .account_no = 9099
+              ,.transtext = "Avbokning (20) 9021"
+              ,.amount = BAS::to_cents_amount(amount)
+            });
+          }
+          // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
+          if (account_no == 3308) {
+            mdje.defacto.account_transactions.push_back({
+              .account_no = 9099
+              ,.transtext = "Avbokning (39) 3308"
+              ,.amount = BAS::to_cents_amount(amount)
+            });
+          }
+        }
+        return mdje;
+      } // to_VAT_consilidation_md_journal_entry
+
       ToAccountAmountsResult to_account_amounts(FormBoxMap const& box_map) {
         ToAccountAmountsResult result{};
         result.m_summary.push_back(std::format("UNDERLAG till MOMSRAPPORT"));
@@ -1228,7 +1296,10 @@ Cmd Updater::operator()(Command const& command) {
                         std::ranges::for_each(account_amounts_result.m_summary,[&prompt](auto const& s){
                           prompt << NL << s;
                         });
-                        model->m_current_state_data = zeroth::AcceptVATReportSummary{account_amounts_result};
+                        model->m_current_state_data = zeroth::AcceptVATReportSummary{
+                           had.heading
+                          ,had.date
+                          ,account_amounts_result};
                       }
 
                     }
@@ -1237,12 +1308,16 @@ Cmd Updater::operator()(Command const& command) {
                     // Previous quarter is VAT-cleared
                     {
                       // TODO: Refactor all #PROMPT_VAT_SUMMARY into one
-                      auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
+                      auto const& account_amounts_result = SKV::XML::VATReturns::to_account_amounts(
                         *had.optional.vat_returns_form_box_map_candidate
                       );
-                      std::ranges::for_each(summary,[&prompt](auto const& s){
+                      std::ranges::for_each(account_amounts_result.m_summary,[&prompt](auto const& s){
                         prompt << NL << s;
                       });
+                      model->m_current_state_data = zeroth::AcceptVATReportSummary{
+                          had.heading
+                        ,had.date
+                        ,account_amounts_result};
                     }
                   }
                 }
@@ -1250,77 +1325,32 @@ Cmd Updater::operator()(Command const& command) {
               else if (had.optional.vat_returns_form_box_map_candidate) {
                 // provide the user with the ability to edit the propsed VAT Returns form
                 {
+
+                  auto const& box_map = *had.optional.vat_returns_form_box_map_candidate;
+                  
                   // Adjust the sum in box 49
                   had.optional.vat_returns_form_box_map_candidate->at(49).clear();
-                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_md_at(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(
+                    SKV::XML::VATReturns::dummy_md_at(
+                      -SKV::XML::VATReturns::to_box_49_amount(
+                        *had.optional.vat_returns_form_box_map_candidate)));
+
+                  // Prompt
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
                     prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_mdats_sum(mats);
                   }
-                  BAS::MDJournalEntry mdje{
-                    .meta = {
-                      .series = 'M'
-                    }
-                    ,.defacto = {
-                      .caption = had.heading
-                      ,.date = had.date
-                    }
-                  };
-                  // std::map<BAS::AccountNo,Amount> account_amounts{};
-                  // for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-                  //   for (auto const& mat : mats) {
-                  //     account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-                  //     // std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
-                  //   }
-                  // }
+
                   auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
-                    *had.optional.vat_returns_form_box_map_candidate
+                    box_map
                   );
 
-                  for (auto const& [account_no,amount] : account_amounts) {
-                    // account_amounts[0] = 4190.54
-                    // account_amounts[2614] = -2364.4
-                    // account_amounts[2640] = 2364.4
-                    // account_amounts[2641] = 4190.54
-                    // account_amounts[3308] = -888.1
-                    // account_amounts[9021] = 11822
+                  auto mdje = SKV::XML::VATReturns::to_VAT_consilidation_md_journal_entry(
+                     'M'
+                    ,had.heading
+                    ,had.date
+                    ,account_amounts
+                  );
 
-                    // std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
-
-                    // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
-                    // Book this on BAS 1650 for now (1650 = "VAT to receive")
-                    if (account_no==0) {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 1650
-                        ,.amount = trunc(-amount)
-                      });
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 3740
-                        ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
-                      });
-                    }
-                    else {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = account_no
-                        ,.amount = BAS::to_cents_amount(-amount)
-                      });
-                    }
-                    // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
-                    if (account_no == 9021) {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 9099
-                        ,.transtext = "Avbokning (20) 9021"
-                        ,.amount = BAS::to_cents_amount(amount)
-                      });
-                    }
-                    // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
-                    if (account_no == 3308) {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 9099
-                        ,.transtext = "Avbokning (39) 3308"
-                        ,.amount = BAS::to_cents_amount(amount)
-                      });
-                    }
-                  }
                   had.optional.current_candidate = mdje;
 
                   prompt << "\nCandidate: " << mdje;
@@ -1424,8 +1454,21 @@ Cmd Updater::operator()(Command const& command) {
               model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
-              prompt << "Prev Mx Adjusted with Axx --> OK";
-              model->prompt_state = PromptState::AcceptVATReportM;
+              prompt << "VAT Returns Summary accepted ok";
+
+              if (std::holds_alternative<zeroth::AcceptVATReportSummary>(model->m_current_state_data)) {
+                auto const& state_data = std::get<zeroth::AcceptVATReportSummary>(model->m_current_state_data);
+                auto mdje = SKV::XML::VATReturns::to_VAT_consilidation_md_journal_entry(
+                   'M'
+                  ,state_data.m_caption
+                  ,state_data.m_date
+                  ,state_data.m_account_amounts_result.m_account_amounts
+                );
+                prompt << "\n" << mdje;
+                model->prompt_state = PromptState::AcceptVATReportM;
+              }
+
+
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
@@ -1505,69 +1548,18 @@ Cmd Updater::operator()(Command const& command) {
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
                     prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_mdats_sum(mats);
                   }
-                  BAS::MDJournalEntry mdje{
-                    .meta = {
-                      .series = 'M'
-                    }
-                    ,.defacto = {
-                      .caption = had.heading
-                      ,.date = had.date
-                    }
-                  };
-                  // std::map<BAS::AccountNo,Amount> account_amounts{};
-                  // for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-                  //   for (auto const& mat : mats) {
-                  //     account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-                  //   }
-                  // }
+
                   auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
                     *had.optional.vat_returns_form_box_map_candidate
                   );
 
-                  for (auto const& [account_no,amount] : account_amounts) {
-                    // account_amounts[0] = 4190.54
-                    // account_amounts[2614] = -2364.4
-                    // account_amounts[2640] = 2364.4
-                    // account_amounts[2641] = 4190.54
-                    // account_amounts[3308] = -888.1
-                    // account_amounts[9021] = 11822
-// std::cout << "\naccount_amounts[" << account_no << "] = " << amount;
-                    // account_no == 0 is the dummy account for the VAT Returns form "sum" VAT
-                    // Book this on BAS 2650
-                    // NOTE: If "sum" is positive we could use 1650 (but 2650 is viable for both positive and negative VAT "debts")
-                    if (account_no==0) {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 2650
-                        ,.amount = trunc(-amount)
-                      });
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 3740
-                        ,.amount = BAS::to_cents_amount(-amount - trunc(-amount)) // to_tax(-amount) + diff = -amount
-                      });
-                    }
-                    else {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = account_no
-                        ,.amount = BAS::to_cents_amount(-amount)
-                      });
-                    }
-                    // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
-                    if (account_no == 9021) {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 9099
-                        ,.transtext = "Avbokning (20) 9021"
-                        ,.amount = BAS::to_cents_amount(amount)
-                      });
-                    }
-                    // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
-                    if (account_no == 3308) {
-                      mdje.defacto.account_transactions.push_back({
-                        .account_no = 9099
-                        ,.transtext = "Avbokning (39) 3308"
-                        ,.amount = BAS::to_cents_amount(amount)
-                      });
-                    }
-                  }
+                  auto mdje = SKV::XML::VATReturns::to_VAT_consilidation_md_journal_entry(
+                     'M'
+                    ,had.heading
+                    ,had.date
+                    ,account_amounts
+                  );
+
                   had.optional.current_candidate = mdje;
 
                   prompt << "\nCandidate: " << mdje;

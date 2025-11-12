@@ -4129,6 +4129,8 @@ namespace zeroth {
   };
   struct AcceptVATReportSummary{
     // Wait user accept/reject VAT Report summary
+    std::string m_caption;
+    Date m_date;
     SKV::XML::VATReturns::ToAccountAmountsResult m_account_amounts_result;
   };
   struct AcceptVATReportM {        
