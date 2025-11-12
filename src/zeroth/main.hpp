@@ -4387,14 +4387,7 @@ public:
     return result;
   }
 
-  PromptState to_previous_state(PromptState const& current_state) {
-    std::cout << "\nto_previous_state";
-    PromptState result{PromptState::Root};
-    if (current_state == PromptState::ATIndex) {
-      result = PromptState::JEAggregateOptionIndex;
-    }
-    return result;
-  }
+  PromptState to_previous_state(PromptState const& current_state);
 
   std::string to_prompt_for_entering_state(PromptState const& new_state) {
     std::ostringstream result{"\n<>"};

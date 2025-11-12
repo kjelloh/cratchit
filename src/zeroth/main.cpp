@@ -4379,6 +4379,43 @@ std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState 
   return {prompt.str(),to_state};
 }
 
+// ---------------------------------------------
+// ConcreteModel
+
+PromptState ConcreteModel::to_previous_state(PromptState const& current_state) {
+  std::cout << "\nto_previous_state";
+  PromptState result{PromptState::Root};
+  switch (current_state) {
+
+    case PromptState::MaybeVATAdjust: {         
+      // Wait user accect/reject adjust of last VAT report diff
+      result = PromptState::HADIndex;
+    } break;
+    case PromptState::MaybeVATRebortSummary: {  
+      // Wait user accept/reject VAT Report summary
+      result = PromptState::MaybeVATAdjust;
+    } break;
+    case PromptState::MaybeVATReportM: {        
+      // Wait user accept/reject created journal entry M
+      result = PromptState::MaybeVATRebortSummary;
+    } break;
+    case PromptState::MaybeVATReportFiles: {    
+      // Wait user accept/reject journaled M and created SKV files
+      result = PromptState::MaybeVATReportM;
+    } break;
+
+    case PromptState::ATIndex: {
+      result = PromptState::JEAggregateOptionIndex;
+    } break;
+    default: break;
+  } 
+  return result;
+}
+
+// ConcreteModel
+// ---------------------------------------------
+
+
 // Now in BASFramework unit
 // HeadingAmountDateTransEntries hads_from_environment(Environment const& environment);
 
