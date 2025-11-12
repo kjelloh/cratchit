@@ -3298,7 +3298,13 @@ namespace SKV { // SKV
       // to_box_49_amount now in SKVFramework unit
 			std::optional<FormBoxMap> to_form_box_map(SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate);
 			bool quarter_has_VAT_consilidation_entry(SIEEnvironmentsMap const& sie_envs_map,zeroth::DateRange const& period);
-      std::map<BAS::AccountNo,Amount> to_account_amounts(FormBoxMap const& box_map);
+
+      struct ToAccountAmountsResult {
+        using  AccountAmounts = std::map<BAS::AccountNo,Amount>;
+        AccountAmounts m_account_amounts{};
+        std::vector<std::string> m_summary{};  
+      };
+      ToAccountAmountsResult to_account_amounts(FormBoxMap const& box_map);
 			HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironmentsMap const& sie_envs_map);
 
 		} // namespace VATReturns
@@ -4089,10 +4095,10 @@ enum class PromptState {
 	,HADIndex
 	,VATReturnsFormIndex
 
-  ,MaybeVATAdjust         // Wait user accect/reject adjust of last VAT report diff
-  ,MaybeVATRebortSummary  // Wait user accept/reject VAT Report summary
-  ,MaybeVATReportM        // Wait user accept/reject created journal entry M
-  ,MaybeVATReportFiles    // Wait user accept/reject journaled M and created SKV files
+  ,AcceptVATAdjust         // Wait user accect/reject adjust of last VAT report diff
+  ,AcceptVATReportSummary  // Wait user accept/reject VAT Report summary
+  ,AcceptVATReportM        // Wait user accept/reject created journal entry M
+  ,AcceptVATReportFiles    // Wait user accept/reject journaled M and created SKV files
 
 	,JEIndex
 	// Manual Build generator states

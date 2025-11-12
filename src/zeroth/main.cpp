@@ -393,21 +393,21 @@ std::string prompt_line(PromptState const& prompt_state) {
 			prompt << ":had:vat";
 		} break;
 
-    case PromptState::MaybeVATAdjust: {         
+    case PromptState::AcceptVATAdjust: {         
       // Wait user accect/reject adjust of last VAT report diff
-			prompt << ":had:vat:adjust";
+			prompt << ":had:vat:adjust:ok?";
     } break;
-    case PromptState::MaybeVATRebortSummary: {  
+    case PromptState::AcceptVATReportSummary: {  
       // Wait user accept/reject VAT Report summary
-			prompt << ":had:vat:summary";
+			prompt << ":had:vat:summary:ok?";
     } break;
-    case PromptState::MaybeVATReportM: {        
+    case PromptState::AcceptVATReportM: {        
       // Wait user accept/reject created journal entry M
-			prompt << ":had:vat:m_entry";
+			prompt << ":had:vat:m_entry:ok?";
     } break;
-    case PromptState::MaybeVATReportFiles: {    
+    case PromptState::AcceptVATReportFiles: {    
       // Wait user accept/reject journaled M and created SKV files
-			prompt << ":had:vat:file";
+			prompt << ":had:vat:file:ok?";
     } break;
 
 		case PromptState::JEIndex: {
@@ -785,16 +785,31 @@ namespace SKV {
 				return result;
 			}
 
-      std::map<BAS::AccountNo,Amount> to_account_amounts(FormBoxMap const& box_map) {
-        std::map<BAS::AccountNo,Amount> result{};
+      ToAccountAmountsResult to_account_amounts(FormBoxMap const& box_map) {
+        ToAccountAmountsResult result{};
+        result.m_summary.push_back(std::format("MOMSRAPPORT"));
+        result.m_summary.push_back(std::format("  Fält    Transaktion"));
         for (auto const& [box_no,mats] : box_map)  {
-          std::cout << "\n\t[" << box_no << "]";
+          result.m_summary.push_back(std::format("  [{}]",box_no));
           for (auto const& mat : mats) {
-            result[mat.defacto.account_no] += mat.defacto.amount;
-            std::cout << "\n\t\t" << to_string(mat.meta.date) << " result[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << result[mat.defacto.account_no];
+            result.m_account_amounts[mat.defacto.account_no] += mat.defacto.amount;
+            result.m_summary.push_back(std::format(
+               "    {:<10} BAS[{}] += {:<10} saldo:{:<10}"
+              ,to_string(mat.meta.date) 
+              ,mat.defacto.account_no
+              ,to_string(mat.defacto.amount)
+              ,to_string(result.m_account_amounts[mat.defacto.account_no])));
           }
         }
         return result;
+      }
+
+      Amount to_net_vat_amount(ToAccountAmountsResult::AccountAmounts const& account_amounts) {
+        return account_amounts.contains(0)?account_amounts.at(0):Amount{0};
+      }
+
+      bool has_vat_to_report(ToAccountAmountsResult::AccountAmounts const& account_amounts) {
+        return (abs(to_net_vat_amount(account_amounts)) >= 1.0);
       }
 
 			HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironmentsMap const& sie_envs_map) {
@@ -838,15 +853,18 @@ namespace SKV {
 								// 		std::cout << "\n\t\t" << to_string(mat.meta.date) << " account_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << account_amounts[mat.defacto.account_no];
 								// 	}
 								// }
-                auto account_amounts = to_account_amounts(*box_map);
+                // Note: Capture by value for the conveniance of account_amounts[0] below
+                //       That is, I don't have to deal with non-existance subscript problems for now...
+                auto const& [account_amounts,summary] = to_account_amounts(*box_map);
 
 								// Valid amount if > 1.0 SEK (takes care of invalid entries caused by rounding errors)
-								if (abs(account_amounts[0]) >= 1.0) {
+								if (has_vat_to_report(account_amounts)) {
 									std::ostringstream heading{};
 									heading << "Momsrapport " << current_quarter;
 									HeadingAmountDateTransEntry had{
 										.heading = heading.str()
-										,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
+                    // to_form_box_map uses a dummy transaction to account 0 for the net VAT
+										,.amount = to_net_vat_amount(account_amounts)
 										,.date = vat_returns_range.end()
 										,.optional = {
 											.vat_returns_form_box_map_candidate = box_map
@@ -916,25 +934,25 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
 		case PromptState::VATReturnsFormIndex: {result.push_back("PromptState::VATReturnsFormIndex");} break;
 
-    case PromptState::MaybeVATAdjust: {         
+    case PromptState::AcceptVATAdjust: {         
       // Wait user accect/reject adjust of last VAT report diff
       result.push_back("Previous VAT Report adjustment - Add journal entry A?");
       result.push_back("0: No");
       result.push_back("1: Yes");
     } break;
-    case PromptState::MaybeVATRebortSummary: {  
+    case PromptState::AcceptVATReportSummary: {  
       // Wait user accept/reject VAT Report summary
       result.push_back("VAT Report Summary ok?");
       result.push_back("0: No");
       result.push_back("1: Yes");
     } break;
-    case PromptState::MaybeVATReportM: {        
+    case PromptState::AcceptVATReportM: {        
       // Wait user accept/reject created journal entry M
       result.push_back("VAT Report - Add journal entry M?");
       result.push_back("0: No");
       result.push_back("1: Yes");
     } break;
-    case PromptState::MaybeVATReportFiles: {    
+    case PromptState::AcceptVATReportFiles: {    
       // Wait user accept/reject journaled M and created SKV files
       result.push_back("VAT Report Done - Create SKV files?");
       result.push_back("0: No");
@@ -1175,7 +1193,7 @@ Cmd Updater::operator()(Command const& command) {
                 // REFACTOR into VAT adjust + journal + report to SKV states
                 // TODO: Move 'older' code below to apropriate new states
 
-                model->prompt_state = PromptState::MaybeVATRebortSummary; // Default - no adjust
+                model->prompt_state = PromptState::AcceptVATReportSummary; // Default - no adjust
 
                 // Check if previous quarter has been 'zeroed' (or if we need to adjust for current report)
                 auto qi = to_quarter_index(had.date);
@@ -1187,12 +1205,42 @@ Cmd Updater::operator()(Command const& command) {
                     return previous_quarter.contains(mdat.meta.date);
                 });
                 if (box_map) {
-                  auto account_amounts = SKV::XML::VATReturns::to_account_amounts(*box_map);
+                  auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(*box_map);
                   if (account_amounts.contains(0) and account_amounts.at(0) > 1.0) {
                     prompt << "\nPrevious quarter VATs are not zeroed out";
-                    model->prompt_state = PromptState::MaybeVATAdjust;
+
+                    if (false) {
+                      // When AcceptVATAdjust implemented
+
+                      // TODO: Generate an adjustment Axx journal entry to 'move' the missing amount
+                      //       to this quarter / 20251112
+                      model->prompt_state = PromptState::AcceptVATAdjust;
+                    }
+                    else {
+                      prompt << "\n*IGNORED* - Current VAT Report will cover for previous VAT quarter diff ok.";
+                      {
+                        // TODO: Refactor all #PROMPT_VAT_SUMMARY into one
+                        auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
+                          *had.optional.vat_returns_form_box_map_candidate
+                        );
+                        std::ranges::for_each(summary,[&prompt](auto const& s){
+                          prompt << NL << s;
+                        });
+                      }
+
+                    }
                   }
                   else {
+                    // Previous quarter is VAT-cleared
+                    {
+                      // TODO: Refactor all #PROMPT_VAT_SUMMARY into one
+                      auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
+                        *had.optional.vat_returns_form_box_map_candidate
+                      );
+                      std::ranges::for_each(summary,[&prompt](auto const& s){
+                        prompt << NL << s;
+                      });
+                    }
                   }
                 }
               }
@@ -1221,7 +1269,7 @@ Cmd Updater::operator()(Command const& command) {
                   //     // std::cout << "\naccount_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount;
                   //   }
                   // }
-                  auto account_amounts = SKV::XML::VATReturns::to_account_amounts(
+                  auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
                     *had.optional.vat_returns_form_box_map_candidate
                   );
 
@@ -1353,49 +1401,49 @@ Cmd Updater::operator()(Command const& command) {
           }
         } break;
         
-        case PromptState::MaybeVATAdjust: {
+        case PromptState::AcceptVATAdjust: {
           switch (ix) {
             case 0: {
               model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
               prompt << "Prev Mx Adjusted with Axx --> OK";
-              model->prompt_state = PromptState::MaybeVATRebortSummary;
+              model->prompt_state = PromptState::AcceptVATReportSummary;
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
             } break;
           }
         } break;
-        case PromptState::MaybeVATRebortSummary: {
+        case PromptState::AcceptVATReportSummary: {
           switch (ix) {
             case 0: {
               model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
               prompt << "Prev Mx Adjusted with Axx --> OK";
-              model->prompt_state = PromptState::MaybeVATReportM;
+              model->prompt_state = PromptState::AcceptVATReportM;
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
             } break;
           }
         } break;
-        case PromptState::MaybeVATReportM: {
+        case PromptState::AcceptVATReportM: {
           switch (ix) {
             case 0: {
               model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
               prompt << "Mx journaled OK";
-              model->prompt_state = PromptState::MaybeVATReportFiles;
+              model->prompt_state = PromptState::AcceptVATReportFiles;
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
             } break;
           }
         } break;
-        case PromptState::MaybeVATReportFiles: {
+        case PromptState::AcceptVATReportFiles: {
           switch (ix) {
             case 0: {
               model->prompt_state = model->to_previous_state(model->prompt_state);
@@ -1469,7 +1517,7 @@ Cmd Updater::operator()(Command const& command) {
                   //     account_amounts[mat.defacto.account_no] += mat.defacto.amount;
                   //   }
                   // }
-                  auto account_amounts = SKV::XML::VATReturns::to_account_amounts(
+                  auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
                     *had.optional.vat_returns_form_box_map_candidate
                   );
 
@@ -4569,21 +4617,21 @@ PromptState ConcreteModel::to_previous_state(PromptState const& current_state) {
   PromptState result{PromptState::Root};
   switch (current_state) {
 
-    case PromptState::MaybeVATAdjust: {         
+    case PromptState::AcceptVATAdjust: {         
       // Wait user accect/reject adjust of last VAT report diff
       result = PromptState::HADIndex;
     } break;
-    case PromptState::MaybeVATRebortSummary: {  
+    case PromptState::AcceptVATReportSummary: {  
       // Wait user accept/reject VAT Report summary
-      result = PromptState::MaybeVATAdjust;
+      result = PromptState::AcceptVATAdjust;
     } break;
-    case PromptState::MaybeVATReportM: {        
+    case PromptState::AcceptVATReportM: {        
       // Wait user accept/reject created journal entry M
-      result = PromptState::MaybeVATRebortSummary;
+      result = PromptState::AcceptVATReportSummary;
     } break;
-    case PromptState::MaybeVATReportFiles: {    
+    case PromptState::AcceptVATReportFiles: {    
       // Wait user accept/reject journaled M and created SKV files
-      result = PromptState::MaybeVATReportM;
+      result = PromptState::AcceptVATReportM;
     } break;
 
     case PromptState::ATIndex: {
