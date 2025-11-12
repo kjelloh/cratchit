@@ -4086,42 +4086,65 @@ inline std::optional<std::string> to_employee(Environment::Value const& ev) {
 	return result;
 }
 
-enum class PromptState {
-	Undefined
-	,Root
-  ,LUARepl
-	,TAIndex
-	,AcceptNewTAs
-	,HADIndex
-	,VATReturnsFormIndex
+namespace zeroth {
+  enum class PromptState {
+    Undefined
+    ,Root
+    ,LUARepl
+    ,TAIndex
+    ,AcceptNewTAs
+    ,HADIndex
+    ,VATReturnsFormIndex
 
-  ,AcceptVATAdjust         // Wait user accect/reject adjust of last VAT report diff
-  ,AcceptVATReportSummary  // Wait user accept/reject VAT Report summary
-  ,AcceptVATReportM        // Wait user accept/reject created journal entry M
-  ,AcceptVATReportFiles    // Wait user accept/reject journaled M and created SKV files
+    ,AcceptVATAdjust         // Wait user accect/reject adjust of last VAT report diff
+    ,AcceptVATReportSummary  // Wait user accept/reject VAT Report summary
+    ,AcceptVATReportM        // Wait user accept/reject created journal entry M
+    ,AcceptVATReportFiles    // Wait user accept/reject journaled M and created SKV files
 
-	,JEIndex
-	// Manual Build generator states
-	,GrossDebitorCreditOption // User selects if Gross account is Debit or Credit
-	,CounterTransactionsAggregateOption // User selects what kind of counter trasnaction aggregate to create
-	,GrossAccountInput
-	,NetVATAccountInput
-	,JEAggregateOptionIndex
-	,EnterHA
-	,ATIndex
-	,EditAT
-	,CounterAccountsEntry
-	,SKVEntryIndex
-	,QuarterOptionIndex
-	,SKVTaxReturnEntryIndex
-	,K10INK1EditOptions
-	,INK2AndAppendixEditOptions
-	,EnterIncome
-  ,EnterDividend
-	,EnterContact
-	,EnterEmployeeID
-	,Unknown
-};
+    ,JEIndex
+    // Manual Build generator states
+    ,GrossDebitorCreditOption // User selects if Gross account is Debit or Credit
+    ,CounterTransactionsAggregateOption // User selects what kind of counter trasnaction aggregate to create
+    ,GrossAccountInput
+    ,NetVATAccountInput
+    ,JEAggregateOptionIndex
+    ,EnterHA
+    ,ATIndex
+    ,EditAT
+    ,CounterAccountsEntry
+    ,SKVEntryIndex
+    ,QuarterOptionIndex
+    ,SKVTaxReturnEntryIndex
+    ,K10INK1EditOptions
+    ,INK2AndAppendixEditOptions
+    ,EnterIncome
+    ,EnterDividend
+    ,EnterContact
+    ,EnterEmployeeID
+    ,Unknown
+  };
+
+  struct AcceptVATAdjust{
+    // Wait user accect/reject adjust of last VAT report diff
+  };
+  struct AcceptVATReportSummary{
+    // Wait user accept/reject VAT Report summary
+    SKV::XML::VATReturns::ToAccountAmountsResult m_account_amounts_result;
+  };
+  struct AcceptVATReportM {        
+    // Wait user accept/reject created journal entry M
+  };
+  struct AcceptVATReportFiles{    
+    // Wait user accept/reject journaled M and created SKV files
+  };
+
+  using StateData = std::variant<
+     AcceptVATAdjust
+    ,AcceptVATReportSummary
+    ,AcceptVATReportM
+    ,AcceptVATReportFiles>;
+
+} // zeroth
 
 auto falling_date = [](auto const& had1,auto const& had2){
 	return (had1.date > had2.date);
@@ -4130,10 +4153,16 @@ auto falling_date = [](auto const& had1,auto const& had2){
 using PromptOptionsList = std::vector<std::string>;
 
 std::ostream& operator<<(std::ostream& os,PromptOptionsList const& pol);
-PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state);
+PromptOptionsList options_list_of_prompt_state(zeroth::PromptState const& prompt_state);
 
 class ConcreteModel {
 public:
+
+  using PromptState = zeroth::PromptState; // Bring in zeroth PromptState in this class
+
+  // Introduced a seed for state-classes in zeroth model / 20251112
+  using StateData = zeroth::StateData;
+  StateData m_current_state_data{};
 
   std::map<sie::RelativeYearKey,std::filesystem::path> posted_sie_files{};
 

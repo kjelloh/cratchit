@@ -369,6 +369,8 @@ std::vector<std::string> quoted_tokens(std::string const& cli) {
 	return result;
 }
 
+using PromptState = zeroth::PromptState; // Bring in zeroth PromptState in this zeroth translation unit
+
 std::string prompt_line(PromptState const& prompt_state) {
 	std::ostringstream prompt{};
 	// prompt << options_list_of_prompt_state(prompt_state);
@@ -787,14 +789,14 @@ namespace SKV {
 
       ToAccountAmountsResult to_account_amounts(FormBoxMap const& box_map) {
         ToAccountAmountsResult result{};
-        result.m_summary.push_back(std::format("MOMSRAPPORT"));
+        result.m_summary.push_back(std::format("UNDERLAG till MOMSRAPPORT"));
         result.m_summary.push_back(std::format("  Fält    Transaktion"));
         for (auto const& [box_no,mats] : box_map)  {
-          result.m_summary.push_back(std::format("  [{}]",box_no));
+          result.m_summary.push_back(std::format("\n  [{}]",box_no));
           for (auto const& mat : mats) {
             result.m_account_amounts[mat.defacto.account_no] += mat.defacto.amount;
             result.m_summary.push_back(std::format(
-               "    {:<10} BAS[{}] += {:<10} saldo:{:<10}"
+               "        {:<10} BAS[{}] += {:<10} saldo:{:<10}"
               ,to_string(mat.meta.date) 
               ,mat.defacto.account_no
               ,to_string(mat.defacto.amount)
@@ -1220,12 +1222,13 @@ Cmd Updater::operator()(Command const& command) {
                       prompt << "\n*IGNORED* - Current VAT Report will cover for previous VAT quarter diff ok.";
                       {
                         // TODO: Refactor all #PROMPT_VAT_SUMMARY into one
-                        auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
+                        auto const& account_amounts_result = SKV::XML::VATReturns::to_account_amounts(
                           *had.optional.vat_returns_form_box_map_candidate
                         );
-                        std::ranges::for_each(summary,[&prompt](auto const& s){
+                        std::ranges::for_each(account_amounts_result.m_summary,[&prompt](auto const& s){
                           prompt << NL << s;
                         });
+                        model->m_current_state_data = zeroth::AcceptVATReportSummary{account_amounts_result};
                       }
 
                     }
