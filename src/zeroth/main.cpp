@@ -953,6 +953,72 @@ namespace SKV {
 				}
 				return result;
 			}
+      struct CreateVATReturnFilesToSKVResult {
+        std::ostringstream prompt{};
+      };
+      CreateVATReturnFilesToSKVResult create_vat_return_files_to_skv(
+         FormBoxMap box_map
+        ,zeroth::DateRange period_range
+        ,SIE::OrgNr organisation_no
+        ,std::vector<SKV::ContactPersonMeta> const& organisation_contacts) {
+        CreateVATReturnFilesToSKVResult result{};
+        result.prompt << "\nVAT Returns for " << period_range;
+        if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(period_range)) {
+
+          SKV::OrganisationMeta org_meta {
+            .org_no = organisation_no.CIN
+            ,.contact_persons = organisation_contacts
+          };
+
+          SKV::XML::DeclarationMeta form_meta {
+            .declaration_period_id = vat_returns_meta->period_to_declare
+          };
+
+          auto xml_map = SKV::XML::VATReturns::to_xml_map(box_map,org_meta,form_meta);
+          if (xml_map) {
+            std::filesystem::path skv_files_folder{"to_skv"};
+            std::filesystem::path skv_file_name{std::string{"moms_"} + vat_returns_meta->period_to_declare + ".eskd"};
+            std::filesystem::path skv_file_path = skv_files_folder / skv_file_name;
+            std::filesystem::create_directories(skv_file_path.parent_path());
+            std::ofstream skv_file{skv_file_path};
+            SKV::XML::VATReturns::OStream vat_returns_os{skv_file};
+            if (vat_returns_os << *xml_map) {
+              result.prompt << "\nCreated " << skv_file_path;
+              SKV::XML::VATReturns::OStream vat_returns_prompt{result.prompt};
+              vat_returns_prompt << "\n" << *xml_map;
+            }
+            else result.prompt << "\nSorry, failed to create the file " << skv_file_path;
+          }
+          else result.prompt << "\nSorry, failed to map form data to XML Data required for the VAR Returns form file";
+          // Generate an EU Sales List form for the VAT Returns form
+          if (auto eu_list_form = SKV::CSV::EUSalesList::vat_returns_to_eu_sales_list_form(box_map,org_meta,period_range)) {
+            auto today = to_today();
+            auto eu_list_quarter = SKV::CSV::EUSalesList::to_eu_list_quarter(period_range.end());
+            std::filesystem::path skv_files_folder{"to_skv"};
+            std::filesystem::path skv_file_name{std::string{"periodisk_sammanstallning_"} + eu_list_quarter.yy_hyphen_quarter_seq_no + "_" + to_string(today) + ".csv"};
+            std::filesystem::path eu_list_form_file_path = skv_files_folder / skv_file_name;
+            std::filesystem::create_directories(eu_list_form_file_path.parent_path());
+            std::ofstream eu_list_form_file_stream{eu_list_form_file_path};
+            SKV::CSV::EUSalesList::OStream os{eu_list_form_file_stream};
+            if (os << *eu_list_form) {
+              result.prompt << "\nCreated file " << eu_list_form_file_path << " OK";
+              SKV::CSV::EUSalesList::OStream eu_sales_list_prompt{result.prompt};
+              eu_sales_list_prompt << "\n" <<  *eu_list_form;
+            }
+            else {
+              result.prompt << "\nSorry, failed to write " << eu_list_form_file_path;
+            }
+          }
+          else {
+            result.prompt << "\nSorry, failed to acquire required data for the EU List form file";
+          }
+
+        }
+        else {
+          result.prompt << "\nSorry, failed to gather meta-data for the VAT returns form for period " << period_range;
+        }
+        return result;
+      } 
 
     } // VATRetruns
   } // XML
