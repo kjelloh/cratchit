@@ -4135,6 +4135,7 @@ namespace zeroth {
   };
   struct AcceptVATReportM {        
     // Wait user accept/reject created journal entry M
+    BAS::MDJournalEntry m_mdje;
   };
   struct AcceptVATReportFiles{    
     // Wait user accept/reject journaled M and created SKV files

@@ -1465,10 +1465,13 @@ Cmd Updater::operator()(Command const& command) {
                   ,state_data.m_account_amounts_result.m_account_amounts
                 );
                 prompt << "\n" << mdje;
+                model->m_current_state_data = zeroth::AcceptVATReportM{mdje};
                 model->prompt_state = PromptState::AcceptVATReportM;
               }
-
-
+              else {
+                prompt << "\nSorry, I seem to lack ability to create a VAT Reconsiliation journal entry";
+                model->prompt_state = PromptState::HADIndex;
+              }
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
@@ -1481,8 +1484,24 @@ Cmd Updater::operator()(Command const& command) {
               model->prompt_state = model->to_previous_state(model->prompt_state);
             } break;
             case 1: {
-              prompt << "Mx journaled OK";
-              model->prompt_state = PromptState::AcceptVATReportFiles;
+              if (std::holds_alternative<zeroth::AcceptVATReportM>(model->m_current_state_data)) {
+                auto const& state_data = std::get<zeroth::AcceptVATReportM>(model->m_current_state_data);
+                if (auto stage_result = model->sie_env_map.stage(state_data.m_mdje)) {
+                  prompt << "\n" << stage_result.md_entry() << " STAGED";
+
+
+                  model->prompt_state = PromptState::AcceptVATReportFiles;
+                }
+                else {
+                  prompt << "\nSORRY - Failed to stage entry";
+                  model->prompt_state = PromptState::HADIndex;
+                }
+              }
+              else {
+                prompt << "\nSorry, I seem to lack ability to register the VAT reconsiliation event";
+                model->prompt_state = PromptState::HADIndex;
+              }
+
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
