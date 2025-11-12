@@ -408,7 +408,7 @@ std::string prompt_line(PromptState const& prompt_state) {
 			prompt << ":had:vat:m_entry:ok?";
     } break;
     case PromptState::AcceptVATReportFiles: {    
-      // Wait user accept/reject journaled M and created SKV files
+      // Wait user accept/reject created SKV files
 			prompt << ":had:vat:file:ok?";
     } break;
 
@@ -1089,7 +1089,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
       result.push_back("1: Yes");
     } break;
     case PromptState::AcceptVATReportFiles: {    
-      // Wait user accept/reject journaled M and created SKV files
+      // Wait user accept/reject created SKV files
       result.push_back("VAT Report Done - Create SKV files?");
       result.push_back("0: No");
       result.push_back("1: Yes");
@@ -1555,7 +1555,7 @@ Cmd Updater::operator()(Command const& command) {
                 if (auto stage_result = model->sie_env_map.stage(state_data.m_mdje)) {
                   prompt << "\n" << stage_result.md_entry() << " STAGED";
 
-
+                  // Wait user accept/reject created SKV files
                   model->prompt_state = PromptState::AcceptVATReportFiles;
                 }
                 else {
@@ -1575,6 +1575,7 @@ Cmd Updater::operator()(Command const& command) {
           }
         } break;
         case PromptState::AcceptVATReportFiles: {
+          // Wait user accept/reject created SKV files
           switch (ix) {
             case 0: {
               model->prompt_state = model->to_previous_state(model->prompt_state);
@@ -4727,7 +4728,7 @@ PromptState ConcreteModel::to_previous_state(PromptState const& current_state) {
       result = PromptState::AcceptVATReportSummary;
     } break;
     case PromptState::AcceptVATReportFiles: {    
-      // Wait user accept/reject journaled M and created SKV files
+      // Wait user accept/reject created SKV files
       result = PromptState::AcceptVATReportM;
     } break;
 
