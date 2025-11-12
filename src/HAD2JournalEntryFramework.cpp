@@ -32,7 +32,8 @@ namespace BAS {
 			std::sort(at_types.begin(),at_types.end(),[](ATType t1,ATType t2){
 				return (t1<t2);
 			});
-			// Assemble a "number" of "digits" each having value 0..15 (i.e, in effect a hexadecimal number with each digit indicating an at_type enum value)
+			// Assemble a "number" of "digits" each having value 0..15 (i.e, 
+      // in effect a hexadecimal number with each digit indicating an at_type enum value)
 			for (auto at_type : at_types) result = result*0x10 + static_cast<std::size_t>(at_type);
 			return result;
 		}

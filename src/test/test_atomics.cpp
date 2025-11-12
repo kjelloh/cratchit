@@ -415,8 +415,40 @@ namespace tests::atomics {
                  three_months_earlier.last() 
               == date_range.last() - std::chrono::months{3}
             ) << std::format("Expected last to be three months earlier");
-
           }
+          {
+            auto date = to_date(2025,12,31);
+            auto qi = to_quarter_index(date);
+            first::FiscalQuarter fiscal_quarter{qi,date.year()};
+            ASSERT_TRUE(fiscal_quarter.start() == to_date(2025,10,01))
+              << std::format("Expected quarter {} to start 20251001",fiscal_quarter.to_string());
+            ASSERT_TRUE(fiscal_quarter.last() == to_date(2025,12,31))
+              << std::format("Expected quarter {} to last until 20251231",fiscal_quarter.to_string());
+
+            auto previous_quarter = fiscal_quarter.to_relative_fiscal_quarter(-1);
+            ASSERT_TRUE(previous_quarter.start() == to_date(2025,7,01))
+              << std::format("Expected previous quarter {} to start 20250701",previous_quarter.to_string());
+            // Note: I must provide literal 9 to get a decimal 09 (literat 09 is an invalid octal *sigh*)
+            ASSERT_TRUE(previous_quarter.last() == to_date(2025,9,30))
+              << std::format("Expected previous quarter {} to last until 20250930",previous_quarter.to_string());
+          }
+
+          {
+            auto date = to_date(2025,01,01);
+            auto qi = to_quarter_index(date);
+            first::FiscalQuarter fiscal_quarter{qi,date.year()};
+            ASSERT_TRUE(fiscal_quarter.start() == to_date(2025,01,01))
+              << std::format("Expected quarter {} to start 20250101",fiscal_quarter.to_string());
+            ASSERT_TRUE(fiscal_quarter.last() == to_date(2025,03,31))
+              << std::format("Expected quarter {} to last until 20250331",fiscal_quarter.to_string());
+
+            auto previous_quarter = fiscal_quarter.to_relative_fiscal_quarter(-1);
+            ASSERT_TRUE(previous_quarter.start() == to_date(2024,10,01))
+              << std::format("Expected previous quarter {} to start 20241001",previous_quarter.to_string());
+            ASSERT_TRUE(previous_quarter.last() == to_date(2024,12,31))
+              << std::format("Expected previous quarter {} to last until 20241231",previous_quarter.to_string());
+          }
+
         }
 
       TEST(DateOpsTest,FiscalYearAndQuarterHappyPath) {

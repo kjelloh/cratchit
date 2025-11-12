@@ -3294,130 +3294,12 @@ namespace SKV { // SKV
 				};
 			}
 
-			inline BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
-				auto account_nos = to_accounts(box_no);
-        // Log
-        if (true) {
-          logger::development_trace("to_vat_returns_mats: box_no:{} account_nos::size:{}",box_no,account_nos.size());
-        }
-				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mdat) {
-					return (mat_predicate(mdat) and is_any_of_accounts(mdat,account_nos));
-				});
-			}
-
-            // to_box_49_amount now in SKVFramework unit
-
-			inline std::optional<FormBoxMap> to_form_box_map(SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
-        logger::scope_logger log_raii(logger::development_trace,"to_form_box_map");
-				std::optional<FormBoxMap> result{};
-				try {
-					FormBoxMap box_map{};
-					// Amount		VAT Return Box			XML Tag
-					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5] = to_vat_returns_mats(5,sie_envs_map,mat_predicate);
-					// box_map[5].push_back(dummy_mat(333200));
-					// 83300		10									"MomsUtgHog"
-					box_map[10] = to_vat_returns_mats(10,sie_envs_map,mat_predicate);
-					// box_map[10].push_back(dummy_mat(83300));
-					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20] = to_vat_returns_mats(20,sie_envs_map,mat_predicate);
-					// box_map[20].push_back(dummy_mat(6616));
-					// 1654			30									"MomsInkopUtgHog"
-					box_map[30] = to_vat_returns_mats(30,sie_envs_map,mat_predicate);
-					// box_map[30].push_back(dummy_mat(1654));
-					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39] = to_vat_returns_mats(39,sie_envs_map,mat_predicate);
-					// box_map[39].push_back(dummy_mat(957));
-					// 2688			48									"MomsIngAvdr"
-					box_map[48] = to_vat_returns_mats(48,sie_envs_map,mat_predicate);
-					// box_map[48].push_back(dummy_mat(2688));
-					// 597			50									"MomsUlagImport"
-					box_map[50] = to_vat_returns_mats(50,sie_envs_map,mat_predicate);
-					// box_map[50].push_back(dummy_mat(597));
-					// 149			60									"MomsImportUtgHog"
-					box_map[60] = to_vat_returns_mats(60,sie_envs_map,mat_predicate);
-					// box_map[60].push_back(dummy_mat(149));
-
-					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
-					box_map[49].push_back(dummy_md_at(to_box_49_amount(box_map)));
-
-          if (true) {
-            std::ranges::for_each(box_map,[](auto const& entry){
-              logger::development_trace("box:[{}] size:{}",entry.first,entry.second.size());
-            });
-          }
-
-					result = box_map;
-				}
-				catch (std::exception const& e) {
-					std::cout << "\nERROR, to_form_box_map failed. Expection=" << std::quoted(e.what());
-				}
-				return result;
-			}
-
+			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate);
+      // to_box_49_amount now in SKVFramework unit
+			std::optional<FormBoxMap> to_form_box_map(SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate);
 			bool quarter_has_VAT_consilidation_entry(SIEEnvironmentsMap const& sie_envs_map,zeroth::DateRange const& period);
-
-			inline HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironmentsMap const& sie_envs_map) {
-				HeadingAmountDateTransEntries result{};
-				try {
-					// Create a had for last quarter if there is no journal entry in the M series for it
-					// Otherwise create a had for current quarter
-					auto today = to_today();
-					auto current_quarter = zeroth::to_quarter_range(today);
-					auto previous_quarter = zeroth::to_three_months_earlier(current_quarter);
-					auto vat_returns_range = zeroth::DateRange{previous_quarter.begin(),current_quarter.end()}; // previous and "current" two quarters
-					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter after having created the VAT returns consolidation
-					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
-
-					// Loop through quarters
-					for (int i=0;i<3;++i) {
-// std::cout << "\nto_vat_returns_hads, checking vat_returns_range " << vat_returns_range;
-						// Check three quartes back for missing VAT consilidation journal entry
-						if (quarter_has_VAT_consilidation_entry(sie_envs_map,current_quarter) == false) {
-							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
-							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountTransaction const& mdat){
-								return vat_returns_meta->period.contains(mdat.meta.date);
-							};
-							if (auto box_map = to_form_box_map(sie_envs_map,is_vat_returns_range)) {
-								// box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
-								// We need a per-account amount to counter (consolidate) into 1650 (VAT to get back) or 2650 (VAT to pay)
-								// 2650 "Redovisningskonto för moms" SRU:7369
-								// 1650 "Momsfordran" SRU:7261
-  							std::cout << "\nPeriod:" << to_string(vat_returns_range.begin()) << "..." << to_string(vat_returns_range.end());
-								std::map<BAS::AccountNo,Amount> account_amounts{};
-								for (auto const& [box_no,mats] : *box_map)  {
-									std::cout << "\n\t[" << box_no << "]";
-									for (auto const& mat : mats) {
-										account_amounts[mat.defacto.account_no] += mat.defacto.amount;
-										std::cout << "\n\t\t" << to_string(mat.meta.date) << " account_amounts[" << mat.defacto.account_no << "] += " << mat.defacto.amount << " saldo:" << account_amounts[mat.defacto.account_no];
-									}
-								}
-
-								// Valid amount if > 1.0 SEK (takes care of invalid entries caused by rounding errors)
-								if (abs(account_amounts[0]) >= 1.0) {
-									std::ostringstream heading{};
-									heading << "Momsrapport " << current_quarter;
-									HeadingAmountDateTransEntry had{
-										.heading = heading.str()
-										,.amount = account_amounts[0] // to_form_box_map uses a dummy transaction to account 0 for the net VAT
-										,.date = vat_returns_range.end()
-										,.optional = {
-											.vat_returns_form_box_map_candidate = box_map
-										}
-									};
-									result.push_back(had);
-								}
-							}
-						}
-						current_quarter = zeroth::to_three_months_earlier(current_quarter);
-						vat_returns_range = zeroth::to_three_months_earlier(vat_returns_range);
-					}
-				}
-				catch (std::exception const& e) {
-					std::cout << "\nERROR: to_vat_returns_had failed. Excpetion = " << std::quoted(e.what());
-				}
-				return result;
-			}
+      std::map<BAS::AccountNo,Amount> to_account_amounts(FormBoxMap const& box_map);
+			HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironmentsMap const& sie_envs_map);
 
 		} // namespace VATReturns
 	} // namespace XML
@@ -4363,7 +4245,9 @@ public:
 		for (auto const& vat_returns_had : vat_returns_hads) {
 			if (auto o_iter = this->find_had(vat_returns_had)) {
 				auto iter = *o_iter;
-				// TODO: When/if we actually save the state of iter->optional.vat_returns_form_box_map_candidate, then remove the condition in following if-statement
+				// TODO: When/if we actually save the state of 
+        // iter->optional.vat_returns_form_box_map_candidate
+        // ,then remove the condition in following if-statement
 				if (!iter->optional.vat_returns_form_box_map_candidate or (are_same_and_less_than_100_cents_apart(iter->amount,vat_returns_had.amount) == false)) {
 					// NOTE: iter->optional.vat_returns_form_box_map_candidate currently does not survive restart of cratchit (is not saved to nor retreived from environment file)
 					*iter = vat_returns_had;
