@@ -3366,7 +3366,7 @@ namespace SKV { // SKV
 					auto current_quarter = zeroth::to_quarter_range(today);
 					auto previous_quarter = zeroth::to_three_months_earlier(current_quarter);
 					auto vat_returns_range = zeroth::DateRange{previous_quarter.begin(),current_quarter.end()}; // previous and "current" two quarters
-					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter aftre having created the VAT returns consolidation
+					// NOTE: By spanning previous and "current" quarters we can catch-up if we made any changes to prevuious quarter after having created the VAT returns consolidation
 					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
 
 					// Loop through quarters
@@ -4206,6 +4206,12 @@ enum class PromptState {
 	,AcceptNewTAs
 	,HADIndex
 	,VATReturnsFormIndex
+
+  ,MaybeVATAdjust         // Wait user accect/reject adjust of last VAT report diff
+  ,MaybeVATRebortSummary  // Wait user accept/reject VAT Report summary
+  ,MaybeVATReportM        // Wait user accept/reject created journal entry M
+  ,MaybeVATReportFiles    // Wait user accept/reject journaled M and created SKV files
+
 	,JEIndex
 	// Manual Build generator states
 	,GrossDebitorCreditOption // User selects if Gross account is Debit or Credit
@@ -4235,94 +4241,8 @@ auto falling_date = [](auto const& had1,auto const& had2){
 
 using PromptOptionsList = std::vector<std::string>;
 
-inline std::ostream& operator<<(std::ostream& os,PromptOptionsList const& pol) {
-	for (auto const& option : pol) {
-		os << "\n" << option;
-	}
-	return os;
-}
-
-inline PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) {
-	std::vector<std::string> result{};
-	result.push_back("Options:");
-	switch (prompt_state) {
-		case PromptState::Undefined: {result.push_back("DESIGN INSUFFICIENCY: options_list_of_prompt_state have no action for State PromptState::Undefined ");} break;
-		case PromptState::Root: {
-			result.push_back("<Heading> <Amount> <Date> : Entry of new Heading Amount Date (HAD) Transaction entry");
-			result.push_back("-hads : lists current Heading Amount Date (HAD) entries");
-			result.push_back("-sie <sie file path> : imports a new input sie file. Please enclose path with \"\" if it contains space.");
-			result.push_back("-sie : lists transactions in input sie-file");
-			result.push_back("-tas <first date> <last date> : Selects tagged amounts in the period first date .. last date");
-			result.push_back("-tas : Selects last selected tagged amounts");
-			result.push_back("-csv <csv file path> : Imports Comma Seperated Value file of Web bank account transactions");
-			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");
-			result.push_back("'q' or 'Quit'");
-		} break;
-    case PromptState::LUARepl: {
-      result.push_back("Please enter a valid lua script to execute");
-    } break;
-		case PromptState::TAIndex: {
-      result.push_back("The following options are available for Tagged Amounts selection.");
-      result.push_back("<Enter> : Lists the currently selected tagged amounts");
-      result.push_back("<index> - Selects tagged amount with provided index");
-      result.push_back("-has_tag <regular expression> - Keep tagged amounts with tag matching regular expression");
-      result.push_back("-has_not_tag <regular expression> - Keep tagged amounts with tag NOT matching regular expression");
-      result.push_back("-is_tagged <tag name>=<regular expression> - Keep tagged amounts with named tag value matching regular expression");
-      result.push_back("-is_not_tagged <tag name>=<regular expression> - Keep tagged amounts with named tag value NOT matching regular expression");
-      result.push_back("-to_bas_account <bas account number> - Tag current selection of tagged amounts with provided BAS account number.");
-      result.push_back("-amount_trails - Groups tagged amounts on transaction amount and lists them");
-      result.push_back("-aggregates - Reduces tagged amounts to only aggregates (E.g., SIE entries referring to single account tagged amounts)");
-      result.push_back("-todo - Lists tagged amounts subject to 'TODO' actions.");
-    } break;
-		case PromptState::AcceptNewTAs: {
-			result.push_back("1:YES");
-			result.push_back("<Enter>:No");
-		} break;
-		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
-		case PromptState::VATReturnsFormIndex: {result.push_back("PromptState::VATReturnsFormIndex");} break;
-		case PromptState::JEIndex: {result.push_back("PromptState::JEIndex");} break;
-		case PromptState::GrossDebitorCreditOption: {
-			result.push_back("0: As is ");
-			result.push_back("1: (+) Force to Debit ");
-			result.push_back("2: (-) Force to Credit ");
-		} break;
-		case PromptState::CounterTransactionsAggregateOption: {
-			result.push_back("0: Gross counter transaction account aggregate");
-			result.push_back("1: {Net, VAT} counter transaction accounts aggregate");
-		} break;
-		case PromptState::GrossAccountInput: {
-			result.push_back("Please enter counter transaction account");
-		} break;
-		case PromptState::NetVATAccountInput: {
-			result.push_back("Please enter Net + VAT counter accounts (separated by space");
-		} break;
-		case PromptState::JEAggregateOptionIndex: {
-			result.push_back("0 1 x counter transactions aggregate");
-			result.push_back("1 n x counter transactions aggregate");
-			result.push_back("2 Edit account transactions");
-			result.push_back("3 STAGE as-is");
-		} break;
-		case PromptState::EnterHA: {result.push_back("PromptState::EnterHA");} break;
-		case PromptState::ATIndex: {
-      result.push_back("Please enter index of entry to edit, or <BAS account> <Amount> to add a new entry;'-' to exit back to journal entry");
-    } break;
-		case PromptState::EditAT: {
-			result.push_back("Please Enter new Account, new Amount (with decimal comma) or new transaction text; '-' to exit back to candidate");
-		} break;
-		case PromptState::CounterAccountsEntry: {result.push_back("PromptState::CounterAccountsEntry");} break;
-		case PromptState::SKVEntryIndex: {result.push_back("PromptState::SKVEntryIndex");} break;
-		case PromptState::QuarterOptionIndex: {result.push_back("PromptState::QuarterOptionIndex");} break;
-		case PromptState::SKVTaxReturnEntryIndex: {result.push_back("PromptState::SKVTaxReturnEntryIndex");} break;
-		case PromptState::K10INK1EditOptions: {result.push_back("PromptState::K10INK1EditOptions");} break;
-		case PromptState::INK2AndAppendixEditOptions: {result.push_back("PromptState::INK2AndAppendixEditOptions");} break;
-		case PromptState::EnterIncome: {result.push_back("PromptState::EnterIncome");} break;
-		case PromptState::EnterDividend: {result.push_back("PromptState::EnterDividend");} break;
-		case PromptState::EnterContact: {result.push_back("PromptState::EnterContact");} break;
-		case PromptState::EnterEmployeeID: {result.push_back("PromptState::EnterEmployeeID");} break;
-		case PromptState::Unknown: {result.push_back("DESIGN INSUFFICIENCY: options_list_of_prompt_state have no action for State PromptState::Unknown ");} break;
-	}
-	return result;
-}
+std::ostream& operator<<(std::ostream& os,PromptOptionsList const& pol);
+PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state);
 
 class ConcreteModel {
 public:
