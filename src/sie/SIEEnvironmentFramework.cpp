@@ -128,10 +128,21 @@ MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
 std::pair<bool,std::string> SIEEnvironmentsMap::remove(SIEEnvironment::DatedJournalEntryMeta const& key) {
   std::pair<bool,std::string> result{false,std::format("Could not find entry to remove")};
 
+  // TODO: Consider to refactor the whole SIE storage API to use a key:{series,verno}.
+  //       Then we can just look up ('A',11) plain and simple.
+  //       We can then define 'views' in date order, series order or what have you
+  //       using key vectors?
+  //       For now, I suppose I have to live with the mess below (indirection hell...) 
+
   for (auto& [year_id,sie_env] : this->m_sie_envs_map) {
     if (sie_env.fiscal_year().contains(key.m_date) == false) continue;
     for (auto& [series,journal] : sie_env.journals()) {
       if (series != key.m_jem.series) continue;
+
+      // TODO: Consider to rely on 'journal' storing entries in verno order low-to-high?
+      //       In that case we can just use the rbegin() to access the last element...
+      //       For now, the code both searches and exhaust all elements to
+      //       also find largest verno to check if remove is allowed.
       BAS::VerNo max_verno{0};
       auto found_iter = journal.end(); 
       for (auto iter = journal.begin();iter != journal.end();++iter) {
