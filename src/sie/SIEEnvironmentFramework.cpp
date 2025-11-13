@@ -122,27 +122,43 @@ MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
   return persistent::in::to_maybe_istream(sie_file_path);
 }
 
-// using MDMaybeSIEEnvironment = MetaDefacto<MaybeSIEStreamMeta,OptionalSIEEnvironment>;
-// MDMaybeSIEEnvironment to_md_sie_env(MDMaybeSIEIStream& md_posted_sie_istream) {
-//   MDMaybeSIEEnvironment result{};
-//   result.defacto = md_posted_sie_istream.defacto
-//     .and_then([meta = md_posted_sie_istream.meta](auto& sie_istream){
-//       return sie_from_stream(sie_istream);
-//     });
-//   return result;
-// }
+// ------------------------------------------
+// SIEEnvironmentsMap
 
-// OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
-//   if (false) {
-//     logger::cout_proxy << "\nsie_from_sie_file(" << sie_file_path << ")";
-//   }
-// 	std::ifstream is{sie_file_path};
-//   auto result = sie_from_stream(is);
-//   if (result) {
-//     // Now in SIEEnvironmentsMap::meta()
-//     // Inject source file path into environment
-//     // Note: Due to refactored from model map to SIEEnvironment aggregate
-//     // result->set_source_sie_file_path(sie_file_path);
-//   }
-//   return result;
-// }
+std::pair<bool,std::string> SIEEnvironmentsMap::remove(SIEEnvironment::DatedJournalEntryMeta const& key) {
+  std::pair<bool,std::string> result{false,std::format("Could not find entry to remove")};
+
+  for (auto& [year_id,sie_env] : this->m_sie_envs_map) {
+    if (sie_env.fiscal_year().contains(key.m_date) == false) continue;
+    for (auto& [series,journal] : sie_env.journals()) {
+      if (series != key.m_jem.series) continue;
+      BAS::VerNo max_verno{0};
+      auto found_iter = journal.end(); 
+      for (auto iter = journal.begin();iter != journal.end();++iter) {
+        max_verno = std::max(max_verno,iter->first);
+        if (key.m_jem.verno.value() == iter->first) found_iter = iter;
+      }
+      if (found_iter != journal.end()) {
+        // Found it
+        if (key.m_jem.verno.value() == max_verno) {
+          // Ok to remove last in series
+          journal.erase(found_iter);
+          result.first = true;
+        }
+        else {
+          result.second = std::format(
+            "Failed to remove {}{}. Only last verno:{} can be removed."
+            ,key.m_jem.series
+            ,key.m_jem.verno.value()
+            ,max_verno);
+        }
+      }
+
+    }
+  }
+
+  return result;
+}
+
+// SIEEnvironmentsMap
+// ------------------------------------------

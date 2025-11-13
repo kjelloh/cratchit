@@ -1574,8 +1574,15 @@ Cmd Updater::operator()(Command const& command) {
             std::optional<std::string> new_heading = (ast.size() == 2 and not new_date) ? std::optional<std::string>(ast[1]) : std::nullopt;
 
             if (do_remove) {
-              prompt << "\nSorry, Remove of '" << sie_key << "' not yet implemented";
-              
+              auto remove_result = model->sie_env_map.remove(sie_key);
+              if (remove_result.first) {
+                prompt << "\n*REMOVED* ok";
+                model->m_selected_sie_keys.erase(model->m_selected_sie_keys.begin() + ix);
+                prompt << to_sie_listing_prompt(model->m_selected_sie_keys);
+              }
+              else {
+                prompt << "\nSorry, failed to remove entry: " << remove_result.second;
+              }
             }
             else if (do_assign) {
               prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);

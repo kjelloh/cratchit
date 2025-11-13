@@ -27,6 +27,8 @@ public:
 
   SIEEnvironmentsMap() = default;
 
+  std::pair<bool,std::string> remove(SIEEnvironment::DatedJournalEntryMeta const& key);
+
   using UpdateFromPostedResult = std::optional<SIEEnvironment::EnvironmentChangeResults>;
   UpdateFromPostedResult update_from_posted_and_staged_sie_env(
      sie::RelativeYearKey year_id
