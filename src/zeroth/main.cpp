@@ -391,6 +391,9 @@ std::string prompt_line(PromptState const& prompt_state) {
 		case PromptState::HADIndex: {
 			prompt << ":had";
 		} break;
+		case PromptState::SIEIndex: {
+			prompt << ":sie";
+		} break;
 		case PromptState::VATReturnsFormIndex: {
 			prompt << ":had:vat";
 		} break;
@@ -488,6 +491,23 @@ std::string to_had_listing_prompt(HeadingAmountDateTransEntries const& hads) {
 			return os.str();
 		});
 		prompt << "\n" << std::accumulate(sHads.begin(),sHads.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
+			acc += "\n  " + entry;
+			return acc;
+		});
+		return prompt.str();
+}
+
+std::string to_sie_listing_prompt(BAS::MDJournalEntries const& mdjes = {}) {
+		// Prepare to Expose hads (Heading Amount Date transaction entries) to the user
+		std::stringstream prompt{};
+		unsigned int index{0};
+		std::vector<std::string> sSIEs{};
+		std::transform(mdjes.begin(),mdjes.end(),std::back_inserter(sSIEs),[&index](auto const& mdje){
+			std::stringstream os{};
+			os << index++ << " " << mdje;
+			return os.str();
+		});
+		prompt << "\n" << std::accumulate(sSIEs.begin(),sSIEs.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
 			acc += "\n  " + entry;
 			return acc;
 		});
@@ -1068,6 +1088,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("<Enter>:No");
 		} break;
 		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
+		case PromptState::SIEIndex: {result.push_back("PromptState::SIEIndex");} break;
 		case PromptState::VATReturnsFormIndex: {result.push_back("PromptState::VATReturnsFormIndex");} break;
 
     case PromptState::AcceptVATAdjust: {         
@@ -1172,6 +1193,11 @@ Cmd Updater::operator()(Command const& command) {
     switch (model->prompt_state) {
       case PromptState::HADIndex: {
         prompt << to_had_listing_prompt(model->refreshed_hads());
+        prompt << options_list_of_prompt_state(model->prompt_state);
+      } break;
+      
+      case PromptState::SIEIndex: {
+        prompt << to_sie_listing_prompt();
         prompt << options_list_of_prompt_state(model->prompt_state);
       } break;
 
@@ -1504,6 +1530,18 @@ Cmd Updater::operator()(Command const& command) {
           }
           else {
             prompt << "\nplease enter a valid index";
+          }
+        } break;
+
+        case PromptState::SIEIndex: {
+          model->mdje_index = ix;
+          // Note: Side effect = model->selected_mdje() uses model->mdje_index to return the corresponing had ref.
+          if (auto mdje_iter = model->selected_mdje()) {
+            auto& mdje = *(*mdje_iter);
+            prompt << "\n" << mdje;
+          }
+          else {
+            prompt << "\nPlease select a valid entry index";
           }
         } break;
         

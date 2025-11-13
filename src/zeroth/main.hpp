@@ -4094,6 +4094,7 @@ namespace zeroth {
     ,TAIndex
     ,AcceptNewTAs
     ,HADIndex
+    ,SIEIndex
     ,VATReturnsFormIndex
 
     ,AcceptVATAdjust         // Wait user accect/reject adjust of last VAT report diff
@@ -4250,10 +4251,6 @@ public:
     return result;
   }
 
-	// std::optional<DateOrderedTaggedAmountsContainer::const_iterator> selected_ta() {
-	// 	return to_ta_iter(this->ta_index);
-	// }
-
 	OptionalTaggedAmount selected_ta() {
     OptionalTaggedAmount result{};
     auto ordered_ids_view = this->selected_dotas.ordered_ids_view();
@@ -4305,6 +4302,14 @@ public:
 		std::sort(this->heading_amount_date_entries.begin(),this->heading_amount_date_entries.end(),falling_date);
 		return this->heading_amount_date_entries;
 	}
+
+  BAS::MDJournalEntries m_selected_mdjes{};
+  std::size_t mdje_index;
+
+  std::optional<BAS::MDJournalEntries::iterator> selected_mdje() {
+    if (mdje_index < m_selected_mdjes.size()) return (m_selected_mdjes.begin() + mdje_index);
+    return std::nullopt;
+  }
 
   zeroth::OptionalDateRange to_financial_year_date_range(std::string const& relative_year_key) {
     zeroth::OptionalDateRange result{};
