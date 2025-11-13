@@ -1090,8 +1090,32 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("1:YES");
 			result.push_back("<Enter>:No");
 		} break;
-		case PromptState::HADIndex: {result.push_back("PromptState::HADIndex");} break;
-		case PromptState::SIEIndex: {result.push_back("PromptState::SIEIndex");} break;
+		case PromptState::HADIndex: {
+      result.push_back("The following options are available for operating on entry list");
+      result.push_back("You ask for an option by entering the index of the entry to select.");
+      static constexpr std::string format_string{"{:<10} - {:<10}"};
+      result.push_back(std::format(format_string,"-<index>","Tries to remove selected entry"));
+      result.push_back(std::format(format_string,"<index>","Matches selected entry against previous journal entries"));
+      result.push_back(std::format(format_string,"<index> = ... ","Not yet implemented"));
+      result.push_back(std::format(format_string,"<index> <-- <heading> <date>","Creates a new entry from selected entry but with provided heading and date"));
+      result.push_back(std::format(format_string,"<index> <heading>","Changes heading of entry with provided index"));
+      result.push_back(std::format(format_string,"<index> <amount>","Changes amount of selected entry to provided amount"));
+      result.push_back(std::format(format_string,"<index> <date>","Changes date of selected entry to provided date"));
+      result.push_back(std::format(format_string,"<index> -initiated_as <heading> <date>","Create a new entry from selected entry with provided heading and date"));
+    } break;
+		case PromptState::SIEIndex: {
+      result.push_back("The following options are available for operating on entry list");
+      result.push_back("You ask for an option by entering the index of the entry to select.");
+      static constexpr std::string format_string{"{:<10} - {:<10}"};
+      result.push_back(std::format(format_string,"-<index>","Tries to remove selected entry"));
+      result.push_back(std::format(format_string,"<index>","Matches selected entry against previous journal entries"));
+      result.push_back(std::format(format_string,"<index> = ... ","Not yet implemented"));
+      result.push_back(std::format(format_string,"<index> <-- <heading> <date>","Creates a new entry from selected entry but with provided heading and date"));
+      result.push_back(std::format(format_string,"<index> <heading>","Changes heading of entry with provided index"));
+      result.push_back(std::format(format_string,"<index> <amount>","Changes amount of selected entry to provided amount"));
+      result.push_back(std::format(format_string,"<index> <date>","Changes date of selected entry to provided date"));
+      result.push_back(std::format(format_string,"<index> -initiated_as <heading> <date>","Create a new entry from selected entry with provided heading and date"));
+    } break;
 		case PromptState::VATReturnsFormIndex: {result.push_back("PromptState::VATReturnsFormIndex");} break;
 
     case PromptState::AcceptVATAdjust: {         
@@ -1551,6 +1575,7 @@ Cmd Updater::operator()(Command const& command) {
 
             if (do_remove) {
               prompt << "\nSorry, Remove of '" << sie_key << "' not yet implemented";
+              
             }
             else if (do_assign) {
               prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
