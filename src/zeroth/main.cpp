@@ -1534,11 +1534,11 @@ Cmd Updater::operator()(Command const& command) {
         } break;
 
         case PromptState::SIEIndex: {
-          model->mdje_index = ix;
-          // Note: Side effect = model->selected_mdje() uses model->mdje_index to return the corresponing had ref.
-          if (auto mdje_iter = model->selected_mdje()) {
-            auto& mdje = *(*mdje_iter);
-            prompt << "\n" << mdje;
+          model->sie_key_index = ix;
+          // Note: Side effect = model->selected_sie_key() uses model->sie_key_index to return the corresponing had ref.
+          if (auto maybe_sie_key = model->selected_sie_key()) {
+            // 
+            prompt << "\nSorry, Operations on " << *maybe_sie_key << " not yet implemented";
           }
           else {
             prompt << "\nPlease select a valid entry index";

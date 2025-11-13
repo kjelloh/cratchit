@@ -4303,11 +4303,11 @@ public:
 		return this->heading_amount_date_entries;
 	}
 
-  BAS::MDJournalEntries m_selected_mdjes{};
-  std::size_t mdje_index;
+  std::map<std::size_t,BAS::JournalEntryMeta> m_selected_sie_keys{};
+  std::size_t sie_key_index;
 
-  std::optional<BAS::MDJournalEntries::iterator> selected_mdje() {
-    if (mdje_index < m_selected_mdjes.size()) return (m_selected_mdjes.begin() + mdje_index);
+  std::optional<BAS::JournalEntryMeta> selected_sie_key() {
+    if (m_selected_sie_keys.contains(sie_key_index)) return m_selected_sie_keys.at(sie_key_index);
     return std::nullopt;
   }
 
