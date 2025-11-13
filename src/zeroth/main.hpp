@@ -4135,6 +4135,9 @@ namespace zeroth {
   };
   struct AcceptVATReportFiles{    
     // Wait user accept/reject created SKV files
+    std::string m_caption;
+    Date m_date;
+    SKV::XML::VATReturns::ToAccountAmountsResult m_account_amounts_result;
   };
   struct AcceptVATReportM {        
     // Wait user accept/reject created journal entry M

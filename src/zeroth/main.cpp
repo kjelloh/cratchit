@@ -1381,7 +1381,7 @@ Cmd Updater::operator()(Command const& command) {
                         prompt << NL << s;
                       });
                       model->m_current_state_data = zeroth::AcceptVATReportSummary{
-                          had.heading
+                         had.heading
                         ,had.date
                         ,account_amounts_result};
                     }
@@ -1521,21 +1521,14 @@ Cmd Updater::operator()(Command const& command) {
             } break;
             case 1: {
               prompt << "VAT Returns Summary accepted ok";
-
               if (std::holds_alternative<zeroth::AcceptVATReportSummary>(model->m_current_state_data)) {
                 auto const& state_data = std::get<zeroth::AcceptVATReportSummary>(model->m_current_state_data);
-                auto mdje = SKV::XML::VATReturns::to_VAT_consilidation_md_journal_entry(
-                   'M'
-                  ,state_data.m_caption
-                  ,state_data.m_date
-                  ,state_data.m_account_amounts_result.m_account_amounts
-                );
-                prompt << "\n" << mdje;
-                model->m_current_state_data = zeroth::AcceptVATReportM{mdje};
-                model->prompt_state = PromptState::AcceptVATReportM;
+
+                // model->m_current_state_data = zeroth::AcceptVATReportFiles{};
+                model->prompt_state = PromptState::AcceptVATReportFiles;
               }
               else {
-                prompt << "\nSorry, I seem to lack ability to create a VAT Reconsiliation journal entry";
+                prompt << "\nSorry, I seem to lack ability to create the SKV files";
                 model->prompt_state = PromptState::HADIndex;
               }
             } break;
@@ -1552,8 +1545,22 @@ Cmd Updater::operator()(Command const& command) {
             } break;
             case 1: {
               prompt << "VAT Report DONE ok";
-              prompt << to_had_listing_prompt(model->refreshed_hads());
-              model->prompt_state = PromptState::HADIndex;
+              if (std::holds_alternative<zeroth::AcceptVATReportFiles>(model->m_current_state_data)) {
+                auto const& state_data = std::get<zeroth::AcceptVATReportFiles>(model->m_current_state_data);
+                auto mdje = SKV::XML::VATReturns::to_VAT_consilidation_md_journal_entry(
+                   'M'
+                  ,state_data.m_caption
+                  ,state_data.m_date
+                  ,state_data.m_account_amounts_result.m_account_amounts
+                );
+                prompt << "\n" << mdje;
+                model->m_current_state_data = zeroth::AcceptVATReportM{mdje};
+                model->prompt_state = PromptState::AcceptVATReportM;
+              }
+              else {
+                prompt << "\nSorry, I seem to lack ability to create a VAT Reconsiliation journal entry";
+                model->prompt_state = PromptState::HADIndex;
+              }
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
@@ -4725,11 +4732,11 @@ PromptState ConcreteModel::to_previous_state(PromptState const& current_state) {
     } break;
     case PromptState::AcceptVATReportFiles: {    
       // Wait user accept/reject created SKV files
-      result = PromptState::AcceptVATReportM;
+      result = PromptState::AcceptVATReportSummary;
     } break;
     case PromptState::AcceptVATReportM: {        
       // Wait user accept/reject created journal entry M
-      result = PromptState::AcceptVATReportSummary;
+      result = PromptState::AcceptVATReportFiles;
     } break;
 
     case PromptState::ATIndex: {
