@@ -1333,7 +1333,8 @@ Cmd Updater::operator()(Command const& command) {
 
                 // Check if previous quarter has been 'zeroed' (or if we need to adjust for current report)
                 auto qi = to_quarter_index(had.date);
-                auto previous_quarter = first::FiscalQuarter{qi,had.date.year()}.to_relative_fiscal_quarter(-1);
+                auto current_quarter = first::FiscalQuarter{qi,had.date.year()};
+                auto previous_quarter = current_quarter.to_relative_fiscal_quarter(-1);
 
                 auto box_map = SKV::XML::VATReturns::to_form_box_map(
                    model->sie_env_map
@@ -1363,9 +1364,12 @@ Cmd Updater::operator()(Command const& command) {
                           prompt << NL << s;
                         });
                         model->m_current_state_data = zeroth::AcceptVATReportSummary{
-                           had.heading
+                           *had.optional.vat_returns_form_box_map_candidate
+                          ,current_quarter.period()
+                          ,had.heading
                           ,had.date
-                          ,account_amounts_result};
+                          ,account_amounts_result
+                        };
                       }
 
                     }
@@ -1381,9 +1385,12 @@ Cmd Updater::operator()(Command const& command) {
                         prompt << NL << s;
                       });
                       model->m_current_state_data = zeroth::AcceptVATReportSummary{
-                         had.heading
+                         *had.optional.vat_returns_form_box_map_candidate
+                        ,current_quarter.period()
+                        ,had.heading
                         ,had.date
-                        ,account_amounts_result};
+                        ,account_amounts_result
+                      };
                     }
                   }
                 }
@@ -1523,6 +1530,23 @@ Cmd Updater::operator()(Command const& command) {
               prompt << "VAT Returns Summary accepted ok";
               if (std::holds_alternative<zeroth::AcceptVATReportSummary>(model->m_current_state_data)) {
                 auto const& state_data = std::get<zeroth::AcceptVATReportSummary>(model->m_current_state_data);
+
+                auto is_quarter = [&state_data](BAS::MDAccountTransaction const& mdat){
+                  return state_data.m_period_range.contains(mdat.meta.date);
+                };
+                auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie_env_map,is_quarter);
+                if (box_map) {
+                  auto create_skv_files_result = SKV::XML::VATReturns::create_vat_return_files_to_skv(
+                     state_data.m_box_map
+                    ,state_data.m_period_range
+                    ,model->sie_env_map["current"].organisation_no
+                    ,model->organisation_contacts);
+                  prompt << create_skv_files_result.prompt.str();
+                }
+                else {
+                  prompt << "\nSorry, failed to gather form data required for the VAT Returns form";
+                }
+
 
                 // model->m_current_state_data = zeroth::AcceptVATReportFiles{};
                 model->prompt_state = PromptState::AcceptVATReportFiles;
