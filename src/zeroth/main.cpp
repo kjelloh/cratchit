@@ -403,13 +403,13 @@ std::string prompt_line(PromptState const& prompt_state) {
       // Wait user accept/reject VAT Report summary
 			prompt << ":had:vat:summary:ok?";
     } break;
-    case PromptState::AcceptVATReportM: {        
-      // Wait user accept/reject created journal entry M
-			prompt << ":had:vat:m_entry:ok?";
-    } break;
     case PromptState::AcceptVATReportFiles: {    
       // Wait user accept/reject created SKV files
 			prompt << ":had:vat:file:ok?";
+    } break;
+    case PromptState::AcceptVATReportM: {        
+      // Wait user accept/reject created journal entry M
+			prompt << ":had:vat:m_entry:ok?";
     } break;
 
 		case PromptState::JEIndex: {
@@ -1082,15 +1082,15 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
       result.push_back("0: No");
       result.push_back("1: Yes");
     } break;
-    case PromptState::AcceptVATReportM: {        
-      // Wait user accept/reject created journal entry M
-      result.push_back("VAT Report - Add journal entry M?");
-      result.push_back("0: No");
-      result.push_back("1: Yes");
-    } break;
     case PromptState::AcceptVATReportFiles: {    
       // Wait user accept/reject created SKV files
       result.push_back("VAT Report Done - Create SKV files?");
+      result.push_back("0: No");
+      result.push_back("1: Yes");
+    } break;
+    case PromptState::AcceptVATReportM: {        
+      // Wait user accept/reject created journal entry M
+      result.push_back("VAT Report - Add journal entry M?");
       result.push_back("0: No");
       result.push_back("1: Yes");
     } break;
@@ -1544,6 +1544,22 @@ Cmd Updater::operator()(Command const& command) {
             } break;
           }
         } break;
+        case PromptState::AcceptVATReportFiles: {
+          // Wait user accept/reject created SKV files
+          switch (ix) {
+            case 0: {
+              model->prompt_state = model->to_previous_state(model->prompt_state);
+            } break;
+            case 1: {
+              prompt << "VAT Report DONE ok";
+              prompt << to_had_listing_prompt(model->refreshed_hads());
+              model->prompt_state = PromptState::HADIndex;
+            } break;
+            default: {
+              prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
+            } break;
+          }
+        } break;
         case PromptState::AcceptVATReportM: {
           switch (ix) {
             case 0: {
@@ -1568,22 +1584,6 @@ Cmd Updater::operator()(Command const& command) {
                 model->prompt_state = PromptState::HADIndex;
               }
 
-            } break;
-            default: {
-              prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
-            } break;
-          }
-        } break;
-        case PromptState::AcceptVATReportFiles: {
-          // Wait user accept/reject created SKV files
-          switch (ix) {
-            case 0: {
-              model->prompt_state = model->to_previous_state(model->prompt_state);
-            } break;
-            case 1: {
-              prompt << "VAT Report DONE ok";
-              prompt << to_had_listing_prompt(model->refreshed_hads());
-              model->prompt_state = PromptState::HADIndex;
             } break;
             default: {
               prompt << "\n" << options_list_of_prompt_state(model->prompt_state);
@@ -4723,13 +4723,13 @@ PromptState ConcreteModel::to_previous_state(PromptState const& current_state) {
       // Wait user accept/reject VAT Report summary
       result = PromptState::AcceptVATAdjust;
     } break;
-    case PromptState::AcceptVATReportM: {        
-      // Wait user accept/reject created journal entry M
-      result = PromptState::AcceptVATReportSummary;
-    } break;
     case PromptState::AcceptVATReportFiles: {    
       // Wait user accept/reject created SKV files
       result = PromptState::AcceptVATReportM;
+    } break;
+    case PromptState::AcceptVATReportM: {        
+      // Wait user accept/reject created journal entry M
+      result = PromptState::AcceptVATReportSummary;
     } break;
 
     case PromptState::ATIndex: {

@@ -4098,8 +4098,8 @@ namespace zeroth {
 
     ,AcceptVATAdjust         // Wait user accect/reject adjust of last VAT report diff
     ,AcceptVATReportSummary  // Wait user accept/reject VAT Report summary
-    ,AcceptVATReportM        // Wait user accept/reject created journal entry M
     ,AcceptVATReportFiles    // Wait user accept/reject created SKV files
+    ,AcceptVATReportM        // Wait user accept/reject created journal entry M
 
     ,JEIndex
     // Manual Build generator states
@@ -4133,19 +4133,19 @@ namespace zeroth {
     Date m_date;
     SKV::XML::VATReturns::ToAccountAmountsResult m_account_amounts_result;
   };
+  struct AcceptVATReportFiles{    
+    // Wait user accept/reject created SKV files
+  };
   struct AcceptVATReportM {        
     // Wait user accept/reject created journal entry M
     BAS::MDJournalEntry m_mdje;
-  };
-  struct AcceptVATReportFiles{    
-    // Wait user accept/reject created SKV files
   };
 
   using StateData = std::variant<
      AcceptVATAdjust
     ,AcceptVATReportSummary
-    ,AcceptVATReportM
-    ,AcceptVATReportFiles>;
+    ,AcceptVATReportFiles
+    ,AcceptVATReportM>;
 
 } // zeroth
 
