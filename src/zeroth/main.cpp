@@ -1297,10 +1297,12 @@ Cmd Updater::operator()(Command const& command) {
             auto& had = *(*had_iter);
             prompt << "\n" << had;
             bool do_prepend = (ast.size() == 4) and (ast[1] == "<--"); // Command <Index> "<--" <Heading> <Date>
+
             // TODO In state PromptState::HADIndex (-hads) allow command <Index> <Heading> | <Amount> | <Date> to easilly modify single property of selected had
             // Command: 4 "Betalning Faktura" modifies the heading of had with index 4
             // Command: 4 20240123 modifies the date of had with index 4
             // Command: 4 173,50 modifies the amount of had with index 4
+
             OptionalDate new_date = (ast.size() == 2) ? to_date(ast[1]) : std::nullopt;
             OptionalAmount new_amount = (ast.size() == 2 and not new_date) ? to_amount(ast[1]) : std::nullopt;
             std::optional<std::string> new_heading = (ast.size() == 2 and not new_amount and not new_date) ? std::optional<std::string>(ast[1]) : std::nullopt;
@@ -1540,8 +1542,52 @@ Cmd Updater::operator()(Command const& command) {
           model->sie_key_index = ix;
           // Note: Side effect = model->selected_sie_key() uses model->sie_key_index to return the corresponing had ref.
           if (auto maybe_sie_key = model->selected_sie_key()) {
-            // 
-            prompt << "\nSorry, Operations on '" << *maybe_sie_key << "' not yet implemented";
+            auto const& sie_key = *maybe_sie_key;
+
+            prompt << "\n" << sie_key;
+            bool do_prepend = (ast.size() == 4) and (ast[1] == "<--"); // Command <Index> "<--" <Heading> <Date>
+            OptionalDate new_date = (ast.size() == 2) ? to_date(ast[1]) : std::nullopt;
+            std::optional<std::string> new_heading = (ast.size() == 2 and not new_date) ? std::optional<std::string>(ast[1]) : std::nullopt;
+
+            if (do_remove) {
+              prompt << "\nSorry, Remove of '" << sie_key << "' not yet implemented";
+            }
+            else if (do_assign) {
+              prompt << "\nSorry, ASSIGN not yet implemented for your input " << std::quoted(command);
+            }
+            else if (do_prepend) {
+              prompt << "\nprepend sie with heading:" << std::quoted(ast[2]) << " Date:" << ast[3];
+              prompt << "\nSorry, Creating an sie that prepends '" << sie_key << "' not yet defined";
+              // TODO: Is this usable in the same sense as for a HAD?
+              //       That is, can we imagine a journal entry that we want to want to use to 
+              //       create an earlier (later) one with the same amount but a new event heading and date?
+              //       I suppose a journal entry of a paymen can be used to 'prepend'
+              //       an entry about an invoice?
+              //       On teh other hand, we can also handle this on the HAD level?
+            }
+            else if (new_heading) {
+              prompt << "\nSorry, changing the heading is not yet implemented";
+            }
+            else if (new_date) {
+              prompt << "\nSorry, changing the date is not yet implemented";
+            }
+            else if (ast.size() == 4 and (ast[1] == "-initiated_as")) {
+              // Command <sie Index> "-initiated_as" <Heading> <Date>
+              if (auto init_date = to_date(ast[3])) {
+                prompt << "\nSorry, Creating a new earlier / later sie from selected one is not yet implemented";
+              }
+              else {
+                prompt << "\nI failed to interpret " << std::quoted(ast[3]) << " as a date";
+                prompt << "\nPlease enter a valid date for the event that intiated the seleced sie";
+                prompt << "\n  Syntax: <sie Index> -initiated_as <Heading> <Date>";
+              }
+            }
+            else {
+
+              // 'Plain' selection for further operations
+              prompt << "\nSorry, Edit of selected sie '" << sie_key << " not yet implemented";
+
+            }
           }
           else {
             prompt << "\nPlease select a valid entry index";
