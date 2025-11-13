@@ -1542,14 +1542,19 @@ Cmd Updater::operator()(Command const& command) {
                     ,model->sie_env_map["current"].organisation_no
                     ,model->organisation_contacts);
                   prompt << create_skv_files_result.prompt.str();
+
+                  model->m_current_state_data = zeroth::AcceptVATReportFiles{
+                     state_data.m_caption
+                    ,state_data.m_date
+                    ,state_data.m_account_amounts_result
+                  };
+                  model->prompt_state = PromptState::AcceptVATReportFiles;
                 }
                 else {
                   prompt << "\nSorry, failed to gather form data required for the VAT Returns form";
                 }
 
 
-                // model->m_current_state_data = zeroth::AcceptVATReportFiles{};
-                model->prompt_state = PromptState::AcceptVATReportFiles;
               }
               else {
                 prompt << "\nSorry, I seem to lack ability to create the SKV files";
@@ -1602,8 +1607,7 @@ Cmd Updater::operator()(Command const& command) {
                 if (auto stage_result = model->sie_env_map.stage(state_data.m_mdje)) {
                   prompt << "\n" << stage_result.md_entry() << " STAGED";
 
-                  // Wait user accept/reject created SKV files
-                  model->prompt_state = PromptState::AcceptVATReportFiles;
+                  model->prompt_state = PromptState::HADIndex;
                 }
                 else {
                   prompt << "\nSORRY - Failed to stage entry";
