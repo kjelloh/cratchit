@@ -497,14 +497,17 @@ std::string to_had_listing_prompt(HeadingAmountDateTransEntries const& hads) {
 		return prompt.str();
 }
 
-std::string to_sie_listing_prompt(BAS::MDJournalEntries const& mdjes = {}) {
+std::string to_sie_listing_prompt(SIEEnvironment::DatedJournalEntryMetas const& djems) {
 		// Prepare to Expose hads (Heading Amount Date transaction entries) to the user
 		std::stringstream prompt{};
 		unsigned int index{0};
 		std::vector<std::string> sSIEs{};
-		std::transform(mdjes.begin(),mdjes.end(),std::back_inserter(sSIEs),[&index](auto const& mdje){
+		std::transform(
+       djems.begin()
+      ,djems.end()
+      ,std::back_inserter(sSIEs),[&index](auto const& djem){
 			std::stringstream os{};
-			os << index++ << " " << mdje;
+			os << index++ << " " << djem;
 			return os.str();
 		});
 		prompt << "\n" << std::accumulate(sSIEs.begin(),sSIEs.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
@@ -1197,7 +1200,7 @@ Cmd Updater::operator()(Command const& command) {
       } break;
       
       case PromptState::SIEIndex: {
-        prompt << to_sie_listing_prompt();
+        prompt << to_sie_listing_prompt(model->m_selected_sie_keys);
         prompt << options_list_of_prompt_state(model->prompt_state);
       } break;
 
@@ -1538,7 +1541,7 @@ Cmd Updater::operator()(Command const& command) {
           // Note: Side effect = model->selected_sie_key() uses model->sie_key_index to return the corresponing had ref.
           if (auto maybe_sie_key = model->selected_sie_key()) {
             // 
-            prompt << "\nSorry, Operations on " << *maybe_sie_key << " not yet implemented";
+            prompt << "\nSorry, Operations on '" << *maybe_sie_key << "' not yet implemented";
           }
           else {
             prompt << "\nPlease select a valid entry index";
@@ -3493,7 +3496,9 @@ Cmd Updater::operator()(Command const& command) {
       // Import sie and add as base of our environment
       if (ast.size()==1) {
         // List current sie environment
-        prompt << model->sie_env_map["current"];
+        model->m_selected_sie_keys = model->sie_env_map["current"].to_dated_journal_entry_metas();
+        prompt << to_sie_listing_prompt(model->m_selected_sie_keys);
+        model->prompt_state = PromptState::SIEIndex;
         // std::cout << model->sie_env_map["current"];
       }
       else if (ast.size()==2) {

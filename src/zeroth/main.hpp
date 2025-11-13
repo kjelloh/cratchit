@@ -4303,11 +4303,11 @@ public:
 		return this->heading_amount_date_entries;
 	}
 
-  std::map<std::size_t,BAS::JournalEntryMeta> m_selected_sie_keys{};
+  SIEEnvironment::DatedJournalEntryMetas m_selected_sie_keys{};
   std::size_t sie_key_index;
 
-  std::optional<BAS::JournalEntryMeta> selected_sie_key() {
-    if (m_selected_sie_keys.contains(sie_key_index)) return m_selected_sie_keys.at(sie_key_index);
+  std::optional<SIEEnvironment::DatedJournalEntryMeta> selected_sie_key() {
+    if (sie_key_index < m_selected_sie_keys.size()) return m_selected_sie_keys.at(sie_key_index);
     return std::nullopt;
   }
 

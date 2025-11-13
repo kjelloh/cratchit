@@ -14,7 +14,7 @@ class SIEEnvironment {
   // SIEEnvironment store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
 
   // AccountTransaction: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
-  // AccountTransactions: vetcor AccountTransaction
+  // AccountTransactions: vector AccountTransaction
   // JournalEntry: Record {string:caption, Date:date, AccountTransactions:account_transactions}
   // BASJournal: Map BAS::VerNo -> BAS::anonymous::JournalEntry (E.g., 7 -> JournalEntry) 
   // BASJournals: Map BASJournalId -> BASJournal E.g., 'A' -> BASJournal
@@ -71,6 +71,13 @@ public:
   using EnvironmentChangeResults = std::vector<EnvironmentChangeResult>;
 	EnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
 
+  struct DatedJournalEntryMeta {
+    Date m_date;
+    BAS::JournalEntryMeta m_jem;
+  };
+  using DatedJournalEntryMetas = std::vector<DatedJournalEntryMeta>;
+  DatedJournalEntryMetas to_dated_journal_entry_metas() const;
+
   // file API
 	std::filesystem::path staged_sie_file_path() const;
 
@@ -119,4 +126,6 @@ private:
 }; // class SIEEnvironment
 
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
+
+std::ostream& operator<<(std::ostream& os,SIEEnvironment::DatedJournalEntryMeta const& djem);
 

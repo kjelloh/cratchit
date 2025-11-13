@@ -110,7 +110,6 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
   return result;
 } // stage
 
-
 SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
@@ -251,6 +250,23 @@ std::vector<SIEEnvironment::EnvironmentChangeResult> SIEEnvironment::stage(SIEEn
   }
   return result;
 }
+
+SIEEnvironment::DatedJournalEntryMetas SIEEnvironment::to_dated_journal_entry_metas() const {
+  SIEEnvironment::DatedJournalEntryMetas result{};
+  for (auto const& [series,journal] : this->journals()) {
+    for (auto const& [verno,aje] : journal) {
+      result.push_back(DatedJournalEntryMeta{
+         .m_date = aje.date
+        ,.m_jem = {
+           .series = series
+          ,.verno = verno
+        }
+      });
+    }
+  }
+  return result;
+}
+
 
 std::filesystem::path SIEEnvironment::staged_sie_file_path() const {
   return std::format(
@@ -427,3 +443,9 @@ std::map<BAS::AccountNo,Amount> const& SIEEnvironment::opening_balances() const 
 
 // private:
 
+// free functions
+
+std::ostream& operator<<(std::ostream& os,SIEEnvironment::DatedJournalEntryMeta const& djem) {
+  os << djem.m_date << " " << djem.m_jem;
+  return os;
+}
