@@ -1,6 +1,7 @@
 #include "test_atomics.hpp"
 #include "test_fixtures.hpp"
 #include "logger/log.hpp" // logger::
+#include "functional/memory.hpp" // MaybeRef,...
 #include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include "fiscal/amount/functional.hpp"
 #include "sie/SIEEnvironmentFramework.hpp" // sie_from_stream,...
@@ -19,6 +20,36 @@ namespace tests::atomics {
     TEST(AtomicTests, DummyAlwaysPass) {
         EXPECT_TRUE(true);
         ASSERT_STREQ("hello", "hello");
+    }
+
+    namespace maybe_ref_suite {
+
+      template <typename T>
+      using MaybeRef = cratchit::functional::memory::MaybeRef<T>;
+
+      TEST(MaybeRefTests,BasicBehaviour) {
+
+        {
+          int x{4};
+          auto maybe_int = MaybeRef<int>::from(x);
+
+          ASSERT_TRUE(maybe_int) << std::format("Expects maybe_int to ref a value");
+          ASSERT_TRUE(maybe_int.value() == x) << std::format("Expects maybe_int to refer to x value");
+          
+          // The following shall compile
+          maybe_int.value() = 17; // non const T mutable
+        }
+        {
+          int x{4};
+          auto maybe_const_int = MaybeRef<const int>::from(x);
+
+          ASSERT_TRUE(maybe_const_int) << std::format("Expects maybe_const_int to ref a value");
+          ASSERT_TRUE(maybe_const_int.value() == x) << std::format("Expects maybe_const_int to refer to x value");
+          
+          // The following shall NOT compile
+          // maybe_const_int.value() = 17; // const T immmutable
+        }
+      }
     }
 
     namespace functional_suite {
@@ -1188,7 +1219,7 @@ R"(#GEN 20251026
             using namespace std::chrono;
 
             result.push_back(BAS::MDJournalEntry{
-              BAS::JournalEntryMeta{
+              BAS::WeakJournalEntryMeta{
                 .series = 'A'
                 ,.verno = 1
               }
@@ -1198,7 +1229,7 @@ R"(#GEN 20251026
                   ,.account_transactions = {}
               }});
             result.push_back(BAS::MDJournalEntry{
-              BAS::JournalEntryMeta{
+              BAS::WeakJournalEntryMeta{
                 .series = 'A'
                 ,.verno = 2
               }

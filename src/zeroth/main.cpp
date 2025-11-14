@@ -497,7 +497,10 @@ std::string to_had_listing_prompt(HeadingAmountDateTransEntries const& hads) {
 		return prompt.str();
 }
 
-std::string to_sie_listing_prompt(SIEEnvironment::DatedJournalEntryMetas const& djems) {
+using SIELookupFunction = std::function<BAS::MaybeJournalEntryRef(SIEEnvironment::DatedJournalEntryMeta)>;
+std::string to_sie_listing_prompt(
+   SIEEnvironment::DatedJournalEntryMetas const& djems
+  ,SIELookupFunction to_journal_entry) {
 		// Prepare to Expose hads (Heading Amount Date transaction entries) to the user
 		std::stringstream prompt{};
 		unsigned int index{0};
@@ -505,10 +508,20 @@ std::string to_sie_listing_prompt(SIEEnvironment::DatedJournalEntryMetas const& 
 		std::transform(
        djems.begin()
       ,djems.end()
-      ,std::back_inserter(sSIEs),[&index](auto const& djem){
-			std::stringstream os{};
-			os << index++ << " " << djem;
-			return os.str();
+      ,std::back_inserter(sSIEs)
+      ,[&index,&to_journal_entry](auto const& djem) {
+
+        return std::format(
+           "{} {}{} {}"
+          ,index++ // 0..
+          ,djem.m_jem.series
+          ,djem.m_jem.verno.value_or(-1)
+          ,to_journal_entry(djem)
+            .and_then([](auto const& aje) {
+              return std::make_optional(to_string(aje));
+            })
+            .value_or("??")
+        );
 		});
 		prompt << "\n" << std::accumulate(sSIEs.begin(),sSIEs.end(),std::string{"Please select:"},[](auto acc,std::string const& entry) {
 			acc += "\n  " + entry;
@@ -1224,7 +1237,11 @@ Cmd Updater::operator()(Command const& command) {
       } break;
       
       case PromptState::SIEIndex: {
-        prompt << to_sie_listing_prompt(model->m_selected_sie_keys);
+        prompt << to_sie_listing_prompt(
+          model->m_selected_sie_keys
+          ,[this](auto const& mdjem) {
+            return this->model->sie_env_map.at(mdjem);
+          });
         prompt << options_list_of_prompt_state(model->prompt_state);
       } break;
 
@@ -1578,7 +1595,11 @@ Cmd Updater::operator()(Command const& command) {
               if (remove_result.first) {
                 prompt << "\n*REMOVED* ok";
                 model->m_selected_sie_keys.erase(model->m_selected_sie_keys.begin() + ix);
-                prompt << to_sie_listing_prompt(model->m_selected_sie_keys);
+                prompt << to_sie_listing_prompt(
+                   model->m_selected_sie_keys
+                  ,[this](auto const& mdjem) {
+                    return this->model->sie_env_map.at(mdjem);
+                  });
               }
               else {
                 prompt << "\nSorry, failed to remove entry: " << remove_result.second;
@@ -3575,7 +3596,11 @@ Cmd Updater::operator()(Command const& command) {
       if (ast.size()==1) {
         // List current sie environment
         model->m_selected_sie_keys = model->sie_env_map["current"].to_dated_journal_entry_metas();
-        prompt << to_sie_listing_prompt(model->m_selected_sie_keys);
+        prompt << to_sie_listing_prompt(
+           model->m_selected_sie_keys
+          ,[this](auto const& mdjem) {
+            return this->model->sie_env_map.at(mdjem);
+          });
         model->prompt_state = PromptState::SIEIndex;
         // std::cout << model->sie_env_map["current"];
       }

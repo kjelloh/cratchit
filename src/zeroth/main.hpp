@@ -1323,7 +1323,7 @@ namespace BAS {
 		OptionalJournalEntryMeta result{};
 		try {
 			const std::regex meta_regex("[A-Z]\\d+"); // series followed by verification number
-			if (std::regex_match(s,meta_regex)) result = JournalEntryMeta{
+			if (std::regex_match(s,meta_regex)) result = WeakJournalEntryMeta{
 				 .series = s[0]
 				,.verno = static_cast<VerNo>(std::stoi(s.substr(1)))};
 		}
@@ -1396,7 +1396,7 @@ namespace BAS {
 		};
 
 		struct matches_meta {
-			JournalEntryMeta entry_meta;
+			WeakJournalEntryMeta entry_meta;
 			bool operator()(MDJournalEntry const& mdje) {
 				return (mdje.meta == entry_meta);
 			}
@@ -1616,7 +1616,7 @@ inline BAS::anonymous::OptionalAccountTransaction to_bas_account_transaction(std
 // 	return os;
 // }
 
-// std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
+// std::ostream& operator<<(std::ostream& os,BAS::WeakJournalEntryMeta const& jem) {
 // 	os << jem.unposted_flag << jem.series << jem.verno;
 // 	return os;
 // }

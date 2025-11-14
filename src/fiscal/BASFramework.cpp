@@ -215,7 +215,7 @@ std::string to_string(BAS::anonymous::AccountTransaction const& at) {
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
 	for (auto const& at : ats) {
 		// os << "\n\t" << at; 
-		os << "\n  " << at; 
+		os << "\n    " << at; 
 	}
 	return os;
 }
@@ -238,7 +238,7 @@ std::ostream& operator<<(std::ostream& os,std::optional<bool> flag) {
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem) {
+std::ostream& operator<<(std::ostream& os,BAS::WeakJournalEntryMeta const& jem) {
 	os << jem.unposted_flag << jem.series << jem.verno;
 	return os;
 }

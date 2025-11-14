@@ -68,12 +68,27 @@ public:
   auto begin() const {return m_sie_envs_map.begin();}
   auto end() const {return m_sie_envs_map.end();}
   auto contains(sie::RelativeYearKey key) const {return m_sie_envs_map.contains(key);}
-
+  
   using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEEnvironment>;
   MybeSIEEnvironmentRef at(sie::RelativeYearKey key) {
       auto it = m_sie_envs_map.find(key);
       if (it == m_sie_envs_map.end()) return {};
       return MybeSIEEnvironmentRef::from(it->second);
+  }
+
+  MybeSIEEnvironmentRef at(Date date) {
+    auto iter = std::ranges::find_if(this->m_sie_envs_map,[date](auto const& entry){
+      return entry.second.fiscal_year().contains(date);
+    });
+    if (iter == this->m_sie_envs_map.end()) return {};
+    return MybeSIEEnvironmentRef::from(iter->second);
+  }
+
+  BAS::MaybeJournalEntryRef at(SIEEnvironment::DatedJournalEntryMeta key) {
+    return this->at(key.m_date)
+      .and_then([&key](auto& sie_env){
+        return sie_env.at(key);
+      });
   }
 
   auto& operator[](sie::RelativeYearKey key) {

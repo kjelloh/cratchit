@@ -4,6 +4,7 @@
 #include "Key.hpp"
 #include "fiscal/amount/AmountFramework.hpp" // Amount,
 #include "MetaDefacto.hpp"
+#include "functional/memory.hpp" // MaybeRef,...
 #include <optional>
 #include <vector>
 
@@ -205,20 +206,26 @@ namespace BAS {
 		using JournalEntries = std::vector<JournalEntry>;
 	} // namespace anonymous
 
+  // SIE entry key
 	using VerNo = unsigned int;
-	using OptionalVerNo = std::optional<VerNo>;
 	using Series = char;
 
-	struct JournalEntryMeta {
+  // Maybes
+	using OptionalVerNo = std::optional<VerNo>;
+  using MaybeJournalEntryRef = cratchit::functional::memory::MaybeRef<BAS::anonymous::JournalEntry>;
+
+  // Metas (For (meta,defacto) where meta is often 'key' and defacto is often the referred to anonymous value)
+	struct WeakJournalEntryMeta {
+    // 'Weak' because optional verno
 		Series series;
 		OptionalVerNo verno;
 		std::optional<bool> unposted_flag{};
-		bool operator==(JournalEntryMeta const& other) const = default;
+		bool operator==(WeakJournalEntryMeta const& other) const = default;
 	};
-	using OptionalJournalEntryMeta = std::optional<JournalEntryMeta>;
+	using OptionalJournalEntryMeta = std::optional<WeakJournalEntryMeta>;
 
 	// 'MD' = MetaDefacto journal entry
-	using MDJournalEntry = MetaDefacto<JournalEntryMeta,BAS::anonymous::JournalEntry>;
+	using MDJournalEntry = MetaDefacto<WeakJournalEntryMeta,BAS::anonymous::JournalEntry>;
 	using OptionalMDJournalEntry = std::optional<MDJournalEntry>;
 	using MDJournalEntries = std::vector<MDJournalEntry>;
 
@@ -233,7 +240,7 @@ namespace BAS {
 		//          |
 		//          <series> <verno>
 		Date date;
-		JournalEntryMeta jem; // Aggregate journal entry meta for convenience
+		WeakJournalEntryMeta jem; // Aggregate journal entry meta for convenience
 		std::string caption;
 	};
 	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje);
@@ -249,6 +256,9 @@ namespace BAS {
 using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>;
 using BASJournalId = char; // The Id of a single BAS journal is a series character A,B,C,...
 using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals named "Series" and labeled with "Id" A,B,C,...
+
+// Maybes
+using MaybeBASJournalRef = cratchit::functional::memory::MaybeRef<BASJournal>;
 
 namespace BAS {
 	Amount to_mdats_sum(BAS::MDAccountTransactions const& mdats);
@@ -353,7 +363,7 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions co
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje);
 std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
 std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);
-std::ostream& operator<<(std::ostream& os,BAS::JournalEntryMeta const& jem);
+std::ostream& operator<<(std::ostream& os,BAS::WeakJournalEntryMeta const& jem);
 std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm);
 std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mdat);
 std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& mdje);

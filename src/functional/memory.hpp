@@ -35,8 +35,10 @@ namespace cratchit {
       template <typename T>
       struct MaybeRef {
         T* m_p{}; // non owning 'plain' as-ref wrapper
+
         operator bool() const & {return m_p != nullptr;}
-        T const& value() const & {
+
+        T& value() const & {
           if (*this) {
             return *m_p;
           }

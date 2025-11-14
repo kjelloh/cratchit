@@ -8,8 +8,8 @@ class SIEEnvironment {
 
   // MetaEntry Is a meta-defacto representation of a 'journal entry' in a DAG
 
-  // JournalEntryMeta: Record {Series:series, OptionalVerNo:verno}
-  // MetaEntry: pair {JournalEntryMeta:meta , JournalEntry:defacto}
+  // WeakJournalEntryMeta: Record {Series:series, OptionalVerNo:verno}
+  // MetaEntry: pair {WeakJournalEntryMeta:meta , JournalEntry:defacto}
 
   // SIEEnvironment store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
 
@@ -25,6 +25,30 @@ public:
   SIEEnvironment() = delete;
 
   SIEEnvironment& operator=(SIEEnvironment const& other) = default;
+
+  MaybeBASJournalRef at(BAS::Series series) {
+    auto iter = this->m_journals.find(series);
+    if (iter == this->m_journals.end()) return {};
+    return MaybeBASJournalRef::from(iter->second);
+  }
+
+  struct DatedJournalEntryMeta {
+    Date m_date;
+    BAS::WeakJournalEntryMeta m_jem;
+  };
+
+  BAS::MaybeJournalEntryRef at(SIEEnvironment::DatedJournalEntryMeta key) {
+    if (this->fiscal_year().contains(key.m_date)) {
+      return this->at(key.m_jem.series)
+        .and_then([verno = key.m_jem.verno.value()](auto& journal) {
+          if (journal.contains(verno)) {
+            return BAS::MaybeJournalEntryRef::from(journal.at(verno));
+          }
+          return BAS::MaybeJournalEntryRef{};
+        });
+    }
+    return {};
+  }
 
   // Entry API
 
@@ -71,10 +95,6 @@ public:
   using EnvironmentChangeResults = std::vector<EnvironmentChangeResult>;
 	EnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
 
-  struct DatedJournalEntryMeta {
-    Date m_date;
-    BAS::JournalEntryMeta m_jem;
-  };
   using DatedJournalEntryMetas = std::vector<DatedJournalEntryMeta>;
   DatedJournalEntryMetas to_dated_journal_entry_metas() const;
 

@@ -12,7 +12,7 @@ namespace BAS {
 		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
 	} // anonymous
 
-	using MDTypedJournalEntry = MetaDefacto<BAS::JournalEntryMeta,anonymous::TypedJournalEntry>;
+	using MDTypedJournalEntry = MetaDefacto<BAS::WeakJournalEntryMeta,anonymous::TypedJournalEntry>;
 	using TypedMetaEntries = std::vector<MDTypedJournalEntry>;
 
   void for_each_typed_account_transaction(BAS::MDTypedJournalEntry const& mdtje,auto& f) {
