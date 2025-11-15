@@ -2,6 +2,7 @@
 
 #include "std_overload.hpp"
 #include "charset.hpp"
+#include "functional/memory.hpp" // OwningMaybeRef,...
 #include <array>
 #include <iostream>
 #include <sstream> // ostringstream,
@@ -153,7 +154,7 @@ namespace text {
       class istream : public bom_istream {
       public:
         istream(std::istream& in);
-        // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
+        // getline: Transcodes input from CP437 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
         // Emtpy line is allowed (returns nullopt only on failure to read)
         template <class F>
         std::optional<typename F::value_type> getline(F const& f) {
@@ -214,6 +215,15 @@ namespace text {
 
 
     } // icu
+
+    // Note: That text::encoding::bom_istream is the base class of all decoding streams.
+    //       Thus we can use it to return a 'maybe ref' to any of our decoding in stream.
+    // TODO: Consider to either introduce a proper base class to not use the confusing bom_istream.
+    //       Or to introduce an std::variant to not use virtual mechanism.
+    using MaybeDecodingIn = cratchit::functional::memory::OwningMaybeRef<text::encoding::bom_istream>;
+    MaybeDecodingIn to_decoding_in(
+       icu::EncodingDetectionResult const& detected_source_encoding
+      ,std::istream& is);
 
     struct DecodedTextResult {
       icu::CanonicalEncodingName m_source_encoding;

@@ -447,6 +447,30 @@ namespace text {
 
     } // icu
 
+    MaybeDecodingIn to_decoding_in(
+       icu::EncodingDetectionResult const& detected_source_encoding
+      ,std::istream& is) {
+      switch (detected_source_encoding.encoding) {
+        case text::encoding::DetectedEncoding::UTF8: {
+          return MaybeDecodingIn(std::make_unique<text::encoding::UTF8::istream>(is));
+        } break;
+        
+        case text::encoding::DetectedEncoding::ISO_8859_1: {
+          return MaybeDecodingIn(std::make_unique<text::encoding::ISO_8859_1::istream>(is));
+        } break;
+        
+        case text::encoding::DetectedEncoding::CP437: {
+          return MaybeDecodingIn(std::make_unique<text::encoding::CP437::istream>(is));
+        } break;
+        
+        default: {
+          spdlog::error(
+             "No decoding in stream support for source encoding {}"
+            ,detected_source_encoding.display_name);
+        } break;
+      }
+      return {};
+    }
 
     std::optional<DecodedTextResult> to_decoded_text(std::string const& raw_text) {
       std::optional<DecodedTextResult> result{};
