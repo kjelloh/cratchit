@@ -452,15 +452,21 @@ namespace text {
       ,std::istream& is) {
       switch (detected_source_encoding.encoding) {
         case text::encoding::DetectedEncoding::UTF8: {
-          return MaybeDecodingIn(std::make_unique<text::encoding::UTF8::istream>(is));
+          return MaybeDecodingIn(
+              std::make_unique<DecodingIn>(text::encoding::UTF8::istream{is})
+          );
         } break;
         
         case text::encoding::DetectedEncoding::ISO_8859_1: {
-          return MaybeDecodingIn(std::make_unique<text::encoding::ISO_8859_1::istream>(is));
+          return MaybeDecodingIn(
+              std::make_unique<DecodingIn>(text::encoding::ISO_8859_1::istream{is})
+          );
         } break;
         
         case text::encoding::DetectedEncoding::CP437: {
-          return MaybeDecodingIn(std::make_unique<text::encoding::CP437::istream>(is));
+          return MaybeDecodingIn(
+              std::make_unique<DecodingIn>(text::encoding::CP437::istream{is})
+          );
         } break;
         
         default: {
