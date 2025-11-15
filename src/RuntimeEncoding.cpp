@@ -16,7 +16,7 @@ RuntimeEncoding::DetectedEncoding RuntimeEncoding::detected_encoding() {
 }
 
 std::string RuntimeEncoding::get_encoding_display_name() {
-  return encoding::icu::EncodingDetector::enum_to_display_name(m_detected_encoding);
+  return text::encoding::enum_to_display_name(m_detected_encoding);
 }
 
 RuntimeEncoding to_inferred_runtime_encoding() {

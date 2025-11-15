@@ -18,7 +18,7 @@ namespace CSV {
 		try {
 			FieldRows field_rows{};
 			std::string raw_entry{};
-      while (auto entry = in.getline(encoding::unicode::to_utf8{})) {
+      while (auto entry = in.getline(text::encoding::unicode::to_utf8{})) {
 				field_rows.push_back({*entry,delim});
       }
 			result = field_rows;

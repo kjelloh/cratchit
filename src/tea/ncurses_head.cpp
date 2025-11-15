@@ -211,7 +211,7 @@ namespace TEA {
         } 
         
         switch (m_runtime_endoding.detected_encoding()) {
-          case encoding::icu::DetectedEncoding::UTF8: {
+          case text::encoding::DetectedEncoding::UTF8: {
             // buffer-transform utf-8 to unicode code point
             if (auto cp = m_utf8_to_unicode_buffer.push(nc_key)) {
               // UTF-8 Unicode Code point complete
@@ -244,7 +244,7 @@ namespace TEA {
 
     bool NCursesHead::setup_encoding_support() {
         switch (m_runtime_endoding.detected_encoding()) {
-            case encoding::icu::DetectedEncoding::UTF8: {
+            case text::encoding::DetectedEncoding::UTF8: {
                 // Try to set UTF-8 locale using setlocale approach
                 spdlog::info("NCursesHead: Setting up UTF-8 support using setlocale");
                 
@@ -276,8 +276,8 @@ namespace TEA {
                 return true;
             }
             
-            case encoding::icu::DetectedEncoding::ISO_8859_1:
-            case encoding::icu::DetectedEncoding::CP437: {
+            case text::encoding::DetectedEncoding::ISO_8859_1:
+            case text::encoding::DetectedEncoding::CP437: {
                 spdlog::warn("NCursesHead: Non-UTF8 encoding requested: {}, falling back to ASCII", 
                            m_runtime_endoding.get_encoding_display_name());
                 m_encoding_support = EncodingSupport::ASCII_FALLBACK;

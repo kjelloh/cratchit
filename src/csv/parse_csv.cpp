@@ -5,7 +5,7 @@
 
 namespace CSV {
 
-  std::string encoding_caption(encoding::icu::EncodingDetectionResult const& detection_result) {
+  std::string encoding_caption(text::encoding::icu::EncodingDetectionResult const& detection_result) {
     // Format display string with confidence and method
     std::string result;
     if (detection_result.confidence >= 70) {
@@ -35,24 +35,24 @@ namespace CSV {
       CSV::OptionalFieldRows field_rows;
       
       // Use ICU detection to determine appropriate encoding stream
-      result.icu_detection_result = encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
+      result.icu_detection_result = text::encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
       logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);
       
       switch (result.icu_detection_result.encoding) {
-        case encoding::icu::DetectedEncoding::UTF8: {
-          encoding::UTF8::istream utf8_in{ifs};
+        case text::encoding::DetectedEncoding::UTF8: {
+          text::encoding::UTF8::istream utf8_in{ifs};
           field_rows = CSV::to_field_rows(utf8_in, ';');
           break;
         }
         
-        case encoding::icu::DetectedEncoding::ISO_8859_1: {
-          encoding::ISO_8859_1::istream iso8859_in{ifs}; 
+        case text::encoding::DetectedEncoding::ISO_8859_1: {
+          text::encoding::ISO_8859_1::istream iso8859_in{ifs}; 
           field_rows = CSV::to_field_rows(iso8859_in, ';');
           break;
         }
         
-        case encoding::icu::DetectedEncoding::CP437: {
-          encoding::CP437::istream cp437_in{ifs};
+        case text::encoding::DetectedEncoding::CP437: {
+          text::encoding::CP437::istream cp437_in{ifs};
           field_rows = CSV::to_field_rows(cp437_in, ';');
           break;
         }

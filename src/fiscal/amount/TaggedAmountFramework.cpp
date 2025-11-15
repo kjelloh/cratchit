@@ -920,8 +920,17 @@ CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesys
 
 CSVProcessResult<std::string> istream_to_decoded_text(persistent::in::MaybeIStream const& maybe_istream) {
   CSVProcessResult<std::string> result{};
-  result.push_message("istream_to_decoded_text: NOT YET IMPLEMENTED");
+  // result.push_message("istream_to_decoded_text: NOT YET IMPLEMENTED");
+  auto decoded_text_result = maybe_istream
+    .and_then(persistent::in::to_raw_bytes)
+    .and_then(text::encoding::to_decoded_text);
 
+  if (decoded_text_result) {
+    result.m_value = decoded_text_result->m_decoded_text;
+  }
+  else {
+    result.push_message("Failed do decode text encoding");
+  }
   return result;
 }
 CSVProcessResult<CSV::Table> decoded_text_to_parsed_csv(std::string const& s) {
@@ -977,11 +986,11 @@ OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statem
     //       For now the whole thing is a patch-work that may or may not continue to work on Mac and will very unlikelly work on Linux or Windows?
     //       TODO 20240527 - Try to refactor this into something more stable and cross-platform at some point in time?!
     if (statement_file_path.extension() == ".csv") {
-      encoding::UTF8::istream utf8_in{ifs};
+      text::encoding::UTF8::istream utf8_in{ifs};
       field_rows = CSV::to_field_rows(utf8_in,';'); // Call to_field_rows overload for "UTF8" input (assuming a CSV-file is ISO8859-1 encoded, as NORDEA csv-file is)
     }
     else if (statement_file_path.extension() == ".skv") {
-      encoding::ISO_8859_1::istream iso8859_in{ifs};
+      text::encoding::ISO_8859_1::istream iso8859_in{ifs};
       field_rows = CSV::to_field_rows(iso8859_in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
     }
     if (field_rows) {

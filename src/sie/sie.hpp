@@ -101,7 +101,7 @@ namespace SIE {
     // Parses SIE entries assumed to be in UTF8 encoding.
     // But SIE files are specfied to be in CP437.
     // So cratchit applies a transformation pipeline CP437 -> UTF8 when reading SIE files
-    // See encoding::CP437::istream::getline mechanism in from_sie_file
+    // See text::encoding::CP437::istream::getline mechanism in from_sie_file
 
     struct AnonymousLine {std::string str{};};
     using SIEFileEntry = std::variant<OrgNr,FNamn,Adress,Rar,Ib,Konto,Sru,Ver,Trans,AnonymousLine>;
@@ -155,7 +155,7 @@ namespace SIE {
 
     struct OStream {
       std::ostream& os;
-      encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
+      text::encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
     };
 
     SIE::io::OStream& operator<<(SIE::io::OStream& sieos,char ch);

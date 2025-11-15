@@ -6,7 +6,7 @@
 
 class RuntimeEncoding {
 public:
-  using DetectedEncoding = encoding::icu::DetectedEncoding;
+  using DetectedEncoding = text::encoding::DetectedEncoding;
   RuntimeEncoding(DetectedEncoding const& detected_encoing = DetectedEncoding::Undefined);
   DetectedEncoding detected_encoding();  
   std::string get_encoding_display_name();    

@@ -1708,7 +1708,7 @@ inline TaggedAmounts to_tagged_amounts(BAS::MDJournalEntry const& mdje) {
 namespace CSV {
 
 	namespace NORDEA {
-		class istream : public encoding::UTF8::istream {};
+		class istream : public text::encoding::UTF8::istream {};
 
 		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 		/*
@@ -1744,7 +1744,7 @@ namespace CSV {
 			// ;PAYPAL *HKSITES 2656	;										;51981,54		;SEK
 
 			//
-			if (auto sEntry = in.getline(encoding::unicode::to_utf8{})) {
+			if (auto sEntry = in.getline(text::encoding::unicode::to_utf8{})) {
 				auto tokens = tokenize::splits(*sEntry,';',tokenize::eAllowEmptyTokens::YES);
 				// LOG
 				if (false) {
@@ -2457,7 +2457,7 @@ namespace SKV { // SKV
 
 		struct OStream {
 			std::ostream& os;
-			encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
+			text::encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
 			operator bool() {return static_cast<bool>(os);}
 		};
 

@@ -28,7 +28,7 @@ BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
 OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
   OptionalSIEEnvironment result{};
 
-  encoding::CP437::istream cp437_in{cp437_is};
+  text::encoding::CP437::istream cp437_in{cp437_is};
   if (!cp437_in) {
     logger::cout_proxy << "\nFailed to open stream ";
     return result;
@@ -36,7 +36,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
 
   // Phase 1: Read and transcode entire file to UTF-8
   std::string s_utf8;
-  while (auto entry = cp437_in.getline(encoding::unicode::to_utf8{})) {
+  while (auto entry = cp437_in.getline(text::encoding::unicode::to_utf8{})) {
     s_utf8 += *entry;
     s_utf8 += "\n";
   }
