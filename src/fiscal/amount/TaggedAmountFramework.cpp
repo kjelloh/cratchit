@@ -908,37 +908,40 @@ namespace CSV {
   } // project
 } // CSV
 
-CSV::functional::AnnotatedOptional<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
-  CSV::functional::AnnotatedOptional<persistent::in::MaybeIStream> result{};
+template <typename T>
+using CSVProcessResult = CSV::functional::CSVProcessResult<T>;
+
+CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
+  CSVProcessResult<persistent::in::MaybeIStream> result{};
   result.m_value = persistent::in::to_maybe_istream(statement_file_path);
   if (!result.m_value) result.push_message("file_path_to_istream: Failed to create istream");
   return result;
 }
 
-CSV::functional::AnnotatedOptional<std::string> istream_to_decoded_text(persistent::in::MaybeIStream const& maybe_istream) {
-  CSV::functional::AnnotatedOptional<std::string> result{};
+CSVProcessResult<std::string> istream_to_decoded_text(persistent::in::MaybeIStream const& maybe_istream) {
+  CSVProcessResult<std::string> result{};
   result.push_message("istream_to_decoded_text: NOT YET IMPLEMENTED");
+
   return result;
 }
-CSV::functional::AnnotatedOptional<CSV::Table> decoded_text_to_parsed_csv(std::string const& s) {
-  CSV::functional::AnnotatedOptional<CSV::Table> result{};
+CSVProcessResult<CSV::Table> decoded_text_to_parsed_csv(std::string const& s) {
+  CSVProcessResult<CSV::Table> result{};
   result.push_message("decoded_text_to_parsed_csv: NOT YET IMPLEMENTED");
   return result;
 }
 
 struct AccountStatement { /* TBD */};
 using AccountStatements = std::vector<AccountStatement>;
-CSV::functional::AnnotatedOptional<AccountStatements> parsed_csv_to_account_statements(CSV::Table const& table) {
-  CSV::functional::AnnotatedOptional<AccountStatements> result{};
+CSVProcessResult<AccountStatements> parsed_csv_to_account_statements(CSV::Table const& table) {
+  CSVProcessResult<AccountStatements> result{};
   result.push_message("parsed_csv_to_account_statements: NOT YET IMPLEMENTED");
   return result;
 }
-CSV::functional::AnnotatedOptional<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
-  CSV::functional::AnnotatedOptional<TaggedAmounts> result{};
+CSVProcessResult<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
+  CSVProcessResult<TaggedAmounts> result{};
   result.push_message("account_statements_to_tas: NOT YET IMPLEMENTED");
   return result;
 }
-
 
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
