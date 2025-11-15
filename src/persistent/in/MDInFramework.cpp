@@ -12,12 +12,12 @@ namespace persistent {
       return MaybeIStream{std::make_unique<std::istringstream>(s)};
     }
 
-    MDMaybeIFStream to_md_maybe_istream(std::filesystem::path sie_file_path) {
-      return MDMaybeIFStream {
-         .meta = {sie_file_path}
-        ,.defacto = to_maybe_istream(sie_file_path)
-      };
-    }
+    // MDMaybeIFStream to_md_maybe_istream(std::filesystem::path sie_file_path) {
+    //   return MDMaybeIFStream {
+    //      .meta = {sie_file_path}
+    //     ,.defacto = to_maybe_istream(sie_file_path)
+    //   };
+    // }
 
   }
 } // persistent

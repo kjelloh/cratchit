@@ -22,8 +22,8 @@ namespace persistent {
 
     MaybeIStream to_maybe_istream(std::filesystem::path sie_file_path);
     MaybeIStream from_string(std::string const& s);
-    using MDMaybeIFStream = MetaDefacto<FileStreamMeta,MaybeIStream>;
-    MDMaybeIFStream to_md_maybe_istream(std::filesystem::path sie_file_path);
+    // using MDMaybeIFStream = MetaDefacto<FileStreamMeta,MaybeIStream>;
+    // MDMaybeIFStream to_md_maybe_istream(std::filesystem::path sie_file_path);
 
   }
 } // persistent
