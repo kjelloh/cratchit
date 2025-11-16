@@ -349,12 +349,20 @@ namespace CSV {
 } // namespace CSV
 
 namespace CSV {
+
   namespace project {
+
     using ToTaggedAmountProjection = std::function<OptionalTaggedAmount(CSV::FieldRow const& field_row)>;
     ToTaggedAmountProjection make_tagged_amount_projection(
       HeadingId const& csv_heading_id
       ,CSV::TableHeading const& table_heading);
-    OptionalTaggedAmounts to_tas(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+
+    // Now correctly takes non-opt and returns opt
+    // OptionalTaggedAmounts to_tas(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+    OptionalTaggedAmounts to_tas(
+       CSV::project::HeadingId const& csv_heading_id
+      ,CSV::Table const& csv_table);
+
   }
 }
 

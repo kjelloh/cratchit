@@ -7,17 +7,8 @@
 
 namespace first {
   
-  // AccountStatementFileState::AccountStatementFileState(std::filesystem::path file_path)
-  //   :  StateImpl{}
-  //     ,m_file_path{file_path}
-  //     ,m_parse_csv_result{CSV::try_parse_csv(file_path)}
-  //     ,m_period_paired_file_path{PeriodPairedFilePath{
-  //       FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
-  //       ,file_path}} {}
-
   AccountStatementFileState::AccountStatementFileState(PeriodPairedFilePath period_paired_file_path)
     :  StateImpl{}
-      // ,m_file_path{period_paired_file_path.content()}
       ,m_parse_csv_result{CSV::try_parse_csv(period_paired_file_path.content())}
       ,m_period_paired_file_path{period_paired_file_path} {}
 
@@ -38,7 +29,11 @@ namespace first {
       ,maybe_table = this->m_parse_csv_result.maybe_table
     ]() -> StateUpdateResult {
       return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
-        auto maybe_tas = CSV::project::to_tas(csv_heading_id,maybe_table);
+        // auto maybe_tas = CSV::project::to_tas(csv_heading_id,maybe_table);
+        auto maybe_tas = maybe_table
+          .and_then([&csv_heading_id](auto const& table) {
+            return CSV::project::to_tas(csv_heading_id,table);
+          });
         // FiscalPeriod fiscal_period{FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()};
         State new_state{};
         // Hack - 'glue' optional date ordered tagged amounts with

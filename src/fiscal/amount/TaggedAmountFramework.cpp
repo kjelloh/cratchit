@@ -885,25 +885,23 @@ namespace CSV {
 
     OptionalTaggedAmounts to_tas(
        CSV::project::HeadingId const& csv_heading_id
-      ,CSV::OptionalTable const& maybe_csv_table) {
+      ,CSV::Table const& csv_table) {
+
       OptionalTaggedAmounts result{};
-      if (maybe_csv_table) {
-        auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,maybe_csv_table->heading);
-        TaggedAmounts tas{};
-        for (auto const& field_row : maybe_csv_table->rows) {
-          if (auto maybe_ta = to_tagged_amount(field_row)) {
-            tas.push_back(maybe_ta.value());
-          }
-          else {
-            logger::cout_proxy << "\nCSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
-          }
+      auto to_tagged_amount = make_tagged_amount_projection(csv_heading_id,csv_table.heading);
+      TaggedAmounts tas{};
+      for (auto const& field_row : csv_table.rows) {
+        if (auto maybe_ta = to_tagged_amount(field_row)) {
+          tas.push_back(maybe_ta.value());
         }
-        result = tas;
+        else {
+          logger::cout_proxy << "\nCSV::project::to_dota: Sorry, Failed to create tagged amount from field_row " << std::quoted(to_string(field_row));
+        }
       }
-      else {
-        logger::development_trace("CSV::project::to_dota - Null table -> nullopt result");
-      }
+      if (tas.size()>0) result = tas;
+
       return result;
+
     } // to_dota
   } // project
 } // CSV
@@ -1000,7 +998,10 @@ OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statem
       if (field_rows->size() > 0) {
         auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
         auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
-        result =  CSV::project::to_tas(csv_heading_id,CSV::to_table(field_rows,heading_projection));
+        result = CSV::to_table(field_rows,heading_projection)
+          .and_then([&csv_heading_id](auto const& table) {
+            return CSV::project::to_tas(csv_heading_id,table);
+          });
       }
     }
     return result;
