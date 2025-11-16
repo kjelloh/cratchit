@@ -1,6 +1,7 @@
 
 #include "parse_csv.hpp"
 #include "logger/log.hpp"
+#include "std_overload.hpp" // std_overload::overload,...
 #include <fstream>
 
 namespace CSV {
@@ -37,31 +38,51 @@ namespace CSV {
       // Use ICU detection to determine appropriate encoding stream
       result.icu_detection_result = text::encoding::icu::EncodingDetector::detect_file_encoding(m_file_path);
       logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);
-      
-      switch (result.icu_detection_result.encoding) {
-        case text::encoding::DetectedEncoding::UTF8: {
-          text::encoding::UTF8::istream utf8_in{ifs};
-          field_rows = CSV::to_field_rows(utf8_in, ';');
-          break;
-        }
-        
-        case text::encoding::DetectedEncoding::ISO_8859_1: {
-          text::encoding::ISO_8859_1::istream iso8859_in{ifs}; 
-          field_rows = CSV::to_field_rows(iso8859_in, ';');
-          break;
-        }
-        
-        case text::encoding::DetectedEncoding::CP437: {
-          text::encoding::CP437::istream cp437_in{ifs};
-          field_rows = CSV::to_field_rows(cp437_in, ';');
-          break;
-        }
-        
-        default: {
-          spdlog::error("Unsupported encoding {} for CSV parsing: {}", 
-                        result.icu_detection_result.display_name, m_file_path.string());
-        }
+
+      auto maybe_decoding_in = text::encoding::to_decoding_in(result.icu_detection_result,ifs);
+      if (maybe_decoding_in) {
+        std::visit(std_overload::overload{
+            [&](text::encoding::UTF8::istream& is) {
+              field_rows = CSV::to_field_rows(is, ';');
+            }
+            ,[&](text::encoding::ISO_8859_1::istream& is) {
+              field_rows = CSV::to_field_rows(is, ';');
+            },
+            [&](text::encoding::CP437::istream& is) {
+              field_rows = CSV::to_field_rows(is, ';');
+            }
+        }, maybe_decoding_in.value());
+
       }
+      else {
+        spdlog::error("Unsupported encoding {} for CSV parsing: {}", 
+                      result.icu_detection_result.display_name, m_file_path.string());
+      }
+      
+      // switch (result.icu_detection_result.encoding) {
+      //   case text::encoding::DetectedEncoding::UTF8: {
+      //     text::encoding::UTF8::istream utf8_in{ifs};
+      //     field_rows = CSV::to_field_rows(utf8_in, ';');
+      //     break;
+      //   }
+        
+      //   case text::encoding::DetectedEncoding::ISO_8859_1: {
+      //     text::encoding::ISO_8859_1::istream iso8859_in{ifs}; 
+      //     field_rows = CSV::to_field_rows(iso8859_in, ';');
+      //     break;
+      //   }
+        
+      //   case text::encoding::DetectedEncoding::CP437: {
+      //     text::encoding::CP437::istream cp437_in{ifs};
+      //     field_rows = CSV::to_field_rows(cp437_in, ';');
+      //     break;
+      //   }
+        
+      //   default: {
+      //     spdlog::error("Unsupported encoding {} for CSV parsing: {}", 
+      //                   result.icu_detection_result.display_name, m_file_path.string());
+      //   }
+      // }
       
       if (field_rows && !field_rows->empty()) {
         logger::development_trace("try_parse_csv: field_rows->size() = {}",field_rows->size());

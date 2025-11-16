@@ -217,10 +217,8 @@ namespace text {
 
     } // icu
 
-    // Note: That text::encoding::bom_istream is the base class of all decoding streams.
-    //       Thus we can use it to return a 'maybe ref' to any of our decoding in stream.
-    // TODO: Consider to either introduce a proper base class to not use the confusing bom_istream.
-    //       Or to introduce an std::variant to not use virtual mechanism.
+    // TODO: Consider a 'better' (??) way to provide a 'in stream' that knows how o decode?
+    //       Is there a way to 'hide' the actual decoder?
     using DecodingIn = std::variant<
       text::encoding::UTF8::istream
       ,text::encoding::ISO_8859_1::istream

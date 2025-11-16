@@ -25,6 +25,30 @@ namespace std_overload {
 
   // None of the alternatives is fully satisfactory but in Cratchit we have chose alternative 2 for now.
 
+  // Credit: https://andreasfertig.com/blog/2023/07/visiting-a-stdvariant-safely/
+  // Creates a struct type 'overload' that implements all operator() provided by provided types.
+  // It also implements an extra operator() for any type that does not math any of the provided.
+  // I understand it like this.
+  // 1) <class... Ts> matches any list of types provided
+  // 2) 'struct overload : Ts...' expands to 'struct overload : T1,T2,T3,...' (Ti a provided type)
+  //    That is, the struct inherits from all provided types.
+  // 3) 'using Ts::operator()...;' expands to 'using T1::operator();using T2::operator();using T3::operator()...;'
+  //    As I understands it the expansion is made with ';' separators - because it is a declaration expansion?
+  //    Also, the 'using' brings the inherited operator() into 'scope'. Without it the C++ name lookup
+  //    will not see all inherited operator() (virtual or not)? It has something to do with
+  //    the behaviour of multipple inheritance name lookup?
+  template<class... Ts>
+  struct overload : Ts...
+  {
+    using Ts::operator()...;
+
+    // Prevent implicit type conversions
+    consteval void operator()(auto) const
+    {
+      static_assert(false, "Unsupported type");
+    }
+  };
+
   // Helper to  write an std::array of predefined size to a stream
   // Client namespace needs an 'using std_overload::operator<<' to 'see it'
   template <std::size_t N>
