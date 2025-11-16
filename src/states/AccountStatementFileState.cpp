@@ -23,18 +23,16 @@ namespace first {
   StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     auto fiscal_period = this->m_period_paired_file_path.period();
-    result.add('t',{"To Tagged Amounts",[
+    if (this->m_parse_csv_result.maybe_table) result.add('t',{"To Tagged Amounts",[
        fiscal_period
       ,csv_heading_id = this->m_parse_csv_result.heading_id
-      ,maybe_table = this->m_parse_csv_result.maybe_table
-    ]() -> StateUpdateResult {
+      ,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
+
       return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
-        // auto maybe_tas = CSV::project::to_tas(csv_heading_id,maybe_table);
         auto maybe_tas = maybe_table
           .and_then([&csv_heading_id](auto const& table) {
             return CSV::project::to_tas(csv_heading_id,table);
           });
-        // FiscalPeriod fiscal_period{FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()};
         State new_state{};
         // Hack - 'glue' optional date ordered tagged amounts with
         //        TaggedAmountsState aggregating raw tagged amounts
@@ -50,7 +48,7 @@ namespace first {
       }};
     }});
 
-    result.add('s', {"Account Statement", [
+    if (this->m_parse_csv_result.maybe_table) result.add('s', {"Account Statement", [
        fiscal_period
       ,csv_heading_id = this->m_parse_csv_result.heading_id
       ,maybe_table = this->m_parse_csv_result.maybe_table
