@@ -41,18 +41,12 @@ namespace CSV {
 
       auto maybe_decoding_in = text::encoding::to_decoding_in(result.icu_detection_result,ifs);
       if (maybe_decoding_in) {
-        std::visit(std_overload::overload{
-            [&](text::encoding::UTF8::istream& is) {
-              field_rows = CSV::to_field_rows(is, ';');
-            }
-            ,[&](text::encoding::ISO_8859_1::istream& is) {
+        std::visit(
+            [&](auto& is) {
               field_rows = CSV::to_field_rows(is, ';');
             },
-            [&](text::encoding::CP437::istream& is) {
-              field_rows = CSV::to_field_rows(is, ';');
-            }
-        }, maybe_decoding_in.value());
-
+            maybe_decoding_in.value()
+        );
       }
       else {
         spdlog::error("Unsupported encoding {} for CSV parsing: {}", 
