@@ -197,12 +197,16 @@ namespace text {
         std::string detection_method;  // "ICU", "BOM", "Extension", "Default"
       };
 
+      const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
+
       EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length);
       std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
-      EncodingDetectionResult detect_istream_encoding(std::istream& is);
+      std::optional<EncodingDetectionResult> detect_istream_encoding(
+        std::istream& is
+        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
       std::optional<EncodingDetectionResult> detect_file_encoding(
         std::filesystem::path const& file_path
-        ,int32_t confidence_threshold = 90);
+        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
       
       // Utility functions for encoding enum conversion
       DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);

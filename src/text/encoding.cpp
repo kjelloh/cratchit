@@ -257,17 +257,17 @@ namespace text {
         }
 
         std::ifstream ifs(file_path, std::ios::binary);
-        auto icu_result = detect_istream_encoding(ifs);
+        auto maybe_icu_result = detect_istream_encoding(ifs,confidence_threshold);
 
-        // If ICU is uncertain, combine with extension heuristics
-        if (icu_result.confidence < confidence_threshold) {
+        // If we did not reach threshold, combine with extension heuristics
+        if (!maybe_icu_result) {
           auto ext_result = detect_by_extension_heuristics(file_path);
           if (ext_result.confidence >= confidence_threshold) {
             return ext_result;
           }
         }
         else {
-          return icu_result;
+          return maybe_icu_result.value();
         }
 
         return {}; // did not reach confidence threshold
@@ -275,25 +275,26 @@ namespace text {
       }
 
 
-      EncodingDetectionResult detect_istream_encoding(std::istream& is) {
+      std::optional<EncodingDetectionResult> detect_istream_encoding(
+        std::istream& is
+        ,int32_t confidence_threshold) {
         
-        if (!is) {
-          return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Error: Cannot open file"};
+        if (is) {
+
+          // Read file sample for ICU analysis
+          // Read up to 8KB sample (ICU recommendation)
+          std::vector<char> buffer(8192);
+          is.read(buffer.data(), buffer.size());
+          size_t bytes_read = is.gcount();
+          
+          if (bytes_read > 0) {
+            // Use what we could get
+            auto icu_result = detect_buffer_encoding(buffer.data(), bytes_read);
+            if (icu_result.confidence >= confidence_threshold) return icu_result;
+          }
         }
-        
-        // Read file sample for ICU analysis
-        // Read up to 8KB sample (ICU recommendation)
-        std::vector<char> buffer(8192);
-        is.read(buffer.data(), buffer.size());
-        size_t bytes_read = is.gcount();
-        
-        if (bytes_read == 0) {
-          return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 100, "", "Empty file"};
-        }
-        
-        auto icu_result = detect_buffer_encoding(buffer.data(), bytes_read);
-                
-        return icu_result;
+
+        return {}; // No result
       }
 
       EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length) {
