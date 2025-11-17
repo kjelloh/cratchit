@@ -919,7 +919,19 @@ CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesys
 
 CSVProcessResult<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
   CSVProcessResult<text::encoding::MaybeDecodingIn> result{};
-  result.push_message("istream_to_decoding_in: NOT YET IMPLEMENTED");
+
+  auto maybe_encoding = maybe_istream
+    .and_then([](std::istream& is) {
+      return text::encoding::icu::to_istream_encoding(is);
+    });
+
+  if (maybe_encoding) {
+    result.m_value = text::encoding::to_decoding_in(
+       maybe_encoding.value()
+      ,maybe_istream.value());
+  }
+
+  if (!result.m_value) result.push_message("istream_to_decoding_in: Failed to create a decoding in stream");
   return result;
 }
 

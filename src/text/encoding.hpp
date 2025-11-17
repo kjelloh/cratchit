@@ -226,7 +226,7 @@ namespace text {
       EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
     } // icu
 
-    // TODO: Consider a design that does not lift the detected encoded to an actual unique type?
+    // TODO: Consider a design that does not lift the detected encoding on in stream to an actual unique type?
     //       Maybe it is a good thing to lift to a type to be clear about what encoding we support in code?
     //       Or maybe we only care about the end encoding so intermediate encodings to form files
     //       is of now conscerns to us?

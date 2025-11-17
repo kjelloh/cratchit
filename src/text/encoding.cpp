@@ -282,24 +282,39 @@ namespace text {
       }
 
       std::optional<EncodingDetectionResult> to_istream_encoding(
-        std::istream& is
-        ,int32_t confidence_threshold) {
-        
-        if (is) {
+        std::istream& is,
+        int32_t confidence_threshold) {
 
-          // Read file sample for ICU analysis
-          // Read up to 8KB sample (ICU recommendation)
+        // Save current stream position (if possible)
+        
+
+        if (std::istream::pos_type pos = is.tellg();pos != -1) {
+          // istream is seekable ok 
+          // (we can restore read position to have layter code process the content)
+
+          // Sample for encoding detection
           std::vector<char> buffer(8192);
           is.read(buffer.data(), buffer.size());
           size_t bytes_read = is.gcount();
-          
+
+          // Restore position
+          is.clear();          // Clear EOF flag if we hit end
+          is.seekg(pos);       // Move back to original position
+
           if (bytes_read > 0) {
-            // Use what we could get
             return to_content_encoding(buffer.data(), bytes_read);
           }
+
+          return {};
+        }
+        else {
+          logger::design_insufficiency("to_istream_encoding: Failed - Called with non seekable istream.");
         }
 
-        return {}; // No result
+        // Stream is not seekable — we cannot “restore” it
+        // Only option is: avoid consuming it.
+        is.setstate(std::ios::failbit); // 'disable' later code from consuming from stream
+        return {};
       }
 
       std::optional<EncodingDetectionResult> to_content_encoding(
