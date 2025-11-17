@@ -201,7 +201,7 @@ namespace text {
       public:
         static EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length);
         static std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
-        static EncodingDetectionResult detect_file_encoding(std::istream& file);
+        static EncodingDetectionResult detect_istream_encoding(std::istream& is);
         static EncodingDetectionResult detect_file_encoding(std::filesystem::path const& file_path);
         
         // Utility functions for encoding enum conversion

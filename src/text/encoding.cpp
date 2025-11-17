@@ -253,8 +253,8 @@ namespace text {
           return bom_result;
         }
 
-        std::ifstream file(file_path, std::ios::binary);
-        auto icu_result = detect_file_encoding(file);
+        std::ifstream ifs(file_path, std::ios::binary);
+        auto icu_result = detect_istream_encoding(ifs);
 
         // If ICU is uncertain, combine with extension heuristics
         if (icu_result.confidence < 50) {
@@ -268,17 +268,18 @@ namespace text {
 
       }
 
-      EncodingDetectionResult EncodingDetector::detect_file_encoding(std::istream& file) {
+
+      EncodingDetectionResult EncodingDetector::detect_istream_encoding(std::istream& is) {
         
-        if (!file) {
+        if (!is) {
           return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Error: Cannot open file"};
         }
         
         // Read file sample for ICU analysis
         // Read up to 8KB sample (ICU recommendation)
         std::vector<char> buffer(8192);
-        file.read(buffer.data(), buffer.size());
-        size_t bytes_read = file.gcount();
+        is.read(buffer.data(), buffer.size());
+        size_t bytes_read = is.gcount();
         
         if (bytes_read == 0) {
           return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 100, "", "Empty file"};

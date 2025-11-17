@@ -40,14 +40,6 @@ namespace CSV {
 
       CSV::OptionalFieldRows field_rows = text::encoding::to_decoding_in(result.icu_detection_result,ifs)
         .and_then(decoding_in_to_field_rows)
-        // .and_then([](auto& decoding_in) -> CSV::OptionalFieldRows {
-        //   return std::visit(
-        //       [&](auto& is) {
-        //         return CSV::to_field_rows(is, ';');
-        //       }
-        //       ,decoding_in
-        //   );
-        // })
         .or_else([&result,&file_path] -> CSV::OptionalFieldRows {
           spdlog::error(
              "Unsupported encoding {} for CSV parsing: {}"
