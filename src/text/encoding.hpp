@@ -186,11 +186,15 @@ namespace text {
 
     namespace icu {
 
+      // Readable string from ICU UErrorCode
       std::string to_string(UErrorCode status);
 
       // Encoding Detection Service using ICU
 
       using CanonicalEncodingName = std::string;
+
+      // ICU encoding name -> cratchit DetectedEncoding
+      DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
 
       struct EncodingDetectionResult {
         DetectedEncoding encoding;
@@ -203,31 +207,30 @@ namespace text {
 
       const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
 
-      std::optional<EncodingDetectionResult> detect_buffer_encoding(
+      std::optional<EncodingDetectionResult> to_content_encoding(
          char const* data
         ,size_t length
         ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
-      std::optional<EncodingDetectionResult> detect_istream_encoding(
+      std::vector<EncodingDetectionResult> to_encoding_options(
+         char const* data
+        ,size_t length
+        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+      std::optional<EncodingDetectionResult> to_istream_encoding(
         std::istream& is
         ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      std::optional<EncodingDetectionResult> detect_file_encoding(
+      std::optional<EncodingDetectionResult> to_file_at_path_encoding(
         std::filesystem::path const& file_path
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      
-      // Utility functions for encoding enum conversion
-      DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
-      
-      EncodingDetectionResult detect_by_bom(std::istream& file);
-
-      EncodingDetectionResult detect_by_bom(std::filesystem::path const& file_path);
-      EncodingDetectionResult detect_by_extension_heuristics(std::filesystem::path const& file_path);
-
-
+        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);      
+      EncodingDetectionResult to_bom_encoding(std::istream& is);
+      EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
+      EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
     } // icu
 
-    // TODO: Consider a 'better' (??) way to provide a 'in stream' that knows how o decode?
-    //       Is there a way to 'hide' the actual decoder?
+    // TODO: Consider a design that does not lift the detected encoded to an actual unique type?
+    //       Maybe it is a good thing to lift to a type to be clear about what encoding we support in code?
+    //       Or maybe we only care about the end encoding so intermediate encodings to form files
+    //       is of now conscerns to us?
+    //       For now we have a varuant of decoding in streams that applies decoding to unicode.
     using DecodingIn = std::variant<
       text::encoding::UTF8::istream
       ,text::encoding::ISO_8859_1::istream

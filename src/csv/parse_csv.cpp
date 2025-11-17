@@ -29,8 +29,8 @@ namespace CSV {
             
       // Use ICU detection to determine appropriate encoding stream
 
-      // result.icu_detection_result = text::encoding::icu::detect_file_encoding(file_path);
-      if (auto maybe_detection_result = text::encoding::icu::detect_file_encoding(file_path)) {
+      // result.icu_detection_result = text::encoding::icu::to_file_at_path_encoding(file_path);
+      if (auto maybe_detection_result = text::encoding::icu::to_file_at_path_encoding(file_path)) {
         result.icu_detection_result = maybe_detection_result.value();
 
           logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);

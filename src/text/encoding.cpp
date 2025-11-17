@@ -253,22 +253,22 @@ namespace text {
 
       // ICU-based Encoding Detection Implementation
 
-      std::optional<EncodingDetectionResult> detect_file_encoding(
+      std::optional<EncodingDetectionResult> to_file_at_path_encoding(
         std::filesystem::path const& file_path
         ,int32_t confidence_threshold) {
 
         // First try BOM detection for quick wins
-        auto bom_result = detect_by_bom(file_path);
+        auto bom_result = to_bom_encoding(file_path);
         if (bom_result.confidence >= confidence_threshold) {
           return bom_result;
         }
 
         std::ifstream ifs(file_path, std::ios::binary);
-        auto maybe_icu_result = detect_istream_encoding(ifs,confidence_threshold);
+        auto maybe_icu_result = to_istream_encoding(ifs,confidence_threshold);
 
         // If we did not reach threshold, combine with extension heuristics
         if (!maybe_icu_result) {
-          auto ext_result = detect_by_extension_heuristics(file_path);
+          auto ext_result = to_extension_heuristics_encoding(file_path);
           if (ext_result.confidence >= confidence_threshold) {
             return ext_result;
           }
@@ -281,7 +281,7 @@ namespace text {
 
       }
 
-      std::optional<EncodingDetectionResult> detect_istream_encoding(
+      std::optional<EncodingDetectionResult> to_istream_encoding(
         std::istream& is
         ,int32_t confidence_threshold) {
         
@@ -295,14 +295,14 @@ namespace text {
           
           if (bytes_read > 0) {
             // Use what we could get
-            return detect_buffer_encoding(buffer.data(), bytes_read);
+            return to_content_encoding(buffer.data(), bytes_read);
           }
         }
 
         return {}; // No result
       }
 
-      std::optional<EncodingDetectionResult> detect_buffer_encoding(
+      std::optional<EncodingDetectionResult> to_content_encoding(
          char const* data
         ,size_t length
         ,int32_t confidence_threshold) {
@@ -312,7 +312,7 @@ namespace text {
         // Create ICU character set detector
         UCharsetDetector* detector = ucsdet_open(&status);
         if (U_FAILURE(status) || !detector) {
-          logger::development_trace("detect_buffer_encoding: ICU detector creation failed. status:{}"
+          logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}"
             ,to_string(status));
           return {};
         }
@@ -365,30 +365,43 @@ namespace text {
           ,"ICU"};
       }
 
-      std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length) {
+      std::vector<EncodingDetectionResult> to_encoding_options(
+         char const* data
+        ,size_t length
+        ,int32_t confidence_threshold) {
+
         std::vector<EncodingDetectionResult> results;
         UErrorCode status = U_ZERO_ERROR;
         
+        // Create ICU character set detector
         UCharsetDetector* detector = ucsdet_open(&status);
         if (U_FAILURE(status) || !detector) {
-          return results;
+          logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}"
+            ,to_string(status));
+          return {};
         }
         
+        // Set the input data
         ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
         if (U_FAILURE(status)) {
           ucsdet_close(detector);
-          return results;
+          logger::development_trace("ICU setText failed. status:{}"
+            ,to_string(status));
+          return {};
         }
+
         
         // Get all possible matches
         int32_t match_count;
         const UCharsetMatch** matches = ucsdet_detectAll(detector, &match_count, &status);
         if (U_FAILURE(status) || !matches) {
           ucsdet_close(detector);
-          return results;
+          logger::development_trace("ICU 'detect all' failed. status:{}"
+            ,to_string(status));
+          return {};
         }
         
-        // Convert all matches to our format
+        // Convert all matches to EncodingDetectionResult
         for (int32_t i = 0; i < match_count; ++i) {
           const char* canonical_name = ucsdet_getName(matches[i], &status);
           int32_t confidence = ucsdet_getConfidence(matches[i], &status);
@@ -399,8 +412,23 @@ namespace text {
             std::string language_str = language ? language : "";
             DetectedEncoding encoding = canonical_name_to_enum(canonical_str);
             std::string display_name = enum_to_display_name(encoding);
-            
-            results.push_back({encoding, canonical_str, display_name, confidence, language_str, "ICU"});
+
+            if (confidence >= confidence_threshold) {
+              results.push_back({encoding, canonical_str, display_name, confidence, language_str, "ICU"});
+            }
+            else {
+              logger::development_trace(
+                "Skipped ICU match - Confidence:{} < provided threshold:{} for match:{}"
+                ,confidence
+                ,confidence_threshold
+                ,i);
+            }
+          }
+          else {
+          logger::development_trace(
+             "ICU extract canonical_name, confidence or language failed for match:{} . status:{}"
+            ,i
+            ,to_string(status));
           }
         }
         
@@ -408,12 +436,12 @@ namespace text {
         return results;
       }
 
-      EncodingDetectionResult detect_by_bom(std::filesystem::path const& file_path) {
+      EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path) {
         std::ifstream file(file_path, std::ios::binary);
-        return detect_by_bom(file);
+        return to_bom_encoding(file);
       }
 
-      EncodingDetectionResult detect_by_bom(std::istream& file) {
+      EncodingDetectionResult to_bom_encoding(std::istream& file) {
         if (!file) {
           return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Cannot open file"};
         }
@@ -444,7 +472,7 @@ namespace text {
         return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "No BOM"};
       }
 
-      EncodingDetectionResult detect_by_extension_heuristics(std::filesystem::path const& file_path) {
+      EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path) {
         auto ext = file_path.extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
         
