@@ -246,10 +246,13 @@ namespace text {
 
       // ICU-based Encoding Detection Implementation
 
-      EncodingDetectionResult detect_file_encoding(std::filesystem::path const& file_path) {
+      std::optional<EncodingDetectionResult> detect_file_encoding(
+        std::filesystem::path const& file_path
+        ,int32_t confidence_threshold) {
+
         // First try BOM detection for quick wins
         auto bom_result = detect_by_bom(file_path);
-        if (bom_result.confidence >= 95) {
+        if (bom_result.confidence >= confidence_threshold) {
           return bom_result;
         }
 
@@ -257,14 +260,17 @@ namespace text {
         auto icu_result = detect_istream_encoding(ifs);
 
         // If ICU is uncertain, combine with extension heuristics
-        if (icu_result.confidence < 50) {
+        if (icu_result.confidence < confidence_threshold) {
           auto ext_result = detect_by_extension_heuristics(file_path);
-          if (ext_result.confidence > icu_result.confidence) {
+          if (ext_result.confidence >= confidence_threshold) {
             return ext_result;
           }
         }
+        else {
+          return icu_result;
+        }
 
-        return icu_result;
+        return {}; // did not reach confidence threshold
 
       }
 

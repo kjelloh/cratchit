@@ -28,60 +28,41 @@ namespace CSV {
     try {
             
       // Use ICU detection to determine appropriate encoding stream
-      result.icu_detection_result = text::encoding::icu::detect_file_encoding(file_path);
-      logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);
 
-      logger::development_trace("try_parse_csv: BEGIN");
-      std::ifstream ifs{file_path};
-      if (!ifs.is_open()) {
-        spdlog::error("Failed to open file: {}", file_path.string());
-        return result;
-      }
+      // result.icu_detection_result = text::encoding::icu::detect_file_encoding(file_path);
+      if (auto maybe_detection_result = text::encoding::icu::detect_file_encoding(file_path)) {
+        result.icu_detection_result = maybe_detection_result.value();
 
-      CSV::OptionalFieldRows field_rows = text::encoding::to_decoding_in(result.icu_detection_result,ifs)
-        .and_then(decoding_in_to_field_rows)
-        .or_else([&result,&file_path] -> CSV::OptionalFieldRows {
-          spdlog::error(
-             "Unsupported encoding {} for CSV parsing: {}"
-            ,result.icu_detection_result.display_name, file_path.string());
-          return {};
-        });
-            
-      // switch (result.icu_detection_result.encoding) {
-      //   case text::encoding::DetectedEncoding::UTF8: {
-      //     text::encoding::UTF8::istream utf8_in{ifs};
-      //     field_rows = CSV::to_field_rows(utf8_in, ';');
-      //     break;
-      //   }
-        
-      //   case text::encoding::DetectedEncoding::ISO_8859_1: {
-      //     text::encoding::ISO_8859_1::istream iso8859_in{ifs}; 
-      //     field_rows = CSV::to_field_rows(iso8859_in, ';');
-      //     break;
-      //   }
-        
-      //   case text::encoding::DetectedEncoding::CP437: {
-      //     text::encoding::CP437::istream cp437_in{ifs};
-      //     field_rows = CSV::to_field_rows(cp437_in, ';');
-      //     break;
-      //   }
-        
-      //   default: {
-      //     spdlog::error("Unsupported encoding {} for CSV parsing: {}", 
-      //                   result.icu_detection_result.display_name, file_path.string());
-      //   }
-      // }
-      
-      if (field_rows && !field_rows->empty()) {
-        logger::development_trace("try_parse_csv: field_rows->size() = {}",field_rows->size());
-        result.heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
-        auto heading_projection = CSV::project::make_heading_projection(result.heading_id);
-        result.maybe_table = CSV::to_table(field_rows,heading_projection);
-      }      
-      else {
-        logger::development_trace("try_parse_csv: NO field_rows -> nullopt table");
+          logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);
+
+          logger::development_trace("try_parse_csv: BEGIN");
+          std::ifstream ifs{file_path};
+          if (!ifs.is_open()) {
+            spdlog::error("Failed to open file: {}", file_path.string());
+            return result;
+          }
+
+          CSV::OptionalFieldRows field_rows = text::encoding::to_decoding_in(result.icu_detection_result,ifs)
+            .and_then(decoding_in_to_field_rows)
+            .or_else([&result,&file_path] -> CSV::OptionalFieldRows {
+              spdlog::error(
+                "Unsupported encoding {} for CSV parsing: {}"
+                ,result.icu_detection_result.display_name, file_path.string());
+              return {};
+            });
+          
+          if (field_rows && !field_rows->empty()) {
+            logger::development_trace("try_parse_csv: field_rows->size() = {}",field_rows->size());
+            result.heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
+            auto heading_projection = CSV::project::make_heading_projection(result.heading_id);
+            result.maybe_table = CSV::to_table(field_rows,heading_projection);
+          }      
+          else {
+            logger::development_trace("try_parse_csv: NO field_rows -> nullopt table");
+          }
       }
-    } catch (const std::exception& e) {
+    } 
+    catch (const std::exception& e) {
       spdlog::error("Failed to parse CSV file {}: {}", file_path.string(), e.what());
     }    
     return result;

@@ -200,7 +200,9 @@ namespace text {
       EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length);
       std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
       EncodingDetectionResult detect_istream_encoding(std::istream& is);
-      EncodingDetectionResult detect_file_encoding(std::filesystem::path const& file_path);
+      std::optional<EncodingDetectionResult> detect_file_encoding(
+        std::filesystem::path const& file_path
+        ,int32_t confidence_threshold = 90);
       
       // Utility functions for encoding enum conversion
       DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
