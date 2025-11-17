@@ -4,6 +4,7 @@
 #include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include "csv/functional.hpp" // CSV::functional::Result<T>,...
 #include "persistent/in/maybe.hpp" // in::MaybeIStream,...
+#include "AccountStatement.hpp"
 #include <iostream> // ,std::cout
 #include <sstream> // std::ostringstream, std::istringstream
 #include <algorithm> // std::all_of,
@@ -916,34 +917,30 @@ CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesys
   return result;
 }
 
-CSVProcessResult<std::string> istream_to_decoded_text(persistent::in::MaybeIStream const& maybe_istream) {
-  CSVProcessResult<std::string> result{};
-  // result.push_message("istream_to_decoded_text: NOT YET IMPLEMENTED");
-  auto decoded_text_result = maybe_istream
-    .and_then(persistent::in::to_raw_bytes)
-    .and_then(text::encoding::to_decoded_text);
-
-  if (decoded_text_result) {
-    result.m_value = decoded_text_result->m_decoded_text;
-  }
-  else {
-    result.push_message("Failed do decode text encoding");
-  }
+CSVProcessResult<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
+  CSVProcessResult<text::encoding::MaybeDecodingIn> result{};
+  result.push_message("istream_to_decoding_in: NOT YET IMPLEMENTED");
   return result;
 }
-CSVProcessResult<CSV::Table> decoded_text_to_parsed_csv(std::string const& s) {
+
+CSVProcessResult<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
+  CSVProcessResult<CSV::FieldRows> result{};
+  result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");
+  return result;
+}
+CSVProcessResult<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
   CSVProcessResult<CSV::Table> result{};
-  result.push_message("decoded_text_to_parsed_csv: NOT YET IMPLEMENTED");
+  result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
   return result;
 }
 
-struct AccountStatement { /* TBD */};
 using AccountStatements = std::vector<AccountStatement>;
-CSVProcessResult<AccountStatements> parsed_csv_to_account_statements(CSV::Table const& table) {
+CSVProcessResult<AccountStatements> table_to_account_statements(CSV::Table const& table) {
   CSVProcessResult<AccountStatements> result{};
-  result.push_message("parsed_csv_to_account_statements: NOT YET IMPLEMENTED");
+  result.push_message("table_to_account_statements: NOT YET IMPLEMENTED");
   return result;
 }
+
 CSVProcessResult<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
   CSVProcessResult<TaggedAmounts> result{};
   result.push_message("account_statements_to_tas: NOT YET IMPLEMENTED");
@@ -963,9 +960,10 @@ OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statem
     // Refactored to pipeline
 
     auto result = file_path_to_istream(statement_file_path)
-      .and_then(istream_to_decoded_text)
-      .and_then(decoded_text_to_parsed_csv)
-      .and_then(parsed_csv_to_account_statements)
+      .and_then(istream_to_decoding_in)
+      .and_then(decoding_in_to_field_rows)
+      .and_then(field_rows_to_table)
+      .and_then(table_to_account_statements)
       .and_then(account_statements_to_tas);
 
     std::ranges::for_each(result.m_messages,[](auto const& message){

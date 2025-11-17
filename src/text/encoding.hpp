@@ -229,11 +229,5 @@ namespace text {
        icu::EncodingDetectionResult const& detected_source_encoding
       ,std::istream& is);
 
-    struct DecodedTextResult {
-      icu::CanonicalEncodingName m_source_encoding;
-      std::string m_decoded_text;
-    };
-    std::optional<DecodedTextResult> to_decoded_text(std::string const& raw_text);
-
   } // namespace encoding
 } // text

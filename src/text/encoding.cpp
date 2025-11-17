@@ -478,10 +478,5 @@ namespace text {
       return {};
     }
 
-    std::optional<DecodedTextResult> to_decoded_text(std::string const& raw_text) {
-      std::optional<DecodedTextResult> result{};
-      return result;
-    }
-
   } // namespace encoding
 } // text
