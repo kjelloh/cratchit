@@ -29,6 +29,8 @@ namespace CSV {
 		return result;
 	}
 
+  CSV::OptionalFieldRows decoding_in_to_field_rows(text::encoding::DecodingIn& decoding_in);
+
   using TableHeading = FieldRow;
   using OptionalTableHeading = std::optional<TableHeading>;
 
