@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <vector>
 #include <variant>
+#include <unicode/errorcode.h> // ICU library UErrorCode,...
 
 namespace text {
   namespace encoding {
@@ -184,6 +185,9 @@ namespace text {
     } // namespace unicode
 
     namespace icu {
+
+      std::string to_string(UErrorCode status);
+
       // Encoding Detection Service using ICU
 
       using CanonicalEncodingName = std::string;
@@ -199,7 +203,10 @@ namespace text {
 
       const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
 
-      EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length);
+      std::optional<EncodingDetectionResult> detect_buffer_encoding(
+         char const* data
+        ,size_t length
+        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
       std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
       std::optional<EncodingDetectionResult> detect_istream_encoding(
         std::istream& is

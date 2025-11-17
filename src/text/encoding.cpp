@@ -244,6 +244,13 @@ namespace text {
 
     namespace icu {
 
+      std::string to_string(UErrorCode status) {
+        return std::format(
+            "{} ()"
+          ,static_cast<int>(status)
+          ,u_errorName(status));
+      }
+
       // ICU-based Encoding Detection Implementation
 
       std::optional<EncodingDetectionResult> detect_file_encoding(
@@ -274,7 +281,6 @@ namespace text {
 
       }
 
-
       std::optional<EncodingDetectionResult> detect_istream_encoding(
         std::istream& is
         ,int32_t confidence_threshold) {
@@ -289,35 +295,44 @@ namespace text {
           
           if (bytes_read > 0) {
             // Use what we could get
-            auto icu_result = detect_buffer_encoding(buffer.data(), bytes_read);
-            if (icu_result.confidence >= confidence_threshold) return icu_result;
+            return detect_buffer_encoding(buffer.data(), bytes_read);
           }
         }
 
         return {}; // No result
       }
 
-      EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length) {
+      std::optional<EncodingDetectionResult> detect_buffer_encoding(
+         char const* data
+        ,size_t length
+        ,int32_t confidence_threshold) {
+
         UErrorCode status = U_ZERO_ERROR;
         
         // Create ICU character set detector
         UCharsetDetector* detector = ucsdet_open(&status);
         if (U_FAILURE(status) || !detector) {
-          return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "ICU detector creation failed"};
+          logger::development_trace("detect_buffer_encoding: ICU detector creation failed. status:{}"
+            ,to_string(status));
+          return {};
         }
         
         // Set the input data
         ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
         if (U_FAILURE(status)) {
           ucsdet_close(detector);
-          return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "ICU setText failed"};
+          logger::development_trace("ICU setText failed. status:{}"
+            ,to_string(status));
+          return {};
         }
         
         // Detect the character set
         const UCharsetMatch* match = ucsdet_detect(detector, &status);
         if (U_FAILURE(status) || !match) {
           ucsdet_close(detector);
-          return {DetectedEncoding::UTF8, "UTF-8", "UTF-8 (fallback)", 30, "", "ICU detection failed, fallback"};
+          logger::development_trace("ICU failed to detect the character set. status:{}"
+            ,to_string(status));
+          return {};
         }
         
         // Extract results
@@ -327,7 +342,10 @@ namespace text {
         
         if (U_FAILURE(status)) {
           ucsdet_close(detector);
-          return {DetectedEncoding::UTF8, "UTF-8", "UTF-8 (fallback)", 30, "", "ICU result extraction failed"};
+          logger::development_trace(
+             "ICU result extraction of canonical_name,confidence or language failed. status:{}"
+            ,to_string(status));
+          return {};
         }
         
         // Convert to our types
@@ -338,7 +356,7 @@ namespace text {
         
         ucsdet_close(detector);
         
-        return {
+        return EncodingDetectionResult{
            encoding
           ,canonical_str
           ,display_name
