@@ -246,7 +246,7 @@ namespace text {
 
       // ICU-based Encoding Detection Implementation
 
-      EncodingDetectionResult EncodingDetector::detect_file_encoding(std::filesystem::path const& file_path) {
+      EncodingDetectionResult detect_file_encoding(std::filesystem::path const& file_path) {
         // First try BOM detection for quick wins
         auto bom_result = detect_by_bom(file_path);
         if (bom_result.confidence >= 95) {
@@ -269,7 +269,7 @@ namespace text {
       }
 
 
-      EncodingDetectionResult EncodingDetector::detect_istream_encoding(std::istream& is) {
+      EncodingDetectionResult detect_istream_encoding(std::istream& is) {
         
         if (!is) {
           return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Error: Cannot open file"};
@@ -290,7 +290,7 @@ namespace text {
         return icu_result;
       }
 
-      EncodingDetectionResult EncodingDetector::detect_buffer_encoding(char const* data, size_t length) {
+      EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length) {
         UErrorCode status = U_ZERO_ERROR;
         
         // Create ICU character set detector
@@ -340,7 +340,7 @@ namespace text {
           ,"ICU"};
       }
 
-      std::vector<EncodingDetectionResult> EncodingDetector::detect_all_possible_encodings(char const* data, size_t length) {
+      std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length) {
         std::vector<EncodingDetectionResult> results;
         UErrorCode status = U_ZERO_ERROR;
         
@@ -383,12 +383,12 @@ namespace text {
         return results;
       }
 
-      EncodingDetectionResult EncodingDetector::detect_by_bom(std::filesystem::path const& file_path) {
+      EncodingDetectionResult detect_by_bom(std::filesystem::path const& file_path) {
         std::ifstream file(file_path, std::ios::binary);
         return detect_by_bom(file);
       }
 
-      EncodingDetectionResult EncodingDetector::detect_by_bom(std::istream& file) {
+      EncodingDetectionResult detect_by_bom(std::istream& file) {
         if (!file) {
           return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Cannot open file"};
         }
@@ -419,7 +419,7 @@ namespace text {
         return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "No BOM"};
       }
 
-      EncodingDetectionResult EncodingDetector::detect_by_extension_heuristics(std::filesystem::path const& file_path) {
+      EncodingDetectionResult detect_by_extension_heuristics(std::filesystem::path const& file_path) {
         auto ext = file_path.extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
         
@@ -432,7 +432,7 @@ namespace text {
         return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 30, "", "Extension (default)"};
       }
 
-      DetectedEncoding EncodingDetector::canonical_name_to_enum(CanonicalEncodingName const& canonical_name) {
+      DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name) {
         if (canonical_name == "Undefined") return DetectedEncoding::Undefined;
         if (canonical_name == "UTF-8") return DetectedEncoding::UTF8;
         if (canonical_name == "UTF-16BE") return DetectedEncoding::UTF16BE;

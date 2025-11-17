@@ -197,22 +197,18 @@ namespace text {
         std::string detection_method;  // "ICU", "BOM", "Extension", "Default"
       };
 
-      class EncodingDetector {
-      public:
-        static EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length);
-        static std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
-        static EncodingDetectionResult detect_istream_encoding(std::istream& is);
-        static EncodingDetectionResult detect_file_encoding(std::filesystem::path const& file_path);
-        
-        // Utility functions for encoding enum conversion
-        static DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
-        
-      private:
-        static EncodingDetectionResult detect_by_bom(std::istream& file);
+      EncodingDetectionResult detect_buffer_encoding(char const* data, size_t length);
+      std::vector<EncodingDetectionResult> detect_all_possible_encodings(char const* data, size_t length);
+      EncodingDetectionResult detect_istream_encoding(std::istream& is);
+      EncodingDetectionResult detect_file_encoding(std::filesystem::path const& file_path);
+      
+      // Utility functions for encoding enum conversion
+      DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
+      
+      EncodingDetectionResult detect_by_bom(std::istream& file);
 
-        static EncodingDetectionResult detect_by_bom(std::filesystem::path const& file_path);
-        static EncodingDetectionResult detect_by_extension_heuristics(std::filesystem::path const& file_path);
-      };
+      EncodingDetectionResult detect_by_bom(std::filesystem::path const& file_path);
+      EncodingDetectionResult detect_by_extension_heuristics(std::filesystem::path const& file_path);
 
 
     } // icu
