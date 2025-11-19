@@ -296,3 +296,22 @@ This was very good!
 Claude did NOT try to adopt to any encoding detected by the RuntimeEncoding calss though. It simply picked up on my existing comments on 'hard coded' UTF-8 encoding for internal (platform) use.
 
 Good enough for now though.
+
+Claude then succeeded with prompt 005-xxx to assemble and text a complete transcoding chain raw in -> platform encoded std::string (hard coded to UTF-8). But here I obseerved some divergence from existing code.
+
+Claude created:
+
+```C++
+cratchit::io::IOResult<std::string> read_file_with_encoding_detection(
+    std::filesystem::path const& file_path,
+    int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD
+  )
+```
+
+Where namespace 'cratchit::io' now is a paralell to existing namespace 'persistent::in'.
+
+Also, cratchit::io::IOResult seems like a paralell type to cratchit::functional::AnnotatedOptional<T>?
+
+Anyhow, looking though new file 'src/text/encoding_pipeline.hpp' and added tests in 'src/test/test_csv_import_pipeline.cpp' I feel content with the result. I do not have time to delve deep into all the code. I decide to trust the help Claude has provided and see where I end up.
+
+The combination of having Claude generate code AND test makes me feel more secure to go with the code and be able to come back later to refactor it (fingers crossed)?

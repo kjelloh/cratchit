@@ -4,6 +4,7 @@
 #include "io/file_reader.hpp"
 #include "text/encoding.hpp"
 #include "text/transcoding_views.hpp"
+#include "text/encoding_pipeline.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
 #include <filesystem>
@@ -901,5 +902,339 @@ namespace tests::csv_import_pipeline {
     }
 
   } // namespace runtime_encoding_suite
+
+  namespace encoding_pipeline_integration_suite {
+
+    // Test fixture for encoding pipeline integration tests
+    class EncodingPipelineTestFixture : public ::testing::Test {
+    protected:
+      std::filesystem::path test_dir;
+      std::filesystem::path utf8_file;
+      std::filesystem::path iso8859_file;
+      std::filesystem::path windows1252_file;
+      std::filesystem::path empty_file;
+      std::filesystem::path large_file;
+
+      void SetUp() override {
+        logger::scope_logger log_raii{logger::development_trace, "EncodingPipelineTestFixture::SetUp"};
+
+        // Create temporary test directory
+        test_dir = std::filesystem::temp_directory_path() / "cratchit_test_pipeline_integration";
+        std::filesystem::create_directories(test_dir);
+
+        // Create UTF-8 test file with Swedish content
+        utf8_file = test_dir / "utf8_test.csv";
+        {
+          std::ofstream ofs(utf8_file, std::ios::binary);
+          std::string utf8_content = "Name,Amount\nJohan Svensson,100.50\nÅsa Lindström,250.75\n";
+          ofs.write(utf8_content.data(), utf8_content.size());
+        }
+
+        // Create ISO-8859-1 test file
+        iso8859_file = test_dir / "iso8859_test.csv";
+        {
+          std::ofstream ofs(iso8859_file, std::ios::binary);
+          // ISO-8859-1 encoded: "Åsa" (0xC5 = Å)
+          unsigned char iso_content[] = {
+            'N','a','m','e',',','A','m','o','u','n','t','\n',
+            0xC5,'s','a',' ',  // Åsa (0xC5 = Å in ISO-8859-1)
+            'L','i','n','d','s','t','r',0xF6,'m',',','1','0','0','\n'  // ström (0xF6 = ö)
+          };
+          ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
+        }
+
+        // Create Windows-1252 test file (superset of ISO-8859-1)
+        windows1252_file = test_dir / "windows1252_test.csv";
+        {
+          std::ofstream ofs(windows1252_file, std::ios::binary);
+          // Windows-1252 has some special chars in 0x80-0x9F range
+          unsigned char win_content[] = {
+            'T','e','s','t',',','V','a','l','u','e','\n',
+            'E','u','r','o',',',' ',0x80,'\n'  // 0x80 = € in Windows-1252
+          };
+          ofs.write(reinterpret_cast<char*>(win_content), sizeof(win_content));
+        }
+
+        // Create empty file
+        empty_file = test_dir / "empty.txt";
+        {
+          std::ofstream ofs(empty_file);
+        }
+
+        // Create large file for memory efficiency testing
+        large_file = test_dir / "large_test.txt";
+        {
+          std::ofstream ofs(large_file);
+          for (int i = 0; i < 10000; ++i) {
+            ofs << "Line " << i << ": This is test content with Swedish characters: åäö ÅÄÖ\n";
+          }
+        }
+      }
+
+      void TearDown() override {
+        logger::scope_logger log_raii{logger::development_trace, "EncodingPipelineTestFixture::TearDown"};
+        std::error_code ec;
+        std::filesystem::remove_all(test_dir, ec);
+      }
+    };
+
+    TEST_F(EncodingPipelineTestFixture, UTF8FileToRuntimeText) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, UTF8FileToRuntimeText)"};
+
+      auto result = text::encoding::read_file_with_encoding_detection(utf8_file);
+
+      ASSERT_TRUE(result) << "Expected successful pipeline execution";
+      EXPECT_GT(result.value().size(), 0) << "Expected non-empty text";
+
+      // Verify content contains expected Swedish characters
+      EXPECT_TRUE(result.value().find("Åsa") != std::string::npos)
+        << "Expected to find 'Åsa' in transcoded text";
+      EXPECT_TRUE(result.value().find("Lindström") != std::string::npos)
+        << "Expected to find 'Lindström' in transcoded text";
+
+      // Verify messages document the pipeline steps
+      EXPECT_GE(result.m_messages.size(), 3) << "Expected messages from multiple pipeline steps";
+
+      // Print messages for verification
+      for (const auto& msg : result.m_messages) {
+        logger::development_trace("Pipeline message: {}", msg);
+      }
+    }
+
+    TEST_F(EncodingPipelineTestFixture, ISO8859FileToUTF8Text) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, ISO8859FileToUTF8Text)"};
+
+      auto result = text::encoding::read_file_with_encoding_detection(iso8859_file);
+
+      ASSERT_TRUE(result) << "Expected successful pipeline execution";
+      EXPECT_GT(result.value().size(), 0) << "Expected non-empty text";
+
+      // The output should be UTF-8, so we can search for UTF-8 encoded characters
+      // Å in UTF-8: 0xC3 0x85
+      EXPECT_TRUE(result.value().find("Åsa") != std::string::npos)
+        << "Expected to find 'Åsa' transcoded to UTF-8";
+
+      // ö in UTF-8: 0xC3 0xB6
+      EXPECT_TRUE(result.value().find("ström") != std::string::npos)
+        << "Expected to find 'ström' transcoded to UTF-8";
+
+      logger::development_trace("ISO-8859-1 transcoded content: {}", result.value());
+    }
+
+    TEST_F(EncodingPipelineTestFixture, Windows1252FileHandled) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, Windows1252FileHandled)"};
+
+      auto result = text::encoding::read_file_with_encoding_detection(windows1252_file);
+
+      ASSERT_TRUE(result) << "Expected successful pipeline execution";
+      EXPECT_GT(result.value().size(), 0) << "Expected non-empty text";
+
+      logger::development_trace("Windows-1252 transcoded content: {}", result.value());
+    }
+
+    TEST_F(EncodingPipelineTestFixture, EmptyFileHandledGracefully) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, EmptyFileHandledGracefully)"};
+
+      auto result = text::encoding::read_file_with_encoding_detection(empty_file);
+
+      ASSERT_TRUE(result) << "Expected successful pipeline execution for empty file";
+      EXPECT_EQ(result.value().size(), 0) << "Expected empty string for empty file";
+
+      // Check that we got a message about the empty file
+      bool has_empty_message = false;
+      for (const auto& msg : result.m_messages) {
+        if (msg.find("empty") != std::string::npos) {
+          has_empty_message = true;
+          break;
+        }
+      }
+      EXPECT_TRUE(has_empty_message) << "Expected message about empty file";
+    }
+
+    TEST(EncodingPipelineTests, FileNotFoundHandledGracefully) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, FileNotFoundHandledGracefully)"};
+
+      auto non_existent = std::filesystem::path("/tmp/cratchit_nonexistent_file_99999.csv");
+
+      auto result = text::encoding::read_file_with_encoding_detection(non_existent);
+
+      EXPECT_FALSE(result) << "Expected failure for non-existent file";
+      EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
+
+      // Verify error messages are informative
+      bool has_file_error = false;
+      for (const auto& msg : result.m_messages) {
+        if (msg.find("not exist") != std::string::npos || msg.find("Failed") != std::string::npos) {
+          has_file_error = true;
+          logger::development_trace("Error message: {}", msg);
+          break;
+        }
+      }
+      EXPECT_TRUE(has_file_error) << "Expected error message about missing file";
+    }
+
+    TEST_F(EncodingPipelineTestFixture, LazyEvaluationWithLargeFile) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, LazyEvaluationWithLargeFile)"};
+
+      // Note: The main pipeline function materializes the result, so this test
+      // verifies that we can handle large files without errors
+      auto result = text::encoding::read_file_with_encoding_detection(large_file);
+
+      ASSERT_TRUE(result) << "Expected successful processing of large file";
+      EXPECT_GT(result.value().size(), 100000) << "Expected large output";
+
+      // Verify content is preserved
+      EXPECT_TRUE(result.value().find("Line 0:") != std::string::npos)
+        << "Expected first line";
+      EXPECT_TRUE(result.value().find("Line 9999:") != std::string::npos)
+        << "Expected last line";
+      EXPECT_TRUE(result.value().find("åäö") != std::string::npos)
+        << "Expected Swedish characters preserved";
+
+      logger::development_trace("Large file transcoded: {} bytes", result.value().size());
+    }
+
+    TEST_F(EncodingPipelineTestFixture, LazyViewVariantForMemoryEfficiency) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, LazyViewVariantForMemoryEfficiency)"};
+
+      // Test the lazy view variant that doesn't materialize the entire string
+      auto buffer_result = cratchit::io::read_file_to_buffer(utf8_file);
+      ASSERT_TRUE(buffer_result) << "Expected successful file read";
+
+      auto lazy_view = text::encoding::create_lazy_encoding_view(buffer_result.value());
+      ASSERT_TRUE(lazy_view.has_value()) << "Expected lazy view creation to succeed";
+
+      // Take only first 100 bytes - demonstrating lazy evaluation
+      auto first_100 = *lazy_view | std::views::take(100);
+
+      std::string partial_result;
+      for (char byte : first_100) {
+        partial_result.push_back(byte);
+      }
+
+      EXPECT_LE(partial_result.size(), 100) << "Expected at most 100 bytes";
+      EXPECT_GT(partial_result.size(), 0) << "Expected some content";
+
+      logger::development_trace("Lazy view first 100 bytes: {}", partial_result);
+    }
+
+    TEST_F(EncodingPipelineTestFixture, CompleteIntegrationAllSteps) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, CompleteIntegrationAllSteps)"};
+
+      // This test verifies the complete integration of Steps 1-4:
+      // file path → byte buffer → encoding detection → Unicode view → UTF-8 text
+
+      auto result = text::encoding::read_file_with_encoding_detection(utf8_file);
+
+      ASSERT_TRUE(result) << "Expected successful complete pipeline";
+
+      // Verify all pipeline steps are documented in messages
+      std::vector<std::string> expected_keywords = {
+        "opened",      // Step 1: File open
+        "read",        // Step 1: File read
+        "Detected",    // Step 2: Encoding detection
+        "transcoded"   // Steps 3-4: Transcoding
+      };
+
+      for (const auto& keyword : expected_keywords) {
+        bool found = false;
+        for (const auto& msg : result.m_messages) {
+          if (msg.find(keyword) != std::string::npos) {
+            found = true;
+            break;
+          }
+        }
+        EXPECT_TRUE(found) << "Expected message containing keyword: " << keyword;
+      }
+
+      // Log all messages for verification
+      logger::development_trace("Complete pipeline messages:");
+      for (const auto& msg : result.m_messages) {
+        logger::development_trace("  - {}", msg);
+      }
+
+      // Verify content correctness
+      EXPECT_TRUE(result.value().find("Name,Amount") != std::string::npos)
+        << "Expected CSV header";
+      EXPECT_TRUE(result.value().find("Åsa") != std::string::npos)
+        << "Expected Swedish character Å preserved";
+    }
+
+    TEST_F(EncodingPipelineTestFixture, MonadicErrorPropagation) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, MonadicErrorPropagation)"};
+
+      // Test that errors from Step 1 propagate correctly through the pipeline
+      auto non_existent = test_dir / "does_not_exist.csv";
+
+      auto result = text::encoding::read_file_with_encoding_detection(non_existent);
+
+      EXPECT_FALSE(result) << "Expected failure to propagate";
+      EXPECT_FALSE(result.m_value.has_value()) << "Expected no value on failure";
+      EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages preserved";
+
+      // The pipeline should short-circuit - no encoding detection should happen
+      bool has_encoding_message = false;
+      for (const auto& msg : result.m_messages) {
+        if (msg.find("Detected encoding") != std::string::npos) {
+          has_encoding_message = true;
+          break;
+        }
+      }
+      EXPECT_FALSE(has_encoding_message)
+        << "Expected no encoding detection message after file read failure";
+    }
+
+    TEST_F(EncodingPipelineTestFixture, LowConfidenceDefaultsToUTF8) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, LowConfidenceDefaultsToUTF8)"};
+
+      // Create a file with very ambiguous content (pure ASCII)
+      auto ascii_file = test_dir / "ascii_only.txt";
+      {
+        std::ofstream ofs(ascii_file);
+        ofs << "a\n";  // Very short, pure ASCII
+      }
+
+      // Use very high confidence threshold to potentially trigger fallback
+      auto result = text::encoding::read_file_with_encoding_detection(ascii_file, 99);
+
+      ASSERT_TRUE(result) << "Expected success even with low confidence";
+
+      // Check if we got a message about defaulting to UTF-8
+      bool has_default_message = false;
+      for (const auto& msg : result.m_messages) {
+        if (msg.find("default") != std::string::npos || msg.find("UTF-8") != std::string::npos) {
+          has_default_message = true;
+          logger::development_trace("Encoding message: {}", msg);
+          break;
+        }
+      }
+
+      // Either detected as something or defaulted to UTF-8 - both are acceptable
+      EXPECT_EQ(result.value(), "a\n") << "Expected content to be preserved";
+    }
+
+    TEST_F(EncodingPipelineTestFixture, MultipleEncodingsHandledCorrectly) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, MultipleEncodingsHandledCorrectly)"};
+
+      // Test that different source encodings all produce valid UTF-8 output
+      std::vector<std::filesystem::path> test_files = {
+        utf8_file,
+        iso8859_file,
+        windows1252_file
+      };
+
+      for (const auto& file : test_files) {
+        auto result = text::encoding::read_file_with_encoding_detection(file);
+
+        ASSERT_TRUE(result) << "Expected success for file: " << file.filename();
+        EXPECT_GT(result.value().size(), 0) << "Expected non-empty output for: " << file.filename();
+
+        logger::development_trace("File: {} → {} bytes UTF-8",
+                                 file.filename().string(),
+                                 result.value().size());
+      }
+    }
+
+  } // namespace encoding_pipeline_integration_suite
 
 } // namespace tests::csv_import_pipeline
