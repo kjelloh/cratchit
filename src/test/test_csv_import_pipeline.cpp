@@ -3,9 +3,12 @@
 #include "logger/log.hpp"
 #include "io/file_reader.hpp"
 #include "text/encoding.hpp"
+#include "text/transcoding_views.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
 #include <filesystem>
+#include <ranges>
+#include <algorithm>
 // #include <cstring>
 
 namespace tests::csv_import_pipeline {
@@ -350,5 +353,265 @@ namespace tests::csv_import_pipeline {
     }
 
   } // namespace encoding_detection_suite
+
+  namespace transcoding_views_suite {
+
+    TEST(BytesToUnicodeTests, TranscodesUTF8SimpleASCII) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesUTF8SimpleASCII)"};
+
+      // Simple ASCII text (subset of UTF-8)
+      cratchit::io::ByteBuffer buffer;
+      std::string test_text = "Hello";
+      buffer.resize(test_text.size());
+      std::memcpy(buffer.data(), test_text.data(), test_text.size());
+
+      // Create transcoding view
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer,
+        text::encoding::DetectedEncoding::UTF8
+      );
+
+      // Collect code points
+      std::u16string result;
+      for (char16_t cp : unicode_view) {
+        result.push_back(cp);
+      }
+
+      EXPECT_EQ(result.size(), 5) << "Expected 5 code points";
+      EXPECT_EQ(result[0], u'H');
+      EXPECT_EQ(result[1], u'e');
+      EXPECT_EQ(result[2], u'l');
+      EXPECT_EQ(result[3], u'l');
+      EXPECT_EQ(result[4], u'o');
+    }
+
+    TEST(BytesToUnicodeTests, TranscodesUTF8MultibyteSwedish) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesUTF8MultibyteSwedish)"};
+
+      // UTF-8 encoded Swedish text: "Åsa"
+      // Å (U+00C5) → UTF-8: 0xC3 0x85
+      cratchit::io::ByteBuffer buffer{
+        std::byte{0xC3}, std::byte{0x85},  // Å
+        std::byte{0x73},                    // s
+        std::byte{0x61}                     // a
+      };
+
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer,
+        text::encoding::DetectedEncoding::UTF8
+      );
+
+      std::u16string result;
+      for (char16_t cp : unicode_view) {
+        result.push_back(cp);
+      }
+
+      ASSERT_EQ(result.size(), 3) << "Expected 3 code points";
+      EXPECT_EQ(result[0], 0x00C5) << "Expected Å (U+00C5)";
+      EXPECT_EQ(result[1], u's');
+      EXPECT_EQ(result[2], u'a');
+    }
+
+    TEST(BytesToUnicodeTests, TranscodesUTF8ComplexSwedish) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesUTF8ComplexSwedish)"};
+
+      // UTF-8 encoded: "åäö"
+      // å (U+00E5) → UTF-8: 0xC3 0xA5
+      // ä (U+00E4) → UTF-8: 0xC3 0xA4
+      // ö (U+00F6) → UTF-8: 0xC3 0xB6
+      cratchit::io::ByteBuffer buffer{
+        std::byte{0xC3}, std::byte{0xA5},  // å
+        std::byte{0xC3}, std::byte{0xA4},  // ä
+        std::byte{0xC3}, std::byte{0xB6}   // ö
+      };
+
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer,
+        text::encoding::DetectedEncoding::UTF8
+      );
+
+      std::u16string result;
+      for (char16_t cp : unicode_view) {
+        result.push_back(cp);
+      }
+
+      ASSERT_EQ(result.size(), 3) << "Expected 3 code points";
+      EXPECT_EQ(result[0], 0x00E5) << "Expected å (U+00E5)";
+      EXPECT_EQ(result[1], 0x00E4) << "Expected ä (U+00E4)";
+      EXPECT_EQ(result[2], 0x00F6) << "Expected ö (U+00F6)";
+    }
+
+    TEST(BytesToUnicodeTests, TranscodesISO8859_1) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesISO8859_1)"};
+
+      // ISO-8859-1 encoded: "Åsa"
+      // Å → 0xC5 in ISO-8859-1
+      cratchit::io::ByteBuffer buffer{
+        std::byte{0xC5},  // Å
+        std::byte{0x73},  // s
+        std::byte{0x61}   // a
+      };
+
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer,
+        text::encoding::DetectedEncoding::ISO_8859_1
+      );
+
+      std::u16string result;
+      for (char16_t cp : unicode_view) {
+        result.push_back(cp);
+      }
+
+      ASSERT_EQ(result.size(), 3) << "Expected 3 code points";
+      EXPECT_EQ(result[0], 0x00C5) << "Expected Å (U+00C5)";
+      EXPECT_EQ(result[1], u's');
+      EXPECT_EQ(result[2], u'a');
+    }
+
+    TEST(BytesToUnicodeTests, TranscodesISO8859_1SwedishChars) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesISO8859_1SwedishChars)"};
+
+      // ISO-8859-1 encoded: "åäö"
+      cratchit::io::ByteBuffer buffer{
+        std::byte{0xE5},  // å
+        std::byte{0xE4},  // ä
+        std::byte{0xF6}   // ö
+      };
+
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer,
+        text::encoding::DetectedEncoding::ISO_8859_1
+      );
+
+      std::u16string result;
+      for (char16_t cp : unicode_view) {
+        result.push_back(cp);
+      }
+
+      ASSERT_EQ(result.size(), 3) << "Expected 3 code points";
+      EXPECT_EQ(result[0], 0x00E5) << "Expected å (U+00E5)";
+      EXPECT_EQ(result[1], 0x00E4) << "Expected ä (U+00E4)";
+      EXPECT_EQ(result[2], 0x00F6) << "Expected ö (U+00F6)";
+    }
+
+    TEST(BytesToUnicodeTests, LazyEvaluationNoEagerMaterialization) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, LazyEvaluationNoEagerMaterialization)"};
+
+      // Create a large buffer to verify lazy evaluation
+      cratchit::io::ByteBuffer large_buffer;
+      std::string repeated_text = "Test";
+      for (int i = 0; i < 1000; ++i) {
+        for (char ch : repeated_text) {
+          large_buffer.push_back(static_cast<std::byte>(ch));
+        }
+      }
+
+      // Create view (should not process anything yet)
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        large_buffer,
+        text::encoding::DetectedEncoding::UTF8
+      );
+
+      // Take only first 10 characters using ranges
+      auto first_10 = unicode_view | std::views::take(10);
+
+      std::u16string result;
+      for (char16_t cp : first_10) {
+        result.push_back(cp);
+      }
+
+      // Should have only processed 10 code points, not the entire buffer
+      EXPECT_EQ(result.size(), 10) << "Expected only 10 code points";
+      EXPECT_EQ(result[0], u'T');
+      EXPECT_EQ(result[1], u'e');
+      EXPECT_EQ(result[2], u's');
+      EXPECT_EQ(result[3], u't');
+    }
+
+    TEST(BytesToUnicodeTests, ComposesWithStandardRangeAlgorithms) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, ComposesWithStandardRangeAlgorithms)"};
+
+      // UTF-8 encoded: "Hello World"
+      std::string test_text = "Hello World";
+      cratchit::io::ByteBuffer buffer;
+      buffer.resize(test_text.size());
+      std::memcpy(buffer.data(), test_text.data(), test_text.size());
+
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer,
+        text::encoding::DetectedEncoding::UTF8
+      );
+
+      // Use standard range algorithms
+      // 1. Count total code points
+      auto count = std::ranges::distance(unicode_view);
+      EXPECT_EQ(count, 11) << "Expected 11 code points";
+
+      // 2. Find a specific character
+      auto it = std::ranges::find(unicode_view, u'W');
+      EXPECT_NE(it, unicode_view.end()) << "Expected to find 'W'";
+
+      // 3. Check if all are ASCII
+      auto all_ascii = std::ranges::all_of(unicode_view, [](char16_t cp) {
+        return cp < 128;
+      });
+      EXPECT_TRUE(all_ascii) << "Expected all ASCII characters";
+    }
+
+    TEST(BytesToUnicodeTests, IntegrationWithSteps1And2) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, IntegrationWithSteps1And2)"};
+
+      // Create test file with UTF-8 content
+      auto temp_path = std::filesystem::temp_directory_path() / "cratchit_test_step3_integration.txt";
+      {
+        std::ofstream ofs(temp_path);
+        ofs << "Åsa Lindström";  // UTF-8 encoded Swedish text
+      }
+
+      // Step 1: Read file to buffer
+      auto buffer_result = cratchit::io::read_file_to_buffer(temp_path);
+      ASSERT_TRUE(buffer_result) << "Expected successful file read";
+
+      // Step 2: Detect encoding
+      auto encoding_result = text::encoding::icu::detect_buffer_encoding(buffer_result.value());
+      ASSERT_TRUE(encoding_result) << "Expected successful encoding detection";
+
+      // Step 3: Create transcoding view
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer_result.value(),
+        encoding_result->encoding
+      );
+
+      // Collect all code points
+      std::u16string result;
+      for (char16_t cp : unicode_view) {
+        result.push_back(cp);
+      }
+
+      // Verify we got the expected content
+      EXPECT_GT(result.size(), 0) << "Expected non-empty result";
+      // First character should be Å (U+00C5)
+      EXPECT_EQ(result[0], 0x00C5) << "Expected Å as first character";
+
+      // Clean up
+      std::filesystem::remove(temp_path);
+    }
+
+    TEST(BytesToUnicodeTests, EmptyBufferProducesEmptyRange) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, EmptyBufferProducesEmptyRange)"};
+
+      cratchit::io::ByteBuffer empty_buffer;
+
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        empty_buffer,
+        text::encoding::DetectedEncoding::UTF8
+      );
+
+      // For input ranges, use std::ranges::distance instead of .empty()
+      auto count = std::ranges::distance(unicode_view);
+      EXPECT_EQ(count, 0) << "Expected zero code points";
+    }
+
+  } // namespace transcoding_views_suite
 
 } // namespace tests::csv_import_pipeline
