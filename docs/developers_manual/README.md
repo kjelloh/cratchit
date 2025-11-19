@@ -93,3 +93,18 @@ Maybe it would be better to organise SIE files indexed by an actual financial ye
 
 20250806 - Started refactoring from SIEEnvironments_X -> SIEEnvironments_R. Where 'X' maps from int 0,-1,-2... relative index to SIEEnvironment and 'R maps Date -> SIEEnvironment (Date being forst day of financial year)
 
+## Claude Code observations
+
+I have used Claude Code to and from during this project with mixed results.
+
+Basically Claude Code easilly gets confused with the complexity of this project and C++.
+
+### Observations from the Claude code assistance on the git branch claude-001-refactor-csv-import-pipeline
+
+For prompt './prompts/001-file-io-maybe-monad.md' Claude succeeded to implement 'src/io/file_reader.hpp' and tests 'src/test/test_csv_import_pipeline.cpp'. This took over half an hour though! It seems it basically struggled with the complexity of the code base.
+
+It based the implementations on 'using IOResult = functional::AnnotatedOptional<T>;' which was an abstraction to high. I wanted it to base it on std::optional so that I copuld later create the AnnotatedOptional<T> on top of that. The AnnotatedOptional is my optional-like abtsraction with a user-message text side-channel for UI operation feed back pipe lines.
+
+Also, the actual code in file_reader.hpp is old-school stream seek, C-API error code handling and what have you. And all the code is inline (no cpp-file with defintions). But it works so ok.
+
+Conclusion: I decided to go ahead and let claude do its thing but work on better meta-prompting and prompting to guide it to code more to my liking. Also, I decided to do the refactoring fter the code is working as a separate activity.
