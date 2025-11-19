@@ -614,4 +614,292 @@ namespace tests::csv_import_pipeline {
 
   } // namespace transcoding_views_suite
 
+  namespace runtime_encoding_suite {
+
+    TEST(RuntimeEncodingTests, EncodesSimpleASCII) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, EncodesSimpleASCII)"};
+
+      // Create Unicode code points (char16_t)
+      std::u16string unicode_text = u"Hello";
+
+      // Create encoding view
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_text);
+
+      // Collect UTF-8 bytes
+      std::string result;
+      for (char byte : utf8_view) {
+        result.push_back(byte);
+      }
+
+      EXPECT_EQ(result, "Hello") << "Expected ASCII to encode identically in UTF-8";
+    }
+
+    TEST(RuntimeEncodingTests, EncodesSwedishCharacters) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, EncodesSwedishCharacters)"};
+
+      // Unicode: "Åsa"
+      // Å (U+00C5) should encode to UTF-8 as 0xC3 0x85
+      std::u16string unicode_text;
+      unicode_text.push_back(0x00C5);  // Å
+      unicode_text.push_back(u's');
+      unicode_text.push_back(u'a');
+
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_text);
+
+      std::string result;
+      for (char byte : utf8_view) {
+        result.push_back(byte);
+      }
+
+      // Verify UTF-8 encoding
+      ASSERT_EQ(result.size(), 4) << "Expected 4 bytes (2 for Å, 1 for s, 1 for a)";
+      EXPECT_EQ(static_cast<uint8_t>(result[0]), 0xC3) << "Expected first byte of Å";
+      EXPECT_EQ(static_cast<uint8_t>(result[1]), 0x85) << "Expected second byte of Å";
+      EXPECT_EQ(result[2], 's');
+      EXPECT_EQ(result[3], 'a');
+    }
+
+    TEST(RuntimeEncodingTests, EncodesComplexSwedishText) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, EncodesComplexSwedishText)"};
+
+      // Unicode: "åäö"
+      // å (U+00E5) → UTF-8: 0xC3 0xA5
+      // ä (U+00E4) → UTF-8: 0xC3 0xA4
+      // ö (U+00F6) → UTF-8: 0xC3 0xB6
+      std::u16string unicode_text;
+      unicode_text.push_back(0x00E5);  // å
+      unicode_text.push_back(0x00E4);  // ä
+      unicode_text.push_back(0x00F6);  // ö
+
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_text);
+
+      std::string result;
+      for (char byte : utf8_view) {
+        result.push_back(byte);
+      }
+
+      // Verify UTF-8 encoding (each Swedish char is 2 bytes)
+      ASSERT_EQ(result.size(), 6) << "Expected 6 bytes (2 per character)";
+      EXPECT_EQ(static_cast<uint8_t>(result[0]), 0xC3);
+      EXPECT_EQ(static_cast<uint8_t>(result[1]), 0xA5);
+      EXPECT_EQ(static_cast<uint8_t>(result[2]), 0xC3);
+      EXPECT_EQ(static_cast<uint8_t>(result[3]), 0xA4);
+      EXPECT_EQ(static_cast<uint8_t>(result[4]), 0xC3);
+      EXPECT_EQ(static_cast<uint8_t>(result[5]), 0xB6);
+    }
+
+    TEST(RuntimeEncodingTests, LazyEvaluationOnlyProcessesNeeded) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, LazyEvaluationOnlyProcessesNeeded)"};
+
+      // Create a large Unicode string
+      std::u16string large_unicode;
+      for (int i = 0; i < 1000; ++i) {
+        large_unicode += u"Test";
+      }
+
+      // Create view (should not encode anything yet)
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(large_unicode);
+
+      // Take only first 10 bytes using ranges
+      auto first_10 = utf8_view | std::views::take(10);
+
+      std::string result;
+      for (char byte : first_10) {
+        result.push_back(byte);
+      }
+
+      // Should have only processed enough to get 10 bytes
+      EXPECT_EQ(result.size(), 10) << "Expected only 10 bytes";
+      EXPECT_EQ(result.substr(0, 4), "Test") << "Expected 'Test' prefix";
+    }
+
+    TEST(RuntimeEncodingTests, EmptyRangeProducesEmpty) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, EmptyRangeProducesEmpty)"};
+
+      std::u16string empty_unicode;
+
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(empty_unicode);
+
+      auto count = std::ranges::distance(utf8_view);
+      EXPECT_EQ(count, 0) << "Expected zero bytes for empty input";
+    }
+
+    TEST(RuntimeEncodingTests, ComposesWithStandardRangeAlgorithms) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, ComposesWithStandardRangeAlgorithms)"};
+
+      std::u16string unicode_text = u"Hello World";
+
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_text);
+
+      // Count total bytes
+      auto count = std::ranges::distance(utf8_view);
+      EXPECT_EQ(count, 11) << "Expected 11 bytes for ASCII text";
+
+      // Find a specific character
+      auto it = std::ranges::find(utf8_view, 'W');
+      EXPECT_NE(it, utf8_view.end()) << "Expected to find 'W'";
+
+      // Check if all are ASCII
+      auto all_ascii = std::ranges::all_of(utf8_view, [](char c) {
+        return static_cast<unsigned char>(c) < 128;
+      });
+      EXPECT_TRUE(all_ascii) << "Expected all ASCII bytes";
+    }
+
+    TEST(RuntimeEncodingTests, CompleteTranscodingPipeline) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, CompleteTranscodingPipeline)"};
+
+      // Create test file with UTF-8 content
+      auto temp_path = std::filesystem::temp_directory_path() / "cratchit_test_step4_pipeline.txt";
+      std::string original_utf8 = "Åsa Lindström";
+      {
+        std::ofstream ofs(temp_path);
+        ofs << original_utf8;
+      }
+
+      // Step 1: Read file to buffer
+      auto buffer_result = cratchit::io::read_file_to_buffer(temp_path);
+      ASSERT_TRUE(buffer_result) << "Expected successful file read";
+
+      // Step 2: Detect encoding
+      auto encoding_result = text::encoding::icu::detect_buffer_encoding(buffer_result.value());
+      ASSERT_TRUE(encoding_result) << "Expected successful encoding detection";
+
+      // Step 3: Create Unicode view
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        buffer_result.value(),
+        encoding_result->encoding
+      );
+
+      // Step 4: Create runtime encoding (UTF-8) view
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_view);
+
+      // Collect all UTF-8 bytes
+      std::string result;
+      for (char byte : utf8_view) {
+        result.push_back(byte);
+      }
+
+      // Verify round-trip: original UTF-8 → bytes → Unicode → UTF-8
+      EXPECT_EQ(result, original_utf8) << "Expected round-trip to preserve content";
+
+      // Clean up
+      std::filesystem::remove(temp_path);
+    }
+
+    TEST(RuntimeEncodingTests, TranscodesFromISO8859ToUTF8) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, TranscodesFromISO8859ToUTF8)"};
+
+      // ISO-8859-1 encoded: "Åsa" (0xC5 = Å in ISO-8859-1)
+      cratchit::io::ByteBuffer iso_buffer{
+        std::byte{0xC5},  // Å
+        std::byte{0x73},  // s
+        std::byte{0x61}   // a
+      };
+
+      // Step 3: Decode ISO-8859-1 to Unicode
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        iso_buffer,
+        text::encoding::DetectedEncoding::ISO_8859_1
+      );
+
+      // Step 4: Encode Unicode to UTF-8
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_view);
+
+      // Collect UTF-8 bytes
+      std::string result;
+      for (char byte : utf8_view) {
+        result.push_back(byte);
+      }
+
+      // Verify UTF-8 encoding of "Åsa"
+      ASSERT_EQ(result.size(), 4) << "Expected 4 bytes";
+      EXPECT_EQ(static_cast<uint8_t>(result[0]), 0xC3);  // First byte of Å in UTF-8
+      EXPECT_EQ(static_cast<uint8_t>(result[1]), 0x85);  // Second byte of Å in UTF-8
+      EXPECT_EQ(result[2], 's');
+      EXPECT_EQ(result[3], 'a');
+    }
+
+    TEST(RuntimeEncodingTests, PipelineSyntaxWorks) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, PipelineSyntaxWorks)"};
+
+      // Test piping syntax for complete pipeline
+      cratchit::io::ByteBuffer utf8_buffer;
+      std::string test_text = "Hello";
+      utf8_buffer.resize(test_text.size());
+      std::memcpy(utf8_buffer.data(), test_text.data(), test_text.size());
+
+      // Pipeline: bytes → Unicode → UTF-8 (using piping)
+      auto pipeline = utf8_buffer
+        | text::encoding::views::adaptor::bytes_to_unicode(text::encoding::DetectedEncoding::UTF8)
+        | text::encoding::views::adaptor::unicode_to_runtime_encoding();
+
+      std::string result;
+      for (char byte : pipeline) {
+        result.push_back(byte);
+      }
+
+      EXPECT_EQ(result, test_text) << "Expected piping syntax to work";
+    }
+
+    TEST(RuntimeEncodingTests, HandlesThreeByteUTF8Characters) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, HandlesThreeByteUTF8Characters)"};
+
+      // Euro sign € (U+20AC) requires 3 bytes in UTF-8
+      std::u16string unicode_text;
+      unicode_text.push_back(0x20AC);  // €
+
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_text);
+
+      std::string result;
+      for (char byte : utf8_view) {
+        result.push_back(byte);
+      }
+
+      // € in UTF-8: 0xE2 0x82 0xAC
+      ASSERT_EQ(result.size(), 3) << "Expected 3 bytes for Euro sign";
+      EXPECT_EQ(static_cast<uint8_t>(result[0]), 0xE2);
+      EXPECT_EQ(static_cast<uint8_t>(result[1]), 0x82);
+      EXPECT_EQ(static_cast<uint8_t>(result[2]), 0xAC);
+    }
+
+    TEST(RuntimeEncodingTests, CompletePipelineMultipleEncodings) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, CompletePipelineMultipleEncodings)"};
+
+      // Test pipeline with CP437 input
+      // CP437: å=0x86, ä=0x84, ö=0x94
+      cratchit::io::ByteBuffer cp437_buffer{
+        std::byte{0x86},  // å in CP437
+        std::byte{0x84},  // ä in CP437
+        std::byte{0x94}   // ö in CP437
+      };
+
+      // Complete pipeline: CP437 → Unicode → UTF-8
+      auto unicode_view = text::encoding::views::bytes_to_unicode(
+        cp437_buffer,
+        text::encoding::DetectedEncoding::CP437
+      );
+
+      auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_view);
+
+      std::string result;
+      for (char byte : utf8_view) {
+        result.push_back(byte);
+      }
+
+      // Verify UTF-8 output for "åäö"
+      ASSERT_EQ(result.size(), 6) << "Expected 6 bytes (2 per character in UTF-8)";
+      // å in UTF-8: 0xC3 0xA5
+      EXPECT_EQ(static_cast<uint8_t>(result[0]), 0xC3);
+      EXPECT_EQ(static_cast<uint8_t>(result[1]), 0xA5);
+      // ä in UTF-8: 0xC3 0xA4
+      EXPECT_EQ(static_cast<uint8_t>(result[2]), 0xC3);
+      EXPECT_EQ(static_cast<uint8_t>(result[3]), 0xA4);
+      // ö in UTF-8: 0xC3 0xB6
+      EXPECT_EQ(static_cast<uint8_t>(result[4]), 0xC3);
+      EXPECT_EQ(static_cast<uint8_t>(result[5]), 0xB6);
+    }
+
+  } // namespace runtime_encoding_suite
+
 } // namespace tests::csv_import_pipeline

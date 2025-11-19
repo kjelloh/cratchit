@@ -251,4 +251,177 @@ namespace text::encoding::views {
     );
   }
 
+  // ============================================================================
+  // Step 4: Unicode Code Points → Runtime Encoding (UTF-8)
+  // ============================================================================
+
+  namespace detail {
+
+    // Iterator that encodes Unicode code points (char16_t) to UTF-8 bytes
+    template<std::ranges::view UnicodeRange>
+    class unicode_to_utf8_iterator {
+    public:
+      using iterator_category = std::input_iterator_tag;
+      using value_type = char;
+      using difference_type = std::ptrdiff_t;
+      using pointer = char const*;
+      using reference = char;
+
+      unicode_to_utf8_iterator() = default;
+
+      unicode_to_utf8_iterator(
+          std::ranges::iterator_t<UnicodeRange> current,
+          std::ranges::sentinel_t<UnicodeRange> end)
+        : m_current(current)
+        , m_end(end)
+        , m_buffer_index(0)
+      {
+        // Prime the iterator by encoding the first code point
+        advance_to_next_byte();
+      }
+
+      // Dereference operator - return current UTF-8 byte
+      char operator*() const {
+        return m_current_buffer[m_buffer_index];
+      }
+
+      // Pre-increment operator
+      unicode_to_utf8_iterator& operator++() {
+        advance_to_next_byte();
+        return *this;
+      }
+
+      // Post-increment operator
+      unicode_to_utf8_iterator operator++(int) {
+        auto tmp = *this;
+        ++(*this);
+        return tmp;
+      }
+
+      // Equality comparison
+      bool operator==(unicode_to_utf8_iterator const& other) const {
+        // Both at end if current == end and buffer is consumed
+        bool this_at_end = (m_current == m_end) && (m_buffer_index >= m_current_buffer.size());
+        bool other_at_end = (other.m_current == other.m_end) && (other.m_buffer_index >= other.m_current_buffer.size());
+
+        if (this_at_end && other_at_end) {
+          return true;
+        }
+
+        if (this_at_end != other_at_end) {
+          return false;
+        }
+
+        // Both have data - compare underlying positions
+        return (m_current == other.m_current) && (m_buffer_index == other.m_buffer_index);
+      }
+
+      bool operator!=(unicode_to_utf8_iterator const& other) const {
+        return !(*this == other);
+      }
+
+    private:
+      std::ranges::iterator_t<UnicodeRange> m_current;
+      std::ranges::sentinel_t<UnicodeRange> m_end;
+      std::string m_current_buffer;  // Buffer for UTF-8 encoded bytes from current code point
+      size_t m_buffer_index;         // Current position in buffer
+
+      // Encode one Unicode code point to UTF-8 and store in buffer
+      void encode_codepoint_to_buffer(char16_t cp) {
+        m_current_buffer.clear();
+        m_buffer_index = 0;
+
+        // Use std::ostringstream with UTF8::ostream to encode
+        std::ostringstream oss;
+        text::encoding::UTF8::ostream utf8_os{oss};
+
+        // Cast char16_t to char32_t for UTF8::ostream
+        utf8_os << static_cast<char32_t>(cp);
+        m_current_buffer = oss.str();
+      }
+
+      // Advance to the next UTF-8 byte
+      void advance_to_next_byte() {
+        // If we have bytes left in current buffer, advance within it
+        if (m_buffer_index + 1 < m_current_buffer.size()) {
+          ++m_buffer_index;
+          return;
+        }
+
+        // Buffer consumed, need to encode next code point
+        if (m_current != m_end) {
+          char16_t codepoint = *m_current;
+          ++m_current;
+          encode_codepoint_to_buffer(codepoint);
+        } else {
+          // At end - mark buffer as fully consumed
+          m_current_buffer.clear();
+          m_buffer_index = 0;
+        }
+      }
+    };
+
+  } // namespace detail
+
+  // Lazy range view that encodes Unicode code points to UTF-8 (runtime encoding)
+  template<std::ranges::view UnicodeRange>
+  class unicode_to_runtime_encoding_view
+    : public std::ranges::view_interface<unicode_to_runtime_encoding_view<UnicodeRange>>
+  {
+  public:
+    unicode_to_runtime_encoding_view() = default;
+
+    explicit unicode_to_runtime_encoding_view(UnicodeRange unicode_range)
+      : m_unicode_range(std::move(unicode_range))
+    {}
+
+    auto begin() {
+      return detail::unicode_to_utf8_iterator<UnicodeRange>(
+        std::ranges::begin(m_unicode_range),
+        std::ranges::end(m_unicode_range)
+      );
+    }
+
+    auto end() {
+      return detail::unicode_to_utf8_iterator<UnicodeRange>(
+        std::ranges::end(m_unicode_range),
+        std::ranges::end(m_unicode_range)
+      );
+    }
+
+  private:
+    UnicodeRange m_unicode_range;
+  };
+
+  // Range adaptor for piping syntax
+  namespace adaptor {
+    struct unicode_to_runtime_encoding_adaptor {
+      template<std::ranges::viewable_range UnicodeRange>
+      auto operator()(UnicodeRange&& unicode_range) const {
+        return unicode_to_runtime_encoding_view<std::views::all_t<UnicodeRange>>(
+          std::views::all(std::forward<UnicodeRange>(unicode_range))
+        );
+      }
+    };
+
+    // Piping support: unicode_range | unicode_to_runtime_encoding()
+    template<std::ranges::viewable_range UnicodeRange>
+    auto operator|(UnicodeRange&& unicode_range, unicode_to_runtime_encoding_adaptor adaptor) {
+      return adaptor(std::forward<UnicodeRange>(unicode_range));
+    }
+
+    // Factory function for the adaptor
+    inline unicode_to_runtime_encoding_adaptor unicode_to_runtime_encoding() {
+      return {};
+    }
+  }
+
+  // Convenience function to create view directly
+  template<std::ranges::viewable_range UnicodeRange>
+  auto unicode_to_runtime_encoding(UnicodeRange&& unicode_range) {
+    return unicode_to_runtime_encoding_view<std::views::all_t<UnicodeRange>>(
+      std::views::all(std::forward<UnicodeRange>(unicode_range))
+    );
+  }
+
 } // namespace text::encoding::views

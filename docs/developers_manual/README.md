@@ -278,3 +278,21 @@ It still assumed UTF-8 encoded source code text though like:
 But I will let that pass for now.
 
 Claude created the lazy code-point-range views in src/text/transcoding_views.hpp. I looked through the file and got the feeling the code may be a little verbose and not as 'clean' as it could have been written by someone knowing how to write range views properly. But I don't have the knowledge to judge and this is where I am going to trust Claude to help me write code. At least I now have code that passes the tests and I can take it from here to learn and enhance?
+
+I edited prompt 004-xxx to tell claude to prefer C++23 span and string_view over C-code constructs.
+
+Claude succeeded with the task to create a range view over Unicode code points that outputs UTF-8 byte stream. I was actually a little surprised as this is NOT a code-point to code-point transform. Instead one Unicode code points generates 1..n UTF-8 bytes.
+
+And Claude also re-used existing code I have as in:
+
+```C++
+        // Use std::ostringstream with UTF8::ostream to encode
+        std::ostringstream oss;
+        text::encoding::UTF8::ostream utf8_os{oss};
+```
+
+This was very good!
+
+Claude did NOT try to adopt to any encoding detected by the RuntimeEncoding calss though. It simply picked up on my existing comments on 'hard coded' UTF-8 encoding for internal (platform) use.
+
+Good enough for now though.
