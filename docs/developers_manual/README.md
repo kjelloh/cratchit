@@ -108,3 +108,54 @@ It based the implementations on 'using IOResult = functional::AnnotatedOptional<
 Also, the actual code in file_reader.hpp is old-school stream seek, C-API error code handling and what have you. And all the code is inline (no cpp-file with defintions). But it works so ok.
 
 Conclusion: I decided to go ahead and let claude do its thing but work on better meta-prompting and prompting to guide it to code more to my liking. Also, I decided to do the refactoring fter the code is working as a separate activity.
+
+For prompt ./prompts/002-encoding-detection.md I added an section <assistant-role> to try and guide Claude to create code more to my liking.
+
+When I ran this prompt Claude actually detected that prompt had changed :). Great!
+
+```sh
+Perfect! I see the prompt has been updated with an <assistant-role> section that gives me context about the codebase conventions. Let me implement Step 2 directly (following the same approach as Step 1,
+  rather than delegating to a sub-agent):
+```
+
+Claude was unable to understand why running catchit produced no output when macOS detected a code signing problem with the binary (and thus silently refused to run it). But Claude could apply the code signing command and contonue when I told it about the problem (See about the code signing problem above).
+
+Claude implemented
+
+```C++
+      template<typename ByteBuffer>
+      std::optional<EncodingDetectionResult> detect_buffer_encoding(
+          ByteBuffer const& buffer
+         ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD)
+```
+
+although there already was a
+```C++ 
+std::optional<EncodingDetectionResult> to_content_encoding(
+         char const* data
+        ,size_t length
+        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+```
+
+Maybe this was due to my instructions that it is a C++23 expert that prefers modern C++? Anyhow, I will accept that for now.
+
+It added '#include <cstring>' to the test unit. I am not sure why as I can find no C-style operation on null terminated strings or char[]? Also, the test unit compiles without the include (although that does not prove it is not still included as a side effect from other includes?).
+
+It added a test for UTF-8 encoded strings but did this with:
+
+```C++
+        std::string utf8_content = "Name,Amount\nJohan Svensson,100.50\nÅsa Lindström,250.75\n";
+```
+
+This asumes the source code file is encoded in UTF-8. Otehrwise the Swedish characters will be encoded in the encoding used by the source file (so this shows a lack of meta-understanding on Claudes part).
+
+Claude did a good job of this step though. It intergrated well with existing code and created good test covarge it seems.
+
+It even surprised me with testing fo confidence:
+
+```C++
+      // Use high threshold to potentially get no match
+      auto encoding = text::encoding::icu::detect_buffer_encoding(short_buffer, 95);
+```
+
+That was a pleasant surpice!

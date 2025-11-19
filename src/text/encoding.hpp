@@ -224,6 +224,21 @@ namespace text {
       EncodingDetectionResult to_bom_encoding(std::istream& is);
       EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
       EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
+      // Encoding detection for byte buffer (CSV import pipeline integration)
+      // Wraps to_content_encoding for use with cratchit::io::ByteBuffer
+      template<typename ByteBuffer>
+      std::optional<EncodingDetectionResult> detect_buffer_encoding(
+          ByteBuffer const& buffer
+         ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD) {
+        if (buffer.empty()) {
+          return std::nullopt;
+        }
+        return to_content_encoding(
+           reinterpret_cast<char const*>(buffer.data())
+          ,buffer.size()
+          ,confidence_threshold);
+      }
+
     } // icu
 
     // TODO: Consider a design that does not lift the detected encoding on in stream to an actual unique type?

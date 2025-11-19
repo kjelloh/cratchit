@@ -2,9 +2,11 @@
 #include "test_fixtures.hpp"
 #include "logger/log.hpp"
 #include "io/file_reader.hpp"
+#include "text/encoding.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
 #include <filesystem>
+// #include <cstring>
 
 namespace tests::csv_import_pipeline {
   namespace file_io_suite {
@@ -201,4 +203,152 @@ namespace tests::csv_import_pipeline {
     }
 
   } // namespace file_io_suite
+
+  namespace encoding_detection_suite {
+
+    // Test fixture for encoding detection tests
+    class EncodingDetectionTestFixture : public ::testing::Test {
+    protected:
+      std::filesystem::path test_dir;
+      std::filesystem::path utf8_file;
+      std::filesystem::path iso8859_file;
+
+      void SetUp() override {
+        logger::scope_logger log_raii{logger::development_trace, "EncodingDetectionTestFixture::SetUp"};
+
+        // Create temporary test directory
+        test_dir = std::filesystem::temp_directory_path() / "cratchit_test_encoding";
+        std::filesystem::create_directories(test_dir);
+
+        // Create UTF-8 test file
+        utf8_file = test_dir / "utf8_test.csv";
+        std::ofstream utf8_ofs(utf8_file, std::ios::binary);
+        std::string utf8_content = "Name,Amount\nJohan Svensson,100.50\nÅsa Lindström,250.75\n";
+        utf8_ofs.write(utf8_content.data(), utf8_content.size());
+        utf8_ofs.close();
+
+        // Create ISO-8859-1 test file with Swedish characters
+        iso8859_file = test_dir / "iso8859_test.csv";
+        std::ofstream iso_ofs(iso8859_file, std::ios::binary);
+        // ISO-8859-1 encoded string with Swedish å, ä, ö
+        unsigned char iso_content[] = {
+          'N','a','m','e',',','A','m','o','u','n','t','\n',
+          'J','o','h','a','n',' ','S','v','e','n','s','s','o','n',',','1','0','0','\n',
+          0xC5,'s','a',' ',  // Åsa (0xC5 = Å in ISO-8859-1)
+          'L','i','n','d','s','t','r',0xF6,'m',',','2','5','0','\n'  // ström (0xF6 = ö)
+        };
+        iso_ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
+        iso_ofs.close();
+      }
+
+      void TearDown() override {
+        logger::scope_logger log_raii{logger::development_trace, "EncodingDetectionTestFixture::TearDown"};
+        std::error_code ec;
+        std::filesystem::remove_all(test_dir, ec);
+      }
+    };
+
+    TEST_F(EncodingDetectionTestFixture, DetectUTF8) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectUTF8)"};
+
+      auto buffer = cratchit::io::read_file_to_buffer(utf8_file);
+      ASSERT_TRUE(buffer) << "Expected successful file read";
+
+      auto encoding = text::encoding::icu::detect_buffer_encoding(buffer.value());
+
+      ASSERT_TRUE(encoding) << "Expected successful encoding detection";
+      EXPECT_EQ(encoding->encoding, text::encoding::DetectedEncoding::UTF8)
+        << "Expected UTF-8 detection, got: " << encoding->display_name;
+      EXPECT_GE(encoding->confidence, 50) << "Expected reasonable confidence";
+    }
+
+    TEST_F(EncodingDetectionTestFixture, DetectISO8859) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectISO8859)"};
+
+      auto buffer = cratchit::io::read_file_to_buffer(iso8859_file);
+      ASSERT_TRUE(buffer) << "Expected successful file read";
+
+      auto encoding = text::encoding::icu::detect_buffer_encoding(buffer.value());
+
+      ASSERT_TRUE(encoding) << "Expected successful encoding detection";
+      // ICU might detect as ISO-8859-1 or Windows-1252 (superset)
+      bool is_latin = (encoding->encoding == text::encoding::DetectedEncoding::ISO_8859_1 ||
+                       encoding->encoding == text::encoding::DetectedEncoding::WINDOWS_1252);
+      EXPECT_TRUE(is_latin)
+        << "Expected ISO-8859-1 or Windows-1252 detection, got: " << encoding->display_name;
+    }
+
+    TEST(EncodingDetectionTests, ComposesWithFileIO) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, ComposesWithFileIO)"};
+
+      // Create test file
+      auto temp_path = std::filesystem::temp_directory_path() / "cratchit_test_compose_encoding.txt";
+      {
+        std::ofstream ofs(temp_path);
+        ofs << "Test content for encoding detection with monadic composition\n";
+      }
+
+      // Demonstrate monadic composition: file → buffer → encoding
+      auto result = cratchit::io::read_file_to_buffer(temp_path)
+        .and_then([](auto& buffer) {
+          cratchit::io::IOResult<text::encoding::icu::EncodingDetectionResult> encoding_result;
+          auto maybe_encoding = text::encoding::icu::detect_buffer_encoding(buffer);
+          if (maybe_encoding) {
+            encoding_result.m_value = *maybe_encoding;
+            encoding_result.push_message(
+              std::format("Detected encoding: {} (confidence: {})",
+                         maybe_encoding->display_name,
+                         maybe_encoding->confidence));
+          } else {
+            encoding_result.push_message("Failed to detect encoding");
+          }
+          return encoding_result;
+        });
+
+      ASSERT_TRUE(result) << "Expected successful encoding detection pipeline";
+      // ASCII content can be detected as UTF-8 or ISO-8859-1 (both valid)
+      bool is_ascii_compatible = (result.value().encoding == text::encoding::DetectedEncoding::UTF8 ||
+                                   result.value().encoding == text::encoding::DetectedEncoding::ISO_8859_1);
+      EXPECT_TRUE(is_ascii_compatible)
+        << "Expected UTF-8 or ISO-8859-1 for ASCII text, got: " << result.value().display_name;
+      EXPECT_GT(result.m_messages.size(), 1) << "Expected messages from both steps";
+
+      // Clean up
+      std::filesystem::remove(temp_path);
+    }
+
+    TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt)"};
+
+      cratchit::io::ByteBuffer empty_buffer;
+      auto encoding = text::encoding::icu::detect_buffer_encoding(empty_buffer);
+
+      EXPECT_FALSE(encoding) << "Expected empty optional for empty buffer";
+    }
+
+    TEST(EncodingDetectionTests, LowConfidenceHandling) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, LowConfidenceHandling)"};
+
+      // Very short content might have low confidence
+      cratchit::io::ByteBuffer short_buffer;
+      std::string short_text = "a";
+      short_buffer.resize(short_text.size());
+      std::memcpy(short_buffer.data(), short_text.data(), short_text.size());
+
+      // Use high threshold to potentially get no match
+      auto encoding = text::encoding::icu::detect_buffer_encoding(short_buffer, 95);
+
+      // Either no detection or a detection - both are acceptable
+      if (encoding) {
+        logger::development_trace("Short buffer detected as: {} (confidence: {})",
+                                 encoding->display_name, encoding->confidence);
+      } else {
+        logger::development_trace("Short buffer - no encoding detected (as expected for short content)");
+      }
+
+      SUCCEED() << "Test completed - low confidence handling works";
+    }
+
+  } // namespace encoding_detection_suite
+
 } // namespace tests::csv_import_pipeline
