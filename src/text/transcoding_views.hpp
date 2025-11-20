@@ -252,7 +252,7 @@ namespace text::encoding::views {
   }
 
   // ============================================================================
-  // Step 4: Unicode Code Points → Runtime Encoding (UTF-8)
+  // Step 4: Unicode Code Points → Runtime Encoding
   // ============================================================================
 
   namespace detail {
@@ -363,7 +363,7 @@ namespace text::encoding::views {
 
   } // namespace detail
 
-  // Lazy range view that encodes Unicode code points to UTF-8 (runtime encoding)
+  // Lazy range view that encodes Unicode code points to platform (runtime) encoding
   template<std::ranges::view UnicodeRange>
   class unicode_to_runtime_encoding_view
     : public std::ranges::view_interface<unicode_to_runtime_encoding_view<UnicodeRange>>
