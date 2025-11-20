@@ -347,3 +347,21 @@ Write(prompts/006-csv-text-to-table-neutral.md)
   - Work incrementally: compile and test after each feature
 
 ```
+
+When Claude ran the new prompt '006-' it created a new file 'src/csv/neutral_parser.hpp' and added tests to existing 'src/test/test_csv_import_pipeline.cpp'. So it did not pick up on the domain 'CSV::Table' and instead went with 'neutral csv'. Well, that works too I suppose. I mean, what would you get from parsing a CSV-file but a table?
+
+Claude picked up on the test data I had crated in 'src/test/data/account_statements_csv.hpp' ok. That was good! I hate writing these complicated tests!
+
+Running Claude I now got the fans on  my macBook Pro M3! So it uses some serious computation power locally too!
+
+It seems that if I interupt Claude to repair the code signing on the binary (got stuck on no output), it starts over from reading the prompt again? I am not sure, but it did not just carry on from where I interupted it?
+
+Claude REALLY struggled with this task (prompt)! I am not sure why but the token consumption was in the 2k over and over. At one time it even created a small C++ main pogram to test my test input data?
+
+Claude finished the task but to my great dissapointment this time. I decided to check in the code and generated tests anyhow to see what I can refactor out from this mess?
+
+1) It did implement the csv-file parsing but with lowe level C-style code! very bloated.
+2) It did NOT implement detection of header row. Instead it always uses row 0 as header which potentially fails on SKV account statement csv files (first row is a saldo row, not a header).
+3) It reimplemented encoding checks on table content. This is not needed as we already have tested the trasncoing pipe-line for this. We should focus only on CSV to table parsing and trust the encoding to be correct.
+
+It feels as if Claude context window just got bloated and it fell back to create code by mimicking web code and forgot everytging about the context provided in the prompt?

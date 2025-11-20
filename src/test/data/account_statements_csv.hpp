@@ -1,0 +1,29 @@
+#pragma once
+
+char const* sz_NORDEA_csv_20251120 = R"(Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
+2025/09/29;-1083,75;;5343-2795;LOOPIA AB (WEBSUPPORT);LOOPIA AB (WEBSUPPORT);62500011564840;Webhotell Q4;2776,88;SEK;
+2025/09/15;-2359,00;;824-3040;TELIA SVERIGE AB;TELIA SVERIGE AB;20230570259;Mobiltjänster Q3;3860,63;SEK;
+2025/09/03;-1,85;;;AVGIFTER NORDEA;AVGIFTER NORDEA;;;6219,63;SEK;
+2025/09/01;-204,45;;;KORT             CLAUDE AI SUBSC 26;KORT             CLAUDE AI SUBSC 26;CLAUDE AI SUBSC 2656;;6221,48;SEK;
+2025/08/28;-615,00;;5020-7042;Fortnox Finans AB;Fortnox Finans AB;563271743711158;Fortnox sep-nov;6425,93;SEK;
+2025/08/22;879,00;;;BG KONTOINS;BG KONTOINS;5050-1030 SK5567828172;;7040,93;SEK;
+2025/08/05;-1,85;;;PRIS ENL SPEC;PRIS ENL SPEC;;;6161,93;SEK;
+2025/08/01;-205,20;;;KORT             CLAUDE AI SUBSC 26;KORT             CLAUDE AI SUBSC 26;CLAUDE AI SUBSC 2656;;6163,78;SEK;
+2025/07/23;-3925,00;;5249-4309;PostNord Sverige AB;PostNord Sverige AB;903006266022;Postbox 10 juli-jan;6368,98;SEK;
+2025/07/22;6000,00;32592317244;;Insättning;Insättning;SPAR TILL KORT;;10293,98;SEK;
+2025/07/03;-3,70;;;PRIS ENL SPEC;PRIS ENL SPEC;;;4293,98;SEK;
+2025/07/02;-205,46;;;KORT             CLAUDE AI SUBSC 26;KORT             CLAUDE AI SUBSC 26;CLAUDE AI SUBSC 2656;;4297,68;SEK;)";
+char const* sz_SKV_csv_older = R"(;Ingående saldo 2025-04-01;656;0;
+2025-04-05;Intäktsränta;1;;
+2025-05-12;Moms jan 2025 - mars 2025;1997;;
+2025-05-14;Utbetalning;-1997;;
+2025-06-01;Intäktsränta;1;;
+;Utgående saldo 2025-06-30;658;0;)";
+char const* sz_SKV_csv_20251120 = R"("THE ITFIED AB";"556782-8172";"";""
+"";"";"";""
+"";"Ingående saldo 2025-07-01";"";"658"
+"2025-07-05";"Intäktsränta";"1";"659"
+"2025-08-13";"Moms april 2025 - juni 2025";"879";"1 538"
+"2025-08-20";"Utbetalning";"-879";"659"
+"2025-09-06";"Intäktsränta";"1";"660"
+"";"Utgående saldo 2025-09-30";"";"660")";

@@ -5,6 +5,8 @@
 #include "text/encoding.hpp"
 #include "text/transcoding_views.hpp"
 #include "text/encoding_pipeline.hpp"
+#include "csv/neutral_parser.hpp"
+#include "test/data/account_statements_csv.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
 #include <filesystem>
@@ -1236,5 +1238,481 @@ namespace tests::csv_import_pipeline {
     }
 
   } // namespace encoding_pipeline_integration_suite
+
+  namespace neutral_csv_parser_suite {
+
+    TEST(NeutralCSVParserTests, ParsesSimpleUnquotedCSV) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesSimpleUnquotedCSV)"};
+
+      std::string csv_text = "Name,Age,City\nAlice,30,Stockholm\nBob,25,Gothenburg\n";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->heading.size(), 3) << "Expected 3 header fields";
+      EXPECT_EQ(result->rows.size(), 3) << "Expected 3 rows (including header)";
+
+      // Check header content
+      EXPECT_EQ(result->heading[0], "Name");
+      EXPECT_EQ(result->heading[1], "Age");
+      EXPECT_EQ(result->heading[2], "City");
+
+      // Check first data row (rows[1] since rows includes header)
+      EXPECT_EQ(result->rows[1][0], "Alice");
+      EXPECT_EQ(result->rows[1][1], "30");
+      EXPECT_EQ(result->rows[1][2], "Stockholm");
+    }
+
+    TEST(NeutralCSVParserTests, ParsesSemicolonDelimited) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesSemicolonDelimited)"};
+
+      std::string csv_text = "Date;Amount;Description\n2025-01-01;100.50;Payment\n2025-01-02;-50.00;Withdrawal\n";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->heading.size(), 3) << "Expected 3 header fields";
+
+      EXPECT_EQ(result->heading[0], "Date");
+      EXPECT_EQ(result->heading[1], "Amount");
+      EXPECT_EQ(result->heading[2], "Description");
+    }
+
+    TEST(NeutralCSVParserTests, DetectsCommaDelimiter) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, DetectsCommaDelimiter)"};
+
+      std::string csv_text = "A,B,C\n1,2,3\n";
+
+      char detected = CSV::neutral::detect_delimiter(csv_text);
+
+      EXPECT_EQ(detected, ',') << "Expected comma detection";
+    }
+
+    TEST(NeutralCSVParserTests, DetectsSemicolonDelimiter) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, DetectsSemicolonDelimiter)"};
+
+      std::string csv_text = "A;B;C\n1;2;3\n";
+
+      char detected = CSV::neutral::detect_delimiter(csv_text);
+
+      EXPECT_EQ(detected, ';') << "Expected semicolon detection";
+    }
+
+    TEST(NeutralCSVParserTests, EmptyStringReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, EmptyStringReturnsNullopt)"};
+
+      std::string csv_text = "";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      EXPECT_FALSE(result.has_value()) << "Expected empty optional for empty input";
+    }
+
+    TEST(NeutralCSVParserTests, HandlesTrailingNewline) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, HandlesTrailingNewline)"};
+
+      std::string csv_text = "A,B\n1,2\n";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->rows.size(), 2) << "Expected 2 rows (header + 1 data)";
+    }
+
+    TEST(NeutralCSVParserTests, HandlesWindowsLineEndings) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, HandlesWindowsLineEndings)"};
+
+      std::string csv_text = "A,B\r\n1,2\r\n";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->rows.size(), 2) << "Expected 2 rows";
+      EXPECT_EQ(result->rows[1][0], "1");
+      EXPECT_EQ(result->rows[1][1], "2");
+    }
+
+    TEST(NeutralCSVParserTests, ParsesQuotedFieldsBasic) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesQuotedFieldsBasic)"};
+
+      std::string csv_text = R"(Name,Description
+"Alice","Software Engineer"
+"Bob","Data Analyst"
+)";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->rows[1][0], "Alice") << "Expected quotes removed";
+      EXPECT_EQ(result->rows[1][1], "Software Engineer");
+    }
+
+    TEST(NeutralCSVParserTests, ParsesQuotedFieldsWithCommas) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesQuotedFieldsWithCommas)"};
+
+      std::string csv_text = R"(Name,Address
+"Alice","123 Main St, Apt 4, Stockholm"
+"Bob","456 Oak Ave, Gothenburg"
+)";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->rows[1][1], "123 Main St, Apt 4, Stockholm")
+        << "Expected commas inside quoted field preserved";
+      EXPECT_EQ(result->rows[2][1], "456 Oak Ave, Gothenburg");
+    }
+
+    TEST(NeutralCSVParserTests, ParsesEscapedQuotes) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesEscapedQuotes)"};
+
+      std::string csv_text = R"(Name,Quote
+"Alice","She said ""Hello"""
+"Bob","He replied ""Hi there"""
+)";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->rows[1][1], R"(She said "Hello")")
+        << "Expected escaped quotes to become single quotes";
+      EXPECT_EQ(result->rows[2][1], R"(He replied "Hi there")");
+    }
+
+    TEST(NeutralCSVParserTests, ParsesQuotedFieldsWithNewlines) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesQuotedFieldsWithNewlines)"};
+
+      std::string csv_text = "Name,Description\n\"Alice\",\"Line 1\nLine 2\"\n\"Bob\",\"Single line\"\n";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_TRUE(result->rows[1][1].find('\n') != std::string::npos)
+        << "Expected newline preserved in quoted field";
+    }
+
+    TEST(NeutralCSVParserTests, HandlesMixedQuotedAndUnquoted) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, HandlesMixedQuotedAndUnquoted)"};
+
+      std::string csv_text = R"(Name,Age,City
+Alice,30,"Stockholm, Sweden"
+"Bob",25,Gothenburg
+)";
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      EXPECT_EQ(result->rows[1][0], "Alice") << "Unquoted field";
+      EXPECT_EQ(result->rows[1][1], "30") << "Unquoted field";
+      EXPECT_EQ(result->rows[1][2], "Stockholm, Sweden") << "Quoted field with comma";
+      EXPECT_EQ(result->rows[2][0], "Bob") << "Quoted field";
+      EXPECT_EQ(result->rows[2][1], "25") << "Unquoted field";
+    }
+
+    TEST(NeutralCSVParserTests, ExplicitDelimiterOverridesDetection) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ExplicitDelimiterOverridesDetection)"};
+
+      // CSV with semicolons, but explicitly request comma parsing
+      std::string csv_text = "A;B;C\n1;2;3\n";
+
+      auto result = CSV::neutral::parse_csv(csv_text, ',');
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+      // With comma delimiter, the entire line becomes one field
+      EXPECT_EQ(result->heading.size(), 1) << "Expected 1 field when using wrong delimiter";
+      EXPECT_EQ(result->heading[0], "A;B;C") << "Expected semicolons not treated as delimiters";
+    }
+
+    TEST(NeutralCSVParserTests, ParsesRealNordeaCSV) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesRealNordeaCSV)"};
+
+      std::string csv_text = sz_NORDEA_csv_20251120;
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse of Nordea CSV";
+
+      // Check header
+      EXPECT_EQ(result->heading[0], "Bokföringsdag") << "Expected Swedish header";
+      EXPECT_EQ(result->heading[1], "Belopp");
+      EXPECT_EQ(result->heading[9], "Valuta");
+
+      // Should have header + data rows
+      EXPECT_GT(result->rows.size(), 1) << "Expected multiple rows including header";
+
+      // Check first data row (rows[1])
+      EXPECT_EQ(result->rows[1][0], "2025/09/29") << "Expected date field";
+      EXPECT_EQ(result->rows[1][1], "-1083,75") << "Expected amount field";
+      EXPECT_EQ(result->rows[1][9], "SEK") << "Expected currency field";
+
+      logger::development_trace("Nordea CSV parsed: {} total rows", result->rows.size());
+    }
+
+    TEST(NeutralCSVParserTests, ParsesRealSKVCSVOlder) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesRealSKVCSVOlder)"};
+
+      std::string csv_text = sz_SKV_csv_older;
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse of older SKV CSV";
+
+      // This format has empty first column, then text, then amounts
+      EXPECT_GT(result->rows.size(), 1) << "Expected multiple rows";
+
+      // Check first row (balance row) - has empty first column
+      EXPECT_TRUE(result->rows[0][0].empty()) << "Expected empty first column in balance row";
+      EXPECT_EQ(result->rows[0][1], "Ingående saldo 2025-04-01");
+      EXPECT_EQ(result->rows[0][2], "656");
+
+      // Check second row (transaction row) - has date in first column
+      EXPECT_EQ(result->rows[1][0], "2025-04-05") << "Expected date in first column";
+      EXPECT_EQ(result->rows[1][1], "Intäktsränta");
+      EXPECT_EQ(result->rows[1][2], "1");
+
+      logger::development_trace("Older SKV CSV parsed: {} total rows", result->rows.size());
+    }
+
+    TEST(NeutralCSVParserTests, ParsesRealSKVCSVNewer) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, ParsesRealSKVCSVNewer)"};
+
+      std::string csv_text = sz_SKV_csv_20251120;
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse of newer SKV CSV";
+
+      // This format uses quotes extensively
+      EXPECT_GT(result->rows.size(), 1) << "Expected multiple rows";
+
+      // Check first row - company info
+      EXPECT_EQ(result->rows[0][0], "THE ITFIED AB");
+      EXPECT_EQ(result->rows[0][1], "556782-8172");
+
+      // Check a transaction row with amounts
+      // Find a row with a date
+      bool found_transaction = false;
+      for (size_t i = 0; i < result->rows.size(); ++i) {
+        if (!result->rows[i][0].empty() && result->rows[i][0].find("2025") != std::string::npos) {
+          // This is a transaction row
+          EXPECT_EQ(result->rows[i][0], "2025-07-05") << "Expected date in first field";
+          EXPECT_EQ(result->rows[i][1], "Intäktsränta") << "Expected description";
+          EXPECT_EQ(result->rows[i][2], "1") << "Expected amount";
+          found_transaction = true;
+          break;
+        }
+      }
+      EXPECT_TRUE(found_transaction) << "Expected to find at least one transaction row";
+
+      logger::development_trace("Newer SKV CSV parsed: {} total rows", result->rows.size());
+    }
+
+    TEST(NeutralCSVParserTests, HandlesSwedishCharactersInRealData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(NeutralCSVParserTests, HandlesSwedishCharactersInRealData)"};
+
+      // The real CSV data contains Swedish characters like å, ä, ö
+      std::string csv_text = sz_NORDEA_csv_20251120;
+
+      auto result = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(result.has_value()) << "Expected successful parse";
+
+      // Check that Swedish characters are preserved
+      EXPECT_EQ(result->heading[0], "Bokföringsdag") << "Expected 'ö' to be preserved";
+      EXPECT_EQ(result->heading[5], "Ytterligare detaljer") << "Expected complete Swedish text";
+
+      // Check in data rows
+      bool found_swedish = false;
+      for (size_t i = 0; i < result->rows.size(); ++i) {
+        for (size_t j = 0; j < result->rows[i].size(); ++j) {
+          if (result->rows[i][j].find("Mobiltjänster") != std::string::npos) {
+            EXPECT_EQ(result->rows[i][j], "Mobiltjänster Q3") << "Expected Swedish 'ä' preserved";
+            found_swedish = true;
+            break;
+          }
+        }
+        if (found_swedish) break;
+      }
+    }
+
+  } // namespace neutral_csv_parser_suite
+
+  namespace csv_pipeline_composition_suite {
+
+    // Test fixture for pipeline composition tests
+    class CSVPipelineCompositionTestFixture : public ::testing::Test {
+    protected:
+      std::filesystem::path test_dir;
+      std::filesystem::path utf8_csv_file;
+      std::filesystem::path iso8859_csv_file;
+
+      void SetUp() override {
+        logger::scope_logger log_raii{logger::development_trace, "CSVPipelineCompositionTestFixture::SetUp"};
+
+        // Create temporary test directory
+        test_dir = std::filesystem::temp_directory_path() / "cratchit_test_csv_pipeline";
+        std::filesystem::create_directories(test_dir);
+
+        // Create UTF-8 CSV test file
+        utf8_csv_file = test_dir / "utf8_test.csv";
+        {
+          std::ofstream ofs(utf8_csv_file, std::ios::binary);
+          std::string csv_content = "Name,Amount,City\nJohan,100.50,Stockholm\nÅsa,250.75,Göteborg\n";
+          ofs.write(csv_content.data(), csv_content.size());
+        }
+
+        // Create ISO-8859-1 CSV test file with Swedish characters
+        iso8859_csv_file = test_dir / "iso8859_test.csv";
+        {
+          std::ofstream ofs(iso8859_csv_file, std::ios::binary);
+          // ISO-8859-1 encoded CSV with Å and ö
+          unsigned char iso_content[] = {
+            'N','a','m','e',';','C','i','t','y','\n',
+            0xC5,'s','a',';',  // Åsa; (0xC5 = Å)
+            'G',0xF6,'t','e','b','o','r','g','\n'  // Göteborg (0xF6 = ö)
+          };
+          ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
+        }
+      }
+
+      void TearDown() override {
+        logger::scope_logger log_raii{logger::development_trace, "CSVPipelineCompositionTestFixture::TearDown"};
+        std::error_code ec;
+        std::filesystem::remove_all(test_dir, ec);
+      }
+    };
+
+    TEST_F(CSVPipelineCompositionTestFixture, CompletePipelineFileToTable) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, CompletePipelineFileToTable)"};
+
+      // Complete pipeline: file_path → UTF-8 text → CSV::Table
+      auto text_result = text::encoding::read_file_with_encoding_detection(utf8_csv_file);
+      ASSERT_TRUE(text_result) << "Expected successful encoding pipeline";
+
+      auto table_result = CSV::neutral::parse_csv(text_result.value());
+      ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
+
+      // Verify the table structure
+      EXPECT_EQ(table_result->heading.size(), 3) << "Expected 3 columns";
+      EXPECT_EQ(table_result->heading[0], "Name");
+      EXPECT_EQ(table_result->heading[1], "Amount");
+      EXPECT_EQ(table_result->heading[2], "City");
+
+      EXPECT_EQ(table_result->rows.size(), 3) << "Expected 3 rows (header + 2 data)";
+      EXPECT_EQ(table_result->rows[1][0], "Johan");
+      EXPECT_EQ(table_result->rows[2][0], "Åsa") << "Expected Swedish character preserved";
+      EXPECT_EQ(table_result->rows[2][2], "Göteborg") << "Expected Swedish ö preserved";
+    }
+
+    TEST_F(CSVPipelineCompositionTestFixture, MonadicCompositionWithAndThen) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, MonadicCompositionWithAndThen)"};
+
+      // Demonstrate monadic composition with .and_then()
+      auto result = text::encoding::read_file_with_encoding_detection(utf8_csv_file)
+        .and_then([](auto& text) -> cratchit::io::IOResult<CSV::Table> {
+          cratchit::io::IOResult<CSV::Table> csv_result;
+          auto maybe_table = CSV::neutral::parse_csv(text);
+          if (maybe_table) {
+            csv_result.m_value = *maybe_table;
+            csv_result.push_message(std::format("Parsed CSV with {} rows", maybe_table->rows.size()));
+          } else {
+            csv_result.push_message("CSV parsing failed");
+          }
+          return csv_result;
+        });
+
+      ASSERT_TRUE(result) << "Expected successful monadic composition";
+      EXPECT_EQ(result.value().heading.size(), 3) << "Expected 3 columns";
+      EXPECT_GT(result.m_messages.size(), 2) << "Expected messages from both pipeline stages";
+
+      // Verify messages document the complete pipeline
+      bool has_encoding_msg = false;
+      bool has_csv_msg = false;
+      for (const auto& msg : result.m_messages) {
+        if (msg.find("Detected encoding") != std::string::npos ||
+            msg.find("transcoded") != std::string::npos) {
+          has_encoding_msg = true;
+        }
+        if (msg.find("Parsed CSV") != std::string::npos) {
+          has_csv_msg = true;
+        }
+      }
+      EXPECT_TRUE(has_encoding_msg) << "Expected encoding pipeline message";
+      EXPECT_TRUE(has_csv_msg) << "Expected CSV parsing message";
+    }
+
+    TEST_F(CSVPipelineCompositionTestFixture, TranscodesISO8859ToUTF8ThenParsesCSV) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, TranscodesISO8859ToUTF8ThenParsesCSV)"};
+
+      // Complete pipeline with ISO-8859-1 source
+      auto text_result = text::encoding::read_file_with_encoding_detection(iso8859_csv_file);
+      ASSERT_TRUE(text_result) << "Expected successful encoding pipeline";
+
+      logger::development_trace("Transcoded text: {}", text_result.value());
+
+      auto table_result = CSV::neutral::parse_csv(text_result.value());
+      ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
+
+      // Verify Swedish characters were correctly transcoded and parsed
+      EXPECT_EQ(table_result->heading[0], "Name");
+      EXPECT_EQ(table_result->heading[1], "City");
+      EXPECT_EQ(table_result->rows[1][0], "Åsa") << "Expected Å transcoded correctly";
+      EXPECT_EQ(table_result->rows[1][1], "Göteborg") << "Expected ö transcoded correctly";
+    }
+
+    TEST_F(CSVPipelineCompositionTestFixture, ErrorPropagationFromEncodingStage) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, ErrorPropagationFromEncodingStage)"};
+
+      auto non_existent = test_dir / "does_not_exist.csv";
+
+      // Pipeline should short-circuit on file read failure
+      auto result = text::encoding::read_file_with_encoding_detection(non_existent)
+        .and_then([](auto& text) -> cratchit::io::IOResult<CSV::Table> {
+          cratchit::io::IOResult<CSV::Table> csv_result;
+          auto maybe_table = CSV::neutral::parse_csv(text);
+          if (maybe_table) {
+            csv_result.m_value = *maybe_table;
+          }
+          return csv_result;
+        });
+
+      EXPECT_FALSE(result) << "Expected failure to propagate through pipeline";
+      EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages preserved";
+    }
+
+    TEST_F(CSVPipelineCompositionTestFixture, MalformedCSVReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, MalformedCSVReturnsNullopt)"};
+
+      // Create file with empty content
+      auto empty_file = test_dir / "empty.csv";
+      {
+        std::ofstream ofs(empty_file);
+      }
+
+      auto text_result = text::encoding::read_file_with_encoding_detection(empty_file);
+      ASSERT_TRUE(text_result) << "Expected successful file read (empty file)";
+
+      auto table_result = CSV::neutral::parse_csv(text_result.value());
+      EXPECT_FALSE(table_result.has_value()) << "Expected empty optional for empty CSV";
+    }
+
+    TEST(CSVPipelineCompositionTests, ParsesRealNordeaCSVWithEncoding) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, ParsesRealNordeaCSVWithEncoding)"};
+
+      // Demonstrate that real CSV data can be parsed
+      // (In real usage, this would come through the file reading pipeline)
+      std::string csv_text = sz_NORDEA_csv_20251120;
+
+      auto table_result = CSV::neutral::parse_csv(csv_text);
+      ASSERT_TRUE(table_result.has_value()) << "Expected successful parse";
+
+      EXPECT_EQ(table_result->heading[0], "Bokföringsdag");
+      EXPECT_GT(table_result->rows.size(), 5) << "Expected multiple transaction rows";
+
+      logger::development_trace("Real Nordea CSV parsed successfully with {} rows",
+                               table_result->rows.size());
+    }
+
+  } // namespace csv_pipeline_composition_suite
 
 } // namespace tests::csv_import_pipeline
