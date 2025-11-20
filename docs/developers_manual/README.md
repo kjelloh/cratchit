@@ -317,3 +317,33 @@ Anyhow, looking though new file 'src/text/encoding_pipeline.hpp' and added tests
 The combination of having Claude generate code AND test makes me feel more secure to go with the code and be able to come back later to refactor it (fingers crossed)?
 
 For prompt 006-xxx Claude failed to do what I wanted. It got to attracted to the existing code and created UTF-8 text -> Maybe Table, but failed to focus on a 'neutral' table. Instead it went for the SKV / NORDEA account statement tables right away (just as try_parse_csv does). So I decided to edit the 006-xxx prompt to try and make Claude to deviate from existing code and create a Maybe neutral table instead.
+
+I used my custom '/create_prompt' and managed to get Claude to end up with this:
+
+```sh
+Write(prompts/006-csv-text-to-table-neutral.md)
+  ⎿  Wrote 330 lines to prompts/006-csv-text-to-table-neutral.md                                                                                                                                   
+     <assistant-role>
+     You are an expert in writing C++23 code that is easy to read and can be used in functional style composition based on Maybe monads (std::optional) and C++ range views where this makes sense.
+     1. You prefer to use C++23 'span' and 'string_view' over C-code constructs.
+     2. You prefer to use C++23 standard library over any specialized helpers.
+     3. You prefer readable code over efficient code.
+     4. You prefer to organize into namespaces over splitting code into C++ translation units.
+     You are an expert in character set code points and encodings.
+     … +320 lines (ctrl+o to expand)
+
+⏺ ---
+  Prompt created successfully!
+
+  ✓ Saved prompt to ./prompts/006-csv-text-to-table-neutral.md
+
+  This prompt will guide Claude to:
+  - Create a NEW, neutral CSV parser (ignoring the existing try_parse_csv)
+  - Implement runtime_encoded_text → Maybe<CSV::Table>
+  - Support semicolon/comma delimiters and quoted fields
+  - Test with real CSV data from account_statements_csv.hpp
+  - Compose with the encoding pipeline from steps 1-5
+  - Handle macOS code signing requirements for test execution
+  - Work incrementally: compile and test after each feature
+
+```
