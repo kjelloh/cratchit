@@ -368,3 +368,8 @@ It feels as if Claude context window just got bloated and it fell back to create
 
 I actually started a new session with Claude and asked it to evaluate how well it done against prompt 006. And it agreed it did a bad job! It also proposed a very comprehensive refactoring task in seven steps! I wonder - does Anthropic try to make me burn tokens to sell me more *smirk*!
 
+I step prmpt 007-xxx Claude missed to take off from CSV::Table and instead provided functions that started off with text. I dissagreed and asked from CSV::Table -> Maybe Account statements.
+
+Now Claude derailed again and went off and resued the existing 'heading ID' and what have you. Allthough I told it to implement a NEW table to statements projection. To small context window again?
+
+I edited prompt 007- to try and make Claude stay on track (less text and more on point).

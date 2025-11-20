@@ -8,57 +8,49 @@ You are an expert in writing C++23 code that is easy to read and can be used in 
 
 You know about the codebase usage of namespaces and existing types for different functionality.
 
-1. You are aware that current pipeline produces a 'neutral' Maybe CSV::Table
-2. You are aware that we MUST implement a NEW WAY to project a neutral table to an Account statements container.
-3. You are aware of the existing type fiscal/amount/AccountStatement.hpp.
+1. You are aware that we MUST implement a NEW WAY to project a neutral table to an Account statements container.
+2. You are aware to IGNORE CSV::project::make_heading_projection
 
 </assistant-role>
 
 <objective>
-Implement the business logic layer that transforms CSV tables into account statement domain objects using monadic composition. Create: csv_table → Maybe<account_statements>.
-
-This step adds business logic validation and domain object construction to the pipeline, converting structured CSV data into meaningful business entities.
+Implement CSV::Table to Maybe Account Statements container.
 </objective>
 
 <context>
-This is Step 7 of an 11-step refactoring. Previous steps provided:
-- Steps 1-5: Complete encoding pipeline (file → text)
-- Step 6: CSV parsing (text → csv_table)
-
-This step extracts account statements from CSV tables, applying business logic and validation specific to bank and SKV formats.
-
-Read CLAUDE.md for project conventions and Swedish accounting requirements.
+This is Step 7 of an 11-step refactoring (prompts 001..011).
 
 **Examine existing domain objects and business logic:**
-@src/fiscal/amount/TaggedAmountFramework.cpp (focus on lines 974-979 for context)
+
+@AmountFramework.hpp (to_amount(string))
+@FiscalPeriod.hpp (to_date(string))
 
 **Search for existing account statement types** in the codebase.
+
+@fiscal/amount/AccountStatement.hpp
+
 </context>
 
 <requirements>
 Create an account statement extraction function with these characteristics:
 
 1. **Extraction Function**: `csv_table → Maybe<account_statements>`
-   - Parse CSV rows into account statement objects
-   - Apply validation rules (required fields, format checks, etc.)
+   - Project CSV::Table to Maybe account statement table schema
+   - Transform CSV::Table + schema into account statements container
    - Return optional/Maybe to handle invalid data
 
 2. **Account Statement Representation**:
-   - What is an account statement in this domain?
-   - What fields are required? (date, amount, description, account number, etc.)
-   - Are there different types for bank vs SKV statements?
+   - An account statement is a table row with at least a trasnaction amount, a transaction date and a trasnaction caption.
+   - Any CSV::Table that projects all rows to valid account statement entries is a valdi transform.
 
 3. **Business Logic Validation**:
-   - Required fields present and non-empty
-   - Dates parse correctly and are valid
-   - Amounts are valid numbers
-   - Account numbers match expected format
-   - Any domain-specific validation rules
+   - CSV::Table row projects to required account stement fields
+   - Or, projects to an identified 'ignorable' row.
 
 4. **Multiple Statement Support**:
-   - CSV may contain multiple account statements (rows)
-   - Should this return a collection? Vector? Range?
-   - How are invalid rows handled? Skip them? Fail entire parse?
+   - Projection contains zero to many account statements (rows)
+   - Returns a Maybe account statements container
+   - All enytries must pass for a succesfull transform (nullopt on any failure)
 </requirements>
 
 <implementation>
@@ -68,14 +60,16 @@ Create an account statement extraction function with these characteristics:
 
 When implementing this step, you MUST:
 
-1. **Analyze sample CSV files** from banks and SKV to understand their structure
+1. **Analyze sample CSV text -> CSV::Table -> Account Statements**
+
+@src/tst/data/account_statements_csv.hpp
 
 2. **Be creative in column identification with headers**:
-   - Look for headers that indicate date columns (e.g., "Date", "Datum", "Transaction Date")
-   - Identify amount columns (e.g., "Amount", "Belopp", numeric values with currency symbols)
-   - Find transaction description/heading columns (e.g., "Description", "Beskrivning", "Transaction")
+  - For CSV::Table with header, map keywords to required Account statement fileds 
+  - For CSV::Table with no header, analyse column data for valid Dates, Amounts, captions
 
 3. **Handle CSV tables WITHOUT header rows**:
+   - **Filter out CSV::Table rows** that are 'ignorable' according identification rule
    - **Iterate over column data** and apply heuristics to detect column types
    - **"All valid dates" heuristic**: If all values in a column parse as valid dates → probably the date column
    - **"All valid amounts" heuristic**: If all values are numeric (with optional decimal separators, currency symbols) → probably transaction amount or saldo/balance column
@@ -98,39 +92,23 @@ When implementing this step, you MUST:
 This may require examining multiple sample files and implementing intelligent column detection logic that works both with and without headers.
 
 **Design Considerations:**
-- What does the current implementation in TaggedAmountFramework.cpp do?
-- Are there existing account statement classes/structs?
-- Do bank and SKV CSV formats differ significantly?
-- Should this be generic or format-specific?
+- **How do we make CSV::Table -> Maybe Account Statemens Generic?**
 - **How can we intelligently detect date, amount, and description columns?**
-- **Should we support multiple column naming conventions?**
-- **How do we handle CSV files without headers?**
+- **How do we handle CSV::Table without header?**
 - **What heuristics can identify column types from data alone?**
 
 **Validation Strategy:**
 Consider validation approaches:
 1. All-or-nothing: One invalid row fails entire parse
-2. Permissive: Skip invalid rows, return valid ones
-3. Partial: Return what's valid + error info for invalid rows
+2. Permissive: Skip 'ignorable' rows, transform required ones
 
 Choose based on business requirements. Document the rationale.
-
-**Swedish Accounting Compliance:**
-According to CLAUDE.md, Swedish Accounting Act requires:
-- Date of business transaction
-- Date of voucher compilation
-- Voucher number/identification
-- Transaction description
-- Amount and VAT
-- Counterparty name
-
-Ensure extracted statements meet these requirements where applicable.
 
 **Error Handling:**
 - Missing required fields?
 - Invalid date formats?
 - Unparseable amounts?
-- Unknown account numbers?
+- Unidentified transaction caption?
 
 Use Maybe/optional to propagate failures through the pipeline.
 </implementation>
@@ -170,21 +148,20 @@ namespace tests::csv_import_pipeline {
 <verification>
 Before completing:
 
-1. **Compilation**: Code compiles on macOS XCode with C++23 via `./run.zsh`
-2. **Tests Pass**: Run `./cratchit --test` - all tests succeed
-3. **Extraction Works**: Successfully extracts statements from sample CSV
+1. **Compilation**: Code compiles on macOS XCode with C++23 via `./run.zsh --nop` and outputs 'Cratchit - Compiles and runs'.
+2. **Attend to code signing error**: Execute 'codesign -s - --force --deep workspace/cratchit' when compilation / run does not output required text.
+2. **Tests Pass**: Run `cd workspace && ./cratchit --test` - all tests succeed
+3. **Extraction Works**: Successfully extracts statements from sample CSV::Table
 4. **Column Detection Works**: Intelligent detection of date/amount/description columns
-5. **Validation Works**: Invalid data handled correctly (returns empty Maybe or skips rows)
+5. **Validation Works**: Invalid data handled correctly (returns empty Maybe)
 6. **Integration**: Composes with Steps 5 and 6
-7. **Business Rules**: Meets Swedish accounting requirements where applicable
 
 Test coverage:
 - Bank CSV with headers
-- SKV CSV with headers
-- CSV without headers (column detection heuristics)
+- SKV CSV without headers (column detection heuristics)
 - CSV with missing required fields
 - CSV with invalid dates/amounts
-- Empty CSV (headers only)
+- Empty CSV (headers only) is OK (zero account statement entries)
 </verification>
 
 <success_criteria>
@@ -192,10 +169,9 @@ Test coverage:
 - [ ] Returns Maybe<account_statements> for monadic composition
 - [ ] Business logic validation applied
 - [ ] Handles invalid data gracefully
-- [ ] Composes with Steps 5 and 6 (file → CSV → statements)
-- [ ] Code compiles on macOS XCode
-- [ ] Tested with sample bank and SKV CSV files
-- [ ] Follows Swedish accounting requirements
+- [ ] Composes with Step 6 (CSV::Table → statements)
+- [ ] Code compiles
+- [ ] Tested with sample data
 - [ ] Account statement type appropriately defined
 - [ ] Clear validation strategy documented
 </success_criteria>
