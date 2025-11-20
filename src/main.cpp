@@ -41,12 +41,13 @@ int main(int argc, char *argv[]) {
     }
     else if (argc > 1 && std::string(argv[1]) == "--test") {
         spdlog::info("Running tests...");
-        {
-          std::vector<char*> argv{};
-          argv.push_back(nullptr);
-          int argc = argv.size();
-          return tests::run_all(argc,argv.data());
+        std::vector<char*> g_argv{};
+        for (int i=2;i<argc;++i) {
+          g_argv.push_back(argv[i]);
         }
+        g_argv.push_back(nullptr);
+        int g_argc = static_cast<int>(g_argv.size())-1;
+        return tests::run_all(g_argc,g_argv.data());
     }
     else while (true) {
         static int loop_count{0};
