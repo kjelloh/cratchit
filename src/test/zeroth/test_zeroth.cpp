@@ -110,7 +110,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         ASSERT_TRUE(model->sie_env_map.contains("current")) << std::format("Expected 'current' SIE Environment to exist ok");
@@ -144,7 +144,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         auto const& sie_env = model->sie_env_map.at("current").value();
@@ -167,7 +167,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         auto const& sie_env = model->sie_env_map.at("current").value();
@@ -207,7 +207,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         auto const& sie_env = model->sie_env_map.at("current").value();
