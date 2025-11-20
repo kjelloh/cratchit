@@ -39,6 +39,11 @@ int main(int argc, char *argv[]) {
     else if (argc > 1 && std::string(argv[1]) == "--version") {
         spdlog::info("Cratchit version 0.1.0");
     }
+    else if (argc > 1 && std::string_view(argv[1]).starts_with("--gtest")) {
+        spdlog::info("Running Google Test...");
+        std::vector<char*> g_argv;
+        return tests::run_all(argc,argv);
+    }
     else if (argc > 1 && std::string(argv[1]) == "--test") {
         spdlog::info("Running tests...");
         std::vector<char*> g_argv{};

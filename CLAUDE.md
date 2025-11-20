@@ -5,6 +5,13 @@ Cratchit is an SIE-based bookkeeping helper console application written in moder
 
 The application is named after Bob Cratchit, the poor clerk of Scrooge in Charles Dickens' "A Christmas Carol."
 
+## Command Line Arguments
+
+- './cratchit --nop'                Run (no operation)
+- './cratchit --test'               Run all tests (google test)
+- './cratchit --test --gtest_xxx'   Run tests (passing args to google test)
+- './cratchit --gtest_xxx...'       Run google tests (passing provided arguments to google test)
+
 ## Project Architecture
 
 Cratchit implements **two distinct architectural modes**:
@@ -85,7 +92,7 @@ src/
 
 **Build Commands**:
 ```bash
-./run.zsh          # Primary build script
+./run.zsh --nop    # Primary build-and-run (do nothing) script
 cmake --build .    # Direct CMake build
 ```
 
@@ -120,7 +127,7 @@ The application complies with Swedish Accounting Act (Bokföringslagen 1999:1078
 
 1. **For New Features**: Work with the first mode architecture (`src/cratchit.cpp` + TEA components)
 2. **For Understanding Legacy Code**: Reference the zeroth mode (`src/zeroth/main.cpp`)
-3. **Build**: Use `./run.zsh` for development builds
+3. **Build**: Use `./run.zsh --nop` for development builds
 4. **Architecture**: Follow TEA patterns - state changes via messages, immutable model updates
 
 The first mode provides a clean separation of concerns and maintainable architecture compared to the monolithic zeroth implementation.
