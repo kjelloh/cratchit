@@ -220,20 +220,7 @@ namespace tests::zeroth {
            "Expected a total of three now posted SIE entries but encountered:{}"
           ,journals_entry_count);
       }
-
-
     }
-
-    TEST(ModelTests, Model2EnvironmentTest) {
-      logger::scope_logger log_raii{logger::development_trace,"TEST(ModelTests, Model2EnvironmentTest)"};
-
-      ASSERT_FALSE(true) << "TODO: Implement this test";
-
-      auto model = std::make_unique<ConcreteModel>();
-
-
-    }
-
   }
 
 }
