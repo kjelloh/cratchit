@@ -391,3 +391,34 @@ Claude created the new file 'src/domain/csv_to_account_statement.hpp' with somew
 I like that it implemented keyword maps to identify csv text with header rows. That makes the code adjustable in the future to new mappings for statement files with headert row.
 
 I like that Claude picked up on provided test data sz_NORDEA_csv_20251120, sz_SKV_csv_older and sz_SKV_csv_20251120. At least the tests are in there even if they currently fail. This enables us to refactor and iterate until they pass, good!
+
+I tried to instruct Claude to analyse the failing test cases and to remove the redunant one. It succeeded to remove the test case but failed to come up with a solution to the failing test cases. It did not even ask me about advice.
+
+I tried a new prompt:
+
+```sh
+> It seems the test cases for New SKV account statement file fails. I want you to add code that identifies a first or last row with a different column count and 'ignores' those. Can you read prompt 005 and stay
+ VERY FOCUED on the task, run the test as instructed and come back to me with a proposed code change that compiles with my requirement? 
+```
+
+This did NOT work. First Claude tried to read the test file before running the tests (inefficient). Then it did not remember how to run cratchit.
+
+I tried again:
+
+```sh
+> I need you to read prompt 005 CAREFULLY to understand how to compile and test the application. Then I want you to run the tests and identify the failure to parse SKV test data. Finally I want you to propose a
+ code change that ignores a row in the CSV::Table if it is the first or last rown AND have a column count that differs from all the others. Can you do this to me and stay VERY FOCUSED on prompt 005 and my 
+request? 
+```
+
+It still fails to understand how to compile and run cratchit?!! What is missing in the prompt?
+
+DARN! It should read prompt 007 *sigh* (And Claude has no meta-thinking so it just dumbly bymbles on riffing on what I said literally and not what makes sense...)
+
+```sh
+> I need you to read prompt 007 CAREFULLY to understand how to compile and test the application. Then I want you to run the tests and identify the failure to parse SKV test data. Finally I want you to propose a
+ code change that ignores a row in the CSV::Table if it is the first or last rown AND have a column count that differs from all the others. Can you do this to me and stay VERY FOCUSED on prompt 007 and my 
+request? 
+```
+
+With this prompt Claude actually came up with a somewhat acceptable solution I think. It added filter_outlier_boundary_rows function. So it is there for future adjustments. AND, the test on SKV 'newer' format now passes ok. But Test 'AccountStatementTests.DetectColumnsFromData' still fails. But that is a good-to-have so I accept that for now.

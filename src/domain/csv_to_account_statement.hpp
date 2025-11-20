@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include <ranges>
 
@@ -332,12 +333,71 @@ inline std::optional<AccountStatementEntry> extract_entry_from_row(
 }
 
 /**
+ * Filter CSV table to remove first/last rows with different column counts
+ *
+ * Strategy:
+ * - Count non-empty fields in each row to determine "effective" column count
+ * - Find the most common effective column count
+ * - Remove first row if its count differs from the majority
+ * - Remove last row if its count differs from the majority
+ *
+ * This handles cases like SKV files where the first row is a company header
+ * and doesn't match the structure of transaction rows.
+ */
+inline CSV::Table filter_outlier_boundary_rows(CSV::Table const& table) {
+  if (table.rows.size() <= 2) {
+    return table;  // Too few rows to filter
+  }
+
+  // Count non-empty fields for each row
+  auto count_non_empty = [](CSV::Table::Row const& row) -> size_t {
+    return std::ranges::count_if(row, [](std::string const& field) {
+      return field.size() > 0;
+    });
+  };
+
+  // Build histogram of column counts
+  std::map<size_t, size_t> count_histogram;
+  for (auto const& row : table.rows) {
+    size_t non_empty = count_non_empty(row);
+    count_histogram[non_empty]++;
+  }
+
+  // Find most common column count
+  size_t most_common_count = 0;
+  size_t max_frequency = 0;
+  for (auto const& [count, freq] : count_histogram) {
+    if (freq > max_frequency) {
+      max_frequency = freq;
+      most_common_count = count;
+    }
+  }
+
+  // Determine which rows to keep
+  bool skip_first = count_non_empty(table.rows.front()) != most_common_count;
+  bool skip_last = count_non_empty(table.rows.back()) != most_common_count;
+
+  // Build filtered table
+  CSV::Table filtered = table;
+  filtered.rows.clear();
+
+  for (size_t i = 0; i < table.rows.size(); ++i) {
+    if (i == 0 && skip_first) continue;
+    if (i == table.rows.size() - 1 && skip_last) continue;
+    filtered.rows.push_back(table.rows[i]);
+  }
+
+  return filtered;
+}
+
+/**
  * Transform CSV::Table to Account Statement Entries
  *
  * This is the main extraction function that:
- * 1. Detects column mapping from header or data
- * 2. Extracts entries from each row
- * 3. Returns Maybe<AccountStatementEntries>
+ * 1. Filters outlier first/last rows with different column structure
+ * 2. Detects column mapping from header or data
+ * 3. Extracts entries from each row
+ * 4. Returns Maybe<AccountStatementEntries>
  *
  * Validation Strategy: All-or-nothing for required fields
  * - All entries must have valid date, amount, and description
@@ -346,12 +406,15 @@ inline std::optional<AccountStatementEntry> extract_entry_from_row(
  * - Returns empty vector if no valid entries found (but detection succeeded)
  */
 inline OptionalAccountStatementEntries csv_table_to_account_statements(CSV::Table const& table) {
+  // Filter out first/last rows if they have different column structure
+  CSV::Table filtered_table = filter_outlier_boundary_rows(table);
+
   // Try to detect columns from header first
-  ColumnMapping mapping = detect_columns_from_header(table.heading);
+  ColumnMapping mapping = detect_columns_from_header(filtered_table.heading);
 
   // If header detection failed, try data-based detection
   if (!mapping.is_valid()) {
-    mapping = detect_columns_from_data(table.rows);
+    mapping = detect_columns_from_data(filtered_table.rows);
   }
 
   // If we still can't detect required columns, fail
@@ -362,7 +425,7 @@ inline OptionalAccountStatementEntries csv_table_to_account_statements(CSV::Tabl
   // Extract entries from rows
   AccountStatementEntries entries;
 
-  for (auto const& row : table.rows) {
+  for (auto const& row : filtered_table.rows) {
     auto maybe_entry = extract_entry_from_row(row, mapping);
     if (maybe_entry) {
       entries.push_back(*maybe_entry);
