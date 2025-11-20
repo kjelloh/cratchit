@@ -315,3 +315,5 @@ Also, cratchit::io::IOResult seems like a paralell type to cratchit::functional:
 Anyhow, looking though new file 'src/text/encoding_pipeline.hpp' and added tests in 'src/test/test_csv_import_pipeline.cpp' I feel content with the result. I do not have time to delve deep into all the code. I decide to trust the help Claude has provided and see where I end up.
 
 The combination of having Claude generate code AND test makes me feel more secure to go with the code and be able to come back later to refactor it (fingers crossed)?
+
+For prompt 006-xxx Claude failed to do what I wanted. It got to attracted to the existing code and created UTF-8 text -> Maybe Table, but failed to focus on a 'neutral' table. Instead it went for the SKV / NORDEA account statement tables right away (just as try_parse_csv does). So I decided to edit the 006-xxx prompt to try and make Claude to deviate from existing code and create a Maybe neutral table instead.
