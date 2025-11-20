@@ -149,7 +149,8 @@ inline ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
   }
 
   // Sample rows for analysis (skip empty first columns - balance rows)
-  auto sample_rows = rows
+  auto sample_rows = 
+      rows
     | std::views::filter([](auto const& row) {
         return row.size() > 0 && row[0].size() > 0;
       })
@@ -164,6 +165,7 @@ inline ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
 
   // Check each column
   for (size_t col = 0; col < num_columns; ++col) {
+
     int valid_dates = 0;
     int valid_amounts = 0;
     int non_empty = 0;
@@ -175,27 +177,28 @@ inline ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
 
       non_empty++;
 
-      // Try parsing as date
       if (to_date(row[col]).has_value()) {
         valid_dates++;
       }
-
-      // Try parsing as amount
-      if (to_amount(row[col]).has_value()) {
+      else if (to_amount(row[col]).has_value()) {
         valid_amounts++;
       }
-    }
+      else {
+        // Nor date or amount
+      }
+    } // for row
 
-    // Column is likely a date column if most non-empty values are valid dates
-    if (non_empty > 0 && valid_dates == non_empty && mapping.date_column == -1) {
+    if (valid_dates == sampled.size()) {
+      // Column is Date if ALL values are valid dates
       mapping.date_column = static_cast<int>(col);
     }
-
-    // Column is likely an amount column if most non-empty values are valid amounts
-    if (non_empty > 0 && valid_amounts == non_empty && mapping.amount_column == -1) {
+    else if (valid_amounts == sampled.size()) {
       mapping.amount_column = static_cast<int>(col);
     }
-  }
+    else {
+      // Not a date nor an amount column
+    }
+  } // for column
 
   // Description is typically the first text column that's not date or amount
   for (size_t col = 0; col < num_columns; ++col) {
