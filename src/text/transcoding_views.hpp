@@ -376,6 +376,9 @@ namespace text::encoding::views {
     {}
 
     auto begin() {
+      // TODO: Design the ability to produce platform (runtime) encoding.
+      //       See RuntimeEncoding::detected_encoding()
+      //       For now, hard coded to UTF-8 (works on macOS but probably not Windows not Linux)
       return detail::unicode_to_utf8_iterator<UnicodeRange>(
         std::ranges::begin(m_unicode_range),
         std::ranges::end(m_unicode_range)
@@ -383,6 +386,9 @@ namespace text::encoding::views {
     }
 
     auto end() {
+      // TODO: Design the ability to produce platform (runtime) encoding.
+      //       See RuntimeEncoding::detected_encoding()
+      //       For now, hard coded to UTF-8 (works on macOS but probably not Windows not Linux)
       return detail::unicode_to_utf8_iterator<UnicodeRange>(
         std::ranges::end(m_unicode_range),
         std::ranges::end(m_unicode_range)
