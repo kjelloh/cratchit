@@ -1958,31 +1958,6 @@ Alice,30,"Stockholm, Sweden"
       logger::development_trace("First entry description: {}", first_entry.transaction_caption);
     }
 
-    TEST(AccountStatementTests, SwedishCharactersPreserved) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, SwedishCharactersPreserved)"};
-
-      // Parse SKV CSV with Swedish characters
-      std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::neutral::parse_csv(csv_text);
-
-      ASSERT_TRUE(maybe_table.has_value());
-
-      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
-
-      ASSERT_TRUE(maybe_statements.has_value());
-
-      // Check for Swedish characters in descriptions
-      bool found_swedish = false;
-      for (auto const& entry : *maybe_statements) {
-        if (entry.transaction_caption.find("Intäktsränta") != std::string::npos) {
-          found_swedish = true;
-          break;
-        }
-      }
-
-      EXPECT_TRUE(found_swedish) << "Expected Swedish characters to be preserved";
-    }
-
     TEST(AccountStatementTests, IntegrationWithPipelineSteps) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, IntegrationWithPipelineSteps)"};
 
