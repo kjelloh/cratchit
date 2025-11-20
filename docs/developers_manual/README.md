@@ -373,3 +373,21 @@ I step prmpt 007-xxx Claude missed to take off from CSV::Table and instead provi
 Now Claude derailed again and went off and resued the existing 'heading ID' and what have you. Allthough I told it to implement a NEW table to statements projection. To small context window again?
 
 I edited prompt 007- to try and make Claude stay on track (less text and more on point).
+
+With the new prompt Claude started off pritty good! It created 'src/domain/csv_to_account_statement.hpp' though which deviated from current code structure.
+
+Claude then finnished prompt 007 but with failing test cases for SKV csv data! It is ironic that it fails to implement the exact feature that started my whole refactoring endevour in the first place!
+
+```sh
+[  FAILED  ] AccountStatementTests.ExtractFromSKVCSVNewer
+[  FAILED  ] AccountStatementTests.DetectColumnsFromData
+[  FAILED  ] AccountStatementTests.SwedishCharactersPreserved
+```
+
+Also, Claude still got confused and added an 'encoding detection' test on this feature. I suppose I still missed to specify in the prompt NOT to do this?
+
+Claude created the new file 'src/domain/csv_to_account_statement.hpp' with somewhat acceptable code. But it is STILL low-level and C-like! I asume this is the code Claude has found in droves on the web?
+
+I like that it implemented keyword maps to identify csv text with header rows. That makes the code adjustable in the future to new mappings for statement files with headert row.
+
+I like that Claude picked up on provided test data sz_NORDEA_csv_20251120, sz_SKV_csv_older and sz_SKV_csv_20251120. At least the tests are in there even if they currently fail. This enables us to refactor and iterate until they pass, good!

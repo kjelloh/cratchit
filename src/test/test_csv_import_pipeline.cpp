@@ -7,6 +7,7 @@
 #include "text/encoding_pipeline.hpp"
 #include "csv/neutral_parser.hpp"
 #include "test/data/account_statements_csv.hpp"
+#include "domain/csv_to_account_statement.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
 #include <filesystem>
@@ -1714,5 +1715,310 @@ Alice,30,"Stockholm, Sweden"
     }
 
   } // namespace csv_pipeline_composition_suite
+
+  namespace account_statement_suite {
+
+    TEST(AccountStatementTests, ExtractFromNordeaCSVWithHeaders) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, ExtractFromNordeaCSVWithHeaders)"};
+
+      // Parse the NORDEA CSV sample data
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      auto maybe_table = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+
+      // Extract account statements
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+
+      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
+      EXPECT_GT(maybe_statements->size(), 0) << "Expected at least one account statement entry";
+
+      // Verify first entry
+      auto const& first_entry = maybe_statements->at(0);
+      EXPECT_EQ(first_entry.transaction_date, to_date(2025, 9, 29));
+      EXPECT_EQ(first_entry.transaction_amount, *to_amount("-1083,75"));
+      EXPECT_FALSE(first_entry.transaction_caption.empty()) << "Expected non-empty description";
+
+      logger::development_trace("Extracted {} account statement entries from NORDEA CSV",
+                               maybe_statements->size());
+    }
+
+    TEST(AccountStatementTests, ExtractFromSKVCSVWithoutHeaders) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, ExtractFromSKVCSVWithoutHeaders)"};
+
+      // Parse the SKV CSV sample data (older format)
+      std::string csv_text = sz_SKV_csv_older;
+      auto maybe_table = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+
+      // Extract account statements
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+
+      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
+
+      // Should have extracted transaction rows (not balance rows)
+      EXPECT_GT(maybe_statements->size(), 0) << "Expected at least one transaction entry";
+
+      // Verify that balance rows were filtered out
+      for (auto const& entry : *maybe_statements) {
+        std::string desc_lower = entry.transaction_caption;
+        std::ranges::transform(desc_lower, desc_lower.begin(),
+          [](char c) { return std::tolower(c); });
+
+        EXPECT_EQ(desc_lower.find("saldo"), std::string::npos)
+          << "Expected balance rows to be filtered out";
+      }
+
+      logger::development_trace("Extracted {} transaction entries from SKV CSV (balance rows filtered)",
+                               maybe_statements->size());
+    }
+
+    TEST(AccountStatementTests, ExtractFromSKVCSVNewer) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, ExtractFromSKVCSVNewer)"};
+
+      // Parse the newer SKV CSV format
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+
+      // Extract account statements
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+
+      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
+
+      // Should have extracted transaction rows
+      EXPECT_GT(maybe_statements->size(), 0) << "Expected transaction entries";
+
+      // Verify one specific entry
+      bool found_interest = false;
+      for (auto const& entry : *maybe_statements) {
+        if (entry.transaction_caption.find("Intäktsränta") != std::string::npos) {
+          found_interest = true;
+          EXPECT_GT(entry.transaction_amount, Amount{0}) << "Expected positive interest amount";
+          break;
+        }
+      }
+      EXPECT_TRUE(found_interest) << "Expected to find interest transaction";
+
+      logger::development_trace("Extracted {} entries from newer SKV CSV", maybe_statements->size());
+    }
+
+    TEST(AccountStatementTests, DetectColumnsWithHeaders) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectColumnsWithHeaders)"};
+
+      // Create a simple CSV table with headers
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Transaction"}});
+
+      // Detect columns
+      auto mapping = domain::detect_columns_from_header(table.heading);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
+      EXPECT_EQ(mapping.date_column, 0);
+      EXPECT_EQ(mapping.amount_column, 1);
+      EXPECT_EQ(mapping.description_column, 2);
+    }
+
+    TEST(AccountStatementTests, DetectColumnsFromData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectColumnsFromData)"};
+
+      // Create a CSV table without meaningful headers
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Col0", "Col1", "Col2"}};
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "Payment received", "100.50"}});
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "Withdrawal", "-50.00"}});
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-03", "Transfer", "200.00"}});
+
+      // Detect columns from data patterns
+      auto mapping = domain::detect_columns_from_data(table.rows);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
+      EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
+      EXPECT_EQ(mapping.amount_column, 2) << "Expected amount in column 2";
+      EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
+    }
+
+    TEST(AccountStatementTests, InvalidDateHandledGracefully) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, InvalidDateHandledGracefully)"};
+
+      // Create a CSV table with invalid date
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"not-a-date", "100.50", "Test"}});
+
+      auto mapping = domain::detect_columns_from_header(table.heading);
+      auto maybe_entry = domain::extract_entry_from_row(table.rows[1], mapping);
+
+      EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid date";
+    }
+
+    TEST(AccountStatementTests, InvalidAmountHandledGracefully) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, InvalidAmountHandledGracefully)"};
+
+      // Create a CSV table with invalid amount
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "not-an-amount", "Test"}});
+
+      auto mapping = domain::detect_columns_from_header(table.heading);
+      auto maybe_entry = domain::extract_entry_from_row(table.rows[1], mapping);
+
+      EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid amount";
+    }
+
+    TEST(AccountStatementTests, EmptyDescriptionHandledGracefully) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, EmptyDescriptionHandledGracefully)"};
+
+      // Create a CSV table with empty description
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", ""}});
+
+      auto mapping = domain::detect_columns_from_header(table.heading);
+      auto maybe_entry = domain::extract_entry_from_row(table.rows[1], mapping);
+
+      EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for empty description";
+    }
+
+    TEST(AccountStatementTests, EmptyCSVReturnsEmptyList) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, EmptyCSVReturnsEmptyList)"};
+
+      // Create a CSV table with only headers
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+
+      auto maybe_statements = domain::csv_table_to_account_statements(table);
+
+      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful extraction";
+      EXPECT_EQ(maybe_statements->size(), 0) << "Expected empty list for headers-only CSV";
+    }
+
+    TEST(AccountStatementTests, BalanceRowsAreIgnored) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, BalanceRowsAreIgnored)"};
+
+      // Create a CSV table with balance row
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Description", "Amount"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"", "Ingående saldo 2025-01-01", "1000"}});
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-05", "Payment", "100"}});
+      table.rows.push_back(Key::Path{std::vector<std::string>{"", "Utgående saldo 2025-01-31", "1100"}});
+
+      auto maybe_statements = domain::csv_table_to_account_statements(table);
+
+      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful extraction";
+      EXPECT_EQ(maybe_statements->size(), 1) << "Expected only transaction row, balance rows ignored";
+
+      if (!maybe_statements->empty()) {
+        EXPECT_EQ(maybe_statements->at(0).transaction_caption, "Payment");
+      }
+    }
+
+    TEST(AccountStatementTests, MissingColumnsReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, MissingColumnsReturnsNullopt)"};
+
+      // Create a CSV table with missing required columns
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"SomeColumn", "AnotherColumn"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"value1", "value2"}});
+
+      auto maybe_statements = domain::csv_table_to_account_statements(table);
+
+      EXPECT_FALSE(maybe_statements.has_value()) << "Expected nullopt when required columns cannot be detected";
+    }
+
+    TEST(AccountStatementTests, MultipleDescriptionColumnsAreConcatenated) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, MultipleDescriptionColumnsAreConcatenated)"};
+
+      // Parse NORDEA CSV which has multiple description columns
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      auto maybe_table = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value());
+
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+
+      ASSERT_TRUE(maybe_statements.has_value());
+      EXPECT_GT(maybe_statements->size(), 0);
+
+      // Check that descriptions are not empty and contain meaningful content
+      auto const& first_entry = maybe_statements->at(0);
+      EXPECT_GT(first_entry.transaction_caption.size(), 5)
+        << "Expected substantial description content";
+
+      logger::development_trace("First entry description: {}", first_entry.transaction_caption);
+    }
+
+    TEST(AccountStatementTests, SwedishCharactersPreserved) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, SwedishCharactersPreserved)"};
+
+      // Parse SKV CSV with Swedish characters
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::neutral::parse_csv(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value());
+
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+
+      ASSERT_TRUE(maybe_statements.has_value());
+
+      // Check for Swedish characters in descriptions
+      bool found_swedish = false;
+      for (auto const& entry : *maybe_statements) {
+        if (entry.transaction_caption.find("Intäktsränta") != std::string::npos) {
+          found_swedish = true;
+          break;
+        }
+      }
+
+      EXPECT_TRUE(found_swedish) << "Expected Swedish characters to be preserved";
+    }
+
+    TEST(AccountStatementTests, IntegrationWithPipelineSteps) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, IntegrationWithPipelineSteps)"};
+
+      // Create a temporary test file
+      auto temp_path = std::filesystem::temp_directory_path() / "cratchit_test_account_statements.csv";
+      {
+        std::ofstream ofs(temp_path);
+        ofs << "Date,Amount,Description\n";
+        ofs << "2025-01-01,100.50,Payment received\n";
+        ofs << "2025-01-02,-50.00,Withdrawal\n";
+        ofs << "2025-01-03,200.00,Transfer in\n";
+      }
+
+      // Complete pipeline: file → text → CSV::Table → AccountStatementEntries
+      auto text_result = text::encoding::read_file_with_encoding_detection(temp_path);
+      ASSERT_TRUE(text_result) << "Expected successful file read";
+
+      auto table_result = CSV::neutral::parse_csv(text_result.value());
+      ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
+
+      auto statements_result = domain::csv_table_to_account_statements(*table_result);
+      ASSERT_TRUE(statements_result.has_value()) << "Expected successful account statement extraction";
+
+      EXPECT_EQ(statements_result->size(), 3) << "Expected 3 account statement entries";
+
+      // Verify entries
+      EXPECT_EQ(statements_result->at(0).transaction_date, to_date(2025, 1, 1));
+      EXPECT_EQ(statements_result->at(1).transaction_amount, *to_amount("-50.00"));
+      EXPECT_EQ(statements_result->at(2).transaction_caption, "Transfer in");
+
+      // Clean up
+      std::filesystem::remove(temp_path);
+
+      logger::development_trace("Complete pipeline integration test passed");
+    }
+
+  } // namespace account_statement_suite
 
 } // namespace tests::csv_import_pipeline
