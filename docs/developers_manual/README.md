@@ -365,3 +365,6 @@ Claude finished the task but to my great dissapointment this time. I decided to 
 3) It reimplemented encoding checks on table content. This is not needed as we already have tested the trasncoing pipe-line for this. We should focus only on CSV to table parsing and trust the encoding to be correct.
 
 It feels as if Claude context window just got bloated and it fell back to create code by mimicking web code and forgot everytging about the context provided in the prompt?
+
+I actually started a new session with Claude and asked it to evaluate how well it done against prompt 006. And it agreed it did a bad job! It also proposed a very comprehensive refactoring task in seven steps! I wonder - does Anthropic try to make me burn tokens to sell me more *smirk*!
+
