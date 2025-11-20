@@ -12,17 +12,17 @@
 namespace text::encoding {
 
   /**
-   * Integrated encoding pipeline: file path → runtime-encoded text (UTF-8)
+   * Integrated encoding pipeline: file path → runtime-encoded text (UTF-8 fallback)
    *
    * This function composes Steps 1-4 of the CSV import pipeline:
    *   1. File I/O: Read file to byte buffer
    *   2. Encoding detection: Detect source encoding using ICU
    *   3. Lazy transcoding: Bytes → Unicode code points
-   *   4. Lazy encoding: Unicode → UTF-8 (runtime encoding)
+   *   4. Lazy encoding: Unicode → runtime encoding
    *
    * Error Handling Strategy:
    *   - File I/O failures: Propagate through IOResult
-   *   - Encoding detection failures: Default to UTF-8 and proceed (most permissive)
+   *   - Encoding detection failures: Default / fallback to UTF-8 and proceed (most permissive)
    *   - This strategy prioritizes availability over correctness for ambiguous cases
    *
    * Performance Characteristics:
@@ -32,7 +32,7 @@ namespace text::encoding {
    *
    * @param file_path Path to the file to read and transcode
    * @param confidence_threshold ICU confidence threshold for encoding detection (default: 90)
-   * @return IOResult<std::string> containing UTF-8 encoded text or error messages
+   * @return IOResult<std::string> containing Platform (runtime) encoded text or error messages
    */
   cratchit::io::IOResult<std::string> read_file_with_encoding_detection(
     std::filesystem::path const& file_path,
@@ -81,23 +81,23 @@ namespace text::encoding {
       );
     }
 
-    // Step 3 & 4: Lazy transcoding pipeline: bytes → Unicode → UTF-8
+    // Step 3 & 4: Lazy transcoding pipeline: bytes → Unicode → Platform encoding
     // This creates a lazy view - no actual transcoding happens yet
     auto unicode_view = views::bytes_to_unicode(buffer, detected_encoding);
-    auto utf8_view = views::unicode_to_runtime_encoding(unicode_view);
+    auto platform_text_view = views::unicode_to_runtime_encoding(unicode_view);
 
     // Materialize the lazy view into a string
     // This is where the actual transcoding happens
     std::string transcoded_text;
     transcoded_text.reserve(buffer.size()); // Reasonable initial capacity
 
-    for (char byte : utf8_view) {
+    for (char byte : platform_text_view) {
       transcoded_text.push_back(byte);
     }
 
     result.m_value = std::move(transcoded_text);
     result.push_message(
-      std::format("Successfully transcoded {} bytes to {} UTF-8 bytes",
+      std::format("Successfully transcoded {} bytes to {} Platform encoding bytes",
                  buffer.size(),
                  result.value().size())
     );
@@ -116,7 +116,7 @@ namespace text::encoding {
    *
    * @param buffer Byte buffer to transcode (must outlive the returned view)
    * @param confidence_threshold ICU confidence threshold for encoding detection
-   * @return Lazy view producing UTF-8 bytes, or empty optional on detection failure
+   * @return Lazy view producing Platform encoding bytes, or empty optional on detection failure
    */
   template<typename ByteBuffer>
   auto create_lazy_encoding_view(
