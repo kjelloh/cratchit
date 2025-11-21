@@ -25,11 +25,14 @@ struct AccountStatementEntry {
   Date transaction_date;
   Amount transaction_amount;
   std::string transaction_caption;
+  using Tags = std::map<std::string, std::string>;
+  Tags transaction_tags;
 
-  AccountStatementEntry(Date date, Amount amount, std::string caption)
+  AccountStatementEntry(Date date, Amount amount, std::string caption,Tags tags = {})
     : transaction_date(date)
     , transaction_amount(amount)
     , transaction_caption(std::move(caption))
+    , transaction_tags{tags}
   {}
 };
 

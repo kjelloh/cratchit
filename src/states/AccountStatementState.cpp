@@ -24,36 +24,54 @@ namespace first {
     return "Account Statement";
   }
 
-  using DeltaType = ::Delta<TaggedAmount>;
-  using StateType = ::State<TaggedAmount>;
-  std::vector<std::string> to_elements(std::vector<std::string> headers,DeltaType const& delta) {
+  // using DeltaType = ::Delta<TaggedAmount>;
+  // using StateType = ::State<TaggedAmount>;
+  // std::vector<std::string> to_elements(std::vector<std::string> headers,DeltaType const& delta) {
+  //   std::vector<std::string> result(headers.size(),"??");
+  //   std::map<std::string,std::function<std::string(DeltaType)>> projector = {
+  //      {"Type",[](DeltaType const& delta){return "Trans";}}
+  //     ,{"Date",[](DeltaType const& delta){return to_string(delta.m_v.date());}}
+  //     ,{"Description",[](DeltaType const& delta){return delta.m_v.tag_value("Text").value_or("??");}}
+  //     ,{"Amount",[](DeltaType const& delta){return to_string(to_units_and_cents(delta.m_v.cents_amount()));}}
+  //     ,{"Tags",[](DeltaType const& delta){return out::to_string(delta.m_v.tags());}}
+  //   };
+  //   for (int i=0;i<headers.size();++i) {  
+  //     if (projector.contains(headers[i])) {
+  //       result[i] = projector[headers[i]](delta);
+  //     }
+  //   }
+  //   return result;
+  // }
+  // std::vector<std::string> to_elements(std::vector<std::string> headers,StateType const& state) {
+  //   std::vector<std::string> result(headers.size(),"??");
+  //   std::map<std::string,std::function<std::string(StateType)>> projector = {
+  //      {"Type",[](StateType const& state){return "Saldo";}}
+  //     ,{"Date",[](StateType const& state){return to_string(state.m_v.date());}}
+  //     ,{"Description",[](StateType const& state){return "";}}
+  //     ,{"Amount",[](StateType const& state){return to_string(to_units_and_cents(state.m_v.cents_amount()));}}
+  //     ,{"Tags",[](StateType const& state){return out::to_string(state.m_v.tags());}}
+  //   };
+  //   for (int i=0;i<headers.size();++i) {  
+  //     if (projector.contains(headers[i])) {
+  //       result[i] = projector[headers[i]](state);
+  //     }
+  //   }
+  //   return result;
+  // }
+
+  using Entry = domain::AccountStatementEntry;
+  std::vector<std::string> to_elements(std::vector<std::string> headers,Entry const& entry) {
     std::vector<std::string> result(headers.size(),"??");
-    std::map<std::string,std::function<std::string(DeltaType)>> projector = {
-       {"Type",[](DeltaType const& delta){return "Trans";}}
-      ,{"Date",[](DeltaType const& delta){return to_string(delta.m_v.date());}}
-      ,{"Description",[](DeltaType const& delta){return delta.m_v.tag_value("Text").value_or("??");}}
-      ,{"Amount",[](DeltaType const& delta){return to_string(to_units_and_cents(delta.m_v.cents_amount()));}}
-      ,{"Tags",[](DeltaType const& delta){return out::to_string(delta.m_v.tags());}}
+    std::map<std::string,std::function<std::string(Entry)>> projector = {
+       {"Type",[](Entry const& entry){return "Trans";}}
+      ,{"Date",[](Entry const& entry){return to_string(entry.transaction_date);}}
+      ,{"Description",[](Entry const& entry){return entry.transaction_caption;}}
+      ,{"Amount",[](Entry const& entry){return to_string(entry.transaction_amount);}}
+      ,{"Tags",[](Entry const& entry){return out::to_string(entry.transaction_tags);}}
     };
     for (int i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
-        result[i] = projector[headers[i]](delta);
-      }
-    }
-    return result;
-  }
-  std::vector<std::string> to_elements(std::vector<std::string> headers,StateType const& state) {
-    std::vector<std::string> result(headers.size(),"??");
-    std::map<std::string,std::function<std::string(StateType)>> projector = {
-       {"Type",[](StateType const& state){return "Saldo";}}
-      ,{"Date",[](StateType const& state){return to_string(state.m_v.date());}}
-      ,{"Description",[](StateType const& state){return "";}}
-      ,{"Amount",[](StateType const& state){return to_string(to_units_and_cents(state.m_v.cents_amount()));}}
-      ,{"Tags",[](StateType const& state){return out::to_string(state.m_v.tags());}}
-    };
-    for (int i=0;i<headers.size();++i) {  
-      if (projector.contains(headers[i])) {
-        result[i] = projector[headers[i]](state);
+        result[i] = projector[headers[i]](entry);
       }
     }
     return result;
@@ -112,22 +130,35 @@ namespace first {
         const auto& entry = entries[i];
         std::string row_line{};
         
-        std::visit([&](const auto& variant_entry) {
-          using T = std::decay_t<decltype(variant_entry)>;
+        // std::visit([&](const auto& variant_entry) {
+        //   using T = std::decay_t<decltype(variant_entry)>;
 
-          auto elements = to_elements(headers,variant_entry);
+        //   auto elements = to_elements(headers,variant_entry);
           
-          // Truncate strings to fit column widths
-          for (int i=0;i<headers.size();++i) {
-            if (elements[i].length() > column_widths[i]) {
-              elements[i] = elements[i].substr(0, column_widths[i] - 3) + "...";
-            }
+        //   // Truncate strings to fit column widths
+        //   for (int i=0;i<headers.size();++i) {
+        //     if (elements[i].length() > column_widths[i]) {
+        //       elements[i] = elements[i].substr(0, column_widths[i] - 3) + "...";
+        //     }
+        //   }
+        //   for (int i=0;i<headers.size();++i) {
+        //     if (i > 0) row_line += " | ";
+        //     row_line += std::format("{:<{}}",elements[i],column_widths[i]);
+        //   }
+        // }, entry);
+
+        auto elements = to_elements(headers,entry);
+        
+        // Truncate strings to fit column widths
+        for (int i=0;i<headers.size();++i) {
+          if (elements[i].length() > column_widths[i]) {
+            elements[i] = elements[i].substr(0, column_widths[i] - 3) + "...";
           }
-          for (int i=0;i<headers.size();++i) {
-            if (i > 0) row_line += " | ";
-            row_line += std::format("{:<{}}",elements[i],column_widths[i]);
-          }
-        }, entry);
+        }
+        for (int i=0;i<headers.size();++i) {
+          if (i > 0) row_line += " | ";
+          row_line += std::format("{:<{}}",elements[i],column_widths[i]);
+        }
         
         result.push_back(row_line);
       }

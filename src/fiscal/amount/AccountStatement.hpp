@@ -1,5 +1,6 @@
 #pragma once
 
+#include "domain/csv_to_account_statement.hpp"
 #include "TaggedAmountFramework.hpp"
 #include "csv/projections.hpp"
 #include <expected>
@@ -28,9 +29,6 @@ struct DomainPrefixedId {
   }
 };
 
-using AccountStatementEntry = std::variant<Delta<TaggedAmount>,State<TaggedAmount>>;
-using AccountStatementEntries = std::vector<AccountStatementEntry>;
-
 // Models transactions of an account statment (e.g., from a CSV account statement file)
 class AccountStatement {
 public:
@@ -45,14 +43,14 @@ public:
   struct Meta {
     std::optional<DomainPrefixedId> m_maybe_account_irl_id;
   };
-  AccountStatement(AccountStatementEntries const& entries,Meta meta = {});
+  AccountStatement(domain::AccountStatementEntries const& entries,Meta meta = {});
   
-  AccountStatementEntries const& entries() const { return m_entries; }
+  domain::AccountStatementEntries const& entries() const { return m_entries; }
   Meta const& meta() const { return m_meta; }
   
 private:
   Meta m_meta;
-  AccountStatementEntries m_entries;
+  domain::AccountStatementEntries m_entries;
 }; // AccountStatement
 
 using ExpectedAccountStatement = std::expected<AccountStatement,std::string>;
