@@ -66,7 +66,19 @@ namespace first {
     result.push_back("");
     
     if (m_period_paired_expected_account_statement.content()) {
+
       const auto& statement = m_period_paired_expected_account_statement.content().value();
+
+      result.push_back(std::format(
+         "Account: {}"
+        ,statement.meta().m_maybe_account_irl_id
+          .transform([](auto const& account_irl_id){
+            return account_irl_id.to_string();
+          })
+          .value_or("??")));
+
+      result.push_back("");
+
       const auto& entries = statement.entries();
       
       if (entries.empty()) {
@@ -126,10 +138,6 @@ namespace first {
       
       result.push_back("");
       result.push_back(std::format("Total entries: {}", entries.size()));
-
-      result.push_back(std::format(
-         "Account: {}"
-        ,statement.meta().m_maybe_account_irl_id.value_or("*anonymous*")));
 
     }
     else {

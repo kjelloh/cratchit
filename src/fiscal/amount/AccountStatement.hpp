@@ -17,14 +17,33 @@ struct State {
   T m_v;
 };
 
+struct DomainPrefixedId {
+  std::string m_prefix; // E.g., NORDEA,PG,BG,IBAN,SKV,
+  std::string m_value; // E.g. a bank account, a PG account etc...
+  std::string to_string() const {
+    return std::format(
+       "{}{}"
+      ,((m_prefix.size()>0)?m_prefix:std::string{})
+      ,m_value);
+  }
+};
+
 using AccountStatementEntry = std::variant<Delta<TaggedAmount>,State<TaggedAmount>>;
 using AccountStatementEntries = std::vector<AccountStatementEntry>;
 
 // Models transactions of an account statment (e.g., from a CSV account statement file)
 class AccountStatement {
 public:
+  // 'About' this account statement
+  // Note: Consider to pair AccountStatement with other meta-data that is less
+  //       tightly (more transient) to its nature. Like a source file path
+  //       or such that is not relevant for core book-keeping operations on 
+  //       account statement content.
+  // TODO: Make m_maybe_account_irl_id required when mapping to accouning
+  //       is in place. The optional nature allows for manual mapping 
+  //       to e.g., BAS account by the user.
   struct Meta {
-    std::optional<std::string> m_maybe_account_irl_id;
+    std::optional<DomainPrefixedId> m_maybe_account_irl_id;
   };
   AccountStatement(AccountStatementEntries const& entries,Meta meta = {});
   
