@@ -1484,7 +1484,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(result.has_value()) << "Expected successful parse of newer SKV CSV";
 
       // This format uses quotes extensively
-      EXPECT_GT(result->rows.size(), 1) << "Expected multiple rows";
+      EXPECT_EQ(result->rows.size(), 8) << "Expected eight rows";
 
       // Check first row - company info
       EXPECT_EQ(result->rows[0][0], "THE ITFIED AB");
@@ -1789,7 +1789,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
 
       // Should have extracted transaction rows
-      EXPECT_GT(maybe_statements->size(), 0) << "Expected transaction entries";
+      EXPECT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
 
       // Verify one specific entry
       bool found_interest = false;

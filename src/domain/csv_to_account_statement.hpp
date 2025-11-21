@@ -3,6 +3,7 @@
 #include "csv/csv.hpp"
 #include "fiscal/amount/AmountFramework.hpp"
 #include "FiscalPeriod.hpp"
+#include "logger/log.hpp" // logger::...
 #include <optional>
 #include <string>
 #include <string_view>
@@ -412,6 +413,8 @@ inline CSV::Table filter_outlier_boundary_rows(CSV::Table const& table) {
  * - Returns empty vector if no valid entries found (but detection succeeded)
  */
 inline OptionalAccountStatementEntries csv_table_to_account_statements(CSV::Table const& table) {
+  logger::scope_logger log_raii{logger::development_trace, "domain::csv_table_to_account_statements(table)"};
+  
   // Filter out first/last rows if they have different column structure
   CSV::Table filtered_table = filter_outlier_boundary_rows(table);
 
@@ -437,6 +440,8 @@ inline OptionalAccountStatementEntries csv_table_to_account_statements(CSV::Tabl
       entries.push_back(*maybe_entry);
     }
   }
+
+  logger::development_trace("Returns entries with size:{}",entries.size());
 
   // Return the entries (may be empty if all rows were ignorable)
   return entries;

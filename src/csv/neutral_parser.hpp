@@ -1,6 +1,7 @@
 #pragma once
 
 #include "csv/csv.hpp"
+#include "logger/log.hpp" // logger::...
 #include <string>
 #include <string_view>
 #include <optional>
@@ -184,6 +185,7 @@ namespace neutral {
    * @return Optional CSV::Table, empty on parse failure
    */
   std::optional<CSV::Table> parse_csv(std::string_view csv_text, std::optional<char> delimiter = std::nullopt) {
+    logger::scope_logger log_raii{logger::development_trace, "CSV::neutral::parse_csv(string_view)"};
     // Handle empty input
     if (csv_text.empty()) {
       return std::nullopt;
@@ -231,6 +233,7 @@ namespace neutral {
       table.rows.push_back(Key::Path{all_rows[i]});
     }
 
+    logger::development_trace("Returns table with size:{}",table.rows.size());
     return table;
   }
 
