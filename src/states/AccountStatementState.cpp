@@ -30,10 +30,10 @@ namespace first {
     std::vector<std::string> result(headers.size(),"??");
     std::map<std::string,std::function<std::string(DeltaType)>> projector = {
        {"Type",[](DeltaType const& delta){return "Trans";}}
-      ,{"Date",[](DeltaType const& delta){return to_string(delta.m_t.date());}}
-      ,{"Description",[](DeltaType const& delta){return delta.m_t.tag_value("Text").value_or("??");}}
-      ,{"Amount",[](DeltaType const& delta){return to_string(to_units_and_cents(delta.m_t.cents_amount()));}}
-      ,{"Tags",[](DeltaType const& delta){return out::to_string(delta.m_t.tags());}}
+      ,{"Date",[](DeltaType const& delta){return to_string(delta.m_v.date());}}
+      ,{"Description",[](DeltaType const& delta){return delta.m_v.tag_value("Text").value_or("??");}}
+      ,{"Amount",[](DeltaType const& delta){return to_string(to_units_and_cents(delta.m_v.cents_amount()));}}
+      ,{"Tags",[](DeltaType const& delta){return out::to_string(delta.m_v.tags());}}
     };
     for (int i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
@@ -46,10 +46,10 @@ namespace first {
     std::vector<std::string> result(headers.size(),"??");
     std::map<std::string,std::function<std::string(StateType)>> projector = {
        {"Type",[](StateType const& state){return "Saldo";}}
-      ,{"Date",[](StateType const& state){return to_string(state.m_t.date());}}
+      ,{"Date",[](StateType const& state){return to_string(state.m_v.date());}}
       ,{"Description",[](StateType const& state){return "";}}
-      ,{"Amount",[](StateType const& state){return to_string(to_units_and_cents(state.m_t.cents_amount()));}}
-      ,{"Tags",[](StateType const& state){return out::to_string(state.m_t.tags());}}
+      ,{"Amount",[](StateType const& state){return to_string(to_units_and_cents(state.m_v.cents_amount()));}}
+      ,{"Tags",[](StateType const& state){return out::to_string(state.m_v.tags());}}
     };
     for (int i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
@@ -126,10 +126,11 @@ namespace first {
       
       result.push_back("");
       result.push_back(std::format("Total entries: {}", entries.size()));
-      
-      if (statement.account_descriptor()) {
-        result.push_back(std::format("Account: {}", *statement.account_descriptor()));
-      }
+
+      result.push_back(std::format(
+         "Account: {}"
+        ,statement.meta().m_maybe_account_irl_id.value_or("*anonymous*")));
+
     }
     else {
       result.push_back(std::format("Sorry - {}",m_period_paired_expected_account_statement.content().error()));

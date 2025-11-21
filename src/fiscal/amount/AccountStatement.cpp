@@ -4,9 +4,9 @@
 
 AccountStatement:: AccountStatement(
    AccountStatementEntries const& entries
-  ,OptionalAccountDescriptor account_descriptor)
+  ,Meta meta)
     :  m_entries{entries}
-      ,m_account_descriptor{account_descriptor} {}
+      ,m_meta{meta} {}
 
 namespace CSV {
   namespace project {

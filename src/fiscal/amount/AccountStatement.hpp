@@ -5,17 +5,16 @@
 #include <expected>
 #include <variant>
 
-// 20250803 - Experimental / KoH
-//            Notion: Delta = State - State
-//            So far it seems this aproach is not worth the effort?
-//            Seems to require cumbersome boilerplate to process
+// Delta represents a T value change
 template <typename T>
 struct Delta {
-  T m_t;
+  T m_v;
 };
+
+// State represents a T value
 template <typename T>
 struct State {
-  T m_t;
+  T m_v;
 };
 
 using AccountStatementEntry = std::variant<Delta<TaggedAmount>,State<TaggedAmount>>;
@@ -24,15 +23,16 @@ using AccountStatementEntries = std::vector<AccountStatementEntry>;
 // Models transactions of an account statment (e.g., from a CSV account statement file)
 class AccountStatement {
 public:
-  using AccountDescriptor = std::string;
-  using OptionalAccountDescriptor = std::optional<AccountDescriptor>;
-  AccountStatement(AccountStatementEntries const& entries,OptionalAccountDescriptor account_descriptor = std::nullopt);
+  struct Meta {
+    std::optional<std::string> m_maybe_account_irl_id;
+  };
+  AccountStatement(AccountStatementEntries const& entries,Meta meta = {});
   
-  const AccountStatementEntries& entries() const { return m_entries; }
-  const OptionalAccountDescriptor& account_descriptor() const { return m_account_descriptor; }
+  AccountStatementEntries const& entries() const { return m_entries; }
+  Meta const& meta() const { return m_meta; }
   
 private:
-  OptionalAccountDescriptor m_account_descriptor;
+  Meta m_meta;
   AccountStatementEntries m_entries;
 }; // AccountStatement
 
