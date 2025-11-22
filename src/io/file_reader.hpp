@@ -19,7 +19,8 @@ namespace io {
 
   /// Result type for file operations with error messages
   template<typename T>
-  using IOResult = functional::AnnotatedOptional<T>;
+  // using IOResult = functional::AnnotatedOptional<T>;
+  using IOResult = AnnotatedMaybe<T>;
 
   /// Error information for file operations
   struct FileIOError {

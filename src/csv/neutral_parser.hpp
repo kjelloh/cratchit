@@ -45,7 +45,7 @@ namespace neutral {
    * @param text CSV text to analyze
    * @return ';' or ',' based on detection, defaults to ';' if ambiguous
    */
-  char detect_delimiter(std::string_view text) {
+  inline char detect_delimiter(std::string_view text) {
     // Find first line
     auto first_newline = text.find('\n');
     auto first_line = first_newline != std::string_view::npos
@@ -74,7 +74,7 @@ namespace neutral {
    * @param delimiter Field delimiter (',' or ';')
    * @return Parsed field content (without surrounding quotes)
    */
-  std::string parse_field(std::string_view text, size_t& pos, char delimiter) {
+  inline std::string parse_field(std::string_view text, size_t& pos, char delimiter) {
     std::string field;
 
     if (pos >= text.size()) {
@@ -137,7 +137,7 @@ namespace neutral {
    * @param delimiter Field delimiter (',' or ';')
    * @return Vector of field strings for this row
    */
-  std::vector<std::string> parse_row(std::string_view text, size_t& pos, char delimiter) {
+  inline std::vector<std::string> parse_row(std::string_view text, size_t& pos, char delimiter) {
     std::vector<std::string> fields;
 
     if (pos >= text.size()) {
@@ -184,7 +184,7 @@ namespace neutral {
    * @param delimiter Optional delimiter (auto-detected if not specified)
    * @return Optional CSV::Table, empty on parse failure
    */
-  std::optional<CSV::Table> parse_csv(std::string_view csv_text, std::optional<char> delimiter = std::nullopt) {
+  inline std::optional<CSV::Table> parse_csv(std::string_view csv_text, std::optional<char> delimiter = std::nullopt) {
     logger::scope_logger log_raii{logger::development_trace, "CSV::neutral::parse_csv(string_view)"};
     // Handle empty input
     if (csv_text.empty()) {

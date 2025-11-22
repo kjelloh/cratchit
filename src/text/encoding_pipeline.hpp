@@ -34,10 +34,10 @@ namespace text::encoding {
    * @param confidence_threshold ICU confidence threshold for encoding detection (default: 90)
    * @return IOResult<std::string> containing Platform (runtime) encoded text or error messages
    */
-  cratchit::io::IOResult<std::string> read_file_with_encoding_detection(
+  inline cratchit::io::IOResult<std::string> read_file_with_encoding_detection(
     std::filesystem::path const& file_path,
-    int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD
-  ) {
+    int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD) {
+
     cratchit::io::IOResult<std::string> result{};
 
     // Step 1: Read file to byte buffer

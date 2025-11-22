@@ -1,5 +1,7 @@
 
 #include "parse_csv.hpp"
+#include "text/encoding_pipeline.hpp" // text::encoding::read_file_with_encoding_detection 
+#include "csv/neutral_parser.hpp" // CSV::neutral::parse_csv
 #include "logger/log.hpp"
 #include "std_overload.hpp" // std_overload::overload,...
 #include <fstream>
@@ -67,5 +69,21 @@ namespace CSV {
     }    
     return result;
   }
+
+  // 'Newer' csv file path -> Table
+  AnnotatedMaybe<CSV::Table> file_to_table(std::filesystem::path const& file_path) {
+    AnnotatedMaybe<CSV::Table> result{};
+
+    auto file_to_text_result = text::encoding::read_file_with_encoding_detection(file_path);
+    if (file_to_text_result) {
+      result.m_value = CSV::neutral::parse_csv(file_to_text_result.value());
+    }
+    else {
+      result.push_message("Failed to parse csv into a valid table");
+    }
+
+    return result;
+  }
+
 
 }

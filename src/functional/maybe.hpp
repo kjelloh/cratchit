@@ -12,6 +12,11 @@ namespace cratchit {
       operator bool() const {return m_value.has_value();}
       T const& value() const {return m_value.value();}
 
+      AnnotatedOptional& operator=(T value) {
+        m_value = std::move(value);
+        return *this;
+      }
+
       template <class F>
       auto and_then(F&& f) const & {
         using result_type = std::invoke_result_t<F, T const&>;
@@ -50,3 +55,6 @@ namespace cratchit {
     
   } // functional
 } // cratchit
+
+template<typename T>
+using AnnotatedMaybe = cratchit::functional::AnnotatedOptional<T>;
