@@ -1819,7 +1819,7 @@ Alice,30,"Stockholm, Sweden"
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
       EXPECT_EQ(mapping.date_column, 0);
-      EXPECT_EQ(mapping.amount_column, 1);
+      EXPECT_EQ(mapping.transaction_amount_column, 1);
       EXPECT_EQ(mapping.description_column, 2);
     }
 
@@ -1838,7 +1838,7 @@ Alice,30,"Stockholm, Sweden"
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
       EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
-      EXPECT_EQ(mapping.amount_column, 2) << "Expected amount in column 2";
+      EXPECT_EQ(mapping.transaction_amount_column, 2) << "Expected transaction amount in column 2";
       EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
     }
 
@@ -1992,6 +1992,133 @@ Alice,30,"Stockholm, Sweden"
       std::filesystem::remove(temp_path);
 
       logger::development_trace("Complete pipeline integration test passed");
+    }
+
+    TEST(AccountStatementTests, ExtractTransactionAmountNotSaldo) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, ExtractTransactionAmountNotSaldo)"};
+
+      // Parse the newer SKV CSV format which has both transaction amount and saldo columns
+      // Column structure: Date | Description | Transaction Amount | Saldo
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+
+      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
+      ASSERT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
+
+      // Expected transaction amounts (column 2), NOT saldo values (column 3)
+      // Row: "2025-07-05";"Intäktsränta";"1";"659"     -> amount=1, NOT 659
+      // Row: "2025-08-13";"Moms...";"879";"1 538"      -> amount=879, NOT 1538
+      // Row: "2025-08-20";"Utbetalning";"-879";"659"   -> amount=-879, NOT 659
+      // Row: "2025-09-06";"Intäktsränta";"1";"660"     -> amount=1, NOT 660
+
+      auto const& entries = *maybe_statements;
+
+      // Verify each transaction has correct transaction amount (not saldo)
+      EXPECT_EQ(entries[0].transaction_amount, Amount{1})
+        << "First Intäktsränta should be 1, not saldo 659";
+      EXPECT_EQ(entries[1].transaction_amount, Amount{879})
+        << "Moms should be 879, not saldo 1538";
+      EXPECT_EQ(entries[2].transaction_amount, Amount{-879})
+        << "Utbetalning should be -879, not saldo 659";
+      EXPECT_EQ(entries[3].transaction_amount, Amount{1})
+        << "Second Intäktsränta should be 1, not saldo 660";
+
+      logger::development_trace("Verified all 4 entries have transaction amounts, not saldo amounts");
+    }
+
+    TEST(AccountStatementTests, DetectBothAmountColumns) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectBothAmountColumns)"};
+
+      // Parse SKV CSV to get a table, then verify column detection
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+
+      // Filter outlier rows to get consistent structure
+      auto filtered_table = domain::filter_outlier_boundary_rows(*maybe_table);
+
+      // Detect columns from data
+      auto mapping = domain::detect_columns_from_data(filtered_table.rows);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
+
+      // SKV format: Col0=Date, Col1=Description, Col2=Transaction, Col3=Saldo
+      EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
+      EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
+      EXPECT_EQ(mapping.transaction_amount_column, 2) << "Expected transaction amount in column 2";
+      EXPECT_EQ(mapping.saldo_amount_column, 3) << "Expected saldo amount in column 3";
+
+      logger::development_trace("Column mapping: date={}, desc={}, trans_amt={}, saldo={}",
+        mapping.date_column, mapping.description_column,
+        mapping.transaction_amount_column, mapping.saldo_amount_column);
+    }
+
+    TEST(AccountStatementTests, ExtractTransactionAmountWithOlderSKVFormat) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, ExtractTransactionAmountWithOlderSKVFormat)"};
+
+      // Parse the older SKV CSV format
+      // Format: Date;Description;Amount;(empty);(empty)
+      std::string csv_text = sz_SKV_csv_older;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+
+      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
+      ASSERT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
+
+      auto const& entries = *maybe_statements;
+
+      // Verify transaction amounts from older format
+      // Row: 2025-04-05;Intäktsränta;1;;
+      // Row: 2025-05-12;Moms jan 2025 - mars 2025;1997;;
+      // Row: 2025-05-14;Utbetalning;-1997;;
+      // Row: 2025-06-01;Intäktsränta;1;;
+      EXPECT_EQ(entries[0].transaction_amount, Amount{1});
+      EXPECT_EQ(entries[1].transaction_amount, Amount{1997});
+      EXPECT_EQ(entries[2].transaction_amount, Amount{-1997});
+      EXPECT_EQ(entries[3].transaction_amount, Amount{1});
+
+      logger::development_trace("Verified older SKV format transaction amounts");
+    }
+
+    TEST(AccountStatementTests, ThousandsSeparatorInSaldoDoesNotAffectTransaction) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, ThousandsSeparatorInSaldoDoesNotAffectTransaction)"};
+
+      // The SKV CSV has saldo "1 538" (with space as thousands separator)
+      // Verify that:
+      // 1. The "1 538" saldo format parses incorrectly (stops at space, giving 1 not 1538)
+      // 2. Our extraction correctly uses the transaction column (879), not the saldo column
+
+      // First, verify that "1 538" parses as just "1" (istringstream stops at space)
+      auto saldo_with_space = to_amount("1 538");
+      ASSERT_TRUE(saldo_with_space.has_value()) << "1 538 should parse (but truncated)";
+      EXPECT_EQ(*saldo_with_space, Amount{1})
+        << "Saldo '1 538' should parse as 1 (stops at space), NOT as 1538";
+
+      // Now verify the actual extraction uses the correct column
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value());
+
+      auto maybe_statements = domain::csv_table_to_account_statements(*maybe_table);
+      ASSERT_TRUE(maybe_statements.has_value());
+      ASSERT_EQ(maybe_statements->size(), 4);
+
+      // The row with "1 538" saldo should have 879 as transaction amount
+      // Row: "2025-08-13";"Moms april 2025 - juni 2025";"879";"1 538"
+      // If we incorrectly used the saldo column, we'd get 1 (truncated parse of "1 538")
+      auto const& moms_entry = maybe_statements->at(1);
+      EXPECT_EQ(moms_entry.transaction_amount, Amount{879})
+        << "Transaction amount should be 879, not 1 (truncated saldo)";
+
+      logger::development_trace("Verified thousands separator in saldo doesn't affect transaction extraction");
     }
 
   } // namespace account_statement_suite

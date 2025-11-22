@@ -23,12 +23,13 @@ namespace domain {
  */
 struct ColumnMapping {
   int date_column = -1;
-  int amount_column = -1;
-  int description_column = -1;  // Primary description column
+  int transaction_amount_column = -1;  // Column with transaction delta/change
+  int saldo_amount_column = -1;        // Column with running balance (optional)
+  int description_column = -1;         // Primary description column
   std::vector<int> additional_description_columns;  // Additional columns to concatenate
 
   bool is_valid() const {
-    return date_column >= 0 && amount_column >= 0 && description_column >= 0;
+    return date_column >= 0 && transaction_amount_column >= 0 && description_column >= 0;
   }
 };
 
@@ -83,9 +84,9 @@ inline ColumnMapping detect_columns_from_header(CSV::Table::Heading const& headi
       mapping.date_column = static_cast<int>(i);
     }
 
-    // Check for amount column
-    if (mapping.amount_column == -1 && contains_keyword(col_name, amount_keywords)) {
-      mapping.amount_column = static_cast<int>(i);
+    // Check for transaction amount column
+    if (mapping.transaction_amount_column == -1 && contains_keyword(col_name, amount_keywords)) {
+      mapping.transaction_amount_column = static_cast<int>(i);
     }
 
     // Check for primary description column
@@ -172,7 +173,14 @@ inline ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
       mapping.date_column = static_cast<int>(col);
     }
     else if (valid_amounts == sampled.size()) {
-      mapping.amount_column = static_cast<int>(col);
+      // First amount column found becomes transaction amount
+      // Second amount column found becomes saldo amount
+      if (mapping.transaction_amount_column == -1) {
+        mapping.transaction_amount_column = static_cast<int>(col);
+      }
+      else if (mapping.saldo_amount_column == -1) {
+        mapping.saldo_amount_column = static_cast<int>(col);
+      }
     }
     else {
       // Not a date nor an amount column
@@ -182,7 +190,8 @@ inline ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
   // Description is typically the first text column that's not date or amount
   for (size_t col = 0; col < num_columns; ++col) {
     if (static_cast<int>(col) != mapping.date_column &&
-        static_cast<int>(col) != mapping.amount_column &&
+        static_cast<int>(col) != mapping.transaction_amount_column &&
+        static_cast<int>(col) != mapping.saldo_amount_column &&
         mapping.description_column == -1) {
 
       // Check if column has substantial text content
@@ -276,13 +285,13 @@ inline std::optional<AccountStatementEntry> extract_entry_from_row(
     return std::nullopt;
   }
 
-  // Extract and validate amount
-  if (static_cast<size_t>(mapping.amount_column) >= row.size() ||
-      row[mapping.amount_column].size() == 0) {
+  // Extract and validate transaction amount
+  if (static_cast<size_t>(mapping.transaction_amount_column) >= row.size() ||
+      row[mapping.transaction_amount_column].size() == 0) {
     return std::nullopt;
   }
 
-  auto maybe_amount = to_amount(row[mapping.amount_column]);
+  auto maybe_amount = to_amount(row[mapping.transaction_amount_column]);
   if (!maybe_amount) {
     return std::nullopt;
   }
