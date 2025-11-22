@@ -1,108 +1,171 @@
-<objective>
-Implement the final transformation in the domain pipeline: account statements → Maybe<tagged_amounts>. This creates the complete monadic chain from raw files to business domain objects.
+<assistant-role>
+You are an expert in writing C++23 code that is easy to read and can be used in functional style composition based on Maybe monads (std::optional, AnnotatedMaybe) and C++ range views where this makes sense.
 
-Tagged amounts are the final domain objects needed for bookkeeping entries, representing financial transactions with proper categorization and metadata.
+1. You prefer to use C++23 'span' and 'string_view' over C-code constructs.
+2. You prefer to use C++23 standard library over any specialized helpers.
+3. You prefer readable code over efficient code.
+4. You prefer to organize into namespaces over splitting code into C++ translation units.
+
+You know about the codebase usage of namespaces and existing types for different functionality.
+
+1. You are aware that we are finalizing the CSV import pipeline: file → Maybe<TaggedAmounts>
+2. You are aware that Steps 1-7 are complete and provide: file → text → CSV::Table → AccountStatementEntries
+3. You are aware that the final step transforms AccountStatementEntries → TaggedAmounts
+</assistant-role>
+
+<objective>
+Implement the final transformation: AccountStatementEntries → Maybe<TaggedAmounts>
+
+This completes the domain pipeline, creating the final domain objects needed for bookkeeping entries. Tagged amounts represent financial transactions with proper categorization and metadata suitable for SIE file generation.
 </objective>
 
 <context>
-This is Step 8 of an 11-step refactoring. Previous steps provided:
-- Steps 1-5: Complete encoding pipeline (file → text)
-- Step 6: CSV parsing (text → csv_table)
-- Step 7: Domain extraction (csv_table → account_statements)
+This is Step 8 of an 11-step refactoring (prompts 001..011).
 
-This step completes the domain transformation pipeline by converting account statements into tagged amounts, which are used for actual bookkeeping entries.
+**Current Pipeline State (from test_csv_import_pipeline.cpp):**
+```
+file_path
+  → Maybe<byte_buffer>           (Step 1 - io::read_file_to_buffer)
+  → Maybe<DetectedEncoding>      (Step 2 - text::encoding::icu::detect_buffer_encoding)
+  → unicode_code_points_view     (Step 3 - text::encoding::views::bytes_to_unicode)
+  → runtime_encoded_view         (Step 4 - text::encoding::views::unicode_to_runtime_encoding)
+  → Maybe<text>                  (Step 5 - text::encoding::read_file_with_encoding_detection)
+  → Maybe<csv_table>             (Step 6 - CSV::neutral::text_to_table)
+  → Maybe<account_statements>    (Step 7 - domain::csv_table_to_account_statements)
+  → Maybe<tagged_amounts>        (Step 8 - THIS STEP)
+```
+
+**Examine existing tagged amount types and business logic:**
+@src/fiscal/amount/TaggedAmountFramework.cpp
+@src/fiscal/amount/TaggedAmountFramework.hpp
+@src/fiscal/amount/HADFramework.hpp (transaction handling)
+@src/fiscal/BASFramework.hpp (BAS account codes)
+@src/fiscal/SKVFramework.hpp (SKV compliance)
+
+**Examine the completed Step 7 implementation:**
+@src/domain/csv_to_account_statement.hpp
+@src/domain/csv_to_account_statement.cpp
+@src/test/test_csv_import_pipeline.cpp (account_statement_suite namespace)
+
+**Examine AccountStatementEntry structure used in Step 7:**
+```cpp
+struct AccountStatementEntry {
+    Date transaction_date;
+    Amount transaction_amount;
+    std::string transaction_caption;
+    // ... other fields
+};
+```
 
 Read CLAUDE.md for project conventions and Swedish accounting requirements.
-
-**Examine existing tagged amount code:**
-@src/fiscal/amount/TaggedAmountFramework.cpp (especially lines 974-979)
-
-**Search for TaggedAmount type definitions** and related business logic.
 </context>
 
 <requirements>
 Create a tagged amount generation function with these characteristics:
 
-1. **Generation Function**: `account_statements → Maybe<tagged_amounts>`
-   - Transform account statements into tagged amounts
-   - Apply final validation and business rules
-   - Return optional/Maybe to handle transformation failures
+1. **Generation Function**: `AccountStatementEntries → Maybe<TaggedAmounts>`
+   - Transform account statement entries into tagged amounts
+   - Apply business rules and categorization
+   - Return AnnotatedMaybe<TaggedAmounts> to preserve transformation messages
 
-2. **Tagged Amount Representation**:
-   - What is a tagged amount in this domain?
-   - What fields/metadata does it contain?
-   - How does it relate to account statements?
-   - Are there existing TaggedAmount types to use?
+2. **TaggedAmount Representation**:
+   - Research existing TaggedAmount type in TaggedAmountFramework.hpp
+   - Understand how tagged amounts relate to account statements
+   - A tagged amount should contain: amount, tags/categories, date, description, account code(s)
 
 3. **Transformation Logic**:
-   - What determines the "tags" on amounts?
-   - Are amounts categorized automatically or manually?
-   - Do bank vs SKV statements create different tagged amounts?
-   - How are VAT and other metadata handled?
+   - Map account statement amounts to tagged amounts
+   - Determine appropriate tags/categories (may be placeholder/uncategorized initially)
+   - Preserve all metadata from account statements
+   - Consider: are amounts categorized automatically or manually later?
 
 4. **Business Rules**:
-   - Swedish accounting compliance (dates, amounts, descriptions per Bokföringslagen)
-   - BAS Framework integration (account codes, categories)
-   - SKV Framework compliance (tax reporting requirements)
-   - Any validation that ensures bookkeeping entries are valid
+   - Swedish accounting compliance (Bokföringslagen requirements)
+   - BAS Framework integration (account codes from BASFramework.hpp)
+   - Valid amount handling (non-zero amounts)
+   - Proper date handling (transaction dates)
+
+5. **Monadic Composition**:
+   - Use AnnotatedMaybe<T> for return type (like other pipeline steps)
+   - Enable .and_then() chaining with Step 7 output
+   - Preserve error messages through pipeline
 </requirements>
 
 <implementation>
-**Design Considerations:**
-- What does the current implementation in TaggedAmountFramework.cpp lines 974-979 do?
-- Are there existing functions for creating tagged amounts?
-- How are tags/categories assigned?
-- Is there automatic categorization logic (keywords, patterns)?
+**Analysis Required:**
+1. First, examine TaggedAmountFramework.cpp lines 974-979 to understand current usage
+2. Research existing TaggedAmount type definition
+3. Understand the relationship between AccountStatementEntry and TaggedAmount
+4. Determine what "tagging" means in this domain (account codes? categories?)
 
-**Swedish Accounting Frameworks:**
-According to CLAUDE.md, integrate with:
-- **BAS Framework**: Account codes and categories (BASFramework.hpp)
-- **SKV Framework**: Tax agency compliance (SKVFramework.hpp)
-- **HAD Framework**: Transaction handling (HADFramework.hpp)
+**Design Decisions:**
+- **Categorization Strategy**: If automatic categorization is complex, start simple:
+  - Create "uncategorized" tagged amounts initially
+  - Let a future step handle categorization rules
+  - Focus on structural transformation first
 
-Review these frameworks to understand how tagged amounts should be structured.
+- **Integration Points**:
+  - Input: `std::vector<domain::AccountStatementEntry>` from Step 7
+  - Output: `AnnotatedMaybe<std::vector<TaggedAmount>>` (or appropriate container type)
+  - Namespace: Place in `domain::` namespace alongside Step 7
 
-**Validation Strategy:**
-Final validation before creating tagged amounts:
-- All required fields present
-- Amounts are valid and non-zero
-- Categories/tags are valid per BAS framework
-- Dates are in correct fiscal period
-- Counterparty information is complete
+**Implementation Pattern (from Step 7):**
+```cpp
+namespace domain {
+    // Transform account statements to tagged amounts
+    auto account_statements_to_tagged_amounts(
+        std::vector<AccountStatementEntry> const& statements
+    ) -> AnnotatedMaybe<std::vector<TaggedAmount>>;
+}
+```
 
 **Error Handling:**
-Use Maybe/optional for transformation failures:
-- Missing categorization information?
-- Invalid account codes?
-- Failed business rule validation?
+- What happens if an account statement can't be converted?
+- Should we fail the entire batch or skip invalid entries?
+- Follow the pattern established in Step 7 (analyze csv_to_account_statement.cpp)
 </implementation>
 
 <output>
-Modify or create files:
-- `./src/fiscal/amount/tagged_amount_generator.cpp` - Transformation logic (or appropriate location)
-- `./src/fiscal/amount/tagged_amount_generator.hpp` - Interface
+Create or modify files:
+- `./src/domain/account_statement_to_tagged_amount.hpp` - Interface
+- `./src/domain/account_statement_to_tagged_amount.cpp` - Implementation
 
 **Add tests to:** `./src/test/test_csv_import_pipeline.cpp`
 - Use namespace: `namespace tests::csv_import_pipeline::tagged_amount_suite { ... }`
-- Test tagged amount generation from account statements
+- Follow the established test patterns from account_statement_suite
 
 Example tests:
 ```cpp
 namespace tests::csv_import_pipeline {
     namespace tagged_amount_suite {
-        TEST(TaggedAmountTests, GenerateFromBankStatements) {
-            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, GenerateFromBankStatements)"};
-            // Test generating tagged amounts from bank statements
+        TEST(TaggedAmountTests, TransformFromAccountStatements) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, TransformFromAccountStatements)"};
+            // Test basic transformation from account statements
+            // Create sample AccountStatementEntries
+            // Transform to TaggedAmounts
+            // Verify output structure
         }
 
-        TEST(TaggedAmountTests, BASFrameworkIntegration) {
-            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, BASFrameworkIntegration)"};
-            // Test integration with BAS framework
+        TEST(TaggedAmountTests, PreservesTransactionMetadata) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, PreservesTransactionMetadata)"};
+            // Verify date, amount, description preserved
         }
 
-        TEST(TaggedAmountTests, CompletePipeline) {
-            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, CompletePipeline)"};
-            // Test: file → CSV → statements → tagged amounts
+        TEST(TaggedAmountTests, ComposesWithStep7) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, ComposesWithStep7)"};
+            // Test monadic composition with csv_table_to_account_statements
+            // CSV::Table → AccountStatements → TaggedAmounts
+        }
+
+        TEST(TaggedAmountTests, HandlesEmptyInput) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, HandlesEmptyInput)"};
+            // Empty account statements → empty tagged amounts (success, not failure)
+        }
+
+        TEST(TaggedAmountTests, IntegrationWithRealCSV) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, IntegrationWithRealCSV)"};
+            // Use sz_NORDEA_csv_20251120 or sz_SKV_csv_20251120
+            // Full pipeline: CSV text → table → statements → tagged amounts
         }
     }
 }
@@ -112,32 +175,30 @@ namespace tests::csv_import_pipeline {
 <verification>
 Before completing:
 
-1. **Compilation**: Code compiles on macOS XCode with C++23 via `./run.zsh`
-2. **Tests Pass**: Run `./cratchit --test` - all tests succeed
-3. **Transformation Works**: Successfully creates tagged amounts from statements
-4. **Business Rules**: Complies with Swedish accounting requirements
-5. **Framework Integration**: Works with BAS, SKV, HAD frameworks
-6. **Complete Pipeline**: Full chain works end-to-end (file → tagged amounts)
+1. **Compilation**: Code compiles on macOS XCode with C++23 via `./run.zsh --nop`
+2. **Code Signing**: Execute 'codesign -s - --force --deep workspace/cratchit' if needed
+3. **Tests Pass**: Run `cd workspace && ./cratchit --test` - all tests succeed
+4. **Transformation Works**: Successfully creates tagged amounts from account statements
+5. **Monadic Composition**: .and_then() chaining works with Step 7
+6. **Metadata Preserved**: Date, amount, description carried through transformation
 
 Test coverage:
-- Bank statement CSV → tagged amounts
-- SKV CSV → tagged amounts
-- Statements with missing metadata
-- Statements requiring categorization
-- Edge cases (zero amounts, future dates)
-- Complete monadic pipeline test
+- Transform account statements to tagged amounts
+- Empty input handling
+- Composition with Step 7
+- Real CSV data integration (Nordea, SKV)
+- Error handling for invalid entries (if applicable)
 </verification>
 
 <success_criteria>
 - [ ] Tagged amount generation function implemented
-- [ ] Returns Maybe<tagged_amounts> for monadic composition
+- [ ] Returns AnnotatedMaybe<TaggedAmounts> for monadic composition
 - [ ] Transforms account statements to tagged amounts correctly
-- [ ] Business rules and validation applied
-- [ ] Integrates with BAS, SKV, HAD frameworks
-- [ ] Composes with Steps 5-7 (complete pipeline works)
-- [ ] Code compiles on macOS XCode
-- [ ] Tested with bank and SKV CSV files
-- [ ] Follows Swedish accounting requirements
+- [ ] Preserves date, amount, description metadata
+- [ ] Composes with Step 7 (csv_table_to_account_statements → tagged amounts)
+- [ ] Code compiles on macOS XCode with C++23
+- [ ] Tested with account statement input
+- [ ] Tested with real CSV data (Nordea, SKV)
 - [ ] TaggedAmount type appropriately used or defined
-- [ ] Complete monadic chain demonstrated: file → text → CSV → statements → tagged amounts
+- [ ] Follows established patterns from test_csv_import_pipeline.cpp
 </success_criteria>

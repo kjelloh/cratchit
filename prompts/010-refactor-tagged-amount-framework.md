@@ -1,134 +1,193 @@
-<objective>
-Refactor TaggedAmountFramework.cpp lines 974-979 to use the new CSV import pipeline created in Steps 1-9. Replace existing implementation with clean pipeline integration.
+<assistant-role>
+You are an expert in writing C++23 code that is easy to read and can be used in functional style composition based on Maybe monads (std::optional, AnnotatedMaybe) and C++ range views where this makes sense.
 
-This step modernizes existing code to use the new composable, monadic architecture while maintaining backward compatibility where needed.
+1. You prefer to use C++23 'span' and 'string_view' over C-code constructs.
+2. You prefer to use C++23 standard library over any specialized helpers.
+3. You prefer readable code over efficient code.
+4. You prefer to organize into namespaces over splitting code into C++ translation units.
+
+You know about the codebase usage of namespaces and existing types for different functionality.
+
+1. You are aware that Steps 1-9 created a complete, tested CSV import pipeline
+2. You are aware that this step refactors existing code to use the new pipeline
+3. You are aware that backward compatibility should be maintained where possible
+</assistant-role>
+
+<objective>
+Refactor TaggedAmountFramework.cpp to use the new CSV import pipeline created in Steps 1-9.
+
+This step modernizes the existing code in TaggedAmountFramework.cpp (originally referenced at lines 974-979) to use the new composable, monadic architecture while maintaining backward compatibility with existing callers.
 </objective>
 
 <context>
-This is Step 10 of an 11-step refactoring. Steps 1-9 created and validated a complete pipeline: file path → tagged amounts.
+This is Step 10 of an 11-step refactoring (prompts 001..011).
 
-Now we refactor the existing code in TaggedAmountFramework.cpp to use this new pipeline, replacing the old implementation with the modern, composable approach.
+**The New Pipeline (from Steps 1-9):**
+```cpp
+// High-level API from Step 9
+cratchit::csv::import_file_to_tagged_amounts(file_path)
+  → AnnotatedMaybe<std::vector<TaggedAmount>>
+```
+
+**Original Refactoring Target:**
+The original prompt 001 identified TaggedAmountFramework.cpp lines 974-979 as code that should use the new pipeline. This code likely:
+- Reads CSV files from banks/SKV
+- Handles encoding manually
+- Parses CSV data
+- Creates tagged amounts
+
+**Files to Review:**
+@src/fiscal/amount/TaggedAmountFramework.cpp (focus on CSV import code)
+@src/fiscal/amount/TaggedAmountFramework.hpp
+@src/csv/import_pipeline.hpp (the new high-level API from Step 9)
+@src/test/test_csv_import_pipeline.cpp (integration tests)
 
 Read CLAUDE.md for project conventions.
-
-**Examine the code to be refactored:**
-@src/fiscal/amount/TaggedAmountFramework.cpp (focus on lines 974-979)
-
-**Review the new pipeline API from Step 9** to understand the replacement interface.
 </context>
 
 <requirements>
 Refactor the existing code with these goals:
 
-1. **Replace Implementation**:
-   - Identify what lines 974-979 currently do
-   - Replace with new pipeline API
-   - Simplify the code using monadic composition
+1. **Identify Current Implementation**:
+   - Find all CSV import code in TaggedAmountFramework.cpp
+   - Understand what the current code does (file reading, encoding, parsing)
+   - Identify callers of this code
 
-2. **Maintain Functionality**:
+2. **Replace with New Pipeline**:
+   - Replace manual file reading → use import_file_to_tagged_amounts()
+   - Replace manual encoding handling → handled by pipeline
+   - Replace manual CSV parsing → handled by pipeline
+   - Keep any post-processing logic that's specific to TaggedAmountFramework
+
+3. **Maintain Functionality**:
    - Existing behavior should be preserved
    - Same inputs should produce same outputs
    - Don't break existing tests or dependent code
 
-3. **Improve Maintainability**:
-   - Code should be clearer and more readable
-   - Error handling should be more explicit
-   - Encoding issues should be handled automatically
+4. **Improve Error Handling**:
+   - Old code may throw exceptions or use error codes
+   - New code uses AnnotatedMaybe for clear error propagation
+   - Adapt as needed to match existing interface expectations
 
-4. **Integration Testing**:
-   - Verify existing tests still pass
-   - Add new tests if coverage is insufficient
-   - Ensure no regressions in functionality
+5. **Backward Compatibility**:
+   - If existing code expects exceptions, wrap AnnotatedMaybe appropriately
+   - If existing code expects specific return types, adapt the result
+   - Consider deprecating old interfaces if appropriate
 </requirements>
 
 <implementation>
-**Before Refactoring:**
-1. **Understand Current Implementation**:
-   - What exactly do lines 974-979 do?
-   - How is file reading currently handled?
-   - How is encoding currently handled?
-   - How are CSV parsing and domain object creation done?
-   - What error handling exists?
+**Analysis Steps:**
+1. **Search for CSV-related code** in TaggedAmountFramework.cpp:
+   - Look for file reading (std::ifstream, fopen, etc.)
+   - Look for encoding detection/conversion
+   - Look for CSV parsing
+   - Look for tagged amount creation from CSV data
 
-2. **Identify Dependencies**:
-   - What code calls this section?
-   - What does this section call?
-   - Are there tests that verify this behavior?
-   - What assumptions does dependent code make?
+2. **Understand Dependencies**:
+   - What functions call this CSV import code?
+   - What types do they expect as return values?
+   - Are there existing tests?
 
-**Refactoring Strategy:**
+3. **Refactoring Strategy**:
 ```cpp
-// Old approach (lines 974-979):
-// [Manual file reading, encoding handling, CSV parsing, etc.]
+// Old approach (conceptual):
+std::vector<TaggedAmount> import_csv_from_file(std::string_view path) {
+    // Manual file reading
+    // Manual encoding handling
+    // Manual CSV parsing
+    // Manual tagged amount creation
+}
 
 // New approach:
-auto maybe_amounts = import_csv_to_tagged_amounts(file_path)
-    .or_else([]() {
-        // Handle error - log, return default, throw?
-        // Match existing error handling behavior
-    });
+std::vector<TaggedAmount> import_csv_from_file(std::string_view path) {
+    auto result = cratchit::csv::import_file_to_tagged_amounts(path);
+    if (!result) {
+        // Handle error based on existing interface expectations
+        // Option 1: throw exception (if old code did)
+        // Option 2: return empty vector with logged error
+        // Option 3: return std::optional
+    }
+    return std::move(result.value());
+}
 ```
 
-**Backward Compatibility:**
-- If existing code expects exceptions, adapt Maybe failures appropriately
-- If existing code expects specific error codes, map Maybe failures to them
-- Ensure the refactor is a drop-in replacement
+4. **Preserve Business Logic**:
+   - If TaggedAmountFramework has specific post-processing
+   - If there are TaggedAmount-specific validations
+   - Keep these, just change the data source to the new pipeline
 
 **Testing Strategy:**
 - Run existing tests to verify no regressions
-- Add tests for new error handling paths if they differ
-- Consider integration tests with real CSV files
+- Add integration tests if coverage is insufficient
+- Test that refactored code produces same results as before
 </implementation>
 
 <output>
 Modify this file:
-- `./src/fiscal/amount/TaggedAmountFramework.cpp` - Refactor lines 974-979
+- `./src/fiscal/amount/TaggedAmountFramework.cpp` - Refactor CSV import code
 
-**Update tests in:** `./src/test/test_csv_import_pipeline.cpp` (if needed)
-- Use namespace: `namespace tests::csv_import_pipeline::tagged_amount_framework_suite { ... }`
+**Update tests in:** `./src/test/test_csv_import_pipeline.cpp`
+- Use namespace: `namespace tests::csv_import_pipeline::tagged_amount_framework_refactor_suite { ... }`
 - Add tests to verify refactored code maintains behavior
 
 Example tests:
 ```cpp
 namespace tests::csv_import_pipeline {
-    namespace tagged_amount_framework_suite {
-        TEST(TaggedAmountFrameworkTests, RefactoredCodeMaintainsBehavior) {
-            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountFrameworkTests, RefactoredCodeMaintainsBehavior)"};
-            // Verify refactored code produces same results as before
+    namespace tagged_amount_framework_refactor_suite {
+
+        TEST(TaggedAmountFrameworkRefactorTests, RefactoredCodeProducesSameResults) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountFrameworkRefactorTests, RefactoredCodeProducesSameResults)"};
+            // Create test file with known CSV content
+            // Call refactored TaggedAmountFramework function
+            // Verify results match expected output
+        }
+
+        TEST(TaggedAmountFrameworkRefactorTests, ErrorHandlingMaintained) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountFrameworkRefactorTests, ErrorHandlingMaintained)"};
+            // Test error handling with missing file
+            // Verify behavior matches original implementation's contract
+        }
+
+        TEST(TaggedAmountFrameworkRefactorTests, EncodingHandledAutomatically) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountFrameworkRefactorTests, EncodingHandledAutomatically)"};
+            // Create test files with different encodings
+            // Verify pipeline handles encoding correctly
+        }
+
+        TEST(TaggedAmountFrameworkRefactorTests, ExistingTestsStillPass) {
+            logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountFrameworkRefactorTests, ExistingTestsStillPass)"};
+            // Run any existing TaggedAmountFramework tests
+            // Verify no regressions
         }
     }
 }
 ```
-
-Ensure:
-- Code is clearer and more maintainable
-- Uses the new pipeline from Steps 1-9
-- Maintains backward compatibility
-- Existing tests pass
 </output>
 
 <verification>
 Before completing:
 
-1. **Compilation**: Code compiles on macOS XCode with C++23 via `./run.zsh`
-2. **Tests Pass**: Run `./cratchit --test` - all existing tests still pass
-3. **Functionality Preserved**: Behavior matches old implementation
-4. **Code Clarity**: New code is more readable and maintainable
-5. **Error Handling**: Errors handled appropriately (matching old behavior or better)
-6. **Integration**: Dependent code works without modification
+1. **Compilation**: Code compiles on macOS XCode with C++23 via `./run.zsh --nop`
+2. **Code Signing**: Execute 'codesign -s - --force --deep workspace/cratchit' if needed
+3. **Tests Pass**: Run `cd workspace && ./cratchit --test` - all existing tests still pass
+4. **Functionality Preserved**: Behavior matches old implementation
+5. **Code Clarity**: New code is more readable and maintainable
+6. **Error Handling**: Errors handled appropriately (matching old behavior or better)
+7. **Integration**: Dependent code works without modification
 
 Test coverage:
 - Existing tests for TaggedAmountFramework pass
-- Refactored lines 974-979 produce same results
-- Integration with new pipeline works correctly
+- Refactored CSV import produces same results
+- Error handling maintained
+- Different encodings handled correctly
 </verification>
 
 <success_criteria>
-- [ ] Lines 974-979 in TaggedAmountFramework.cpp successfully refactored
-- [ ] Uses new CSV import pipeline from Steps 1-9
-- [ ] Code compiles on macOS XCode
-- [ ] All existing tests pass
-- [ ] No regressions in functionality
+- [ ] CSV import code in TaggedAmountFramework.cpp successfully refactored
+- [ ] Uses new import_file_to_tagged_amounts() pipeline from Step 9
+- [ ] Code compiles on macOS XCode with C++23
+- [ ] All existing tests pass (no regressions)
+- [ ] Functionality preserved (same inputs → same outputs)
 - [ ] Error handling maintains or improves upon previous behavior
 - [ ] Code is more readable and maintainable
 - [ ] Backward compatibility maintained where needed
