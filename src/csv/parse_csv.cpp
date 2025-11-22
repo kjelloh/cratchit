@@ -74,13 +74,24 @@ namespace CSV {
   AnnotatedMaybe<CSV::Table> file_to_table(std::filesystem::path const& file_path) {
     AnnotatedMaybe<CSV::Table> result{};
 
-    auto file_to_text_result = text::encoding::read_file_with_encoding_detection(file_path);
-    if (file_to_text_result) {
-      result.m_value = CSV::neutral::parse_csv(file_to_text_result.value());
-    }
-    else {
-      result.push_message("Failed to parse csv into a valid table");
-    }
+    // auto file_to_text_result = text::encoding::read_file_with_encoding_detection(file_path);
+    // if (file_to_text_result) {
+    //   result.m_value = CSV::neutral::parse_csv(file_to_text_result.value());
+    // }
+    // else {
+    //   result.push_message("Failed to parse csv into a valid table");
+    // }
+
+    std::string message{"Failed to parse csv into a valid table"};
+    auto to_table = [&message](std::string_view const& csv_view) -> AnnotatedMaybe<CSV::Table> {
+      AnnotatedMaybe<CSV::Table> result{};
+      result.m_value = CSV::neutral::parse_csv(csv_view);
+      if (!result.m_value) result.push_message(message);
+      return result;
+    };
+
+    result = text::encoding::read_file_with_encoding_detection(file_path)
+      .and_then(to_table);
 
     return result;
   }
