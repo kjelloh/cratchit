@@ -64,6 +64,7 @@ add_executable(cratchit
         src/test/test_atomics.cpp
         src/test/test_csv_import_pipeline.cpp
         src/test/test_annotated_optional.cpp
+        src/test/test_amount_framework.cpp
         src/fiscal/BASFramework.cpp
         src/fiscal/amount/HADFramework.cpp
         src/Key.cpp

@@ -46,31 +46,97 @@ namespace WrappedDoubleAmount {
 namespace DoubleAmount {
 } // namespace DoubleAmount
 
+/**
+ * Normalize amount string to standard format for parsing
+ *
+ * Handles various number formats:
+ * - Swedish: "1 538,50" (space thousands, comma decimal)
+ * - English: "1,538.50" (comma thousands, dot decimal)
+ * - Plain: "1538.50" or "1538,50"
+ *
+ * Returns normalized string with dot as decimal separator and no thousands separators
+ */
+namespace {
+  std::string normalize_amount_string(std::string const& input) {
+    std::string result;
+    result.reserve(input.size());
+
+    // Determine format by analyzing the string
+    bool has_dot = input.find('.') != std::string::npos;
+    auto comma_pos = input.rfind(',');  // Find last comma
+    bool comma_is_decimal = false;
+
+    if (comma_pos != std::string::npos) {
+      // Comma is decimal separator if:
+      // 1. No dot exists AND
+      // 2. Comma is followed by 1-2 digits at the end (e.g., "123,5" or "123,50")
+      if (!has_dot) {
+        size_t digits_after_comma = 0;
+        for (size_t i = comma_pos + 1; i < input.size(); ++i) {
+          if (std::isdigit(static_cast<unsigned char>(input[i]))) {
+            digits_after_comma++;
+          } else {
+            break;  // Non-digit found
+          }
+        }
+        // Check if all remaining chars after comma are digits and count is 1-2
+        bool all_digits_after = (comma_pos + 1 + digits_after_comma == input.size());
+        comma_is_decimal = all_digits_after && (digits_after_comma >= 1 && digits_after_comma <= 2);
+      }
+      // If dot exists, comma is thousands separator (English format)
+    }
+
+    for (char ch : input) {
+      if (ch == ' ' || ch == '\xA0') {
+        // Skip space and non-breaking space (thousands separators)
+        continue;
+      }
+      else if (ch == ',') {
+        if (comma_is_decimal) {
+          result += '.';  // Convert decimal comma to dot
+        }
+        // else: skip comma (thousands separator)
+      }
+      else {
+        result += ch;
+      }
+    }
+
+    return result;
+  }
+} // anonymous namespace
+
 OptionalAmount to_amount(std::string const& sAmount) {
-	// std::cout << "\nto_amount " << std::quoted(sAmount);
-	OptionalAmount result{};
-	Amount amount{};
-	std::istringstream is{sAmount};
-	if (auto pos = sAmount.find(','); pos != std::string::npos) {
-		// Handle 123,45 ==> 123.45
-		result = to_amount(std::accumulate(sAmount.begin(),sAmount.end(),std::string{},[](auto acc,char ch){
-			acc += (ch==',')?'.':ch;
-			return acc;
-		}));
-	}
-	else if (is >> amount) {
-		result = amount;
-	}
-	else {
-		// handle integer (no decimal point)
-		try {
-			auto int_amount = std::stoi(sAmount);
-			result = static_cast<Amount>(int_amount);
-		}
-		catch (std::exception const& e) { /* failed - do nothing */}
-	}
-	// if (result) std::cout << "\nresult " << *result;
-	return result;
+  OptionalAmount result{};
+
+  // Handle empty or whitespace-only input
+  if (sAmount.empty()) {
+    return result;
+  }
+
+  // Normalize the amount string
+  std::string normalized = normalize_amount_string(sAmount);
+
+  // Handle case where normalization results in empty string
+  if (normalized.empty()) {
+    return result;
+  }
+
+  // Try parsing with std::stod
+  try {
+    size_t pos = 0;
+    double value = std::stod(normalized, &pos);
+
+    // Verify entire string was consumed (no trailing garbage)
+    if (pos == normalized.size()) {
+      result = Amount{value};
+    }
+  }
+  catch (std::exception const&) {
+    // Parsing failed - return empty optional
+  }
+
+  return result;
 }
 
 std::string to_string(Amount const& amount) {

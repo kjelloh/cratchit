@@ -2093,14 +2093,14 @@ Alice,30,"Stockholm, Sweden"
 
       // The SKV CSV has saldo "1 538" (with space as thousands separator)
       // Verify that:
-      // 1. The "1 538" saldo format parses incorrectly (stops at space, giving 1 not 1538)
+      // 1. The "1 538" saldo format now parses correctly as 1538
       // 2. Our extraction correctly uses the transaction column (879), not the saldo column
 
-      // First, verify that "1 538" parses as just "1" (istringstream stops at space)
+      // First, verify that "1 538" now parses correctly as 1538
       auto saldo_with_space = to_amount("1 538");
-      ASSERT_TRUE(saldo_with_space.has_value()) << "1 538 should parse (but truncated)";
-      EXPECT_EQ(*saldo_with_space, Amount{1})
-        << "Saldo '1 538' should parse as 1 (stops at space), NOT as 1538";
+      ASSERT_TRUE(saldo_with_space.has_value()) << "1 538 should parse successfully";
+      EXPECT_EQ(*saldo_with_space, Amount{1538})
+        << "Saldo '1 538' should parse as 1538 (space is thousands separator)";
 
       // Now verify the actual extraction uses the correct column
       std::string csv_text = sz_SKV_csv_20251120;
@@ -2113,12 +2113,12 @@ Alice,30,"Stockholm, Sweden"
 
       // The row with "1 538" saldo should have 879 as transaction amount
       // Row: "2025-08-13";"Moms april 2025 - juni 2025";"879";"1 538"
-      // If we incorrectly used the saldo column, we'd get 1 (truncated parse of "1 538")
+      // Extraction uses transaction_amount_column (879), not saldo_amount_column (1538)
       auto const& moms_entry = maybe_statements->at(1);
       EXPECT_EQ(moms_entry.transaction_amount, Amount{879})
-        << "Transaction amount should be 879, not 1 (truncated saldo)";
+        << "Transaction amount should be 879, not saldo 1538";
 
-      logger::development_trace("Verified thousands separator in saldo doesn't affect transaction extraction");
+      logger::development_trace("Verified correct column selection with properly parsed saldo");
     }
 
   } // namespace account_statement_suite
