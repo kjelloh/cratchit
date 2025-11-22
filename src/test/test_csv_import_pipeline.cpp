@@ -147,8 +147,8 @@ namespace tests::csv_import_pipeline {
         .and_then([](auto& stream_ptr) {
           return cratchit::io::read_stream_to_buffer(*stream_ptr);
         })
-        .and_then([](auto& buffer) -> cratchit::io::IOResult<size_t> {
-          cratchit::io::IOResult<size_t> size_result;
+        .and_then([](auto& buffer) -> AnnotatedMaybe<size_t> {
+          AnnotatedMaybe<size_t> size_result;
           size_result.m_value = buffer.size();
           size_result.push_message(std::format("Buffer size: {}", buffer.size()));
           return size_result;
@@ -171,7 +171,7 @@ namespace tests::csv_import_pipeline {
 
       // Composition should short-circuit on first failure
       auto result = cratchit::io::open_file(non_existent)
-        .and_then([&and_then_called](auto& stream_ptr) -> cratchit::io::IOResult<cratchit::io::ByteBuffer> {
+        .and_then([&and_then_called](auto& stream_ptr) -> AnnotatedMaybe<cratchit::io::ByteBuffer> {
           and_then_called = true;
           return cratchit::io::read_stream_to_buffer(*stream_ptr);
         });
@@ -298,7 +298,7 @@ namespace tests::csv_import_pipeline {
       // Demonstrate monadic composition: file → buffer → encoding
       auto result = cratchit::io::read_file_to_buffer(temp_path)
         .and_then([](auto& buffer) {
-          cratchit::io::IOResult<text::encoding::icu::EncodingDetectionResult> encoding_result;
+          AnnotatedMaybe<text::encoding::icu::EncodingDetectionResult> encoding_result;
           auto maybe_encoding = text::encoding::icu::detect_buffer_encoding(buffer);
           if (maybe_encoding) {
             encoding_result.m_value = *maybe_encoding;
@@ -1610,8 +1610,8 @@ Alice,30,"Stockholm, Sweden"
 
       // Demonstrate monadic composition with .and_then()
       auto result = text::encoding::read_file_with_encoding_detection(utf8_csv_file)
-        .and_then([](auto& text) -> cratchit::io::IOResult<CSV::Table> {
-          cratchit::io::IOResult<CSV::Table> csv_result;
+        .and_then([](auto& text) -> AnnotatedMaybe<CSV::Table> {
+          AnnotatedMaybe<CSV::Table> csv_result;
           auto maybe_table = CSV::neutral::parse_csv(text);
           if (maybe_table) {
             csv_result.m_value = *maybe_table;
@@ -1668,8 +1668,8 @@ Alice,30,"Stockholm, Sweden"
 
       // Pipeline should short-circuit on file read failure
       auto result = text::encoding::read_file_with_encoding_detection(non_existent)
-        .and_then([](auto& text) -> cratchit::io::IOResult<CSV::Table> {
-          cratchit::io::IOResult<CSV::Table> csv_result;
+        .and_then([](auto& text) -> AnnotatedMaybe<CSV::Table> {
+          AnnotatedMaybe<CSV::Table> csv_result;
           auto maybe_table = CSV::neutral::parse_csv(text);
           if (maybe_table) {
             csv_result.m_value = *maybe_table;

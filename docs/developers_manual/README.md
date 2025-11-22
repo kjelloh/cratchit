@@ -103,7 +103,7 @@ Basically Claude Code easilly gets confused with the complexity of this project 
 
 For prompt './prompts/001-file-io-maybe-monad.md' Claude succeeded to implement 'src/io/file_reader.hpp' and tests 'src/test/test_csv_import_pipeline.cpp'. This took over half an hour though! It seems it basically struggled with the complexity of the code base.
 
-It based the implementations on 'using IOResult = functional::AnnotatedOptional<T>;' which was an abstraction to high. I wanted it to base it on std::optional so that I copuld later create the AnnotatedOptional<T> on top of that. The AnnotatedOptional is my optional-like abtsraction with a user-message text side-channel for UI operation feed back pipe lines.
+It based the implementations on 'using AnnotatedMaybe = functional::AnnotatedOptional<T>;' which was an abstraction to high. I wanted it to base it on std::optional so that I copuld later create the AnnotatedOptional<T> on top of that. The AnnotatedOptional is my optional-like abtsraction with a user-message text side-channel for UI operation feed back pipe lines.
 
 Also, the actual code in file_reader.hpp is old-school stream seek, C-API error code handling and what have you. And all the code is inline (no cpp-file with defintions). But it works so ok.
 
@@ -302,7 +302,7 @@ Claude then succeeded with prompt 005-xxx to assemble and text a complete transc
 Claude created:
 
 ```C++
-cratchit::io::IOResult<std::string> read_file_with_encoding_detection(
+AnnotatedMaybe<std::string> read_file_with_encoding_detection(
     std::filesystem::path const& file_path,
     int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD
   )
@@ -310,7 +310,7 @@ cratchit::io::IOResult<std::string> read_file_with_encoding_detection(
 
 Where namespace 'cratchit::io' now is a paralell to existing namespace 'persistent::in'.
 
-Also, cratchit::io::IOResult seems like a paralell type to cratchit::functional::AnnotatedOptional<T>?
+Also, AnnotatedMaybe seems like a paralell type to cratchit::functional::AnnotatedOptional<T>?
 
 Anyhow, looking though new file 'src/text/encoding_pipeline.hpp' and added tests in 'src/test/test_csv_import_pipeline.cpp' I feel content with the result. I do not have time to delve deep into all the code. I decide to trust the help Claude has provided and see where I end up.
 

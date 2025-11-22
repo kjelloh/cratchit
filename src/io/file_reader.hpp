@@ -17,11 +17,6 @@ namespace io {
   /// Byte buffer type for raw file content
   using ByteBuffer = std::vector<std::byte>;
 
-  /// Result type for file operations with error messages
-  template<typename T>
-  // using IOResult = functional::AnnotatedOptional<T>;
-  using IOResult = AnnotatedMaybe<T>;
-
   /// Error information for file operations
   struct FileIOError {
     std::filesystem::path path;
@@ -40,22 +35,22 @@ namespace io {
   /// Opens a file for reading
   /// @param file_path Path to the file
   /// @return Optional stream if file can be opened, empty otherwise
-  IOResult<std::unique_ptr<std::istream>> open_file(std::filesystem::path const& file_path);
+  AnnotatedMaybe<std::unique_ptr<std::istream>> open_file(std::filesystem::path const& file_path);
 
   /// Reads all bytes from an input stream into a buffer
   /// @param is Input stream to read from
   /// @return Optional buffer if read succeeds, empty otherwise
-  IOResult<ByteBuffer> read_stream_to_buffer(std::istream& is);
+  AnnotatedMaybe<ByteBuffer> read_stream_to_buffer(std::istream& is);
 
   /// Reads all bytes from a file into a buffer (composed pipeline)
   /// @param file_path Path to the file
   /// @return Optional buffer if file can be read, empty otherwise
-  IOResult<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path);
+  AnnotatedMaybe<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path);
 
   // Implementation
 
-  inline IOResult<std::unique_ptr<std::istream>> open_file(std::filesystem::path const& file_path) {
-    IOResult<std::unique_ptr<std::istream>> result{};
+  inline AnnotatedMaybe<std::unique_ptr<std::istream>> open_file(std::filesystem::path const& file_path) {
+    AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
 
     // Check if file exists
     std::error_code ec;
@@ -93,8 +88,8 @@ namespace io {
     return result;
   }
 
-  inline IOResult<ByteBuffer> read_stream_to_buffer(std::istream& is) {
-    IOResult<ByteBuffer> result{};
+  inline AnnotatedMaybe<ByteBuffer> read_stream_to_buffer(std::istream& is) {
+    AnnotatedMaybe<ByteBuffer> result{};
 
     if (!is.good()) {
       result.push_message("Stream is not in a good state for reading");
@@ -139,10 +134,10 @@ namespace io {
     return result;
   }
 
-  inline IOResult<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path) {
+  inline AnnotatedMaybe<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path) {
     // Monadic composition: file_path → stream → buffer
     return open_file(file_path)
-      .and_then([](auto& stream_ptr) -> IOResult<ByteBuffer> {
+      .and_then([](auto& stream_ptr) -> AnnotatedMaybe<ByteBuffer> {
         return read_stream_to_buffer(*stream_ptr);
       });
   }

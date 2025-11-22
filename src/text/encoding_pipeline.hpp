@@ -21,7 +21,7 @@ namespace text::encoding {
    *   4. Lazy encoding: Unicode → runtime encoding
    *
    * Error Handling Strategy:
-   *   - File I/O failures: Propagate through IOResult
+   *   - File I/O failures: Propagate through AnnotatedMaybe
    *   - Encoding detection failures: Default / fallback to UTF-8 and proceed (most permissive)
    *   - This strategy prioritizes availability over correctness for ambiguous cases
    *
@@ -32,13 +32,13 @@ namespace text::encoding {
    *
    * @param file_path Path to the file to read and transcode
    * @param confidence_threshold ICU confidence threshold for encoding detection (default: 90)
-   * @return IOResult<std::string> containing Platform (runtime) encoded text or error messages
+   * @return AnnotatedMaybe<std::string> containing Platform (runtime) encoded text or error messages
    */
-  inline cratchit::io::IOResult<std::string> read_file_with_encoding_detection(
+  inline AnnotatedMaybe<std::string> read_file_with_encoding_detection(
     std::filesystem::path const& file_path,
     int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD) {
 
-    cratchit::io::IOResult<std::string> result{};
+    AnnotatedMaybe<std::string> result{};
 
     // Step 1: Read file to byte buffer
     auto buffer_result = cratchit::io::read_file_to_buffer(file_path);
