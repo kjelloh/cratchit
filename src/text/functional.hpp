@@ -2,6 +2,7 @@
 #include "tokenize.hpp" // TODO: Consider to move here?
 #include <string>
 #include <algorithm> // std::copy_if,
+#include <map>
 
 namespace functional {
   namespace text {
@@ -16,7 +17,6 @@ namespace functional {
 
 namespace text {
   namespace functional {
-
 
       inline std::string utf_ignore_to_upper(std::string const& s) {
 
@@ -55,6 +55,26 @@ namespace text {
       auto upper_s2 = utf_ignore_to_upper(s2);
       return (upper_s2.find(upper_s1) != std::string::npos);
     }
+
+    namespace out {
+
+      template <typename K,typename T>
+      std::string to_string(std::map<K,T> const& c,std::string sep = " ") {
+        std::ostringstream os{};
+        bool not_first{false};
+        std::for_each(c.begin(), c.end(), [&sep,&not_first, &os](auto const& entry) {
+          if (not_first) {
+            os << sep; // separator
+          }
+          os << entry.first;
+          os << "=";
+          os << entry.second;
+          not_first = true;
+        });
+        return os.str();
+      }
+
+    }
   
-  }
-}
+  } // functional
+} // text

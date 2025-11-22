@@ -1,22 +1,50 @@
 #pragma once
 
-#include "domain/csv_to_account_statement.hpp"
-#include "TaggedAmountFramework.hpp"
-#include "csv/projections.hpp"
+// #include "domain/csv_to_account_statement.hpp"
+// #include "TaggedAmountFramework.hpp"
+// #include "csv/projections.hpp"
+#include "fiscal/amount/AmountFramework.hpp" // Amount,...
 #include <expected>
 #include <variant>
+#include <map>
 
-// Delta represents a T value change
-template <typename T>
-struct Delta {
-  T m_v;
+// // Delta represents a T value change
+// template <typename T>
+// struct Delta {
+//   T m_v;
+// };
+
+// // State represents a T value
+// template <typename T>
+// struct State {
+//   T m_v;
+// };
+
+/**
+ * Account Statement Entry - represents a single transaction in an account statement
+ *
+ * An account statement entry consists of:
+ * - Transaction date (when the transaction occurred)
+ * - Transaction amount (the monetary value, can be positive or negative)
+ * - Transaction caption (description of the transaction)
+ */
+struct AccountStatementEntry {
+  Date transaction_date;
+  Amount transaction_amount;
+  std::string transaction_caption;
+  using Tags = std::map<std::string, std::string>;
+  Tags transaction_tags;
+
+  AccountStatementEntry(Date date, Amount amount, std::string caption,Tags tags = {})
+    : transaction_date(date)
+    , transaction_amount(amount)
+    , transaction_caption(std::move(caption))
+    , transaction_tags{tags}
+  {}
 };
 
-// State represents a T value
-template <typename T>
-struct State {
-  T m_v;
-};
+using AccountStatementEntries = std::vector<AccountStatementEntry>;
+using OptionalAccountStatementEntries = std::optional<AccountStatementEntries>;
 
 struct DomainPrefixedId {
   std::string m_prefix; // E.g., NORDEA,PG,BG,IBAN,SKV,
@@ -43,21 +71,22 @@ public:
   struct Meta {
     std::optional<DomainPrefixedId> m_maybe_account_irl_id;
   };
-  AccountStatement(domain::AccountStatementEntries const& entries,Meta meta = {});
+  AccountStatement(AccountStatementEntries const& entries,Meta meta = {});
   
-  domain::AccountStatementEntries const& entries() const { return m_entries; }
+  AccountStatementEntries const& entries() const { return m_entries; }
   Meta const& meta() const { return m_meta; }
   
 private:
   Meta m_meta;
-  domain::AccountStatementEntries m_entries;
+  AccountStatementEntries m_entries;
 }; // AccountStatement
 
 using ExpectedAccountStatement = std::expected<AccountStatement,std::string>;
 
-namespace CSV {
-  namespace project {
-    ExpectedAccountStatement to_account_statement(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
-  }
-}
+// Now in projections unit
+// namespace CSV {
+//   namespace project {
+//     ExpectedAccountStatement to_account_statement(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+//   }
+// }
 

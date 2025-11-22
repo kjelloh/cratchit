@@ -1,8 +1,9 @@
 #pragma once
 
-#include "csv/csv.hpp"
+#include "csv/csv.hpp" // CSV::Table,...
 #include "fiscal/amount/AmountFramework.hpp"
 #include "FiscalPeriod.hpp"
+#include "fiscal/amount/AccountStatement.hpp"
 #include "logger/log.hpp" // logger::...
 #include <optional>
 #include <string>
@@ -13,32 +14,6 @@
 #include <ranges>
 
 namespace domain {
-
-/**
- * Account Statement Entry - represents a single transaction in an account statement
- *
- * An account statement entry consists of:
- * - Transaction date (when the transaction occurred)
- * - Transaction amount (the monetary value, can be positive or negative)
- * - Transaction caption (description of the transaction)
- */
-struct AccountStatementEntry {
-  Date transaction_date;
-  Amount transaction_amount;
-  std::string transaction_caption;
-  using Tags = std::map<std::string, std::string>;
-  Tags transaction_tags;
-
-  AccountStatementEntry(Date date, Amount amount, std::string caption,Tags tags = {})
-    : transaction_date(date)
-    , transaction_amount(amount)
-    , transaction_caption(std::move(caption))
-    , transaction_tags{tags}
-  {}
-};
-
-using AccountStatementEntries = std::vector<AccountStatementEntry>;
-using OptionalAccountStatementEntries = std::optional<AccountStatementEntries>;
 
 /**
  * Column Detection Result

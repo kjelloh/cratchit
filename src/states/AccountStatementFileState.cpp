@@ -1,6 +1,7 @@
 #include "AccountStatementFileState.hpp"
 #include "TaggedAmountsState.hpp"
 #include "AccountStatementState.hpp"
+#include "csv/projections.hpp" // CSV::project::to_account_statement,...
 #include <format>
 #include <fstream>
 #include "logger/log.hpp"

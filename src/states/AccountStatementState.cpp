@@ -1,6 +1,7 @@
 #include "AccountStatementState.hpp"
 #include "DeleteItemState.hpp"
 #include "msgs/msg.hpp"
+#include "text/functional.hpp" // text::functional::out::to_string,...
 #include "logger/log.hpp"
 #include <format>
 #include <variant>
@@ -59,7 +60,7 @@ namespace first {
   //   return result;
   // }
 
-  using Entry = domain::AccountStatementEntry;
+  using Entry = AccountStatementEntry;
   std::vector<std::string> to_elements(std::vector<std::string> headers,Entry const& entry) {
     std::vector<std::string> result(headers.size(),"??");
     std::map<std::string,std::function<std::string(Entry)>> projector = {
@@ -67,7 +68,7 @@ namespace first {
       ,{"Date",[](Entry const& entry){return to_string(entry.transaction_date);}}
       ,{"Description",[](Entry const& entry){return entry.transaction_caption;}}
       ,{"Amount",[](Entry const& entry){return to_string(entry.transaction_amount);}}
-      ,{"Tags",[](Entry const& entry){return out::to_string(entry.transaction_tags);}}
+      ,{"Tags",[](Entry const& entry){return text::functional::out::to_string(entry.transaction_tags);}}
     };
     for (int i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
