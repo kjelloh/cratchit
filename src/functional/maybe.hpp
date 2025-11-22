@@ -52,6 +52,11 @@ namespace cratchit {
         return *this;
       }
 
+      std::string to_caption() const {
+        std::string result{"?caption?"};
+        return result;
+      }
+
       // Factory: convert optional<T> + message → AnnotatedOptional<T>
       static AnnotatedOptional from(std::optional<T> maybe, std::string message_on_nullopt) {
         AnnotatedOptional result{};

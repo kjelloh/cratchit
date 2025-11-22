@@ -9,13 +9,15 @@ namespace first {
   
   AccountStatementFileState::AccountStatementFileState(PeriodPairedFilePath period_paired_file_path)
     :  StateImpl{}
-      ,m_parse_csv_result{CSV::try_parse_csv(period_paired_file_path.content())}
+      ,m_maybe_table_result{CSV::file_to_table(period_paired_file_path.content())}
       ,m_period_paired_file_path{period_paired_file_path} {}
 
   std::string AccountStatementFileState::caption() const {
     if (not m_caption.has_value()) {
-      auto ec = CSV::encoding_caption(this->m_parse_csv_result.icu_detection_result);
-      m_caption = std::format("File: {} [{}]", m_period_paired_file_path.content().filename().string(), ec);
+      m_caption = std::format(
+         "File: {} [{}]"
+        ,m_period_paired_file_path.content().filename().string()
+        ,m_maybe_table_result.to_caption());
     }
     return m_caption.value();
   }
@@ -23,10 +25,10 @@ namespace first {
   StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     auto fiscal_period = this->m_period_paired_file_path.period();
-    if (this->m_parse_csv_result.maybe_table) result.add('t',{"To Tagged Amounts",[
+    if (this->m_maybe_table_result) result.add('t',{"To Tagged Amounts",[
        fiscal_period
-      ,csv_heading_id = this->m_parse_csv_result.heading_id
-      ,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
+      ,csv_heading_id = CSV::project::HeadingId{}
+      ,maybe_table = this->m_maybe_table_result.m_value]() -> StateUpdateResult {
 
       return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
         auto maybe_tas = maybe_table
@@ -48,10 +50,10 @@ namespace first {
       }};
     }});
 
-    if (this->m_parse_csv_result.maybe_table) result.add('s', {"Account Statement", [
+    if (this->m_maybe_table_result) result.add('s', {"Account Statement", [
        fiscal_period
-      ,csv_heading_id = this->m_parse_csv_result.heading_id
-      ,maybe_table = this->m_parse_csv_result.maybe_table
+      ,csv_heading_id = CSV::project::HeadingId{}
+      ,maybe_table = this->m_maybe_table_result.m_value
     ]() -> StateUpdateResult {
       return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
         auto expteced_acount_statement = CSV::project::to_account_statement(csv_heading_id,maybe_table);
@@ -83,8 +85,8 @@ namespace first {
     result.push_back(this->caption());    
     result.push_back("");
     
-    if (m_parse_csv_result.maybe_table) {
-      auto const& csv_table = m_parse_csv_result.maybe_table.value();
+    if (m_maybe_table_result) {
+      auto const& csv_table = m_maybe_table_result.value();
       
       // Calculate column widths for fixed-width formatting
       std::vector<size_t> column_widths{};
