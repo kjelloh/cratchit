@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace cratchit {
   namespace functional {
   
@@ -50,9 +52,29 @@ namespace cratchit {
         return *this;
       }
 
+      // Factory: convert optional<T> + message → AnnotatedOptional<T>
+      static AnnotatedOptional from(std::optional<T> maybe, std::string message_on_nullopt) {
+        AnnotatedOptional result{};
+        result.m_value = std::move(maybe);
+        if (!result) result.push_message(std::move(message_on_nullopt));
+        return result;
+      }
 
     };
-    
+
+    // Lift: wrap optional<T>-returning function → AnnotatedOptional<T>-returning function
+    template<typename F>
+    auto to_annotated_nullopt(F&& f, std::string message_on_nullopt) {
+      return [f = std::forward<F>(f), message_on_nullopt = std::move(message_on_nullopt)](auto&&... args) {
+        using result_t = std::invoke_result_t<F, decltype(args)...>;
+        using value_t = typename result_t::value_type;
+        return AnnotatedOptional<value_t>::from(
+           std::invoke(f, std::forward<decltype(args)>(args)...)
+          ,std::move(message_on_nullopt)
+        );
+      };
+    }
+
   } // functional
 } // cratchit
 

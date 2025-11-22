@@ -184,15 +184,12 @@ namespace neutral {
    * @param delimiter Optional delimiter (auto-detected if not specified)
    * @return Optional CSV::Table, empty on parse failure
    */
-  inline std::optional<CSV::Table> parse_csv(std::string_view csv_text, std::optional<char> delimiter = std::nullopt) {
+  inline std::optional<CSV::Table> parse_csv(std::string_view csv_text, char delim = ';') {
     logger::scope_logger log_raii{logger::development_trace, "CSV::neutral::parse_csv(string_view)"};
     // Handle empty input
     if (csv_text.empty()) {
       return std::nullopt;
     }
-
-    // Detect delimiter if not specified
-    char delim = delimiter.value_or(detect_delimiter(csv_text));
 
     // Parse all rows
     std::vector<std::vector<std::string>> all_rows;
@@ -237,17 +234,22 @@ namespace neutral {
     return table;
   }
 
-  /**
-   * Parse CSV text into a Table structure (string overload for convenience).
-   *
-   * @param csv_text UTF-8 encoded CSV text
-   * @param delimiter Optional delimiter (auto-detected if not specified)
-   * @return Optional CSV::Table, empty on parse failure
-   */
-  inline std::optional<CSV::Table> parse_csv(std::string const& csv_text, std::optional<char> delimiter = std::nullopt) {
-    return parse_csv(std::string_view{csv_text}, delimiter);
-  }
+  // /**
+  //  * Parse CSV text into a Table structure (string overload for convenience).
+  //  *
+  //  * @param csv_text UTF-8 encoded CSV text
+  //  * @param delimiter Optional delimiter (auto-detected if not specified)
+  //  * @return Optional CSV::Table, empty on parse failure
+  //  */
+  // inline std::optional<CSV::Table> parse_csv(std::string const& csv_text, std::optional<char> delimiter = std::nullopt) {
+  //   return parse_csv(std::string_view{csv_text}, delimiter);
+  // }
 
+  // 'Liftable' parse function (clean text -> optional<Table>)
+  inline std::optional<CSV::Table> text_to_table(std::string_view csv_text) {
+    return parse_csv(csv_text,detect_delimiter(csv_text));
+  } 
+  
 } // namespace neutral
 
 } // namespace CSV
