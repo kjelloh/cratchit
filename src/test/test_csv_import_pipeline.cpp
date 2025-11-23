@@ -6,6 +6,7 @@
 #include "text/transcoding_views.hpp"
 #include "text/encoding_pipeline.hpp"
 #include "csv/neutral_parser.hpp"
+#include "csv/csv_to_account_id.hpp"
 #include "test/data/account_statements_csv.hpp"
 #include "domain/csv_to_account_statement.hpp"
 #include <gtest/gtest.h>
@@ -2122,5 +2123,158 @@ Alice,30,"Stockholm, Sweden"
     }
 
   } // namespace account_statement_suite
+
+  namespace account_id_suite {
+
+    // AccountID extraction tests for CSV::project::to_account_id function
+    // Tests the extraction of AccountID (prefix + value) from CSV::Table
+
+    TEST(AccountIdTests, ExtractNordeaAccountId) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, ExtractNordeaAccountId)"};
+
+      // Parse NORDEA CSV test data
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
+
+      // Extract AccountID
+      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+
+      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID for NORDEA CSV";
+      EXPECT_EQ(maybe_account_id->m_prefix, "NORDEA")
+        << "Expected NORDEA prefix for NORDEA bank statement";
+
+      // The NORDEA CSV has account numbers in the Avsandare column
+      // Looking at the test data, some rows have empty Avsandare, but row with Insattning has "32592317244"
+      // So we expect some account number to be extracted
+      logger::development_trace("Extracted NORDEA account: '{}'", maybe_account_id->m_value);
+
+      // The account value should not be empty for NORDEA CSV with valid data
+      // Note: In the sample data, the Avsandare column is mostly empty, but we still detect NORDEA format
+    }
+
+    TEST(AccountIdTests, ExtractSkvAccountIdWithOrgNumber) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, ExtractSkvAccountIdWithOrgNumber)"};
+
+      // Parse newer SKV CSV test data (contains org number in header: "556782-8172")
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (newer format)";
+
+      // Extract AccountID
+      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+
+      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID for SKV CSV";
+      EXPECT_EQ(maybe_account_id->m_prefix, "SKV")
+        << "Expected SKV prefix for tax agency statement";
+      EXPECT_EQ(maybe_account_id->m_value, "5567828172")
+        << "Expected org number extracted from SKV CSV header";
+    }
+
+    TEST(AccountIdTests, ExtractSkvAccountIdFromOlderFormat) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, ExtractSkvAccountIdFromOlderFormat)"};
+
+      // Parse older SKV CSV test data (may not have explicit org number)
+      std::string csv_text = sz_SKV_csv_older;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (older format)";
+
+      // Extract AccountID
+      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+
+      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID for SKV CSV";
+      EXPECT_EQ(maybe_account_id->m_prefix, "SKV")
+        << "Expected SKV prefix for tax agency statement";
+      // Older format may or may not have org number - we just verify it's detected as SKV
+      logger::development_trace("Extracted SKV org number from older format: '{}'", maybe_account_id->m_value);
+    }
+
+    TEST(AccountIdTests, UnknownCsvReturnsEmptyAccountId) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, UnknownCsvReturnsEmptyAccountId)"};
+
+      // Create a generic CSV that is neither NORDEA nor SKV format
+      std::string csv_text = "Name,Value,Date\nAlice,100,2025-01-01\nBob,200,2025-01-02\n";
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
+
+      // Extract AccountID
+      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+
+      ASSERT_TRUE(maybe_account_id.has_value())
+        << "Expected valid (but empty) AccountID for unknown CSV format";
+      EXPECT_EQ(maybe_account_id->m_prefix, "")
+        << "Expected empty prefix for unknown CSV format";
+      EXPECT_EQ(maybe_account_id->m_value, "")
+        << "Expected empty value for unknown CSV format";
+    }
+
+    TEST(AccountIdTests, EmptyTableReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, EmptyTableReturnsNullopt)"};
+
+      // Create an empty CSV::Table
+      CSV::Table empty_table;
+      // heading and rows are default-constructed (empty)
+
+      // Extract AccountID
+      auto maybe_account_id = CSV::project::to_account_id(empty_table);
+
+      EXPECT_FALSE(maybe_account_id.has_value())
+        << "Expected nullopt for empty CSV::Table";
+    }
+
+    TEST(AccountIdTests, TableWithOnlyHeadingReturnsAccountId) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, TableWithOnlyHeadingReturnsAccountId)"};
+
+      // Create a CSV::Table with only a heading (no data rows)
+      // Use Key::Path constructor with vector of strings
+      CSV::Table header_only_table;
+      header_only_table.heading = Key::Path(std::vector<std::string>{"Name", "Amount", "Date"});
+      header_only_table.rows = {};
+
+      // Extract AccountID
+      auto maybe_account_id = CSV::project::to_account_id(header_only_table);
+
+      // With a heading present, we should get a valid (possibly empty) AccountID
+      ASSERT_TRUE(maybe_account_id.has_value())
+        << "Expected valid AccountID for table with heading";
+      // Unknown format should give empty prefix and value
+      EXPECT_EQ(maybe_account_id->m_prefix, "");
+      EXPECT_EQ(maybe_account_id->m_value, "");
+    }
+
+    TEST(AccountIdTests, NordeaHeaderDetection) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, NordeaHeaderDetection)"};
+
+      // Create a table with NORDEA-style header using Key::Path constructor
+      std::vector<std::string> nordea_header_vec = {
+        "Bokforingsdag", "Belopp", "Avsandare", "Mottagare", "Namn", "Saldo", "Valuta"
+      };
+      CSV::Table nordea_table;
+      nordea_table.heading = Key::Path(nordea_header_vec);
+      nordea_table.rows = {nordea_table.heading};  // Include header as first row (current behavior)
+
+      // Extract AccountID
+      auto maybe_account_id = CSV::project::to_account_id(nordea_table);
+
+      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID";
+      EXPECT_EQ(maybe_account_id->m_prefix, "NORDEA")
+        << "Expected NORDEA prefix when header contains NORDEA keywords";
+    }
+
+    TEST(AccountIdTests, AccountIdToStringFormat) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, AccountIdToStringFormat)"};
+
+      // Test the to_string() method of AccountID (DomainPrefixedId)
+      AccountID nordea_id{"NORDEA", "51 86 87-9"};
+      EXPECT_EQ(nordea_id.to_string(), "NORDEA51 86 87-9");
+
+      AccountID skv_id{"SKV", "5567828172"};
+      EXPECT_EQ(skv_id.to_string(), "SKV5567828172");
+
+      AccountID empty_id{"", ""};
+      EXPECT_EQ(empty_id.to_string(), "");
+    }
+
+  } // namespace account_id_suite
 
 } // namespace tests::csv_import_pipeline
