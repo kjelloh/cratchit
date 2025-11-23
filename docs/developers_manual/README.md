@@ -934,3 +934,38 @@ inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
  ```
 
  It seems to have picked up non-scandinavian (english speaking regions) problem of handling non-UTF8 input? Form what I heared this may be an idiomatic test to just check that the code does not crash? But again, the pipe-line we have implemenetd does not fall-back to UTF8 for this input, does it?
+
+ Now it is time to refactor the existing code to leverage the new pipeline. I think I actually need to tell Claude to update prompt 010? The objective 'This step modernizes the existing code in TaggedAmountFramework.cpp (originally referenced at lines 974-979) to use the new composable, monadic architecture while maintaining backward compatibility with existing callers.' is no longer what we want?
+
+ I wonder what Claude will do with the new 'cratchit::csv::import_file_to_tagged_amounts' if we asked for it to 'riff' on my original 'dream' pipe-line in TaggedAmountsFramework.cpp 'tas_from_statment_file'?
+
+ I cleared Claude context window and asked:
+
+ ```sh
+ I now want you to try and refactor 'cratchit::csv::import_file_to_tagged_amounts' to compose the monadic pipe as I dreamt about in the older 'tas_from_statment_file' in TaggedAmountFramework. To accomplish this you have the 'lift' helper 'to_annotated_nullopt' in src/functional/maybe.hpp that you can use as in test cases in src/test/test_annotated_optional.cpp. With this helper you can work with functions that returns std::optional in monadic compositions on AnnotatedMaybe. Take a look and come back to me with a proposal that can accept or reject, thanks!
+ ```
+
+ It turns out Claude did a good job out of this. For one it detected that the step CSV::Table -> MaybeAccountID never fails. Claude reported:
+
+ ```sh
+ Proposal: Monadic Pipeline Composition
+
+  The Challenge
+
+  The pipeline has a complication: Step 6.5 (AccountID detection) doesn't fail on nullopt — it falls back to an empty AccountID. And Steps 7+8 need both the CSV::Table and AccountID.
+
+  Solution: Intermediate Context Struct
+
+  Create a TableWithAccountID struct to carry context through the chain:
+
+  namespace cratchit::csv {
+
+  // Intermediate context for pipeline composition
+  struct TableWithAccountID {
+    CSV::Table table;
+    AccountID account_id;
+  };
+  ...
+ ```
+
+ This was enough for me to start thinking, maybe I have a design flaw here? I actually need to detect a failure to recognise an AccountID? An empty AccountID fallback is NOT what I want?
