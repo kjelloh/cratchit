@@ -665,3 +665,38 @@ Claude resported:
 ```
 
 I decided to keep the prompt though (just for the record) and also accept the code that reuses existing 'csv_table_to_account_statement_entries'. The test cases are now REALLY BLOATED. But as they all pass and testing is not a bad thing I will keep them for now.
+
+I am now getting into the habit of doing Claude context window 'clear' before each new task. It feels like I can then better control how Claude will take off and navigate 'fresh' without presumptions I forgot was in there?
+
+I now needed Claude to refactor step 008. It must now be about the step AccountStatement -> Maybe Tagged Amounts with a defined 'tagging'. I tried:
+
+```sh
+/create-prompt I want to refactor step 008 into being about AccountStatement -> Maybe tagged amounts with a defined tagging sheme. I want you to read prompt 007 about where you should take-off. I want each tagged amount to have the date and amount from each transaction in the AccountStatement (entries). I want each tagged amount to be tagged with "Text" = the transaction 'caption' (description), and with "Account" = the string representation of AccountID. I want you to create tests in a new file on the same format as test_csv_import_pipeline.cpp with a sutable name for the scope. I want you to name the prompt '008-statement-to-tagged-amounts.md'.
+```
+
+Caude finished this task of pritty quickly (one or tw minutes tops) and reported:
+
+```sh
+Prompt created successfully!
+
+  ✓ Saved prompt to ./prompts/008-statement-to-tagged-amounts.md
+
+  This prompt refactors step 008 to transform AccountStatement → Maybe with the defined tagging scheme:
+  - Each TaggedAmount gets the date and amount from each AccountStatementEntry
+  - Tag "Text" = transaction caption (description)
+  - Tag "Account" = string representation of AccountID
+
+  The prompt also specifies creating a new test file test_statement_to_tagged_amounts.cpp following the same structure as test_csv_import_pipeline.cpp.
+
+  ---
+  What's next?
+
+  1. Run prompt now
+  2. Review/edit prompt first
+  3. Save for later
+  4. Other
+
+  Choose (1-4): _
+```
+
+At first it looked as it got confused by my '...Maybe tagged amounts with a defined tagging sheme'. But looking into the created prompt it clearly states to create an optional<TaggedAmounts> so we are home, I think.
