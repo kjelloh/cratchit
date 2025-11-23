@@ -788,3 +788,52 @@ AccountStatementEntry(Date date, Amount amount, std::string caption,Tags tags = 
 ```
 
 But I will push on and see where we end up. So far Claude 'knows' how to do a lot of stuff. And I want to learn how to use Claude for things I am bad at (detailed syntax and code constructs). But also find a way to still be 'connetced' with the code produced. Can I find a way to make Claude a capable code writer and lift myself to be the master of production? Like Renaissance painters and their apprentices?
+
+I now thought it would be a good idea to have Claude decsribe the whole pipeline as it currectly is implemeneted in code and update prompt 009 with this information.
+
+```sh
+> I want you to revice prompt 009 so that it correctly reefer to the actualö code we have created for steps 001-008. We have done some refactorings and additions on the way. So please identify the actual pipe-line (correct naming and locations) to make the prompt accurate and a good input for you to perform step 009. 
+```
+
+Claude seems to have accomplished this quite well with the report:
+
+```sh
+I've revised prompt 009 to accurately reflect the actual codebase implementation. Here's a summary of the key corrections:
+
+  Changes Made to prompts/009-full-pipeline-integration.md
+
+  Pipeline Mapping Updated
+
+  | Step    | Old Reference                                     | Actual Implementation                                                             |
+  |---------|---------------------------------------------------|-----------------------------------------------------------------------------------|
+  | 1       | cratchit::io::read_file_to_buffer                 | src/io/file_reader.hpp ✓                                                          |
+  | 2       | text::encoding::icu::detect_buffer_encoding       | src/text/encoding.hpp ✓                                                           |
+  | 3-4     | text::encoding::views::*                          | src/text/transcoding_views.hpp ✓                                                  |
+  | 5       | text::encoding::read_file_with_encoding_detection | src/text/encoding_pipeline.hpp ✓                                                  |
+  | 6       | CSV::neutral::text_to_table                       | src/csv/neutral_parser.hpp ✓                                                      |
+  | NEW 6.5 | -                                                 | CSV::project::to_account_id in src/csv/csv_to_account_id.hpp                      |
+  | 7       | domain::csv_table_to_account_statement_entries    | domain::csv_table_to_account_statement in src/domain/csv_to_account_statement.hpp |
+  | 8       | domain::account_statement_to_tagged_amounts       | src/domain/account_statement_to_tagged_amounts.hpp ✓                              |
+
+  Key Improvements
+
+  1. Added Step 6.5: AccountID detection via CSV::project::to_account_id() - this was missing from the original prompt
+  2. Corrected function names: csv_table_to_account_statement (not _entries)
+  3. Added convenience function: domain::csv_table_to_tagged_amounts(table, account_id) which composes Steps 7+8
+  4. Updated includes list: Accurate paths for all pipeline components
+  5. Added existing test file references: test_csv_import_pipeline.cpp and test_statement_to_tagged_amounts.cpp
+  6. Corrected return types: Using actual types like AnnotatedMaybe<std::string> for Step 5
+```
+
+Some interesting observations:
+
+- Claude inserted code into the prompt (good or bad?)
+- Claude picked up on AnnotatedMaybe monad and poposed (good!):
+
+```cpp
+ 'inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(...
+ ```
+
+ - Claude dit NOT pick up on the existing 'lift' to_annotated_nullopt
+
+ Anyhow, I will go with this prompt and see how it works out.
