@@ -422,3 +422,48 @@ request?
 ```
 
 With this prompt Claude actually came up with a somewhat acceptable solution I think. It added filter_outlier_boundary_rows function. So it is there for future adjustments. AND, the test on SKV 'newer' format now passes ok. But Test 'AccountStatementTests.DetectColumnsFromData' still fails. But that is a good-to-have so I accept that for now.
+
+At this stage I spent severald days to clean up after Claude. But also to get to grips with what Claude had created. Plus I used Claude for smaller refatcoring tasks and to generate testing of entities like Amount.
+
+I now decided to have Claude re-generate prompts 008-011 by a new 'create_prompt' command.
+
+```sh
+ /create-prompt I want to finalise the csv-file -> Maybe<TaggedAmounts> as was defined in prompt 001 'Refactor the CSV import pipeline'. We have completed steps 001-007 but needs to revice steps 008-011 based on what we have accomplished. I want you to use the test cases in test_csv_import_pipeline.cpp for the current pipeline design. Then create the prompts 008-011 from scratch but with the same names and intention. 
+```
+
+Claude now finalised with:
+
+```sh
+ Summary of new prompts:
+
+  | Step | File                                | Purpose                                                                                    |
+  |------|-------------------------------------|--------------------------------------------------------------------------------------------|
+  | 008  | statements-to-tagged-amounts.md     | Transform AccountStatementEntries → Maybe<TaggedAmounts> using existing TaggedAmount types |
+  | 009  | full-pipeline-integration.md        | Create cratchit::csv::import_file_to_tagged_amounts() high-level API                       |
+  | 010  | refactor-tagged-amount-framework.md | Refactor TaggedAmountFramework.cpp to use new pipeline                                     |
+  | 011  | refactor-parse-csv.md               | Final cleanup, ensure parse_csv.cpp consistency                                            |
+
+  Key improvements in new prompts:
+  - References actual types from test_csv_import_pipeline.cpp (e.g., AnnotatedMaybe<T>, CSV::neutral::text_to_table, domain::csv_table_to_account_statements)
+  - Uses established test namespace patterns (tests::csv_import_pipeline::*_suite)
+  - Builds on completed Steps 1-7 architecture
+  - Includes <assistant-role> section consistent with prompt 007
+
+  Execution strategy: These prompts must run SEQUENTIALLY (dependencies: 008 → 009 → 010 → 011)
+
+  What's next?
+
+  1. Run prompts sequentially now (one completes before next starts)
+  2. Run first prompt only (008-statements-to-tagged-amounts.md)
+  3. Review/edit prompts first
+  4. Other
+
+  Choose (1-4): _
+```
+
+I started to edit prompt 008 and realised after a while that we need to refactor the step Table -> Account statement entries into actually creating an AccountStatement aggregating entries + account id!
+
+So how can I use Claude to refactor existing code (step 007) Table -> Acount statement entries?
+
+It seems we need a new step Table -> Maybe account id? Maybe I can use Claude to create step 007_2?
+
