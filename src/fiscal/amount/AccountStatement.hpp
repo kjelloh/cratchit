@@ -57,6 +57,8 @@ struct DomainPrefixedId {
   }
 };
 
+using AccountID = DomainPrefixedId;
+
 // Models transactions of an account statment (e.g., from a CSV account statement file)
 class AccountStatement {
 public:
@@ -69,7 +71,7 @@ public:
   //       is in place. The optional nature allows for manual mapping 
   //       to e.g., BAS account by the user.
   struct Meta {
-    std::optional<DomainPrefixedId> m_maybe_account_irl_id;
+    std::optional<AccountID> m_maybe_account_irl_id;
   };
   AccountStatement(AccountStatementEntries const& entries,Meta meta = {});
   

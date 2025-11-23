@@ -467,3 +467,36 @@ So how can I use Claude to refactor existing code (step 007) Table -> Acount sta
 
 It seems we need a new step Table -> Maybe account id? Maybe I can use Claude to create step 007_2?
 
+I prompted Claude like this:
+
+```sh
+/create-prompt I want a preceeding sub-step to step 007 as is currently define by prompt 007. In this preceeding step I want CSV::Table -> Maybe AccountID. We need this step to create the AccountStatement to
+  hold AccountStatementEntries we currently create in step 007. The AccointID should have the prefix 'NORDEA', 'SKV' or empty. It it should have the value identified from the CSV::Table being the account no of a
+  bank account. Or, for an SKV account the value shall be the organisation number if found in the CSV::Table (from csv file rows) or blank if not found. I want the prompt name for this preceeding step to be
+  '007-csv-to-account-id'. I want you to thoink this through step by step and keep the generated code totally focused on CSV::Table -> Maybe AccountID ONLY. We will do refactorings of existing step 007 LATER. 
+```
+
+Claude worked for a minute and responded:
+
+```sh
+Prompt created successfully!
+
+  ✓ Saved prompt to ./prompts/007-csv-to-account-id.md
+
+  This prompt creates a focused, single-purpose step for extracting AccountID from CSV::Table:
+
+  Key design decisions:
+  1. Prefix values: "NORDEA", "SKV", or "" (empty)
+  2. Value extraction: Bank account number for NORDEA, organisation number for SKV
+  3. Detection strategy: Header-based for NORDEA, content-based for SKV
+  4. Return semantics: std::nullopt only for invalid tables; valid AccountID (possibly empty) for any valid CSV
+
+  What's next?
+
+  1. Run prompt now
+  2. Review/edit prompt first
+  3. Save for later
+  4. Other
+
+  Choose (1-4):
+```
