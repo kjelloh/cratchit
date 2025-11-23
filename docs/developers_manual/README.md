@@ -550,3 +550,69 @@ I observed this to be good enough code for now:
   - It cerated very domain specific code like 'extract_nordea_account' (too specific)
 
 All in all, the code propbably does the job for current NORDEA bank and old/new SKV csv files. With the test cases this is good enough for later refactoring to broaden the csv file scope (fingers crossed).
+
+I now asked Claude to clean up naming regarding Acoount Statement:
+
+```sh
+> I want to clean up my code regarding terms used for Account Statement. I want an 'Account Statement' (singular) to be about all transactions to and from an account for a period. I want each entry to be called
+ 'account stetement entry'. Can you take a look at code and tests and propose a 'naming clean-up' to make this clear in the code? 
+```
+
+And Claude did a pritty good job anlysing the code base and offer me to fix just the most pressing inconsistency '..._account_statements' to '..._account_statement_entries'.
+
+```sh
+ Rename complete.
+
+  Summary
+
+  Renamed csv_table_to_account_statements → csv_table_to_account_statement_entries
+
+  | File                                        | Occurrences |
+  |---------------------------------------------|-------------|
+  | src/domain/csv_to_account_statement.hpp     | 2           |
+  | src/test/test_csv_import_pipeline.cpp       | 12          |
+  | src/csv/projections.cpp                     | 2           |
+  | docs/developers_manual/README.md            | 1           |
+  | prompts/008-statements-to-tagged-amounts.md | 3           |
+  | prompts/009-full-pipeline-integration.md    | 2           |
+  | prompts/011-refactor-parse-csv.md           | 2           |
+
+  Build: ✅ Compiles
+  Tests: ✅ All 17 AccountStatement tests pass
+```
+
+Now I need Claude to implement a CSV::Table + AccountID -> Maybe AccountStatement.
+
+I tried:
+
+```sh
+> /create-prompt is running… I want to implement the next step in csv file -> Tagged Amounts taking off from existing CSV::Table -> Maybe AccountID by 'CSV::project::to_account_id' and CSV::Table -> Maybe 
+AccountStatementEntries by 'domain::csv_table_to_account_statement_entries'. Probably by refactoring the latter (as this step is no longer viable)? I want you 
+```
+
+But this failed as I was not clear about the actual step CSV::Table + AccountID -> Maybe AccountStatement! I also failed to tell claude that this is a new step 007 (maybe even a replacement of 007-csv-to-account-statements.md?)
+
+Claude did:
+
+```sh
+Prompt created successfully!
+
+  ✓ Saved prompt to ./prompts/012-integrate-accountid-with-tagged-amounts.md
+
+  Summary: This prompt will implement the next step in the CSV → TaggedAmounts pipeline by:
+  1. Creating a combined transformation function that uses both CSV::project::to_account_id and domain::csv_table_to_account_statement_entries
+  2. Refactoring csv_table_to_account_statement_entries if needed
+  3. Adding comprehensive tests to test_csv_import_pipeline.cpp
+  4. Ensuring all code compiles and tests pass
+
+  What's next?
+
+  1. Run prompt now
+  2. Review/edit prompt first
+  3. Save for later
+  4. Other
+
+  Choose (1-4): _
+```
+
+So no, I did NOT want a prompt 012. I did NOT want 'integrate-accountid-with-tagged-amounts', whatever that could mean?. So I cleared Claude and tried again.

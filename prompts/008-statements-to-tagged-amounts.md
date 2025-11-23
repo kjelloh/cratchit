@@ -31,7 +31,7 @@ file_path
   → runtime_encoded_view         (Step 4 - text::encoding::views::unicode_to_runtime_encoding)
   → Maybe<text>                  (Step 5 - text::encoding::read_file_with_encoding_detection)
   → Maybe<csv_table>             (Step 6 - CSV::neutral::text_to_table)
-  → Maybe<account_statements>    (Step 7 - domain::csv_table_to_account_statements)
+  → Maybe<account_statements>    (Step 7 - domain::csv_table_to_account_statement_entries)
   → Maybe<tagged_amounts>        (Step 8 - THIS STEP)
 ```
 
@@ -153,7 +153,7 @@ namespace tests::csv_import_pipeline {
 
         TEST(TaggedAmountTests, ComposesWithStep7) {
             logger::scope_logger log_raii{logger::development_trace, "TEST(TaggedAmountTests, ComposesWithStep7)"};
-            // Test monadic composition with csv_table_to_account_statements
+            // Test monadic composition with csv_table_to_account_statement_entries
             // CSV::Table → AccountStatements → TaggedAmounts
         }
 
@@ -195,7 +195,7 @@ Test coverage:
 - [ ] Returns AnnotatedMaybe<TaggedAmounts> for monadic composition
 - [ ] Transforms account statements to tagged amounts correctly
 - [ ] Preserves date, amount, description metadata
-- [ ] Composes with Step 7 (csv_table_to_account_statements → tagged amounts)
+- [ ] Composes with Step 7 (csv_table_to_account_statement_entries → tagged amounts)
 - [ ] Code compiles on macOS XCode with C++23
 - [ ] Tested with account statement input
 - [ ] Tested with real CSV data (Nordea, SKV)

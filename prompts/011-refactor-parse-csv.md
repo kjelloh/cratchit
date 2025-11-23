@@ -27,7 +27,7 @@ This is Step 11 of an 11-step refactoring (prompts 001..011) - THE FINAL STEP.
 file_path
   → text::encoding::read_file_with_encoding_detection() [Steps 1-5]
   → CSV::neutral::text_to_table()                       [Step 6]
-  → domain::csv_table_to_account_statements()           [Step 7]
+  → domain::csv_table_to_account_statement_entries()           [Step 7]
   → domain::account_statements_to_tagged_amounts()      [Step 8]
   → cratchit::csv::import_file_to_tagged_amounts()      [Step 9]
   → TaggedAmountFramework integrated                    [Step 10]
@@ -230,7 +230,7 @@ Once this step is complete, the entire refactoring is finished:
 
 - ✅ Steps 6-8: Domain pipeline with monadic composition
   - CSV::neutral::text_to_table (neutral CSV parsing)
-  - domain::csv_table_to_account_statements (column detection, extraction)
+  - domain::csv_table_to_account_statement_entries (column detection, extraction)
   - domain::account_statements_to_tagged_amounts (final domain objects)
 
 - ✅ Step 9: Full integration

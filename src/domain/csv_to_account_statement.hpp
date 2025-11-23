@@ -396,8 +396,8 @@ inline CSV::Table filter_outlier_boundary_rows(CSV::Table const& table) {
  * - Returns nullopt if column detection fails
  * - Returns empty vector if no valid entries found (but detection succeeded)
  */
-inline OptionalAccountStatementEntries csv_table_to_account_statements(CSV::Table const& table) {
-  logger::scope_logger log_raii{logger::development_trace, "domain::csv_table_to_account_statements(table)"};
+inline OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table) {
+  logger::scope_logger log_raii{logger::development_trace, "domain::csv_table_to_account_statement_entries(table)"};
   
   // Filter out first/last rows if they have different column structure
   CSV::Table filtered_table = filter_outlier_boundary_rows(table);
