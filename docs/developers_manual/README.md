@@ -837,3 +837,100 @@ Some interesting observations:
  - Claude dit NOT pick up on the existing 'lift' to_annotated_nullopt
 
  Anyhow, I will go with this prompt and see how it works out.
+
+ I now cleared Claude context window and asked it to run prompt 009.
+
+ Claude went its marry way and after a couple of minutes only it reported:
+
+ ```sh
+  ✓ Executed: ./prompts/009-full-pipeline-integration.md
+  ✓ Archived to: ./prompts/completed/009-full-pipeline-integration.md
+
+  Results
+
+  Successfully implemented Step 9 of the CSV import pipeline refactoring.
+
+  Files Created
+
+  - src/csv/import_pipeline.hpp - High-level API with three entry points:
+    - cratchit::csv::import_file_to_tagged_amounts(file_path) - Complete pipeline
+    - cratchit::csv::import_text_to_tagged_amounts(csv_text) - From text (Steps 6-8)
+    - cratchit::csv::import_table_to_tagged_amounts(table) - From CSV::Table (Steps 6.5-8)
+
+  Files Modified
+
+  - src/test/test_csv_import_pipeline.cpp - Added 18 comprehensive tests in full_pipeline_suite
+
+  Test Results
+
+  - All 215 tests pass (including 18 new full pipeline tests)
+  - Build successful on macOS XCode with C++23
+  - Both NORDEA and SKV CSV formats work correctly
+ ```
+
+ So Claude implemented 'import_file_to_tagged_amounts' OK. But it totally forgot to actually apply the Monadic composition provided by std::optional and AnnotatedMaybe<T>. So we get code like:
+
+ ```cpp
+inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
+  ...
+  auto text_result = text::encoding::read_file_with_encoding_detection(file_path);
+
+  if (!text_result) {
+    // Propagate file/encoding errors
+    result.m_messages = std::move(text_result.m_messages);
+    result.push_message("Pipeline failed at Step 1-5: File reading/encoding");
+    return result;
+  }
+
+  // Copy messages from file reading/encoding
+  result.m_messages = text_result.m_messages;
+  auto const& text = text_result.value();
+
+  // Handle empty file case
+  if (text.empty()) {
+    result.push_message("Pipeline complete: Empty file produced empty TaggedAmounts");
+    result.m_value = TaggedAmounts{};
+    return result;
+  }
+
+ ```
+
+ Well, it is very explicit and easy to read, I suppose. And I cn refactor it into 'and_then' pipe line later with selective use of 'to_annotated_nullopt' to lift optional-returning-functions to AnnotatedMaybe ones?
+
+ Also, it seems Claude repeats the same testing of things like encoding preservation overe and over. Like:
+
+ ```cpp
+     TEST_F(FullPipelineTestFixture, PipelineHandlesDifferentEncodings) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, PipelineHandlesDifferentEncodings)"};
+
+      // Create ISO-8859-1 encoded CSV file
+      auto iso_csv_file = test_dir / "iso8859_test.csv";
+      {
+        std::ofstream ofs(iso_csv_file, std::ios::binary);
+        // ISO-8859-1 encoded: Date;Amount;Namn (using 0xC5 for Å)
+        unsigned char iso_content[] = {
+          'D','a','t','e',';','A','m','o','u','n','t',';','N','a','m','n','\n',
+          '2','0','2','5','-','0','1','-','0','1',';','1','0','0','.','5','0',';',
+          0xC5,'s','a',' ','L','i','n','d','s','t','r',0xF6,'m','\n'  // Åsa Lindström
+        };
+        ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
+      }
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(iso_csv_file);
+      ...
+ ```
+
+ Well, I suppose maybe this might be a valid test to see that the pipe as a whole propagates as defined, although I am not sure exactly what the test is suypposed to confirm? I mean, We **have** already implemented ISO8859-1 encoding detection? AND tested it in the previous pipe-line testing, have we not? Well, I leave it in for now (better to many tests than to few, right?).
+
+ The test above ends a bit pequliar though?
+
+ ```cpp
+      ...
+      // The pipeline should handle encoding automatically
+      // Even if it defaults to UTF-8, it should produce some result
+      // (exact behavior depends on encoding detection)
+      // The key is that it should not crash or throw
+      SUCCEED() << "Pipeline handled different encoding without crashing";
+ ```
+
+ It seems to have picked up non-scandinavian (english speaking regions) problem of handling non-UTF8 input? Form what I heared this may be an idiomatic test to just check that the code does not crash? But again, the pipe-line we have implemenetd does not fall-back to UTF8 for this input, does it?

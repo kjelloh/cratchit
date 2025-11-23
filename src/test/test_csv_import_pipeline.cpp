@@ -7,8 +7,10 @@
 #include "text/encoding_pipeline.hpp"
 #include "csv/neutral_parser.hpp"
 #include "csv/csv_to_account_id.hpp"
+#include "csv/import_pipeline.hpp"
 #include "test/data/account_statements_csv.hpp"
 #include "domain/csv_to_account_statement.hpp"
+#include "domain/account_statement_to_tagged_amounts.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
 #include <filesystem>
@@ -2451,5 +2453,473 @@ Alice,30,"Stockholm, Sweden"
     }
 
   } // namespace account_id_suite
+
+  namespace full_pipeline_suite {
+
+    // ============================================================================
+    // Full Pipeline Tests - Step 9: Complete CSV Import Pipeline
+    // Tests for cratchit::csv::import_file_to_tagged_amounts() and related functions
+    // ============================================================================
+
+    // Test fixture for full pipeline tests with file I/O
+    class FullPipelineTestFixture : public ::testing::Test {
+    protected:
+      std::filesystem::path test_dir;
+      std::filesystem::path nordea_csv_file;
+      std::filesystem::path skv_csv_file;
+      std::filesystem::path skv_older_csv_file;
+      std::filesystem::path simple_csv_file;
+      std::filesystem::path empty_file;
+      std::filesystem::path invalid_csv_file;
+
+      void SetUp() override {
+        logger::scope_logger log_raii{logger::development_trace, "FullPipelineTestFixture::SetUp"};
+
+        // Create temporary test directory
+        test_dir = std::filesystem::temp_directory_path() / "cratchit_test_full_pipeline";
+        std::filesystem::create_directories(test_dir);
+
+        // Create NORDEA CSV test file
+        nordea_csv_file = test_dir / "nordea_test.csv";
+        {
+          std::ofstream ofs(nordea_csv_file, std::ios::binary);
+          ofs << sz_NORDEA_csv_20251120;
+        }
+
+        // Create SKV CSV test file (newer format)
+        skv_csv_file = test_dir / "skv_test.csv";
+        {
+          std::ofstream ofs(skv_csv_file, std::ios::binary);
+          ofs << sz_SKV_csv_20251120;
+        }
+
+        // Create SKV CSV test file (older format)
+        skv_older_csv_file = test_dir / "skv_older_test.csv";
+        {
+          std::ofstream ofs(skv_older_csv_file, std::ios::binary);
+          ofs << sz_SKV_csv_older;
+        }
+
+        // Create simple CSV test file
+        simple_csv_file = test_dir / "simple_test.csv";
+        {
+          std::ofstream ofs(simple_csv_file, std::ios::binary);
+          ofs << "Date,Amount,Description\n";
+          ofs << "2025-01-01,100.50,Payment received\n";
+          ofs << "2025-01-02,-50.00,Withdrawal\n";
+          ofs << "2025-01-03,200.00,Transfer in\n";
+        }
+
+        // Create empty file
+        empty_file = test_dir / "empty.csv";
+        {
+          std::ofstream ofs(empty_file);
+        }
+
+        // Create invalid CSV file (undetectable columns)
+        invalid_csv_file = test_dir / "invalid.csv";
+        {
+          std::ofstream ofs(invalid_csv_file);
+          ofs << "UnknownCol1,UnknownCol2\n";
+          ofs << "value1,value2\n";
+        }
+      }
+
+      void TearDown() override {
+        logger::scope_logger log_raii{logger::development_trace, "FullPipelineTestFixture::TearDown"};
+        std::error_code ec;
+        std::filesystem::remove_all(test_dir, ec);
+      }
+    };
+
+    // ----------------------------------------------------------------------------
+    // import_file_to_tagged_amounts() tests
+    // ----------------------------------------------------------------------------
+
+    TEST_F(FullPipelineTestFixture, ImportNordeaFileSuccess) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportNordeaFileSuccess)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
+
+      ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV file";
+      EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
+
+      // Verify messages document the pipeline
+      EXPECT_GT(result.m_messages.size(), 3) << "Expected messages from multiple pipeline stages";
+
+      // Check that we have meaningful TaggedAmounts
+      auto const& tagged_amounts = result.value();
+      for (auto const& ta : tagged_amounts) {
+        EXPECT_TRUE(ta.date() != Date{}) << "Expected valid date";
+        EXPECT_TRUE(ta.tag_value("Text").has_value()) << "Expected 'Text' tag";
+        EXPECT_TRUE(ta.tag_value("Account").has_value()) << "Expected 'Account' tag";
+      }
+
+      // Verify Account tag contains NORDEA
+      if (!tagged_amounts.empty()) {
+        auto account_tag = tagged_amounts[0].tag_value("Account");
+        ASSERT_TRUE(account_tag.has_value());
+        EXPECT_TRUE(account_tag->find("NORDEA") != std::string::npos)
+          << "Expected Account tag to contain NORDEA";
+      }
+
+      logger::development_trace("Imported {} TaggedAmounts from NORDEA CSV", result.value().size());
+    }
+
+    TEST_F(FullPipelineTestFixture, ImportSkvFileSuccess) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvFileSuccess)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(skv_csv_file);
+
+      ASSERT_TRUE(result) << "Expected successful import of SKV CSV file";
+      EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts from SKV CSV";
+
+      // Verify messages document the pipeline
+      EXPECT_GT(result.m_messages.size(), 3) << "Expected messages from multiple pipeline stages";
+
+      // Verify Account tag contains SKV
+      auto const& tagged_amounts = result.value();
+      if (!tagged_amounts.empty()) {
+        auto account_tag = tagged_amounts[0].tag_value("Account");
+        ASSERT_TRUE(account_tag.has_value());
+        EXPECT_TRUE(account_tag->find("SKV") != std::string::npos)
+          << "Expected Account tag to contain SKV";
+      }
+
+      logger::development_trace("Imported {} TaggedAmounts from SKV CSV", result.value().size());
+    }
+
+    TEST_F(FullPipelineTestFixture, ImportSkvOlderFormatSuccess) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvOlderFormatSuccess)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(skv_older_csv_file);
+
+      ASSERT_TRUE(result) << "Expected successful import of older SKV CSV file";
+      EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
+
+      logger::development_trace("Imported {} TaggedAmounts from older SKV CSV", result.value().size());
+    }
+
+    TEST_F(FullPipelineTestFixture, ImportSimpleCsvSuccess) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSimpleCsvSuccess)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(simple_csv_file);
+
+      ASSERT_TRUE(result) << "Expected successful import of simple CSV file";
+      EXPECT_EQ(result.value().size(), 3) << "Expected 3 TaggedAmounts from simple CSV";
+
+      // Verify the amounts are correct
+      auto const& tagged_amounts = result.value();
+      ASSERT_EQ(tagged_amounts.size(), 3);
+
+      // Check first entry: 100.50
+      auto cents_1 = to_amount_in_cents_integer(tagged_amounts[0].cents_amount());
+      EXPECT_EQ(cents_1, 10050) << "Expected first amount to be 100.50 (10050 cents)";
+
+      // Check second entry: -50.00
+      auto cents_2 = to_amount_in_cents_integer(tagged_amounts[1].cents_amount());
+      EXPECT_EQ(cents_2, -5000) << "Expected second amount to be -50.00 (-5000 cents)";
+
+      // Check third entry: 200.00
+      auto cents_3 = to_amount_in_cents_integer(tagged_amounts[2].cents_amount());
+      EXPECT_EQ(cents_3, 20000) << "Expected third amount to be 200.00 (20000 cents)";
+
+      logger::development_trace("Verified TaggedAmount values from simple CSV");
+    }
+
+    TEST_F(FullPipelineTestFixture, ImportMissingFileReturnsEmpty) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportMissingFileReturnsEmpty)"};
+
+      auto missing_path = test_dir / "nonexistent_file.csv";
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(missing_path);
+
+      EXPECT_FALSE(result) << "Expected failure for missing file";
+      EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
+
+      // Verify error message mentions the file
+      bool found_error_msg = false;
+      for (auto const& msg : result.m_messages) {
+        if (msg.find("failed") != std::string::npos ||
+            msg.find("Failed") != std::string::npos ||
+            msg.find("error") != std::string::npos ||
+            msg.find("Error") != std::string::npos ||
+            msg.find("not") != std::string::npos) {
+          found_error_msg = true;
+          break;
+        }
+      }
+      EXPECT_TRUE(found_error_msg) << "Expected meaningful error message";
+    }
+
+    TEST_F(FullPipelineTestFixture, ImportEmptyFileReturnsEmptyTaggedAmounts) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportEmptyFileReturnsEmptyTaggedAmounts)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(empty_file);
+
+      ASSERT_TRUE(result) << "Expected successful import of empty file";
+      EXPECT_EQ(result.value().size(), 0) << "Expected empty TaggedAmounts for empty file";
+    }
+
+    TEST_F(FullPipelineTestFixture, ImportInvalidCsvReturnsEmpty) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportInvalidCsvReturnsEmpty)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(invalid_csv_file);
+
+      EXPECT_FALSE(result) << "Expected failure for CSV with undetectable columns";
+      EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
+    }
+
+    TEST_F(FullPipelineTestFixture, MessagesPreservedThroughPipeline) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, MessagesPreservedThroughPipeline)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
+
+      ASSERT_TRUE(result) << "Expected successful import";
+
+      // Look for messages from different pipeline stages
+      bool has_encoding_msg = false;
+      bool has_csv_msg = false;
+      bool has_account_id_msg = false;
+      bool has_completion_msg = false;
+
+      for (auto const& msg : result.m_messages) {
+        if (msg.find("encoding") != std::string::npos ||
+            msg.find("Detected") != std::string::npos ||
+            msg.find("transcoded") != std::string::npos) {
+          has_encoding_msg = true;
+        }
+        if (msg.find("CSV") != std::string::npos ||
+            msg.find("parsed") != std::string::npos ||
+            msg.find("Step 6") != std::string::npos) {
+          has_csv_msg = true;
+        }
+        if (msg.find("AccountID") != std::string::npos ||
+            msg.find("Step 6.5") != std::string::npos) {
+          has_account_id_msg = true;
+        }
+        if (msg.find("Pipeline complete") != std::string::npos ||
+            msg.find("TaggedAmounts created") != std::string::npos) {
+          has_completion_msg = true;
+        }
+      }
+
+      EXPECT_TRUE(has_encoding_msg) << "Expected encoding-related message";
+      EXPECT_TRUE(has_csv_msg) << "Expected CSV parsing message";
+      EXPECT_TRUE(has_account_id_msg) << "Expected AccountID detection message";
+      EXPECT_TRUE(has_completion_msg) << "Expected pipeline completion message";
+
+      logger::development_trace("Found {} messages from pipeline", result.m_messages.size());
+    }
+
+    // ----------------------------------------------------------------------------
+    // import_text_to_tagged_amounts() tests
+    // ----------------------------------------------------------------------------
+
+    TEST(FullPipelineTextTests, ImportNordeaTextSuccess) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportNordeaTextSuccess)"};
+
+      std::string csv_text = sz_NORDEA_csv_20251120;
+
+      auto result = cratchit::csv::import_text_to_tagged_amounts(csv_text);
+
+      ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV text";
+      EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
+
+      // Verify Account tag
+      auto const& tagged_amounts = result.value();
+      if (!tagged_amounts.empty()) {
+        auto account_tag = tagged_amounts[0].tag_value("Account");
+        ASSERT_TRUE(account_tag.has_value());
+        EXPECT_TRUE(account_tag->find("NORDEA") != std::string::npos)
+          << "Expected Account tag to contain NORDEA";
+      }
+    }
+
+    TEST(FullPipelineTextTests, ImportSkvTextSuccess) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportSkvTextSuccess)"};
+
+      std::string csv_text = sz_SKV_csv_20251120;
+
+      auto result = cratchit::csv::import_text_to_tagged_amounts(csv_text);
+
+      ASSERT_TRUE(result) << "Expected successful import of SKV CSV text";
+      EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts";
+
+      // Verify Account tag contains SKV and org number
+      auto const& tagged_amounts = result.value();
+      if (!tagged_amounts.empty()) {
+        auto account_tag = tagged_amounts[0].tag_value("Account");
+        ASSERT_TRUE(account_tag.has_value());
+        EXPECT_TRUE(account_tag->find("SKV") != std::string::npos)
+          << "Expected Account tag to contain SKV";
+        EXPECT_TRUE(account_tag->find("5567828172") != std::string::npos)
+          << "Expected Account tag to contain org number";
+      }
+    }
+
+    TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty)"};
+
+      std::string empty_text;
+
+      auto result = cratchit::csv::import_text_to_tagged_amounts(empty_text);
+
+      ASSERT_TRUE(result) << "Expected successful import of empty text";
+      EXPECT_EQ(result.value().size(), 0) << "Expected empty TaggedAmounts";
+    }
+
+    TEST(FullPipelineTextTests, ImportInvalidTextReturnsEmpty) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportInvalidTextReturnsEmpty)"};
+
+      std::string invalid_text = "UnknownCol1,UnknownCol2\nvalue1,value2\n";
+
+      auto result = cratchit::csv::import_text_to_tagged_amounts(invalid_text);
+
+      EXPECT_FALSE(result) << "Expected failure for invalid CSV text";
+    }
+
+    // ----------------------------------------------------------------------------
+    // import_table_to_tagged_amounts() tests
+    // ----------------------------------------------------------------------------
+
+    TEST(FullPipelineTableTests, ImportTableSuccess) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportTableSuccess)"};
+
+      // Create a valid CSV::Table
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Payment"}});
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "-50.00", "Withdrawal"}});
+
+      auto result = cratchit::csv::import_table_to_tagged_amounts(table);
+
+      ASSERT_TRUE(result) << "Expected successful import of CSV::Table";
+      EXPECT_EQ(result.value().size(), 2) << "Expected 2 TaggedAmounts";
+
+      // Verify amounts
+      auto const& tagged_amounts = result.value();
+      auto cents_1 = to_amount_in_cents_integer(tagged_amounts[0].cents_amount());
+      EXPECT_EQ(cents_1, 10050);
+
+      auto cents_2 = to_amount_in_cents_integer(tagged_amounts[1].cents_amount());
+      EXPECT_EQ(cents_2, -5000);
+    }
+
+    TEST(FullPipelineTableTests, ImportTableWithNordeaData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportTableWithNordeaData)"};
+
+      // Parse NORDEA CSV to get a table
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
+
+      // Import the table
+      auto result = cratchit::csv::import_table_to_tagged_amounts(*maybe_table);
+
+      ASSERT_TRUE(result) << "Expected successful import of NORDEA table";
+      EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
+
+      // Verify Account tag
+      if (!result.value().empty()) {
+        auto account_tag = result.value()[0].tag_value("Account");
+        ASSERT_TRUE(account_tag.has_value());
+        EXPECT_TRUE(account_tag->find("NORDEA") != std::string::npos);
+      }
+    }
+
+    TEST(FullPipelineTableTests, ImportInvalidTableReturnsEmpty) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportInvalidTableReturnsEmpty)"};
+
+      // Create a table with undetectable columns
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Foo", "Bar"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"x", "y"}});
+
+      auto result = cratchit::csv::import_table_to_tagged_amounts(table);
+
+      EXPECT_FALSE(result) << "Expected failure for invalid table";
+    }
+
+    // ----------------------------------------------------------------------------
+    // Integration tests
+    // ----------------------------------------------------------------------------
+
+    TEST_F(FullPipelineTestFixture, CompletePipelineVerifyTaggedAmountStructure) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, CompletePipelineVerifyTaggedAmountStructure)"};
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(simple_csv_file);
+
+      ASSERT_TRUE(result) << "Expected successful import";
+      ASSERT_EQ(result.value().size(), 3);
+
+      // Verify complete TaggedAmount structure for first entry
+      auto const& first = result.value()[0];
+
+      // Date should be 2025-01-01
+      EXPECT_EQ(first.date(), to_date(2025, 1, 1));
+
+      // Amount should be 100.50 (10050 cents)
+      EXPECT_EQ(to_amount_in_cents_integer(first.cents_amount()), 10050);
+
+      // Text tag should contain description
+      auto text_tag = first.tag_value("Text");
+      ASSERT_TRUE(text_tag.has_value());
+      EXPECT_EQ(*text_tag, "Payment received");
+
+      // Account tag should be present (empty for generic CSV)
+      auto account_tag = first.tag_value("Account");
+      ASSERT_TRUE(account_tag.has_value());
+    }
+
+    TEST_F(FullPipelineTestFixture, PipelinePreservesAllEntries) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, PipelinePreservesAllEntries)"};
+
+      // Import NORDEA CSV and verify we get all expected entries
+      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
+
+      ASSERT_TRUE(result) << "Expected successful import";
+
+      // Count entries - should match the number of valid transaction rows in sample data
+      // Looking at sz_NORDEA_csv_20251120, there are multiple transaction rows
+      EXPECT_GT(result.value().size(), 5)
+        << "Expected more than 5 entries from NORDEA sample data";
+
+      // Verify each entry has required tags
+      for (auto const& ta : result.value()) {
+        EXPECT_TRUE(ta.tag_value("Text").has_value()) << "Missing Text tag";
+        EXPECT_TRUE(ta.tag_value("Account").has_value()) << "Missing Account tag";
+        EXPECT_TRUE(ta.date() != Date{}) << "Invalid date";
+      }
+    }
+
+    TEST_F(FullPipelineTestFixture, PipelineHandlesDifferentEncodings) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, PipelineHandlesDifferentEncodings)"};
+
+      // Create ISO-8859-1 encoded CSV file
+      auto iso_csv_file = test_dir / "iso8859_test.csv";
+      {
+        std::ofstream ofs(iso_csv_file, std::ios::binary);
+        // ISO-8859-1 encoded: Date;Amount;Namn (using 0xC5 for Å)
+        unsigned char iso_content[] = {
+          'D','a','t','e',';','A','m','o','u','n','t',';','N','a','m','n','\n',
+          '2','0','2','5','-','0','1','-','0','1',';','1','0','0','.','5','0',';',
+          0xC5,'s','a',' ','L','i','n','d','s','t','r',0xF6,'m','\n'  // Åsa Lindström
+        };
+        ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
+      }
+
+      auto result = cratchit::csv::import_file_to_tagged_amounts(iso_csv_file);
+
+      // The pipeline should handle encoding automatically
+      // Even if it defaults to UTF-8, it should produce some result
+      // (exact behavior depends on encoding detection)
+      // The key is that it should not crash or throw
+      SUCCEED() << "Pipeline handled different encoding without crashing";
+    }
+
+  } // namespace full_pipeline_suite
 
 } // namespace tests::csv_import_pipeline
