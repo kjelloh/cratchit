@@ -413,7 +413,7 @@ request?
 
 It still fails to understand how to compile and run cratchit?!! What is missing in the prompt?
 
-DARN! It should read prompt 007 *sigh* (And Claude has no meta-thinking so it just dumbly bymbles on riffing on what I said literally and not what makes sense...)
+DARN! I should refer to prompt 007 *sigh* (And Claude has no meta-thinking so it just dumbly bymbles on riffing on what I said literally and not what makes sense...)
 
 ```sh
 > I need you to read prompt 007 CAREFULLY to understand how to compile and test the application. Then I want you to run the tests and identify the failure to parse SKV test data. Finally I want you to propose a
@@ -501,7 +501,43 @@ Prompt created successfully!
   Choose (1-4):
 ```
 
-Claude succeeded to cerate code + tests for CSV::Table -> Maybe AccountID 'good enough' from what I can see (quick look into generated code and tests).
+I asked Claude to run the new prompt 007 and it succeeded to cerate code + tests for CSV::Table -> Maybe AccountID 'good enough' from what I can see (quick look into generated code and tests).
+
+It reported:
+
+```sh
+Results
+
+  Successfully implemented CSV::Table → Maybe<AccountID> extraction function.
+
+  Files Created/Modified
+
+  | File                                  | Action                 |
+  |---------------------------------------|------------------------|
+  | src/csv/csv_to_account_id.hpp         | Created                |
+  | src/test/test_csv_import_pipeline.cpp | Modified (added tests) |
+
+  Implementation Summary
+
+  - NORDEA detection: Header keywords ("Bokforingsdag", "Avsandare", "Mottagare", "Saldo") → extracts account from "Avsandare" column
+  - SKV detection: Content patterns ("Ingaende saldo", "Utgaende saldo", etc.) → extracts 10-digit org number via regex
+  - Fallback: Returns AccountID{"", ""} for unknown formats
+  - Empty table: Returns std::nullopt
+
+  Test Results
+
+  8 new tests added, all passing:
+  - ExtractNordeaAccountId
+  - ExtractSkvAccountIdWithOrgNumber
+  - ExtractSkvAccountIdFromOlderFormat
+  - UnknownCsvReturnsEmptyAccountId
+  - EmptyTableReturnsNullopt
+  - TableWithOnlyHeadingReturnsAccountId
+  - NordeaHeaderDetection
+  - AccountIdToStringFormat
+
+  All 179 existing tests continue to pass (no regressions).
+```
 
 It created a new file 'src/csv/csv_to_account_id.hpp' (header only). That is not to my liking but good enough for later refactoring.
 
