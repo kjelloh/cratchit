@@ -32,14 +32,33 @@ file_path
   → Maybe<text>                  (Step 5 - text::encoding::read_file_with_encoding_detection)
   → Maybe<csv_table>             (Step 6 - CSV::neutral::text_to_table)
   → Maybe<account_statements>    (Step 7 - domain::csv_table_to_account_statement_entries)
-  → Maybe<tagged_amounts>        (Step 8 - domain::account_statements_to_tagged_amounts)
+  → Maybe<tagged_amounts>        (Step 8 - domain::account_statement_to_tagged_amounts)
+
+Step 8 completion report:
+ 
+  Successfully implemented Step 8 of the CSV import pipeline: AccountStatement → Maybe<TaggedAmounts>
+
+  Files Created
+
+  1. src/domain/account_statement_to_tagged_amounts.hpp
+    - domain::account_statement_to_tagged_amounts(AccountStatement) - Main transformation
+    - domain::make_account_id(prefix, value) - Helper function
+    - domain::csv_table_to_tagged_amounts(CSV::Table, AccountID) - Convenience composition (Steps 7+8)
+  2. src/test/test_statement_to_tagged_amounts.cpp
+    - 12 comprehensive tests covering all scenarios
+
+  Files Modified
+
+  - CMakeLists.txt - Added new test file to build
+  - src/test/data/account_statements_csv.hpp - Fixed ODR violations with inline keyword
+
 ```
 
 **Existing Integration Points (from test file):**
 - `text::encoding::read_file_with_encoding_detection()` - Combines Steps 1-5
 - `CSV::neutral::text_to_table()` - Step 6
 - `domain::csv_table_to_account_statement_entries()` - Step 7
-- `domain::account_statements_to_tagged_amounts()` - Step 8 (from previous prompt)
+- `domain::account_statement_to_tagged_amounts()` - Step 8 (from previous prompt)
 
 **Review existing implementations:**
 @src/io/file_reader.hpp (Step 1)
