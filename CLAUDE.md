@@ -12,6 +12,16 @@ The application is named after Bob Cratchit, the poor clerk of Scrooge in Charle
 - './cratchit --test --gtest_xxx'   Run tests (passing args to google test)
 - './cratchit --gtest_xxx...'       Run google tests (passing provided arguments to google test)
 
+## Helper 'run' script
+
+- './run.zsh --nop'                 Build + move to workspace folder + execute './cratchit --nop'
+- './run.zsh ...args...'            Build + move to workspace folder + execute './cratchit ...'
+
+## Known buld problems and fixes
+
+- 'Silent' run of cratchit can indicate 'code signing error' (OS rejects execution)
+- Command: 'codesign -s - --force --deep workspace/cratchit' fixes code signing error.
+
 ## Project Architecture
 
 Cratchit implements **two distinct architectural modes**:
