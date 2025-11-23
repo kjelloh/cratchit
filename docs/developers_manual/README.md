@@ -700,3 +700,91 @@ Prompt created successfully!
 ```
 
 At first it looked as it got confused by my '...Maybe tagged amounts with a defined tagging sheme'. But looking into the created prompt it clearly states to create an optional<TaggedAmounts> so we are home, I think.
+
+Let's see what Claude can do?
+
+```sh
+/clear
+/run-prompt 008
+Found 008-statement-to-tagged-amounts.md. Let me read and execute it:
+
+⏺ Read(prompts/008-statement-to-tagged-amounts.md)
+  ⎿  Read 444 lines
+
+⏺ Now I'll delegate this prompt to a sub-task agent:
+...
+
+```
+
+Claude had to work for 5-10 minutes (did not time it). But finally I reported:
+
+```sh
+Results
+
+  Successfully implemented Step 8 of the CSV import pipeline: AccountStatement → Maybe<TaggedAmounts>
+
+  Files Created
+
+  1. src/domain/account_statement_to_tagged_amounts.hpp
+    - domain::account_statement_to_tagged_amounts(AccountStatement) - Main transformation
+    - domain::make_account_id(prefix, value) - Helper function
+    - domain::csv_table_to_tagged_amounts(CSV::Table, AccountID) - Convenience composition (Steps 7+8)
+  2. src/test/test_statement_to_tagged_amounts.cpp
+    - 12 comprehensive tests covering all scenarios
+
+  Files Modified
+
+  - CMakeLists.txt - Added new test file to build
+  - src/test/data/account_statements_csv.hpp - Fixed ODR violations with inline keyword
+
+  Verification
+
+  - ✅ Compilation successful on macOS XCode with C++23
+  - ✅ Code signing complete
+  - ✅ All 197 tests pass (including 12 new tests)
+  - ✅ Tags correct: "Text" and "Account" tags populated correctly
+  - ✅ Amount conversion working via to_cents_amount()
+```
+
+Looking at the code the most surprising thing Claude implemented was to 'pass on'ä the tags in each trasnaction to the tagged amount.
+
+```cpp
+    // Merge any existing transaction_tags from the entry
+    // (preserving the "Text" and "Account" values we just set)
+    for (auto const& [key, value] : entry.transaction_tags) {
+      if (key != "Text" && key != "Account") {
+        tags[key] = value;
+      }
+    }
+```
+
+I will keep it for now. But my hunch is that I do NOT want this tag-passing to be 1-t-1? That is, tags for a transaction would propably not map semantically to tags in the amount?
+
+Another good thing (I think) is that Claude has picked up my habit of adding logging all over the place. And it generates quite good and informative ones I think. Like:
+
+```cpp
+    logger::development_trace("Created TaggedAmount: cents={}, text='{}'",
+      to_amount_in_cents_integer(cents_amount), entry.transaction_caption);
+```
+
+Claude also fixed 'multippel symbols' linker error for 'src/test/data/account_statements_csv.hpp' by inserting 'inline' for string constants (good!).
+
+But Claude is also 'smart' in a 'mr Bean way'. Like creating test fixture helper like:
+
+```cpp
+  static AccountStatementEntry make_entry(
+      int year, unsigned month, unsigned day,
+      double amount,
+      std::string const& caption) {
+    Date date{std::chrono::year{year}, std::chrono::month{month}, std::chrono::day{day}};
+    return AccountStatementEntry(date, Amount{amount}, caption);
+  }
+```
+
+When the constructor already exists?
+
+```cpp
+AccountStatementEntry(Date date, Amount amount, std::string caption,Tags tags = {})...
+```
+
+But I will push on and see where we end up. So far Claude 'knows' how to do a lot of stuff. And I want to learn how to use Claude for things I am bad at (detailed syntax and code constructs). But also find a way to still be 'connetced' with the code produced. Can I find a way to make Claude a capable code writer and lift myself to be the master of production? Like Renaissance painters and their apprentices?
