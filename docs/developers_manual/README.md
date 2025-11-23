@@ -500,3 +500,17 @@ Prompt created successfully!
 
   Choose (1-4):
 ```
+
+Claude succeeded to cerate code + tests for CSV::Table -> Maybe AccountID 'good enough' from what I can see (quick look into generated code and tests).
+
+It created a new file 'src/csv/csv_to_account_id.hpp' (header only). That is not to my liking but good enough for later refactoring.
+
+I observed this to be good enough code for now:
+
+  - It picked up test data for csv account statement files and genereted 'namespace account_id_suite' and 'AccountIdTests'
+  - The tsts are very specific to actual test data content (good I suppose)
+  - It placed the new fil in the csv folder (good)
+  - It placed the ID detection code in namespace CSV::project::account_id_detection (good)
+  - It cerated very domain specific code like 'extract_nordea_account' (too specific)
+
+All in all, the code propbably does the job for current NORDEA bank and old/new SKV csv files. With the test cases this is good enough for later refactoring to broaden the csv file scope (fingers crossed).
