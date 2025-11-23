@@ -431,4 +431,46 @@ inline OptionalAccountStatementEntries csv_table_to_account_statement_entries(CS
   return entries;
 }
 
+/**
+ * Transform CSV::Table + AccountID to AccountStatement
+ *
+ * This is a higher-level extraction function that combines:
+ * 1. CSV::Table -> AccountStatementEntries (via csv_table_to_account_statement_entries)
+ * 2. AccountID from external source (e.g., CSV::project::to_account_id)
+ *
+ * The resulting AccountStatement contains both the entries and the account identifier.
+ *
+ * @param table The CSV::Table containing transaction data
+ * @param account_id The AccountID identifying the account (e.g., NORDEA:51 86 87-9)
+ * @return Optional AccountStatement with entries and account metadata, or nullopt on failure
+ *
+ * Returns nullopt if:
+ * - Column detection fails (required columns not found)
+ * - The table is fundamentally invalid
+ *
+ * Returns AccountStatement (possibly with empty entries) if:
+ * - Column detection succeeds but all rows are ignorable
+ */
+inline std::optional<AccountStatement> csv_table_to_account_statement(
+    CSV::Table const& table,
+    AccountID const& account_id) {
+  logger::scope_logger log_raii{logger::development_trace, "domain::csv_table_to_account_statement(table, account_id)"};
+
+  // Extract entries from the CSV table
+  auto maybe_entries = csv_table_to_account_statement_entries(table);
+
+  if (!maybe_entries) {
+    logger::development_trace("Failed to extract entries from CSV table");
+    return std::nullopt;
+  }
+
+  // Create AccountStatement with entries and account ID metadata
+  AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
+
+  logger::development_trace("Creating AccountStatement with {} entries and account_id: {}",
+    maybe_entries->size(), account_id.to_string());
+
+  return AccountStatement(*maybe_entries, meta);
+}
+
 } // namespace domain

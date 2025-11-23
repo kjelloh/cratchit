@@ -2122,6 +2122,181 @@ Alice,30,"Stockholm, Sweden"
       logger::development_trace("Verified correct column selection with properly parsed saldo");
     }
 
+    // ============================================================================
+    // Tests for csv_table_to_account_statement (CSV::Table + AccountID -> AccountStatement)
+    // ============================================================================
+
+    TEST(AccountStatementTests, CsvTableToAccountStatementWithNordea) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementWithNordea)"};
+
+      // Parse NORDEA CSV
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
+
+      // Extract AccountID using CSV::project::to_account_id
+      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+      ASSERT_TRUE(maybe_account_id.has_value()) << "Failed to extract AccountID from NORDEA CSV";
+
+      // Use the new combined function
+      auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, *maybe_account_id);
+
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
+
+      // Verify the AccountStatement has entries
+      EXPECT_GT(maybe_statement->entries().size(), 0) << "Expected at least one entry";
+
+      // Verify the AccountStatement has the correct AccountID in meta
+      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value())
+        << "Expected AccountID in meta";
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "NORDEA")
+        << "Expected NORDEA prefix in AccountStatement meta";
+
+      logger::development_trace("Created AccountStatement with {} entries and account: {}",
+        maybe_statement->entries().size(),
+        maybe_statement->meta().m_maybe_account_irl_id->to_string());
+    }
+
+    TEST(AccountStatementTests, CsvTableToAccountStatementWithSKV) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementWithSKV)"};
+
+      // Parse SKV CSV (newer format)
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
+
+      // Extract AccountID using CSV::project::to_account_id
+      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+      ASSERT_TRUE(maybe_account_id.has_value()) << "Failed to extract AccountID from SKV CSV";
+
+      // Use the new combined function
+      auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, *maybe_account_id);
+
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
+
+      // Verify entries
+      EXPECT_EQ(maybe_statement->entries().size(), 4) << "Expected 4 transaction entries";
+
+      // Verify the AccountStatement has the correct AccountID in meta
+      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value());
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "SKV")
+        << "Expected SKV prefix in AccountStatement meta";
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, "5567828172")
+        << "Expected org number in AccountStatement meta";
+
+      logger::development_trace("Created SKV AccountStatement with {} entries and account: {}",
+        maybe_statement->entries().size(),
+        maybe_statement->meta().m_maybe_account_irl_id->to_string());
+    }
+
+    TEST(AccountStatementTests, CsvTableToAccountStatementPreservesEntryData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementPreservesEntryData)"};
+
+      // Create a simple test CSV
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Payment"}});
+      table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "-50.00", "Withdrawal"}});
+
+      // Create an AccountID
+      AccountID test_account_id{"TEST_BANK", "12345"};
+
+      // Create AccountStatement
+      auto maybe_statement = domain::csv_table_to_account_statement(table, test_account_id);
+
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
+
+      // Verify entry data is preserved
+      ASSERT_EQ(maybe_statement->entries().size(), 2);
+
+      auto const& first_entry = maybe_statement->entries()[0];
+      EXPECT_EQ(first_entry.transaction_date, to_date(2025, 1, 1));
+      EXPECT_EQ(first_entry.transaction_amount, *to_amount("100.50"));
+      EXPECT_EQ(first_entry.transaction_caption, "Test Payment");
+
+      auto const& second_entry = maybe_statement->entries()[1];
+      EXPECT_EQ(second_entry.transaction_date, to_date(2025, 1, 2));
+      EXPECT_EQ(second_entry.transaction_amount, *to_amount("-50.00"));
+      EXPECT_EQ(second_entry.transaction_caption, "Withdrawal");
+
+      // Verify AccountID is preserved
+      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value());
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "TEST_BANK");
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, "12345");
+    }
+
+    TEST(AccountStatementTests, CsvTableToAccountStatementWithInvalidTable) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementWithInvalidTable)"};
+
+      // Create a CSV table with undetectable columns
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"UnknownCol1", "UnknownCol2"}};
+      table.rows.push_back(table.heading);
+      table.rows.push_back(Key::Path{std::vector<std::string>{"value1", "value2"}});
+
+      AccountID test_account_id{"TEST", "123"};
+
+      // Attempt to create AccountStatement
+      auto maybe_statement = domain::csv_table_to_account_statement(table, test_account_id);
+
+      EXPECT_FALSE(maybe_statement.has_value())
+        << "Expected nullopt when columns cannot be detected";
+    }
+
+    TEST(AccountStatementTests, CsvTableToAccountStatementEmptyEntriesIsValid) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementEmptyEntriesIsValid)"};
+
+      // Create a CSV table with valid structure but only header row
+      CSV::Table table;
+      table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
+      table.rows.push_back(table.heading);
+
+      AccountID test_account_id{"EMPTY_BANK", "000"};
+
+      // Create AccountStatement - should succeed with empty entries
+      auto maybe_statement = domain::csv_table_to_account_statement(table, test_account_id);
+
+      ASSERT_TRUE(maybe_statement.has_value())
+        << "Expected valid AccountStatement even with no data rows";
+      EXPECT_EQ(maybe_statement->entries().size(), 0)
+        << "Expected empty entries list";
+      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value());
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "EMPTY_BANK");
+    }
+
+    TEST(AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline)"};
+
+      // Complete pipeline: CSV text -> table -> AccountID + entries -> AccountStatement
+      std::string csv_text = sz_NORDEA_csv_20251120;
+
+      // Step 1: Parse CSV to table
+      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Step 1: Failed to parse CSV";
+
+      // Step 2: Extract AccountID from table
+      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+      ASSERT_TRUE(maybe_account_id.has_value()) << "Step 2: Failed to extract AccountID";
+
+      // Step 3: Create AccountStatement with table + AccountID
+      auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, *maybe_account_id);
+      ASSERT_TRUE(maybe_statement.has_value()) << "Step 3: Failed to create AccountStatement";
+
+      // Verify complete result
+      EXPECT_GT(maybe_statement->entries().size(), 0);
+      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value());
+
+      // Verify first entry has valid data
+      auto const& first = maybe_statement->entries()[0];
+      EXPECT_TRUE(first.transaction_date != Date{}) << "Expected valid date";
+      EXPECT_FALSE(first.transaction_caption.empty()) << "Expected non-empty caption";
+
+      logger::development_trace("Integration pipeline produced AccountStatement with {} entries, account: {}",
+        maybe_statement->entries().size(),
+        maybe_statement->meta().m_maybe_account_irl_id->to_string());
+    }
+
   } // namespace account_statement_suite
 
   namespace account_id_suite {

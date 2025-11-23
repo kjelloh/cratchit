@@ -586,8 +586,8 @@ Now I need Claude to implement a CSV::Table + AccountID -> Maybe AccountStatemen
 I tried:
 
 ```sh
-> /create-prompt is running… I want to implement the next step in csv file -> Tagged Amounts taking off from existing CSV::Table -> Maybe AccountID by 'CSV::project::to_account_id' and CSV::Table -> Maybe 
-AccountStatementEntries by 'domain::csv_table_to_account_statement_entries'. Probably by refactoring the latter (as this step is no longer viable)? I want you 
+I want to implement the next step in csv file -> Tagged Amounts taking off from existing CSV::Table -> Maybe AccountID by 'CSV::project::to_account_id' and CSV::Table -> Maybe 
+AccountStatementEntries by 'domain::csv_table_to_account_statement_entries'. Probably by refactoring the latter (as this step is no longer viable)? I want you to add tests to test_csv_import_pipeline.cpp and ensure the new code compiles and passes all testing. Please also remember to replace the testing of refactored csv_table_to_account_statement_entries if required. 
 ```
 
 But this failed as I was not clear about the actual step CSV::Table + AccountID -> Maybe AccountStatement! I also failed to tell claude that this is a new step 007 (maybe even a replacement of 007-csv-to-account-statements.md?)
@@ -616,3 +616,52 @@ Prompt created successfully!
 ```
 
 So no, I did NOT want a prompt 012. I did NOT want 'integrate-accountid-with-tagged-amounts', whatever that could mean?. So I cleared Claude and tried again.
+
+```sh
+I want to refactor existing step 007 'CSV::Table -> Maybe Account Statement Entries' to instead be a step CSV::Table + AccountID -> Maybe AccountStetement. I want you to use existing CSV::Table -> Maybe AccountID by 'CSV::project::to_account_id' and refactor CSV::Table -> Maybe 
+AccountStatementEntries by 'domain::csv_table_to_account_statement_entries'. I want you to add tests to test_csv_import_pipeline.cpp and ensure the new code compiles and passes all testing. Please also remember to replace the testing of refactored csv_table_to_account_statement_entries if required. I want you to name the prompt '007-csv-to-account-statement.md'
+```
+
+Well, Claude did the job - BUT: I forgot to give this input as an 'create_prompt' command :(. So Claude actually created the prompt (but what do I need this prompt for?) *sigh*. So this is another insight into how Claude is NOT consious or aware of how 'reasonable' my request is?
+
+Claude resported:
+
+```sh
+ Summary
+
+  I've successfully refactored step 007 to implement CSV::Table + AccountID -> Maybe AccountStatement. Here's what was done:
+
+  Changes Made
+
+  1. New Function (src/domain/csv_to_account_statement.hpp:454-474):
+  std::optional<AccountStatement> csv_table_to_account_statement(
+      CSV::Table const& table,
+      AccountID const& account_id);
+  - Combines csv_table_to_account_statement_entries with the provided AccountID
+  - Creates an AccountStatement with both entries and account metadata
+
+  2. New Tests (src/test/test_csv_import_pipeline.cpp:2125-2298):
+  Added 6 new tests in account_statement_suite:
+  - CsvTableToAccountStatementWithNordea - NORDEA CSV integration
+  - CsvTableToAccountStatementWithSKV - SKV CSV with org number
+  - CsvTableToAccountStatementPreservesEntryData - Entry data preservation
+  - CsvTableToAccountStatementWithInvalidTable - Error handling
+  - CsvTableToAccountStatementEmptyEntriesIsValid - Empty entries valid
+  - CsvTableToAccountStatementIntegrationPipeline - Full pipeline test
+
+  3. Prompt File (prompts/007-csv-to-account-statement.md):
+  Created documentation of the refactoring with requirements, implementation, and success criteria.
+
+  Build & Test Results
+
+  - Build: Compiles successfully with ./run.zsh --nop
+  - Tests: All 185 tests pass (including 6 new + 17 existing AccountStatement tests)
+
+  Usage Pattern
+
+  auto maybe_table = CSV::neutral::text_to_table(csv_text);
+  auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+  auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, *maybe_account_id);
+```
+
+I decided to keep the prompt though (just for the record) and also accept the code that reuses existing 'csv_table_to_account_statement_entries'. The test cases are now REALLY BLOATED. But as they all pass and testing is not a bad thing I will keep them for now.
