@@ -907,20 +907,17 @@ namespace CSV {
   } // project
 } // CSV
 
-template <typename T>
-using CSVProcessResult = CSV::functional::CSVProcessResult<T>;
-
 // TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
-CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
-  CSVProcessResult<persistent::in::MaybeIStream> result{};
+AnnotatedMaybe<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
+  AnnotatedMaybe<persistent::in::MaybeIStream> result{};
   result.m_value = persistent::in::to_maybe_istream(statement_file_path);
   if (!result.m_value) result.push_message("file_path_to_istream: Failed to create istream");
   return result;
 }
 
 // TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
-CSVProcessResult<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
-  CSVProcessResult<text::encoding::MaybeDecodingIn> result{};
+AnnotatedMaybe<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
+  AnnotatedMaybe<text::encoding::MaybeDecodingIn> result{};
 
   auto maybe_encoding = maybe_istream
     .and_then([](std::istream& is) {
@@ -938,29 +935,29 @@ CSVProcessResult<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persist
 }
 
 // TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
-CSVProcessResult<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
-  CSVProcessResult<CSV::FieldRows> result{};
+AnnotatedMaybe<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
+  AnnotatedMaybe<CSV::FieldRows> result{};
   result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");
   return result;
 }
 // TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
-CSVProcessResult<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
-  CSVProcessResult<CSV::Table> result{};
+AnnotatedMaybe<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
+  AnnotatedMaybe<CSV::Table> result{};
   result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
   return result;
 }
 
 using AccountStatements = std::vector<AccountStatement>;
 // TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
-CSVProcessResult<AccountStatements> table_to_account_statements(CSV::Table const& table) {
-  CSVProcessResult<AccountStatements> result{};
+AnnotatedMaybe<AccountStatements> table_to_account_statements(CSV::Table const& table) {
+  AnnotatedMaybe<AccountStatements> result{};
   result.push_message("table_to_account_statements: NOT YET IMPLEMENTED");
   return result;
 }
 
 // TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
-CSVProcessResult<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
-  CSVProcessResult<TaggedAmounts> result{};
+AnnotatedMaybe<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
+  AnnotatedMaybe<TaggedAmounts> result{};
   result.push_message("account_statements_to_tas: NOT YET IMPLEMENTED");
   return result;
 }
