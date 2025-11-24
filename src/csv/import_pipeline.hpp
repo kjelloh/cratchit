@@ -29,7 +29,7 @@
 
 #include "text/encoding_pipeline.hpp"        // read_file_with_encoding_detection (Steps 1-5)
 #include "csv/neutral_parser.hpp"            // CSV::neutral::text_to_table (Step 6)
-#include "csv/csv_to_account_id.hpp"         // CSV::project::to_account_id (Step 6.5)
+#include "csv/csv_to_account_id.hpp"         // CSV::project::to_account_id_ed (Step 6.5)
 #include "domain/csv_to_account_statement.hpp"  // domain::csv_table_to_account_statement (Step 7)
 #include "domain/account_statement_to_tagged_amounts.hpp" // domain::csv_table_to_tagged_amounts (Steps 7+8)
 #include "functional/maybe.hpp"              // AnnotatedMaybe
@@ -112,25 +112,25 @@ inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
     maybe_table->rows.size()));
 
   // ============================================================
-  // Step 6.5: CSV::Table -> AccountID
+  // Step 6.5: CSV::Table -> MDTable<AccountID>
   // ============================================================
-  auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+  auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
 
-  AccountID account_id;
-  if (maybe_account_id) {
-    account_id = *maybe_account_id;
-    result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
-      account_id.to_string()));
-  } else {
-    // Graceful fallback: use empty AccountID
-    account_id = AccountID{"", ""};
-    result.push_message("Step 6.5 warning: AccountID detection failed, using empty AccountID");
+  if (!maybe_md_table) {
+    // Unknown format - fully unknown AccountID (no prefix, no value)
+    result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
+    return result;
   }
+
+  AccountID const& account_id = maybe_md_table->meta;
+  CSV::Table const& identified_table = maybe_md_table->defacto;
+  result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
+    account_id.to_string()));
 
   // ============================================================
   // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
   // ============================================================
-  auto maybe_tagged = domain::csv_table_to_tagged_amounts(*maybe_table, account_id);
+  auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
 
   if (!maybe_tagged) {
     result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -179,21 +179,22 @@ inline AnnotatedMaybe<TaggedAmounts> import_text_to_tagged_amounts(
   result.push_message(std::format("Step 6 complete: CSV parsed successfully ({} rows)",
     maybe_table->rows.size()));
 
-  // Step 6.5: CSV::Table -> AccountID
-  auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+  // Step 6.5: CSV::Table -> MDTable<AccountID>
+  auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
 
-  AccountID account_id;
-  if (maybe_account_id) {
-    account_id = *maybe_account_id;
-    result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
-      account_id.to_string()));
-  } else {
-    account_id = AccountID{"", ""};
-    result.push_message("Step 6.5 warning: AccountID detection failed, using empty AccountID");
+  if (!maybe_md_table) {
+    // Unknown format - fully unknown AccountID (no prefix, no value)
+    result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
+    return result;
   }
 
+  AccountID const& account_id = maybe_md_table->meta;
+  CSV::Table const& identified_table = maybe_md_table->defacto;
+  result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
+    account_id.to_string()));
+
   // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-  auto maybe_tagged = domain::csv_table_to_tagged_amounts(*maybe_table, account_id);
+  auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
 
   if (!maybe_tagged) {
     result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -226,21 +227,22 @@ inline AnnotatedMaybe<TaggedAmounts> import_table_to_tagged_amounts(
   result.push_message(std::format("Starting from Step 6.5 with CSV::Table ({} rows)",
     table.rows.size()));
 
-  // Step 6.5: CSV::Table -> AccountID
-  auto maybe_account_id = CSV::project::to_account_id(table);
+  // Step 6.5: CSV::Table -> MDTable<AccountID>
+  auto maybe_md_table = CSV::project::to_account_id_ed(table);
 
-  AccountID account_id;
-  if (maybe_account_id) {
-    account_id = *maybe_account_id;
-    result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
-      account_id.to_string()));
-  } else {
-    account_id = AccountID{"", ""};
-    result.push_message("Step 6.5 warning: AccountID detection failed, using empty AccountID");
+  if (!maybe_md_table) {
+    // Unknown format - fully unknown AccountID (no prefix, no value)
+    result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
+    return result;
   }
 
+  AccountID const& account_id = maybe_md_table->meta;
+  CSV::Table const& identified_table = maybe_md_table->defacto;
+  result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
+    account_id.to_string()));
+
   // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-  auto maybe_tagged = domain::csv_table_to_tagged_amounts(table, account_id);
+  auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
 
   if (!maybe_tagged) {
     result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");

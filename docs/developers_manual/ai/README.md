@@ -16,6 +16,8 @@ Also, the actual code in file_reader.hpp is old-school stream seek, C-API error 
 
 Conclusion: I decided to go ahead and let claude do its thing but work on better meta-prompting and prompting to guide it to code more to my liking. Also, I decided to do the refactoring fter the code is working as a separate activity.
 
+### Step / prompt 002
+
 For prompt ./prompts/002-encoding-detection.md I added an section <assistant-role> to try and guide Claude to create code more to my liking.
 
 When I ran this prompt Claude actually detected that prompt had changed :). Great!
@@ -66,6 +68,8 @@ It even surprised me with testing fo confidence:
 ```
 
 That was a pleasant surpice!
+
+### Step / prompt 003
 
 For prompt 003-xxx I edited the 
 
@@ -186,6 +190,8 @@ But I will let that pass for now.
 
 Claude created the lazy code-point-range views in src/text/transcoding_views.hpp. I looked through the file and got the feeling the code may be a little verbose and not as 'clean' as it could have been written by someone knowing how to write range views properly. But I don't have the knowledge to judge and this is where I am going to trust Claude to help me write code. At least I now have code that passes the tests and I can take it from here to learn and enhance?
 
+### Step / prompt 004
+
 I edited prompt 004-xxx to tell claude to prefer C++23 span and string_view over C-code constructs.
 
 Claude succeeded with the task to create a range view over Unicode code points that outputs UTF-8 byte stream. I was actually a little surprised as this is NOT a code-point to code-point transform. Instead one Unicode code points generates 1..n UTF-8 bytes.
@@ -203,6 +209,8 @@ This was very good!
 Claude did NOT try to adopt to any encoding detected by the RuntimeEncoding calss though. It simply picked up on my existing comments on 'hard coded' UTF-8 encoding for internal (platform) use.
 
 Good enough for now though.
+
+### Step / prompt 005
 
 Claude then succeeded with prompt 005-xxx to assemble and text a complete transcoding chain raw in -> platform encoded std::string (hard coded to UTF-8). But here I obseerved some divergence from existing code.
 
@@ -222,6 +230,8 @@ Also, AnnotatedMaybe seems like a paralell type to cratchit::functional::Annotat
 Anyhow, looking though new file 'src/text/encoding_pipeline.hpp' and added tests in 'src/test/test_csv_import_pipeline.cpp' I feel content with the result. I do not have time to delve deep into all the code. I decide to trust the help Claude has provided and see where I end up.
 
 The combination of having Claude generate code AND test makes me feel more secure to go with the code and be able to come back later to refactor it (fingers crossed)?
+
+### Step / prompt 006
 
 For prompt 006-xxx Claude failed to do what I wanted. It got to attracted to the existing code and created UTF-8 text -> Maybe Table, but failed to focus on a 'neutral' table. Instead it went for the SKV / NORDEA account statement tables right away (just as try_parse_csv does). So I decided to edit the 006-xxx prompt to try and make Claude to deviate from existing code and create a Maybe neutral table instead.
 
@@ -275,7 +285,9 @@ It feels as if Claude context window just got bloated and it fell back to create
 
 I actually started a new session with Claude and asked it to evaluate how well it done against prompt 006. And it agreed it did a bad job! It also proposed a very comprehensive refactoring task in seven steps! I wonder - does Anthropic try to make me burn tokens to sell me more *smirk*!
 
-I step prmpt 007-xxx Claude missed to take off from CSV::Table and instead provided functions that started off with text. I dissagreed and asked from CSV::Table -> Maybe Account statements.
+### Step / prompt 007
+
+In step prompt 007-xxx Claude missed to take off from CSV::Table and instead provided functions that started off with text. I dissagreed and asked from CSV::Table -> Maybe Account statements.
 
 Now Claude derailed again and went off and resued the existing 'heading ID' and what have you. Allthough I told it to implement a NEW table to statements projection. To small context window again?
 
@@ -332,6 +344,8 @@ With this prompt Claude actually came up with a somewhat acceptable solution I t
 
 At this stage I spent severald days to clean up after Claude. But also to get to grips with what Claude had created. Plus I used Claude for smaller refatcoring tasks and to generate testing of entities like Amount.
 
+### Revised Steps / prompts 008..011
+
 I now decided to have Claude re-generate prompts 008-011 by a new 'create_prompt' command.
 
 ```sh
@@ -367,6 +381,8 @@ Claude now finalised with:
 
   Choose (1-4): _
 ```
+
+### Step / prompt 008
 
 I started to edit prompt 008 and realised after a while that we need to refactor the step Table -> Account statement entries into actually creating an AccountStatement aggregating entries + account id!
 
@@ -407,6 +423,8 @@ Prompt created successfully!
 
   Choose (1-4):
 ```
+
+### New Step / prompt 007 (substep)
 
 I asked Claude to run the new prompt 007 and it succeeded to cerate code + tests for CSV::Table -> Maybe AccountID 'good enough' from what I can see (quick look into generated code and tests).
 
@@ -525,8 +543,7 @@ Prompt created successfully!
 So no, I did NOT want a prompt 012. I did NOT want 'integrate-accountid-with-tagged-amounts', whatever that could mean?. So I cleared Claude and tried again.
 
 ```sh
-I want to refactor existing step 007 'CSV::Table -> Maybe Account Statement Entries' to instead be a step CSV::Table + AccountID -> Maybe AccountStetement. I want you to use existing CSV::Table -> Maybe AccountID by 'CSV::project::to_account_id' and refactor CSV::Table -> Maybe 
-AccountStatementEntries by 'domain::csv_table_to_account_statement_entries'. I want you to add tests to test_csv_import_pipeline.cpp and ensure the new code compiles and passes all testing. Please also remember to replace the testing of refactored csv_table_to_account_statement_entries if required. I want you to name the prompt '007-csv-to-account-statement.md'
+I want to refactor existing step 007 'CSV::Table -> Maybe Account Statement Entries' to instead be a step CSV::Table + AccountID -> Maybe AccountStetement. I want you to use existing CSV::Table -> Maybe AccountID by 'CSV::project::to_account_id' and refactor CSV::Table -> Maybe AccountStatementEntries by 'domain::csv_table_to_account_statement_entries'. I want you to add tests to test_csv_import_pipeline.cpp and ensure the new code compiles and passes all testing. Please also remember to replace the testing of refactored csv_table_to_account_statement_entries if required. I want you to name the prompt '007-csv-to-account-statement.md'
 ```
 
 Well, Claude did the job - BUT: I forgot to give this input as an 'create_prompt' command :(. So Claude actually created the prompt (but what do I need this prompt for?) *sigh*. So this is another insight into how Claude is NOT consious or aware of how 'reasonable' my request is?
@@ -574,6 +591,8 @@ Claude resported:
 I decided to keep the prompt though (just for the record) and also accept the code that reuses existing 'csv_table_to_account_statement_entries'. The test cases are now REALLY BLOATED. But as they all pass and testing is not a bad thing I will keep them for now.
 
 I am now getting into the habit of doing Claude context window 'clear' before each new task. It feels like I can then better control how Claude will take off and navigate 'fresh' without presumptions I forgot was in there?
+
+### Revised Step / prompt 008
 
 I now needed Claude to refactor step 008. It must now be about the step AccountStatement -> Maybe Tagged Amounts with a defined 'tagging'. I tried:
 
@@ -674,7 +693,7 @@ Another good thing (I think) is that Claude has picked up my habit of adding log
       to_amount_in_cents_integer(cents_amount), entry.transaction_caption);
 ```
 
-Claude also fixed 'multippel symbols' linker error for 'src/test/data/account_statements_csv.hpp' by inserting 'inline' for string constants (good!).
+Claude also fixed 'multiple symbols' linker error for 'src/test/data/account_statements_csv.hpp' by inserting 'inline' for string constants (good!).
 
 But Claude is also 'smart' in a 'mr Bean way'. Like creating test fixture helper like:
 
@@ -695,6 +714,8 @@ AccountStatementEntry(Date date, Amount amount, std::string caption,Tags tags = 
 ```
 
 But I will push on and see where we end up. So far Claude 'knows' how to do a lot of stuff. And I want to learn how to use Claude for things I am bad at (detailed syntax and code constructs). But also find a way to still be 'connetced' with the code produced. Can I find a way to make Claude a capable code writer and lift myself to be the master of production? Like Renaissance painters and their apprentices?
+
+### Step / prompt 009
 
 I now thought it would be a good idea to have Claude decsribe the whole pipeline as it currectly is implemeneted in code and update prompt 009 with this information.
 
@@ -876,3 +897,174 @@ inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
  ```
 
  This was enough for me to start thinking, maybe I have a design flaw here? I actually need to detect a failure to recognise an AccountID? An empty AccountID fallback is NOT what I want?
+
+ I decided to ask Claude to refactor the CSV::Table -> AccountID to actual be able to fail with a Maybe AccountID. I introduced am MDTable (meta-defacto table) to act as the aggregate.
+
+ ```text
+ You know what? I actually want the step CSV::Table -> AccountID (by CSV::project::to_account_id) to be able to signal failure as a Maybe type. I have introduced the template CSV::MDTable<T> (meta-defacto-table). Can you use this to refactor 'CSV::project::to_account_id' to return optional<MDTable<AccountID>> on success? Where a failure is if AccountId has no prefix and no value (fully unknown). Also remember to update affected downstream code and update + add test cases. Before you start, think this through step-by-step and show me the plan so I can apporve or adjust. Thanks!
+ ```
+
+Claude went to search my code base + read the last git commit (which was my update of the READMEs to create this separate one, so no help there?). It came back with the report:
+
+```text
+I now have a complete picture. Let me present a plan for your approval.
+
+  ---
+  Refactoring Plan: CSV::project::to_account_id → optional<MDTable<AccountID>>
+
+  Summary of Changes
+
+  Goal: Refactor to_account_id to return optional<MDTable<AccountID>> where:
+  - Success: Returns MDTable<AccountID>{account_id, table} when a known format (NORDEA/SKV) is detected
+  - Failure: Returns nullopt when AccountID is "fully unknown" (empty prefix AND empty value)
+
+  ---
+  Step 1: Update csv_to_account_id.hpp
+
+  File: src/csv/csv_to_account_id.hpp (lines 218-247)
+
+  Current signature:
+  inline std::optional<AccountID> to_account_id(CSV::Table const& table)
+
+  New signature:
+  inline std::optional<CSV::MDTable<AccountID>> to_account_id(CSV::Table const& table)
+
+  Logic changes:
+  - NORDEA detected → return MDTable<AccountID>{{"NORDEA", account_number}, table}
+  - SKV detected → return MDTable<AccountID>{{"SKV", org_number}, table}
+  - Unknown format (neither NORDEA nor SKV) → return std::nullopt (was: AccountID{"",""})
+  - Empty table → return std::nullopt (unchanged behavior)
+
+  ---
+  Step 2: Update import_pipeline.hpp
+
+  File: src/csv/import_pipeline.hpp
+
+  3 call sites (lines ~117, ~183, ~230):
+
+  Current pattern:
+  auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+  AccountID account_id;
+  if (maybe_account_id) {
+    account_id = *maybe_account_id;
+  }
+
+  New pattern:
+  auto maybe_md_table = CSV::project::to_account_id(*maybe_table);
+  if (maybe_md_table) {
+    AccountID account_id = maybe_md_table->meta;
+    CSV::Table const& table = maybe_md_table->defacto;
+    // continue with paired data...
+  } else {
+    // Handle failure - format unknown
+  }
+
+  ---
+  Step 3: Update Test Cases
+
+  File: src/test/test_csv_import_pipeline.cpp
+
+  | Test                                 | Current Expectation      | New Expectation                                       |
+  |--------------------------------------|--------------------------|-------------------------------------------------------|
+  | ExtractNordeaAccountId               | AccountID{"NORDEA", ...} | MDTable<AccountID> with meta.m_prefix == "NORDEA"     |
+  | ExtractSkvAccountIdWithOrgNumber     | AccountID{"SKV", ...}    | MDTable<AccountID> with meta == {"SKV", "5567828172"} |
+  | ExtractSkvAccountIdFromOlderFormat   | AccountID{"SKV", ...}    | MDTable<AccountID> with meta.m_prefix == "SKV"        |
+  | UnknownCsvReturnsEmptyAccountId      | AccountID{"", ""}        | std::nullopt (key change)                             |
+  | EmptyTableReturnsNullopt             | std::nullopt             | std::nullopt (unchanged)                              |
+  | TableWithOnlyHeadingReturnsAccountId | valid AccountID          | std::nullopt if unknown format                        |
+  | NordeaHeaderDetection                | prefix == "NORDEA"       | MDTable<AccountID> with meta.m_prefix == "NORDEA"     |
+
+  New test to add:
+  - FullyUnknownFormatReturnsNullopt - explicitly tests that unknown CSV format returns nullopt
+
+  ---
+  Step 4: Verify Downstream Compilation
+
+  Ensure these files compile after changes:
+  - src/domain/csv_to_account_statement.hpp
+  - src/domain/account_statement_to_tagged_amounts.hpp
+
+  (These receive AccountID separately, so may only need minor adjustments if any)
+
+  ---
+  Files to Modify
+
+  1. src/csv/csv_to_account_id.hpp - main refactoring
+  2. src/csv/import_pipeline.hpp - update 3 call sites
+  3. src/test/test_csv_import_pipeline.cpp - update 6-7 tests, add 1 new test
+
+  ---
+  Risk Assessment
+
+  - Low risk: The change is localized to the pipeline step
+  - Breaking change: Code expecting optional<AccountID> will need updates
+  - Benefit: Unknown formats now explicitly fail-fast with nullopt rather than silently propagating empty AccountID
+
+  ---
+
+```
+
+At this stage I asked Claude to rename 'to_account_id' to 'to_account_id_ed' and it approved. And off it went!
+
+Claude implemented the refactoring with the report:
+
+```text
+ Done! All tasks completed successfully. Here's a summary:
+
+  Summary of Changes
+
+  1. src/csv/csv_to_account_id.hpp
+
+  - Renamed to_account_id → to_account_id_ed
+  - Changed return type: std::optional<AccountID> → std::optional<CSV::MDTable<AccountID>>
+  - Unknown format now returns std::nullopt (failure) instead of AccountID{"", ""}
+
+  2. src/csv/import_pipeline.hpp
+
+  - Updated all 3 call sites to use the new function name and return type
+  - Pipeline now fails at Step 6.5 for unknown formats with error message: "Step 6.5 failed: Unknown CSV format - could not identify account"
+
+  3. src/test/test_csv_import_pipeline.cpp
+
+  Updated tests in account_id_suite:
+  - ExtractNordeaAccountId - now checks maybe_md_table->meta and maybe_md_table->defacto
+  - ExtractSkvAccountIdWithOrgNumber - same pattern
+  - ExtractSkvAccountIdFromOlderFormat - same pattern
+  - UnknownCsvReturnsEmptyAccountId → renamed to UnknownCsvReturnsNullopt (expects nullopt)
+  - EmptyTableReturnsNullopt - uses new function name
+  - TableWithOnlyHeadingReturnsAccountId → renamed to TableWithOnlyHeadingUnknownFormatReturnsNullopt
+  - NordeaHeaderDetection - updated to use maybe_md_table->meta
+
+  Updated tests in account_statement_suite:
+  - Updated 3 tests to use to_account_id_ed and extract .meta / .defacto
+
+  Updated tests in full_pipeline_suite:
+  - ImportSimpleCsvSuccess → ImportSimpleCsvFailsForUnknownFormat (expects failure)
+  - ImportTableSuccess → ImportTableFailsForUnknownFormat (expects failure)
+  - CompletePipelineVerifyTaggedAmountStructure → CompletePipelineVerifyTaggedAmountStructureWithNordea (uses NORDEA data)
+
+  Build & Test Results
+
+  - ✅ Build: SUCCESS
+  - ✅ Tests: 215 tests PASSED
+```
+
+In the end the change was quite comprehensive as it included to turn test cases that accepted anonymous AccointID to now expect failure in these cases. But Claude easilly picked up on the failing test cases and adjusted the expected outcome (good!).
+
+It did NOT refactor downstream code call signature though. E.g.,
+
+```cpp
+  ... domain::csv_table_to_tagged_amounts(identified_table, account_id);
+```
+
+But I decided to make that a later refactoring step.
+
+Claude seems to not 'stack' helper functions 'on-top' of eachother? Instead it seems to repeat the call chain in each helper?
+
+- import_file_to_tagged_amounts(file_path) // (does to_account_id_ed)
+- import_text_to_tagged_amounts(csv_text) // does to_account_id_ed
+- import_table_to_tagged_amounts(table) // does to_account_id_ed
+
+All in all these overlap and that is NOT what we want? Or, if they overlap we should expect them to be explicit 'and_then' compositions?
+
+Come to think about it. I think Claude failed to focus on clean single-step transformations due to the individual steps as separate prompts? Maybe it got 'greedy' and ove-helpfull and implemented a full-transform-chain function for each level it reached by each step? So now we have helpers this lifts from file path to each level in the chain? Well, I will have to come back to this later. For now at least the code seems to be there and working?

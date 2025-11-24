@@ -199,51 +199,51 @@ namespace CSV {
     } // namespace account_id_detection
 
     /**
-     * Extract AccountID from a CSV::Table
+     * Extract AccountID from a CSV::Table and pair it with the table
      *
      * Detection strategy:
      * 1. Check if this is a NORDEA CSV (by header keywords)
-     *    - If yes: return AccountID{"NORDEA", account_number_from_avsandare}
+     *    - If yes: return MDTable<AccountID>{{"NORDEA", account_number}, table}
      *
      * 2. Check if this is an SKV CSV (by content patterns)
-     *    - If yes with org number found: return AccountID{"SKV", org_number}
-     *    - If yes without org number: return AccountID{"SKV", ""}
+     *    - If yes with org number found: return MDTable<AccountID>{{"SKV", org_number}, table}
+     *    - If yes without org number: return MDTable<AccountID>{{"SKV", ""}, table}
      *
-     * 3. Unknown/Generic CSV:
-     *    - Return AccountID{"", ""} (valid but empty)
+     * 3. Unknown/Generic CSV (fully unknown - no prefix, no value):
+     *    - Return std::nullopt (failure case)
      *
      * 4. Invalid/empty table:
      *    - Return std::nullopt
      */
-    inline std::optional<AccountID> to_account_id(CSV::Table const& table) {
+    inline std::optional<CSV::MDTable<AccountID>> to_account_id_ed(CSV::Table const& table) {
       using namespace account_id_detection;
 
-      logger::development_trace("to_account_id: Starting AccountID extraction");
+      logger::development_trace("to_account_id_ed: Starting AccountID extraction");
 
       // Check for fundamentally invalid table
       if (table.heading.size() == 0 && table.rows.empty()) {
-        logger::development_trace("to_account_id: Empty table, returning nullopt");
+        logger::development_trace("to_account_id_ed: Empty table, returning nullopt");
         return std::nullopt;
       }
 
       // Step 1: Check for NORDEA format
       if (is_nordea_csv(table.heading)) {
         std::string account_number = extract_nordea_account(table);
-        logger::development_trace("to_account_id: Detected NORDEA CSV, account: '{}'", account_number);
-        return AccountID{"NORDEA", account_number};
+        logger::development_trace("to_account_id_ed: Detected NORDEA CSV, account: '{}'", account_number);
+        return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
       }
 
       // Step 2: Check for SKV format
       if (is_skv_csv(table)) {
         auto maybe_org_number = find_skv_org_number(table);
         std::string org_number = maybe_org_number.value_or("");
-        logger::development_trace("to_account_id: Detected SKV CSV, org number: '{}'", org_number);
-        return AccountID{"SKV", org_number};
+        logger::development_trace("to_account_id_ed: Detected SKV CSV, org number: '{}'", org_number);
+        return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
       }
 
-      // Step 3: Unknown format - return empty but valid AccountID
-      logger::development_trace("to_account_id: Unknown CSV format, returning empty AccountID");
-      return AccountID{"", ""};
+      // Step 3: Unknown format - fully unknown AccountID, return nullopt (failure)
+      logger::development_trace("to_account_id_ed: Unknown CSV format, returning nullopt");
+      return std::nullopt;
     }
 
   } // namespace project

@@ -2136,12 +2136,12 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::neutral::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
-      // Extract AccountID using CSV::project::to_account_id
-      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
-      ASSERT_TRUE(maybe_account_id.has_value()) << "Failed to extract AccountID from NORDEA CSV";
+      // Extract MDTable<AccountID> using CSV::project::to_account_id_ed
+      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
-      // Use the new combined function
-      auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, *maybe_account_id);
+      // Use the new combined function with meta (AccountID) and defacto (table)
+      auto maybe_statement = domain::csv_table_to_account_statement(maybe_md_table->defacto, maybe_md_table->meta);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2167,12 +2167,12 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::neutral::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
 
-      // Extract AccountID using CSV::project::to_account_id
-      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
-      ASSERT_TRUE(maybe_account_id.has_value()) << "Failed to extract AccountID from SKV CSV";
+      // Extract MDTable<AccountID> using CSV::project::to_account_id_ed
+      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
-      // Use the new combined function
-      auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, *maybe_account_id);
+      // Use the new combined function with meta (AccountID) and defacto (table)
+      auto maybe_statement = domain::csv_table_to_account_statement(maybe_md_table->defacto, maybe_md_table->meta);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2270,19 +2270,19 @@ Alice,30,"Stockholm, Sweden"
     TEST(AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline)"};
 
-      // Complete pipeline: CSV text -> table -> AccountID + entries -> AccountStatement
+      // Complete pipeline: CSV text -> table -> MDTable<AccountID> -> AccountStatement
       std::string csv_text = sz_NORDEA_csv_20251120;
 
       // Step 1: Parse CSV to table
       auto maybe_table = CSV::neutral::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Step 1: Failed to parse CSV";
 
-      // Step 2: Extract AccountID from table
-      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
-      ASSERT_TRUE(maybe_account_id.has_value()) << "Step 2: Failed to extract AccountID";
+      // Step 2: Extract MDTable<AccountID> from table
+      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Step 2: Failed to extract AccountID";
 
-      // Step 3: Create AccountStatement with table + AccountID
-      auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, *maybe_account_id);
+      // Step 3: Create AccountStatement with table + AccountID (from MDTable)
+      auto maybe_statement = domain::csv_table_to_account_statement(maybe_md_table->defacto, maybe_md_table->meta);
       ASSERT_TRUE(maybe_statement.has_value()) << "Step 3: Failed to create AccountStatement";
 
       // Verify complete result
@@ -2303,8 +2303,8 @@ Alice,30,"Stockholm, Sweden"
 
   namespace account_id_suite {
 
-    // AccountID extraction tests for CSV::project::to_account_id function
-    // Tests the extraction of AccountID (prefix + value) from CSV::Table
+    // AccountID extraction tests for CSV::project::to_account_id_ed function
+    // Tests the extraction of MDTable<AccountID> (table paired with AccountID) from CSV::Table
 
     TEST(AccountIdTests, ExtractNordeaAccountId) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, ExtractNordeaAccountId)"};
@@ -2314,17 +2314,21 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::neutral::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
-      // Extract AccountID
-      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+      // Extract MDTable<AccountID>
+      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
 
-      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID for NORDEA CSV";
-      EXPECT_EQ(maybe_account_id->m_prefix, "NORDEA")
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for NORDEA CSV";
+      EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")
         << "Expected NORDEA prefix for NORDEA bank statement";
+
+      // Verify the table is preserved in defacto
+      EXPECT_EQ(maybe_md_table->defacto.rows.size(), maybe_table->rows.size())
+        << "Expected defacto table to match original table";
 
       // The NORDEA CSV has account numbers in the Avsandare column
       // Looking at the test data, some rows have empty Avsandare, but row with Insattning has "32592317244"
       // So we expect some account number to be extracted
-      logger::development_trace("Extracted NORDEA account: '{}'", maybe_account_id->m_value);
+      logger::development_trace("Extracted NORDEA account: '{}'", maybe_md_table->meta.m_value);
 
       // The account value should not be empty for NORDEA CSV with valid data
       // Note: In the sample data, the Avsandare column is mostly empty, but we still detect NORDEA format
@@ -2338,13 +2342,13 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::neutral::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (newer format)";
 
-      // Extract AccountID
-      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+      // Extract MDTable<AccountID>
+      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
 
-      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID for SKV CSV";
-      EXPECT_EQ(maybe_account_id->m_prefix, "SKV")
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
+      EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
         << "Expected SKV prefix for tax agency statement";
-      EXPECT_EQ(maybe_account_id->m_value, "5567828172")
+      EXPECT_EQ(maybe_md_table->meta.m_value, "5567828172")
         << "Expected org number extracted from SKV CSV header";
     }
 
@@ -2356,33 +2360,30 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::neutral::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (older format)";
 
-      // Extract AccountID
-      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+      // Extract MDTable<AccountID>
+      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
 
-      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID for SKV CSV";
-      EXPECT_EQ(maybe_account_id->m_prefix, "SKV")
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
+      EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
         << "Expected SKV prefix for tax agency statement";
       // Older format may or may not have org number - we just verify it's detected as SKV
-      logger::development_trace("Extracted SKV org number from older format: '{}'", maybe_account_id->m_value);
+      logger::development_trace("Extracted SKV org number from older format: '{}'", maybe_md_table->meta.m_value);
     }
 
-    TEST(AccountIdTests, UnknownCsvReturnsEmptyAccountId) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, UnknownCsvReturnsEmptyAccountId)"};
+    TEST(AccountIdTests, UnknownCsvReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, UnknownCsvReturnsNullopt)"};
 
       // Create a generic CSV that is neither NORDEA nor SKV format
       std::string csv_text = "Name,Value,Date\nAlice,100,2025-01-01\nBob,200,2025-01-02\n";
       auto maybe_table = CSV::neutral::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
 
-      // Extract AccountID
-      auto maybe_account_id = CSV::project::to_account_id(*maybe_table);
+      // Extract MDTable<AccountID> - should fail for unknown format
+      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
 
-      ASSERT_TRUE(maybe_account_id.has_value())
-        << "Expected valid (but empty) AccountID for unknown CSV format";
-      EXPECT_EQ(maybe_account_id->m_prefix, "")
-        << "Expected empty prefix for unknown CSV format";
-      EXPECT_EQ(maybe_account_id->m_value, "")
-        << "Expected empty value for unknown CSV format";
+      // Unknown format should return nullopt (fully unknown AccountID is a failure)
+      EXPECT_FALSE(maybe_md_table.has_value())
+        << "Expected nullopt for unknown CSV format (fully unknown AccountID)";
     }
 
     TEST(AccountIdTests, EmptyTableReturnsNullopt) {
@@ -2392,15 +2393,15 @@ Alice,30,"Stockholm, Sweden"
       CSV::Table empty_table;
       // heading and rows are default-constructed (empty)
 
-      // Extract AccountID
-      auto maybe_account_id = CSV::project::to_account_id(empty_table);
+      // Extract MDTable<AccountID>
+      auto maybe_md_table = CSV::project::to_account_id_ed(empty_table);
 
-      EXPECT_FALSE(maybe_account_id.has_value())
+      EXPECT_FALSE(maybe_md_table.has_value())
         << "Expected nullopt for empty CSV::Table";
     }
 
-    TEST(AccountIdTests, TableWithOnlyHeadingReturnsAccountId) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, TableWithOnlyHeadingReturnsAccountId)"};
+    TEST(AccountIdTests, TableWithOnlyHeadingUnknownFormatReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, TableWithOnlyHeadingUnknownFormatReturnsNullopt)"};
 
       // Create a CSV::Table with only a heading (no data rows)
       // Use Key::Path constructor with vector of strings
@@ -2408,15 +2409,12 @@ Alice,30,"Stockholm, Sweden"
       header_only_table.heading = Key::Path(std::vector<std::string>{"Name", "Amount", "Date"});
       header_only_table.rows = {};
 
-      // Extract AccountID
-      auto maybe_account_id = CSV::project::to_account_id(header_only_table);
+      // Extract MDTable<AccountID>
+      auto maybe_md_table = CSV::project::to_account_id_ed(header_only_table);
 
-      // With a heading present, we should get a valid (possibly empty) AccountID
-      ASSERT_TRUE(maybe_account_id.has_value())
-        << "Expected valid AccountID for table with heading";
-      // Unknown format should give empty prefix and value
-      EXPECT_EQ(maybe_account_id->m_prefix, "");
-      EXPECT_EQ(maybe_account_id->m_value, "");
+      // Unknown format (neither NORDEA nor SKV) should return nullopt
+      EXPECT_FALSE(maybe_md_table.has_value())
+        << "Expected nullopt for unknown format (fully unknown AccountID)";
     }
 
     TEST(AccountIdTests, NordeaHeaderDetection) {
@@ -2430,11 +2428,11 @@ Alice,30,"Stockholm, Sweden"
       nordea_table.heading = Key::Path(nordea_header_vec);
       nordea_table.rows = {nordea_table.heading};  // Include header as first row (current behavior)
 
-      // Extract AccountID
-      auto maybe_account_id = CSV::project::to_account_id(nordea_table);
+      // Extract MDTable<AccountID>
+      auto maybe_md_table = CSV::project::to_account_id_ed(nordea_table);
 
-      ASSERT_TRUE(maybe_account_id.has_value()) << "Expected valid AccountID";
-      EXPECT_EQ(maybe_account_id->m_prefix, "NORDEA")
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
+      EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")
         << "Expected NORDEA prefix when header contains NORDEA keywords";
     }
 
@@ -2600,31 +2598,27 @@ Alice,30,"Stockholm, Sweden"
       logger::development_trace("Imported {} TaggedAmounts from older SKV CSV", result.value().size());
     }
 
-    TEST_F(FullPipelineTestFixture, ImportSimpleCsvSuccess) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSimpleCsvSuccess)"};
+    TEST_F(FullPipelineTestFixture, ImportSimpleCsvFailsForUnknownFormat) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSimpleCsvFailsForUnknownFormat)"};
 
+      // Simple CSV is neither NORDEA nor SKV format, so it should fail at Step 6.5
       auto result = cratchit::csv::import_file_to_tagged_amounts(simple_csv_file);
 
-      ASSERT_TRUE(result) << "Expected successful import of simple CSV file";
-      EXPECT_EQ(result.value().size(), 3) << "Expected 3 TaggedAmounts from simple CSV";
+      EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
 
-      // Verify the amounts are correct
-      auto const& tagged_amounts = result.value();
-      ASSERT_EQ(tagged_amounts.size(), 3);
+      // Verify error message mentions the format detection failure
+      bool found_step_6_5_msg = false;
+      for (auto const& msg : result.m_messages) {
+        if (msg.find("Step 6.5") != std::string::npos &&
+            msg.find("failed") != std::string::npos) {
+          found_step_6_5_msg = true;
+          break;
+        }
+      }
+      EXPECT_TRUE(found_step_6_5_msg)
+        << "Expected error message about Step 6.5 AccountID detection failure";
 
-      // Check first entry: 100.50
-      auto cents_1 = to_amount_in_cents_integer(tagged_amounts[0].cents_amount());
-      EXPECT_EQ(cents_1, 10050) << "Expected first amount to be 100.50 (10050 cents)";
-
-      // Check second entry: -50.00
-      auto cents_2 = to_amount_in_cents_integer(tagged_amounts[1].cents_amount());
-      EXPECT_EQ(cents_2, -5000) << "Expected second amount to be -50.00 (-5000 cents)";
-
-      // Check third entry: 200.00
-      auto cents_3 = to_amount_in_cents_integer(tagged_amounts[2].cents_amount());
-      EXPECT_EQ(cents_3, 20000) << "Expected third amount to be 200.00 (20000 cents)";
-
-      logger::development_trace("Verified TaggedAmount values from simple CSV");
+      logger::development_trace("Verified simple CSV correctly fails for unknown format");
     }
 
     TEST_F(FullPipelineTestFixture, ImportMissingFileReturnsEmpty) {
@@ -2783,10 +2777,10 @@ Alice,30,"Stockholm, Sweden"
     // import_table_to_tagged_amounts() tests
     // ----------------------------------------------------------------------------
 
-    TEST(FullPipelineTableTests, ImportTableSuccess) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportTableSuccess)"};
+    TEST(FullPipelineTableTests, ImportTableFailsForUnknownFormat) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportTableFailsForUnknownFormat)"};
 
-      // Create a valid CSV::Table
+      // Create a generic CSV::Table (neither NORDEA nor SKV format)
       CSV::Table table;
       table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
       table.rows.push_back(table.heading);
@@ -2795,16 +2789,20 @@ Alice,30,"Stockholm, Sweden"
 
       auto result = cratchit::csv::import_table_to_tagged_amounts(table);
 
-      ASSERT_TRUE(result) << "Expected successful import of CSV::Table";
-      EXPECT_EQ(result.value().size(), 2) << "Expected 2 TaggedAmounts";
+      // Unknown format should fail at Step 6.5
+      EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
 
-      // Verify amounts
-      auto const& tagged_amounts = result.value();
-      auto cents_1 = to_amount_in_cents_integer(tagged_amounts[0].cents_amount());
-      EXPECT_EQ(cents_1, 10050);
-
-      auto cents_2 = to_amount_in_cents_integer(tagged_amounts[1].cents_amount());
-      EXPECT_EQ(cents_2, -5000);
+      // Verify error message mentions the format detection failure
+      bool found_step_6_5_msg = false;
+      for (auto const& msg : result.m_messages) {
+        if (msg.find("Step 6.5") != std::string::npos &&
+            msg.find("failed") != std::string::npos) {
+          found_step_6_5_msg = true;
+          break;
+        }
+      }
+      EXPECT_TRUE(found_step_6_5_msg)
+        << "Expected error message about Step 6.5 AccountID detection failure";
     }
 
     TEST(FullPipelineTableTests, ImportTableWithNordeaData) {
@@ -2847,31 +2845,30 @@ Alice,30,"Stockholm, Sweden"
     // Integration tests
     // ----------------------------------------------------------------------------
 
-    TEST_F(FullPipelineTestFixture, CompletePipelineVerifyTaggedAmountStructure) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, CompletePipelineVerifyTaggedAmountStructure)"};
+    TEST_F(FullPipelineTestFixture, CompletePipelineVerifyTaggedAmountStructureWithNordea) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, CompletePipelineVerifyTaggedAmountStructureWithNordea)"};
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(simple_csv_file);
+      // Use NORDEA file instead of simple CSV (which now fails for unknown format)
+      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
 
-      ASSERT_TRUE(result) << "Expected successful import";
-      ASSERT_EQ(result.value().size(), 3);
+      ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV";
+      ASSERT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
 
       // Verify complete TaggedAmount structure for first entry
       auto const& first = result.value()[0];
 
-      // Date should be 2025-01-01
-      EXPECT_EQ(first.date(), to_date(2025, 1, 1));
+      // Date should be valid
+      EXPECT_TRUE(first.date() != Date{}) << "Expected valid date";
 
-      // Amount should be 100.50 (10050 cents)
-      EXPECT_EQ(to_amount_in_cents_integer(first.cents_amount()), 10050);
+      // Amount should be non-zero
+      auto cents = to_amount_in_cents_integer(first.cents_amount());
+      EXPECT_NE(cents, 0) << "Expected non-zero amount";
 
-      // Text tag should contain description
-      auto text_tag = first.tag_value("Text");
-      ASSERT_TRUE(text_tag.has_value());
-      EXPECT_EQ(*text_tag, "Payment received");
-
-      // Account tag should be present (empty for generic CSV)
+      // Account tag should be present and contain NORDEA
       auto account_tag = first.tag_value("Account");
       ASSERT_TRUE(account_tag.has_value());
+      EXPECT_TRUE(account_tag->find("NORDEA") != std::string::npos)
+        << "Expected Account tag to contain NORDEA";
     }
 
     TEST_F(FullPipelineTestFixture, PipelinePreservesAllEntries) {
