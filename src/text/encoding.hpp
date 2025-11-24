@@ -225,7 +225,7 @@ namespace text {
       EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
       EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
       // Encoding detection for byte buffer (CSV import pipeline integration)
-      // Wraps to_content_encoding for use with cratchit::io::ByteBuffer
+      // Wraps to_content_encoding for use with persistent::in::ByteBuffer
       template<typename ByteBuffer>
       std::optional<EncodingDetectionResult> detect_buffer_encoding(
           ByteBuffer const& buffer

@@ -58,7 +58,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadValidFileSucceeds) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadValidFile)"};
 
-      auto result = cratchit::io::read_file_to_buffer(valid_file_path);
+      auto result = persistent::in::read_file_to_buffer(valid_file_path);
 
       ASSERT_TRUE(result) << "Expected successful read of valid file";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty buffer";
@@ -75,7 +75,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadMissingFileReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadMissingFileReturnsEmpty)"};
 
-      auto result = cratchit::io::read_file_to_buffer(missing_file_path);
+      auto result = persistent::in::read_file_to_buffer(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -94,7 +94,7 @@ namespace tests::csv_import_pipeline {
         ofs << "test content";
       }
 
-      auto result = cratchit::io::open_file(temp_path);
+      auto result = persistent::in::open_file(temp_path);
 
       ASSERT_TRUE(result) << "Expected successful file open";
       EXPECT_TRUE(result.value() != nullptr) << "Expected non-null stream pointer";
@@ -109,7 +109,7 @@ namespace tests::csv_import_pipeline {
 
       auto non_existent_path = std::filesystem::path("/tmp/cratchit_nonexistent_file_12345.txt");
 
-      auto result = cratchit::io::open_file(non_existent_path);
+      auto result = persistent::in::open_file(non_existent_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for non-existent file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -121,7 +121,7 @@ namespace tests::csv_import_pipeline {
       std::string test_data = "Hello, World! This is test data.";
       std::istringstream iss(test_data);
 
-      auto result = cratchit::io::read_stream_to_buffer(iss);
+      auto result = persistent::in::read_stream_to_buffer(iss);
 
       ASSERT_TRUE(result) << "Expected successful buffer read from stream";
       EXPECT_EQ(result.value().size(), test_data.size()) << "Expected buffer size to match input";
@@ -146,9 +146,9 @@ namespace tests::csv_import_pipeline {
       }
 
       // Demonstrate monadic composition with and_then
-      auto result = cratchit::io::open_file(temp_path)
+      auto result = persistent::in::open_file(temp_path)
         .and_then([](auto& stream_ptr) {
-          return cratchit::io::read_stream_to_buffer(*stream_ptr);
+          return persistent::in::read_stream_to_buffer(*stream_ptr);
         })
         .and_then([](auto& buffer) -> AnnotatedMaybe<size_t> {
           AnnotatedMaybe<size_t> size_result;
@@ -173,10 +173,10 @@ namespace tests::csv_import_pipeline {
       bool and_then_called = false;
 
       // Composition should short-circuit on first failure
-      auto result = cratchit::io::open_file(non_existent)
-        .and_then([&and_then_called](auto& stream_ptr) -> AnnotatedMaybe<cratchit::io::ByteBuffer> {
+      auto result = persistent::in::open_file(non_existent)
+        .and_then([&and_then_called](auto& stream_ptr) -> AnnotatedMaybe<persistent::in::ByteBuffer> {
           and_then_called = true;
-          return cratchit::io::read_stream_to_buffer(*stream_ptr);
+          return persistent::in::read_stream_to_buffer(*stream_ptr);
         });
 
       EXPECT_FALSE(result) << "Expected failure due to missing file";
@@ -192,7 +192,7 @@ namespace tests::csv_import_pipeline {
       std::ofstream ofs(empty_file);
       ofs.close();
 
-      auto result = cratchit::io::read_file_to_buffer(empty_file);
+      auto result = persistent::in::read_file_to_buffer(empty_file);
 
       ASSERT_TRUE(result) << "Expected successful read of empty file";
       EXPECT_EQ(result.value().size(), 0) << "Expected empty buffer";
@@ -201,7 +201,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ErrorMessagesArePreserved) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ErrorMessagesArePreserved)"};
 
-      auto result = cratchit::io::read_file_to_buffer(missing_file_path);
+      auto result = persistent::in::read_file_to_buffer(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_FALSE(result.m_messages.empty()) << "Expected error messages";
@@ -261,7 +261,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectUTF8) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectUTF8)"};
 
-      auto buffer = cratchit::io::read_file_to_buffer(utf8_file);
+      auto buffer = persistent::in::read_file_to_buffer(utf8_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::icu::detect_buffer_encoding(buffer.value());
@@ -275,7 +275,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectISO8859) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectISO8859)"};
 
-      auto buffer = cratchit::io::read_file_to_buffer(iso8859_file);
+      auto buffer = persistent::in::read_file_to_buffer(iso8859_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::icu::detect_buffer_encoding(buffer.value());
@@ -299,7 +299,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Demonstrate monadic composition: file → buffer → encoding
-      auto result = cratchit::io::read_file_to_buffer(temp_path)
+      auto result = persistent::in::read_file_to_buffer(temp_path)
         .and_then([](auto& buffer) {
           AnnotatedMaybe<text::encoding::icu::EncodingDetectionResult> encoding_result;
           auto maybe_encoding = text::encoding::icu::detect_buffer_encoding(buffer);
@@ -330,7 +330,7 @@ namespace tests::csv_import_pipeline {
     TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt)"};
 
-      cratchit::io::ByteBuffer empty_buffer;
+      persistent::in::ByteBuffer empty_buffer;
       auto encoding = text::encoding::icu::detect_buffer_encoding(empty_buffer);
 
       EXPECT_FALSE(encoding) << "Expected empty optional for empty buffer";
@@ -340,7 +340,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, LowConfidenceHandling)"};
 
       // Very short content might have low confidence
-      cratchit::io::ByteBuffer short_buffer;
+      persistent::in::ByteBuffer short_buffer;
       std::string short_text = "a";
       short_buffer.resize(short_text.size());
       std::memcpy(short_buffer.data(), short_text.data(), short_text.size());
@@ -367,7 +367,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesUTF8SimpleASCII)"};
 
       // Simple ASCII text (subset of UTF-8)
-      cratchit::io::ByteBuffer buffer;
+      persistent::in::ByteBuffer buffer;
       std::string test_text = "Hello";
       buffer.resize(test_text.size());
       std::memcpy(buffer.data(), test_text.data(), test_text.size());
@@ -397,7 +397,7 @@ namespace tests::csv_import_pipeline {
 
       // UTF-8 encoded Swedish text: "Åsa"
       // Å (U+00C5) → UTF-8: 0xC3 0x85
-      cratchit::io::ByteBuffer buffer{
+      persistent::in::ByteBuffer buffer{
         std::byte{0xC3}, std::byte{0x85},  // Å
         std::byte{0x73},                    // s
         std::byte{0x61}                     // a
@@ -426,7 +426,7 @@ namespace tests::csv_import_pipeline {
       // å (U+00E5) → UTF-8: 0xC3 0xA5
       // ä (U+00E4) → UTF-8: 0xC3 0xA4
       // ö (U+00F6) → UTF-8: 0xC3 0xB6
-      cratchit::io::ByteBuffer buffer{
+      persistent::in::ByteBuffer buffer{
         std::byte{0xC3}, std::byte{0xA5},  // å
         std::byte{0xC3}, std::byte{0xA4},  // ä
         std::byte{0xC3}, std::byte{0xB6}   // ö
@@ -453,7 +453,7 @@ namespace tests::csv_import_pipeline {
 
       // ISO-8859-1 encoded: "Åsa"
       // Å → 0xC5 in ISO-8859-1
-      cratchit::io::ByteBuffer buffer{
+      persistent::in::ByteBuffer buffer{
         std::byte{0xC5},  // Å
         std::byte{0x73},  // s
         std::byte{0x61}   // a
@@ -479,7 +479,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesISO8859_1SwedishChars)"};
 
       // ISO-8859-1 encoded: "åäö"
-      cratchit::io::ByteBuffer buffer{
+      persistent::in::ByteBuffer buffer{
         std::byte{0xE5},  // å
         std::byte{0xE4},  // ä
         std::byte{0xF6}   // ö
@@ -505,7 +505,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, LazyEvaluationNoEagerMaterialization)"};
 
       // Create a large buffer to verify lazy evaluation
-      cratchit::io::ByteBuffer large_buffer;
+      persistent::in::ByteBuffer large_buffer;
       std::string repeated_text = "Test";
       for (int i = 0; i < 1000; ++i) {
         for (char ch : repeated_text) {
@@ -540,7 +540,7 @@ namespace tests::csv_import_pipeline {
 
       // UTF-8 encoded: "Hello World"
       std::string test_text = "Hello World";
-      cratchit::io::ByteBuffer buffer;
+      persistent::in::ByteBuffer buffer;
       buffer.resize(test_text.size());
       std::memcpy(buffer.data(), test_text.data(), test_text.size());
 
@@ -576,7 +576,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = cratchit::io::read_file_to_buffer(temp_path);
+      auto buffer_result = persistent::in::read_file_to_buffer(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
@@ -607,7 +607,7 @@ namespace tests::csv_import_pipeline {
     TEST(BytesToUnicodeTests, EmptyBufferProducesEmptyRange) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, EmptyBufferProducesEmptyRange)"};
 
-      cratchit::io::ByteBuffer empty_buffer;
+      persistent::in::ByteBuffer empty_buffer;
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         empty_buffer,
@@ -765,7 +765,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = cratchit::io::read_file_to_buffer(temp_path);
+      auto buffer_result = persistent::in::read_file_to_buffer(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
@@ -798,7 +798,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, TranscodesFromISO8859ToUTF8)"};
 
       // ISO-8859-1 encoded: "Åsa" (0xC5 = Å in ISO-8859-1)
-      cratchit::io::ByteBuffer iso_buffer{
+      persistent::in::ByteBuffer iso_buffer{
         std::byte{0xC5},  // Å
         std::byte{0x73},  // s
         std::byte{0x61}   // a
@@ -831,7 +831,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, PipelineSyntaxWorks)"};
 
       // Test piping syntax for complete pipeline
-      cratchit::io::ByteBuffer utf8_buffer;
+      persistent::in::ByteBuffer utf8_buffer;
       std::string test_text = "Hello";
       utf8_buffer.resize(test_text.size());
       std::memcpy(utf8_buffer.data(), test_text.data(), test_text.size());
@@ -875,7 +875,7 @@ namespace tests::csv_import_pipeline {
 
       // Test pipeline with CP437 input
       // CP437: å=0x86, ä=0x84, ö=0x94
-      cratchit::io::ByteBuffer cp437_buffer{
+      persistent::in::ByteBuffer cp437_buffer{
         std::byte{0x86},  // å in CP437
         std::byte{0x84},  // ä in CP437
         std::byte{0x94}   // ö in CP437
@@ -1104,7 +1104,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, LazyViewVariantForMemoryEfficiency)"};
 
       // Test the lazy view variant that doesn't materialize the entire string
-      auto buffer_result = cratchit::io::read_file_to_buffer(utf8_file);
+      auto buffer_result = persistent::in::read_file_to_buffer(utf8_file);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       auto lazy_view = text::encoding::create_lazy_encoding_view(buffer_result.value());

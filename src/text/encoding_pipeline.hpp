@@ -41,7 +41,7 @@ namespace text::encoding {
     AnnotatedMaybe<std::string> result{};
 
     // Step 1: Read file to byte buffer
-    auto buffer_result = cratchit::io::read_file_to_buffer(file_path);
+    auto buffer_result = persistent::in::read_file_to_buffer(file_path);
 
     if (!buffer_result) {
       // Propagate file I/O error
