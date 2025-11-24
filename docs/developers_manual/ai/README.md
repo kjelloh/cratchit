@@ -1282,3 +1282,368 @@ If these tests pass?:
 ```
 
 Yes, the test pass so my ID string is 'NORDEA51 86 87-9' and NOT 'NORDEA::51 86 87-9' (or better normalised 'NORDEA::518687-9'?).
+
+Now I can finally ask Claude to refactor my 'first' mode Ux option 's' in state AccountFileState!
+
+In this case I kept the context window and asked:
+
+```text
+I want you to refactor my call to 'CSV::project::to_account_statement' @src/states/AccountStatementFileState.cpp to instead use the 'new' 'cratchit::csv::import_file_to_account_statement'. I want you to first do the refactoring at the call site. Then compile and use the errors to guide you on how to refactor the dependant AccountStatementState! Think this through step-by-step and present me with a proposal I can accept or adjust, thanks.
+```
+
+I epxect this to be quite a feat for Claude given the rather cumbersome state code with lamda deferred executions. I am curious how it will tackle this task!
+
+DARN! I now realise I did not understand my own refactoring needs! The existing code actually takes a 'Maybe Table', not a file path!!
+
+I realised this from the Claude report:
+
+```text
+Now I have a complete picture. Here's my proposal:
+
+  ---
+  Refactoring Proposal: Use import_file_to_account_statement in AccountStatementFileState
+
+  Current Architecture
+
+  | Component  | Current Type                                                            | Interface                           |
+  |------------|-------------------------------------------------------------------------|-------------------------------------|
+  | Call site  | CSV::project::to_account_statement(csv_heading_id, maybe_table)         | Returns ExpectedAccountStatement    |
+  | State type | ExpectedAccountStatement = std::expected<AccountStatement, std::string> | .value(), .error(), operator bool() |
+
+  Proposed Architecture
+
+  | Component  | New Type                                                   | Interface                                |
+  |------------|------------------------------------------------------------|------------------------------------------|
+  | Call site  | cratchit::csv::import_file_to_account_statement(file_path) | Returns AnnotatedMaybe<AccountStatement> |
+  | State type | AnnotatedMaybe<AccountStatement>                           | .value(), .m_messages, operator bool()   |
+
+  Key Differences
+
+  | Operation   | std::expected<T,E>             | AnnotatedMaybe<T>                     |
+  |-------------|--------------------------------|---------------------------------------|
+  | Check valid | if (result)                    | if (result) ✓ same                    |
+  | Get value   | result.value()                 | result.value() ✓ same                 |
+  | Get error   | result.error() → single string | result.m_messages → vector of strings |
+
+  Files to Modify
+
+  1. AccountStatementFileState.cpp (call site)
+
+  - Capture file_path instead of maybe_table
+  - Call cratchit::csv::import_file_to_account_statement(file_path)
+  - Add include for csv/import_pipeline.hpp
+
+  2. AccountStatementState.hpp
+
+  - Change type alias: using MaybeAccountStatement = AnnotatedMaybe<AccountStatement>;
+  - Update paired type: using PeriodPairedMaybeAccountStatement = PeriodPairedT<MaybeAccountStatement>;
+  - Add include for functional/maybe.hpp
+
+  3. AccountStatementState.cpp
+
+  - Change error display from .error() (single string) to joining .m_messages (vector)
+
+  Proposed Implementation Order
+
+  1. Step 1: Modify AccountStatementFileState.cpp call site
+  2. Step 2: Compile and observe errors
+  3. Step 3: Update AccountStatementState.hpp type definitions
+  4. Step 4: Update AccountStatementState.cpp error handling
+  5. Step 5: Compile and verify
+
+  ---
+  Shall I proceed with this refactoring?
+```
+
+It is worth observing that Claude concluded 'Capture file_path instead of maybe_table'. But did NOT draw the conclusion that we should refactor by calling the new pipe-line with the table we already have!
+
+Ok, So what if I clear the Claude context window and have it propose a refactoring by itself?
+
+I tried:
+
+```text
+I want to refactor the AccountFileState to use the 'new' csv-pipe line. Especially to use the 'CSV::MDTable -> Maybe AccountStatement' instead of the 'Maybe Table -> expected<AccountStatement,string>'?  step we now have. The new pipe line is @src/domain/csv_to_account_statement.hpp and dependant files. What refactoring would you propose if you take a look into the code?
+```
+
+While I waited for Claude I studied my code again and realised I failed to tell Claude to ignore the 'create tagged amounts' option! This option will move to the TaggedAmountState. But lets see what Claude sais.
+
+I turns out Claude realises it can focus on the AccountStatementState + the AccountStatemenFile option 's' -> AccountStatementState only (good!). It reports:
+
+```text
+Now I have a complete picture. Here's my proposed refactoring:
+
+  ---
+  Refactoring Proposal: AccountFileState to New CSV Pipeline
+
+  Current State (Old Pipeline)
+
+  AccountStatementFileState:
+    CSV::file_to_table(path) → AnnotatedMaybe<CSV::Table>
+
+    Option 's':
+      CSV::project::to_account_statement(HeadingId{}, maybe_table)
+        → expected<AccountStatement, string>  ← OLD TYPE
+
+    AccountStatementState expects:
+      PeriodPairedT<expected<AccountStatement, string>>
+
+  Problems:
+  - Loses AccountID metadata
+  - Uses rigid HeadingId enum
+  - Different error type (expected<T, string>) vs new pipeline (optional<T>)
+
+  Target State (New Pipeline)
+
+  AccountStatementFileState:
+    CSV::file_to_table(path) → AnnotatedMaybe<CSV::Table>
+
+    Option 's':
+      CSV::project::to_account_id_ed(table)
+        → optional<CSV::MDTable<AccountID>>       ← Step 6.5
+      domain::md_table_to_account_statement(md_table)
+        → optional<AccountStatement>               ← Step 7
+
+    AccountStatementState expects:
+      PeriodPairedT<optional<AccountStatement>>   ← UPDATED TYPE
+
+  ---
+  Proposed Changes
+
+  1. Update AccountStatementState to use optional<AccountStatement>
+
+  src/states/AccountStatementState.hpp:
+  // FROM:
+  using ExpectedAccountStatement = ::ExpectedAccountStatement;
+  using PeriodPairedExpectedAccountStatement = PeriodPairedT<ExpectedAccountStatement>;
+
+  // TO:
+  using OptionalAccountStatement = std::optional<AccountStatement>;
+  using PeriodPairedOptionalAccountStatement = PeriodPairedT<OptionalAccountStatement>;
+
+  2. Update AccountStatementFileState.cpp option 's' handler
+
+  src/states/AccountStatementFileState.cpp:
+  // FROM (lines 54-68):
+  if (this->m_maybe_table_result) result.add('s', {"Account Statement", [
+     fiscal_period
+    ,csv_heading_id = CSV::project::HeadingId{}
+    ,maybe_table = this->m_maybe_table_result.m_value
+  ]() -> StateUpdateResult {
+    return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
+      auto expteced_acount_statement = CSV::project::to_account_statement(csv_heading_id,maybe_table);
+      // ...
+    }};
+  }});
+
+  // TO:
+  if (this->m_maybe_table_result) result.add('s', {"Account Statement", [
+     fiscal_period
+    ,maybe_table = this->m_maybe_table_result.m_value
+  ]() -> StateUpdateResult {
+    return {std::nullopt, [fiscal_period,maybe_table]() -> std::optional<Msg> {
+      std::optional<AccountStatement> maybe_account_statement;
+      if (maybe_table) {
+        auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+        if (maybe_md_table) {
+          maybe_account_statement = domain::md_table_to_account_statement(*maybe_md_table);
+        }
+      }
+      AccountStatementState::PeriodPairedOptionalAccountStatement period_paired{
+         fiscal_period
+        ,maybe_account_statement
+      };
+      State new_state = make_state<AccountStatementState>(period_paired);
+      return std::make_shared<PushStateMsg>(new_state);
+    }};
+  }});
+
+  3. Add includes to AccountStatementFileState.cpp
+
+  #include "csv/csv_to_account_id.hpp"        // CSV::project::to_account_id_ed
+  #include "domain/csv_to_account_statement.hpp"  // domain::md_table_to_account_statement
+
+  4. Update AccountStatementState.cpp to handle optional<AccountStatement>
+
+  Adapt error display from unexpected<string> to nullopt handling.
+
+  ---
+  Files to Modify
+
+  | File                          | Change                                                    |
+  |-------------------------------|-----------------------------------------------------------|
+  | AccountStatementState.hpp     | Change type alias from expected to optional               |
+  | AccountStatementState.cpp     | Update create_ux() to handle nullopt vs has_value()       |
+  | AccountStatementFileState.cpp | Replace old pipeline with new two-step approach           |
+  | projections.hpp/cpp           | Mark old to_account_statement() as deprecated (or remove) |
+
+  Benefits
+
+  - AccountID preserved: The new AccountStatement includes .meta().m_maybe_account_irl_id
+  - No HeadingId enum: Detection is automatic based on content
+  - Composable: Uses optional chain: table → maybe_md_table → maybe_statement
+  - Better error context: Can show which step failed (AccountID detection vs entry extraction)
+
+  ---
+  Would you like me to proceed with implementing this refactoring?
+```
+
+The nice surprise is 'Mark old to_account_statement() as deprecated (or remove)'. That was what I wanted!
+
+But Claude missed to pass an AnnotatedOptional<AccountStatement> to the child state! It needs this to make the child state be able to present any errors in the transformation to the user. Previous code used std::expected to show an error message. Refactored code must use AnnotatedOptional messages for this!
+
+I prompted Claude:
+
+```text
+You missed to pass an AnnotatedOptional<AccountStatement> to the child state. It needs this to be able to present any errors in the transformation to the user. Previous code passed std::expected<AccountStatament,string> to show an error message. Refactored code must use AnnotatedOptional messages for this. Can you revise your proposal to accomplish this?
+```
+
+Claude reported back:
+
+```text
+Key Insight
+
+  AccountStatementFileState already stores AnnotatedMaybe<CSV::Table> from CSV parsing. The option 's' handler needs to:
+  1. Take the already-parsed CSV::Table
+  2. Run steps 6.5-7 → AnnotatedMaybe<AccountStatement>
+  3. Pass this to AccountStatementState (with error messages preserved)
+  ...
+Changes Required
+
+  1. Add import_table_to_account_statement() in import_pipeline.hpp
+
+  This is the missing pipeline entry point for table → AccountStatement:
+
+  ...  
+```
+
+From this I realised Claude has missed the aleray existing code for this step. So I prompted:
+
+```text
+I hear you. But there is alreday an 'CSV::project::to_account_id_ed' and 'md_table_to_account_statement' on optional monad. They can be lifted to AnnotatedMaybe monad with to_annotated_nullopt @src/funcgtional/maybe.hpp. Can you see if you can compose 'in-place' or in a helper with this existing code?
+```
+
+Now Claude agreed as:
+
+```text
+You're right! I can use to_annotated_nullopt to lift the existing optional-returning functions and compose them with and_then. Let me show the elegant composition:
+
+  ---
+  Revised Proposal: In-Place Composition with to_annotated_nullopt
+
+  The composition uses the existing AnnotatedMaybe::and_then which automatically merges messages from each step:
+
+  Option 's' handler - In-Place Composition
+
+  if (this->m_maybe_table_result) result.add('s', {"Account Statement", [
+     fiscal_period
+    ,annotated_table = this->m_maybe_table_result  // AnnotatedMaybe<CSV::Table>
+  ]() -> StateUpdateResult {
+    return {std::nullopt, [fiscal_period, annotated_table]() -> std::optional<Msg> {
+
+      using namespace cratchit::functional;
+
+      // Compose: AnnotatedMaybe<Table> → AnnotatedMaybe<MDTable<AccountID>> → AnnotatedMaybe<AccountStatement>
+      auto annotated_statement = annotated_table
+        .and_then(to_annotated_nullopt(
+          CSV::project::to_account_id_ed,
+          "Unknown CSV format - could not identify account"))
+        .and_then(to_annotated_nullopt(
+          domain::md_table_to_account_statement,
+          "Could not extract account statement entries"));
+
+      AccountStatementState::PeriodPairedAnnotatedAccountStatement period_paired{
+         fiscal_period
+        ,annotated_statement
+      };
+      State new_state = make_state<AccountStatementState>(period_paired);
+      return std::make_shared<PushStateMsg>(new_state);
+    }};
+  }});
+
+  How it works
+
+  1. annotated_table is already AnnotatedMaybe<CSV::Table> with file/encoding messages
+  2. to_annotated_nullopt(to_account_id_ed, "...") lifts optional<MDTable<AccountID>> → AnnotatedMaybe<MDTable<AccountID>>
+  3. to_annotated_nullopt(md_table_to_account_statement, "...") lifts optional<AccountStatement> → AnnotatedMaybe<AccountStatement>
+  4. and_then merges all messages from each step into the final result
+
+  Required includes in AccountStatementFileState.cpp
+
+  #include "functional/maybe.hpp"               // to_annotated_nullopt, AnnotatedMaybe
+  #include "csv/csv_to_account_id.hpp"          // CSV::project::to_account_id_ed
+  #include "domain/csv_to_account_statement.hpp" // domain::md_table_to_account_statement
+
+  Files to Modify
+
+  | File                                 | Change                                       |
+  |--------------------------------------|----------------------------------------------|
+  | states/AccountStatementState.hpp     | Type alias: AnnotatedMaybe<AccountStatement> |
+  | states/AccountStatementState.cpp     | Display m_messages on failure                |
+  | states/AccountStatementFileState.cpp | Use composed and_then chain above            |
+
+  No new pipeline functions needed - just compose existing pieces with the lifting utility.
+
+  Would you like me to implement this?
+
+● How is Claude doing this session? (optional)
+  1: Bad    2: Fine   3: Good   0: Dismiss
+```
+
+We are really into deep water with monadic composition here! Do I dare Claude to pull this through?
+
+I asked Claude to 'go for it'!
+
+And Claude pulled it off:
+
+```text
+ Summary of Changes
+
+  What Was Refactored
+
+  I successfully migrated AccountStatementFileState from the old CSV pipeline to the new composable pipeline using AnnotatedMaybe monadic composition.
+
+  Key Changes
+
+  1. AccountStatementState.hpp - Updated type aliases
+  // OLD: ExpectedAccountStatement = std::expected<AccountStatement, string>
+  // NEW: AnnotatedAccountStatement = AnnotatedMaybe<AccountStatement>
+
+  2. AccountStatementState.cpp - Updated error display
+  - Changed from expected.error() (single string) to iterating over m_messages (vector of diagnostic messages)
+  - Now displays full pipeline error context to users
+
+  3. AccountStatementFileState.cpp - Composed new pipeline
+  // OLD: CSV::project::to_account_statement(csv_heading_id, maybe_table)
+  // NEW: Elegant monadic composition using to_annotated_nullopt
+  auto annotated_statement = annotated_table
+    .and_then(to_annotated_nullopt(
+      CSV::project::to_account_id_ed,
+      "Unknown CSV format - could not identify account"))
+    .and_then(to_annotated_nullopt(
+      domain::md_table_to_account_statement,
+      "Could not extract account statement entries"));
+
+  4. projections.hpp - Deprecated old function
+  - Marked to_account_statement() as [[deprecated]] with migration guidance
+
+  Benefits Achieved
+
+  ✅ AccountID Preserved: Now stored in AccountStatement.meta().m_maybe_account_irl_id
+  ✅ Better Error Messages: Multi-step pipeline messages visible to users
+  ✅ Composable: Uses existing to_annotated_nullopt lifting utility
+  ✅ Type Safe: Consistent use of AnnotatedMaybe<T> throughout
+  ✅ No HeadingId enum: Automatic NORDEA/SKV detection based on content
+
+  Test Results
+
+  [==========] 223 tests from 50 test suites ran. (421 ms total)
+  [  PASSED  ] 223 tests.
+
+  The refactoring successfully integrates the new CSV→MDTable→AccountStatement pipeline while preserving all error context for user feedback! 🎉
+
+● How is Claude doing this session? (optional)
+  1: Bad    2: Fine   3: Good   0: Dismiss
+```
+
+I ran cratchit and confirmed it seems to work just fine!
+
