@@ -2,6 +2,9 @@
 #include "TaggedAmountsState.hpp"
 #include "AccountStatementState.hpp"
 #include "csv/projections.hpp" // CSV::project::to_account_statement,...
+#include "csv/csv_to_account_id.hpp" // CSV::project::to_account_id_ed
+#include "domain/csv_to_account_statement.hpp" // domain::md_table_to_account_statement
+#include "functional/maybe.hpp" // to_annotated_nullopt, AnnotatedMaybe
 #include <format>
 #include <fstream>
 #include "logger/log.hpp"
@@ -53,16 +56,25 @@ namespace first {
 
     if (this->m_maybe_table_result) result.add('s', {"Account Statement", [
        fiscal_period
-      ,csv_heading_id = CSV::project::HeadingId{}
-      ,maybe_table = this->m_maybe_table_result.m_value
+      ,annotated_table = this->m_maybe_table_result  // AnnotatedMaybe<CSV::Table>
     ]() -> StateUpdateResult {
-      return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
-        auto expteced_acount_statement = CSV::project::to_account_statement(csv_heading_id,maybe_table);
-        AccountStatementState::PeriodPairedExpectedAccountStatement period_paired_expected_account_statement{
+      return {std::nullopt, [fiscal_period, annotated_table]() -> std::optional<Msg> {
+        using namespace cratchit::functional;
+
+        // Compose: AnnotatedMaybe<Table> → AnnotatedMaybe<MDTable<AccountID>> → AnnotatedMaybe<AccountStatement>
+        auto annotated_statement = annotated_table
+          .and_then(to_annotated_nullopt(
+            CSV::project::to_account_id_ed,
+            "Unknown CSV format - could not identify account"))
+          .and_then(to_annotated_nullopt(
+            domain::md_table_to_account_statement,
+            "Could not extract account statement entries"));
+
+        AccountStatementState::PeriodPairedAnnotatedAccountStatement period_paired{
            fiscal_period
-          ,expteced_acount_statement
+          ,annotated_statement
         };
-        State new_state = make_state<AccountStatementState>(period_paired_expected_account_statement);
+        State new_state = make_state<AccountStatementState>(period_paired);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});

@@ -21,7 +21,9 @@ namespace CSV {
     ToHeadingProjection make_heading_projection(HeadingId const& heading_id);
 
     // 'Older' ExpectedAccountStatement returning mechanism.
-    // TODO: Replace with optional and AnnotatedMaybe based mechanism / 20251122
+    // DEPRECATED: Use cratchit::csv::import_table_to_account_statement() instead
+    // TODO: Remove after all call sites have been refactored / 20251124
+    [[deprecated("Use cratchit::csv::import_table_to_account_statement() instead")]]
     ExpectedAccountStatement to_account_statement(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
 
     // Now in TaggedAmountFramework (upstream projections)

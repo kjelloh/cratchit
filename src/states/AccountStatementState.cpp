@@ -8,18 +8,18 @@
 
 namespace first {
 
-  // AccountStatementState::AccountStatementState(ExpectedAccountStatement expected_account_statement) 
+  // AccountStatementState::AccountStatementState(AnnotatedAccountStatement annotated_account_statement)
   //   :  StateImpl()
-  //     ,m_expected_account_statement{expected_account_statement}
-  //     ,m_period_paired_expected_account_statement{
+  //     ,m_annotated_account_statement{annotated_account_statement}
+  //     ,m_period_paired_annotated_account_statement{
   //        FiscalYear::to_current_fiscal_year(std::chrono::month{5}).period()
-  //       ,expected_account_statement} {}
+  //       ,annotated_account_statement} {}
 
   AccountStatementState::AccountStatementState(
-    PeriodPairedExpectedAccountStatement period_paired_expected_account_statement)
+    PeriodPairedAnnotatedAccountStatement period_paired_annotated_account_statement)
     :  StateImpl{}
-      // ,m_expected_account_statement{period_paired_expected_account_statement.content()}
-      ,m_period_paired_expected_account_statement{period_paired_expected_account_statement} {}
+      // ,m_annotated_account_statement{period_paired_annotated_account_statement.content()}
+      ,m_period_paired_annotated_account_statement{period_paired_annotated_account_statement} {}
 
   std::string AccountStatementState::caption() const {
     return "Account Statement";
@@ -80,13 +80,13 @@ namespace first {
 
   StateImpl::UX AccountStatementState::create_ux() const {
     UX result{};
-    result.push_back(this->m_period_paired_expected_account_statement.period().to_string());
+    result.push_back(this->m_period_paired_annotated_account_statement.period().to_string());
     result.push_back(this->caption());
     result.push_back("");
-    
-    if (m_period_paired_expected_account_statement.content()) {
 
-      const auto& statement = m_period_paired_expected_account_statement.content().value();
+    if (m_period_paired_annotated_account_statement.content().m_value.has_value()) {
+
+      const auto& statement = m_period_paired_annotated_account_statement.content().m_value.value();
 
       result.push_back(std::format(
          "Account: {}"
@@ -173,7 +173,12 @@ namespace first {
 
     }
     else {
-      result.push_back(std::format("Sorry - {}",m_period_paired_expected_account_statement.content().error()));
+      result.push_back("Failed to create account statement:");
+      result.push_back("");
+      // Display all error messages from the pipeline
+      for (auto const& msg : m_period_paired_annotated_account_statement.content().m_messages) {
+        result.push_back("  " + msg);
+      }
     }
     return result;
   }
