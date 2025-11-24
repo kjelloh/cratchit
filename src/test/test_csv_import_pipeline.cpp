@@ -1,7 +1,7 @@
 #include "test_atomics.hpp"
 #include "test_fixtures.hpp"
 #include "logger/log.hpp"
-#include "io/file_reader.hpp"
+#include "persistent/in/file_reader.hpp"
 #include "text/encoding.hpp"
 #include "text/transcoding_views.hpp"
 #include "text/encoding_pipeline.hpp"

@@ -2,7 +2,7 @@
 
 #include "text/encoding.hpp"
 #include "csv/projections.hpp"
-#include "io/file_reader.hpp"
+#include "persistent/in/file_reader.hpp"
 #include <filesystem>
 
 namespace CSV {
