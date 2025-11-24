@@ -5257,9 +5257,17 @@ std::pair<std::filesystem::path,bool> make_consumed(std::filesystem::path statem
 
 TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path) {
   TaggedAmounts result{};
-  if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
-    result = maybe_tas.value();
-    std::cout << "\n\tValid entries count:" << maybe_tas->size();
+  // Use new pipeline: cratchit::csv::import_file_to_tagged_amounts
+  auto pipeline_result = cratchit::csv::import_file_to_tagged_amounts(statement_file_path);
+
+  // Log pipeline messages
+  for (auto const& msg : pipeline_result.m_messages) {
+    std::cout << "\n\t[Pipeline] " << msg;
+  }
+
+  if (pipeline_result) {
+    result = pipeline_result.value();
+    std::cout << "\n\tValid entries count:" << result.size();
     if (false) {
       auto make_consumed_result = make_consumed(statement_file_path);
       if (make_consumed_result.second == true) {
@@ -5275,7 +5283,7 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem:
   }
   else {
     std::cout << "\n*Note* " << statement_file_path << " (produced zero entries)";
-  }  
+  }
   return result;
 }
 

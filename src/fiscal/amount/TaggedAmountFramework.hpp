@@ -366,4 +366,5 @@ namespace CSV {
   }
 }
 
+// TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path);

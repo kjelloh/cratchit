@@ -910,6 +910,7 @@ namespace CSV {
 template <typename T>
 using CSVProcessResult = CSV::functional::CSVProcessResult<T>;
 
+// TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
   CSVProcessResult<persistent::in::MaybeIStream> result{};
   result.m_value = persistent::in::to_maybe_istream(statement_file_path);
@@ -917,6 +918,7 @@ CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesys
   return result;
 }
 
+// TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 CSVProcessResult<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
   CSVProcessResult<text::encoding::MaybeDecodingIn> result{};
 
@@ -935,11 +937,13 @@ CSVProcessResult<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persist
   return result;
 }
 
+// TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 CSVProcessResult<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
   CSVProcessResult<CSV::FieldRows> result{};
   result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");
   return result;
 }
+// TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 CSVProcessResult<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
   CSVProcessResult<CSV::Table> result{};
   result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
@@ -947,12 +951,14 @@ CSVProcessResult<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_row
 }
 
 using AccountStatements = std::vector<AccountStatement>;
+// TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 CSVProcessResult<AccountStatements> table_to_account_statements(CSV::Table const& table) {
   CSVProcessResult<AccountStatements> result{};
   result.push_message("table_to_account_statements: NOT YET IMPLEMENTED");
   return result;
 }
 
+// TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 CSVProcessResult<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
   CSVProcessResult<TaggedAmounts> result{};
   result.push_message("account_statements_to_tas: NOT YET IMPLEMENTED");
@@ -961,6 +967,7 @@ CSVProcessResult<TaggedAmounts> account_statements_to_tas(AccountStatements cons
 
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
+* TODO: Remove (Replaced by pipeline cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
 */
 OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path) {
 

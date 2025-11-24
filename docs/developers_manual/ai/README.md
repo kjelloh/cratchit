@@ -1068,3 +1068,49 @@ Claude seems to not 'stack' helper functions 'on-top' of eachother? Instead it s
 All in all these overlap and that is NOT what we want? Or, if they overlap we should expect them to be explicit 'and_then' compositions?
 
 Come to think about it. I think Claude failed to focus on clean single-step transformations due to the individual steps as separate prompts? Maybe it got 'greedy' and ove-helpfull and implemented a full-transform-chain function for each level it reached by each step? So now we have helpers this lifts from file path to each level in the chain? Well, I will have to come back to this later. For now at least the code seems to be there and working?
+
+I now decided to have Claude help me integrate the 'new' pipeline with my existing code. I cleared Claude context window and asked:
+
+```text
+I want you to refactor my code @src/zeroth/main that calls 'tas_from_statment_file' @src/fiscal/amount/TaggedAmountFramework.hpp to instead call the 'new' pipeline 'cratchit::csv::import_file_to_tagged_amounts' @src/csv/import_pipeline.hpp. I want you to mark the old code with a 'TODO: Remove (Replaced by pipe line ...)' comment. Please try to identify and comment also code called (used by) tas_from_statment_file, as this code is also now depracated.
+```
+
+Claude worked for some minutes (five?) and then reported:
+
+```text
+Refactoring complete. Here's a summary of the changes:
+
+  Changes Made
+
+  1. src/zeroth/main.hpp:12
+
+  Added include for the new pipeline:
+  #include "csv/import_pipeline.hpp" // cratchit::csv::import_file_to_tagged_amounts
+
+  2. src/zeroth/main.cpp:5258-5287
+
+  Updated tas_sequence_from_consumed_account_statement_file() to use the new pipeline:
+  - Now calls cratchit::csv::import_file_to_tagged_amounts(statement_file_path)
+  - Added logging of pipeline messages for visibility
+
+  3. src/fiscal/amount/TaggedAmountFramework.hpp:369
+
+  Marked declaration as deprecated with TODO comment
+
+  4. src/fiscal/amount/TaggedAmountFramework.cpp
+
+  Marked the following functions as deprecated with TODO comments:
+  - file_path_to_istream (line 913)
+  - istream_to_decoding_in (line 921)
+  - decoding_in_to_field_rows (line 940)
+  - field_rows_to_table (line 946)
+  - table_to_account_statements (line 954)
+  - account_statements_to_tas (line 961)
+  - tas_from_statment_file (line 970)
+
+  All TODO comments reference: cratchit::csv::import_file_to_tagged_amounts in csv/import_pipeline.hpp
+
+  Would you like me to build and test the changes?
+```
+
+And I aksed it to compile and test and all went well.
