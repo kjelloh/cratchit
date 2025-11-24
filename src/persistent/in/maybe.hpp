@@ -12,10 +12,6 @@
 
 namespace persistent {
 
-  struct FileStreamMeta {
-    std::filesystem::path file_path;
-  };
-
   namespace in {
 
     using MaybeIStream = cratchit::functional::memory::OwningMaybeRef<std::istream>;
@@ -25,6 +21,7 @@ namespace persistent {
 
     std::optional<std::string> to_raw_bytes(std::istream& is);
 
-  }
+  } // in
+  
 } // persistent
 

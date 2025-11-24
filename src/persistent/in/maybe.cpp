@@ -8,7 +8,7 @@ namespace persistent {
         // Open in binary mode to disable any potential platform specific text-file processing.
         // That is, on windows the story is that the platform may convert \n\r to \n (hide unix eol)
         // Also on windows, text files may use strcl-z as EOF.
-        // TODO: Consider to remember to test app behaviour on Linix and Windows.
+        // TODO: Consider to remember to test app behaviour on Linux and Windows.
         //       For now develpment is on macOS / 20251115 
         auto stream = std::make_unique<std::ifstream>(sie_file_path, std::ios::binary);
         if (!stream->is_open()) return {}; // failed to open
