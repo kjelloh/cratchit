@@ -8,6 +8,7 @@ namespace cratchit {
 
       template <typename T>
       struct OwningMaybeRef {
+        using value_type = std::unique_ptr<T>;
         std::unique_ptr<T> m_p{};
         operator bool() const & {return m_p != nullptr;}
         T& value() const & {
@@ -34,6 +35,7 @@ namespace cratchit {
 
       template <typename T>
       struct MaybeRef {
+        using value_type = T*;
         T* m_p{}; // non owning 'plain' as-ref wrapper
 
         operator bool() const & {return m_p != nullptr;}
