@@ -3,6 +3,7 @@
 #include "Key.hpp" // Key::Sequence,
 #include "text/encoding.hpp"
 #include "tokenize.hpp"
+#include "MetaDefacto.hpp"
 #include <iostream> // std::cout,
 
 namespace CSV {
@@ -61,6 +62,10 @@ namespace CSV {
     }
     return result;
   }
+
+  // Helper to pair a CSV::Table with a 'meta' of any type (E.g., AccountID for MDTable -> AccountSTatement)
+  template <typename T>
+  using MDTable = MetaDefacto<T,Table>;
 
 } // namespace CSV
 
