@@ -1,6 +1,6 @@
 #pragma once
 
-#include "csv/csv.hpp" // CSV::Table,...
+#include "csv/csv.hpp" // CSV::Table, CSV::MDTable
 #include "fiscal/amount/AmountFramework.hpp"
 #include "FiscalPeriod.hpp"
 #include "fiscal/amount/AccountStatement.hpp"
@@ -461,6 +461,53 @@ inline std::optional<AccountStatement> csv_table_to_account_statement(
 
   if (!maybe_entries) {
     logger::development_trace("Failed to extract entries from CSV table");
+    return std::nullopt;
+  }
+
+  // Create AccountStatement with entries and account ID metadata
+  AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
+
+  logger::development_trace("Creating AccountStatement with {} entries and account_id: {}",
+    maybe_entries->size(), account_id.to_string());
+
+  return AccountStatement(*maybe_entries, meta);
+}
+
+/**
+ * Transform CSV::MDTable<AccountID> to AccountStatement
+ *
+ * This is the explicit Step 7 variant that takes an already-bundled MDTable
+ * (CSV::Table paired with AccountID metadata).
+ *
+ * This function extracts the table and AccountID from the MDTable structure
+ * and produces an AccountStatement with the entries and account metadata.
+ *
+ * @param md_table The MDTable containing both CSV::Table and AccountID
+ * @return Optional AccountStatement with entries and account metadata, or nullopt on failure
+ *
+ * Returns nullopt if:
+ * - Column detection fails (required columns not found)
+ * - The table is fundamentally invalid
+ *
+ * Returns AccountStatement (possibly with empty entries) if:
+ * - Column detection succeeds but all rows are ignorable
+ */
+inline std::optional<AccountStatement> md_table_to_account_statement(
+    CSV::MDTable<AccountID> const& md_table) {
+  logger::scope_logger log_raii{logger::development_trace,
+    "domain::md_table_to_account_statement(md_table)"};
+
+  // Extract components from MDTable
+  CSV::Table const& table = md_table.defacto;
+  AccountID const& account_id = md_table.meta;
+
+  logger::development_trace("Processing MDTable with AccountID: '{}'", account_id.to_string());
+
+  // Extract entries from the CSV table
+  auto maybe_entries = csv_table_to_account_statement_entries(table);
+
+  if (!maybe_entries) {
+    logger::development_trace("Failed to extract entries from CSV table in MDTable");
     return std::nullopt;
   }
 

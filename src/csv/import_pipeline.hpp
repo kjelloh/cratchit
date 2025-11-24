@@ -146,6 +146,111 @@ inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
 }
 
 /**
+ * Import CSV file to AccountStatement - Complete Pipeline (Steps 1-7)
+ *
+ * This function composes the CSV import pipeline up to AccountStatement:
+ *   1-5. File -> Text (with encoding detection via read_file_with_encoding_detection)
+ *   6.   Text -> CSV::Table (via CSV::neutral::text_to_table)
+ *   6.5  CSV::Table -> MDTable<AccountID> (via CSV::project::to_account_id_ed)
+ *   7.   MDTable<AccountID> -> AccountStatement (via domain::md_table_to_account_statement)
+ *
+ * The function preserves all messages from each step, providing a complete
+ * audit trail of the import process.
+ *
+ * @param file_path Path to the CSV file to import
+ * @return AnnotatedMaybe<AccountStatement> with result or error messages
+ *
+ * Example usage:
+ * @code
+ *   auto result = cratchit::csv::import_file_to_account_statement("/path/to/file.csv");
+ *   if (result) {
+ *     auto const& statement = result.value();
+ *     for (auto const& entry : statement.entries()) {
+ *       // Process account statement entries
+ *     }
+ *   } else {
+ *     for (auto const& msg : result.m_messages) {
+ *       // Log error messages
+ *     }
+ *   }
+ * @endcode
+ */
+inline AnnotatedMaybe<AccountStatement> import_file_to_account_statement(
+    std::filesystem::path const& file_path) {
+  logger::scope_logger log_raii{logger::development_trace,
+    "cratchit::csv::import_file_to_account_statement(file_path)"};
+
+  AnnotatedMaybe<AccountStatement> result{};
+
+  // ============================================================
+  // Steps 1-5: File -> Text (with encoding detection)
+  // ============================================================
+  auto text_result = text::encoding::read_file_with_encoding_detection(file_path);
+
+  if (!text_result) {
+    // Propagate file/encoding errors
+    result.m_messages = std::move(text_result.m_messages);
+    result.push_message("Pipeline failed at Step 1-5: File reading/encoding");
+    return result;
+  }
+
+  // Copy messages from file reading/encoding
+  result.m_messages = text_result.m_messages;
+  auto const& text = text_result.value();
+
+  // Handle empty file case
+  if (text.empty()) {
+    result.push_message("Pipeline complete: Empty file produced empty AccountStatement");
+    result.m_value = AccountStatement{AccountStatementEntries{}, AccountStatement::Meta{}};
+    return result;
+  }
+
+  // ============================================================
+  // Step 6: Text -> CSV::Table
+  // ============================================================
+  auto maybe_table = CSV::neutral::text_to_table(text);
+
+  if (!maybe_table) {
+    result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
+    return result;
+  }
+
+  result.push_message(std::format("Step 6 complete: CSV parsed successfully ({} rows)",
+    maybe_table->rows.size()));
+
+  // ============================================================
+  // Step 6.5: CSV::Table -> MDTable<AccountID>
+  // ============================================================
+  auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+
+  if (!maybe_md_table) {
+    // Unknown format - fully unknown AccountID (no prefix, no value)
+    result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
+    return result;
+  }
+
+  result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
+    maybe_md_table->meta.to_string()));
+
+  // ============================================================
+  // Step 7: MDTable<AccountID> -> AccountStatement
+  // ============================================================
+  auto maybe_statement = domain::md_table_to_account_statement(*maybe_md_table);
+
+  if (!maybe_statement) {
+    result.push_message("Pipeline failed at Step 7: Domain transformation failed - Could not extract account statement");
+    return result;
+  }
+
+  result.m_value = std::move(*maybe_statement);
+  result.push_message(std::format("Pipeline complete: AccountStatement with {} entries created from '{}'",
+    result.value().entries().size(),
+    file_path.filename().string()));
+
+  return result;
+}
+
+/**
  * Import CSV text to TaggedAmounts - Text-based Pipeline Entry Point
  *
  * This is a convenience function for when you already have CSV text in memory.

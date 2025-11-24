@@ -1114,3 +1114,171 @@ Refactoring complete. Here's a summary of the changes:
 ```
 
 And I aksed it to compile and test and all went well.
+
+I now thought it was time to have Claude help me refactor 'first' mode Ux by making option 's' in 'account file state' to use the 'new' pipeline support to provide the AccountStatement.
+
+I started to draft a prompt for this, but soon realised Calude had failed to use the step AccountStatement -> Maybe TaggedAmounts in e.g., import_file_to_tagged_amounts! I am not sure how this happened? In import_file_to_tagged_amounts the code does:
+
+```cpp
+  ...
+  auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+  ...
+  // ============================================================
+  // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
+  // ============================================================
+  auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
+```
+
+Also, there is in fact still NO file_path -> Maybe AccountStatement! After ALL this work, this crucial step is till missing?! So Claude has littered my code with all sorts of file-path -> X, but never been given the nudge to create file-path -> Y that I really need!! God lord! Well, OK. Claude is eager to help but still not any support when it comes to my own small context window and failiure to stay focsed...
+
+Anyhow, how do we make Claude patch this hole in the code? Whould I first have it remove the redundant CSV::Table + AccountID -> X code? Or should I have it first implement the explicit CVS::MDTable<AccountID> -> AccountStatement AND then the helper file-path -> Maybe AccountStatement? I think the latter is best. With this 'patch' in place it may be easier to tell Claude to later replace redundant steps with these steps?
+
+I cleared the Claude contexty window and tried:
+
+```text
+I want you to implement an explicit step 'CVS::MDTable<AccountID> -> AccountStatement' AND then a complete transformation helper 'file-path -> Maybe AccountStatement'. For this you shall use the existing code @src/csv/csv_to_account_id.hpp,@src/domain/account_statement_to_tagged_amounts.hpp  and @src/csv/import_pipeline.hpp. You must NOT use NOR touch the existing CSV::Table + AccountID -> AccountStatement. We may later remove it. Also add test cases for the explicit step. Do NOT add any test of the complete transformation as we will attend to integration tests later. Please think this through step-by-step and come back to me with a plan for what we need to do, thanks!
+```
+
+Claude came back with the report:
+
+```text
+Plan: Implement Explicit Step CSV::MDTable<AccountID> -> AccountStatement
+
+  Overview
+
+  Based on the existing architecture:
+  - CSV::MDTable<AccountID> is MetaDefacto<AccountID, CSV::Table> with .meta (AccountID) and .defacto (CSV::Table)
+  - Current pipeline uses domain::csv_table_to_account_statement(table, account_id) which takes the parts separately
+  - You want an explicit function that takes the bundled MDTable directly
+
+  Implementation Steps
+
+  Step 1: Add explicit transformation function
+
+  File: src/domain/csv_to_account_statement.hpp
+
+  Add a new function md_table_to_account_statement:
+  inline std::optional<AccountStatement> md_table_to_account_statement(
+      CSV::MDTable<AccountID> const& md_table);
+
+  This function will:
+  - Extract md_table.defacto (the table) and md_table.meta (the AccountID)
+  - Call existing csv_table_to_account_statement_entries() to extract entries
+  - Build and return AccountStatement with entries + AccountID metadata
+
+  Note: This does NOT call the existing csv_table_to_account_statement(table, account_id) - it directly uses csv_table_to_account_statement_entries + manual AccountStatement construction.
+
+  Step 2: Add complete transformation helper
+
+  File: src/csv/import_pipeline.hpp
+
+  Add a new function:
+  inline AnnotatedMaybe<AccountStatement> import_file_to_account_statement(
+      std::filesystem::path const& file_path);
+
+  Pipeline composition:
+  1. Steps 1-5: File → Text (existing read_file_with_encoding_detection)
+  2. Step 6: Text → CSV::Table (existing text_to_table)
+  3. Step 6.5: CSV::Table → MDTable (existing to_account_id_ed)
+  4. Step 7: MDTable → AccountStatement (NEW md_table_to_account_statement)
+
+  Step 3: Add test cases
+
+  File: src/test/test_md_table_to_account_statement.cpp (new file)
+
+  Tests for md_table_to_account_statement:
+  - NORDEA MDTable transformation
+  - SKV MDTable transformation
+  - Empty table → valid AccountStatement with empty entries
+  - Multiple entries transformation
+  - AccountID correctly set in statement metadata
+  - Invalid/empty MDTable handling
+
+  ---
+  Files to Create/Modify
+
+  | File                                            | Action                                 |
+  |-------------------------------------------------|----------------------------------------|
+  | src/domain/csv_to_account_statement.hpp         | Add md_table_to_account_statement()    |
+  | src/csv/import_pipeline.hpp                     | Add import_file_to_account_statement() |
+  | src/test/test_md_table_to_account_statement.cpp | Create new test file                   |
+
+  Not Modified (as requested)
+
+  - domain::csv_table_to_account_statement(CSV::Table, AccountID) - untouched
+
+  ---
+  Shall I proceed with this implementation?
+```
+
+At first my instinct was to NOT let Claude reuse csv_table_to_account_statement_entries but to re-implement this logic inside the new 'md_table_to_account_statement'? But lokking at it I realised it is 'neutral' and actually focus on statement entries. It does NOT try to discover AccountID.
+
+So ou code base is a bloated mess now. This is clear from Claude reasoning during this step. It gets tempted to re-implement code and tst cases that are already covered it seems. Yet it reported:
+
+```text
+Implementation Complete
+
+  All tasks completed successfully. Here's a summary:
+
+  Files Modified/Created
+
+  | File                                            | Change                                                   |
+  |-------------------------------------------------|----------------------------------------------------------|
+  | src/domain/csv_to_account_statement.hpp         | Added md_table_to_account_statement() at line 495-521    |
+  | src/csv/import_pipeline.hpp                     | Added import_file_to_account_statement() at line 148-251 |
+  | src/test/test_md_table_to_account_statement.cpp | New test file with 8 tests                               |
+  | CMakeLists.txt                                  | Added new test file to build                             |
+
+  New Functions
+
+  1. domain::md_table_to_account_statement(CSV::MDTable<AccountID> const&)
+  - Explicit Step 7: Takes bundled MDTable<AccountID> and produces AccountStatement
+  - Extracts table and AccountID from MDTable, calls csv_table_to_account_statement_entries(), and builds the statement
+
+  2. cratchit::csv::import_file_to_account_statement(std::filesystem::path const&)
+  - Complete pipeline: file_path -> AnnotatedMaybe<AccountStatement>
+  - Composes Steps 1-7 (stops before TaggedAmounts transformation)
+
+  Tests Added (8 tests)
+
+  All tests focus on the aggregation behavior of md_table_to_account_statement:
+  - AccountIdPropagatedToStatementMeta - NORDEA AccountID propagation
+  - SKVAccountIdPropagatedCorrectly - SKV AccountID propagation
+  - EmptyPrefixAccountIdHandled - Empty prefix handling
+  - NordeaMDTableToAccountStatement - Real NORDEA CSV data
+  - SKVOlderMDTableToAccountStatement - Real SKV older format data
+  - SKVNewerMDTableToAccountStatement - Real SKV newer format data
+  - VariousAccountIdPrefixesPropagated - Multiple prefix types
+  - ReturnsAccountStatementWithEntries - Verifies return structure
+
+  Not Modified (as requested)
+
+  - domain::csv_table_to_account_statement(CSV::Table const&, AccountID const&) - untouched
+```
+
+We FINALLY get the:
+
+```cpp
+std::optional<AccountStatement> md_table_to_account_statement(
+    CSV::MDTable<AccountID> const& md_table) ...
+
+AnnotatedMaybe<AccountStatement> import_file_to_account_statement(
+    std::filesystem::path const& file_path)...
+
+```
+
+Great!
+
+But again, 'import_file_to_account_statement' re-implements ALL step calls. Wait! Now I see! Claude has implemented helpers the 'oppoiste' way I persumed. Existing helpers create TaggedAmounts  f r o m different starting points in the pipe. That is from file-path, (table + account id), csv_text. Well, I have to attend to this later.
+
+Looking at the tst cases I see I seem to have an error in my AccountID::to_string? It odes NOT insert a "::" between prefix and value?
+
+If these tests pass?:
+
+```cpp
+  EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "NORDEA");
+  EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_value, "51 86 87-9");
+  EXPECT_EQ(result->meta().m_maybe_account_irl_id->to_string(), "NORDEA51 86 87-9");
+```
+
+Yes, the test pass so my ID string is 'NORDEA51 86 87-9' and NOT 'NORDEA::51 86 87-9' (or better normalised 'NORDEA::518687-9'?).
