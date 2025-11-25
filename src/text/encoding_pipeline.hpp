@@ -14,34 +14,6 @@ namespace text::encoding {
 
   using ByteBuffer = persistent::in::ByteBuffer;
 
-  template<typename ByteBuffer>
-  auto buffer_and_threshold_to_encoding_view(
-     ByteBuffer const& buffer
-    ,int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD)
-    -> std::optional<
-        decltype(views::unicode_to_runtime_encoding(
-          views::bytes_to_unicode(buffer, DetectedEncoding::UTF8)))> {
-
-    if (buffer.empty()) {
-      return std::nullopt;
-    }
-
-    // Detect encoding
-    auto encoding_result = icu::to_detetced_encoding(buffer, confidence_threshold);
-
-    DetectedEncoding detected_encoding;
-    if (encoding_result) {
-      detected_encoding = encoding_result->encoding;
-    } else {
-      // Default to UTF-8 on detection failure
-      detected_encoding = DetectedEncoding::UTF8;
-    }
-
-    // Create lazy transcoding pipeline
-    auto unicode_view = views::bytes_to_unicode(buffer, detected_encoding);
-    return views::unicode_to_runtime_encoding(unicode_view);
-  }
-
   using WithThresholdByteBuffer = MetaDefacto<int32_t,ByteBuffer>;
   inline AnnotatedMaybe<WithThresholdByteBuffer> with_threshold(int32_t confidence_threshold, ByteBuffer byte_buffer) {
     return WithThresholdByteBuffer{confidence_threshold,std::move(byte_buffer)};

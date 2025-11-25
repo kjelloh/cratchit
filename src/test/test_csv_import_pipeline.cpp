@@ -1124,30 +1124,6 @@ namespace tests::csv_import_pipeline {
       logger::development_trace("Large file transcoded: {} bytes", result.value().size());
     }
 
-    TEST_F(EncodingPipelineTestFixture, LazyViewVariantForMemoryEfficiency) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, LazyViewVariantForMemoryEfficiency)"};
-
-      // Test the lazy view variant that doesn't materialize the entire string
-      auto buffer_result = persistent::in::path_to_byte_buffer(utf8_file);
-      ASSERT_TRUE(buffer_result) << "Expected successful file read";
-
-      auto lazy_view = text::encoding::buffer_and_threshold_to_encoding_view(buffer_result.value());
-      ASSERT_TRUE(lazy_view.has_value()) << "Expected lazy view creation to succeed";
-
-      // Take only first 100 bytes - demonstrating lazy evaluation
-      auto first_100 = *lazy_view | std::views::take(100);
-
-      std::string partial_result;
-      for (char byte : first_100) {
-        partial_result.push_back(byte);
-      }
-
-      EXPECT_LE(partial_result.size(), 100) << "Expected at most 100 bytes";
-      EXPECT_GT(partial_result.size(), 0) << "Expected some content";
-
-      logger::development_trace("Lazy view first 100 bytes: {}", partial_result);
-    }
-
     TEST_F(EncodingPipelineTestFixture, CompleteIntegrationAllSteps) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, CompleteIntegrationAllSteps)"};
 
