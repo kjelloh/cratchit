@@ -13,7 +13,7 @@ namespace tests::annotated_optional {
     TEST(AnnotatedOptionalFromTests, FromWithValueReturnsPopulatedOptional) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AnnotatedOptionalFromTests, FromWithValueReturnsPopulatedOptional)"};
 
-      auto result = cratchit::functional::AnnotatedOptional<int>::from(
+      auto result = cratchit::functional::annotated_from(
         std::optional<int>{42}, "error message"
       );
 
@@ -25,7 +25,7 @@ namespace tests::annotated_optional {
     TEST(AnnotatedOptionalFromTests, FromWithNulloptReturnsEmptyWithMessage) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AnnotatedOptionalFromTests, FromWithNulloptReturnsEmptyWithMessage)"};
 
-      auto result = cratchit::functional::AnnotatedOptional<int>::from(
+      auto result = cratchit::functional::annotated_from<int>(
         std::nullopt, "value was missing"
       );
 
@@ -37,7 +37,7 @@ namespace tests::annotated_optional {
     TEST(AnnotatedOptionalFromTests, FromWithEmptyMessageOnNullopt) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AnnotatedOptionalFromTests, FromWithEmptyMessageOnNullopt)"};
 
-      auto result = cratchit::functional::AnnotatedOptional<std::string>::from(
+      auto result = cratchit::functional::annotated_from<std::string>(
         std::nullopt, ""
       );
 
@@ -50,7 +50,7 @@ namespace tests::annotated_optional {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AnnotatedOptionalFromTests, FromPreservesValueExactly)"};
 
       std::string expected = "test string with special chars: åäö";
-      auto result = cratchit::functional::AnnotatedOptional<std::string>::from(
+      auto result = cratchit::functional::annotated_from(
         std::optional<std::string>{expected}, "error"
       );
 
@@ -86,13 +86,13 @@ namespace tests::annotated_optional {
     TEST(AnnotatedOptionalToCaptionTests, ToCaptionOnPopulatedOptional) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AnnotatedOptionalToCaptionTests, ToCaptionOnPopulatedOptional)"};
 
-      auto opt = cratchit::functional::AnnotatedOptional<std::string>::from(
+      auto opt = cratchit::functional::annotated_from(
         std::optional<std::string>{"hello"}, "error"
       );
 
       auto caption = opt.to_caption();
 
-      // Currently returns "?caption?" - test that it returns something
+      // Now returns "[ok]" for populated optional with no messages
       EXPECT_FALSE(caption.empty()) << "Expected non-empty caption";
     }
 
@@ -166,11 +166,11 @@ namespace tests::annotated_optional {
 
       auto double_if_even = [](int n) -> cratchit::functional::AnnotatedOptional<int> {
         if (n % 2 == 0) {
-          return cratchit::functional::AnnotatedOptional<int>::from(
+          return cratchit::functional::annotated_from(
             std::optional<int>{n * 2}, "odd number"
           );
         }
-        return cratchit::functional::AnnotatedOptional<int>::from(
+        return cratchit::functional::annotated_from<int>(
           std::nullopt, "odd number"
         );
       };

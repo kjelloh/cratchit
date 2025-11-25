@@ -20,30 +20,44 @@ namespace cratchit {
         return *this;
       }
 
+    private:
+      // Shared helper: merge messages from this and next
+      template<typename Next>
+      static auto merge_messages(auto&& self, Next&& next) {
+        using result_type = std::remove_cvref_t<Next>;
+        result_type merged{};
+        merged.m_value = std::move(next.m_value);
+        merged.m_messages = std::forward<decltype(self)>(self).m_messages;
+        merged.m_messages.insert(
+            merged.m_messages.end(),
+            next.m_messages.begin(),
+            next.m_messages.end()
+        );
+        return merged;
+      }
+
+      // Shared helper: propagate failure with messages
+      template<typename ResultType>
+      static ResultType propagate_failure(auto&& self) {
+        ResultType result{};
+        result.m_messages = std::forward<decltype(self)>(self).m_messages;
+        return result;
+      }
+
+    public:
       // rvalue context
       // Handle move-only-T (e.g. owning std::unique_ptr)
       // move optional<T>: T&& -> f -> next -> merged
       template <class F>
       auto and_then(F&& f) && {
         using result_type = std::invoke_result_t<F, T&&>;
-        if (*this) {
-          auto next = std::invoke(std::forward<F>(f), std::move(*this).value());
 
-          result_type merged{};
-          merged.m_value = std::move(next.m_value); // move to next
-          merged.m_messages = this->m_messages;
-          merged.m_messages.insert(
-              merged.m_messages.end(),
-              next.m_messages.begin(),
-              next.m_messages.end()
-          );
-          return merged;
+        if (!*this) {
+          return propagate_failure<result_type>(std::move(*this));
         }
-        else {
-          result_type result{};
-          result.m_messages = this->m_messages;
-          return result;
-        }
+
+        auto next = std::invoke(std::forward<F>(f), std::move(*this).value());
+        return merge_messages(std::move(*this), std::move(next));
       }
 
       // lvalue context (called on named value, e.g., first in monadic chain)
@@ -53,29 +67,13 @@ namespace cratchit {
       template <class F>
       auto and_then(F&& f) const & {
         using result_type = std::invoke_result_t<F, T const&>;
-        static_assert(
-            std::is_default_constructible_v<result_type>,
-            "f must return an AnnotatedOptional<U>"
-        );
 
-        if (*this) {
-          auto next = std::invoke(std::forward<F>(f), this->value());
+        if (!*this) {
+          return propagate_failure<result_type>(*this);
+        }
 
-          result_type merged{};
-          merged.m_value = std::move(next.m_value);
-          merged.m_messages = this->m_messages;
-          merged.m_messages.insert(
-              merged.m_messages.end(),
-              next.m_messages.begin(),
-              next.m_messages.end()
-          );
-          return merged;
-        }
-        else {
-          result_type result{};
-          result.m_messages = this->m_messages;
-          return result;
-        }
+        auto next = std::invoke(std::forward<F>(f), this->value());
+        return merge_messages(*this, std::move(next));
       }
 
       // tap combinator - inject side effects without breaking the chain
@@ -99,35 +97,34 @@ namespace cratchit {
       }
 
       AnnotatedOptional& push_message(Message message) {
-        m_messages.push_back(message);
+        m_messages.push_back(std::move(message));
         return *this;
       }
 
+      // Generate single-line caption from messages
       std::string to_caption() const {
-        std::string result{"?caption?"};
-        return result;
-      }
+        if (m_messages.empty()) {
+          return *this ? "[ok]" : "[empty]";
+        }
 
-      // Factory: convert optional<T> + message → AnnotatedOptional<T>
-      static AnnotatedOptional from(std::optional<T> maybe, std::string message_on_nullopt) {
-        AnnotatedOptional result{};
-        result.m_value = std::move(maybe);
-        if (!result) result.push_message(std::move(message_on_nullopt));
+        std::string result;
+        for (size_t i = 0; i < m_messages.size(); ++i) {
+          if (i > 0) result += " | ";
+          result += m_messages[i];
+        }
         return result;
       }
 
     };
 
-    // lift optional<T> to AnnotatedMaybe<T>
-    template <typename T>
-    AnnotatedOptional<T> lift_optional(std::optional<T> opt, std::string msg = "") {
-        if (opt) {
-            return AnnotatedOptional<T>{std::move(*opt)};
-        } else {
-            AnnotatedOptional<T> result{};
-            if (!msg.empty()) result.m_messages.push_back(msg);
-            return result;
-        }
+    // Free function: convert optional<T> + message → AnnotatedOptional<T>
+    // Enables template argument deduction on return type
+    template<typename T>
+    AnnotatedOptional<T> annotated_from(std::optional<T> maybe, std::string message_on_nullopt) {
+      AnnotatedOptional<T> result{};
+      result.m_value = std::move(maybe);
+      if (!result) result.push_message(std::move(message_on_nullopt));
+      return result;
     }
 
     // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
@@ -136,9 +133,9 @@ namespace cratchit {
       return [f = std::forward<F>(f), message_on_nullopt = std::move(message_on_nullopt)](auto&&... args) {
         using result_t = std::invoke_result_t<F, decltype(args)...>;
         using value_t = typename result_t::value_type;
-        return AnnotatedOptional<value_t>::from(
-           std::invoke(f, std::forward<decltype(args)>(args)...)
-          ,std::move(message_on_nullopt)
+        return annotated_from(
+           std::invoke(f, std::forward<decltype(args)>(args)...),
+           message_on_nullopt
         );
       };
     }
