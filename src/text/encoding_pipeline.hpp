@@ -111,7 +111,7 @@ namespace text::encoding {
 
     result = std::move(transcoded);
     result.push_message(
-      std::format("Transcoded {} bytes to {} platform encoding bytes",
+      std::format("Successfully transcoded {} bytes to {} platform encoding bytes",
                   buffer.size(), result.value().size())
     );
 
@@ -146,66 +146,24 @@ namespace text::encoding {
       return result;
     }
 
-    // Step: Detect encoding
-    // auto encoding_result = icu::to_detetced_encoding(buffer, confidence_threshold);
+    // Build complete monadic chain: threshold → detect encoding → materialize
+    auto wt_buffer_result = with_threshold(confidence_threshold, std::move(buffer_result).value());
+    auto final_result = std::move(wt_buffer_result)
+      .and_then(with_detetced_encoding)
+      .and_then(materialize_platform_string);
 
-    // DetectedEncoding detected_encoding;
-    // if (encoding_result) {
-    //   detected_encoding = encoding_result->encoding;
-    //   result.push_message(
-    //     std::format("Detected encoding: {} (confidence: {}, method: {})",
-    //                encoding_result->display_name,
-    //                encoding_result->confidence,
-    //                encoding_result->detection_method)
-    //   );
-    // } else {
-    //   // Default to UTF-8 on detection failure (permissive strategy)
-    //   detected_encoding = DetectedEncoding::UTF8;
-    //   result.push_message(
-    //     std::format("Encoding detection failed (confidence below threshold {}), defaulting to UTF-8",
-    //                confidence_threshold)
-    //   );
-    // }
-
-    auto wt_buffer_result = with_threshold(icu::DEFAULT_CONFIDENCE_THERSHOLD,std::move(buffer_result).value());
-    auto wd_buffer_result = wt_buffer_result
-      .and_then(with_detetced_encoding);
-
-    // Copy accumulated messages from the chain
-    // TODO: Consider to refactor all steps into proper AnnotatedMaybe (that aggreagtes messages on the fly)
+    // Copy accumulated messages from the entire monadic chain
     result.m_messages.insert(
-       result.m_messages.end()
-      ,wd_buffer_result.m_messages.begin()
-      ,wd_buffer_result.m_messages.end());      
+       result.m_messages.end(),
+       final_result.m_messages.begin(),
+       final_result.m_messages.end());
 
-    if (!wd_buffer_result) {
-      result.push_message("Null wd_buffer_result");
-      return result;
+    if (!final_result) {
+      return result;  // Failure propagated with messages
     }
 
-    auto const& [detected_encoding,buffer] = wd_buffer_result.value();
-
-    // Step 3 & 4: Lazy transcoding pipeline: bytes → Unicode → Platform encoding
-    // This creates a lazy view - no actual transcoding happens yet
-    auto unicode_view = views::bytes_to_unicode(buffer, detected_encoding);
-    auto platform_text_view = views::unicode_to_runtime_encoding(unicode_view);
-
-    // Materialize the lazy view into a string
-    // This is where the actual transcoding happens
-    std::string transcoded_text;
-    transcoded_text.reserve(buffer.size()); // Reasonable initial capacity
-
-    for (char byte : platform_text_view) {
-      transcoded_text.push_back(byte);
-    }
-
-    result.m_value = std::move(transcoded_text);
-    result.push_message(
-      std::format("Successfully transcoded {} bytes to {} Platform encoding bytes",
-                 buffer.size(),
-                 result.value().size())
-    );
-
+    // Extract the final materialized string
+    result.m_value = std::move(final_result).value();
     return result;
   }
 
