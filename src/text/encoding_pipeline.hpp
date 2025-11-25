@@ -92,9 +92,8 @@ namespace text::encoding {
     auto const& [detected_encoding, buffer] = wd_buffer;
 
     if (buffer.empty()) {
-      result = std::string("");
-      result.push_message("Empty buffer - returning empty string");
-      return result;
+      result.push_message("Empty buffer - no content to transcode");
+      return result;  // Return failure (nullopt)
     }
 
     // Create lazy transcoding pipeline: bytes → Unicode → Platform encoding
@@ -118,53 +117,17 @@ namespace text::encoding {
     return result;
   }
 
-  // Monadic AnnotatedMaybe 
+  // Fully monadic composition: file path → byte buffer → threshold → detect encoding → materialize
   inline AnnotatedMaybe<std::string> read_file_with_encoding_detection(
     std::filesystem::path const& file_path,
     int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD) {
 
-    AnnotatedMaybe<std::string> result{};
-
-    // Step: Read file to byte buffer
-    auto buffer_result = persistent::in::path_to_byte_buffer(file_path);
-
-    if (!buffer_result) {
-      // Propagate file I/O error
-      result.m_messages = std::move(buffer_result.m_messages);
-      return result;
-    }
-
-    // Copy messages from file read
-    result.m_messages = buffer_result.m_messages;
-
-    // auto const& buffer = buffer_result.value();
-
-    // Handle empty file case
-    if (buffer_result.value().empty()) {
-      result.m_value = "";
-      result.push_message("File is empty - returning empty string");
-      return result;
-    }
-
-    // Build complete monadic chain: threshold → detect encoding → materialize
-    auto wt_buffer_result = with_threshold(confidence_threshold, std::move(buffer_result).value());
-    auto final_result = std::move(wt_buffer_result)
+    return persistent::in::path_to_byte_buffer(file_path)
+      .and_then([confidence_threshold](ByteBuffer buffer) {
+        return with_threshold(confidence_threshold, std::move(buffer));
+      })
       .and_then(with_detetced_encoding)
       .and_then(materialize_platform_string);
-
-    // Copy accumulated messages from the entire monadic chain
-    result.m_messages.insert(
-       result.m_messages.end(),
-       final_result.m_messages.begin(),
-       final_result.m_messages.end());
-
-    if (!final_result) {
-      return result;  // Failure propagated with messages
-    }
-
-    // Extract the final materialized string
-    result.m_value = std::move(final_result).value();
-    return result;
   }
 
 } // namespace text::encoding

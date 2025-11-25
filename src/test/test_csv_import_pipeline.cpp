@@ -1068,18 +1068,17 @@ namespace tests::csv_import_pipeline {
 
       auto result = text::encoding::read_file_with_encoding_detection(empty_file);
 
-      ASSERT_TRUE(result) << "Expected successful pipeline execution for empty file";
-      EXPECT_EQ(result.value().size(), 0) << "Expected empty string for empty file";
+      ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
 
-      // Check that we got a message about the empty file
+      // Check that we got a message about the empty buffer
       bool has_empty_message = false;
       for (const auto& msg : result.m_messages) {
-        if (msg.find("empty") != std::string::npos) {
+        if (msg.find("empty") != std::string::npos || msg.find("Empty") != std::string::npos) {
           has_empty_message = true;
           break;
         }
       }
-      EXPECT_TRUE(has_empty_message) << "Expected message about empty file";
+      EXPECT_TRUE(has_empty_message) << "Expected message about empty buffer";
     }
 
     TEST(EncodingPipelineTests, FileNotFoundHandledGracefully) {
@@ -1719,10 +1718,8 @@ Alice,30,"Stockholm, Sweden"
       }
 
       auto text_result = text::encoding::read_file_with_encoding_detection(empty_file);
-      ASSERT_TRUE(text_result) << "Expected successful file read (empty file)";
-
-      auto table_result = CSV::neutral::text_to_table(text_result.value());
-      EXPECT_FALSE(table_result.has_value()) << "Expected empty optional for empty CSV";
+      ASSERT_FALSE(text_result) << "Expected failure for empty file - no content to process";
+      EXPECT_GT(text_result.m_messages.size(), 0) << "Expected error messages about empty buffer";
     }
 
     TEST(CSVPipelineCompositionTests, ParsesRealNordeaCSVWithEncoding) {
@@ -2676,8 +2673,8 @@ Alice,30,"Stockholm, Sweden"
 
       auto result = cratchit::csv::import_file_to_tagged_amounts(empty_file);
 
-      ASSERT_TRUE(result) << "Expected successful import of empty file";
-      EXPECT_EQ(result.value().size(), 0) << "Expected empty TaggedAmounts for empty file";
+      ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
+      EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages about empty file";
     }
 
     TEST_F(FullPipelineTestFixture, ImportInvalidCsvReturnsEmpty) {
