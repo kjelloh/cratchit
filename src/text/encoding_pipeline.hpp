@@ -47,16 +47,16 @@ namespace text::encoding {
     return WithThresholdByteBuffer{confidence_threshold,std::move(byte_buffer)};
   }
 
-  using MDByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
-  inline AnnotatedMaybe<MDByteBuffer> with_detetced_encoding(WithThresholdByteBuffer wt_buffer) {
+  using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
+  inline AnnotatedMaybe<WithDetectedEncodingByteBuffer> with_detetced_encoding(WithThresholdByteBuffer wt_buffer) {
 
-    AnnotatedMaybe<MDByteBuffer> result{};
+    AnnotatedMaybe<WithDetectedEncodingByteBuffer> result{};
 
     auto const& [confidence_threshold,buffer] = wt_buffer;
     auto encoding_result = icu::to_detetced_encoding(buffer, confidence_threshold);
 
     if (encoding_result) {      
-      result = MDByteBuffer{
+      result = WithDetectedEncodingByteBuffer{
          .meta = encoding_result->encoding
         ,.defacto = std::move(wt_buffer.defacto)
       };
@@ -68,7 +68,7 @@ namespace text::encoding {
       );
     } else {
       // Default to UTF-8 on detection failure (permissive strategy)
-      result = MDByteBuffer{
+      result = WithDetectedEncodingByteBuffer{
          .meta = DetectedEncoding::UTF8
         ,.defacto = std::move(wt_buffer.defacto)
       };
@@ -82,9 +82,40 @@ namespace text::encoding {
 
   }
 
-  // ByteBuffer -> decoding view
-  template <typename ByteBuffer>
-  inline auto md_byte_buffer_to_encoding_view(){
+  // WithDetectedEncodingByteBuffer -> std::string (materialized to platform encoding)
+  // Takes by value to own the buffer during materialization
+  inline AnnotatedMaybe<std::string> materialize_platform_string(
+      WithDetectedEncodingByteBuffer wd_buffer) {
+
+    AnnotatedMaybe<std::string> result{};
+
+    auto const& [detected_encoding, buffer] = wd_buffer;
+
+    if (buffer.empty()) {
+      result = std::string("");
+      result.push_message("Empty buffer - returning empty string");
+      return result;
+    }
+
+    // Create lazy transcoding pipeline: bytes → Unicode → Platform encoding
+    auto unicode_view = views::bytes_to_unicode(buffer, detected_encoding);
+    auto platform_view = views::unicode_to_runtime_encoding(unicode_view);
+
+    // Materialize the lazy view into a string (while buffer is still alive)
+    std::string transcoded;
+    transcoded.reserve(buffer.size()); // Reasonable initial capacity
+
+    for (char byte : platform_view) {
+      transcoded.push_back(byte);
+    }
+
+    result = std::move(transcoded);
+    result.push_message(
+      std::format("Transcoded {} bytes to {} platform encoding bytes",
+                  buffer.size(), result.value().size())
+    );
+
+    return result;
   }
 
   // Monadic AnnotatedMaybe 
