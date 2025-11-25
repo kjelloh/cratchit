@@ -94,7 +94,7 @@ namespace tests::csv_import_pipeline {
         ofs << "test content";
       }
 
-      auto result = persistent::in::open_file(temp_path);
+      auto result = persistent::in::path_to_istream_ptr(temp_path);
 
       ASSERT_TRUE(result) << "Expected successful file open";
       EXPECT_TRUE(result.value() != nullptr) << "Expected non-null stream pointer";
@@ -109,7 +109,7 @@ namespace tests::csv_import_pipeline {
 
       auto non_existent_path = std::filesystem::path("/tmp/cratchit_nonexistent_file_12345.txt");
 
-      auto result = persistent::in::open_file(non_existent_path);
+      auto result = persistent::in::path_to_istream_ptr(non_existent_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for non-existent file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -119,9 +119,10 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, StreamToBufferWithValidStream)"};
 
       std::string test_data = "Hello, World! This is test data.";
-      std::istringstream iss(test_data);
 
-      auto result = persistent::in::read_stream_to_buffer(iss);
+      auto result = 
+         persistent::in::string_to_istream_ptr(test_data)
+        .and_then(persistent::in::istream_ptr_to_byte_buffer);
 
       ASSERT_TRUE(result) << "Expected successful buffer read from stream";
       EXPECT_EQ(result.value().size(), test_data.size()) << "Expected buffer size to match input";
@@ -146,11 +147,10 @@ namespace tests::csv_import_pipeline {
       }
 
       // Demonstrate monadic composition with and_then
-      auto result = persistent::in::open_file(temp_path)
-        .and_then([](auto& stream_ptr) {
-          return persistent::in::read_stream_to_buffer(*stream_ptr);
-        })
-        .and_then([](auto& buffer) -> AnnotatedMaybe<size_t> {
+      auto result = 
+         persistent::in::path_to_istream_ptr(temp_path)
+        .and_then(persistent::in::istream_ptr_to_byte_buffer)
+        .and_then([](auto buffer) -> AnnotatedMaybe<size_t> {
           AnnotatedMaybe<size_t> size_result;
           size_result.m_value = buffer.size();
           size_result.push_message(std::format("Buffer size: {}", buffer.size()));
@@ -173,10 +173,11 @@ namespace tests::csv_import_pipeline {
       bool and_then_called = false;
 
       // Composition should short-circuit on first failure
-      auto result = persistent::in::open_file(non_existent)
-        .and_then([&and_then_called](auto& stream_ptr) -> AnnotatedMaybe<persistent::in::ByteBuffer> {
+      auto result = 
+         persistent::in::path_to_istream_ptr(non_existent)
+        .and_then([&and_then_called](auto istream_ptr) -> AnnotatedMaybe<persistent::in::ByteBuffer> {
           and_then_called = true;
-          return persistent::in::read_stream_to_buffer(*stream_ptr);
+          return persistent::in::istream_ptr_to_byte_buffer(std::move(istream_ptr));
         });
 
       EXPECT_FALSE(result) << "Expected failure due to missing file";
@@ -300,7 +301,7 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate monadic composition: file → buffer → encoding
       auto result = persistent::in::read_file_to_buffer(temp_path)
-        .and_then([](auto& buffer) {
+        .and_then([](auto buffer) {
           AnnotatedMaybe<text::encoding::icu::EncodingDetectionResult> encoding_result;
           auto maybe_encoding = text::encoding::icu::detect_buffer_encoding(buffer);
           if (maybe_encoding) {
@@ -1613,7 +1614,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Demonstrate monadic composition with .and_then()
       auto result = text::encoding::read_file_with_encoding_detection(utf8_csv_file)
-        .and_then([](auto& text) -> AnnotatedMaybe<CSV::Table> {
+        .and_then([](auto text) -> AnnotatedMaybe<CSV::Table> {
           AnnotatedMaybe<CSV::Table> csv_result;
           auto maybe_table = CSV::neutral::text_to_table(text);
           if (maybe_table) {
@@ -1671,7 +1672,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Pipeline should short-circuit on file read failure
       auto result = text::encoding::read_file_with_encoding_detection(non_existent)
-        .and_then([](auto& text) -> AnnotatedMaybe<CSV::Table> {
+        .and_then([](auto text) -> AnnotatedMaybe<CSV::Table> {
           AnnotatedMaybe<CSV::Table> csv_result;
           auto maybe_table = CSV::neutral::text_to_table(text);
           if (maybe_table) {

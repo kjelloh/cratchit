@@ -15,13 +15,24 @@ namespace persistent {
     // Byte buffer type for raw file content
     using ByteBuffer = std::vector<std::byte>;
 
-    AnnotatedMaybe<std::unique_ptr<std::istream>> open_file(std::filesystem::path const& file_path);
-    AnnotatedMaybe<ByteBuffer> read_stream_to_buffer(std::istream& is);
+    inline AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s);
+    AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr(std::filesystem::path const& file_path);
+    AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>  istream_ptr);
     AnnotatedMaybe<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path);
 
     // Implementation
 
-    inline AnnotatedMaybe<std::unique_ptr<std::istream>> open_file(std::filesystem::path const& file_path) {
+    // Helper std::string -> istream_ptr
+    inline AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s) {
+      AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
+      result.m_value = std::move(std::make_unique<std::istringstream>(s));
+      if (!result) {
+        result.push_message("Failed to create istringstream");
+      }
+      return result;
+    }
+
+    inline AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr(std::filesystem::path const& file_path) {
       AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
 
       // Check if file exists
@@ -60,18 +71,18 @@ namespace persistent {
       return result;
     }
 
-    inline AnnotatedMaybe<ByteBuffer> read_stream_to_buffer(std::istream& is) {
+    inline AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream> istream_ptr) {
       AnnotatedMaybe<ByteBuffer> result{};
 
-      if (!is.good()) {
+      if (!istream_ptr->good()) {
         result.push_message("Stream is not in a good state for reading");
         return result;
       }
 
       // Get stream size if possible
-      is.seekg(0, std::ios::end);
-      auto size_pos = is.tellg();
-      is.seekg(0, std::ios::beg);
+      istream_ptr->seekg(0, std::ios::end);
+      auto size_pos = istream_ptr->tellg();
+      istream_ptr->seekg(0, std::ios::beg);
 
       if (size_pos < 0) {
         result.push_message("Failed to determine stream size");
@@ -86,10 +97,10 @@ namespace persistent {
       buffer.resize(size);
 
       // Read data
-      is.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(size));
+      istream_ptr->read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(size));
 
-      if (!is) {
-        auto bytes_read = static_cast<std::size_t>(is.gcount());
+      if (!istream_ptr) {
+        auto bytes_read = static_cast<std::size_t>(istream_ptr->gcount());
         result.push_message(
           std::format("Failed to read complete stream (read {} of {} bytes)",
                     bytes_read, size)
@@ -107,11 +118,9 @@ namespace persistent {
     }
 
     inline AnnotatedMaybe<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path) {
-      // Monadic composition: file_path → stream → buffer
-      return open_file(file_path)
-        .and_then([](auto& stream_ptr) -> AnnotatedMaybe<ByteBuffer> {
-          return read_stream_to_buffer(*stream_ptr);
-        });
+      // Monadic composition: file_path → istream_ptr → buffer
+      return path_to_istream_ptr(file_path)
+        .and_then(istream_ptr_to_byte_buffer);
     }
 
   } // in
