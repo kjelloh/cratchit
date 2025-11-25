@@ -11,6 +11,10 @@ namespace cratchit {
       std::optional<T> m_value;
       std::vector<Message> m_messages;
 
+      AnnotatedOptional() = default;
+      template <typename U>
+      AnnotatedOptional(U&& u_value) : m_value{u_value} {} 
+
       operator bool() const {return m_value.has_value();}
       T const& value() const& {return m_value.value();} // lvalue contxt
       T&& value() && {return std::move(m_value).value();} // rvalue context

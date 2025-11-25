@@ -58,7 +58,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadValidFileSucceeds) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadValidFile)"};
 
-      auto result = persistent::in::read_file_to_buffer(valid_file_path);
+      auto result = persistent::in::path_to_byte_buffer(valid_file_path);
 
       ASSERT_TRUE(result) << "Expected successful read of valid file";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty buffer";
@@ -75,7 +75,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadMissingFileReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadMissingFileReturnsEmpty)"};
 
-      auto result = persistent::in::read_file_to_buffer(missing_file_path);
+      auto result = persistent::in::path_to_byte_buffer(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -217,7 +217,7 @@ namespace tests::csv_import_pipeline {
       std::ofstream ofs(empty_file);
       ofs.close();
 
-      auto result = persistent::in::read_file_to_buffer(empty_file);
+      auto result = persistent::in::path_to_byte_buffer(empty_file);
 
       ASSERT_TRUE(result) << "Expected successful read of empty file";
       EXPECT_EQ(result.value().size(), 0) << "Expected empty buffer";
@@ -226,7 +226,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ErrorMessagesArePreserved) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ErrorMessagesArePreserved)"};
 
-      auto result = persistent::in::read_file_to_buffer(missing_file_path);
+      auto result = persistent::in::path_to_byte_buffer(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_FALSE(result.m_messages.empty()) << "Expected error messages";
@@ -286,10 +286,10 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectUTF8) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectUTF8)"};
 
-      auto buffer = persistent::in::read_file_to_buffer(utf8_file);
+      auto buffer = persistent::in::path_to_byte_buffer(utf8_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
-      auto encoding = text::encoding::icu::detect_buffer_encoding(buffer.value());
+      auto encoding = text::encoding::icu::to_detetced_encoding(buffer.value());
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
       EXPECT_EQ(encoding->encoding, text::encoding::DetectedEncoding::UTF8)
@@ -300,10 +300,10 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectISO8859) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectISO8859)"};
 
-      auto buffer = persistent::in::read_file_to_buffer(iso8859_file);
+      auto buffer = persistent::in::path_to_byte_buffer(iso8859_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
-      auto encoding = text::encoding::icu::detect_buffer_encoding(buffer.value());
+      auto encoding = text::encoding::icu::to_detetced_encoding(buffer.value());
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
       // ICU might detect as ISO-8859-1 or Windows-1252 (superset)
@@ -324,10 +324,10 @@ namespace tests::csv_import_pipeline {
       }
 
       // Demonstrate monadic composition: file → buffer → encoding
-      auto result = persistent::in::read_file_to_buffer(temp_path)
+      auto result = persistent::in::path_to_byte_buffer(temp_path)
         .and_then([](auto buffer) {
           AnnotatedMaybe<text::encoding::icu::EncodingDetectionResult> encoding_result;
-          auto maybe_encoding = text::encoding::icu::detect_buffer_encoding(buffer);
+          auto maybe_encoding = text::encoding::icu::to_detetced_encoding(buffer);
           if (maybe_encoding) {
             encoding_result.m_value = *maybe_encoding;
             encoding_result.push_message(
@@ -356,7 +356,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt)"};
 
       persistent::in::ByteBuffer empty_buffer;
-      auto encoding = text::encoding::icu::detect_buffer_encoding(empty_buffer);
+      auto encoding = text::encoding::icu::to_detetced_encoding(empty_buffer);
 
       EXPECT_FALSE(encoding) << "Expected empty optional for empty buffer";
     }
@@ -371,7 +371,7 @@ namespace tests::csv_import_pipeline {
       std::memcpy(short_buffer.data(), short_text.data(), short_text.size());
 
       // Use high threshold to potentially get no match
-      auto encoding = text::encoding::icu::detect_buffer_encoding(short_buffer, 95);
+      auto encoding = text::encoding::icu::to_detetced_encoding(short_buffer, 95);
 
       // Either no detection or a detection - both are acceptable
       if (encoding) {
@@ -601,11 +601,11 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::read_file_to_buffer(temp_path);
+      auto buffer_result = persistent::in::path_to_byte_buffer(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
-      auto encoding_result = text::encoding::icu::detect_buffer_encoding(buffer_result.value());
+      auto encoding_result = text::encoding::icu::to_detetced_encoding(buffer_result.value());
       ASSERT_TRUE(encoding_result) << "Expected successful encoding detection";
 
       // Step 3: Create transcoding view
@@ -790,11 +790,11 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::read_file_to_buffer(temp_path);
+      auto buffer_result = persistent::in::path_to_byte_buffer(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
-      auto encoding_result = text::encoding::icu::detect_buffer_encoding(buffer_result.value());
+      auto encoding_result = text::encoding::icu::to_detetced_encoding(buffer_result.value());
       ASSERT_TRUE(encoding_result) << "Expected successful encoding detection";
 
       // Step 3: Create Unicode view
@@ -1129,10 +1129,10 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, LazyViewVariantForMemoryEfficiency)"};
 
       // Test the lazy view variant that doesn't materialize the entire string
-      auto buffer_result = persistent::in::read_file_to_buffer(utf8_file);
+      auto buffer_result = persistent::in::path_to_byte_buffer(utf8_file);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
-      auto lazy_view = text::encoding::create_lazy_encoding_view(buffer_result.value());
+      auto lazy_view = text::encoding::buffer_and_threshold_to_encoding_view(buffer_result.value());
       ASSERT_TRUE(lazy_view.has_value()) << "Expected lazy view creation to succeed";
 
       // Take only first 100 bytes - demonstrating lazy evaluation

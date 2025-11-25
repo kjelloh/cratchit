@@ -227,7 +227,7 @@ namespace text {
       // Encoding detection for byte buffer (CSV import pipeline integration)
       // Wraps to_content_encoding for use with persistent::in::ByteBuffer
       template<typename ByteBuffer>
-      std::optional<EncodingDetectionResult> detect_buffer_encoding(
+      std::optional<EncodingDetectionResult> to_detetced_encoding(
           ByteBuffer const& buffer
          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD) {
         if (buffer.empty()) {

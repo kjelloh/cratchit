@@ -15,10 +15,18 @@ namespace persistent {
     // Byte buffer type for raw file content
     using ByteBuffer = std::vector<std::byte>;
 
-    inline AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s);
+    // Monadic AnnotatedMaybe #1.1 string -> istream
+    AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s);
+
+    // Monadic AnnotatedMaybe #1.2 path -> istream
     AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr(std::filesystem::path const& file_path);
+
+    // Monadic AnnotatedMaybe #2 
     AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>&& istream_ptr);
-    AnnotatedMaybe<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path);
+
+
+    // Monadic AnnotatedMaybe #1.2 + #2
+    AnnotatedMaybe<ByteBuffer> path_to_byte_buffer(std::filesystem::path const& file_path);
 
     // Implementation
 
@@ -117,7 +125,7 @@ namespace persistent {
       return result;
     }
 
-    inline AnnotatedMaybe<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path) {
+    inline AnnotatedMaybe<ByteBuffer> path_to_byte_buffer(std::filesystem::path const& file_path) {
       // Monadic composition: file_path → istream_ptr → buffer
       return path_to_istream_ptr(file_path)
         .and_then(istream_ptr_to_byte_buffer);
