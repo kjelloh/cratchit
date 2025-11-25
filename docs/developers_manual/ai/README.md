@@ -6,7 +6,95 @@ I have used Claude Code to and from during this project with mixed results.
 
 Basically Claude Code easilly gets confused with the complexity of this project and C++.
 
-### Observations from the Claude code assistance on the git branch claude-001-refactor-csv-import-pipeline
+## Claude auto update failure on macOS
+
+On Tue 20251125 I could no longer start Claude!
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % claude .
+zsh: command not found: claude
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % claude .
+zsh: command not found: claude
+```
+
+I found a small caption under the closed  Claude window that read 'Auto-update failed · Try claude doctor or npm i -g @anthropic-ai/claude-code'.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % npm i -g @anthropic-ai/claude-code
+npm error code ENOTEMPTY
+npm error syscall rename
+npm error path /opt/homebrew/lib/node_modules/@anthropic-ai/claude-code
+npm error dest /opt/homebrew/lib/node_modules/@anthropic-ai/.claude-code-2DTsDk1V
+npm error errno -66
+npm error ENOTEMPTY: directory not empty, rename '/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code' -> '/opt/homebrew/lib/node_modules/@anthropic-ai/.claude-code-2DTsDk1V'
+npm error A complete log of this run can be found in: /Users/kjell-olovhogdahl/.npm/_logs/2025-11-25T10_39_37_460Z-debug-0.log
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % npm config get prefix
+/opt/homebrew
+```
+
+I searched the web and went for the option 'npx @anthropic-ai/claude-code'. This seems to be a way to run javascript libraries kind-of 'sandboxed' in that it downloads what is needed but does not install anything globally. It just runs fresh updated javascript code in a one-off way.
+
+```text
+TL;DR:
+npx is a convenient way to run Node.js CLI tools — whether installed locally, globally, or fetched temporarily — without worrying about global installations or version conflicts.
+```
+
+It worked for me.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % npx @anthropic-ai/claude-code
+Need to install the following packages:
+@anthropic-ai/claude-code@2.0.53
+Ok to proceed? (y) y
+```
+
+BUT - It is inconveniant!! The 'claude' command still does not work!
+
+I tried to install claude again but this also fails.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % npm install -g @anthropic-ai/claude-code
+npm error code ENOTEMPTY
+npm error syscall rename
+npm error path /opt/homebrew/lib/node_modules/@anthropic-ai/claude-code
+npm error dest /opt/homebrew/lib/node_modules/@anthropic-ai/.claude-code-2DTsDk1V
+npm error errno -66
+npm error ENOTEMPTY: directory not empty, rename '/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code' -> '/opt/homebrew/lib/node_modules/@anthropic-ai/.claude-code-2DTsDk1V'
+npm error A complete log of this run can be found in: /Users/kjell-olovhogdahl/.npm/_logs/2025-11-25T10_57_26_142Z-debug-0.log
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+And Yes, the '/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code' is NOT empty.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ls -la /opt/homebrew/lib/node_modules/@anthropic-ai/claude-code
+total 0
+drwxr-xr-x  3 kjell-olovhogdahl  admin   96 Nov 25 03:21 .
+drwxr-xr-x  4 kjell-olovhogdahl  admin  128 Nov 25 03:21 ..
+drwxr-xr-x  3 kjell-olovhogdahl  admin   96 Nov 25 03:21 node_modules
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+According to the web I need to clean out these files (make this path empty) and then reinstall claude.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % rm -rf /opt/homebrew/lib/node_modules/@anthropic-ai/claude-code
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ls -la /opt/homebrew/lib/node_modules/@anthropic-ai/claude-code-*
+zsh: no matches found: /opt/homebrew/lib/node_modules/@anthropic-ai/claude-code-*
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % npm cache clean --force
+npm warn using --force Recommended protections disabled.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % npm i -g @anthropic-ai/claude-code
+
+added 16 packages in 5s
+
+15 packages are looking for funding
+  run `npm fund` for details
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit %
+```
+
+And now claude worked again.
+
+## Observations from the Claude code assistance on the git branch claude-001-refactor-csv-import-pipeline
 
 For prompt './prompts/001-file-io-maybe-monad.md' Claude succeeded to implement 'src/io/file_reader.hpp' and tests 'src/test/test_csv_import_pipeline.cpp'. This took over half an hour though! It seems it basically struggled with the complexity of the code base.
 
