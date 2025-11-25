@@ -17,7 +17,7 @@ namespace persistent {
 
     inline AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s);
     AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr(std::filesystem::path const& file_path);
-    AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>  istream_ptr);
+    AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>&& istream_ptr);
     AnnotatedMaybe<ByteBuffer> read_file_to_buffer(std::filesystem::path const& file_path);
 
     // Implementation
@@ -71,7 +71,7 @@ namespace persistent {
       return result;
     }
 
-    inline AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream> istream_ptr) {
+    inline AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>&& istream_ptr) {
       AnnotatedMaybe<ByteBuffer> result{};
 
       if (!istream_ptr->good()) {

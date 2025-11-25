@@ -47,9 +47,9 @@ namespace cratchit {
       }
 
       // lvalue context (called on named value, e.g., first in monadic chain)
-      // pass non owning const&: T const& -> f -> next -> merged 
+      // pass non owning const&: T const& -> f -> next -> merged
       // NOTE: Can NOT be used on move-only T (e.g. std::unique_ptr)
-      //       I.e., do std::move(m).and_then(...) to move 
+      //       I.e., do std::move(m).and_then(...) to move
       template <class F>
       auto and_then(F&& f) const & {
         using result_type = std::invoke_result_t<F, T const&>;
@@ -76,6 +76,26 @@ namespace cratchit {
           result.m_messages = this->m_messages;
           return result;
         }
+      }
+
+      // tap combinator - inject side effects without breaking the chain
+      // Allows observation of the value without consuming it
+      // rvalue context (for move-only types like unique_ptr)
+      template <class F>
+      auto tap(F&& f) && {
+        if (*this) {
+          std::invoke(std::forward<F>(f), this->value());
+        }
+        return std::move(*this);
+      }
+
+      // tap combinator - lvalue context
+      template <class F>
+      auto tap(F&& f) const & {
+        if (*this) {
+          std::invoke(std::forward<F>(f), this->value());
+        }
+        return *this;
       }
 
       AnnotatedOptional& push_message(Message message) {

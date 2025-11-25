@@ -165,6 +165,31 @@ namespace tests::csv_import_pipeline {
       std::filesystem::remove(temp_path);
     }
 
+    TEST(FileIOTests, TapCombinatorForDebugging) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, TapCombinatorForDebugging)"};
+
+      std::string test_data = "Testing tap combinator";
+      size_t stream_opened = 0;
+      size_t buffer_size = 0;
+
+      // Demonstrate tap() for side effects without breaking the chain
+      auto result =
+         persistent::in::string_to_istream_ptr(test_data)
+        .tap([&stream_opened](auto const& ptr) {
+          stream_opened++;
+          EXPECT_TRUE(ptr != nullptr) << "Expected valid stream pointer";
+        })
+        .and_then(persistent::in::istream_ptr_to_byte_buffer)
+        .tap([&buffer_size](auto const& buf) {
+          buffer_size = buf.size();
+        });
+
+      ASSERT_TRUE(result) << "Expected successful pipeline execution";
+      EXPECT_EQ(stream_opened, 1) << "Expected tap to be called once";
+      EXPECT_EQ(buffer_size, test_data.size()) << "Expected correct buffer size in tap";
+      EXPECT_EQ(result.value().size(), test_data.size()) << "Expected buffer to survive tap()";
+    }
+
     TEST(FileIOTests, MonadicCompositionShortCircuits) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, MonadicCompositionShortCircuits)"};
 
@@ -173,15 +198,14 @@ namespace tests::csv_import_pipeline {
       bool and_then_called = false;
 
       // Composition should short-circuit on first failure
-      auto result = 
+      // Using tap() to inject side effect without verbose lambda
+      auto result =
          persistent::in::path_to_istream_ptr(non_existent)
-        .and_then([&and_then_called](auto istream_ptr) -> AnnotatedMaybe<persistent::in::ByteBuffer> {
-          and_then_called = true;
-          return persistent::in::istream_ptr_to_byte_buffer(std::move(istream_ptr));
-        });
+        .tap([&and_then_called](auto const&) { and_then_called = true; })
+        .and_then(persistent::in::istream_ptr_to_byte_buffer);
 
       EXPECT_FALSE(result) << "Expected failure due to missing file";
-      EXPECT_FALSE(and_then_called) << "Expected and_then to NOT be called after failure";
+      EXPECT_FALSE(and_then_called) << "Expected tap to NOT be called after failure";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages from first step";
     }
 

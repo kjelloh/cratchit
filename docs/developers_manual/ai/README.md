@@ -1735,3 +1735,174 @@ And Claude pulled it off:
 
 I ran cratchit and confirmed it seems to work just fine!
 
+## Observations on Claude refactoring monadic chain code
+
+I aksed Claude:
+
+```sh
+> I have streamlined naming and type-passing with string_to_istream_ptr @src/persistent/in/file_reader.hpp. But I still find it does not compose so well? That is, it is kind of cumbersome to use in monadic pipe
+ line. Can you take a look at my code and the usage of this function and tell me if we can improve on the desing? 
+```
+
+And Claude came back with:
+
+```sh
+The Problem
+
+  When using istream_ptr_to_byte_buffer directly in a chain, it works beautifully (line 124-125):
+  persistent::in::string_to_istream_ptr(test_data)
+    .and_then(persistent::in::istream_ptr_to_byte_buffer);  // ✅ Clean!
+
+  But when you need to add logic/debugging inside the pipeline, it becomes verbose (line 178-180):
+  .and_then([&and_then_called](auto istream_ptr) -> AnnotatedMaybe<ByteBuffer> {
+    and_then_called = true;  // Side effect
+    return persistent::in::istream_ptr_to_byte_buffer(std::move(istream_ptr)); // ❌ Must explicitly move
+  });
+
+  Root Causes
+
+  1. Move-only types require explicit std::move when wrapped in lambdas
+  2. Return type must be explicitly specified for type safety
+  3. Parameter passing by value (correct for move-only types) makes lambda wrapping verbose
+
+  Design Improvements
+
+  Here are several options, from least to most invasive:
+
+  Option 1: Add a tap combinator (Minimal Change)
+
+  Add a side-effect injector that doesn't break the chain:
+
+  // In AnnotatedOptional class
+  template <class F>
+  auto tap(F&& f) && {
+    if (*this) {
+      std::invoke(std::forward<F>(f), this->value());
+    }
+    return std::move(*this);
+  }
+
+  Usage:
+  persistent::in::path_to_istream_ptr(non_existent)
+    .tap([&](auto const&) { and_then_called = true; })
+    .and_then(persistent::in::istream_ptr_to_byte_buffer);
+
+  Option 2: Use rvalue references instead of by-value (Better Intent)
+
+  Change function signatures to make move semantics explicit:
+
+  // Current
+  inline AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(
+    std::unique_ptr<std::istream> istream_ptr);
+
+  // Proposed
+  inline AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(
+    std::unique_ptr<std::istream>&& istream_ptr);
+
+  This doesn't change behavior but makes intent clearer and matches the and_then rvalue overload pattern.
+
+  Option 3: Create function adaptors (Most Flexible)
+
+  Add utilities to make composition easier:
+
+  // Adaptor that wraps a function with pre/post hooks
+  template<typename F, typename PreHook>
+  auto with_pre_hook(F&& f, PreHook&& pre) {
+    return [f = std::forward<F>(f), pre = std::forward<PreHook>(pre)]
+           (auto&& arg) mutable {
+      std::invoke(pre, arg);
+      return std::invoke(f, std::forward<decltype(arg)>(arg));
+    };
+  }
+
+  Usage:
+  .and_then(with_pre_hook(
+    persistent::in::istream_ptr_to_byte_buffer,
+    [&](auto const&) { and_then_called = true; }
+  ));
+
+  My Recommendation
+
+  I suggest combining Options 1 and 2:
+
+  1. Add tap() to AnnotatedOptional - This is the most common pattern for side effects in functional pipelines
+  2. Change to rvalue references - Makes the API more explicit about move semantics
+
+  Would you like me to implement these changes? I can:
+  - Add the tap() combinator to maybe.hpp
+  - Update the function signatures in file_reader.hpp
+  - Refactor the test cases to use the cleaner API
+  - Show you other monadic operators that might be useful (map, map_error, etc.)
+
+  What do you think?
+```
+
+This made sense to me. Making the monadic 'pipe' function move-in the unique_ptr (move only T) should make sense to a user?
+
+I told Claude to go ahead and it came back with the report:
+
+```sh
+Changes Made
+
+  1. Added tap() Combinator (maybe.hpp:81-99)
+
+  Added two overloads for injecting side effects without breaking the monadic chain:
+
+  // Rvalue context - for move-only types
+  template <class F>
+  auto tap(F&& f) && {
+    if (*this) {
+      std::invoke(std::forward<F>(f), this->value());
+    }
+    return std::move(*this);
+  }
+
+  // Lvalue context
+  template <class F>
+  auto tap(F&& f) const & {
+    if (*this) {
+      std::invoke(std::forward<F>(f), this->value());
+    }
+    return *this;
+  }
+
+  2. Updated Function Signatures (file_reader.hpp:20,74)
+
+  Changed from pass-by-value to rvalue references to make move semantics explicit:
+
+  // Before
+  AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream> istream_ptr);
+
+  // After  
+  AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>&& istream_ptr);
+
+  3. Improved Test Cases
+
+  Before (verbose):
+  .and_then([&and_then_called](auto istream_ptr) -> AnnotatedMaybe<ByteBuffer> {
+    and_then_called = true;
+    return persistent::in::istream_ptr_to_byte_buffer(std::move(istream_ptr));
+  });
+
+  After (clean):
+  .tap([&and_then_called](auto const&) { and_then_called = true; })
+  .and_then(persistent::in::istream_ptr_to_byte_buffer);
+
+  4. Added New Test (test_csv_import_pipeline.cpp:168-191)
+
+  Demonstrates tap() for debugging/logging in successful pipelines with ownership safety verified.
+
+  Test Results
+
+  All 6 FileIOTests passed:
+  - ✅ OpenValidFile
+  - ✅ OpenMissingFileReturnsEmpty
+  - ✅ StreamToBufferWithValidStream
+  - ✅ MonadicCompositionChaining
+  - ✅ TapCombinatorForDebugging (new test)
+  - ✅ MonadicCompositionShortCircuits (now using tap())
+
+  Your monadic pipelines are now much more composable! 🎉
+```
+
+In this case Claude made a very focused change to my code. No bloat what I could detect (good).
