@@ -5,30 +5,14 @@
 #include <string_view>
 
 // Swedish Giro Account Numbers Framework
-//
-// Currently implements: Bankgiro (BG) payment account numbers
-// Future: Plusgiro (PG) support
-//
-// Bankgiro: Domestic payment system only, no IBAN conversion
-// Format: 7-8 digits with mandatory dash separator
-//
-// References:
-// - https://www.atlar.com/guides/bank-payments-in-sweden
-// - Bankgiro format: 7-8 digits (e.g., "123-4567" or "1234-5678")
 
 namespace giro {
 
-  // ============================================================================
-  // Plusgiro (PG) - RESERVED FOR FUTURE IMPLEMENTATION
-  // ============================================================================
   namespace PG {
     // Swedish 'Plusgirot' id processing
     // TODO: Implement Plusgiro number validation and BBAN conversion
   }
 
-  // ============================================================================
-  // Bankgiro (BG) - Swedish bank giro system
-  // ============================================================================
   namespace BG {
 
     // Bankgiro number type classification
@@ -65,7 +49,7 @@ namespace giro {
     // - Regular BG (non-90): 7 or 8 digits
     //   - 7 digits: dash MUST be after position 3 (XXX-XXXX)
     //   - 8 digits: dash MUST be after position 4 (XXXX-XXXX)
-    // - 90-number: MUST be "90-XXXXX" format
+    // - 90-number: MUST be "90-XXXXX" format (7 digits)
     //   - Starts with "90"
     //   - Dash after "90"
     //   - Exactly 5 digits after dash
