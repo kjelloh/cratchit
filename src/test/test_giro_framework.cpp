@@ -347,4 +347,415 @@ namespace tests::giro_framework {
 
   } // namespace bg
 
+  // Test suite for Plusgiro (PG) number validation
+  namespace pg {
+
+    // ============================================================================
+    // Valid PG number parsing tests
+    // ============================================================================
+
+    TEST(PlusgiroParsing, Parse5DigitNumber) {
+      logger::scope_logger log_raii{logger::development_trace, "Parse5DigitNumber"};
+
+      // Calculate valid check digit for "1234"
+      char check = giro::PG::calculate_check_digit("1234");
+      std::string valid_pg = std::string("1234-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(valid_pg);
+
+      ASSERT_TRUE(maybe_pg.has_value());
+      EXPECT_EQ(maybe_pg->number, "1234");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+      EXPECT_EQ(maybe_pg->to_string(), valid_pg);
+    }
+
+    TEST(PlusgiroParsing, Parse6DigitNumber) {
+      logger::scope_logger log_raii{logger::development_trace, "Parse6DigitNumber"};
+
+      char check = giro::PG::calculate_check_digit("12345");
+      std::string valid_pg = std::string("12345-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(valid_pg);
+
+      ASSERT_TRUE(maybe_pg.has_value());
+      EXPECT_EQ(maybe_pg->number, "12345");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+      EXPECT_EQ(maybe_pg->to_string(), valid_pg);
+    }
+
+    TEST(PlusgiroParsing, Parse7DigitNumber) {
+      logger::scope_logger log_raii{logger::development_trace, "Parse7DigitNumber"};
+
+      char check = giro::PG::calculate_check_digit("123456");
+      std::string valid_pg = std::string("123456-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(valid_pg);
+
+      ASSERT_TRUE(maybe_pg.has_value());
+      EXPECT_EQ(maybe_pg->number, "123456");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+      EXPECT_EQ(maybe_pg->to_string(), valid_pg);
+    }
+
+    TEST(PlusgiroParsing, Parse8DigitNumber) {
+      logger::scope_logger log_raii{logger::development_trace, "Parse8DigitNumber"};
+
+      char check = giro::PG::calculate_check_digit("1234567");
+      std::string valid_pg = std::string("1234567-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(valid_pg);
+
+      ASSERT_TRUE(maybe_pg.has_value());
+      EXPECT_EQ(maybe_pg->number, "1234567");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+      EXPECT_EQ(maybe_pg->to_string(), valid_pg);
+    }
+
+    TEST(PlusgiroParsing, ParseWithLeadingWhitespace) {
+      logger::scope_logger log_raii{logger::development_trace, "ParseWithLeadingWhitespace"};
+
+      char check = giro::PG::calculate_check_digit("1234");
+      std::string valid_pg = std::string("1234-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("  " + valid_pg);
+
+      ASSERT_TRUE(maybe_pg.has_value());
+      EXPECT_EQ(maybe_pg->number, "1234");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+    }
+
+    TEST(PlusgiroParsing, ParseWithTrailingWhitespace) {
+      logger::scope_logger log_raii{logger::development_trace, "ParseWithTrailingWhitespace"};
+
+      char check = giro::PG::calculate_check_digit("1234");
+      std::string valid_pg = std::string("1234-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(valid_pg + "  ");
+
+      ASSERT_TRUE(maybe_pg.has_value());
+      EXPECT_EQ(maybe_pg->number, "1234");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+    }
+
+    TEST(PlusgiroParsing, ParseWithSurroundingWhitespace) {
+      logger::scope_logger log_raii{logger::development_trace, "ParseWithSurroundingWhitespace"};
+
+      char check = giro::PG::calculate_check_digit("12345");
+      std::string valid_pg = std::string("12345-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("  " + valid_pg + "  ");
+
+      ASSERT_TRUE(maybe_pg.has_value());
+      EXPECT_EQ(maybe_pg->number, "12345");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+    }
+
+    // ============================================================================
+    // Invalid PG number rejection tests - Format errors
+    // ============================================================================
+
+    TEST(PlusgiroParsing, RejectNoDash) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectNoDash"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("12345");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectMultipleDashes) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectMultipleDashes"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("12-34-5");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectWrongDashPosition) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectWrongDashPosition"};
+
+      // Dash should be before LAST digit, not in middle
+      auto maybe_pg = giro::PG::to_plusgiro_number("123-45");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectTooFewDigits) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectTooFewDigits"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("123-4");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectTooManyDigits) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectTooManyDigits"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("12345678-9");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectNonNumericPrefix) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectNonNumericPrefix"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("ABCD-5");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectNonNumericCheckDigit) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectNonNumericCheckDigit"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("1234-X");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectEmptyString) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectEmptyString"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectWhitespaceOnly) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectWhitespaceOnly"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("   ");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectDashOnly) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectDashOnly"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("-");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    // ============================================================================
+    // Invalid PG number rejection tests - All-zeros
+    // ============================================================================
+
+    TEST(PlusgiroParsing, RejectAllZeros5Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectAllZeros5Digits"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("0000-0");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectAllZeros6Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectAllZeros6Digits"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("00000-0");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectAllZeros7Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectAllZeros7Digits"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("000000-0");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectAllZeros8Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectAllZeros8Digits"};
+
+      auto maybe_pg = giro::PG::to_plusgiro_number("0000000-0");
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    // ============================================================================
+    // Invalid PG number rejection tests - Check digit validation
+    // ============================================================================
+
+    TEST(PlusgiroParsing, RejectInvalidCheckDigit) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectInvalidCheckDigit"};
+
+      // Calculate correct check digit, then use wrong one
+      char correct_check = giro::PG::calculate_check_digit("1234");
+      char wrong_check = (correct_check == '9') ? '0' : (correct_check + 1);
+      std::string invalid_pg = std::string("1234-") + wrong_check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(invalid_pg);
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectWrongCheckDigitAllNines) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectWrongCheckDigitAllNines"};
+
+      char correct_check = giro::PG::calculate_check_digit("9999");
+      char wrong_check = (correct_check == '9') ? '0' : (correct_check + 1);
+      std::string invalid_pg = std::string("9999-") + wrong_check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(invalid_pg);
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    TEST(PlusgiroParsing, RejectWrongCheckDigit6Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectWrongCheckDigit6Digits"};
+
+      char correct_check = giro::PG::calculate_check_digit("12345");
+      char wrong_check = (correct_check == '9') ? '0' : (correct_check + 1);
+      std::string invalid_pg = std::string("12345-") + wrong_check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(invalid_pg);
+
+      EXPECT_FALSE(maybe_pg.has_value());
+    }
+
+    // ============================================================================
+    // Check digit calculation tests
+    // ============================================================================
+
+    TEST(PlusgiroCheckDigit, CalculateForSimpleNumber) {
+      logger::scope_logger log_raii{logger::development_trace, "CalculateForSimpleNumber"};
+
+      char check = giro::PG::calculate_check_digit("1234");
+
+      // Verify it's a digit
+      EXPECT_TRUE(check >= '0' && check <= '9');
+
+      // Verify validation works with calculated digit
+      EXPECT_TRUE(giro::PG::validate_check_digit("1234", check));
+    }
+
+    TEST(PlusgiroCheckDigit, CalculateFor4Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "CalculateFor4Digits"};
+
+      char check = giro::PG::calculate_check_digit("1234");
+      EXPECT_TRUE(giro::PG::validate_check_digit("1234", check));
+    }
+
+    TEST(PlusgiroCheckDigit, CalculateFor5Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "CalculateFor5Digits"};
+
+      char check = giro::PG::calculate_check_digit("12345");
+      EXPECT_TRUE(giro::PG::validate_check_digit("12345", check));
+    }
+
+    TEST(PlusgiroCheckDigit, CalculateFor6Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "CalculateFor6Digits"};
+
+      char check = giro::PG::calculate_check_digit("123456");
+      EXPECT_TRUE(giro::PG::validate_check_digit("123456", check));
+    }
+
+    TEST(PlusgiroCheckDigit, CalculateFor7Digits) {
+      logger::scope_logger log_raii{logger::development_trace, "CalculateFor7Digits"};
+
+      char check = giro::PG::calculate_check_digit("1234567");
+      EXPECT_TRUE(giro::PG::validate_check_digit("1234567", check));
+    }
+
+    TEST(PlusgiroCheckDigit, ValidateCorrectCheckDigit) {
+      logger::scope_logger log_raii{logger::development_trace, "ValidateCorrectCheckDigit"};
+
+      char check = giro::PG::calculate_check_digit("12345");
+
+      EXPECT_TRUE(giro::PG::validate_check_digit("12345", check));
+    }
+
+    TEST(PlusgiroCheckDigit, RejectIncorrectCheckDigit) {
+      logger::scope_logger log_raii{logger::development_trace, "RejectIncorrectCheckDigit"};
+
+      char correct = giro::PG::calculate_check_digit("12345");
+      char incorrect = (correct == '9') ? '0' : (correct + 1);
+
+      EXPECT_FALSE(giro::PG::validate_check_digit("12345", incorrect));
+    }
+
+    TEST(PlusgiroCheckDigit, CalculateDeterministic) {
+      logger::scope_logger log_raii{logger::development_trace, "CalculateDeterministic"};
+
+      // Same input should always produce same check digit
+      char check1 = giro::PG::calculate_check_digit("1234");
+      char check2 = giro::PG::calculate_check_digit("1234");
+
+      EXPECT_EQ(check1, check2);
+    }
+
+    // ============================================================================
+    // Canonical format and to_string tests
+    // ============================================================================
+
+    TEST(PlusgiroCanonical, FormatPreservesDash) {
+      logger::scope_logger log_raii{logger::development_trace, "FormatPreservesDash"};
+
+      char check = giro::PG::calculate_check_digit("1234");
+      std::string expected = std::string("1234-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(expected);
+      ASSERT_TRUE(maybe_pg.has_value());
+
+      std::string canonical = giro::PG::to_canonical_pg(*maybe_pg);
+
+      EXPECT_EQ(canonical, expected);
+    }
+
+    TEST(PlusgiroCanonical, FormatTrimsWhitespace) {
+      logger::scope_logger log_raii{logger::development_trace, "FormatTrimsWhitespace"};
+
+      char check = giro::PG::calculate_check_digit("1234");
+      std::string clean = std::string("1234-") + check;
+      std::string with_whitespace = "  " + clean + "  ";
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(with_whitespace);
+      ASSERT_TRUE(maybe_pg.has_value());
+
+      std::string canonical = giro::PG::to_canonical_pg(*maybe_pg);
+
+      EXPECT_EQ(canonical, clean);  // Whitespace should be trimmed
+    }
+
+    TEST(PlusgiroCanonical, ToStringMatchesCanonical) {
+      logger::scope_logger log_raii{logger::development_trace, "ToStringMatchesCanonical"};
+
+      char check = giro::PG::calculate_check_digit("12345");
+      std::string expected = std::string("12345-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(expected);
+      ASSERT_TRUE(maybe_pg.has_value());
+
+      EXPECT_EQ(maybe_pg->to_string(), giro::PG::to_canonical_pg(*maybe_pg));
+      EXPECT_EQ(maybe_pg->to_string(), expected);
+    }
+
+    TEST(PlusgiroCanonical, ToStringReconstructsOriginal) {
+      logger::scope_logger log_raii{logger::development_trace, "ToStringReconstructsOriginal"};
+
+      char check = giro::PG::calculate_check_digit("123456");
+      std::string original = std::string("123456-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(original);
+      ASSERT_TRUE(maybe_pg.has_value());
+
+      // Parsing and reconstructing should give back the original
+      EXPECT_EQ(maybe_pg->to_string(), original);
+    }
+
+    TEST(PlusgiroStruct, ComponentsCorrectlySeparated) {
+      logger::scope_logger log_raii{logger::development_trace, "ComponentsCorrectlySeparated"};
+
+      char check = giro::PG::calculate_check_digit("1234567");
+      std::string input = std::string("1234567-") + check;
+
+      auto maybe_pg = giro::PG::to_plusgiro_number(input);
+      ASSERT_TRUE(maybe_pg.has_value());
+
+      EXPECT_EQ(maybe_pg->number, "1234567");
+      EXPECT_EQ(maybe_pg->check_digit, check);
+      EXPECT_EQ(maybe_pg->number.size(), 7u);
+    }
+
+  } // namespace pg
+
 } // namespace tests::giro_framework
