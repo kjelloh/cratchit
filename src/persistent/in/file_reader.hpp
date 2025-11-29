@@ -15,18 +15,18 @@ namespace persistent {
     // Byte buffer type for raw file content
     using ByteBuffer = std::vector<std::byte>;
 
-    // Monadic AnnotatedMaybe #1.1 string -> istream
+    // Monadic AnnotatedMaybe #1: string -> istream
     AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s);
 
-    // Monadic AnnotatedMaybe #1.2 path -> istream
-    AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr(std::filesystem::path const& file_path);
+    // Monadic AnnotatedMaybe #1: path -> istream
+    AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path);
 
-    // Monadic AnnotatedMaybe #2 
+    // Monadic AnnotatedMaybe #2: istream -> byte buffer
     AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>&& istream_ptr);
 
 
-    // Monadic AnnotatedMaybe #1.2 + #2
-    AnnotatedMaybe<ByteBuffer> path_to_byte_buffer(std::filesystem::path const& file_path);
+    // Monadic AnnotatedMaybe #1 + #2
+    AnnotatedMaybe<ByteBuffer> path_to_byte_buffer_shortcut(std::filesystem::path const& file_path);
 
     // Implementation
 
@@ -40,7 +40,8 @@ namespace persistent {
       return result;
     }
 
-    inline AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr(std::filesystem::path const& file_path) {
+    // AnnotatedMaybe step: File path -> Maybe istream
+    inline AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
       AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
 
       // Check if file exists
@@ -125,9 +126,9 @@ namespace persistent {
       return result;
     }
 
-    inline AnnotatedMaybe<ByteBuffer> path_to_byte_buffer(std::filesystem::path const& file_path) {
+    inline AnnotatedMaybe<ByteBuffer> path_to_byte_buffer_shortcut(std::filesystem::path const& file_path) {
       // Monadic composition: file_path → istream_ptr → buffer
-      return path_to_istream_ptr(file_path)
+      return path_to_istream_ptr_step(file_path)
         .and_then(istream_ptr_to_byte_buffer);
     }
 

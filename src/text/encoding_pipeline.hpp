@@ -94,7 +94,7 @@ namespace text::encoding {
     std::filesystem::path const& file_path,
     int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD) {
 
-    return persistent::in::path_to_byte_buffer(file_path)
+    return persistent::in::path_to_byte_buffer_shortcut(file_path)
       .and_then([confidence_threshold](ByteBuffer buffer) {
         return with_threshold(confidence_threshold, std::move(buffer));
       })

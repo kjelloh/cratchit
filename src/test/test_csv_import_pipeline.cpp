@@ -58,7 +58,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadValidFileSucceeds) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadValidFile)"};
 
-      auto result = persistent::in::path_to_byte_buffer(valid_file_path);
+      auto result = persistent::in::path_to_byte_buffer_shortcut(valid_file_path);
 
       ASSERT_TRUE(result) << "Expected successful read of valid file";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty buffer";
@@ -75,7 +75,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadMissingFileReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadMissingFileReturnsEmpty)"};
 
-      auto result = persistent::in::path_to_byte_buffer(missing_file_path);
+      auto result = persistent::in::path_to_byte_buffer_shortcut(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -94,7 +94,7 @@ namespace tests::csv_import_pipeline {
         ofs << "test content";
       }
 
-      auto result = persistent::in::path_to_istream_ptr(temp_path);
+      auto result = persistent::in::path_to_istream_ptr_step(temp_path);
 
       ASSERT_TRUE(result) << "Expected successful file open";
       EXPECT_TRUE(result.value() != nullptr) << "Expected non-null stream pointer";
@@ -109,7 +109,7 @@ namespace tests::csv_import_pipeline {
 
       auto non_existent_path = std::filesystem::path("/tmp/cratchit_nonexistent_file_12345.txt");
 
-      auto result = persistent::in::path_to_istream_ptr(non_existent_path);
+      auto result = persistent::in::path_to_istream_ptr_step(non_existent_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for non-existent file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -148,7 +148,7 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate monadic composition with and_then
       auto result = 
-         persistent::in::path_to_istream_ptr(temp_path)
+         persistent::in::path_to_istream_ptr_step(temp_path)
         .and_then(persistent::in::istream_ptr_to_byte_buffer)
         .and_then([](auto buffer) -> AnnotatedMaybe<size_t> {
           AnnotatedMaybe<size_t> size_result;
@@ -200,7 +200,7 @@ namespace tests::csv_import_pipeline {
       // Composition should short-circuit on first failure
       // Using tap() to inject side effect without verbose lambda
       auto result =
-         persistent::in::path_to_istream_ptr(non_existent)
+         persistent::in::path_to_istream_ptr_step(non_existent)
         .tap([&and_then_called](auto const&) { and_then_called = true; })
         .and_then(persistent::in::istream_ptr_to_byte_buffer);
 
@@ -217,7 +217,7 @@ namespace tests::csv_import_pipeline {
       std::ofstream ofs(empty_file);
       ofs.close();
 
-      auto result = persistent::in::path_to_byte_buffer(empty_file);
+      auto result = persistent::in::path_to_byte_buffer_shortcut(empty_file);
 
       ASSERT_TRUE(result) << "Expected successful read of empty file";
       EXPECT_EQ(result.value().size(), 0) << "Expected empty buffer";
@@ -226,7 +226,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ErrorMessagesArePreserved) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ErrorMessagesArePreserved)"};
 
-      auto result = persistent::in::path_to_byte_buffer(missing_file_path);
+      auto result = persistent::in::path_to_byte_buffer_shortcut(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_FALSE(result.m_messages.empty()) << "Expected error messages";
@@ -286,7 +286,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectUTF8) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectUTF8)"};
 
-      auto buffer = persistent::in::path_to_byte_buffer(utf8_file);
+      auto buffer = persistent::in::path_to_byte_buffer_shortcut(utf8_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::icu::to_detetced_encoding(buffer.value());
@@ -300,7 +300,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectISO8859) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectISO8859)"};
 
-      auto buffer = persistent::in::path_to_byte_buffer(iso8859_file);
+      auto buffer = persistent::in::path_to_byte_buffer_shortcut(iso8859_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::icu::to_detetced_encoding(buffer.value());
@@ -324,7 +324,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Demonstrate monadic composition: file → buffer → encoding
-      auto result = persistent::in::path_to_byte_buffer(temp_path)
+      auto result = persistent::in::path_to_byte_buffer_shortcut(temp_path)
         .and_then([](auto buffer) {
           AnnotatedMaybe<text::encoding::icu::EncodingDetectionResult> encoding_result;
           auto maybe_encoding = text::encoding::icu::to_detetced_encoding(buffer);
@@ -601,7 +601,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::path_to_byte_buffer(temp_path);
+      auto buffer_result = persistent::in::path_to_byte_buffer_shortcut(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
@@ -790,7 +790,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::path_to_byte_buffer(temp_path);
+      auto buffer_result = persistent::in::path_to_byte_buffer_shortcut(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
