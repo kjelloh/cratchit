@@ -1,7 +1,7 @@
 #pragma once
 
 #include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
-#include "csv/neutral_parser.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
+#include "csv/parse_csv.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
 #include "csv/csv_to_account_id.hpp"         // CSV::project::to_account_id_ed (Step 6.5)
 #include "domain/csv_to_account_statement.hpp"  // domain::csv_table_to_account_statement (Step 7)
 #include "domain/account_statement_to_tagged_amounts.hpp" // domain::csv_table_to_tagged_amounts (Steps 7+8)

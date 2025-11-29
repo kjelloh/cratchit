@@ -5,7 +5,7 @@
 #include "text/encoding.hpp"
 #include "text/transcoding_views.hpp"
 #include "text/encoding_pipeline.hpp"
-#include "csv/neutral_parser.hpp"
+#include "csv/parse_csv.hpp"
 #include "csv/csv_to_account_id.hpp"
 #include "csv/import_pipeline.hpp"
 #include "test/data/account_statements_csv.hpp"
