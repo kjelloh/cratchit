@@ -94,7 +94,7 @@ namespace tests::csv_import_pipeline {
         ofs << "test content";
       }
 
-      auto result = persistent::in::path_to_istream_ptr_step(temp_path);
+      auto result = persistent::in::monadic::path_to_istream_ptr_step(temp_path);
 
       ASSERT_TRUE(result) << "Expected successful file open";
       EXPECT_TRUE(result.value() != nullptr) << "Expected non-null stream pointer";
@@ -109,7 +109,7 @@ namespace tests::csv_import_pipeline {
 
       auto non_existent_path = std::filesystem::path("/tmp/cratchit_nonexistent_file_12345.txt");
 
-      auto result = persistent::in::path_to_istream_ptr_step(non_existent_path);
+      auto result = persistent::in::monadic::path_to_istream_ptr_step(non_existent_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for non-existent file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -121,8 +121,8 @@ namespace tests::csv_import_pipeline {
       std::string test_data = "Hello, World! This is test data.";
 
       auto result = 
-         persistent::in::injected_string_to_istream_ptr(test_data)
-        .and_then(persistent::in::istream_ptr_to_byte_buffer_step);
+         persistent::in::monadic::injected_string_to_istream_ptr(test_data)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step);
 
       ASSERT_TRUE(result) << "Expected successful buffer read from stream";
       EXPECT_EQ(result.value().size(), test_data.size()) << "Expected buffer size to match input";
@@ -148,8 +148,8 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate monadic composition with and_then
       auto result = 
-         persistent::in::path_to_istream_ptr_step(temp_path)
-        .and_then(persistent::in::istream_ptr_to_byte_buffer_step)
+         persistent::in::monadic::path_to_istream_ptr_step(temp_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
         .and_then([](auto buffer) -> AnnotatedMaybe<size_t> {
           AnnotatedMaybe<size_t> size_result;
           size_result.m_value = buffer.size();
@@ -174,12 +174,12 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate tap() for side effects without breaking the chain
       auto result =
-         persistent::in::injected_string_to_istream_ptr(test_data)
+         persistent::in::monadic::injected_string_to_istream_ptr(test_data)
         .tap([&stream_opened](auto const& ptr) {
           stream_opened++;
           EXPECT_TRUE(ptr != nullptr) << "Expected valid stream pointer";
         })
-        .and_then(persistent::in::istream_ptr_to_byte_buffer_step)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
         .tap([&buffer_size](auto const& buf) {
           buffer_size = buf.size();
         });
@@ -200,9 +200,9 @@ namespace tests::csv_import_pipeline {
       // Composition should short-circuit on first failure
       // Using tap() to inject side effect without verbose lambda
       auto result =
-         persistent::in::path_to_istream_ptr_step(non_existent)
+         persistent::in::monadic::path_to_istream_ptr_step(non_existent)
         .tap([&and_then_called](auto const&) { and_then_called = true; })
-        .and_then(persistent::in::istream_ptr_to_byte_buffer_step);
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step);
 
       EXPECT_FALSE(result) << "Expected failure due to missing file";
       EXPECT_FALSE(and_then_called) << "Expected tap to NOT be called after failure";
