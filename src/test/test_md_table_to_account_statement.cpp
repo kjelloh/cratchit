@@ -78,7 +78,7 @@ TEST_F(MDTableToAccountStatementTestFixture, AccountIdPropagatedToStatementMeta)
     << "Expected AccountID to be set in meta";
   EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "NORDEA");
   EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_value, "51 86 87-9");
-  EXPECT_EQ(result->meta().m_maybe_account_irl_id->to_string(), "NORDEA51 86 87-9");
+  EXPECT_EQ(result->meta().m_maybe_account_irl_id->to_string(), "NORDEA::51 86 87-9");
 }
 
 TEST_F(MDTableToAccountStatementTestFixture, SKVAccountIdPropagatedCorrectly) {

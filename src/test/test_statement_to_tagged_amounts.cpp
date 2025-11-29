@@ -62,7 +62,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, SingleEntryTransformation) {
   entries.push_back(make_entry(2025, 1, 15, 100.50, "Test Transaction"));
 
   // Create AccountStatement with AccountID
-  AccountID account_id = make_account_id("NORDEA:", "51 86 87-9");
+  AccountID account_id = make_account_id("NORDEA", "51 86 87-9");
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
@@ -89,7 +89,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, SingleEntryTransformation) {
   EXPECT_EQ(ta.tags().at("Text"), "Test Transaction");
 
   ASSERT_TRUE(ta.tags().contains("Account")) << "Expected 'Account' tag";
-  EXPECT_EQ(ta.tags().at("Account"), "NORDEA:51 86 87-9");
+  EXPECT_EQ(ta.tags().at("Account"), "NORDEA::51 86 87-9");
 }
 
 // ============================================================================
@@ -107,7 +107,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, MultipleEntriesTransformation) {
   entries.push_back(make_entry(2025, 1, 20, 1000.00, "Third Transaction"));
 
   // Create AccountStatement
-  AccountID account_id = make_account_id("SKV:", "5567828172");
+  AccountID account_id = make_account_id("SKV", "5567828172");
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
@@ -121,7 +121,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, MultipleEntriesTransformation) {
   // All should have the same Account tag
   for (auto const& ta : *result) {
     ASSERT_TRUE(ta.tags().contains("Account"));
-    EXPECT_EQ(ta.tags().at("Account"), "SKV:5567828172");
+    EXPECT_EQ(ta.tags().at("Account"), "SKV::5567828172");
   }
 
   // Verify individual entries
@@ -147,7 +147,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, EmptyStatementReturnsEmptyVector) {
   AccountStatementEntries entries;
 
   // Create AccountStatement with AccountID
-  AccountID account_id = make_account_id("NORDEA:", "12 34 56-7");
+  AccountID account_id = make_account_id("NORDEA", "12 34 56-7");
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
@@ -207,7 +207,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, NegativeAmountsConvertedCorrectly) {
   entries.push_back(make_entry(2025, 3, 2, -0.01, "Minimal Negative"));
   entries.push_back(make_entry(2025, 3, 3, -9999.99, "Large Negative"));
 
-  AccountID account_id = make_account_id("NORDEA:", "51 86 87-9");
+  AccountID account_id = make_account_id("NORDEA", "51 86 87-9");
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
@@ -317,7 +317,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
   // Create AccountID for NORDEA
-  AccountID account_id = domain::make_account_id("NORDEA:", "51 86 87-9");
+  AccountID account_id = domain::make_account_id("NORDEA", "51 86 87-9");
 
   // Step 7: CSV::Table -> AccountStatement
   auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, account_id);
@@ -333,7 +333,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
   // Verify all entries have correct Account tag
   for (auto const& ta : *result) {
     ASSERT_TRUE(ta.tags().contains("Account"));
-    EXPECT_EQ(ta.tags().at("Account"), "NORDEA:51 86 87-9");
+    EXPECT_EQ(ta.tags().at("Account"), "NORDEA::51 86 87-9");
 
     ASSERT_TRUE(ta.tags().contains("Text"));
     EXPECT_FALSE(ta.tags().at("Text").empty()) << "Expected non-empty Text tag";
@@ -359,7 +359,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithSkvCsvData) {
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
   // Create AccountID for SKV
-  AccountID account_id = domain::make_account_id("SKV:", "5567828172");
+  AccountID account_id = domain::make_account_id("SKV", "5567828172");
 
   // Step 7: CSV::Table -> AccountStatement
   auto maybe_statement = domain::csv_table_to_account_statement(*maybe_table, account_id);
@@ -374,7 +374,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithSkvCsvData) {
   // Verify all entries have correct Account tag
   for (auto const& ta : *result) {
     ASSERT_TRUE(ta.tags().contains("Account"));
-    EXPECT_EQ(ta.tags().at("Account"), "SKV:5567828172");
+    EXPECT_EQ(ta.tags().at("Account"), "SKV::5567828172");
   }
 }
 
@@ -393,7 +393,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, ComposedCsvTableToTaggedAmounts) {
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
   // Create AccountID for NORDEA
-  AccountID account_id = domain::make_account_id("NORDEA:", "51 86 87-9");
+  AccountID account_id = domain::make_account_id("NORDEA", "51 86 87-9");
 
   // Use composed function (Steps 7+8 in one call)
   auto result = domain::csv_table_to_tagged_amounts(*maybe_table, account_id);
@@ -405,7 +405,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, ComposedCsvTableToTaggedAmounts) {
   for (auto const& ta : *result) {
     ASSERT_TRUE(ta.tags().contains("Account"));
     ASSERT_TRUE(ta.tags().contains("Text"));
-    EXPECT_EQ(ta.tags().at("Account"), "NORDEA:51 86 87-9");
+    EXPECT_EQ(ta.tags().at("Account"), "NORDEA::51 86 87-9");
   }
 }
 
@@ -439,11 +439,11 @@ TEST_F(StatementToTaggedAmountsTestFixture, AccountIdWithVariousPrefixes) {
     "TEST(StatementToTaggedAmounts, AccountIdWithVariousPrefixes)"};
 
   std::vector<std::pair<std::string, std::string>> test_cases = {
-    {"NORDEA:", "51 86 87-9"},
-    {"SKV:", "5567828172"},
-    {"PG:", "90 00 00-1"},
-    {"BG:", "123-4567"},
-    {"IBAN:", "SE35 5000 0000 0549 1000 0003"}
+    {"NORDEA", "51 86 87-9"},
+    {"SKV", "5567828172"},
+    {"PG", "90 00 00-1"},
+    {"BG", "123-4567"},
+    {"IBAN", "SE35 5000 0000 0549 1000 0003"}
   };
 
   for (auto const& [prefix, value] : test_cases) {
@@ -459,7 +459,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, AccountIdWithVariousPrefixes) {
     ASSERT_TRUE(result.has_value()) << "Failed for prefix: " << prefix;
     ASSERT_EQ(result->size(), 1);
 
-    std::string expected_tag = prefix + value;
+    std::string expected_tag = prefix.empty() ? value : prefix + "::" + value;
     EXPECT_EQ((*result)[0].tags().at("Account"), expected_tag)
       << "Account tag mismatch for prefix: " << prefix;
   }

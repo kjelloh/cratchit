@@ -2439,10 +2439,10 @@ Alice,30,"Stockholm, Sweden"
 
       // Test the to_string() method of AccountID (DomainPrefixedId)
       AccountID nordea_id{"NORDEA", "51 86 87-9"};
-      EXPECT_EQ(nordea_id.to_string(), "NORDEA51 86 87-9");
+      EXPECT_EQ(nordea_id.to_string(), "NORDEA::51 86 87-9");
 
       AccountID skv_id{"SKV", "5567828172"};
-      EXPECT_EQ(skv_id.to_string(), "SKV5567828172");
+      EXPECT_EQ(skv_id.to_string(), "SKV::5567828172");
 
       AccountID empty_id{"", ""};
       EXPECT_EQ(empty_id.to_string(), "");
