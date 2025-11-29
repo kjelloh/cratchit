@@ -13,7 +13,7 @@ namespace first {
   
   AccountStatementFileState::AccountStatementFileState(PeriodPairedFilePath period_paired_file_path)
     :  StateImpl{}
-      ,m_maybe_table_result{CSV::file_to_table(period_paired_file_path.content())}
+      ,m_maybe_table_result{CSV::parse::monadic::file_to_table(period_paired_file_path.content())}
       ,m_period_paired_file_path{period_paired_file_path} {}
 
   std::string AccountStatementFileState::caption() const {
