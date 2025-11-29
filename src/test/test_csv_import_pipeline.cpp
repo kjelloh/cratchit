@@ -121,7 +121,7 @@ namespace tests::csv_import_pipeline {
       std::string test_data = "Hello, World! This is test data.";
 
       auto result = 
-         persistent::in::string_to_istream_ptr(test_data)
+         persistent::in::injected_string_to_istream_ptr(test_data)
         .and_then(persistent::in::istream_ptr_to_byte_buffer);
 
       ASSERT_TRUE(result) << "Expected successful buffer read from stream";
@@ -174,7 +174,7 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate tap() for side effects without breaking the chain
       auto result =
-         persistent::in::string_to_istream_ptr(test_data)
+         persistent::in::injected_string_to_istream_ptr(test_data)
         .tap([&stream_opened](auto const& ptr) {
           stream_opened++;
           EXPECT_TRUE(ptr != nullptr) << "Expected valid stream pointer";

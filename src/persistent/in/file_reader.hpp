@@ -16,7 +16,7 @@ namespace persistent {
     using ByteBuffer = std::vector<std::byte>;
 
     // Monadic AnnotatedMaybe #1: string -> istream
-    AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s);
+    AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s);
 
     // Monadic AnnotatedMaybe #1: path -> istream
     AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path);
@@ -31,7 +31,7 @@ namespace persistent {
     // Implementation
 
     // Helper std::string -> istream_ptr
-    inline AnnotatedMaybe<std::unique_ptr<std::istream>> string_to_istream_ptr(std::string s) {
+    inline AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
       AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
       result.m_value = std::move(std::make_unique<std::istringstream>(s));
       if (!result) {
