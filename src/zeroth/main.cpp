@@ -1,5 +1,6 @@
 #include "zeroth/main.hpp"
 #include "HAD2JournalEntryFramework.hpp" // to_md_entry,...
+#include "csv/import_pipeline.hpp" // path_to_tagged_amounts_shortcut,
 
 // Cpp file to isolate this 'zeroth' variant of cratchin until refactored to 'next' variant
 // (This whole file conatins the 'zeroth' version of cratchit)
@@ -5257,8 +5258,8 @@ std::pair<std::filesystem::path,bool> make_consumed(std::filesystem::path statem
 
 TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path) {
   TaggedAmounts result{};
-  // Use new pipeline: csv::monadic::path_to_tagged_amounts_shortcut
-  auto pipeline_result = csv::monadic::path_to_tagged_amounts_shortcut(statement_file_path);
+  // Use new pipeline: csv::path_to_tagged_amounts_shortcut
+  auto pipeline_result = csv::path_to_tagged_amounts_shortcut(statement_file_path);
 
   // Log pipeline messages
   for (auto const& msg : pipeline_result.m_messages) {

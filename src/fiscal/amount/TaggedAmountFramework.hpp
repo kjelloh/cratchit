@@ -366,5 +366,5 @@ namespace CSV {
   }
 }
 
-// TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
+// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path);

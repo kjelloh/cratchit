@@ -2454,7 +2454,7 @@ Alice,30,"Stockholm, Sweden"
 
     // ============================================================================
     // Full Pipeline Tests - Step 9: Complete CSV Import Pipeline
-    // Tests for csv::monadic::path_to_tagged_amounts_shortcut() and related functions
+    // Tests for csv::path_to_tagged_amounts_shortcut() and related functions
     // ============================================================================
 
     // Test fixture for full pipeline tests with file I/O
@@ -2535,7 +2535,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportNordeaFileSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportNordeaFileSuccess)"};
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV file";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2565,7 +2565,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSkvFileSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvFileSuccess)"};
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(skv_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(skv_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of SKV CSV file";
       EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts from SKV CSV";
@@ -2588,7 +2588,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSkvOlderFormatSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvOlderFormatSuccess)"};
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(skv_older_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(skv_older_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of older SKV CSV file";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2600,7 +2600,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSimpleCsvFailsForUnknownFormat)"};
 
       // Simple CSV is neither NORDEA nor SKV format, so it should fail at Step 6.5
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(simple_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(simple_csv_file);
 
       EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
 
@@ -2624,7 +2624,7 @@ Alice,30,"Stockholm, Sweden"
 
       auto missing_path = test_dir / "nonexistent_file.csv";
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(missing_path);
+      auto result = csv::path_to_tagged_amounts_shortcut(missing_path);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -2647,7 +2647,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportEmptyFileReturnsEmptyTaggedAmounts) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportEmptyFileReturnsEmptyTaggedAmounts)"};
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(empty_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(empty_file);
 
       ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages about empty file";
@@ -2656,7 +2656,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportInvalidCsvReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportInvalidCsvReturnsEmpty)"};
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(invalid_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(invalid_csv_file);
 
       EXPECT_FALSE(result) << "Expected failure for CSV with undetectable columns";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -2665,7 +2665,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, MessagesPreservedThroughPipeline) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, MessagesPreservedThroughPipeline)"};
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import";
 
@@ -2847,7 +2847,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, CompletePipelineVerifyTaggedAmountStructureWithNordea)"};
 
       // Use NORDEA file instead of simple CSV (which now fails for unknown format)
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV";
       ASSERT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2873,7 +2873,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, PipelinePreservesAllEntries)"};
 
       // Import NORDEA CSV and verify we get all expected entries
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import";
 
@@ -2906,7 +2906,7 @@ Alice,30,"Stockholm, Sweden"
         ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
       }
 
-      auto result = csv::monadic::path_to_tagged_amounts_shortcut(iso_csv_file);
+      auto result = csv::path_to_tagged_amounts_shortcut(iso_csv_file);
 
       // The pipeline should handle encoding automatically
       // Even if it defaults to UTF-8, it should produce some result
