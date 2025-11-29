@@ -312,7 +312,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
 
   // Parse NORDEA CSV data
   std::string csv_data = sz_NORDEA_csv_20251120;
-  auto maybe_table = CSV::parse::monadic::csv_to_table(csv_data, ';');
+  auto maybe_table = CSV::parse::maybe::csv_to_table(csv_data, ';');
 
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
@@ -354,7 +354,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithSkvCsvData) {
 
   // Parse SKV CSV data
   std::string csv_data = sz_SKV_csv_older;
-  auto maybe_table = CSV::parse::monadic::csv_to_table(csv_data, ';');
+  auto maybe_table = CSV::parse::maybe::csv_to_table(csv_data, ';');
 
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
@@ -388,7 +388,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, ComposedCsvTableToTaggedAmounts) {
 
   // Parse NORDEA CSV data
   std::string csv_data = sz_NORDEA_csv_20251120;
-  auto maybe_table = CSV::parse::monadic::csv_to_table(csv_data, ';');
+  auto maybe_table = CSV::parse::maybe::csv_to_table(csv_data, ';');
 
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 

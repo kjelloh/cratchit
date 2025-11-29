@@ -18,7 +18,7 @@ namespace CSV {
     *
     */
 
-    namespace monadic {
+    namespace maybe {
 
       /**
       * Detect the delimiter used in CSV text.
@@ -155,7 +155,7 @@ namespace CSV {
       *
       */
       inline std::optional<CSV::Table> csv_to_table(std::string_view csv_text, char delim = ';') {
-        logger::scope_logger log_raii{logger::development_trace, "CSV::parse::monadic::csv_to_table(string_view)"};
+        logger::scope_logger log_raii{logger::development_trace, "CSV::parse::maybe::csv_to_table(string_view)"};
         // Handle empty input
         if (csv_text.empty()) {
           return std::nullopt;

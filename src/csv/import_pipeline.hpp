@@ -1,7 +1,7 @@
 #pragma once
 
 #include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
-#include "csv/neutral_parser.hpp"            // CSV::parse::monadic::text_to_table (Step 6)
+#include "csv/neutral_parser.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
 #include "csv/csv_to_account_id.hpp"         // CSV::project::to_account_id_ed (Step 6.5)
 #include "domain/csv_to_account_statement.hpp"  // domain::csv_table_to_account_statement (Step 7)
 #include "domain/account_statement_to_tagged_amounts.hpp" // domain::csv_table_to_tagged_amounts (Steps 7+8)
@@ -98,7 +98,7 @@ namespace csv {
     }
 
     // Step 6: Text -> CSV::Table
-    auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
+    auto maybe_table = CSV::parse::maybe::text_to_table(csv_text);
 
     if (!maybe_table) {
       result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
@@ -142,7 +142,7 @@ namespace csv {
   *
   * This function composes the CSV import pipeline up to AccountStatement:
   *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
-  *   6.   Text -> CSV::Table (via CSV::parse::monadic::text_to_table)
+  *   6.   Text -> CSV::Table (via CSV::parse::maybe::text_to_table)
   *   6.5  CSV::Table -> MDTable<AccountID> (via CSV::project::to_account_id_ed)
   *   7.   MDTable<AccountID> -> AccountStatement (via domain::md_table_to_account_statement)
   *
@@ -180,7 +180,7 @@ namespace csv {
     // ============================================================
     // Step 6: Text -> CSV::Table
     // ============================================================
-    auto maybe_table = CSV::parse::monadic::text_to_table(text);
+    auto maybe_table = CSV::parse::maybe::text_to_table(text);
 
     if (!maybe_table) {
       result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
@@ -256,7 +256,7 @@ namespace csv {
     // ============================================================
     // Step 6: Text -> CSV::Table
     // ============================================================
-    auto maybe_table = CSV::parse::monadic::text_to_table(text);
+    auto maybe_table = CSV::parse::maybe::text_to_table(text);
 
     if (!maybe_table) {
       result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");

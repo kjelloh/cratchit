@@ -30,7 +30,7 @@ protected:
   static std::optional<CSV::MDTable<AccountID>> make_md_table_from_csv(
       std::string const& csv_text,
       char delimiter = ';') {
-    auto maybe_table = CSV::parse::monadic::csv_to_table(csv_text, delimiter);
+    auto maybe_table = CSV::parse::maybe::csv_to_table(csv_text, delimiter);
     if (!maybe_table) {
       return std::nullopt;
     }
@@ -178,7 +178,7 @@ TEST_F(MDTableToAccountStatementTestFixture, SKVNewerMDTableToAccountStatement) 
 
   // Parse SKV CSV (newer format with company name) and detect account
   // Note: newer format uses comma delimiter in quotes
-  auto maybe_table = CSV::parse::monadic::csv_to_table(sz_SKV_csv_20251120, ';');
+  auto maybe_table = CSV::parse::maybe::csv_to_table(sz_SKV_csv_20251120, ';');
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
   auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
