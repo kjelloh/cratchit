@@ -68,7 +68,9 @@ add_executable(cratchit
         src/test/test_amount_framework.cpp
         src/test/test_statement_to_tagged_amounts.cpp
         src/test/test_md_table_to_account_statement.cpp
+        src/test/test_swedish_bank_account.cpp
         src/fiscal/BASFramework.cpp
+        src/fiscal/BBANFramework.cpp
         src/fiscal/amount/HADFramework.cpp
         src/Key.cpp
         src/fiscal/SKVFramework.cpp
