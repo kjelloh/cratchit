@@ -1250,7 +1250,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "Name,Age,City\nAlice,30,Stockholm\nBob,25,Gothenburg\n";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->heading.size(), 3) << "Expected 3 header fields";
@@ -1272,7 +1272,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "Date;Amount;Description\n2025-01-01;100.50;Payment\n2025-01-02;-50.00;Withdrawal\n";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->heading.size(), 3) << "Expected 3 header fields";
@@ -1287,7 +1287,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "A,B,C\n1,2,3\n";
 
-      char detected = CSV::neutral::detect_delimiter(csv_text);
+      char detected = CSV::parse::monadic::detect_delimiter(csv_text);
 
       EXPECT_EQ(detected, ',') << "Expected comma detection";
     }
@@ -1297,7 +1297,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "A;B;C\n1;2;3\n";
 
-      char detected = CSV::neutral::detect_delimiter(csv_text);
+      char detected = CSV::parse::monadic::detect_delimiter(csv_text);
 
       EXPECT_EQ(detected, ';') << "Expected semicolon detection";
     }
@@ -1307,7 +1307,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       EXPECT_FALSE(result.has_value()) << "Expected empty optional for empty input";
     }
@@ -1317,7 +1317,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "A,B\n1,2\n";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->rows.size(), 2) << "Expected 2 rows (header + 1 data)";
@@ -1328,7 +1328,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "A,B\r\n1,2\r\n";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->rows.size(), 2) << "Expected 2 rows";
@@ -1344,7 +1344,7 @@ namespace tests::csv_import_pipeline {
 "Bob","Data Analyst"
 )";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->rows[1][0], "Alice") << "Expected quotes removed";
@@ -1359,7 +1359,7 @@ namespace tests::csv_import_pipeline {
 "Bob","456 Oak Ave, Gothenburg"
 )";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->rows[1][1], "123 Main St, Apt 4, Stockholm")
@@ -1375,7 +1375,7 @@ namespace tests::csv_import_pipeline {
 "Bob","He replied ""Hi there"""
 )";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->rows[1][1], R"(She said "Hello")")
@@ -1388,7 +1388,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "Name,Description\n\"Alice\",\"Line 1\nLine 2\"\n\"Bob\",\"Single line\"\n";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_TRUE(result->rows[1][1].find('\n') != std::string::npos)
@@ -1403,7 +1403,7 @@ Alice,30,"Stockholm, Sweden"
 "Bob",25,Gothenburg
 )";
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       EXPECT_EQ(result->rows[1][0], "Alice") << "Unquoted field";
@@ -1419,7 +1419,7 @@ Alice,30,"Stockholm, Sweden"
       // CSV with semicolons, but explicitly request comma parsing
       std::string csv_text = "A;B;C\n1;2;3\n";
 
-      auto result = CSV::neutral::parse_csv(csv_text, ',');
+      auto result = CSV::parse::monadic::parse_csv(csv_text, ',');
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       // With comma delimiter, the entire line becomes one field
@@ -1432,7 +1432,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse of Nordea CSV";
 
@@ -1457,7 +1457,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_SKV_csv_older;
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse of older SKV CSV";
 
@@ -1482,7 +1482,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_SKV_csv_20251120;
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse of newer SKV CSV";
 
@@ -1517,7 +1517,7 @@ Alice,30,"Stockholm, Sweden"
       // The real CSV data contains Swedish characters like å, ä, ö
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto result = CSV::neutral::text_to_table(csv_text);
+      auto result = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
 
@@ -1593,7 +1593,7 @@ Alice,30,"Stockholm, Sweden"
       auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_csv_file);
       ASSERT_TRUE(text_result) << "Expected successful encoding pipeline";
 
-      auto table_result = CSV::neutral::text_to_table(text_result.value());
+      auto table_result = CSV::parse::monadic::text_to_table(text_result.value());
       ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
 
       // Verify the table structure
@@ -1615,7 +1615,7 @@ Alice,30,"Stockholm, Sweden"
       auto result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_csv_file)
         .and_then([](auto text) -> AnnotatedMaybe<CSV::Table> {
           AnnotatedMaybe<CSV::Table> csv_result;
-          auto maybe_table = CSV::neutral::text_to_table(text);
+          auto maybe_table = CSV::parse::monadic::text_to_table(text);
           if (maybe_table) {
             csv_result.m_value = *maybe_table;
             csv_result.push_message(std::format("Parsed CSV with {} rows", maybe_table->rows.size()));
@@ -1654,7 +1654,7 @@ Alice,30,"Stockholm, Sweden"
 
       logger::development_trace("Transcoded text: {}", text_result.value());
 
-      auto table_result = CSV::neutral::text_to_table(text_result.value());
+      auto table_result = CSV::parse::monadic::text_to_table(text_result.value());
       ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
 
       // Verify Swedish characters were correctly transcoded and parsed
@@ -1673,7 +1673,7 @@ Alice,30,"Stockholm, Sweden"
       auto result = text::encoding::path_to_platform_encoded_string_shortcut(non_existent)
         .and_then([](auto text) -> AnnotatedMaybe<CSV::Table> {
           AnnotatedMaybe<CSV::Table> csv_result;
-          auto maybe_table = CSV::neutral::text_to_table(text);
+          auto maybe_table = CSV::parse::monadic::text_to_table(text);
           if (maybe_table) {
             csv_result.m_value = *maybe_table;
           }
@@ -1705,7 +1705,7 @@ Alice,30,"Stockholm, Sweden"
       // (In real usage, this would come through the file reading pipeline)
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto table_result = CSV::neutral::text_to_table(csv_text);
+      auto table_result = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(table_result.has_value()) << "Expected successful parse";
 
       EXPECT_EQ(table_result->heading[0], "Bokföringsdag");
@@ -1724,7 +1724,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse the NORDEA CSV sample data
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
@@ -1749,7 +1749,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse the SKV CSV sample data (older format)
       std::string csv_text = sz_SKV_csv_older;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
@@ -1780,7 +1780,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse the newer SKV CSV format
       std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
@@ -1942,7 +1942,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse NORDEA CSV which has multiple description columns
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(maybe_table.has_value());
 
@@ -1976,7 +1976,7 @@ Alice,30,"Stockholm, Sweden"
       auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(temp_path);
       ASSERT_TRUE(text_result) << "Expected successful file read";
 
-      auto table_result = CSV::neutral::text_to_table(text_result.value());
+      auto table_result = CSV::parse::monadic::text_to_table(text_result.value());
       ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
 
       auto statements_result = domain::csv_table_to_account_statement_entries(*table_result);
@@ -2001,7 +2001,7 @@ Alice,30,"Stockholm, Sweden"
       // Parse the newer SKV CSV format which has both transaction amount and saldo columns
       // Column structure: Date | Description | Transaction Amount | Saldo
       std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
@@ -2036,7 +2036,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse SKV CSV to get a table, then verify column detection
       std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
@@ -2065,7 +2065,7 @@ Alice,30,"Stockholm, Sweden"
       // Parse the older SKV CSV format
       // Format: Date;Description;Amount;(empty);(empty)
       std::string csv_text = sz_SKV_csv_older;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
@@ -2105,7 +2105,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Now verify the actual extraction uses the correct column
       std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value());
 
       auto maybe_statements = domain::csv_table_to_account_statement_entries(*maybe_table);
@@ -2131,7 +2131,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse NORDEA CSV
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Extract MDTable<AccountID> using CSV::project::to_account_id_ed
@@ -2162,7 +2162,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse SKV CSV (newer format)
       std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
 
       // Extract MDTable<AccountID> using CSV::project::to_account_id_ed
@@ -2272,7 +2272,7 @@ Alice,30,"Stockholm, Sweden"
       std::string csv_text = sz_NORDEA_csv_20251120;
 
       // Step 1: Parse CSV to table
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Step 1: Failed to parse CSV";
 
       // Step 2: Extract MDTable<AccountID> from table
@@ -2309,7 +2309,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse NORDEA CSV test data
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Extract MDTable<AccountID>
@@ -2337,7 +2337,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse newer SKV CSV test data (contains org number in header: "556782-8172")
       std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (newer format)";
 
       // Extract MDTable<AccountID>
@@ -2355,7 +2355,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse older SKV CSV test data (may not have explicit org number)
       std::string csv_text = sz_SKV_csv_older;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (older format)";
 
       // Extract MDTable<AccountID>
@@ -2373,7 +2373,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Create a generic CSV that is neither NORDEA nor SKV format
       std::string csv_text = "Name,Value,Date\nAlice,100,2025-01-01\nBob,200,2025-01-02\n";
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
 
       // Extract MDTable<AccountID> - should fail for unknown format
@@ -2808,7 +2808,7 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse NORDEA CSV to get a table
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
+      auto maybe_table = CSV::parse::monadic::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Import the table
