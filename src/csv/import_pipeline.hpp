@@ -52,10 +52,10 @@ namespace csv {
     *
     */
     
-    inline AnnotatedMaybe<AccountStatement> import_file_to_account_statement(
+    inline AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
         std::filesystem::path const& file_path) {
       logger::scope_logger log_raii{logger::development_trace,
-        "csv::monadic::import_file_to_account_statement(file_path)"};
+        "csv::monadic::path_to_account_statement_shortcut(file_path)"};
 
       AnnotatedMaybe<AccountStatement> result{};
 
