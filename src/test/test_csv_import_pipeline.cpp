@@ -2134,8 +2134,8 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
-      // Extract MDTable<AccountID> using CSV::project::to_account_id_ed
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      // Extract MDTable<AccountID> using CSV::project::maybe::to_account_id_ed
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
@@ -2165,8 +2165,8 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
 
-      // Extract MDTable<AccountID> using CSV::project::to_account_id_ed
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      // Extract MDTable<AccountID> using CSV::project::maybe::to_account_id_ed
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
@@ -2276,7 +2276,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Step 1: Failed to parse CSV";
 
       // Step 2: Extract MDTable<AccountID> from table
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Step 2: Failed to extract AccountID";
 
       // Step 3: Create AccountStatement with table + AccountID (from MDTable)
@@ -2301,7 +2301,7 @@ Alice,30,"Stockholm, Sweden"
 
   namespace account_id_suite {
 
-    // AccountID extraction tests for CSV::project::to_account_id_ed function
+    // AccountID extraction tests for CSV::project::maybe::to_account_id_ed function
     // Tests the extraction of MDTable<AccountID> (table paired with AccountID) from CSV::Table
 
     TEST(AccountIdTests, ExtractNordeaAccountId) {
@@ -2313,7 +2313,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for NORDEA CSV";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")
@@ -2341,7 +2341,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (newer format)";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
@@ -2359,7 +2359,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (older format)";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
@@ -2377,7 +2377,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
 
       // Extract MDTable<AccountID> - should fail for unknown format
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
 
       // Unknown format should return nullopt (fully unknown AccountID is a failure)
       EXPECT_FALSE(maybe_md_table.has_value())
@@ -2392,7 +2392,7 @@ Alice,30,"Stockholm, Sweden"
       // heading and rows are default-constructed (empty)
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = CSV::project::to_account_id_ed(empty_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(empty_table);
 
       EXPECT_FALSE(maybe_md_table.has_value())
         << "Expected nullopt for empty CSV::Table";
@@ -2408,7 +2408,7 @@ Alice,30,"Stockholm, Sweden"
       header_only_table.rows = {};
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = CSV::project::to_account_id_ed(header_only_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(header_only_table);
 
       // Unknown format (neither NORDEA nor SKV) should return nullopt
       EXPECT_FALSE(maybe_md_table.has_value())
@@ -2427,7 +2427,7 @@ Alice,30,"Stockholm, Sweden"
       nordea_table.rows = {nordea_table.heading};  // Include header as first row (current behavior)
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = CSV::project::to_account_id_ed(nordea_table);
+      auto maybe_md_table = CSV::project::maybe::to_account_id_ed(nordea_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")

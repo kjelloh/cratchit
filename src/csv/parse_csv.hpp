@@ -214,7 +214,7 @@ namespace CSV {
       //   return csv_to_table(std::string_view{csv_text}, delimiter);
       // }
 
-      // 'Liftable' parse function (clean text -> optional<Table>)
+      // Monadic Maybe: csv text -> Table
       inline std::optional<CSV::Table> text_to_table(std::string_view csv_text) {
         return csv_to_table(csv_text,to_csv_delimiter(csv_text));
       } 

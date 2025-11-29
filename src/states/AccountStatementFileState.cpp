@@ -2,7 +2,7 @@
 #include "TaggedAmountsState.hpp"
 #include "AccountStatementState.hpp"
 #include "csv/projections.hpp" // CSV::project::to_account_statement,...
-#include "csv/csv_to_account_id.hpp" // CSV::project::to_account_id_ed
+#include "csv/csv_to_account_id.hpp" // CSV::project::maybe::to_account_id_ed
 #include "domain/csv_to_account_statement.hpp" // domain::md_table_to_account_statement
 #include "functional/maybe.hpp" // to_annotated_nullopt, AnnotatedMaybe
 #include <format>
@@ -64,7 +64,7 @@ namespace first {
         // Compose: AnnotatedMaybe<Table> → AnnotatedMaybe<MDTable<AccountID>> → AnnotatedMaybe<AccountStatement>
         auto annotated_statement = annotated_table
           .and_then(to_annotated_nullopt(
-            CSV::project::to_account_id_ed,
+            CSV::project::maybe::to_account_id_ed,
             "Unknown CSV format - could not identify account"))
           .and_then(to_annotated_nullopt(
             domain::md_table_to_account_statement,
