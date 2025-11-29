@@ -13,7 +13,7 @@ namespace CSV {
     namespace deprecated {
       struct ParseCSVResult {
         text::encoding::icu::EncodingDetectionResult icu_detection_result;
-        CSV::project::HeadingId heading_id;
+        CSV::project::deprecated::HeadingId heading_id;
         CSV::OptionalTable maybe_table;
       };
 

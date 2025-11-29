@@ -4,7 +4,7 @@
 #include "AmountFramework.hpp"
 #include "env/environment.hpp" // namespace cas,
 #include "FiscalPeriod.hpp"
-#include "csv/parse_csv.hpp" // CSV::project::HeadingId,...
+#include "csv/parse_csv.hpp" // CSV::project::deprecated::HeadingId,...
 #include <ostream>
 #include <string>
 #include <vector>
@@ -354,13 +354,13 @@ namespace CSV {
 
     using ToTaggedAmountProjection = std::function<OptionalTaggedAmount(CSV::FieldRow const& field_row)>;
     ToTaggedAmountProjection make_tagged_amount_projection(
-      HeadingId const& csv_heading_id
+      deprecated::HeadingId const& csv_heading_id
       ,CSV::TableHeading const& table_heading);
 
     // Now correctly takes non-opt and returns opt
-    // OptionalTaggedAmounts to_tas(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+    // OptionalTaggedAmounts to_tas(CSV::project::deprecated::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
     OptionalTaggedAmounts to_tas(
-       CSV::project::HeadingId const& csv_heading_id
+       CSV::project::deprecated::HeadingId const& csv_heading_id
       ,CSV::Table const& csv_table);
 
   }

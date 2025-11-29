@@ -31,7 +31,7 @@ namespace first {
     auto fiscal_period = this->m_period_paired_file_path.period();
     if (this->m_maybe_table_result) result.add('t',{"To Tagged Amounts",[
        fiscal_period
-      ,csv_heading_id = CSV::project::HeadingId{}
+      ,csv_heading_id = CSV::project::deprecated::HeadingId{}
       ,maybe_table = this->m_maybe_table_result.m_value]() -> StateUpdateResult {
 
       return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {

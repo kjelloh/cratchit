@@ -858,25 +858,25 @@ namespace CSV {
   namespace project {
 
     ToTaggedAmountProjection make_tagged_amount_projection(
-       HeadingId const& csv_heading_id
+       deprecated::HeadingId const& csv_heading_id
       ,CSV::TableHeading const& table_heading) {
       switch (csv_heading_id) {
-        case HeadingId::Undefined: {
+        case deprecated::HeadingId::Undefined: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return std::nullopt;
           };
         } break;
-        case HeadingId::NORDEA: {
+        case deprecated::HeadingId::NORDEA: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return CSV::NORDEA::to_tagged_amount(field_row,table_heading);
           };
         } break;
-        case HeadingId::SKV: {
+        case deprecated::HeadingId::SKV: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return CSV::SKV::to_tagged_amount(field_row,table_heading);
           };
         } break;
-        case HeadingId::unknown: {
+        case deprecated::HeadingId::unknown: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return std::nullopt;
           };
@@ -885,7 +885,7 @@ namespace CSV {
     }
 
     OptionalTaggedAmounts to_tas(
-       CSV::project::HeadingId const& csv_heading_id
+       CSV::project::deprecated::HeadingId const& csv_heading_id
       ,CSV::Table const& csv_table) {
 
       OptionalTaggedAmounts result{};
@@ -1010,8 +1010,8 @@ OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statem
       // NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
       // uses ';' as value separators
       if (field_rows->size() > 0) {
-        auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
-        auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
+        auto csv_heading_id = CSV::project::deprecated::to_csv_heading_id(field_rows->at(0));
+        auto heading_projection = CSV::project::deprecated::make_heading_projection(csv_heading_id);
         result = CSV::to_table(field_rows,heading_projection)
           .and_then([&csv_heading_id](auto const& table) {
             return CSV::project::to_tas(csv_heading_id,table);

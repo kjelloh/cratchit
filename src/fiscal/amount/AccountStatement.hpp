@@ -88,7 +88,7 @@ using ExpectedAccountStatement = std::expected<AccountStatement,std::string>;
 // Now in projections unit
 // namespace CSV {
 //   namespace project {
-//     ExpectedAccountStatement to_account_statement(CSV::project::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+//     ExpectedAccountStatement to_account_statement(CSV::project::deprecated::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
 //   }
 // }
 

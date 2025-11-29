@@ -57,8 +57,8 @@ namespace CSV {
               
               if (field_rows && !field_rows->empty()) {
                 logger::development_trace("try_parse_csv: field_rows->size() = {}",field_rows->size());
-                result.heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
-                auto heading_projection = CSV::project::make_heading_projection(result.heading_id);
+                result.heading_id = CSV::project::deprecated::to_csv_heading_id(field_rows->at(0));
+                auto heading_projection = CSV::project::deprecated::make_heading_projection(result.heading_id);
                 result.maybe_table = CSV::to_table(field_rows,heading_projection);
               }      
               else {
