@@ -68,7 +68,7 @@ namespace CSV {
         /**
         * Find the index of the "Avsandare" (sender) column in NORDEA CSV
         */
-        inline std::optional<std::size_t> find_avsandare_column_index(CSV::Table::Heading const& heading) {
+        inline std::optional<std::size_t> to_avsandare_column_index(CSV::Table::Heading const& heading) {
           std::initializer_list<std::string_view> avsandare_keywords = {
             "avsandare", "avsändare"
           };
@@ -82,13 +82,12 @@ namespace CSV {
         }
 
         /**
-        * Extract NORDEA account number from the "Avsandare" column
-        *
-        * The account number appears in the sender column (e.g., "51 86 87-9")
-        * We look for the first non-empty value in that column across all data rows.
+        * TODO: This function is Claude generated and probaly flawed?
+        *       I imagine the 'avsändare' may also conrtain foreign account numbers for
+        *       transactions TO the bank account of which the account stement is about?
         */
-        inline std::string extract_nordea_account(CSV::Table const& table) {
-          auto maybe_col_idx = find_avsandare_column_index(table.heading);
+        inline std::string to_nordea_account_id(CSV::Table const& table) {
+          auto maybe_col_idx = to_avsandare_column_index(table.heading);
           if (!maybe_col_idx) {
             return "";
           }
@@ -155,7 +154,7 @@ namespace CSV {
         * - In text like "Inbetalning fran organisationsnummer XXXXXXXXXX"
         * - In SK reference: "SK5567828172"
         */
-        inline std::optional<std::string> find_skv_org_number(CSV::Table const& table) {
+        inline std::optional<std::string> to_skv_org_number(CSV::Table const& table) {
           // Regex patterns for organisation numbers
           // Pattern 1: 6 digits, optional dash, 4 digits (Swedish org number format)
           std::regex org_number_pattern(R"((\d{6})-?(\d{4}))");
@@ -214,21 +213,21 @@ namespace CSV {
 
         // Step 1: Check for NORDEA format
         if (is_nordea_csv(table.heading)) {
-          std::string account_number = extract_nordea_account(table);
+          std::string account_number = to_nordea_account_id(table);
           logger::development_trace("to_account_id_ed: Detected NORDEA CSV, account: '{}'", account_number);
           return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
         }
 
         // Step 2: Check for SKV format
         if (is_skv_csv(table)) {
-          auto maybe_org_number = find_skv_org_number(table);
+          auto maybe_org_number = to_skv_org_number(table);
           std::string org_number = maybe_org_number.value_or("");
           logger::development_trace("to_account_id_ed: Detected SKV CSV, org number: '{}'", org_number);
           return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
         }
 
         // Step 3: Unknown format - fully unknown AccountID, return nullopt (failure)
-        logger::development_trace("to_account_id_ed: Unknown CSV format, returning nullopt");
+        logger::development_trace("to_account_id_ed: Unknown Account Statement format, returning nullopt");
         return std::nullopt;
       }
 
