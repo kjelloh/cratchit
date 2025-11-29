@@ -86,10 +86,10 @@ namespace CSV {
         *       I imagine the 'avsändare' may also conrtain foreign account numbers for
         *       transactions TO the bank account of which the account stement is about?
         */
-        inline std::string to_nordea_account_id(CSV::Table const& table) {
+        inline std::optional<std::string> to_nordea_account_id(CSV::Table const& table) {
           auto maybe_col_idx = to_avsandare_column_index(table.heading);
           if (!maybe_col_idx) {
-            return "";
+            return {};
           }
 
           std::size_t col_idx = *maybe_col_idx;
@@ -106,7 +106,7 @@ namespace CSV {
             }
           }
 
-          return "";
+          return {};
         }
 
         /**
@@ -213,7 +213,7 @@ namespace CSV {
 
         // Step 1: Check for NORDEA format
         if (is_nordea_csv(table.heading)) {
-          std::string account_number = to_nordea_account_id(table);
+          std::string account_number = to_nordea_account_id(table).value_or("");
           logger::development_trace("to_account_id_ed: Detected NORDEA CSV, account: '{}'", account_number);
           return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
         }
