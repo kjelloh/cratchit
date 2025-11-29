@@ -5257,8 +5257,8 @@ std::pair<std::filesystem::path,bool> make_consumed(std::filesystem::path statem
 
 TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path) {
   TaggedAmounts result{};
-  // Use new pipeline: cratchit::csv::import_file_to_tagged_amounts
-  auto pipeline_result = cratchit::csv::import_file_to_tagged_amounts(statement_file_path);
+  // Use new pipeline: csv::monadic::import_file_to_tagged_amounts
+  auto pipeline_result = csv::monadic::import_file_to_tagged_amounts(statement_file_path);
 
   // Log pipeline messages
   for (auto const& msg : pipeline_result.m_messages) {

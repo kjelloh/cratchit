@@ -2454,7 +2454,7 @@ Alice,30,"Stockholm, Sweden"
 
     // ============================================================================
     // Full Pipeline Tests - Step 9: Complete CSV Import Pipeline
-    // Tests for cratchit::csv::import_file_to_tagged_amounts() and related functions
+    // Tests for csv::monadic::import_file_to_tagged_amounts() and related functions
     // ============================================================================
 
     // Test fixture for full pipeline tests with file I/O
@@ -2535,7 +2535,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportNordeaFileSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportNordeaFileSuccess)"};
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV file";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2565,7 +2565,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSkvFileSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvFileSuccess)"};
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(skv_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(skv_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of SKV CSV file";
       EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts from SKV CSV";
@@ -2588,7 +2588,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSkvOlderFormatSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvOlderFormatSuccess)"};
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(skv_older_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(skv_older_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of older SKV CSV file";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2600,7 +2600,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSimpleCsvFailsForUnknownFormat)"};
 
       // Simple CSV is neither NORDEA nor SKV format, so it should fail at Step 6.5
-      auto result = cratchit::csv::import_file_to_tagged_amounts(simple_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(simple_csv_file);
 
       EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
 
@@ -2624,7 +2624,7 @@ Alice,30,"Stockholm, Sweden"
 
       auto missing_path = test_dir / "nonexistent_file.csv";
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(missing_path);
+      auto result = csv::monadic::import_file_to_tagged_amounts(missing_path);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -2647,7 +2647,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportEmptyFileReturnsEmptyTaggedAmounts) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportEmptyFileReturnsEmptyTaggedAmounts)"};
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(empty_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(empty_file);
 
       ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages about empty file";
@@ -2656,7 +2656,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportInvalidCsvReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportInvalidCsvReturnsEmpty)"};
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(invalid_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(invalid_csv_file);
 
       EXPECT_FALSE(result) << "Expected failure for CSV with undetectable columns";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -2665,7 +2665,7 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, MessagesPreservedThroughPipeline) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, MessagesPreservedThroughPipeline)"};
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import";
 
@@ -2713,7 +2713,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto result = cratchit::csv::import_text_to_tagged_amounts(csv_text);
+      auto result = csv::monadic::import_text_to_tagged_amounts(csv_text);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV text";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2733,7 +2733,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_SKV_csv_20251120;
 
-      auto result = cratchit::csv::import_text_to_tagged_amounts(csv_text);
+      auto result = csv::monadic::import_text_to_tagged_amounts(csv_text);
 
       ASSERT_TRUE(result) << "Expected successful import of SKV CSV text";
       EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts";
@@ -2755,7 +2755,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string empty_text;
 
-      auto result = cratchit::csv::import_text_to_tagged_amounts(empty_text);
+      auto result = csv::monadic::import_text_to_tagged_amounts(empty_text);
 
       ASSERT_TRUE(result) << "Expected successful import of empty text";
       EXPECT_EQ(result.value().size(), 0) << "Expected empty TaggedAmounts";
@@ -2766,7 +2766,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string invalid_text = "UnknownCol1,UnknownCol2\nvalue1,value2\n";
 
-      auto result = cratchit::csv::import_text_to_tagged_amounts(invalid_text);
+      auto result = csv::monadic::import_text_to_tagged_amounts(invalid_text);
 
       EXPECT_FALSE(result) << "Expected failure for invalid CSV text";
     }
@@ -2785,7 +2785,7 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Payment"}});
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "-50.00", "Withdrawal"}});
 
-      auto result = cratchit::csv::import_table_to_tagged_amounts(table);
+      auto result = csv::monadic::import_table_to_tagged_amounts(table);
 
       // Unknown format should fail at Step 6.5
       EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
@@ -2812,7 +2812,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Import the table
-      auto result = cratchit::csv::import_table_to_tagged_amounts(*maybe_table);
+      auto result = csv::monadic::import_table_to_tagged_amounts(*maybe_table);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA table";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2834,7 +2834,7 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"x", "y"}});
 
-      auto result = cratchit::csv::import_table_to_tagged_amounts(table);
+      auto result = csv::monadic::import_table_to_tagged_amounts(table);
 
       EXPECT_FALSE(result) << "Expected failure for invalid table";
     }
@@ -2847,7 +2847,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, CompletePipelineVerifyTaggedAmountStructureWithNordea)"};
 
       // Use NORDEA file instead of simple CSV (which now fails for unknown format)
-      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV";
       ASSERT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2873,7 +2873,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, PipelinePreservesAllEntries)"};
 
       // Import NORDEA CSV and verify we get all expected entries
-      auto result = cratchit::csv::import_file_to_tagged_amounts(nordea_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(nordea_csv_file);
 
       ASSERT_TRUE(result) << "Expected successful import";
 
@@ -2906,7 +2906,7 @@ Alice,30,"Stockholm, Sweden"
         ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
       }
 
-      auto result = cratchit::csv::import_file_to_tagged_amounts(iso_csv_file);
+      auto result = csv::monadic::import_file_to_tagged_amounts(iso_csv_file);
 
       // The pipeline should handle encoding automatically
       // Even if it defaults to UTF-8, it should produce some result

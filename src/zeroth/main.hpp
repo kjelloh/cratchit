@@ -9,7 +9,7 @@ float const VERSION = 0.5;
 #include "tokenize.hpp"
 #include "env/environment.hpp"
 #include "fiscal/amount/TaggedAmountFramework.hpp"
-#include "csv/import_pipeline.hpp" // cratchit::csv::import_file_to_tagged_amounts
+#include "csv/import_pipeline.hpp" // csv::monadic::import_file_to_tagged_amounts
 #include "MetaDefacto.hpp" // MetaDefacto<Meta,Defacto>
 #include "fiscal/amount/HADFramework.hpp"
 #include "fiscal/BASFramework.hpp"
