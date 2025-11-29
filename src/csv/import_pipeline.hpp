@@ -11,7 +11,7 @@
  *   2. Encoding detection: Detect source encoding using ICU
  *   3. Transcoding: Bytes -> Unicode code points (lazy view)
  *   4. Encoding: Unicode -> Platform encoding (lazy view)
- *   5. Materialization: Lazy view -> std::string (read_file_with_encoding_detection)
+ *   5. Materialization: Lazy view -> std::string (path_to_raw_to_platform_string)
  *   6. CSV parsing: Text -> CSV::Table
  *   6.5. AccountID detection: Identify bank/SKV format and extract account ID
  *   7. Domain extraction: CSV::Table + AccountID -> AccountStatement
@@ -27,7 +27,7 @@
  * All errors and success messages are preserved in AnnotatedMaybe::m_messages.
  */
 
-#include "text/encoding_pipeline.hpp"        // read_file_with_encoding_detection (Steps 1-5)
+#include "text/encoding_pipeline.hpp"        // path_to_raw_to_platform_string (Steps 1-5)
 #include "csv/neutral_parser.hpp"            // CSV::neutral::text_to_table (Step 6)
 #include "csv/csv_to_account_id.hpp"         // CSV::project::to_account_id_ed (Step 6.5)
 #include "domain/csv_to_account_statement.hpp"  // domain::csv_table_to_account_statement (Step 7)
@@ -43,7 +43,7 @@ namespace cratchit::csv {
  * Import CSV file to TaggedAmounts - Complete Pipeline
  *
  * This function composes the entire CSV import pipeline:
- *   1-5. File -> Text (with encoding detection via read_file_with_encoding_detection)
+ *   1-5. File -> Text (with encoding detection via path_to_raw_to_platform_string)
  *   6.   Text -> CSV::Table (via CSV::neutral::text_to_table)
  *   6.5  CSV::Table -> AccountID (via CSV::project::to_account_id)
  *   7+8. CSV::Table + AccountID -> TaggedAmounts (via domain::csv_table_to_tagged_amounts)
@@ -78,7 +78,7 @@ inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
   // ============================================================
   // Steps 1-5: File -> Text (with encoding detection)
   // ============================================================
-  auto text_result = text::encoding::read_file_with_encoding_detection(file_path);
+  auto text_result = text::encoding::path_to_raw_to_platform_string(file_path);
 
   if (!text_result) {
     // Propagate file/encoding errors
@@ -149,7 +149,7 @@ inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
  * Import CSV file to AccountStatement - Complete Pipeline (Steps 1-7)
  *
  * This function composes the CSV import pipeline up to AccountStatement:
- *   1-5. File -> Text (with encoding detection via read_file_with_encoding_detection)
+ *   1-5. File -> Text (with encoding detection via path_to_raw_to_platform_string)
  *   6.   Text -> CSV::Table (via CSV::neutral::text_to_table)
  *   6.5  CSV::Table -> MDTable<AccountID> (via CSV::project::to_account_id_ed)
  *   7.   MDTable<AccountID> -> AccountStatement (via domain::md_table_to_account_statement)
@@ -185,7 +185,7 @@ inline AnnotatedMaybe<AccountStatement> import_file_to_account_statement(
   // ============================================================
   // Steps 1-5: File -> Text (with encoding detection)
   // ============================================================
-  auto text_result = text::encoding::read_file_with_encoding_detection(file_path);
+  auto text_result = text::encoding::path_to_raw_to_platform_string(file_path);
 
   if (!text_result) {
     // Propagate file/encoding errors

@@ -90,7 +90,7 @@ namespace text::encoding {
   }
 
   // Fully monadic composition: file path → byte buffer → threshold → detect encoding → materialize
-  inline AnnotatedMaybe<std::string> read_file_with_encoding_detection(
+  inline AnnotatedMaybe<std::string> path_to_raw_to_platform_string(
     std::filesystem::path const& file_path,
     int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD) {
 

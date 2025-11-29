@@ -1,6 +1,6 @@
 
 #include "parse_csv.hpp"
-#include "text/encoding_pipeline.hpp" // text::encoding::read_file_with_encoding_detection 
+#include "text/encoding_pipeline.hpp" // text::encoding::path_to_raw_to_platform_string 
 #include "csv/neutral_parser.hpp" // CSV::neutral::parse_csv
 #include "logger/log.hpp"
 #include "std_overload.hpp" // std_overload::overload,...
@@ -74,7 +74,7 @@ namespace CSV {
   AnnotatedMaybe<CSV::Table> file_to_table(std::filesystem::path const& file_path) {
 
     using cratchit::functional::to_annotated_nullopt;
-    return text::encoding::read_file_with_encoding_detection(file_path)
+    return text::encoding::path_to_raw_to_platform_string(file_path)
       .and_then(to_annotated_nullopt(
          CSV::neutral::text_to_table
         ,"Failed to parse csv into a valid table"));
