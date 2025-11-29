@@ -907,7 +907,7 @@ namespace CSV {
   } // project
 } // CSV
 
-// TODO: Remove (Replaced by pipeline csv::monadic::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
+// TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
   AnnotatedMaybe<persistent::in::MaybeIStream> result{};
   result.m_value = persistent::in::to_maybe_istream(statement_file_path);
@@ -915,7 +915,7 @@ AnnotatedMaybe<persistent::in::MaybeIStream> file_path_to_istream(std::filesyste
   return result;
 }
 
-// TODO: Remove (Replaced by pipeline csv::monadic::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
+// TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
   AnnotatedMaybe<text::encoding::MaybeDecodingIn> result{};
 
@@ -934,13 +934,13 @@ AnnotatedMaybe<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persisten
   return result;
 }
 
-// TODO: Remove (Replaced by pipeline csv::monadic::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
+// TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
   AnnotatedMaybe<CSV::FieldRows> result{};
   result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");
   return result;
 }
-// TODO: Remove (Replaced by pipeline csv::monadic::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
+// TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
   AnnotatedMaybe<CSV::Table> result{};
   result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
@@ -948,14 +948,14 @@ AnnotatedMaybe<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows)
 }
 
 using AccountStatements = std::vector<AccountStatement>;
-// TODO: Remove (Replaced by pipeline csv::monadic::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
+// TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<AccountStatements> table_to_account_statements(CSV::Table const& table) {
   AnnotatedMaybe<AccountStatements> result{};
   result.push_message("table_to_account_statements: NOT YET IMPLEMENTED");
   return result;
 }
 
-// TODO: Remove (Replaced by pipeline csv::monadic::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
+// TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
   AnnotatedMaybe<TaggedAmounts> result{};
   result.push_message("account_statements_to_tas: NOT YET IMPLEMENTED");
@@ -964,7 +964,7 @@ AnnotatedMaybe<TaggedAmounts> account_statements_to_tas(AccountStatements const&
 
 /**
 * Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
-* TODO: Remove (Replaced by pipeline csv::monadic::import_file_to_tagged_amounts in csv/import_pipeline.hpp)
+* TODO: Remove (Replaced by pipeline csv::monadic::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 */
 OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path) {
 

@@ -58,7 +58,7 @@ namespace csv {
     *
     * Example usage:
     * @code
-    *   auto result = csv::monadic::import_file_to_tagged_amounts("/path/to/file.csv");
+    *   auto result = csv::monadic::path_to_tagged_amounts_shortcut("/path/to/file.csv");
     *   if (result) {
     *     for (auto const& tagged_amount : result.value()) {
     *       // Process tagged amounts
@@ -70,10 +70,10 @@ namespace csv {
     *   }
     * @endcode
     */
-    inline AnnotatedMaybe<TaggedAmounts> import_file_to_tagged_amounts(
+    inline AnnotatedMaybe<TaggedAmounts> path_to_tagged_amounts_shortcut(
         std::filesystem::path const& file_path) {
       logger::scope_logger log_raii{logger::development_trace,
-        "csv::monadic::import_file_to_tagged_amounts(file_path)"};
+        "csv::monadic::path_to_tagged_amounts_shortcut(file_path)"};
 
       AnnotatedMaybe<TaggedAmounts> result{};
 
