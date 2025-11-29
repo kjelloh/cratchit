@@ -40,69 +40,6 @@ namespace csv {
   */
 
   namespace monadic {
-    
-    /**
-    * Import CSV text to TaggedAmounts - Text-based Pipeline Entry Point
-    *
-    * This is a convenience function for when you already have CSV text in memory.
-    * It composes Steps 6-8 of the pipeline, skipping file I/O and encoding.
-    *
-    * @param csv_text UTF-8 encoded CSV text
-    * @return AnnotatedMaybe<TaggedAmounts> with result or error messages
-    */
-    inline AnnotatedMaybe<TaggedAmounts> csv_to_tagged_amounts_shortcut(
-        std::string_view csv_text) {
-      logger::scope_logger log_raii{logger::development_trace,
-        "csv::monadic::csv_to_tagged_amounts_shortcut(csv_text)"};
-
-      AnnotatedMaybe<TaggedAmounts> result{};
-
-      // Handle empty text case
-      if (csv_text.empty()) {
-        result.push_message("Pipeline complete: Empty text produced empty TaggedAmounts");
-        result.m_value = TaggedAmounts{};
-        return result;
-      }
-
-      // Step 6: Text -> CSV::Table
-      auto maybe_table = CSV::neutral::text_to_table(csv_text);
-
-      if (!maybe_table) {
-        result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
-        return result;
-      }
-
-      result.push_message(std::format("Step 6 complete: CSV parsed successfully ({} rows)",
-        maybe_table->rows.size()));
-
-      // Step 6.5: CSV::Table -> MDTable<AccountID>
-      auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
-
-      if (!maybe_md_table) {
-        // Unknown format - fully unknown AccountID (no prefix, no value)
-        result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
-        return result;
-      }
-
-      AccountID const& account_id = maybe_md_table->meta;
-      CSV::Table const& identified_table = maybe_md_table->defacto;
-      result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
-        account_id.to_string()));
-
-      // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-      auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
-
-      if (!maybe_tagged) {
-        result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
-        return result;
-      }
-
-      result.m_value = std::move(*maybe_tagged);
-      result.push_message(std::format("Pipeline complete: {} TaggedAmounts created",
-        result.value().size()));
-
-      return result;
-    }
 
     /**
     * Import CSV table to TaggedAmounts - Table-based Pipeline Entry Point
@@ -154,6 +91,61 @@ namespace csv {
     
 
   } // monadic
+
+  // Monadic AnnotatedMaybe #? ... #? shortcut
+  inline AnnotatedMaybe<TaggedAmounts> csv_to_tagged_amounts_shortcut(
+      std::string_view csv_text) {
+    logger::scope_logger log_raii{logger::development_trace,
+      "csv_to_tagged_amounts_shortcut(csv_text)"};
+
+    AnnotatedMaybe<TaggedAmounts> result{};
+
+    // Handle empty text case
+    if (csv_text.empty()) {
+      result.push_message("Pipeline complete: Empty text produced empty TaggedAmounts");
+      result.m_value = TaggedAmounts{};
+      return result;
+    }
+
+    // Step 6: Text -> CSV::Table
+    auto maybe_table = CSV::neutral::text_to_table(csv_text);
+
+    if (!maybe_table) {
+      result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
+      return result;
+    }
+
+    result.push_message(std::format("Step 6 complete: CSV parsed successfully ({} rows)",
+      maybe_table->rows.size()));
+
+    // Step 6.5: CSV::Table -> MDTable<AccountID>
+    auto maybe_md_table = CSV::project::to_account_id_ed(*maybe_table);
+
+    if (!maybe_md_table) {
+      // Unknown format - fully unknown AccountID (no prefix, no value)
+      result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
+      return result;
+    }
+
+    AccountID const& account_id = maybe_md_table->meta;
+    CSV::Table const& identified_table = maybe_md_table->defacto;
+    result.push_message(std::format("Step 6.5 complete: AccountID detected: '{}'",
+      account_id.to_string()));
+
+    // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
+    auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
+
+    if (!maybe_tagged) {
+      result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
+      return result;
+    }
+
+    result.m_value = std::move(*maybe_tagged);
+    result.push_message(std::format("Pipeline complete: {} TaggedAmounts created",
+      result.value().size()));
+
+    return result;
+  }
 
   /**
   * Import CSV file to AccountStatement - Complete Pipeline (Steps 1-7)
