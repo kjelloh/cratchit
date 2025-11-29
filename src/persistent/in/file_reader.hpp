@@ -22,15 +22,14 @@ namespace persistent {
     AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path);
 
     // Monadic AnnotatedMaybe #2: istream -> byte buffer
-    AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>&& istream_ptr);
-
+    AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr);
 
     // Monadic AnnotatedMaybe #1 + #2
     AnnotatedMaybe<ByteBuffer> path_to_byte_buffer_shortcut(std::filesystem::path const& file_path);
 
     // Implementation
 
-    // Helper std::string -> istream_ptr
+    // Monadic AnnotatedMaybe #1: string -> istream
     inline AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
       AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
       result.m_value = std::move(std::make_unique<std::istringstream>(s));
@@ -40,7 +39,7 @@ namespace persistent {
       return result;
     }
 
-    // AnnotatedMaybe step: File path -> Maybe istream
+    // Monadic AnnotatedMaybe #1: path -> istream
     inline AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
       AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
 
@@ -80,7 +79,7 @@ namespace persistent {
       return result;
     }
 
-    inline AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer(std::unique_ptr<std::istream>&& istream_ptr) {
+    inline AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr) {
       AnnotatedMaybe<ByteBuffer> result{};
 
       if (!istream_ptr->good()) {
@@ -129,7 +128,7 @@ namespace persistent {
     inline AnnotatedMaybe<ByteBuffer> path_to_byte_buffer_shortcut(std::filesystem::path const& file_path) {
       // Monadic composition: file_path → istream_ptr → buffer
       return path_to_istream_ptr_step(file_path)
-        .and_then(istream_ptr_to_byte_buffer);
+        .and_then(istream_ptr_to_byte_buffer_step);
     }
 
   } // in

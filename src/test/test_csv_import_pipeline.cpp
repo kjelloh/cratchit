@@ -122,7 +122,7 @@ namespace tests::csv_import_pipeline {
 
       auto result = 
          persistent::in::injected_string_to_istream_ptr(test_data)
-        .and_then(persistent::in::istream_ptr_to_byte_buffer);
+        .and_then(persistent::in::istream_ptr_to_byte_buffer_step);
 
       ASSERT_TRUE(result) << "Expected successful buffer read from stream";
       EXPECT_EQ(result.value().size(), test_data.size()) << "Expected buffer size to match input";
@@ -149,7 +149,7 @@ namespace tests::csv_import_pipeline {
       // Demonstrate monadic composition with and_then
       auto result = 
          persistent::in::path_to_istream_ptr_step(temp_path)
-        .and_then(persistent::in::istream_ptr_to_byte_buffer)
+        .and_then(persistent::in::istream_ptr_to_byte_buffer_step)
         .and_then([](auto buffer) -> AnnotatedMaybe<size_t> {
           AnnotatedMaybe<size_t> size_result;
           size_result.m_value = buffer.size();
@@ -179,7 +179,7 @@ namespace tests::csv_import_pipeline {
           stream_opened++;
           EXPECT_TRUE(ptr != nullptr) << "Expected valid stream pointer";
         })
-        .and_then(persistent::in::istream_ptr_to_byte_buffer)
+        .and_then(persistent::in::istream_ptr_to_byte_buffer_step)
         .tap([&buffer_size](auto const& buf) {
           buffer_size = buf.size();
         });
@@ -202,7 +202,7 @@ namespace tests::csv_import_pipeline {
       auto result =
          persistent::in::path_to_istream_ptr_step(non_existent)
         .tap([&and_then_called](auto const&) { and_then_called = true; })
-        .and_then(persistent::in::istream_ptr_to_byte_buffer);
+        .and_then(persistent::in::istream_ptr_to_byte_buffer_step);
 
       EXPECT_FALSE(result) << "Expected failure due to missing file";
       EXPECT_FALSE(and_then_called) << "Expected tap to NOT be called after failure";
