@@ -1012,7 +1012,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingPipelineTestFixture, UTF8FileToRuntimeText) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, UTF8FileToRuntimeText)"};
 
-      auto result = text::encoding::path_to_raw_to_platform_string(utf8_file);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_file);
 
       ASSERT_TRUE(result) << "Expected successful pipeline execution";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty text";
@@ -1035,7 +1035,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingPipelineTestFixture, ISO8859FileToUTF8Text) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, ISO8859FileToUTF8Text)"};
 
-      auto result = text::encoding::path_to_raw_to_platform_string(iso8859_file);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(iso8859_file);
 
       ASSERT_TRUE(result) << "Expected successful pipeline execution";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty text";
@@ -1055,7 +1055,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingPipelineTestFixture, Windows1252FileHandled) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, Windows1252FileHandled)"};
 
-      auto result = text::encoding::path_to_raw_to_platform_string(windows1252_file);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(windows1252_file);
 
       ASSERT_TRUE(result) << "Expected successful pipeline execution";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty text";
@@ -1066,7 +1066,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingPipelineTestFixture, EmptyFileHandledGracefully) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, EmptyFileHandledGracefully)"};
 
-      auto result = text::encoding::path_to_raw_to_platform_string(empty_file);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(empty_file);
 
       ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
 
@@ -1086,7 +1086,7 @@ namespace tests::csv_import_pipeline {
 
       auto non_existent = std::filesystem::path("/tmp/cratchit_nonexistent_file_99999.csv");
 
-      auto result = text::encoding::path_to_raw_to_platform_string(non_existent);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(non_existent);
 
       EXPECT_FALSE(result) << "Expected failure for non-existent file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -1108,7 +1108,7 @@ namespace tests::csv_import_pipeline {
 
       // Note: The main pipeline function materializes the result, so this test
       // verifies that we can handle large files without errors
-      auto result = text::encoding::path_to_raw_to_platform_string(large_file);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(large_file);
 
       ASSERT_TRUE(result) << "Expected successful processing of large file";
       EXPECT_GT(result.value().size(), 100000) << "Expected large output";
@@ -1130,7 +1130,7 @@ namespace tests::csv_import_pipeline {
       // This test verifies the complete integration of Steps 1-4:
       // file path → byte buffer → encoding detection → Unicode view → UTF-8 text
 
-      auto result = text::encoding::path_to_raw_to_platform_string(utf8_file);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_file);
 
       ASSERT_TRUE(result) << "Expected successful complete pipeline";
 
@@ -1172,7 +1172,7 @@ namespace tests::csv_import_pipeline {
       // Test that errors from Step 1 propagate correctly through the pipeline
       auto non_existent = test_dir / "does_not_exist.csv";
 
-      auto result = text::encoding::path_to_raw_to_platform_string(non_existent);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(non_existent);
 
       EXPECT_FALSE(result) << "Expected failure to propagate";
       EXPECT_FALSE(result.m_value.has_value()) << "Expected no value on failure";
@@ -1201,7 +1201,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Use very high confidence threshold to potentially trigger fallback
-      auto result = text::encoding::path_to_raw_to_platform_string(ascii_file, 99);
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(ascii_file, 99);
 
       ASSERT_TRUE(result) << "Expected success even with low confidence";
 
@@ -1230,7 +1230,7 @@ namespace tests::csv_import_pipeline {
       };
 
       for (const auto& file : test_files) {
-        auto result = text::encoding::path_to_raw_to_platform_string(file);
+        auto result = text::encoding::path_to_platform_encoded_string_shortcut(file);
 
         ASSERT_TRUE(result) << "Expected success for file: " << file.filename();
         EXPECT_GT(result.value().size(), 0) << "Expected non-empty output for: " << file.filename();
@@ -1590,7 +1590,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, CompletePipelineFileToTable)"};
 
       // Complete pipeline: file_path → UTF-8 text → CSV::Table
-      auto text_result = text::encoding::path_to_raw_to_platform_string(utf8_csv_file);
+      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_csv_file);
       ASSERT_TRUE(text_result) << "Expected successful encoding pipeline";
 
       auto table_result = CSV::neutral::text_to_table(text_result.value());
@@ -1612,7 +1612,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, MonadicCompositionWithAndThen)"};
 
       // Demonstrate monadic composition with .and_then()
-      auto result = text::encoding::path_to_raw_to_platform_string(utf8_csv_file)
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_csv_file)
         .and_then([](auto text) -> AnnotatedMaybe<CSV::Table> {
           AnnotatedMaybe<CSV::Table> csv_result;
           auto maybe_table = CSV::neutral::text_to_table(text);
@@ -1649,7 +1649,7 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, TranscodesISO8859ToUTF8ThenParsesCSV)"};
 
       // Complete pipeline with ISO-8859-1 source
-      auto text_result = text::encoding::path_to_raw_to_platform_string(iso8859_csv_file);
+      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(iso8859_csv_file);
       ASSERT_TRUE(text_result) << "Expected successful encoding pipeline";
 
       logger::development_trace("Transcoded text: {}", text_result.value());
@@ -1670,7 +1670,7 @@ Alice,30,"Stockholm, Sweden"
       auto non_existent = test_dir / "does_not_exist.csv";
 
       // Pipeline should short-circuit on file read failure
-      auto result = text::encoding::path_to_raw_to_platform_string(non_existent)
+      auto result = text::encoding::path_to_platform_encoded_string_shortcut(non_existent)
         .and_then([](auto text) -> AnnotatedMaybe<CSV::Table> {
           AnnotatedMaybe<CSV::Table> csv_result;
           auto maybe_table = CSV::neutral::text_to_table(text);
@@ -1693,7 +1693,7 @@ Alice,30,"Stockholm, Sweden"
         std::ofstream ofs(empty_file);
       }
 
-      auto text_result = text::encoding::path_to_raw_to_platform_string(empty_file);
+      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(empty_file);
       ASSERT_FALSE(text_result) << "Expected failure for empty file - no content to process";
       EXPECT_GT(text_result.m_messages.size(), 0) << "Expected error messages about empty buffer";
     }
@@ -1973,7 +1973,7 @@ Alice,30,"Stockholm, Sweden"
       }
 
       // Complete pipeline: file → text → CSV::Table → AccountStatementEntries
-      auto text_result = text::encoding::path_to_raw_to_platform_string(temp_path);
+      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(temp_path);
       ASSERT_TRUE(text_result) << "Expected successful file read";
 
       auto table_result = CSV::neutral::text_to_table(text_result.value());
