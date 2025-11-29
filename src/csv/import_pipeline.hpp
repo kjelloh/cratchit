@@ -1,32 +1,5 @@
 #pragma once
 
-/**
- * CSV Import Pipeline - High-Level API
- *
- * This header provides the unified high-level API for the complete CSV import pipeline:
- *   file_path -> Maybe<TaggedAmounts>
- *
- * The pipeline composes all steps (1-8) of the CSV import refactoring:
- *   1. File I/O: Read file to byte buffer
- *   2. Encoding detection: Detect source encoding using ICU
- *   3. Transcoding: Bytes -> Unicode code points (lazy view)
- *   4. Encoding: Unicode -> Platform encoding (lazy view)
- *   5. Materialization: Lazy view -> std::string (path_to_platform_encoded_string_shortcut)
- *   6. CSV parsing: Text -> CSV::Table
- *   6.5. AccountID detection: Identify bank/SKV format and extract account ID
- *   7. Domain extraction: CSV::Table + AccountID -> AccountStatement
- *   8. Final transformation: AccountStatement -> TaggedAmounts
- *
- * Error Handling:
- *   - File not found: Returns empty AnnotatedMaybe with error message
- *   - Encoding detection failure: Defaults to UTF-8 (permissive strategy)
- *   - CSV parsing failure: Returns empty AnnotatedMaybe with error message
- *   - AccountID detection failure: Uses empty AccountID (graceful fallback)
- *   - Invalid business data: Returns empty AnnotatedMaybe with error message
- *
- * All errors and success messages are preserved in AnnotatedMaybe::m_messages.
- */
-
 #include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
 #include "csv/neutral_parser.hpp"            // CSV::neutral::text_to_table (Step 6)
 #include "csv/csv_to_account_id.hpp"         // CSV::project::to_account_id_ed (Step 6.5)
@@ -39,18 +12,34 @@
 
 namespace csv {
 
-  namespace monadic {
+  /**
+  * CSV monadic Pipeline
+  *
+  * This header provides the unified high-level API for the complete CSV import pipeline:
+  *   file_path -> Maybe<TaggedAmounts>
+  *
+  * The pipeline composes all steps (1-8) of the CSV file path -> CSV monadic pipeline
+  *   1. File I/O: Read file to byte buffer
+  *   2. Encoding detection: Detect source encoding using ICU
+  *   3. Transcoding: Bytes -> Unicode code points (lazy view)
+  *   4. Encoding: Unicode -> Platform encoding (lazy view)
+  *   5. Materialization: Lazy view -> std::string (path_to_platform_encoded_string_shortcut)
+  *   6. CSV parsing: Text -> CSV::Table
+  *   6.5. AccountID detection: Identify bank/SKV format and extract account ID
+  *   7. Domain extraction: CSV::Table + AccountID -> AccountStatement
+  *   8. Final transformation: AccountStatement -> TaggedAmounts
+  *
+  * Error Handling:
+  *   - File not found: Returns empty AnnotatedMaybe with error message
+  *   - Encoding detection failure: Defaults to UTF-8 (permissive strategy)
+  *   - CSV parsing failure: Returns empty AnnotatedMaybe with error message
+  *   - AccountID detection failure: Uses empty AccountID (graceful fallback)
+  *   - Invalid business data: Returns empty AnnotatedMaybe with error message
+  *
+  * All errors and success messages are preserved in AnnotatedMaybe::m_messages.
+  */
 
-    /**
-    * Import CSV file to AccountStatement - Complete Pipeline (Steps 1-7)
-    *
-    * This function composes the CSV import pipeline up to AccountStatement:
-    *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
-    *   6.   Text -> CSV::Table (via CSV::neutral::text_to_table)
-    *   6.5  CSV::Table -> MDTable<AccountID> (via CSV::project::to_account_id_ed)
-    *   7.   MDTable<AccountID> -> AccountStatement (via domain::md_table_to_account_statement)
-    *
-    */
+  namespace monadic {
     
     /**
     * Import CSV text to TaggedAmounts - Text-based Pipeline Entry Point
@@ -61,10 +50,10 @@ namespace csv {
     * @param csv_text UTF-8 encoded CSV text
     * @return AnnotatedMaybe<TaggedAmounts> with result or error messages
     */
-    inline AnnotatedMaybe<TaggedAmounts> import_text_to_tagged_amounts(
+    inline AnnotatedMaybe<TaggedAmounts> csv_to_tagged_amounts_shortcut(
         std::string_view csv_text) {
       logger::scope_logger log_raii{logger::development_trace,
-        "csv::monadic::import_text_to_tagged_amounts(csv_text)"};
+        "csv::monadic::csv_to_tagged_amounts_shortcut(csv_text)"};
 
       AnnotatedMaybe<TaggedAmounts> result{};
 
@@ -166,6 +155,16 @@ namespace csv {
 
   } // monadic
 
+  /**
+  * Import CSV file to AccountStatement - Complete Pipeline (Steps 1-7)
+  *
+  * This function composes the CSV import pipeline up to AccountStatement:
+  *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
+  *   6.   Text -> CSV::Table (via CSV::neutral::text_to_table)
+  *   6.5  CSV::Table -> MDTable<AccountID> (via CSV::project::to_account_id_ed)
+  *   7.   MDTable<AccountID> -> AccountStatement (via domain::md_table_to_account_statement)
+  *
+  */
   inline AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
       std::filesystem::path const& file_path) {
     logger::scope_logger log_raii{logger::development_trace,

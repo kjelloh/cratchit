@@ -2705,7 +2705,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     // ----------------------------------------------------------------------------
-    // import_text_to_tagged_amounts() tests
+    // csv_to_tagged_amounts_shortcut() tests
     // ----------------------------------------------------------------------------
 
     TEST(FullPipelineTextTests, ImportNordeaTextSuccess) {
@@ -2713,7 +2713,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto result = csv::monadic::import_text_to_tagged_amounts(csv_text);
+      auto result = csv::monadic::csv_to_tagged_amounts_shortcut(csv_text);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV text";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2733,7 +2733,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_SKV_csv_20251120;
 
-      auto result = csv::monadic::import_text_to_tagged_amounts(csv_text);
+      auto result = csv::monadic::csv_to_tagged_amounts_shortcut(csv_text);
 
       ASSERT_TRUE(result) << "Expected successful import of SKV CSV text";
       EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts";
@@ -2755,7 +2755,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string empty_text;
 
-      auto result = csv::monadic::import_text_to_tagged_amounts(empty_text);
+      auto result = csv::monadic::csv_to_tagged_amounts_shortcut(empty_text);
 
       ASSERT_TRUE(result) << "Expected successful import of empty text";
       EXPECT_EQ(result.value().size(), 0) << "Expected empty TaggedAmounts";
@@ -2766,7 +2766,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string invalid_text = "UnknownCol1,UnknownCol2\nvalue1,value2\n";
 
-      auto result = csv::monadic::import_text_to_tagged_amounts(invalid_text);
+      auto result = csv::monadic::csv_to_tagged_amounts_shortcut(invalid_text);
 
       EXPECT_FALSE(result) << "Expected failure for invalid CSV text";
     }
