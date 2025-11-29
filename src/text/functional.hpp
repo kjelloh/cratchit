@@ -3,6 +3,7 @@
 #include <string>
 #include <algorithm> // std::copy_if,
 #include <map>
+#include <sstream> // std::ostringstream,...
 
 namespace functional {
   namespace text {
@@ -17,6 +18,24 @@ namespace functional {
 
 namespace text {
   namespace functional {
+
+      // Trim whitespace from both ends
+      std::string_view trim(std::string_view s);
+
+      // Count digits in a string
+      size_t count_digits(std::string_view s);
+
+      // Check if string contains only digits
+      bool is_all_digits(std::string_view s);
+
+      // Check if suffix is all zeros
+      bool is_all_zeros(std::string_view s);
+
+      // Find dash position in string
+      std::optional<size_t> find_dash_position(std::string_view s);
+
+      // Count occurrences of dash character
+      size_t count_dashes(std::string_view s);
 
       inline std::string utf_ignore_to_upper(std::string const& s) {
 
