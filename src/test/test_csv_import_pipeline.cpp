@@ -2772,7 +2772,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     // ----------------------------------------------------------------------------
-    // import_table_to_tagged_amounts() tests
+    // table_to_tagged_amounts_shortcut() tests
     // ----------------------------------------------------------------------------
 
     TEST(FullPipelineTableTests, ImportTableFailsForUnknownFormat) {
@@ -2785,7 +2785,7 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Payment"}});
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "-50.00", "Withdrawal"}});
 
-      auto result = csv::monadic::import_table_to_tagged_amounts(table);
+      auto result = csv::table_to_tagged_amounts_shortcut(table);
 
       // Unknown format should fail at Step 6.5
       EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
@@ -2812,7 +2812,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Import the table
-      auto result = csv::monadic::import_table_to_tagged_amounts(*maybe_table);
+      auto result = csv::table_to_tagged_amounts_shortcut(*maybe_table);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA table";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2834,7 +2834,7 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"x", "y"}});
 
-      auto result = csv::monadic::import_table_to_tagged_amounts(table);
+      auto result = csv::table_to_tagged_amounts_shortcut(table);
 
       EXPECT_FALSE(result) << "Expected failure for invalid table";
     }
