@@ -1287,7 +1287,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "A,B,C\n1,2,3\n";
 
-      char detected = CSV::parse::monadic::detect_delimiter(csv_text);
+      char detected = CSV::parse::monadic::to_csv_delimiter(csv_text);
 
       EXPECT_EQ(detected, ',') << "Expected comma detection";
     }
@@ -1297,7 +1297,7 @@ namespace tests::csv_import_pipeline {
 
       std::string csv_text = "A;B;C\n1;2;3\n";
 
-      char detected = CSV::parse::monadic::detect_delimiter(csv_text);
+      char detected = CSV::parse::monadic::to_csv_delimiter(csv_text);
 
       EXPECT_EQ(detected, ';') << "Expected semicolon detection";
     }
@@ -1419,7 +1419,7 @@ Alice,30,"Stockholm, Sweden"
       // CSV with semicolons, but explicitly request comma parsing
       std::string csv_text = "A;B;C\n1;2;3\n";
 
-      auto result = CSV::parse::monadic::parse_csv(csv_text, ',');
+      auto result = CSV::parse::monadic::csv_to_table(csv_text, ',');
 
       ASSERT_TRUE(result.has_value()) << "Expected successful parse";
       // With comma delimiter, the entire line becomes one field

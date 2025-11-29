@@ -11,12 +11,12 @@
 
 namespace CSV {
 
-  /**
-  * CSV Parser /refactored variant fall of 2025)
-  *
-  */
-
   namespace parse {
+
+    /**
+    * CSV Parser /refactored variant fall of 2025)
+    *
+    */
 
     namespace monadic {
 
@@ -25,11 +25,8 @@ namespace CSV {
       *
       * Strategy: Count occurrences of semicolon and comma in the first line.
       * The character with more occurrences is likely the delimiter.
-      *
-      * @param text CSV text to analyze
-      * @return ';' or ',' based on detection, defaults to ';' if ambiguous
       */
-      inline char detect_delimiter(std::string_view text) {
+      inline char to_csv_delimiter(std::string_view text) {
         // Find first line
         auto first_newline = text.find('\n');
         auto first_line = first_newline != std::string_view::npos
@@ -52,13 +49,8 @@ namespace CSV {
       *   - Quotes within quoted fields are escaped by doubling: "text with ""quote"""
       *   - Quoted fields can contain delimiters and newlines
       *   - Unquoted fields end at delimiter or newline
-      *
-      * @param text Full CSV text
-      * @param pos Current position in text (updated to position after field)
-      * @param delimiter Field delimiter (',' or ';')
-      * @return Parsed field content (without surrounding quotes)
       */
-      inline std::string parse_field(std::string_view text, size_t& pos, char delimiter) {
+      inline std::string to_consumed_unquoted_field(std::string_view text, size_t& pos, char delimiter) {
         std::string field;
 
         if (pos >= text.size()) {
@@ -131,7 +123,7 @@ namespace CSV {
         // Parse fields until end of line
         while (pos < text.size()) {
           // Parse one field
-          fields.push_back(parse_field(text, pos, delimiter));
+          fields.push_back(to_consumed_unquoted_field(text, pos, delimiter));
 
           // Check what comes after the field
           if (pos < text.size()) {
@@ -161,15 +153,9 @@ namespace CSV {
       /**
       * Parse CSV text into a Table structure.
       *
-      * The first row is treated as the heading.
-      * Subsequent rows are data rows.
-      *
-      * @param csv_text UTF-8 encoded CSV text
-      * @param delimiter Optional delimiter (auto-detected if not specified)
-      * @return Optional CSV::Table, empty on parse failure
       */
-      inline std::optional<CSV::Table> parse_csv(std::string_view csv_text, char delim = ';') {
-        logger::scope_logger log_raii{logger::development_trace, "CSV::parse::monadic::parse_csv(string_view)"};
+      inline std::optional<CSV::Table> csv_to_table(std::string_view csv_text, char delim = ';') {
+        logger::scope_logger log_raii{logger::development_trace, "CSV::parse::monadic::csv_to_table(string_view)"};
         // Handle empty input
         if (csv_text.empty()) {
           return std::nullopt;
@@ -225,13 +211,13 @@ namespace CSV {
       //  * @param delimiter Optional delimiter (auto-detected if not specified)
       //  * @return Optional CSV::Table, empty on parse failure
       //  */
-      // inline std::optional<CSV::Table> parse_csv(std::string const& csv_text, std::optional<char> delimiter = std::nullopt) {
-      //   return parse_csv(std::string_view{csv_text}, delimiter);
+      // inline std::optional<CSV::Table> csv_to_table(std::string const& csv_text, std::optional<char> delimiter = std::nullopt) {
+      //   return csv_to_table(std::string_view{csv_text}, delimiter);
       // }
 
       // 'Liftable' parse function (clean text -> optional<Table>)
       inline std::optional<CSV::Table> text_to_table(std::string_view csv_text) {
-        return parse_csv(csv_text,detect_delimiter(csv_text));
+        return csv_to_table(csv_text,to_csv_delimiter(csv_text));
       } 
 
     }
