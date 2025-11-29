@@ -106,14 +106,9 @@ namespace CSV {
       }
 
       /**
-      * Parse a single CSV row (line) into a vector of fields.
-      *
-      * @param text Full CSV text
-      * @param pos Current position in text (updated to start of next row)
-      * @param delimiter Field delimiter (',' or ';')
-      * @return Vector of field strings for this row
+      * Parse a single CSV row (line) into fields.
       */
-      inline std::vector<std::string> parse_row(std::string_view text, size_t& pos, char delimiter) {
+      inline std::vector<std::string> csv_row_to_fields(std::string_view text, size_t& pos, char delimiter) {
         std::vector<std::string> fields;
 
         if (pos >= text.size()) {
@@ -175,7 +170,7 @@ namespace CSV {
             break;
           }
 
-          auto row = parse_row(csv_text, pos, delim);
+          auto row = csv_row_to_fields(csv_text, pos, delim);
 
           // Only add non-empty rows
           if (!row.empty()) {
