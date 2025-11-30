@@ -34,7 +34,7 @@ protected:
     if (!maybe_table) {
       return std::nullopt;
     }
-    return CSV::project::maybe::to_account_id_ed(*maybe_table);
+    return account::statement::maybe::to_account_id_ed(*maybe_table);
   }
 
   // Helper to create an MDTable directly with specific AccountID and Table
@@ -181,7 +181,7 @@ TEST_F(MDTableToAccountStatementTestFixture, SKVNewerMDTableToAccountStatement) 
   auto maybe_table = CSV::parse::maybe::csv_to_table(sz_SKV_csv_20251120, ';');
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
-  auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
+  auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
   ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
 
   // Verify detected AccountID (should find org number 5567828172)

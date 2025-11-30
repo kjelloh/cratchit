@@ -2,7 +2,7 @@
 
 #include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
 #include "csv/parse_csv.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
-#include "csv/csv_to_account_id.hpp"         // CSV::project::maybe::to_account_id_ed (Step 6.5)
+#include "csv/csv_to_account_id.hpp"         // account::statement::maybe::to_account_id_ed (Step 6.5)
 #include "domain/csv_to_account_statement.hpp"  // account::statement::csv_table_to_account_statement (Step 7)
 #include "domain/account_statement_to_tagged_amounts.hpp" // domain::csv_table_to_tagged_amounts_shortcut (Steps 7+8)
 #include "functional/maybe.hpp"              // AnnotatedMaybe
@@ -60,7 +60,7 @@ namespace csv {
       table.rows.size()));
 
     // Step 6.5: CSV::Table -> MDTable<AccountID>
-    auto maybe_md_table = CSV::project::maybe::to_account_id_ed(table);
+    auto maybe_md_table = account::statement::maybe::to_account_id_ed(table);
 
     if (!maybe_md_table) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
@@ -115,7 +115,7 @@ namespace csv {
       maybe_table->rows.size()));
 
     // Monadic Maybe: Table -> (account ID,table) pair
-    auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
+    auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
 
     if (!maybe_md_table) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
@@ -149,7 +149,7 @@ namespace csv {
   * This function composes the CSV import pipeline up to AccountStatement:
   *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
   *   6.   Text -> CSV::Table (via CSV::parse::maybe::text_to_table)
-  *   6.5  CSV::Table -> MDTable<AccountID> (via CSV::project::maybe::to_account_id_ed)
+  *   6.5  CSV::Table -> MDTable<AccountID> (via account::statement::maybe::to_account_id_ed)
   *   7.   MDTable<AccountID> -> AccountStatement (via account::statement::md_table_to_account_statement)
   *
   */
@@ -199,7 +199,7 @@ namespace csv {
     // ============================================================
     // Step 6.5: CSV::Table -> MDTable<AccountID>
     // ============================================================
-    auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
+    auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
 
     if (!maybe_md_table) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
@@ -275,7 +275,7 @@ namespace csv {
     // ============================================================
     // Step 6.5: CSV::Table -> MDTable<AccountID>
     // ============================================================
-    auto maybe_md_table = CSV::project::maybe::to_account_id_ed(*maybe_table);
+    auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
 
     if (!maybe_md_table) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
