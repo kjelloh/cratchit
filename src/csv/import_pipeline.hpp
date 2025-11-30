@@ -1,7 +1,7 @@
 #pragma once
 
 #include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
-#include "csv/parse_csv.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
+#include "csv/parse_csv.hpp"            // CSV::parse::maybe::csv_text_to_table_step (Step 6)
 #include "csv/csv_to_account_id.hpp"         // account::statement::maybe::to_account_id_ed_step (Step 6.5)
 #include "domain/csv_to_account_statement.hpp"  // account::statement::maybe::csv_table_to_account_statement_step (Step 7)
 #include "domain/account_statement_to_tagged_amounts.hpp"
@@ -104,7 +104,7 @@ namespace csv {
     }
 
     // Monadic Maybe: csv text -> Table
-    auto maybe_table = CSV::parse::maybe::text_to_table(csv_text);
+    auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
 
     if (!maybe_table) {
       result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
@@ -148,7 +148,7 @@ namespace csv {
   *
   * This function composes the CSV import pipeline up to AccountStatement:
   *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
-  *   6.   Text -> CSV::Table (via CSV::parse::maybe::text_to_table)
+  *   6.   Text -> CSV::Table (via CSV::parse::maybe::csv_text_to_table_step)
   *   6.5  CSV::Table -> MDTable<AccountID> (via account::statement::maybe::to_account_id_ed_step)
   *   7.   MDTable<AccountID> -> AccountStatement (via account::statement::maybe::account_id_ed_to_account_statement_step)
   *
@@ -186,7 +186,7 @@ namespace csv {
     // ============================================================
     // Step 6: Text -> CSV::Table
     // ============================================================
-    auto maybe_table = CSV::parse::maybe::text_to_table(text);
+    auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(text);
 
     if (!maybe_table) {
       result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
@@ -262,7 +262,7 @@ namespace csv {
     // ============================================================
     // Step 6: Text -> CSV::Table
     // ============================================================
-    auto maybe_table = CSV::parse::maybe::text_to_table(text);
+    auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(text);
 
     if (!maybe_table) {
       result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");

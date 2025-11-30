@@ -26,7 +26,7 @@ namespace text {
 
       // Monadic AnnotatedMaybe #4: (threshold,byte buffer) pair -> (detected encoding,byte buffer) pair
       using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
-      inline AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detetced_encoding_step(WithThresholdByteBuffer wt_buffer) {
+      inline AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
 
         AnnotatedMaybe<WithDetectedEncodingByteBuffer> result{};
 
@@ -105,7 +105,7 @@ namespace text {
         .and_then([confidence_threshold](ByteBuffer buffer) {
           return monadic::to_with_threshold_step(confidence_threshold, std::move(buffer)); // #3
         })
-        .and_then(monadic::to_with_detetced_encoding_step) // #4
+        .and_then(monadic::to_with_detected_encoding_step) // #4
         .and_then(monadic::to_platform_encoded_string_step); // #5
     }
 

@@ -215,7 +215,7 @@ namespace CSV {
       // }
 
       // Monadic Maybe: csv text -> Table
-      inline std::optional<CSV::Table> text_to_table(std::string_view csv_text) {
+      inline std::optional<CSV::Table> csv_text_to_table_step(std::string_view csv_text) {
         return csv_to_table(csv_text,to_csv_delimiter(csv_text));
       } 
 

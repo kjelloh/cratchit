@@ -81,7 +81,7 @@ namespace CSV {
         using cratchit::functional::to_annotated_nullopt;
         return text::encoding::path_to_platform_encoded_string_shortcut(file_path)
           .and_then(to_annotated_nullopt(
-            CSV::parse::maybe::text_to_table
+            CSV::parse::maybe::csv_text_to_table_step
             ,"Failed to parse csv into a valid table"));
       }
 
