@@ -29,15 +29,6 @@ namespace account {
         return std::nullopt;
       }
 
-      /**
-      * Check if the CSV::Table heading indicates a NORDEA format
-      *
-      * NORDEA headers contain specific Swedish banking column names:
-      * - "Bokforingsdag" (transaction date)
-      * - "Avsandare" (sender - contains account number)
-      * - "Mottagare" (receiver)
-      * - "Saldo" (balance)
-      */
       inline bool is_account_statement_table(CSV::Table const& table) {
         auto heading = table.heading;
 
@@ -97,14 +88,6 @@ namespace account {
 
     namespace SKV {
 
-      /**
-      * Check if the CSV::Table content indicates an SKV (tax agency) format
-      *
-      * SKV CSV files have specific patterns:
-      * - Headers or content containing: "Ingaende saldo", "Utgaende saldo", "Obetalt"
-      * - Organisation number format: 10 digits like "5567828172" or "556782-8172"
-      * - The newer format (sz_SKV_csv_20251120) has company name and org number in first row
-      */
       inline bool is_account_statement_table(CSV::Table const& table) {
         std::initializer_list<std::string_view> skv_keywords = {
           "ingaende saldo", "ingående saldo", "ing saldo",
@@ -133,15 +116,6 @@ namespace account {
         return false;
       } // is_account_statement_table
 
-      /**
-      * Search for a 10-digit organisation number in SKV data
-      *
-      * Organisation numbers can appear as:
-      * - Pure 10 digits: "5567828172"
-      * - With dash: "556782-8172"
-      * - In text like "Inbetalning fran organisationsnummer XXXXXXXXXX"
-      * - In SK reference: "SK5567828172"
-      */
       inline std::optional<std::string> to_account_id(CSV::Table const& table) {
         // Regex patterns for organisation numbers
         // Pattern 1: 6 digits, optional dash, 4 digits (Swedish org number format)
@@ -190,13 +164,13 @@ namespace account {
     namespace maybe {
 
       // Monadic Maybe: Table -> (account ID,Table) pair
-      inline std::optional<CSV::MDTable<AccountID>> to_account_id_ed(CSV::Table const& table) {
+      inline std::optional<CSV::MDTable<AccountID>> to_account_id_ed_step(CSV::Table const& table) {
 
-        logger::development_trace("to_account_id_ed: Starting AccountID extraction");
+        logger::development_trace("to_account_id_ed_step: Starting AccountID extraction");
 
         // Check for fundamentally invalid table
         if (table.heading.size() == 0 && table.rows.empty()) {
-          logger::development_trace("to_account_id_ed: Empty table, returning nullopt");
+          logger::development_trace("to_account_id_ed_step: Empty table, returning nullopt");
           return std::nullopt;
         }
 
@@ -205,23 +179,21 @@ namespace account {
         //       Possibly a single step operation?
         //       Something that returns pair(AccountStatement, maybe account id)?
 
-        // Step 1: Check for NORDEA format
         if (account::statement::NORDEA::is_account_statement_table(table)) {
           std::string account_number = account::statement::NORDEA::to_account_id(table).value_or("");
-          logger::development_trace("to_account_id_ed: Detected NORDEA account: '{}'", account_number);
+          logger::development_trace("to_account_id_ed_step: Detected NORDEA account: '{}'", account_number);
           return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
         }
 
-        // Step 2: Check for SKV format
         if (account::statement::SKV::is_account_statement_table(table)) {
           auto maybe_org_number = account::statement::SKV::to_account_id(table);
           std::string org_number = maybe_org_number.value_or("");
-          logger::development_trace("to_account_id_ed: Detected SKV account for org: '{}'", org_number);
+          logger::development_trace("to_account_id_ed_step: Detected SKV account for org: '{}'", org_number);
           return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
         }
 
-        // Step 3: Unknown format - fully unknown AccountID, return nullopt (failure)
-        logger::development_trace("to_account_id_ed: Unknown Account Statement format, returning nullopt");
+        // Unknown format - fully unknown AccountID, return nullopt (failure)
+        logger::development_trace("to_account_id_ed_step: Unknown Account Statement format, returning nullopt");
         return std::nullopt;
       }
 

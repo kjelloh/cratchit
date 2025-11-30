@@ -320,7 +320,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
   AccountID account_id = domain::make_account_id("NORDEA", "51 86 87-9");
 
   // Step 7: CSV::Table -> AccountStatement
-  auto maybe_statement = account::statement::csv_table_to_account_statement(*maybe_table, account_id);
+  auto maybe_statement = account::statement::csv_table_to_account_statement_step(*maybe_table, account_id);
 
   ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful statement creation";
 
@@ -362,7 +362,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithSkvCsvData) {
   AccountID account_id = domain::make_account_id("SKV", "5567828172");
 
   // Step 7: CSV::Table -> AccountStatement
-  auto maybe_statement = account::statement::csv_table_to_account_statement(*maybe_table, account_id);
+  auto maybe_statement = account::statement::csv_table_to_account_statement_step(*maybe_table, account_id);
 
   ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful statement creation";
 

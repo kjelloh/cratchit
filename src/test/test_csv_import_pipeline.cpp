@@ -1729,7 +1729,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       // Extract account statements
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(*maybe_table);
 
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
       EXPECT_GT(maybe_statements->size(), 0) << "Expected at least one account statement entry";
@@ -1754,7 +1754,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       // Extract account statements
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(*maybe_table);
 
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
 
@@ -1785,7 +1785,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       // Extract account statements
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(*maybe_table);
 
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
 
@@ -1896,7 +1896,7 @@ Alice,30,"Stockholm, Sweden"
       table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
       table.rows.push_back(table.heading);
 
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(table);
 
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful extraction";
       EXPECT_EQ(maybe_statements->size(), 0) << "Expected empty list for headers-only CSV";
@@ -1913,7 +1913,7 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-05", "Payment", "100"}});
       table.rows.push_back(Key::Path{std::vector<std::string>{"", "Utgående saldo 2025-01-31", "1100"}});
 
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(table);
 
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful extraction";
       EXPECT_EQ(maybe_statements->size(), 1) << "Expected only transaction row, balance rows ignored";
@@ -1932,7 +1932,7 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"value1", "value2"}});
 
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(table);
 
       EXPECT_FALSE(maybe_statements.has_value()) << "Expected nullopt when required columns cannot be detected";
     }
@@ -1946,7 +1946,7 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(maybe_table.has_value());
 
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(*maybe_table);
 
       ASSERT_TRUE(maybe_statements.has_value());
       EXPECT_GT(maybe_statements->size(), 0);
@@ -1979,7 +1979,7 @@ Alice,30,"Stockholm, Sweden"
       auto table_result = CSV::parse::maybe::text_to_table(text_result.value());
       ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
 
-      auto statements_result = account::statement::csv_table_to_account_statement_entries(*table_result);
+      auto statements_result = account::statement::csv_table_to_account_statement_step_entries(*table_result);
       ASSERT_TRUE(statements_result.has_value()) << "Expected successful account statement extraction";
 
       EXPECT_EQ(statements_result->size(), 3) << "Expected 3 account statement entries";
@@ -2005,7 +2005,7 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(*maybe_table);
 
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
       ASSERT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
@@ -2069,7 +2069,7 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(*maybe_table);
 
       ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
       ASSERT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
@@ -2108,7 +2108,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value());
 
-      auto maybe_statements = account::statement::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statements = account::statement::csv_table_to_account_statement_step_entries(*maybe_table);
       ASSERT_TRUE(maybe_statements.has_value());
       ASSERT_EQ(maybe_statements->size(), 4);
 
@@ -2123,7 +2123,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     // ============================================================================
-    // Tests for csv_table_to_account_statement (CSV::Table + AccountID -> AccountStatement)
+    // Tests for csv_table_to_account_statement_step (CSV::Table + AccountID -> AccountStatement)
     // ============================================================================
 
     TEST(AccountStatementTests, CsvTableToAccountStatementWithNordea) {
@@ -2134,12 +2134,12 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
-      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
+      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed_step
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
-      auto maybe_statement = account::statement::csv_table_to_account_statement(maybe_md_table->defacto, maybe_md_table->meta);
+      auto maybe_statement = account::statement::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2165,12 +2165,12 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::text_to_table(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
 
-      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
+      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed_step
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
-      auto maybe_statement = account::statement::csv_table_to_account_statement(maybe_md_table->defacto, maybe_md_table->meta);
+      auto maybe_statement = account::statement::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2203,7 +2203,7 @@ Alice,30,"Stockholm, Sweden"
       AccountID test_account_id{"TEST_BANK", "12345"};
 
       // Create AccountStatement
-      auto maybe_statement = account::statement::csv_table_to_account_statement(table, test_account_id);
+      auto maybe_statement = account::statement::csv_table_to_account_statement_step(table, test_account_id);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2238,7 +2238,7 @@ Alice,30,"Stockholm, Sweden"
       AccountID test_account_id{"TEST", "123"};
 
       // Attempt to create AccountStatement
-      auto maybe_statement = account::statement::csv_table_to_account_statement(table, test_account_id);
+      auto maybe_statement = account::statement::csv_table_to_account_statement_step(table, test_account_id);
 
       EXPECT_FALSE(maybe_statement.has_value())
         << "Expected nullopt when columns cannot be detected";
@@ -2255,7 +2255,7 @@ Alice,30,"Stockholm, Sweden"
       AccountID test_account_id{"EMPTY_BANK", "000"};
 
       // Create AccountStatement - should succeed with empty entries
-      auto maybe_statement = account::statement::csv_table_to_account_statement(table, test_account_id);
+      auto maybe_statement = account::statement::csv_table_to_account_statement_step(table, test_account_id);
 
       ASSERT_TRUE(maybe_statement.has_value())
         << "Expected valid AccountStatement even with no data rows";
@@ -2276,11 +2276,11 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Step 1: Failed to parse CSV";
 
       // Step 2: Extract MDTable<AccountID> from table
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Step 2: Failed to extract AccountID";
 
       // Step 3: Create AccountStatement with table + AccountID (from MDTable)
-      auto maybe_statement = account::statement::csv_table_to_account_statement(maybe_md_table->defacto, maybe_md_table->meta);
+      auto maybe_statement = account::statement::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta);
       ASSERT_TRUE(maybe_statement.has_value()) << "Step 3: Failed to create AccountStatement";
 
       // Verify complete result
@@ -2301,7 +2301,7 @@ Alice,30,"Stockholm, Sweden"
 
   namespace account_id_suite {
 
-    // AccountID extraction tests for account::statement::maybe::to_account_id_ed function
+    // AccountID extraction tests for account::statement::maybe::to_account_id_ed_step function
     // Tests the extraction of MDTable<AccountID> (table paired with AccountID) from CSV::Table
 
     TEST(AccountIdTests, ExtractNordeaAccountId) {
@@ -2313,7 +2313,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for NORDEA CSV";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")
@@ -2341,7 +2341,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (newer format)";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
@@ -2359,7 +2359,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (older format)";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
@@ -2377,7 +2377,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
 
       // Extract MDTable<AccountID> - should fail for unknown format
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
 
       // Unknown format should return nullopt (fully unknown AccountID is a failure)
       EXPECT_FALSE(maybe_md_table.has_value())
@@ -2392,7 +2392,7 @@ Alice,30,"Stockholm, Sweden"
       // heading and rows are default-constructed (empty)
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(empty_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(empty_table);
 
       EXPECT_FALSE(maybe_md_table.has_value())
         << "Expected nullopt for empty CSV::Table";
@@ -2408,7 +2408,7 @@ Alice,30,"Stockholm, Sweden"
       header_only_table.rows = {};
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(header_only_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(header_only_table);
 
       // Unknown format (neither NORDEA nor SKV) should return nullopt
       EXPECT_FALSE(maybe_md_table.has_value())
@@ -2427,7 +2427,7 @@ Alice,30,"Stockholm, Sweden"
       nordea_table.rows = {nordea_table.heading};  // Include header as first row (current behavior)
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed(nordea_table);
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(nordea_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
       EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")

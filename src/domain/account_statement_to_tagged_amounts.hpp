@@ -99,7 +99,7 @@ inline std::optional<TaggedAmounts> account_statement_to_tagged_amounts(
  * Compose CSV::Table + AccountID -> Maybe<TaggedAmounts>
  *
  * This is a convenience function that composes steps 7 and 8:
- * 1. csv_table_to_account_statement (Step 7)
+ * 1. csv_table_to_account_statement_step (Step 7)
  * 2. account_statement_to_tagged_amounts (Step 8)
  *
  * @param table The CSV::Table containing transaction data
@@ -113,10 +113,10 @@ inline std::optional<TaggedAmounts> csv_table_to_tagged_amounts_shortcut(
     "domain::csv_table_to_tagged_amounts_shortcut(table, account_id)"};
 
   // Step 7: CSV::Table + AccountID -> AccountStatement
-  auto maybe_statement = account::statement::csv_table_to_account_statement(table, account_id);
+  auto maybe_statement = account::statement::csv_table_to_account_statement_step(table, account_id);
 
   if (!maybe_statement) {
-    logger::development_trace("Step 7 failed: csv_table_to_account_statement returned nullopt");
+    logger::development_trace("Step 7 failed: csv_table_to_account_statement_step returned nullopt");
     return std::nullopt;
   }
 

@@ -398,8 +398,8 @@ namespace account {
     * - Returns nullopt if column detection fails
     * - Returns empty vector if no valid entries found (but detection succeeded)
     */
-    inline OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table) {
-      logger::scope_logger log_raii{logger::development_trace, "csv_table_to_account_statement_entries(table)"};
+    inline OptionalAccountStatementEntries csv_table_to_account_statement_step_entries(CSV::Table const& table) {
+      logger::scope_logger log_raii{logger::development_trace, "csv_table_to_account_statement_step_entries(table)"};
       
       // Filter out first/last rows if they have different column structure
       CSV::Table filtered_table = filter_outlier_boundary_rows(table);
@@ -437,7 +437,7 @@ namespace account {
     * Transform CSV::Table + AccountID to AccountStatement
     *
     * This is a higher-level extraction function that combines:
-    * 1. CSV::Table -> AccountStatementEntries (via csv_table_to_account_statement_entries)
+    * 1. CSV::Table -> AccountStatementEntries (via csv_table_to_account_statement_step_entries)
     * 2. AccountID from external source (e.g., CSV::project::to_account_id)
     *
     * The resulting AccountStatement contains both the entries and the account identifier.
@@ -453,13 +453,13 @@ namespace account {
     * Returns AccountStatement (possibly with empty entries) if:
     * - Column detection succeeds but all rows are ignorable
     */
-    inline std::optional<AccountStatement> csv_table_to_account_statement(
+    inline std::optional<AccountStatement> csv_table_to_account_statement_step(
         CSV::Table const& table,
         AccountID const& account_id) {
-      logger::scope_logger log_raii{logger::development_trace, "csv_table_to_account_statement(table, account_id)"};
+      logger::scope_logger log_raii{logger::development_trace, "csv_table_to_account_statement_step(table, account_id)"};
 
       // Extract entries from the CSV table
-      auto maybe_entries = csv_table_to_account_statement_entries(table);
+      auto maybe_entries = csv_table_to_account_statement_step_entries(table);
 
       if (!maybe_entries) {
         logger::development_trace("Failed to extract entries from CSV table");
@@ -506,7 +506,7 @@ namespace account {
       logger::development_trace("Processing MDTable with AccountID: '{}'", account_id.to_string());
 
       // Extract entries from the CSV table
-      auto maybe_entries = csv_table_to_account_statement_entries(table);
+      auto maybe_entries = csv_table_to_account_statement_step_entries(table);
 
       if (!maybe_entries) {
         logger::development_trace("Failed to extract entries from CSV table in MDTable");
