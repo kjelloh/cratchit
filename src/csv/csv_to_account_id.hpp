@@ -16,7 +16,7 @@ namespace account {
 
     namespace maybe {
 
-      namespace account_id_detection {
+      namespace detail {
 
         /**
         * Check if the CSV::Table heading indicates a NORDEA format
@@ -27,7 +27,9 @@ namespace account {
         * - "Mottagare" (receiver)
         * - "Saldo" (balance)
         */
-        inline bool is_nordea_csv(CSV::Table::Heading const& heading) {
+        inline bool is_nordea_account_statement_table(CSV::Table const& table) {
+          auto heading = table.heading;
+
           if (heading.size() == 0) {
             return false;
           }
@@ -104,7 +106,7 @@ namespace account {
         * - Organisation number format: 10 digits like "5567828172" or "556782-8172"
         * - The newer format (sz_SKV_csv_20251120) has company name and org number in first row
         */
-        inline bool is_skv_csv(CSV::Table const& table) {
+        inline bool is_skv_account_statement_table(CSV::Table const& table) {
           std::initializer_list<std::string_view> skv_keywords = {
             "ingaende saldo", "ingående saldo", "ing saldo",
             "utgaende saldo", "utgående saldo", "utg saldo",
@@ -184,11 +186,10 @@ namespace account {
           return std::nullopt;
         }
 
-      } // namespace account_id_detection
+      } // namespace detail
 
       // Monadic Maybe: Table -> (account ID,Table) pair
       inline std::optional<CSV::MDTable<AccountID>> to_account_id_ed(CSV::Table const& table) {
-        using namespace account_id_detection;
 
         logger::development_trace("to_account_id_ed: Starting AccountID extraction");
 
@@ -199,15 +200,15 @@ namespace account {
         }
 
         // Step 1: Check for NORDEA format
-        if (is_nordea_csv(table.heading)) {
-          std::string account_number = to_nordea_account_id(table).value_or("");
+        if (detail::is_nordea_account_statement_table(table)) {
+          std::string account_number = detail::to_nordea_account_id(table).value_or("");
           logger::development_trace("to_account_id_ed: Detected NORDEA CSV, account: '{}'", account_number);
           return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
         }
 
         // Step 2: Check for SKV format
-        if (is_skv_csv(table)) {
-          auto maybe_org_number = to_skv_org_number(table);
+        if (detail::is_skv_account_statement_table(table)) {
+          auto maybe_org_number = detail::to_skv_org_number(table);
           std::string org_number = maybe_org_number.value_or("");
           logger::development_trace("to_account_id_ed: Detected SKV CSV, org number: '{}'", org_number);
           return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
