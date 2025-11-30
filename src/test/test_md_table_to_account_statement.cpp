@@ -20,7 +20,7 @@ namespace tests::md_table_to_account_statement {
  * - MDTable structure unpacking
  * - AccountID propagation to AccountStatement metadata
  *
- * Entry extraction logic is tested separately in csv_table_to_account_statement_step_entries tests.
+ * Entry extraction logic is tested separately in csv_table_to_account_statement_entries tests.
  */
 
 // Test fixture for MDTable -> AccountStatement tests
