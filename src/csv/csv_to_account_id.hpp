@@ -38,7 +38,7 @@ namespace account {
       * - "Mottagare" (receiver)
       * - "Saldo" (balance)
       */
-      inline bool is_nordea_account_statement_table(CSV::Table const& table) {
+      inline bool is_account_statement_table(CSV::Table const& table) {
         auto heading = table.heading;
 
         if (heading.size() == 0) {
@@ -63,14 +63,14 @@ namespace account {
 
         // If we find at least 2 NORDEA-specific keywords, it's likely a NORDEA CSV
         return nordea_keyword_count >= 2;
-      } // is_nordea_account_statement_table
+      } // is_account_statement_table
 
       /**
       * TODO: This function is Claude generated and probaly flawed?
       *       I imagine the 'avsändare' may also conrtain foreign account numbers for
       *       transactions TO the bank account of which the account stement is about?
       */
-      inline std::optional<std::string> to_nordea_account_id(CSV::Table const& table) {
+      inline std::optional<std::string> to_account_id(CSV::Table const& table) {
         auto maybe_col_idx = to_avsandare_column_index(table.heading);
         if (!maybe_col_idx) {
           return {};
@@ -91,7 +91,7 @@ namespace account {
         }
 
         return {};
-      } // to_nordea_account_id
+      } // to_account_id
 
     } // NORDEA
 
@@ -105,7 +105,7 @@ namespace account {
       * - Organisation number format: 10 digits like "5567828172" or "556782-8172"
       * - The newer format (sz_SKV_csv_20251120) has company name and org number in first row
       */
-      inline bool is_skv_account_statement_table(CSV::Table const& table) {
+      inline bool is_account_statement_table(CSV::Table const& table) {
         std::initializer_list<std::string_view> skv_keywords = {
           "ingaende saldo", "ingående saldo", "ing saldo",
           "utgaende saldo", "utgående saldo", "utg saldo",
@@ -131,7 +131,7 @@ namespace account {
         }
 
         return false;
-      } // is_skv_account_statement_table
+      } // is_account_statement_table
 
       /**
       * Search for a 10-digit organisation number in SKV data
@@ -142,7 +142,7 @@ namespace account {
       * - In text like "Inbetalning fran organisationsnummer XXXXXXXXXX"
       * - In SK reference: "SK5567828172"
       */
-      inline std::optional<std::string> to_skv_org_number(CSV::Table const& table) {
+      inline std::optional<std::string> to_account_id(CSV::Table const& table) {
         // Regex patterns for organisation numbers
         // Pattern 1: 6 digits, optional dash, 4 digits (Swedish org number format)
         std::regex org_number_pattern(R"((\d{6})-?(\d{4}))");
@@ -183,7 +183,7 @@ namespace account {
         }
 
         return std::nullopt;
-      } // to_skv_org_number
+      } // to_account_id
 
     } // SKV
 
@@ -200,18 +200,23 @@ namespace account {
           return std::nullopt;
         }
 
+        // TODO: Consider to replace NORDEA / SKV specifics below
+        //       with generic is_account_statement_table and to_account_id.
+        //       Possibly a single step operation?
+        //       Something that returns pair(AccountStatement, maybe account id)?
+
         // Step 1: Check for NORDEA format
-        if (account::statement::NORDEA::is_nordea_account_statement_table(table)) {
-          std::string account_number = account::statement::NORDEA::to_nordea_account_id(table).value_or("");
-          logger::development_trace("to_account_id_ed: Detected NORDEA CSV, account: '{}'", account_number);
+        if (account::statement::NORDEA::is_account_statement_table(table)) {
+          std::string account_number = account::statement::NORDEA::to_account_id(table).value_or("");
+          logger::development_trace("to_account_id_ed: Detected NORDEA account: '{}'", account_number);
           return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
         }
 
         // Step 2: Check for SKV format
-        if (account::statement::SKV::is_skv_account_statement_table(table)) {
-          auto maybe_org_number = account::statement::SKV::to_skv_org_number(table);
+        if (account::statement::SKV::is_account_statement_table(table)) {
+          auto maybe_org_number = account::statement::SKV::to_account_id(table);
           std::string org_number = maybe_org_number.value_or("");
-          logger::development_trace("to_account_id_ed: Detected SKV CSV, org number: '{}'", org_number);
+          logger::development_trace("to_account_id_ed: Detected SKV account for org: '{}'", org_number);
           return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
         }
 
