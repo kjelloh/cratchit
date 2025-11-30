@@ -46,10 +46,10 @@ inline AccountID make_account_id(std::string const& prefix, std::string const& v
  * Returns empty vector if:
  * - The statement has no entries (this is valid, not an error)
  */
-inline std::optional<TaggedAmounts> account_statement_to_tagged_amounts(
+inline std::optional<TaggedAmounts> account_statement_to_tagged_amounts_step(
     AccountStatement const& statement) {
   logger::scope_logger log_raii{logger::development_trace,
-    "domain::account_statement_to_tagged_amounts(statement)"};
+    "domain::account_statement_to_tagged_amounts_step(statement)"};
 
   // Extract account ID string from meta
   // If no AccountID is present, use empty string
@@ -100,7 +100,7 @@ inline std::optional<TaggedAmounts> account_statement_to_tagged_amounts(
  *
  * This is a convenience function that composes steps 7 and 8:
  * 1. csv_table_to_account_statement_step (Step 7)
- * 2. account_statement_to_tagged_amounts (Step 8)
+ * 2. account_statement_to_tagged_amounts_step (Step 8)
  *
  * @param table The CSV::Table containing transaction data
  * @param account_id The AccountID identifying the account
@@ -121,7 +121,7 @@ inline std::optional<TaggedAmounts> csv_table_to_tagged_amounts_shortcut(
   }
 
   // Step 8: AccountStatement -> TaggedAmounts
-  return account_statement_to_tagged_amounts(*maybe_statement);
+  return account_statement_to_tagged_amounts_step(*maybe_statement);
 }
 
 } // namespace domain

@@ -4,7 +4,7 @@
 #include "csv/parse_csv.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
 #include "csv/csv_to_account_id.hpp"         // account::statement::maybe::to_account_id_ed_step (Step 6.5)
 #include "domain/csv_to_account_statement.hpp"  // account::statement::csv_table_to_account_statement_step (Step 7)
-#include "domain/account_statement_to_tagged_amounts.hpp" // domain::csv_table_to_tagged_amounts_shortcut (Steps 7+8)
+#include "domain/account_statement_to_tagged_amounts.hpp"
 #include "functional/maybe.hpp"              // AnnotatedMaybe
 #include "logger/log.hpp"                    // logger::...
 #include <filesystem>
