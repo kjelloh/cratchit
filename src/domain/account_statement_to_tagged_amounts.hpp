@@ -106,14 +106,14 @@ inline std::optional<TaggedAmounts> account_statement_to_tagged_amounts(
  * @param account_id The AccountID identifying the account
  * @return Optional vector of TaggedAmounts, or nullopt on failure
  */
-inline std::optional<TaggedAmounts> csv_table_to_tagged_amounts(
+inline std::optional<TaggedAmounts> csv_table_to_tagged_amounts_shortcut(
     CSV::Table const& table,
     AccountID const& account_id) {
   logger::scope_logger log_raii{logger::development_trace,
-    "domain::csv_table_to_tagged_amounts(table, account_id)"};
+    "domain::csv_table_to_tagged_amounts_shortcut(table, account_id)"};
 
   // Step 7: CSV::Table + AccountID -> AccountStatement
-  auto maybe_statement = csv_table_to_account_statement(table, account_id);
+  auto maybe_statement = account::statement::csv_table_to_account_statement(table, account_id);
 
   if (!maybe_statement) {
     logger::development_trace("Step 7 failed: csv_table_to_account_statement returned nullopt");

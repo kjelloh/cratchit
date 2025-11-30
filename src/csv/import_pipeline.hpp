@@ -3,8 +3,8 @@
 #include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
 #include "csv/parse_csv.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
 #include "csv/csv_to_account_id.hpp"         // CSV::project::maybe::to_account_id_ed (Step 6.5)
-#include "domain/csv_to_account_statement.hpp"  // domain::csv_table_to_account_statement (Step 7)
-#include "domain/account_statement_to_tagged_amounts.hpp" // domain::csv_table_to_tagged_amounts (Steps 7+8)
+#include "domain/csv_to_account_statement.hpp"  // account::statement::csv_table_to_account_statement (Step 7)
+#include "domain/account_statement_to_tagged_amounts.hpp" // domain::csv_table_to_tagged_amounts_shortcut (Steps 7+8)
 #include "functional/maybe.hpp"              // AnnotatedMaybe
 #include "logger/log.hpp"                    // logger::...
 #include <filesystem>
@@ -74,7 +74,7 @@ namespace csv {
       account_id.to_string()));
 
     // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-    auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
+    auto maybe_tagged = domain::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -129,7 +129,7 @@ namespace csv {
       account_id.to_string()));
 
     // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-    auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
+    auto maybe_tagged = domain::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -150,7 +150,7 @@ namespace csv {
   *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
   *   6.   Text -> CSV::Table (via CSV::parse::maybe::text_to_table)
   *   6.5  CSV::Table -> MDTable<AccountID> (via CSV::project::maybe::to_account_id_ed)
-  *   7.   MDTable<AccountID> -> AccountStatement (via domain::md_table_to_account_statement)
+  *   7.   MDTable<AccountID> -> AccountStatement (via account::statement::md_table_to_account_statement)
   *
   */
   inline AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
@@ -213,7 +213,7 @@ namespace csv {
     // ============================================================
     // Step 7: MDTable<AccountID> -> AccountStatement
     // ============================================================
-    auto maybe_statement = domain::md_table_to_account_statement(*maybe_md_table);
+    auto maybe_statement = account::statement::md_table_to_account_statement(*maybe_md_table);
 
     if (!maybe_statement) {
       result.push_message("Pipeline failed at Step 7: Domain transformation failed - Could not extract account statement");
@@ -291,7 +291,7 @@ namespace csv {
     // ============================================================
     // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
     // ============================================================
-    auto maybe_tagged = domain::csv_table_to_tagged_amounts(identified_table, account_id);
+    auto maybe_tagged = domain::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");

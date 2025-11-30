@@ -70,7 +70,7 @@ TEST_F(MDTableToAccountStatementTestFixture, AccountIdPropagatedToStatementMeta)
   auto md_table = make_md_table(account_id, table);
 
   // Transform
-  auto result = domain::md_table_to_account_statement(md_table);
+  auto result = account::statement::md_table_to_account_statement(md_table);
 
   // Verify AccountID is correctly propagated
   ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
@@ -91,7 +91,7 @@ TEST_F(MDTableToAccountStatementTestFixture, SKVAccountIdPropagatedCorrectly) {
   auto md_table = make_md_table(account_id, table);
 
   // Transform
-  auto result = domain::md_table_to_account_statement(md_table);
+  auto result = account::statement::md_table_to_account_statement(md_table);
 
   // Verify AccountID
   ASSERT_TRUE(result.has_value());
@@ -110,7 +110,7 @@ TEST_F(MDTableToAccountStatementTestFixture, EmptyPrefixAccountIdHandled) {
   auto md_table = make_md_table(account_id, table);
 
   // Transform
-  auto result = domain::md_table_to_account_statement(md_table);
+  auto result = account::statement::md_table_to_account_statement(md_table);
 
   // Verify AccountID with empty prefix
   ASSERT_TRUE(result.has_value());
@@ -138,7 +138,7 @@ TEST_F(MDTableToAccountStatementTestFixture, NordeaMDTableToAccountStatement) {
   EXPECT_FALSE(maybe_md_table->meta.m_value.empty()) << "Expected account number to be detected";
 
   // Transform MDTable to AccountStatement
-  auto result = domain::md_table_to_account_statement(*maybe_md_table);
+  auto result = account::statement::md_table_to_account_statement(*maybe_md_table);
 
   ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
@@ -163,7 +163,7 @@ TEST_F(MDTableToAccountStatementTestFixture, SKVOlderMDTableToAccountStatement) 
   EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV");
 
   // Transform MDTable to AccountStatement
-  auto result = domain::md_table_to_account_statement(*maybe_md_table);
+  auto result = account::statement::md_table_to_account_statement(*maybe_md_table);
 
   ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
@@ -188,7 +188,7 @@ TEST_F(MDTableToAccountStatementTestFixture, SKVNewerMDTableToAccountStatement) 
   EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV");
 
   // Transform MDTable to AccountStatement
-  auto result = domain::md_table_to_account_statement(*maybe_md_table);
+  auto result = account::statement::md_table_to_account_statement(*maybe_md_table);
 
   ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
@@ -219,7 +219,7 @@ TEST_F(MDTableToAccountStatementTestFixture, VariousAccountIdPrefixesPropagated)
     CSV::Table table = make_minimal_table();
     auto md_table = make_md_table(account_id, table);
 
-    auto result = domain::md_table_to_account_statement(md_table);
+    auto result = account::statement::md_table_to_account_statement(md_table);
 
     ASSERT_TRUE(result.has_value())
       << "Failed transformation for prefix: '" << prefix << "'";
@@ -243,7 +243,7 @@ TEST_F(MDTableToAccountStatementTestFixture, ReturnsAccountStatementWithEntries)
   auto maybe_md_table = make_md_table_from_csv(sz_NORDEA_csv_20251120);
   ASSERT_TRUE(maybe_md_table.has_value());
 
-  auto result = domain::md_table_to_account_statement(*maybe_md_table);
+  auto result = account::statement::md_table_to_account_statement(*maybe_md_table);
 
   ASSERT_TRUE(result.has_value());
 

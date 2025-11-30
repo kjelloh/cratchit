@@ -1,5 +1,5 @@
 #include "projections.hpp"
-#include "domain/csv_to_account_statement.hpp" // domain::csv_table_to_account_statement_entries,...
+#include "domain/csv_to_account_statement.hpp" // account::statement::csv_table_to_account_statement_entries,...
 #include <sstream> // std::ostringstream,
 #include "logger/log.hpp"
 
@@ -97,7 +97,7 @@ namespace CSV {
           logger::development_trace("to_account_statement: table heading:{} rows.size():{}",maybe_csv_table->heading,maybe_csv_table->rows.size());
 
           AccountStatementEntries entries{};
-          auto maybe_entries = domain::csv_table_to_account_statement_entries(*maybe_csv_table);
+          auto maybe_entries = account::statement::csv_table_to_account_statement_entries(*maybe_csv_table);
           if (maybe_entries) {
             for (auto const& entry : *maybe_entries) {
               entries.push_back(entry);
