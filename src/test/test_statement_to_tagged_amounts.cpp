@@ -67,7 +67,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, SingleEntryTransformation) {
   AccountStatement statement(entries, meta);
 
   // Transform to TaggedAmounts
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   // Verify result
   ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
@@ -112,7 +112,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, MultipleEntriesTransformation) {
   AccountStatement statement(entries, meta);
 
   // Transform
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   // Verify
   ASSERT_TRUE(result.has_value());
@@ -152,7 +152,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, EmptyStatementReturnsEmptyVector) {
   AccountStatement statement(entries, meta);
 
   // Transform
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   // Empty statement should return empty vector, NOT nullopt
   ASSERT_TRUE(result.has_value()) << "Expected valid result for empty statement";
@@ -176,7 +176,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, MissingAccountIdUsesEmptyString) {
   AccountStatement statement(entries, meta);
 
   // Transform
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   // Verify
   ASSERT_TRUE(result.has_value());
@@ -211,7 +211,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, NegativeAmountsConvertedCorrectly) {
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result->size(), 3);
@@ -249,7 +249,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, AmountConversionEdgeCases) {
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result->size(), 3);
@@ -281,7 +281,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, DatePreservedCorrectly) {
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result->size(), 3);
@@ -325,7 +325,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
   ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful statement creation";
 
   // Step 8: AccountStatement -> TaggedAmounts
-  auto result = domain::account_statement_to_tagged_amounts_step(*maybe_statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(*maybe_statement);
 
   ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
   EXPECT_GT(result->size(), 0) << "Expected at least one TaggedAmount";
@@ -367,7 +367,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithSkvCsvData) {
   ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful statement creation";
 
   // Step 8: AccountStatement -> TaggedAmounts
-  auto result = domain::account_statement_to_tagged_amounts_step(*maybe_statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(*maybe_statement);
 
   ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
@@ -396,7 +396,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, ComposedCsvTableToTaggedAmounts) {
   AccountID account_id = make_account_id("NORDEA", "51 86 87-9");
 
   // Use composed function (Steps 7+8 in one call)
-  auto result = domain::csv_table_to_tagged_amounts_shortcut(*maybe_table, account_id);
+  auto result = tas::csv_table_to_tagged_amounts_shortcut(*maybe_table, account_id);
 
   ASSERT_TRUE(result.has_value()) << "Expected successful composed transformation";
   EXPECT_GT(result->size(), 0) << "Expected at least one TaggedAmount";
@@ -425,7 +425,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, AccountIdWithEmptyPrefix) {
   AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
   AccountStatement statement(entries, meta);
 
-  auto result = domain::account_statement_to_tagged_amounts_step(statement);
+  auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result->size(), 1);
@@ -454,7 +454,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, AccountIdWithVariousPrefixes) {
     AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
     AccountStatement statement(entries, meta);
 
-    auto result = domain::account_statement_to_tagged_amounts_step(statement);
+    auto result = tas::maybe::account_statement_to_tagged_amounts_step(statement);
 
     ASSERT_TRUE(result.has_value()) << "Failed for prefix: " << prefix;
     ASSERT_EQ(result->size(), 1);

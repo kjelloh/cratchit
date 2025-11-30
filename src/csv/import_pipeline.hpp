@@ -74,7 +74,7 @@ namespace csv {
       account_id.to_string()));
 
     // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-    auto maybe_tagged = domain::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+    auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -129,7 +129,7 @@ namespace csv {
       account_id.to_string()));
 
     // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-    auto maybe_tagged = domain::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+    auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -291,7 +291,7 @@ namespace csv {
     // ============================================================
     // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
     // ============================================================
-    auto maybe_tagged = domain::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+    auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
