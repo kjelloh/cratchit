@@ -3,7 +3,7 @@
 #include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
 #include "csv/parse_csv.hpp"            // CSV::parse::maybe::text_to_table (Step 6)
 #include "csv/csv_to_account_id.hpp"         // account::statement::maybe::to_account_id_ed_step (Step 6.5)
-#include "domain/csv_to_account_statement.hpp"  // account::statement::csv_table_to_account_statement_step (Step 7)
+#include "domain/csv_to_account_statement.hpp"  // account::statement::maybe::csv_table_to_account_statement_step (Step 7)
 #include "domain/account_statement_to_tagged_amounts.hpp"
 #include "functional/maybe.hpp"              // AnnotatedMaybe
 #include "logger/log.hpp"                    // logger::...
@@ -150,7 +150,7 @@ namespace csv {
   *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
   *   6.   Text -> CSV::Table (via CSV::parse::maybe::text_to_table)
   *   6.5  CSV::Table -> MDTable<AccountID> (via account::statement::maybe::to_account_id_ed_step)
-  *   7.   MDTable<AccountID> -> AccountStatement (via account::statement::md_table_to_account_statement)
+  *   7.   MDTable<AccountID> -> AccountStatement (via account::statement::maybe::account_id_ed_to_account_statement_step)
   *
   */
   inline AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
@@ -213,7 +213,7 @@ namespace csv {
     // ============================================================
     // Step 7: MDTable<AccountID> -> AccountStatement
     // ============================================================
-    auto maybe_statement = account::statement::md_table_to_account_statement(*maybe_md_table);
+    auto maybe_statement = account::statement::maybe::account_id_ed_to_account_statement_step(*maybe_md_table);
 
     if (!maybe_statement) {
       result.push_message("Pipeline failed at Step 7: Domain transformation failed - Could not extract account statement");

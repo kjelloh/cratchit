@@ -74,7 +74,7 @@ namespace tas {
       "tas::csv_table_to_tagged_amounts_shortcut(table, account_id)"};
 
     // Step 7: CSV::Table + AccountID -> AccountStatement
-    auto maybe_statement = account::statement::csv_table_to_account_statement_step(table, account_id);
+    auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(table, account_id);
 
     if (!maybe_statement) {
       logger::development_trace("Step 7 failed: csv_table_to_account_statement_step returned nullopt");
