@@ -317,7 +317,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
   // Create AccountID for NORDEA
-  AccountID account_id = domain::make_account_id("NORDEA", "51 86 87-9");
+  AccountID account_id = make_account_id("NORDEA", "51 86 87-9");
 
   // Step 7: CSV::Table -> AccountStatement
   auto maybe_statement = account::statement::csv_table_to_account_statement_step(*maybe_table, account_id);
@@ -359,7 +359,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithSkvCsvData) {
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
   // Create AccountID for SKV
-  AccountID account_id = domain::make_account_id("SKV", "5567828172");
+  AccountID account_id = make_account_id("SKV", "5567828172");
 
   // Step 7: CSV::Table -> AccountStatement
   auto maybe_statement = account::statement::csv_table_to_account_statement_step(*maybe_table, account_id);
@@ -393,7 +393,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, ComposedCsvTableToTaggedAmounts) {
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
   // Create AccountID for NORDEA
-  AccountID account_id = domain::make_account_id("NORDEA", "51 86 87-9");
+  AccountID account_id = make_account_id("NORDEA", "51 86 87-9");
 
   // Use composed function (Steps 7+8 in one call)
   auto result = domain::csv_table_to_tagged_amounts_shortcut(*maybe_table, account_id);

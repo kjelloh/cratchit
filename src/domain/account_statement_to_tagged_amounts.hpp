@@ -13,17 +13,6 @@
 namespace domain {
 
 /**
- * Helper function to create an AccountID
- *
- * @param prefix The domain prefix (e.g., "NORDEA:", "SKV:", "PG:", "BG:")
- * @param value The account identifier value
- * @return AccountID with the specified prefix and value
- */
-inline AccountID make_account_id(std::string const& prefix, std::string const& value) {
-  return AccountID{.m_prefix = prefix, .m_value = value};
-}
-
-/**
  * Transform AccountStatement to TaggedAmounts
  *
  * This is Step 8 of the CSV import pipeline, bridging raw account data

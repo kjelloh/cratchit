@@ -1,24 +1,9 @@
 #pragma once
 
-// #include "domain/csv_to_account_statement.hpp"
-// #include "TaggedAmountFramework.hpp"
-// #include "csv/projections.hpp"
 #include "fiscal/amount/AmountFramework.hpp" // Amount,...
 #include <expected>
 #include <variant>
 #include <map>
-
-// // Delta represents a T value change
-// template <typename T>
-// struct Delta {
-//   T m_v;
-// };
-
-// // State represents a T value
-// template <typename T>
-// struct State {
-//   T m_v;
-// };
 
 /**
  * Account Statement Entry - represents a single transaction in an account statement
@@ -58,6 +43,10 @@ struct DomainPrefixedId {
 };
 
 using AccountID = DomainPrefixedId;
+
+inline AccountID make_account_id(std::string const& prefix, std::string const& value) {
+  return AccountID{.m_prefix = prefix, .m_value = value};
+}
 
 // Models transactions of an account statment (e.g., from a CSV account statement file)
 class AccountStatement {
