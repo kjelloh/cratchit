@@ -37,6 +37,8 @@ namespace text {
       // Count occurrences of dash character
       size_t count_dashes(std::string_view s);
 
+      bool contains_any_keyword(std::string_view text, std::initializer_list<std::string_view> keywords);
+
       inline std::string utf_ignore_to_upper(std::string const& s) {
 
         auto utf_ignore_to_upper_f = [](char ch) {

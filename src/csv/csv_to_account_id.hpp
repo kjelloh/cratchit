@@ -2,6 +2,7 @@
 
 #include "csv/csv.hpp"                          // CSV::Table
 #include "fiscal/amount/AccountStatement.hpp"   // AccountID, DomainPrefixedId
+#include "text/functional.hpp" // contains_any_keyword,...
 #include "logger/log.hpp"                       // logger::...
 #include <optional>
 #include <string>
@@ -16,20 +17,6 @@ namespace CSV {
     namespace maybe {
 
       namespace account_id_detection {
-
-        /**
-        * Helper to check if a string contains any of the given keywords (case-insensitive)
-        */
-        inline bool contains_any_keyword(std::string_view text, std::initializer_list<std::string_view> keywords) {
-          std::string lower_text;
-          lower_text.reserve(text.size());
-          std::ranges::transform(text, std::back_inserter(lower_text),
-            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-          return std::ranges::any_of(keywords, [&lower_text](std::string_view keyword) {
-            return lower_text.find(keyword) != std::string::npos;
-          });
-        }
 
         /**
         * Check if the CSV::Table heading indicates a NORDEA format
@@ -56,7 +43,7 @@ namespace CSV {
           };
 
           for (auto const& col : heading) {
-            if (contains_any_keyword(col, nordea_keywords)) {
+            if (text::functional::contains_any_keyword(col, nordea_keywords)) {
               ++nordea_keyword_count;
             }
           }
@@ -74,7 +61,7 @@ namespace CSV {
           };
 
           for (std::size_t i = 0; i < heading.size(); ++i) {
-            if (contains_any_keyword(heading[i], avsandare_keywords)) {
+            if (text::functional::contains_any_keyword(heading[i], avsandare_keywords)) {
               return i;
             }
           }
@@ -100,7 +87,7 @@ namespace CSV {
             if (col_idx < row.size()) {
               std::string const& cell_value = row[col_idx];
               // Skip empty cells and the header cell
-              if (!cell_value.empty() && !contains_any_keyword(cell_value, {"avsandare", "avsändare"})) {
+              if (!cell_value.empty() && !text::functional::contains_any_keyword(cell_value, {"avsandare", "avsändare"})) {
                 return cell_value;
               }
             }
@@ -128,7 +115,7 @@ namespace CSV {
 
           // Check heading first
           for (auto const& col : table.heading) {
-            if (contains_any_keyword(col, skv_keywords)) {
+            if (text::functional::contains_any_keyword(col, skv_keywords)) {
               return true;
             }
           }
@@ -136,7 +123,7 @@ namespace CSV {
           // Check content rows
           for (auto const& row : table.rows) {
             for (auto const& cell : row) {
-              if (contains_any_keyword(cell, skv_keywords)) {
+              if (text::functional::contains_any_keyword(cell, skv_keywords)) {
                 return true;
               }
             }

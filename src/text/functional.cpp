@@ -54,6 +54,16 @@ namespace text {
       return std::ranges::count(s, '-');
     }
 
+    bool contains_any_keyword(std::string_view text, std::initializer_list<std::string_view> keywords) {
+      std::string lower_text;
+      lower_text.reserve(text.size());
+      std::ranges::transform(text, std::back_inserter(lower_text),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+      return std::ranges::any_of(keywords, [&lower_text](std::string_view keyword) {
+        return lower_text.find(keyword) != std::string::npos;
+      });
+    }
 
   } // functional
 } // text
