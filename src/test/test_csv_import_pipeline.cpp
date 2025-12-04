@@ -19,6 +19,56 @@
 // #include <cstring>
 
 namespace tests::csv_import_pipeline {
+
+  namespace monadic_composition_suite {
+
+    class MonadicCompositionFixture : public ::testing::Test {
+    protected:
+      std::filesystem::path m_test_dir;
+      std::filesystem::path m_valid_file_path;
+      std::filesystem::path m_missing_file_path;
+
+      void SetUp() override {
+        logger::scope_logger log_raii{logger::development_trace, "MonadicCompositionFixture::SetUp"};
+
+        // Create temporary test directory
+        m_test_dir = std::filesystem::temp_directory_path() / "cratchit_test_file_io";
+        std::filesystem::create_directories(m_test_dir);
+
+        // Create a valid test file with some content
+        m_valid_file_path = m_test_dir / "valid_test.csv";
+        std::ofstream ofs(m_valid_file_path, std::ios::binary);
+        std::string test_content = "Date,Description,Amount\n2025-01-01,Test Transaction,100.00\n";
+        ofs.write(test_content.data(), test_content.size());
+        ofs.close();
+
+        // Path to a file that doesn't exist
+        m_missing_file_path = m_test_dir / "missing_file.csv";
+      }
+
+      void TearDown() override {
+        logger::scope_logger log_raii{logger::development_trace, "FileIOTestFixture::TearDown"};
+
+        // Clean up test directory
+        std::error_code ec;
+        std::filesystem::remove_all(m_test_dir, ec);
+      }
+    };
+
+
+    TEST_F(MonadicCompositionFixture,PathToIStreeam) {
+      auto maybe_istream = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path);
+      ASSERT_TRUE(maybe_istream) << "Expected successful read of valid file";
+    }
+
+    TEST_F(MonadicCompositionFixture,PathToByteBuffer) {
+      auto mayabe_byte_buffer = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step);
+      ASSERT_TRUE(mayabe_byte_buffer) << "Expected successful read of valid file";
+    }
+
+  } // monadic_composition_suite
+  
   namespace file_io_suite {
 
     // Test fixture for file I/O tests
