@@ -87,6 +87,16 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(mayabe_with_encoding) << "Expected successful buffer with detected encoding";
     }
 
+    TEST_F(MonadicCompositionFixture,PathToPlatformEncoded) {
+      auto maybe_platform_encoded = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then([](auto const& byte_buffer){
+          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
+        })
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step);
+      ASSERT_TRUE(maybe_platform_encoded) << "Expected successful platform encoded string";
+    }
 
   } // monadic_composition_suite
 
