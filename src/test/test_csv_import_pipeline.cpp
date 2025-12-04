@@ -113,6 +113,25 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(maybe_csv_table) << "Expected successful csv table";
     }
 
+    TEST_F(MonadicCompositionFixture,PathToAccountIDedTable) {
+      auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then([](auto const& byte_buffer){
+          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
+        })
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(cratchit::functional::to_annotated_nullopt(
+          CSV::parse::maybe::csv_text_to_table_step
+          ,"Failed to parse csv into a valid table"))
+        .and_then(cratchit::functional::to_annotated_nullopt(
+           account::statement::maybe::to_account_id_ed_step
+          ,"Failed to identify account statement csv table account id"
+        ));
+
+      ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
+    }
+
 
   } // monadic_composition_suite
 
