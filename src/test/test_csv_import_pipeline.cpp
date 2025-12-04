@@ -67,8 +67,19 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(mayabe_byte_buffer) << "Expected successful read of valid file";
     }
 
+    // to_with_threshold_step
+    TEST_F(MonadicCompositionFixture,PathToWithThreshold) {
+      auto mayabe_with_threshold = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then([](auto const& byte_buffer){
+          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
+        });        
+      ASSERT_TRUE(mayabe_with_threshold) << "Expected successful buffer with encoding confidence threshold";
+    }
+
+
   } // monadic_composition_suite
-  
+
   namespace file_io_suite {
 
     // Test fixture for file I/O tests
