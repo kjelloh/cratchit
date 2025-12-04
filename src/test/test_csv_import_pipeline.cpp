@@ -98,6 +98,22 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(maybe_platform_encoded) << "Expected successful platform encoded string";
     }
 
+    TEST_F(MonadicCompositionFixture,PathToCSVTable) {
+      auto maybe_csv_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then([](auto const& byte_buffer){
+          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
+        })
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(cratchit::functional::to_annotated_nullopt(
+          CSV::parse::maybe::csv_text_to_table_step
+          ,"Failed to parse csv into a valid table"));
+
+      ASSERT_TRUE(maybe_csv_table) << "Expected successful csv table";
+    }
+
+
   } // monadic_composition_suite
 
   namespace file_io_suite {
