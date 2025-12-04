@@ -55,6 +55,7 @@ namespace tests::csv_import_pipeline {
       }
     };
 
+    // Test of longer and longer AnnotatedMaybe 'and_then' composition path -> ... -> tagged Amounts
 
     TEST_F(MonadicCompositionFixture,PathToIStreeam) {
       auto maybe_istream = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path);
@@ -67,7 +68,6 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(mayabe_byte_buffer) << "Expected successful read of valid file";
     }
 
-    // to_with_threshold_step
     TEST_F(MonadicCompositionFixture,PathToWithThreshold) {
       auto mayabe_with_threshold = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
@@ -75,6 +75,16 @@ namespace tests::csv_import_pipeline {
           return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
         });        
       ASSERT_TRUE(mayabe_with_threshold) << "Expected successful buffer with encoding confidence threshold";
+    }
+
+    TEST_F(MonadicCompositionFixture,PathToWithEncoding) {
+      auto mayabe_with_encoding = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then([](auto const& byte_buffer){
+          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
+        })
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step);
+      ASSERT_TRUE(mayabe_with_encoding) << "Expected successful buffer with detected encoding";
     }
 
 
