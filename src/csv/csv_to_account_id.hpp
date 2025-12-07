@@ -200,8 +200,8 @@ namespace account {
           or (std::ranges::fold_left(field,size_t{0},[](size_t acc,auto ch){
                 return acc + (std::isspace(ch)?0:1);
               }) == 0)) candidate = ColumnType::Empty;
-        else if (auto maybe_amount = to_amount(field)) candidate = ColumnType::Amount;
         else if (auto maybe_date = to_date(field)) candidate = ColumnType::Date;
+        else if (auto maybe_amount = to_amount(field)) candidate = ColumnType::Amount;
         else if (field.size() > 0 and std::ranges::all_of(field,[](auto ch){
           return std::isalnum(ch);
         })) candidate = ColumnType::Text;

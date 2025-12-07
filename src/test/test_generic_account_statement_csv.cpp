@@ -9,26 +9,57 @@ namespace tests::generic_statement_csv {
   namespace happy_path_suite  {
 
     TEST(GenericStatementCSVFieldsTests,FieldTypesOk) {
-      std::vector<std::string> empty_fields{
-         ""
-        ," "
-        ,"\t"
-        ,"\t "
-        ,"\n"
-        ,"\n "
-        ,"          "
-        ,"\t        "
-        ,"\n        "
-      };
-      namespace asg = account::statement::generic;
-      for (auto const& field : empty_fields) {
-        auto column_type = asg::to_column_type(field);
-        ASSERT_EQ(column_type,asg::ColumnType::Empty)
-          << std::format(
-                "Expected '{}' to be validated as Empty but encountered {}"
-                ,field
-                ,asg::to_string(column_type));
+      {
+        std::vector<std::string> empty_fields{
+          ""
+          ," "
+          ,"\t"
+          ,"\t "
+          ,"\n"
+          ,"\n "
+          ,"          "
+          ,"\t        "
+          ,"\n        "
+        };
+        namespace asg = account::statement::generic;
+        for (auto const& field : empty_fields) {
+          auto column_type = asg::to_column_type(field);
+          ASSERT_EQ(column_type,asg::ColumnType::Empty)
+            << std::format(
+                  "Expected '{}' to be validated as Empty but encountered {}"
+                  ,field
+                  ,asg::to_string(column_type));
+        }
       }
+      {
+        std::vector<std::string> date_fields{
+           "20251207"
+          ,"2025-12-07"
+          ,"2025/12/07"
+
+          ," 20251207"
+          ," 2025-12-07"
+          ," 2025/12/07"
+
+          ," 20251207 "
+          ," 2025-12-07 "
+          ," 2025/12/07 "
+
+          ,"20251207         "
+          ,"2025-12-07       "
+          ,"2025/12/07       "
+        };
+        namespace asg = account::statement::generic;
+        for (auto const& field : date_fields) {
+          auto column_type = asg::to_column_type(field);
+          ASSERT_EQ(column_type,asg::ColumnType::Date)
+            << std::format(
+                  "Expected '{}' to be validated as Date but encountered {}"
+                  ,field
+                  ,asg::to_string(column_type));
+        }
+      }
+
     }
 
     TEST(GenericStatementCSVTests,NORDEAStatementOk) {
