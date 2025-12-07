@@ -11,6 +11,7 @@
 #include <ranges>
 #include <regex>
 #include <set>
+#include <cctype> // std::isalnul,...
 
 namespace account {
   namespace statement {
@@ -166,6 +167,7 @@ namespace account {
 
       enum class ColumnType {
          Undefined
+        ,Empty
         ,Text
         ,Amount
         ,Date
@@ -176,6 +178,7 @@ namespace account {
         std::string result{"??ColumnType??"};
         switch (column_type) {
           case ColumnType::Undefined: result = "Undefined"; break;
+          case ColumnType::Empty: result = "Empty"; break;
           case ColumnType::Text: result = "Text"; break;
           case ColumnType::Amount: result = "Amount"; break;
           case ColumnType::Date: result = "Date"; break;
@@ -191,6 +194,22 @@ namespace account {
           ,logger::LogToConsole::ON);
 
         ColumnType candidate{};
+        // TODO: Design a way that works for UTF-8 (this covers ASCII = probably OK for western langiuages)
+        if (
+             (field.size() == 0) 
+          or (std::ranges::fold_left(field,size_t{0},[](size_t acc,auto ch){
+                return acc + (std::isspace(ch)?0:1);
+              }) == 0)) candidate = ColumnType::Empty;
+        else if (auto maybe_amount = to_amount(field)) candidate = ColumnType::Amount;
+        else if (auto maybe_date = to_date(field)) candidate = ColumnType::Date;
+        else if (field.size() > 0 and std::ranges::all_of(field,[](auto ch){
+          return std::isalnum(ch);
+        })) candidate = ColumnType::Text;
+        else if (field.size() > 8 and std::ranges::fold_left(field,size_t{0},[](size_t acc,auto ch){
+          return acc + (std::isalnum(ch)?1:0);
+        }) > field.size() / 2) candidate = ColumnType::Text; // more than half ASCII alpha numeric
+        else candidate = ColumnType::Unknown;
+
         logger::development_trace("field:'{}' -> type:{}",field,to_string(candidate));
         return candidate;
       }
@@ -252,10 +271,9 @@ namespace account {
 
         ColumnMap column_map{};
         for (int i=0;i<row.size();++i) {
-          for (int i=0;i<row.size();++i) {
-            column_map[i] = to_column_type(row[i]);
-          }
+          column_map[i] = to_column_type(row[i]);
         }
+
         EntryType entry_type{};
         std::map<ColumnType,int> type_count{};
         for (auto const& entry : column_map) {
