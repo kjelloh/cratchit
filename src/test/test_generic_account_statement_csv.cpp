@@ -60,6 +60,29 @@ namespace tests::generic_statement_csv {
         }
       }
 
+      {
+        std::vector<std::string> amount_fields{
+           "123,00"
+          ,"123.00"
+          ,"123"
+          ,"12"
+          ,"1"
+          ,"0,00"
+          ,"0.00"
+          ,"0,75"
+          ,"0.75"          
+        };
+        namespace asg = account::statement::generic;
+        for (auto const& field : amount_fields) {
+          auto column_type = asg::to_column_type(field);
+          ASSERT_EQ(column_type,asg::ColumnType::Amount)
+            << std::format(
+                  "Expected '{}' to be validated as Amount but encountered {}"
+                  ,field
+                  ,asg::to_string(column_type));
+        }
+      }
+
     }
 
     TEST(GenericStatementCSVTests,NORDEAStatementOk) {
