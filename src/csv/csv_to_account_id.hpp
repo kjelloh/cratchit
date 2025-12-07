@@ -174,6 +174,13 @@ namespace account {
 
       inline std::string to_string(ColumnType column_type) {
         std::string result{"??ColumnType??"};
+        switch (column_type) {
+          case ColumnType::Undefined: result = "Undefined"; break;
+          case ColumnType::Text: result = "Text"; break;
+          case ColumnType::Amount: result = "Amount"; break;
+          case ColumnType::Date: result = "Date"; break;
+          case ColumnType::Unknown: result = "Unknown"; break;
+        }
         return result;
       }
 
@@ -202,6 +209,16 @@ namespace account {
 
       inline std::string to_string(EntryType entry_type) {
         std::string result{"??EntryType??"};
+        switch (entry_type) {
+          case EntryType::Undefined: result = "Undefined"; break;
+          case EntryType::Emtpy: result = "Emtpy"; break;
+          case EntryType::Caption: result = "Caption"; break;
+          case EntryType::Heading: result = "Heading"; break;
+          case EntryType::Transaction: result = "Transaction"; break;
+          case EntryType::Balance: result = "Balance"; break;
+          case EntryType::Unknown: result = "Unknown"; break;
+        }
+
         return result;
       }
 
