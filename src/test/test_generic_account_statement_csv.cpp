@@ -83,6 +83,31 @@ namespace tests::generic_statement_csv {
         }
       }
 
+      {
+        std::vector<std::string> text_fields{
+           "Belopp"
+          ,"Faktura"
+          ,"Fak"
+          ,"F"
+          ,"Bolaget.org"
+          ,"Å ena sidan - Å andra sidan"
+          ,"åäabcdef" // UTF-8 åä is escaped to 2*3 bytes = 6 bytes 'abcdef' -> 1/2 std::isalnum ok
+          ,"åäabcde"
+          // ,"åäabcd" // UTF-8 åä is escaped to 2*3 = 6 bytes overwhelms 4 bytes std::isalnum
+          // ,"åäöÅÄÖ" // Fails for now.
+          //              TODO: Add test when cratchit is fully 'runtime encoding' aware
+        };
+        namespace asg = account::statement::generic;
+        for (auto const& field : text_fields) {
+          auto column_type = asg::to_column_type(field);
+          ASSERT_EQ(column_type,asg::ColumnType::Text)
+            << std::format(
+                  "Expected '{}' to be validated as Text but encountered {}"
+                  ,field
+                  ,asg::to_string(column_type));
+        }
+      }
+
     }
 
     TEST(GenericStatementCSVTests,NORDEAStatementOk) {

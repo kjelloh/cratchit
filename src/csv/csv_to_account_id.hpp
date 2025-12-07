@@ -194,7 +194,11 @@ namespace account {
           ,logger::LogToConsole::ON);
 
         ColumnType candidate{};
-        // TODO: Design a way that works for UTF-8 (this covers ASCII = probably OK for western langiuages)
+        // TODO: Design a way that works for UTF-8 
+        //      (below covers ASCII = probably OK for western languages)
+        //      Note that an unlucky UTF-8 text like 'åäöÅÄÖ' will be classified as Unknown.
+        //      Single byte cgaracter sets e.g., ISO8859-1 may be fine though?
+        //      It all comes down to how C++ runtime 'locale' implements std::isalnum etc...?
         if (
              (field.size() == 0) 
           or (std::ranges::fold_left(field,size_t{0},[](size_t acc,auto ch){
