@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <ranges>
 #include <regex>
+#include <set>
 
 namespace account {
   namespace statement {
@@ -61,7 +62,7 @@ namespace account {
       *       I imagine the 'avsändare' may also conrtain foreign account numbers for
       *       transactions TO the bank account of which the account stement is about?
       */
-      inline std::optional<std::string> to_account_id(CSV::Table const& table) {
+      inline std::optional<std::string> to_account_no(CSV::Table const& table) {
         auto maybe_col_idx = to_avsandare_column_index(table.heading);
         if (!maybe_col_idx) {
           return {};
@@ -82,7 +83,7 @@ namespace account {
         }
 
         return {};
-      } // to_account_id
+      } // to_account_no
 
     } // NORDEA
 
@@ -116,7 +117,7 @@ namespace account {
         return false;
       } // is_account_statement_table
 
-      inline std::optional<std::string> to_account_id(CSV::Table const& table) {
+      inline std::optional<std::string> to_account_no(CSV::Table const& table) {
         // Regex patterns for organisation numbers
         // Pattern 1: 6 digits, optional dash, 4 digits (Swedish org number format)
         std::regex org_number_pattern(R"((\d{6})-?(\d{4}))");
@@ -157,11 +158,156 @@ namespace account {
         }
 
         return std::nullopt;
-      } // to_account_id
+      } // to_account_no
 
     } // SKV
 
+    namespace generic {
+
+      enum class ColumnType {
+         Undefined
+        ,Text
+        ,Amount
+        ,Date
+        ,Unknown
+      }; // ColumnType
+
+      inline std::string to_string(ColumnType column_type) {
+        std::string result{"??ColumnType??"};
+        return result;
+      }
+
+      inline ColumnType to_column_type(std::string field) {
+        logger::scope_logger log_riia(
+           logger::development_trace
+          ,"to_column_type(field)"
+          ,logger::LogToConsole::ON);
+
+        ColumnType candidate{};
+        logger::development_trace("field:'{}' -> type:{}",field,to_string(candidate));
+        return candidate;
+      }
+
+      using ColumnMap = std::map<int,ColumnType>;
+
+      enum class EntryType {
+         Undefined
+        ,Emtpy
+        ,Caption
+        ,Heading
+        ,Transaction
+        ,Balance
+        ,Unknown
+      };
+
+      inline std::string to_string(EntryType entry_type) {
+        std::string result{"??EntryType??"};
+        return result;
+      }
+
+      using EntryMap = MetaDefacto<EntryType,ColumnMap>;
+      using EntryMaps = std::vector<EntryMap>;
+
+      inline std::string to_string(EntryMap const& entry_map) {
+        std::string result{"??EntryMap??"};
+        return result;
+      }
+
+      inline EntryType to_entry_type(EntryMap const& entry_map) {
+        logger::scope_logger log_riia(
+           logger::development_trace
+          ,"to_entry_map(row)"
+          ,logger::LogToConsole::ON);
+
+        EntryType candidate{};
+        logger::development_trace(
+           "entry_map:'{}' -> type:{}"
+          ,to_string(entry_map)
+          ,to_string(candidate));
+        return candidate;
+      }
+
+      inline EntryMap to_entry_map(CSV::Table::Row const& row) {
+        logger::scope_logger log_riia(
+         logger::development_trace
+        ,"to_entry_map(row)"
+        ,logger::LogToConsole::ON);
+
+        ColumnMap column_map{};
+        for (int i=0;i<row.size();++i) {
+          for (int i=0;i<row.size();++i) {
+            column_map[i] = to_column_type(row[i]);
+          }
+        }
+        EntryType entry_type{};
+        std::map<ColumnType,int> type_count{};
+        for (auto const& entry : column_map) {
+          ++type_count[entry.second];
+        }
+
+        if (type_count[ColumnType::Amount] == 2) {
+          // Determine if we have trans + saldo amounts in the entry
+
+        }
+                
+        EntryMap candidate{};
+
+        logger::development_trace(
+           "row:'{}' -> map:{}"
+          ,to_string(row)
+          ,to_string(candidate));
+
+        candidate = {.meta = entry_type,.defacto = column_map};
+
+        return candidate;
+      }
+
+      inline std::optional<CSV::MDTable<EntryMaps>> to_entries_mapped(CSV::Table const& table) {
+
+        logger::scope_logger log_riia(
+           logger::development_trace
+          ,"to_entries_mapped(csv)"
+          ,logger::LogToConsole::ON);
+
+        // Identify transaction entries
+
+        // map candidates
+        std::vector<EntryMap> candidates{};
+        for (auto const& entry : table.rows) {
+          candidates.push_back(to_entry_map(entry));
+        }
+
+        for (int i=0;i<table.rows.size();++i) {
+          logger::development_trace(
+             "{} type:{}"
+            ,table.rows[i].to_string()
+            ,"not yet implemented");
+        }
+
+        // Find the entry field count ditsribution (table with uniform entry formats?)
+        std::set<size_t> col_counts{};
+        for (auto const& entry : table.rows) {
+          col_counts.insert(entry.size());
+        }
+
+        if (col_counts.size() == 1) {
+          // All entries formatted as columns
+        }
+        else {
+          // Can we still interpret this table as having at least one transaction entry?
+        }
+
+        return {}; // failed
+      }
+
+    } // generic
+
     namespace maybe {
+
+      inline std::optional<CSV::MDTable<generic::EntryMaps>> to_entries_mapped(CSV::Table const& table) {
+        return generic::to_entries_mapped(table);
+      }
+
 
       // Monadic Maybe: Table -> (account ID,Table) pair
       inline std::optional<CSV::MDTable<AccountID>> to_account_id_ed_step(CSV::Table const& table) {
@@ -175,18 +321,18 @@ namespace account {
         }
 
         // TODO: Consider to replace NORDEA / SKV specifics below
-        //       with generic is_account_statement_table and to_account_id.
+        //       with generic is_account_statement_table and to_account_no.
         //       Possibly a single step operation?
-        //       Something that returns pair(AccountStatement, maybe account id)?
+        //       Something that returns pair(AccountStatement, maybe account_id)?
 
         if (account::statement::NORDEA::is_account_statement_table(table)) {
-          std::string account_number = account::statement::NORDEA::to_account_id(table).value_or("");
+          std::string account_number = account::statement::NORDEA::to_account_no(table).value_or("");
           logger::development_trace("to_account_id_ed_step: Detected NORDEA account: '{}'", account_number);
           return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
         }
 
         if (account::statement::SKV::is_account_statement_table(table)) {
-          auto maybe_org_number = account::statement::SKV::to_account_id(table);
+          auto maybe_org_number = account::statement::SKV::to_account_no(table);
           std::string org_number = maybe_org_number.value_or("");
           logger::development_trace("to_account_id_ed_step: Detected SKV account for org: '{}'", org_number);
           return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
