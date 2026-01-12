@@ -48,6 +48,9 @@ namespace account {
         * - Description: "description", "namn", "rubrik", "meddelande", "text"
         */
         inline ColumnMapping detect_columns_from_header(CSV::Table::Heading const& heading) {
+
+          logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_header");
+
           ColumnMapping mapping;
 
           // Helper to check if a string contains a keyword (case-insensitive)
@@ -106,6 +109,8 @@ namespace account {
             }
           }
 
+          logger::development_trace("returns mapping.is_valid:{}",mapping.is_valid());
+
           return mapping;
         } // detect_columns_from_header
 
@@ -118,6 +123,9 @@ namespace account {
         * - Description column: Text fields that don't parse as dates or amounts
         */
         inline ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
+
+          logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_data");
+
           ColumnMapping mapping;
 
           if (rows.empty()) {
@@ -146,6 +154,7 @@ namespace account {
           std::ranges::copy(sample_rows, std::back_inserter(sampled));
 
           if (sampled.empty()) {
+            logger::development_trace("if (sampled.empty()) -> returns mapping.is_valid:{}",mapping.is_valid());
             return mapping;
           }
 
@@ -211,6 +220,8 @@ namespace account {
               }
             }
           }
+
+          logger::development_trace("returns mapping.is_valid:{}",mapping.is_valid());
 
           return mapping;
         } // detect_columns_from_data
