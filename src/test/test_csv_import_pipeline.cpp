@@ -2156,11 +2156,8 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      // Filter outlier rows to get consistent structure
-      auto filtered_table = account::statement::maybe::table::filter_outlier_boundary_rows(*maybe_table);
-
       // Detect columns from data
-      auto mapping = account::statement::maybe::table::detect_columns_from_data(filtered_table.rows);
+      auto mapping = account::statement::maybe::table::detect_columns_from_data(maybe_table->rows);
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
 

@@ -326,83 +326,17 @@ namespace account {
           return AccountStatementEntry(*maybe_date, *maybe_amount, description);
         } // extract_entry_from_row
 
-        /**
-        * Filter CSV table to remove first/last rows with different column counts
-        *
-        * Strategy:
-        * - Count non-empty fields in each row to determine "effective" column count
-        * - Find the most common effective column count
-        * - Remove first row if its count differs from the majority
-        * - Remove last row if its count differs from the majority
-        *
-        * This handles cases like SKV files where the first row is a company header
-        * and doesn't match the structure of transaction rows.
-        */
-        inline CSV::Table filter_outlier_boundary_rows(CSV::Table const& table) {
-          logger::scope_logger log_raii(logger::development_trace,"filter_outlier_boundary_rows");
-          if (table.rows.size() <= 2) {
-            return table;  // Too few rows to filter
-          }
-
-          // Build histogram of column counts
-          std::map<size_t, size_t> count_histogram;
-          for (auto const& row : table.rows) {
-            size_t col_count = row.size();
-            count_histogram[col_count]++;
-          }
-
-          // Find most common column count
-          size_t most_common_count = 0;
-          size_t max_frequency = 0;
-          for (auto const& [count, freq] : count_histogram) {
-            if (freq > max_frequency) {
-              max_frequency = freq;
-              most_common_count = count;
-            }
-          }
-
-          // Determine which rows to keep
-          bool skip_first = table.rows.front().size() != most_common_count;
-          bool skip_last = table.rows.back().size() != most_common_count;
-
-          logger::development_trace(
-            "most_common_count:{} skip_first:{} skip_last:{}"
-            ,most_common_count
-            ,skip_first
-            ,skip_last
-          );
-
-          // Build filtered table
-          CSV::Table filtered = table;
-          filtered.rows.clear();
-
-          for (size_t i = 0; i < table.rows.size(); ++i) {
-            if (i == 0 && skip_first) continue;
-            if (i == table.rows.size() - 1 && skip_last) continue;
-            filtered.rows.push_back(table.rows[i]);
-          }
-
-          return filtered;
-        } // filter_outlier_boundary_rows
-
       } // table
 
       inline OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table) {
         logger::scope_logger log_raii{logger::development_trace, "csv_table_to_account_statement_entries(table)"};
         
-        // Filter out first/last rows if they have different column structure
-        CSV::Table filtered_table = table::filter_outlier_boundary_rows(table);
-        logger::development_trace(
-          "table:{} rows filtered_table:{} rows"
-          ,table.rows.size()
-          ,filtered_table.rows.size());
-
         // Try to detect columns from header first
-        table::ColumnMapping mapping = table::detect_columns_from_header(filtered_table.heading);
+        table::ColumnMapping mapping = table::detect_columns_from_header(table.heading);
 
         // If header detection failed, try data-based detection
         if (!mapping.is_valid()) {
-          mapping = table::detect_columns_from_data(filtered_table.rows);
+          mapping = table::detect_columns_from_data(table.rows);
         }
 
         // If we still can't detect required columns, fail
@@ -413,7 +347,7 @@ namespace account {
         // Extract entries from rows
         AccountStatementEntries entries;
 
-        for (auto const& row : filtered_table.rows) {
+        for (auto const& row : table.rows) {
           auto maybe_entry = extract_entry_from_row(row, mapping);
           if (maybe_entry) {
             entries.push_back(*maybe_entry);
