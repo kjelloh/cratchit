@@ -154,14 +154,11 @@ namespace account {
 
             int valid_dates = 0;
             int valid_amounts = 0;
-            int non_empty = 0;
 
             for (auto const& row : sampled) {
               if (col >= row.size() || row[col].size() == 0) {
                 continue;
               }
-
-              non_empty++;
 
               if (to_date(row[col]).has_value()) {
                 valid_dates++;
@@ -342,22 +339,16 @@ namespace account {
         * and doesn't match the structure of transaction rows.
         */
         inline CSV::Table filter_outlier_boundary_rows(CSV::Table const& table) {
+          logger::scope_logger log_raii(logger::development_trace,"filter_outlier_boundary_rows");
           if (table.rows.size() <= 2) {
             return table;  // Too few rows to filter
           }
 
-          // Count non-empty fields for each row
-          auto count_non_empty = [](CSV::Table::Row const& row) -> size_t {
-            return std::ranges::count_if(row, [](std::string const& field) {
-              return field.size() > 0;
-            });
-          };
-
           // Build histogram of column counts
           std::map<size_t, size_t> count_histogram;
           for (auto const& row : table.rows) {
-            size_t non_empty = count_non_empty(row);
-            count_histogram[non_empty]++;
+            size_t col_count = row.size();
+            count_histogram[col_count]++;
           }
 
           // Find most common column count
@@ -371,8 +362,15 @@ namespace account {
           }
 
           // Determine which rows to keep
-          bool skip_first = count_non_empty(table.rows.front()) != most_common_count;
-          bool skip_last = count_non_empty(table.rows.back()) != most_common_count;
+          bool skip_first = table.rows.front().size() != most_common_count;
+          bool skip_last = table.rows.back().size() != most_common_count;
+
+          logger::development_trace(
+            "most_common_count:{} skip_first:{} skip_last:{}"
+            ,most_common_count
+            ,skip_first
+            ,skip_last
+          );
 
           // Build filtered table
           CSV::Table filtered = table;
@@ -394,6 +392,10 @@ namespace account {
         
         // Filter out first/last rows if they have different column structure
         CSV::Table filtered_table = table::filter_outlier_boundary_rows(table);
+        logger::development_trace(
+          "table:{} rows filtered_table:{} rows"
+          ,table.rows.size()
+          ,filtered_table.rows.size());
 
         // Try to detect columns from header first
         table::ColumnMapping mapping = table::detect_columns_from_header(filtered_table.heading);

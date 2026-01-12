@@ -5783,7 +5783,7 @@ namespace zeroth {
     // 20251008 - Disable mechanism controlled with 'disable_ta_persistent_storage' flag
 
     // static const bool disable_ta_persistent_storage = true;
-    static const bool disable_ta_persistent_storage = false;
+    static const bool disable_ta_persistent_storage = true;
     logger::development_trace(R"(disable_ta_persistent_storage:{})",disable_ta_persistent_storage);
     if (not disable_ta_persistent_storage) {
       std::ranges::for_each(

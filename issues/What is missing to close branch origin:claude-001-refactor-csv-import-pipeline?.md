@@ -6,9 +6,55 @@ I want to merge origin/claude-001-refactor-csv-import-pipeline back to main bran
 
 ## Potential Issues
 
-* Does csv -> tagged amounts import all statement entries ok?
+* NORDEA csv -> tas seems to skip the last entry (See PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv)?
 
-## Import csv-files console output
+  - Keeps header (should skip = no data)
+  - Skips last entry (Should keep = is valid data)
+
+```sh
+TRACE: BEGIN tas::csv_table_to_tagged_amounts_shortcut(table, account_id)
+[14:52:45.563]           TRACE: BEGIN csv_table_to_account_statement_step(table, account_id)
+[14:52:45.563]             TRACE: BEGIN csv_table_to_account_statement_entries(table)
+[14:52:45.563]               TRACE: BEGIN filter_outlier_boundary_rows
+[14:52:45.563]                 TRACE: most_common_count:11 skip_first:false skip_last:true
+[14:52:45.563]               TRACE: END filter_outlier_boundary_rows
+[14:52:45.563]               TRACE: table:12 rows filtered_table:11 rows
+[14:52:45.563]               TRACE: Returns entries with size:10
+[14:52:45.563]             TRACE: END csv_table_to_account_statement_entries(table)
+[14:52:45.563]             TRACE: Creating AccountStatement with 10 entries and account_id: NORDEA::32592317244
+[14:52:45.563]           TRACE: END csv_table_to_account_statement_step(table, account_id)
+[14:52:45.563]           TRACE: BEGIN account_statement_to_tagged_amounts_step(statement)
+[14:52:45.563]             TRACE: Processing statement with 10 entries, account_id: 'NORDEA::32592317244'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-115875, text='LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT) | 62500016901740'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-20057, text='KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26 | CLAUDE.AI SUBSC 2656'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-235900, text='TELIA SVERIGE AB | TELIA SVERIGE AB | 20578563254'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-185, text='AVGIFTER NORDEA | AVGIFTER NORDEA'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=1000000, text='Insättning | Insättning | FRÅN SPAR'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-61500, text='Fortnox Finans AB | Fortnox Finans AB | 575901892218359'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-19808, text='KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26 | CLAUDE.AI SUBSC 2656'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=199700, text='BG KONTOINS | BG KONTOINS | 5050-1030 SK5567828172'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-185, text='AVGIFTER NORDEA | AVGIFTER NORDEA'
+[14:52:45.563]             TRACE: Created TaggedAmount: cents=-32375, text='LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT) | 62500012712646'
+[14:52:45.563]             TRACE: Returning 10 TaggedAmounts
+[14:52:45.563]           TRACE: END account_statement_to_tagged_amounts_step(statement)
+[14:52:45.563]         TRACE: END tas::csv_table_to_tagged_amounts_shortcut(table, account_id)
+```
+
+## Import PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv console output
+
+BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+	[Pipeline] Successfully opened file: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv
+	[Pipeline] Successfully read 1194 bytes from stream
+	[Pipeline] Detected encoding: UTF-8 (confidence: 100, method: ICU)
+	[Pipeline] Successfully transcoded 1194 bytes to 1194 platform encoding bytes
+	[Pipeline] Step 6 complete: CSV parsed successfully (12 rows)
+	[Pipeline] Step 6.5 complete: AccountID detected: 'NORDEA::32592317244'
+	[Pipeline] Pipeline complete: 10 TaggedAmounts created from 'PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv'
+	Valid entries count:10
+	Consumed account statement file moved to "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+
+## Import M3 csv-files console output
 
 BEGIN: Processing files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv"
 

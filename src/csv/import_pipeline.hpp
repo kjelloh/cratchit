@@ -56,8 +56,9 @@ namespace csv {
 
     AnnotatedMaybe<TaggedAmounts> result{};
 
-    result.push_message(std::format("Starting from Step 6.5 with CSV::Table ({} rows)",
-      table.rows.size()));
+    result.push_message(std::format(
+       "Starting from Step 6.5 with CSV::Table ({} rows)"
+      ,table.rows.size()));
 
     // Step 6.5: CSV::Table -> MDTable<AccountID>
     auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(table);
@@ -82,8 +83,9 @@ namespace csv {
     }
 
     result.m_value = std::move(*maybe_tagged);
-    result.push_message(std::format("Pipeline complete: {} TaggedAmounts created",
-      result.value().size()));
+    result.push_message(std::format(
+       "Pipeline complete: {} TaggedAmounts created"
+      ,result.value().size()));
 
     return result;
   }
