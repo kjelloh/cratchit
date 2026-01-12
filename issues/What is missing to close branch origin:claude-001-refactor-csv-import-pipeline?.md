@@ -6,7 +6,7 @@ I want to merge origin/claude-001-refactor-csv-import-pipeline back to main bran
 
 ## Potential Issues
 
-* csv -> tagged amounts seems to work but does not survive restart (tas now saved to environment)?
+* Does csv -> tagged amounts import all statement entries ok?
 
 ## Import csv-files console output
 

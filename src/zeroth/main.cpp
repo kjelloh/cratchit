@@ -5750,12 +5750,17 @@ namespace zeroth {
     logger::scope_logger log_raii{logger::development_trace,"environment_from_model"};
 
 		Environment result{};
+
+    // tas -> env helper lambda
 		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
       // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
       if (false) {
         if (ta.tag_value("BAS") or ta.tag_value("SIE")) {
           // std::cout << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta;
+          logger::development_trace(
+             R"(DESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:{})"
+            ,to_string(ta));
           return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
         }
       }
@@ -5778,12 +5783,15 @@ namespace zeroth {
     // 20251008 - Disable mechanism controlled with 'disable_ta_persistent_storage' flag
 
     // static const bool disable_ta_persistent_storage = true;
-    static const bool disable_ta_persistent_storage = true;
+    static const bool disable_ta_persistent_storage = false;
+    logger::development_trace(R"(disable_ta_persistent_storage:{})",disable_ta_persistent_storage);
     if (not disable_ta_persistent_storage) {
-  		// model->all_dotas.for_each(tagged_amount_to_environment);
       std::ranges::for_each(
          model->all_dotas.ordered_tagged_amounts()
         ,tagged_amount_to_environment);
+    }
+    else {
+      logger::development_trace(R"(BEWARE: NO tagged amounts saved to persistent environment (disable_ta_persistent_storage is false))");
     }
 
     // Log
