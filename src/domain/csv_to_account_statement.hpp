@@ -39,7 +39,7 @@ namespace account {
 
         using RowsMap = std::vector<RowMap>;
 
-        RowsMap to_rows_map(CSV::Table const& table);
+        RowsMap to_rows_map(CSV::Table::Rows const& rows);
 
         /**
         * Column Detection Result

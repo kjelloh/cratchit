@@ -9,6 +9,20 @@ namespace account {
 
       namespace table {
 
+        std::string to_string(FieldType field_type) {
+          std::string result{"?FieldType?"};
+          switch (field_type) {
+           case FieldType::Unknown: result = "Unknown"; break;
+            case FieldType::Empty: result = "Empty"; break;
+            case FieldType::Date: result = "Date"; break;
+            case FieldType::Amount: result = "Amount"; break;
+            case FieldType::Text: result = "Text"; break;
+            case FieldType::Undefined: result = "Undefined"; break;
+            default: result = std::format("?FieldType:{}?",static_cast<int>(field_type)); break;
+          }
+          return result;
+        }
+
         FieldType to_field_type(std::string const& s) {
           if (s.size()==0) {
             return FieldType::Empty;
@@ -35,10 +49,10 @@ namespace account {
           return result;
         }
 
-        RowsMap to_rows_map(CSV::Table const& table) {
+        RowsMap to_rows_map(CSV::Table::Rows const& rows) {
           RowsMap result{};
 
-          for (auto const& row : table.rows) {
+          for (auto const& row : rows) {
             result.push_back(to_row_map(row));
           }
 
@@ -52,6 +66,29 @@ namespace account {
 
           if (true) {
             // Refactored to use per row RowsMap analysis
+
+            auto rows_map = to_rows_map(rows);
+
+            if (true) {
+              // Log
+              for (size_t i=0;i<rows.size();++i) {
+                std::string map_string{};
+
+                for (auto const& entry : rows_map[i].ixs) {
+                  map_string += std::format(" {}",to_string(entry.first));
+                  map_string += ":";
+                  for (auto ix : entry.second) {
+                    map_string += std::format(" {}",ix);
+                  }
+                }
+
+                logger::development_trace(
+                   "row:{} map:{}"
+                  ,rows[i].to_string()
+                  ,map_string);
+              }
+            }
+
 
           }
 
