@@ -39,6 +39,8 @@ namespace account {
 
         using RowsMap = std::vector<RowMap>;
 
+        RowsMap to_rows_map(CSV::Table const& table);
+
         /**
         * Column Detection Result
         *
@@ -132,117 +134,7 @@ namespace account {
           return mapping;
         } // detect_columns_from_header
 
-        /**
-        * Detect column mapping from data rows (when no header is available)
-        *
-        * Strategy: Use heuristics to identify column types by analyzing data patterns
-        * - Date column: All non-empty values parse as valid dates
-        * - Amount column: All non-empty values parse as valid amounts
-        * - Description column: Text fields that don't parse as dates or amounts
-        */
-        inline ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
-
-          logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_data");
-
-          ColumnMapping mapping;
-
-          if (rows.empty()) {
-            return mapping;
-          }
-
-          // Determine number of columns
-          size_t num_columns = 0;
-          for (auto const& row : rows) {
-            num_columns = std::max(num_columns, row.size());
-          }
-
-          if (num_columns == 0) {
-            return mapping;
-          }
-
-          // Sample rows for analysis (skip empty first columns - balance rows)
-          auto sample_rows = 
-              rows
-            | std::views::filter([](auto const& row) {
-                return row.size() > 0 && row[0].size() > 0;
-              })
-            | std::views::take(10);
-
-          std::vector<CSV::Table::Row> sampled;
-          std::ranges::copy(sample_rows, std::back_inserter(sampled));
-
-          if (sampled.empty()) {
-            logger::development_trace("if (sampled.empty()) -> returns mapping.is_valid:{}",mapping.is_valid());
-            return mapping;
-          }
-
-          // Check each column
-          for (size_t col = 0; col < num_columns; ++col) {
-
-            int valid_dates = 0;
-            int valid_amounts = 0;
-
-            for (auto const& row : sampled) {
-              if (col >= row.size() || row[col].size() == 0) {
-                continue;
-              }
-
-              if (to_date(row[col]).has_value()) {
-                valid_dates++;
-              }
-              else if (to_amount(row[col]).has_value()) {
-                valid_amounts++;
-              }
-              else {
-                // Nor date or amount
-              }
-            } // for row
-
-            if (valid_dates == sampled.size()) {
-              // Column is Date if ALL values are valid dates
-              mapping.date_column = static_cast<int>(col);
-            }
-            else if (valid_amounts == sampled.size()) {
-              // First amount column found becomes transaction amount
-              // Second amount column found becomes saldo amount
-              if (mapping.transaction_amount_column == -1) {
-                mapping.transaction_amount_column = static_cast<int>(col);
-              }
-              else if (mapping.saldo_amount_column == -1) {
-                mapping.saldo_amount_column = static_cast<int>(col);
-              }
-            }
-            else {
-              // Not a date nor an amount column
-            }
-          } // for column
-
-          // Description is typically the first text column that's not date or amount
-          for (size_t col = 0; col < num_columns; ++col) {
-            if (static_cast<int>(col) != mapping.date_column &&
-                static_cast<int>(col) != mapping.transaction_amount_column &&
-                static_cast<int>(col) != mapping.saldo_amount_column &&
-                mapping.description_column == -1) {
-
-              // Check if column has substantial text content
-              bool has_text = false;
-              for (auto const& row : sampled) {
-                if (col < row.size() && row[col].size() > 2) {
-                  has_text = true;
-                  break;
-                }
-              }
-
-              if (has_text) {
-                mapping.description_column = static_cast<int>(col);
-              }
-            }
-          }
-
-          logger::development_trace("returns mapping.is_valid:{}",mapping.is_valid());
-
-          return mapping;
-        } // detect_columns_from_data
+        ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows);
 
         /**
         * Determine if a CSV row is "ignorable" (e.g., balance rows in SKV format)
