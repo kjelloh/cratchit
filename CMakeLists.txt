@@ -97,7 +97,8 @@ add_executable(cratchit
         src/test/zeroth/test_zeroth.cpp
         src/persistent/in/maybe.cpp
         src/HAD2JournalEntryFramework.cpp
-        src/text/functional.cpp)
+        src/text/functional.cpp
+        src/domain/csv_to_account_statement.cpp)
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)

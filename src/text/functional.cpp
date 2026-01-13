@@ -24,6 +24,12 @@ namespace text {
       return std::string_view(start, end);
     }
 
+    size_t count_alpha(std::string_view s) {
+      return std::ranges::count_if(s, [](unsigned char c) {
+        return std::isalpha(c);
+      });
+    }
+
     size_t count_digits(std::string_view s) {
       return std::ranges::count_if(s, [](unsigned char c) {
         return std::isdigit(c);

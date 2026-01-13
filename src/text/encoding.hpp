@@ -144,8 +144,6 @@ namespace text {
             auto unicode_s = text::encoding::UTF8::utf8ToUnicode(raw_entry);
             result = f(unicode_s);
           }
-          // if (result.size() > 0) return result;
-          // else return std::nullopt;
           return result;
         }
       };
@@ -174,14 +172,13 @@ namespace text {
     } // namespace CP437
     
     namespace unicode {
-
-      using CodePoint = 
-
+      
       struct to_utf8 {
         using value_type = std::string;
         value_type operator()(cratchit_unicode_string const& unicode_s) const;
 
       };
+
     } // namespace unicode
 
     namespace icu {

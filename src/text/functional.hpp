@@ -19,8 +19,19 @@ namespace functional {
 namespace text {
   namespace functional {
 
+      // TODO: Find a way to make these functions process 'runtime encoded' string views.
+      //       There are range adaptors in text/transcoding_views.hpp that projects a 'byte range'
+      //       to a 'unicode code point' range.
+      //       I had Calude Code generate it for me but it is A MESS!
+      //       But the idea is sound I think.
+      //       1. Asume all internal text is in 'runtime encoding' (For now UTF-8 semi-hard-coded and/or asumed)
+      //       2. Process by projecting runtoime encoded text to unicode code point range
+      //       In this way we can have text encoded efficiently and project to unicde only when required?
+
       // Trim whitespace from both ends
       std::string_view trim(std::string_view s);
+
+      size_t count_alpha(std::string_view s);
 
       // Count digits in a string
       size_t count_digits(std::string_view s);

@@ -246,8 +246,8 @@ namespace text::encoding::views {
   template<std::ranges::viewable_range ByteRange>
   auto bytes_to_unicode(ByteRange&& byte_range, DetectedEncoding encoding) {
     return bytes_to_unicode_view<std::views::all_t<ByteRange>>(
-      std::views::all(std::forward<ByteRange>(byte_range)),
-      encoding
+       std::views::all(std::forward<ByteRange>(byte_range))
+      ,encoding
     );
   }
 
