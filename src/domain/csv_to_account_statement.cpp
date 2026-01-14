@@ -88,6 +88,56 @@ namespace account {
                   ,map_string);
               }
 
+              // Hard coded for SKV account statement file
+              {
+                auto is_skv_saldo_entry_candidate = [](auto const& row_map){
+                    if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+                    if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()!=1) return false;
+                    return true;
+                  };
+                auto in_saldo_candidate_iter = std::ranges::find_if(
+                  rows_map
+                  ,is_skv_saldo_entry_candidate
+                );
+
+                if (in_saldo_candidate_iter != rows_map.end()) {
+                  auto trans_span_begin = in_saldo_candidate_iter+1;
+                  auto out_saldo_candidate_iter = std::find_if(
+                     trans_span_begin
+                    ,rows_map.end()
+                    ,is_skv_saldo_entry_candidate
+                  );
+
+                  if (out_saldo_candidate_iter != rows_map.end()) {
+                    auto trans_span_end = out_saldo_candidate_iter;
+                    // We have a span to check
+                    auto key_map = *(in_saldo_candidate_iter+1);
+                    auto is_skv_trans_entry_candidate = [&key_map](auto const& row_map){
+                      if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+                      if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()!=1) return false;
+                      if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()!=2) return false;
+                      return row_map.ixs == key_map.ixs;
+                    };
+
+                    if (std::all_of(
+                       trans_span_begin
+                      ,trans_span_end
+                      ,is_skv_trans_entry_candidate
+                    )) {
+                      // Good enough - This is probably an SKV account statement csv file table
+                      mapping.date_column = key_map.ixs.at(FieldType::Date).front();
+                      mapping.description_column = key_map.ixs.at(FieldType::Text).front();
+                      mapping.transaction_amount_column = key_map.ixs.at(FieldType::Amount)[0];
+                      mapping.saldo_amount_column = key_map.ixs.at(FieldType::Amount)[1];
+                      return mapping;
+                    }
+                  }
+
+                }
+
+              }
+
+
               std::print("\ndetect_columns_from_data: TODO - ISSUE20260114_SKV_CSV Create ColumnMapping from rows_map");
               
             } // true (Log)

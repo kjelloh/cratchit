@@ -1,1 +1,2 @@
-./run.zsh --gtest_filter=AccountStatementDetectionTests*:CSVTable2TaggedAmountsTests*:CSVTable2AccountStatementTests*
+./run.zsh --gtest_filter=*DetectColumnsFromSKVNewData
+# ./run.zsh --gtest_filter=AccountStatementDetectionTests*:CSVTable2TaggedAmountsTests*:CSVTable2AccountStatementTests*
