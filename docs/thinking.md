@@ -182,5 +182,10 @@ Here I added the 'rinse-and-repeat' python based mechanism. So how should I rig 
   - CSVTable2TaggedAmountsTests::IntegrationWithNordeaCsvData
   - CSVTable2TaggedAmountsTests::IntegrationWithSkvCsvData
 
-...
+YES. I renamed the google tests as above to be able to filter out and run those tests specifically.
 
+Now, what do I need to test the 'detect_columns_from_data'?
+
+* I already have google tests that calls detect_columns_from_data.
+  - TEST(AccountStatementTests, DetectColumnsFromData)
+  - TEST(AccountStatementTests, DetectBothAmountColumns)

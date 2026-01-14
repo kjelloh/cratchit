@@ -1922,8 +1922,8 @@ Alice,30,"Stockholm, Sweden"
       logger::development_trace("Extracted {} entries from newer SKV CSV", maybe_statements->size());
     }
 
-    TEST(AccountStatementTests, DetectColumnsWithHeaders) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectColumnsWithHeaders)"};
+    TEST(AccountStatementDetectionTests, DetectColumnsFromHeader) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectColumnsFromHeader)"};
 
       // Create a simple CSV table with headers
       CSV::Table table;
@@ -1940,7 +1940,7 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_EQ(mapping.description_column, 2);
     }
 
-    TEST(AccountStatementTests, DetectColumnsFromData) {
+    TEST(AccountStatementDetectionTests, DetectColumnsFromData) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectColumnsFromData)"};
 
       // Create a CSV table without meaningful headers
