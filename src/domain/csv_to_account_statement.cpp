@@ -87,7 +87,10 @@ namespace account {
                   ,rows[i].to_string()
                   ,map_string);
               }
-            }
+
+              std::print("\ndetect_columns_from_data: TODO - Create ColumnMapping from rows_map");
+              
+            } // true (Log)
 
 
           }

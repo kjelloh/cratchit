@@ -172,6 +172,8 @@ namespace account {
             }
           }
 
+          std::print("\nis_ignorable_row: TODO - Ignore row if mapping fails");
+
           return false;
         } // is_ignorable_row
 
