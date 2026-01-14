@@ -1923,7 +1923,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     TEST(AccountStatementDetectionTests, DetectColumnsFromHeader) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectColumnsFromHeader)"};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromHeader)"};
 
       // Create a simple CSV table with headers
       CSV::Table table;
@@ -1940,8 +1940,23 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_EQ(mapping.description_column, 2);
     }
 
+    TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader)"};
+
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
+
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
+
+      auto mapping = account::statement::maybe::table::detect_columns_from_header(maybe_md_table->defacto.heading);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
+    }
+
     TEST(AccountStatementDetectionTests, DetectColumnsFromData) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectColumnsFromData)"};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromData)"};
 
       // Create a CSV table without meaningful headers
       CSV::Table table;
@@ -1959,17 +1974,16 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
     }
 
-    TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNew) {
-      // Parse SKV CSV (newer format)
+    TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData)"};
+
       std::string csv_text = sz_SKV_csv_20251120;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
 
-      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed_step
       auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
-      // Detect columns from data patterns
       auto mapping = account::statement::maybe::table::detect_columns_from_data(maybe_md_table->defacto.rows);
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
