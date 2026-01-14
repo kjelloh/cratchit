@@ -306,7 +306,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, DatePreservedCorrectly) {
 // Integration Tests with Real CSV Data
 // ============================================================================
 
-TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
+TEST(CSVTable2TaggedAmountsTests, IntegrationWithNordeaCsvData) {
   logger::scope_logger log_raii{logger::development_trace,
     "TEST(StatementToTaggedAmounts, IntegrationWithNordeaCsvData)"};
 
@@ -348,7 +348,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithNordeaCsvData) {
   }
 }
 
-TEST_F(StatementToTaggedAmountsTestFixture, IntegrationWithSkvCsvData) {
+TEST(CSVTable2TaggedAmountsTests, IntegrationWithSkvCsvData) {
   logger::scope_logger log_raii{logger::development_trace,
     "TEST(StatementToTaggedAmounts, IntegrationWithSkvCsvData)"};
 

@@ -179,8 +179,8 @@ Here I added the 'rinse-and-repeat' python based mechanism. So how should I rig 
   - CSVTable2AccountStatementTests::CsvTableToAccountStatementEmptyEntriesIsValid
   - CSVTable2AccountStatementTests::CsvTableToAccountStatementIntegrationPipeline
 
-  - StatementToTaggedAmountsTestFixture::IntegrationWithNordeaCsvData
-  - StatementToTaggedAmountsTestFixture::IntegrationWithSkvCsvData
+  - CSVTable2TaggedAmountsTests::IntegrationWithNordeaCsvData
+  - CSVTable2TaggedAmountsTests::IntegrationWithSkvCsvData
 
 ...
 

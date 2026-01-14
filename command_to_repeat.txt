@@ -1,1 +1,1 @@
-./run.zsh --test
+./run.zsh --gtest_filter=CSVTable2TaggedAmountsTests*:CSVTable2AccountStatementTests*
