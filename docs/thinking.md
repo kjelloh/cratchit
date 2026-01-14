@@ -189,3 +189,6 @@ Now, what do I need to test the 'detect_columns_from_data'?
 * I already have google tests that calls detect_columns_from_data.
   - TEST(AccountStatementTests, DetectColumnsFromData)
   - TEST(AccountStatementTests, DetectBothAmountColumns)
+
+* Added TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNew)
+  

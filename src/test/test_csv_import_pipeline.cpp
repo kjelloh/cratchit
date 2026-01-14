@@ -1959,6 +1959,27 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
     }
 
+    TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNew) {
+      // Parse SKV CSV (newer format)
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
+
+      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed_step
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
+
+      // Detect columns from data patterns
+      auto mapping = account::statement::maybe::table::detect_columns_from_data(maybe_md_table->defacto.rows);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
+      EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
+      EXPECT_EQ(mapping.transaction_amount_column, 2) << "Expected transaction amount in column 2";
+      EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
+
+    }
+
+
     TEST(AccountStatementTests, InvalidDateHandledGracefully) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, InvalidDateHandledGracefully)"};
 
