@@ -1,1 +1,1 @@
-./run.zsh --nop
+./run.zsh --test

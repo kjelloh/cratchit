@@ -167,7 +167,20 @@ Maybe we can do it like this.
 
 Idea: Mark the code with bookmark '#ISSUE20260114_SKV_CSV' to keep track of where I am?
 
+Here I added the 'rinse-and-repeat' python based mechanism. So how should I rig my project to make the rinse-and-repeat keep me on track to make the SKV csv account statement file parsing work?
 
+* Should I make a test case for detect_columns_from_data?
+* Do I already have test cases for csv_table_to_account_statement_step?
+  YES!
+  - CSVTable2AccountStatementTests::CsvTableToAccountStatementWithNordea
+  - CSVTable2AccountStatementTests::CsvTableToAccountStatementWithSKV
+  - CSVTable2AccountStatementTests::CsvTableToAccountStatementPreservesEntryData
+  - CSVTable2AccountStatementTests::CsvTableToAccountStatementWithInvalidTable
+  - CSVTable2AccountStatementTests::CsvTableToAccountStatementEmptyEntriesIsValid
+  - CSVTable2AccountStatementTests::CsvTableToAccountStatementIntegrationPipeline
+
+  - StatementToTaggedAmountsTestFixture::IntegrationWithNordeaCsvData
+  - StatementToTaggedAmountsTestFixture::IntegrationWithSkvCsvData
 
 ...
 

@@ -2239,7 +2239,7 @@ Alice,30,"Stockholm, Sweden"
     // Tests for csv_table_to_account_statement_step (CSV::Table + AccountID -> AccountStatement)
     // ============================================================================
 
-    TEST(AccountStatementTests, CsvTableToAccountStatementWithNordea) {
+    TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementWithNordea) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementWithNordea)"};
 
       // Parse NORDEA CSV
@@ -2270,7 +2270,7 @@ Alice,30,"Stockholm, Sweden"
         maybe_statement->meta().m_maybe_account_irl_id->to_string());
     }
 
-    TEST(AccountStatementTests, CsvTableToAccountStatementWithSKV) {
+    TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementWithSKV) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementWithSKV)"};
 
       // Parse SKV CSV (newer format)
@@ -2302,7 +2302,7 @@ Alice,30,"Stockholm, Sweden"
         maybe_statement->meta().m_maybe_account_irl_id->to_string());
     }
 
-    TEST(AccountStatementTests, CsvTableToAccountStatementPreservesEntryData) {
+    TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementPreservesEntryData) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementPreservesEntryData)"};
 
       // Create a simple test CSV
@@ -2339,7 +2339,7 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, "12345");
     }
 
-    TEST(AccountStatementTests, CsvTableToAccountStatementWithInvalidTable) {
+    TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementWithInvalidTable) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementWithInvalidTable)"};
 
       // Create a CSV table with undetectable columns
@@ -2357,7 +2357,7 @@ Alice,30,"Stockholm, Sweden"
         << "Expected nullopt when columns cannot be detected";
     }
 
-    TEST(AccountStatementTests, CsvTableToAccountStatementEmptyEntriesIsValid) {
+    TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementEmptyEntriesIsValid) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementEmptyEntriesIsValid)"};
 
       // Create a CSV table with valid structure but only header row
@@ -2378,7 +2378,7 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "EMPTY_BANK");
     }
 
-    TEST(AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline) {
+    TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline)"};
 
       // Complete pipeline: CSV text -> table -> MDTable<AccountID> -> AccountStatement
