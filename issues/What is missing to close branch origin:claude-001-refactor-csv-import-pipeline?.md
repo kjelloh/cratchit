@@ -6,7 +6,7 @@ I want to merge origin/claude-001-refactor-csv-import-pipeline back to main bran
 
 ## Potential Issues
 
-* SKV csv -> tas FAILS (See Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv)
+* #ISSUE20260114_SKV_CSV SKV csv -> tas FAILS (See Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv)
 
   - The Issue is that SKV csv-file populates columns with different data for header, saldo and transaction rows
   - Thus 'detect_columns_from_data' function fails to find a consistent mapping.

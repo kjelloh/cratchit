@@ -165,5 +165,9 @@ Maybe we can do it like this.
 2. Make extract_entry_from_row ignore rows that does not work with the mapping?
   - We can do this in is_ignorable_row (ignore if mapping does now work)
 
+Idea: Mark the code with bookmark '#ISSUE20260114_SKV_CSV' to keep track of where I am?
+
+
+
 ...
 
