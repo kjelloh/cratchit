@@ -191,4 +191,34 @@ Now, what do I need to test the 'detect_columns_from_data'?
   - TEST(AccountStatementTests, DetectBothAmountColumns)
 
 * Added TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNew)
-  
+
+20260115 I have now implemnted an algorithm to map an SKV csv account statement file to a 'ColumnMapping' in 'detect_columns_from_data'. It is not pritty but it works.
+
+What more can I imagine to do before closing the claude-001-refactor-csv-import-pipeline branch?
+
+* Consider to implement an architecture that allows to add more ways to parse an account statement file?
+  - Consider to base the architecture on detect_columns_from_data -> ColumnMapping?
+  - It seems the code already applies the ColumnMapping only to rows it 'fits' (so we can utilise this as part of how the alögorithm works)?
+* Maybe we can create a map of candidate Tabkle Rows -> ColumnMapping functions?
+  And have the detect_columns_from_data apply one by one until one succeeds?
+  - Then we would be able to know how to extend future parsing with new projections as we add account statement files we can parse?
+
+* Consider what we can do to the parse-csv-file-pipeline?
+  - We want to get rid of all the multi-step 'shortcuts'?
+  - Consider to single out the pipeline steps to keep by placing them in cpp-definition?
+    The we can later refactor by removing all '..._chortcut' functions in hpp-files?
+
+Here is an idea to clean up the pipe line.
+
+1. Refactor all '..._shortcut' functions to return only a single 'and_then' functions aggregate of '_step' functions.
+2. Then remove one '_shortcut' at a time and replace any calls to them with the proven 'amnd_then' aggregation.
+  - Also remove all tests using '_shortcut' steps.
+
+Well, back to the architecture for Table Rows -> ColumnMapping. What can we imagine to change to clarify the algorithm for future extension to be able to parse more types of account statement files?
+
+* Lets keep the projection to ColumnMapping for now.
+
+I introduced to_coumn_mapping(table) and used in csv_table_to_account_statement_entries.
+
+Now we can imagine a vector of such to_coumn_mapping to have csv_table_to_account_statement_entries try?
+
