@@ -1,6 +1,6 @@
 # Thinking out loud on cracthit development
 
-As a lone developer I find thinking out loud to be a valuable tool to stay focused and arrive faster at vianle solutions.
+I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
 ## How can I parse account statement csv files in a somewhat generic manner?
 
@@ -89,31 +89,31 @@ So what algorithm can I imagine to parse a csv table into account statment entri
 
   Where exactly is the pipe line we actually use located? With an SKV and a NORDEA account stetment file in 'from_bank_or_skv' cratchit logs processing as:
 
-  ```sh
-  BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv"
-	[Pipeline] Successfully opened file: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv
-	[Pipeline] Successfully read 321 bytes from stream
-	[Pipeline] Detected encoding: UTF-8 (confidence: 100, method: ICU)
-	[Pipeline] Successfully transcoded 321 bytes to 321 platform encoding bytes
-	[Pipeline] Step 6 complete: CSV parsed successfully (8 rows)
-	[Pipeline] Step 6.5 complete: AccountID detected: 'SKV::5567828172'
-	[Pipeline] Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts
-*Note* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv" (produced zero entries)
-*Ignored* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv" (File empty or failed to understand file content)
-END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv"
+  <pre>
+      BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv"
+      [Pipeline] Successfully opened file: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv
+      [Pipeline] Successfully read 321 bytes from stream
+      [Pipeline] Detected encoding: UTF-8 (confidence: 100, method: ICU)
+      [Pipeline] Successfully transcoded 321 bytes to 321 platform encoding bytes
+      [Pipeline] Step 6 complete: CSV parsed successfully (8 rows)
+      [Pipeline] Step 6.5 complete: AccountID detected: 'SKV::5567828172'
+      [Pipeline] Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts
+    *Note* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv" (produced zero entries)
+    *Ignored* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv" (File empty or failed to understand file content)
+    END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv"
 
-BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
-	[Pipeline] Successfully opened file: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv
-	[Pipeline] Successfully read 1194 bytes from stream
-	[Pipeline] Detected encoding: UTF-8 (confidence: 100, method: ICU)
-	[Pipeline] Successfully transcoded 1194 bytes to 1194 platform encoding bytes
-	[Pipeline] Step 6 complete: CSV parsed successfully (12 rows)
-	[Pipeline] Step 6.5 complete: AccountID detected: 'NORDEA::32592317244'
-	[Pipeline] Pipeline complete: 11 TaggedAmounts created from 'PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv'
-	Valid entries count:11
-	Consumed account statement file moved to "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
-END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
-```
+    BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+      [Pipeline] Successfully opened file: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv
+      [Pipeline] Successfully read 1194 bytes from stream
+      [Pipeline] Detected encoding: UTF-8 (confidence: 100, method: ICU)
+      [Pipeline] Successfully transcoded 1194 bytes to 1194 platform encoding bytes
+      [Pipeline] Step 6 complete: CSV parsed successfully (12 rows)
+      [Pipeline] Step 6.5 complete: AccountID detected: 'NORDEA::32592317244'
+      [Pipeline] Pipeline complete: 11 TaggedAmounts created from 'PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv'
+      Valid entries count:11
+      Consumed account statement file moved to "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+    END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+</pre>
 
 * The log 'Step 6.5 complete: AccountID detected:' is created in:
   - table_to_tagged_amounts_shortcut
@@ -221,4 +221,13 @@ Well, back to the architecture for Table Rows -> ColumnMapping. What can we imag
 I introduced to_coumn_mapping(table) and used in csv_table_to_account_statement_entries.
 
 Now we can imagine a vector of such to_coumn_mapping to have csv_table_to_account_statement_entries try?
+
+## What is the next step to make a design where we can add Table -> ColumnMapping for future csv file formats?
+
+I still hesitate to add a loop-up table of Table -> ColumnMapping functions.
+
+* Should I keep Heading -> ColumnMapping functionality (seems fragile)?
+* Should I extend Table Data -> ColumnMapping (more complex but may be more realiable and maintainable)?
+* And what pipeline functions are actually 'in use' and what are duplicates (shortcuts and AI slop)?
+
 
