@@ -230,4 +230,56 @@ I still hesitate to add a loop-up table of Table -> ColumnMapping functions.
 * Should I extend Table Data -> ColumnMapping (more complex but may be more realiable and maintainable)?
 * And what pipeline functions are actually 'in use' and what are duplicates (shortcuts and AI slop)?
 
+Thinkig about this for a while I have concluded the following for the Table -> ColumnMapping
 
+* Ensure every table has a Header (generate a row0,row1,... if none exist)
+  I think this is already in place?
+* Be able to identify entries 1xDate, 1xAmount, >1xText
+* Be able to identify entries 1xDate,2xAmount (trans + saldo), > 1xText
+* Allow the 2xAmount IFF the amounts tarns_1,saldo_1 fullfill saldo_0 + trans_1 = saldo_1
+
+I imagine I can implememt this as follows:
+
+1. Implement test cases for invented csv tables
+2. Ensure we can parse invented tables to csv Table WITH header (extracted or generated)
+3. Implement vector of f: Table -> ColumnMapping so we have enough f:s to parse all invented tables
+4. Make to_coumn_mapping(table) try f:s in vector of f:s until one returns a mapping.
+
+## What invented csv tables can we imagine to try?
+
+Imagine some headless tables with Date,Text,Amount permutations?
+
+* Date,Text,Amount
+* Date,Amount,Text
+* Text,Date,Amount
+* Text,Amount,Date
+* Amount,Date,Text
+* Amount,Text,Date
+
+Maybe a test case that generates theese permutations?
+
+Imagine some headless tables with Date,Text,TransAmount,SaldoAmount permutations?
+
+Maybe a test case that generates theese permutations?
+
+## What algorithm can we imagine to generate invented csv tables for account statement parse testing?
+
+1. We seem to need to generate with or without saldo amount?
+  - So we can make the algorithm invent some random transactions and always also keep a running saldo.
+  - Then inject or not inject the saldo amount depending on a flag.
+2. It seem we need to generate some set of text fields?
+3. It seem we should also generate random 'to' and 'from' fields with 'account numbers'?
+
+What account number formats have I already implemented?
+
+* account::BBAN
+* account::giro::BG
+* account::giro::PG
+
+So we can imagine to hard code some BBAN,BG and PG in a std::variant set and randomly use
+
+4. It seem we need an account number for the csv table we are generating?
+  - The csv table account number can be a BBAN,BG or PG?
+5. It seems we can use the same account number generator to create to and from account numbers?
+
+WOW! This is COMPLEX!!
