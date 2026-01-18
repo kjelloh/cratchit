@@ -243,7 +243,7 @@ I imagine I can implememt this as follows:
 1. Implement test cases for invented csv tables
 2. Ensure we can parse invented tables to csv Table WITH header (extracted or generated)
 3. Implement vector of f: Table -> ColumnMapping so we have enough f:s to parse all invented tables
-4. Make to_coumn_mapping(table) try f:s in vector of f:s until one returns a mapping.
+4. Make **to_coumn_mapping(table)** try f:s in vector of f:s until one returns a mapping.
 
 ## What invented csv tables can we imagine to try?
 
@@ -283,3 +283,44 @@ So we can imagine to hard code some BBAN,BG and PG in a std::variant set and ran
 5. It seems we can use the same account number generator to create to and from account numbers?
 
 WOW! This is COMPLEX!!
+
+Anyhow, lerts start to create the new test cpp-unit and the **to_coumn_mapping(table)** as function im vector of options.
+
+What test units do we have?
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % tree src/test 
+src/test
+├── data
+│   └── account_statements_csv.hpp
+├── test_amount_framework.cpp
+├── test_amount_framework.hpp
+├── test_annotated_optional.cpp
+├── test_atomics.cpp
+├── test_atomics.hpp
+├── test_csv_import_pipeline.cpp
+├── test_fixtures.cpp
+├── test_fixtures.hpp
+├── test_generic_account_statement_csv.cpp
+├── test_giro_framework.cpp
+├── test_integrations.cpp
+├── test_integrations.hpp
+├── test_md_table_to_account_statement.cpp
+├── test_runner.cpp
+├── test_runner.hpp
+├── test_statement_to_tagged_amounts.cpp
+├── test_swedish_bank_account.cpp
+├── test_transcoding_views.cpp
+└── zeroth
+    ├── test_zeroth.cpp
+    └── test_zeroth.hpp
+
+3 directories, 21 files
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+* Reuse test_csv_import_pipeline?
+* Reuse test_generic_account_statement_csv?
+* Reuse test_md_table_to_account_statement?
+
+I ended up adding new test_csv_table_identification.cpp and moved detection test code there.
