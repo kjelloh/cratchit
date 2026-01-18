@@ -306,13 +306,34 @@ namespace account {
           return mapping;
         } // detect_columns_from_data
 
+        namespace detail {
+
+          ColumnMapping to_column_mapping(CSV::Table const& table) {
+            ColumnMapping result{};
+            result = table::detect_columns_from_header(table.heading);
+            if (!result.is_valid()) {
+              result = table::detect_columns_from_data(table.rows);
+            }
+            return result;
+          } // to_column_mapping
+
+          using ColumnMappingFn = ColumnMapping(*)(CSV::Table const&);
+
+          constexpr std::array<ColumnMappingFn, 1> column_mapping_projectors = {
+              &to_column_mapping
+          };
+
+
+        } // detail
+
         ColumnMapping to_column_mapping(CSV::Table const& table) {
-          ColumnMapping result{};
-          result = table::detect_columns_from_header(table.heading);
-          if (!result.is_valid()) {
-            result = table::detect_columns_from_data(table.rows);
-          }
-          return result;
+            for (auto project : detail::column_mapping_projectors) {
+                ColumnMapping mapping = project(table);
+                if (mapping.is_valid()) {
+                    return mapping;
+                }
+            }
+            return {};
         } // to_column_mapping
 
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping) {
