@@ -4,7 +4,9 @@
 logger::std_out_proxy::std_out_proxy() {
 }
 logger::std_out_proxy::~std_out_proxy() {
-  this->flush();
+  // TODO: Find a way to control destruction so that it happens when, or before spdlog destructs.
+  //       For now, disable any calls to sodlog here.
+  // this->flush();
 }
 
 logger::std_out_proxy& logger::std_out_proxy::operator<<(std::ostream& (*manip)(std::ostream&)) {
