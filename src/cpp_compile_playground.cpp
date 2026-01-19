@@ -3,13 +3,19 @@
 // Trying to reproduce to_string compileation error
 // See docs/thinking/thinking.md 'How can I make all free function to_string overloads to be found by the compiler?'
 
-// 1. A global namespace to_string
+// 1. A global namespace to_string + namespace specific arg types
 // 2. A first::to_string blocks global namespace to_string to bee seen from within namespace first
+// 3. Preferred: Put fucntions and processed arg types in same namespace to make ADL work
 
 namespace first {
 
   struct Date {};
   struct Amount {};
+
+  // [3] Preferred: put functions in same namespace as processed types
+  std::string to_string(Date) { return "second::date"; }
+  std::string to_string(Amount) { return "second::amount"; }
+
 } // first
 
 namespace second{
@@ -20,13 +26,18 @@ namespace second{
 // Use first
 using Date = first::Date;
 using Amount = first::Amount;
-// [1] global to_string
+
+/*
+// [1] global to_string will NOT be found by ADL (Date and Amount is in own namespace, not global one)
+//     Do NOT do this!
 std::string to_string(Date) { return "second::date"; }
 std::string to_string(Amount) { return "second::amount"; }
+*/
 
 namespace first {
 
-  // [2] This to_string makes global to_string NOT SEEN
+  // [2] ADL WILL find correct to_string in the namespace of Date and Amount
+  //     This, this to_string WILL make any global to_string NOT SEEN
   struct DateRange {}; 
   std::string to_string(DateRange) { return "range"; } // Newly added
 

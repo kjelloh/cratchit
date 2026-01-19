@@ -387,3 +387,18 @@ It seems I have at least two options?
 Are there other options I did not thing of?
 
 I think I will add a cpp_compile_playground.cpp to have a space to have a dialog with the compiler with code to determine how it actually behaves.
+
+I managed to replicate the compiler error!
+
+1. Having a global namespace to_string
+2. AND - having a first::to_string
+3. CAUSES: A call from withing namespace first of to_string to fail (can't see wnated global to_string)
+
+The problem is that when there is a to_string in current namespace, then only this is considered by name lookup.
+
+So the conclusion is:
+
+1. Put functions and processed types in the same namespace
+2. Rely on ADL to make overload lookup work from call site namespace to namespace with deffined code.
+3. Thus, it seems to be OK to bring in types to global namesapce as aliases 'using a_type = a_namespace::a_type'
+   ADL seems to still find functions in the namespace of the argument types?
