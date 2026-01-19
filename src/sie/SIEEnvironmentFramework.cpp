@@ -26,6 +26,10 @@ BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
 }
 
 OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
+
+  // scope Log
+  logger::scope_logger log_raii{logger::development_trace,"sie_from_stream"};
+
   OptionalSIEEnvironment result{};
 
   text::encoding::CP437::istream cp437_in{cp437_is};
@@ -60,7 +64,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
   }
 
   if (parsed_elements.empty()) {
-    logger::cout_proxy << "\nNo SIE elements found";
+    logger::development_trace("No SIE elements found");
     return result;
   }
 

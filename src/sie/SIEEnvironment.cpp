@@ -77,19 +77,23 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
       ,logger::opt_to_string(mdje.meta.verno,"ver_no"))};
 
 
-  // if (!(this->financial_year_date_range() and  this->financial_year_date_range()->contains(me.defacto.date))) {
   if (this->fiscal_year().contains(mdje.defacto.date)) {
     if (does_balance(mdje.defacto)) {
       if (not this->already_in_posted(mdje)) {
         // Not yet posted (in sie-file from external tool)
         // So add it to make our internal sie-environment complete
+        logger::development_trace("NOT already in posted -> add(mdje)");
         result = this->add(mdje);
       }
       else {
+        logger::development_trace("IS already in posted -> try update(mdje) for correct transient data");
         // Is 'posted' to external tool
         // But update it in case transient data exists that needs to be mutated?
         if (auto update_result = this->update(mdje)) {
           result = result.with_status(EnvironmentChangeResult::Status::NowPosted);
+        }
+        else {
+          logger::development_trace("update(mdje) FAILED");
         }
       }
     }
@@ -102,6 +106,10 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
 
     // Log
     if (true) {
+      logger::development_trace(
+        "Date:{} is not in financial year:{}"
+        ,to_string(mdje.defacto.date)
+        ,to_string(this->financial_year_date_range()));
       logger::cout_proxy << "\nDate:" << mdje.defacto.date << " is not in financial year:";
       if (this->financial_year_date_range()) logger::cout_proxy << this->financial_year_date_range().value();
       else logger::cout_proxy << "*anonymous*";

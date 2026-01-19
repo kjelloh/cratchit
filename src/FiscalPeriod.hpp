@@ -40,7 +40,17 @@ namespace first {
     Date m_start;
     Date m_last;
     bool m_is_valid;
-  };
+  }; // DateRange
+
+  // inline std::string to_string(DateRange const& date_range) {
+  //   return date_range.to_string();
+  // }
+
+  inline std::string to_string(std::optional<DateRange> const& maybe_date_range) {
+    return maybe_date_range
+      .transform([](auto const& date_range){return date_range.to_string();})
+      .value_or("anonymous");
+  }
 
   std::ostream& operator<<(std::ostream& os, DateRange const& date_range);
 

@@ -324,3 +324,66 @@ kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit %
 * Reuse test_md_table_to_account_statement?
 
 I ended up adding new test_csv_table_identification.cpp and moved detection test code there.
+
+I now have the account statement table mapping detection tests in test_csv_table_identification ok. I also test only the 'top' to_column_mapping(table).
+
+So I turned to clean up the current test cases that fails.
+
+It trn out I now have SIEEnvironmentTests.StageToPostedOkTest failing for some unknown reason.
+
+To track this I started adding logging to see where things go wrong.
+
+And in doing so I needed a first::to_string for optional DateRange. But when I added this my code stopped compiling. Now the compiler fails to find  to_string(Date) and to_string(Amount) when called from withing namespace first! WTF?!!
+
+## How can I make all free function to_string overloads to be found by the compiler?
+
+The oproblem seems to be that as long as namespace first has NO to_string overload, then the compiler finds to_string(Date) and to_string(Amount) when called from inside namespace first. But if there is one, then the compiler gives up when trying all to_string inside namespace first?
+
+So where is to_string(Date) and to_string(Amount)?
+
+It turns out I have placed them in global namespace.
+
+But is this the recommended way to expose free functions? I mean, compiler will apply ADL (argument dependant lookup) to find *unqualified function names*. So if I call top_string(T t), then it WILL find any to_string in the nemaspace where T is defined.
+
+* So I should keep my types and functions on these types in their namespace?
+* And only fix call to overloaded functions at call sites inside namespaces to make them find functions in other name spaces?
+
+But then, why does not ADL work inside a name space? That is, is it true that ADL is not applied if the local namespace already have a free function with unqualified name?
+
+* I expected a call to 'to_string' to look first in the namespace where the argument type is defined.
+* Why is this not so?
+
+It seems I need to start at C++ compiler [Name lookup](https://en.cppreference.com/w/cpp/language/lookup.html)?
+
+So 'name lookup' is the mechanism where the compiler does identifier -> declaration.
+
+* The name is either 'unqualified' (no namespace path provided) or 'qualified' (namespace path provided)
+
+  - to_string(date) is an unqualified named 'to_string'
+  - first::to_string(dat) is a qualified named 'first::to_string'
+
+* [Unqualified name lookup](https://en.cppreference.com/w/cpp/language/unqualified_lookup.html)
+* [Qualified name lookup](https://en.cppreference.com/w/cpp/language/qualified_lookup.html)
+
+AHA! The unqualified name lookup searches scopes '...until it finds at least one declaration of any kind'! That is, it does NOT care if the declaration found suits the code using it! In effect, if at least one declaration is found, then no more scopes are considdered!
+
+This is NOT what I expected. I assumed the compiler would consider ALL scopes to get a FULL set of viable declarations.
+
+In this way the viable scopes is NOT affected by the content of the scopes. But the actual name lookup behavious DOES change depending on scope content!
+
+*sigh*
+
+So what options do I have to adress this issue?
+
+* I want my types and functions on those types to recide in namespaces.
+* I want any call site to see the applicable function(s).
+* I want to be able to use overloads (e.g. to_string overloads for types)
+
+It seems I have at least two options?
+
+1. Always place overloads in global namespace?
+2. Manually import namespaces with 'using' at call sites as required (I can't make the compiler find them)?
+
+Are there other options I did not thing of?
+
+I think I will add a cpp_compile_playground.cpp to have a space to have a dialog with the compiler with code to determine how it actually behaves.
