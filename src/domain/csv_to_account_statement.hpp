@@ -59,8 +59,8 @@ namespace account {
           }
         }; // ColumnMapping
 
-        ColumnMapping detect_columns_from_header(CSV::Table::Heading const& heading);
-        ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows);
+        // ColumnMapping detect_columns_from_header(CSV::Table::Heading const& heading);
+        // ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows);
         ColumnMapping to_column_mapping(CSV::Table const& table);
 
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping);

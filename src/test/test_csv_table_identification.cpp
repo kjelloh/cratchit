@@ -28,27 +28,12 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Transaction"}});
 
       // Detect columns
-      auto mapping = account::statement::maybe::table::detect_columns_from_header(table.heading);
+      auto mapping = account::statement::maybe::table::to_column_mapping(table);
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
       EXPECT_EQ(mapping.date_column, 0);
       EXPECT_EQ(mapping.transaction_amount_column, 1);
       EXPECT_EQ(mapping.description_column, 2);
-    }
-
-    TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader)"};
-
-      std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
-
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
-      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
-
-      auto mapping = account::statement::maybe::table::detect_columns_from_header(maybe_md_table->defacto.heading);
-
-      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
     }
 
     TEST(AccountStatementDetectionTests, DetectColumnsFromData) {
@@ -62,31 +47,12 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-03", "Transfer", "200.00"}});
 
       // Detect columns from data patterns
-      auto mapping = account::statement::maybe::table::detect_columns_from_data(table.rows);
+      auto mapping = account::statement::maybe::table::to_column_mapping(table);
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
       EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
       EXPECT_EQ(mapping.transaction_amount_column, 2) << "Expected transaction amount in column 2";
       EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
-    }
-
-    TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData)"};
-
-      std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
-
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
-      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
-
-      auto mapping = account::statement::maybe::table::detect_columns_from_data(maybe_md_table->defacto.rows);
-
-      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
-      EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
-      EXPECT_EQ(mapping.transaction_amount_column, 2) << "Expected transaction amount in column 2";
-      EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
-
     }
 
     TEST(AccountStatementTests, InvalidDateHandledGracefully) {
@@ -98,7 +64,7 @@ namespace tests::csv_table_identification {
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"not-a-date", "100.50", "Test"}});
 
-      auto mapping = account::statement::maybe::table::detect_columns_from_header(table.heading);
+      auto mapping = account::statement::maybe::table::to_column_mapping(table);
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid date";
@@ -113,7 +79,7 @@ namespace tests::csv_table_identification {
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "not-an-amount", "Test"}});
 
-      auto mapping = account::statement::maybe::table::detect_columns_from_header(table.heading);
+      auto mapping = account::statement::maybe::table::to_column_mapping(table);
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid amount";
@@ -128,14 +94,72 @@ namespace tests::csv_table_identification {
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", ""}});
 
-      auto mapping = account::statement::maybe::table::detect_columns_from_header(table.heading);
+      auto mapping = account::statement::maybe::table::to_column_mapping(table);
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for empty description";
     }
 
-    TEST(AccountStatementTests, DetectBothAmountColumns) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectBothAmountColumns)"};
+    TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader)"};
+
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
+
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
+
+      auto mapping = account::statement::maybe::table::to_column_mapping(maybe_md_table->defacto);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
+    }
+
+    TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData)"};
+
+      std::string csv_text = sz_SKV_csv_20251120;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
+
+      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
+
+      auto mapping = account::statement::maybe::table::to_column_mapping(maybe_md_table->defacto);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
+      EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
+      EXPECT_EQ(mapping.transaction_amount_column, 2) << "Expected transaction amount in column 2";
+      EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
+
+    }
+
+    TEST(AccountStatementTests, DetectBothSKVAmountColumnsOld) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectBothSKVAmountColumnsOld)"};
+
+      // Parse SKV CSV to get a table, then verify column detection
+      std::string csv_text = sz_SKV_csv_older;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+
+      // Detect columns from data
+      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
+
+      EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
+
+      EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
+      EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
+      EXPECT_EQ(mapping.transaction_amount_column, 2) << "Expected transaction amount in column 2";
+
+      logger::development_trace("Column mapping: date={}, desc={}, trans_amt={}",
+         mapping.date_column
+        ,mapping.description_column
+        ,mapping.transaction_amount_column);
+    }
+
+    TEST(AccountStatementTests, DetectBothSKVAmountColumns251120) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, DetectBothSKVAmountColumns251120)"};
 
       // Parse SKV CSV to get a table, then verify column detection
       std::string csv_text = sz_SKV_csv_20251120;
@@ -144,7 +168,7 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       // Detect columns from data
-      auto mapping = account::statement::maybe::table::detect_columns_from_data(maybe_table->rows);
+      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
 
