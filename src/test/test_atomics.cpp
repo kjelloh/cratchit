@@ -1382,7 +1382,8 @@ R"(#GEN 20251026
 
           auto entries = to_sample_md_entries();
           auto entry_0 = entries[0];
-          SIEEnvironment posted{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          auto entry_date = entry_0.defacto.date;
+          SIEEnvironment posted{FiscalYear(entry_date.year(),std::chrono::month{1})};
           posted.post(entry_0);
           auto stage_result = posted.stage(entry_0);
 
