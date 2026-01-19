@@ -411,3 +411,7 @@ WAIT! This does NOT work!
 * Thus, ADL will look into namespace std::chrono for a to_string (NOT the namespace where the alias is defined)
 * So putting to_string in e.g. namespace first will NOT make the compiler find it!
 
+gave this some more thought and realised:
+
+* I can just make to_string(DateRange) in global namespace for now!
+* And add comments about future 'better' options.

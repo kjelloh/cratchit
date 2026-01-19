@@ -255,6 +255,28 @@ std::chrono::month to_quarter_end(QuarterIndex const& quarter_ix) {
   return (to_quarter_begin(quarter_ix) + std::chrono::months{2});
 }
 
+// TODO: Consider ways to put to_string overload in same namespace as type / 2026019
+//       For now this is impossible (See thinking.md 'How can I make all free function to_string overloads to be found by the compiler?')
+//       1. Date is an alias to std::chrono::year_month_day
+//       2. Thus ADL will NOT find to_string(date) in e.g. namespace first (where the alias is defined)
+//       3. Thus to_string(Date) is in global namespace for now (compiler will find it by default)
+//       4. BUT then we can NOT put to_string(FiscalPeriod) in namespace first!
+//       5. Because if we do - then compiler name lookup will use local namespace to_string and ADL found to_string
+//          And local namespace to_string has NO overload for Date.
+//          And ADL will look in std::chrono (also NO to_string(Date))
+//       Possible 'better' ways are:
+//       1. Refactor all code to use native type std::chrono::year_month_day 'to string' options (good enough?)
+//       2. Make a 'strong type' around std::chrono::year_month_day to make ADL work into e.g. namespave first.
+//       ...
+std::string to_string(FiscalPeriod const& fiscal_period) {
+  return fiscal_period.to_string();
+}
+std::string to_string(std::optional<FiscalPeriod> const& maybe_fiscal_period) {
+  return maybe_fiscal_period
+    .transform([](auto const& date_range){return date_range.to_string();})
+    .value_or("anonymous");
+}
+
 namespace zeroth {
 
   // BEGIN: first::DateRange compatible

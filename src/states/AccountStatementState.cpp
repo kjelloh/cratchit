@@ -8,8 +8,6 @@
 
 namespace first {
 
-  using ::to_string; // make ADL consider also global namespace
-
   // AccountStatementState::AccountStatementState(AnnotatedAccountStatement annotated_account_statement)
   //   :  StateImpl()
   //     ,m_annotated_account_statement{annotated_account_statement}
