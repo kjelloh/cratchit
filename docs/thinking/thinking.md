@@ -402,3 +402,12 @@ So the conclusion is:
 2. Rely on ADL to make overload lookup work from call site namespace to namespace with deffined code.
 3. Thus, it seems to be OK to bring in types to global namesapce as aliases 'using a_type = a_namespace::a_type'
    ADL seems to still find functions in the namespace of the argument types?
+
+Decision: Move to_string(Date) and to_string(Amount) to the namespace of DAte and Amount.
+
+WAIT! This does NOT work!
+
+* Date is an **alias** for std::chrono::year_month_day!
+* Thus, ADL will look into namespace std::chrono for a to_string (NOT the namespace where the alias is defined)
+* So putting to_string in e.g. namespace first will NOT make the compiler find it!
+
