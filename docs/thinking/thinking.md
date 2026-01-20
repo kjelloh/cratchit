@@ -434,3 +434,51 @@ I Imganine the TableMeta to contain:
 * a list of row indexes of unidentifed rows
 
 So let's first refactor 'to_column:mapping -> ColumnMApping' to 'to_table_meta -> TableMeta' and adjust clienbt code accordingly. 
+
+So I introduced to_account_statement_table_meta and replaced to_column_mapping in tests ok.
+
+I then made MonadicCompositionFixture.PathToAccountIDedTable test pass by inactivating to_account_id_ed_step.
+
+But now ALL tests that relies on correctly identifying NORDEA or SKV account stements fail!
+
+So I think I activate old to_account_id_ed_step again for now.
+
+DARN! Now I discover my statically instantikated loggers are instable!
+
+## How can I make my singleton-like loggers JIT created and deterministically destroyed?
+
+I currently have 'static' logger instances. This does not work well with the google test framework. It seems the framework is (may) be instantiated and run before my own loggers are properly instantiated. Thus my code somethimes break when I use my loggers in google test code.
+
+It seems I have maybe two options.
+
+1. Make my loggers be JIT instantiated somehow (ensure they are created on call if they are not yet created)
+2. Somehow try to make the google test framework be deterministically instantiated after my statig loggers?
+
+So where and when is my google test framework instantiated?
+
+Hm... It seems in main(argc,argv) I trigger on argument '--test' or '--gtest_filter' and then calls tests::run_all.
+
+This will do:
+
+```c++
+  ::testing::InitGoogleTest(&argc,argv);
+  ::testing::AddGlobalTestEnvironment(fixtures::TestEnvironment::GetInstance());
+  int result = RUN_ALL_TESTS();        
+```
+
+Here I used the lldb debugger and found:
+
+```sh
+(lldb) breakpoint set -E C++
+Breakpoint 1: 2 locations.
+(lldb) run --test
+There is a running process, kill it and restart?: [Y/n] Y
+Process 38799 exited with status = 9 (0x00000009) killed
+Process 44456 launched: '/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/cratchit' (arm64)
+Process 44456 exited with status = 9 (0x00000009) Terminated due to code signing error
+(lldb
+```
+
+So it was in fact a code signing error all along?!
+
+*sigh*
