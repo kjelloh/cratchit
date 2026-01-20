@@ -1,4 +1,5 @@
-./run.zsh --nop
+#./run.zsh --nop
 # ./run.zsh --gtest_filter=AccountStatementDetectionTests*:CSVTable2TaggedAmountsTests*:CSVTable2AccountStatementTests*
-# ./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountIDedTable
+#./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountIDedTable
+./run.zsh --gtest_filter=MonadicCompositionFixture.NORDEAStatementOk
 #./run.zsh --test

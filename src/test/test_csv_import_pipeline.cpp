@@ -114,6 +114,8 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST_F(MonadicCompositionFixture,PathToAccountIDedTable) {
+      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountIDedTable)");
+
       auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
         .and_then([](auto const& byte_buffer){

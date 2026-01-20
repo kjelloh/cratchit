@@ -2,6 +2,158 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## How can I parse account statement csv files in a somewhat generic manner [20260120]?
+
+I decided to continue my thinking here on top (See thinging until now below).
+
+I am back at the plan:
+
+1. Extend 'ColumnMapping' to a 'CSV::TableMeta' with more meta-data from identification process
+2. Introduce an array of sz_xxx texts to test to parse into account statement tables
+3. Extend 'coumn mapping' to also identify BBAN, BG and PG account number fields
+4. Constrain 'header' to be valid only if header has the same coumn count as the in-saldo,out-saldo and trans entry rows
+
+Where I am in the process of replacing to_column_mapping with to_account_statement_table_meta.
+
+I have now decided to clean up the failing tests before I continue.
+
+```sh
+[  FAILED  ] 4 tests, listed below:
+[  FAILED  ] MonadicCompositionFixture.PathToAccountIDedTable
+[  FAILED  ] GenericStatementCSVTests.NORDEAStatementOk
+[  FAILED  ] AccountStatementDetectionTests.GeneratedSingleRowMappingTest
+[  FAILED  ] AccountStatementDetectionTests.GeneratedRowsMappingTest
+```
+
+This is a MESS!!
+
+The tests are AI slop hard coded to fail if not a NORDEA or SKV format. So If I make PathToAccountIDedTable pass by e.g., making to_account_id_ed_step return some generic ID, then I fail tests:
+
+```sh
+[  FAILED  ] AccountIdTests.UnknownCsvReturnsNullopt
+[  FAILED  ] AccountIdTests.TableWithOnlyHeadingUnknownFormatReturnsNullopt
+[  FAILED  ] FullPipelineTestFixture.ImportSimpleCsvFailsForUnknownFormat
+[  FAILED  ] FullPipelineTableTests.ImportTableFailsForUnknownFormat
+[  FAILED  ] GenericStatementCSVTests.NORDEAStatementOk
+```
+
+*sigh*
+
+So what is the work around for now? I wonder where I broke these tests in the first case? I actually can't figure out where and when I could have made thes ID.ed mechanism stop working?
+
+Maybe if I fix test GenericStatementCSVTests.NORDEAStatementOk? Why does it fail?
+
+It calls account::statement::maybe::to_entries_mapped(*maybe_table). What the heck is that?
+
+Now I am confused. Did I not just add something simmilar? Where is the latest mechanism I added?
+
+DARN! I have the new code (src/domain/csv_to_account_statement.hpp):
+
+```c++
+  enum class FieldType {
+      Unknown
+    ,Empty
+    ,Date
+    ,Amount
+    ,Text 
+    ,Undefined
+  };
+
+  struct RowMap {
+    std::map<FieldType,std::vector<unsigned>> ixs;
+  };
+
+  using RowsMap = std::vector<RowMap>;
+
+```
+
+And I have the 'older' code (src/csv/csv_to_account_id.hpp):
+
+```c++
+  enum class ColumnType {
+      Undefined
+    ,Empty
+    ,Text
+    ,Amount
+    ,Date
+    ,Unknown
+  }; // ColumnType
+
+  // ...
+
+  using ColumnMap = std::map<int,ColumnType>;
+
+  enum class EntryType {
+    Undefined
+    ,Emtpy
+    ,Caption
+    ,Heading
+    ,Transaction
+    ,Balance
+    ,Unknown
+  };
+```
+
+So we have compeeting code?
+
+```c++
+* ColumnMapping to_column_mapping(CSV::Table const& table)
+```
+
+And: 
+
+```c++
+* EntryMap to_entry_map(CSV::Table::Row const& row)
+* EntryType to_entry_type(EntryMap const& entry_map)
+* std::optional<CSV::MDTable<EntryMaps>> to_entries_mapped(CSV::Table const& table)
+```
+
+AND: to_entries_mapped is not even implemented yet!!
+
+I asked Claude Code to help me find the two approaches in the git log. It came back to me with:
+
+```sh
+You have two similar but distinct functions for analyzing CSV table structure:
+
+  1. to_entries_mapped (src/csv/csv_to_account_id.hpp:304-340)
+
+  - Introduced: December 7, 2025 in commit 4a51390
+  - Purpose: Maps each CSV table row to entry types (Transaction, Balance, Heading, etc.) with column type information
+  - Status: Incomplete - returns empty result (return {}; // failed at line 339)
+  - Location: account::statement::generic namespace
+
+  2. to_column_mapping → to_account_statement_table_meta
+
+  - Introduced: January 15, 2026 in commit 827f2ad
+  - Evolved: Replaced with to_account_statement_table_meta on January 20, 2026 (commit f1fb929)
+  - Purpose: Detects column mappings (date, amount, description columns) from CSV table
+  - Status: Fully implemented and in use in the CSV import pipeline
+  - Location: src/domain/csv_to_account_statement.cpp
+
+  Key Commits
+
+  # Original to_entries_mapped implementation
+  git show 4a51390
+
+  # Original to_column_mapping implementation  
+  git show 827f2ad
+
+  # Evolution to to_account_statement_table_meta
+  git show 6543d17
+  git show f1fb929
+
+  The Similarity
+
+  Both functions analyze CSV table structure, but:
+  - to_entries_mapped: Classifies each row by type (Transaction/Balance/etc.) and identifies column types
+  - to_column_mapping: Identifies which columns contain date/amount/description data
+```
+
+OK. So maybe the december approach with 'to_entries_mapped' is now DEAD? And I can remove it?
+
+* It is not implemented.
+* And it is not used.
+
 ## How can I parse account statement csv files in a somewhat generic manner?
 
 20260114
@@ -482,3 +634,5 @@ Process 44456 exited with status = 9 (0x00000009) Terminated due to code signing
 So it was in fact a code signing error all along?!
 
 *sigh*
+
+Back to 
