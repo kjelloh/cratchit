@@ -336,6 +336,13 @@ namespace account {
             return {};
         } // to_column_mapping
 
+        TableMeta to_account_statement_table_meta(CSV::Table const& table) {
+          TableMeta result{};
+          result.trans_row_mapping = to_column_mapping(table);
+          return result;
+        } // to_account_statement_table_meta
+
+
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping) {
           // Empty row is ignorable
           if (row.size() == 0) {

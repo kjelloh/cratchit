@@ -415,3 +415,22 @@ gave this some more thought and realised:
 
 * I can just make to_string(DateRange) in global namespace for now!
 * And add comments about future 'better' options.
+
+## Consider to extend ColumnMapping to a 'TableMeta' and make tests based on array of sz_xxx csv text to try to parse?
+
+I have thought about account statement csv file parsing and identification a bit more. I am now tempted to try:
+
+1. Extend 'ColumnMapping' to a 'CSV::TableMeta' with more meta-data from identification process
+2. Introduce an array of sz_xxx texts to test to parse into account statement tables
+3. Extend 'coumn mapping' to also identify BBAN, BG and PG account number fields
+4. Constrain 'header' to be valid only if header has the same coumn count as the in-saldo,out-saldo and trans entry rows
+
+I Imganine the TableMeta to contain:
+
+* A boolean flag 'has columns header'
+* row index of first and last account transaction row
+* The 'transaction row column mapping'
+* row index of 'in saldo' and 'out saldo' row
+* a list of row indexes of unidentifed rows
+
+So let's first refactor 'to_column:mapping -> ColumnMApping' to 'to_table_meta -> TableMeta' and adjust clienbt code accordingly. 
