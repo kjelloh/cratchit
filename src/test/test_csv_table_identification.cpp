@@ -27,8 +27,8 @@ namespace tests::csv_table_identification {
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Transaction"}});
 
-      // Detect columns
-      auto mapping = account::statement::maybe::table::to_column_mapping(table);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(table);
+      auto mapping = table_meta.trans_row_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
       EXPECT_EQ(mapping.date_column, 0);
@@ -46,8 +46,8 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "Withdrawal", "-50.00"}});
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-03", "Transfer", "200.00"}});
 
-      // Detect columns from data patterns
-      auto mapping = account::statement::maybe::table::to_column_mapping(table);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(table);
+      auto mapping = table_meta.trans_row_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
       EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
@@ -64,7 +64,8 @@ namespace tests::csv_table_identification {
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"not-a-date", "100.50", "Test"}});
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(table);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(table);
+      auto mapping = table_meta.trans_row_mapping;
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid date";
@@ -79,7 +80,8 @@ namespace tests::csv_table_identification {
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "not-an-amount", "Test"}});
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(table);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(table);
+      auto mapping = table_meta.trans_row_mapping;
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid amount";
@@ -94,7 +96,8 @@ namespace tests::csv_table_identification {
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", ""}});
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(table);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(table);
+      auto mapping = table_meta.trans_row_mapping;
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for empty description";
@@ -110,7 +113,8 @@ namespace tests::csv_table_identification {
       auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(maybe_md_table->defacto);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(maybe_md_table->defacto);
+      auto mapping = table_meta.trans_row_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
     }
@@ -125,7 +129,9 @@ namespace tests::csv_table_identification {
       auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(maybe_md_table->defacto);
+
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(maybe_md_table->defacto);
+      auto mapping = table_meta.trans_row_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
       EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
@@ -143,8 +149,8 @@ namespace tests::csv_table_identification {
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      // Detect columns from data
-      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(*maybe_table);
+      auto mapping = table_meta.trans_row_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
 
@@ -167,8 +173,8 @@ namespace tests::csv_table_identification {
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      // Detect columns from data
-      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
+      auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(*maybe_table);
+      auto mapping = table_meta.trans_row_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
 

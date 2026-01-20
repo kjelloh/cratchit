@@ -1,4 +1,2 @@
-./run.zsh --gtest_filter=SIEEnvironmentTests.StageToPostedOkTest
-# ./run.zsh --gtest_filter=*DetectColumnsFromSKVNewData
 # ./run.zsh --gtest_filter=AccountStatementDetectionTests*:CSVTable2TaggedAmountsTests*:CSVTable2AccountStatementTests*
-#./run.zsh --test
+./run.zsh --test

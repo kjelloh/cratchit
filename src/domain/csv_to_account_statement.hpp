@@ -57,7 +57,7 @@ namespace account {
           ColumnMapping trans_row_mapping;
         }; // TableMeta
 
-        ColumnMapping to_column_mapping(CSV::Table const& table);
+        // ColumnMapping to_column_mapping(CSV::Table const& table);
         TableMeta to_account_statement_table_meta(CSV::Table const& table);
 
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping);
