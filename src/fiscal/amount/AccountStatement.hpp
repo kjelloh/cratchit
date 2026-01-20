@@ -38,7 +38,7 @@ struct DomainPrefixedId {
     return std::format(
        "{}{}"
       ,((m_prefix.size()>0)?m_prefix + "::":std::string{}) // Prefixed -> <prefix>::
-      ,m_value); // 
+      ,m_value);
   }
 };
 

@@ -351,35 +351,38 @@ namespace account {
       // Monadic Maybe: Table -> (account ID,Table) pair
       inline std::optional<CSV::MDTable<AccountID>> to_account_id_ed_step(CSV::Table const& table) {
 
-        logger::development_trace("to_account_id_ed_step: Starting AccountID extraction");
+        logger::scope_logger log_raii(logger::development_trace,"to_account_id_ed_step");
+        logger::design_insufficiency("table -> account ID is disabled");
+        logger::design_insufficiency("TODO: Cosnider to implement later step TableMeta -> AccountID?");
 
-        // Check for fundamentally invalid table
-        if (table.heading.size() == 0 && table.rows.empty()) {
-          logger::development_trace("to_account_id_ed_step: Empty table, returning nullopt");
-          return std::nullopt;
-        }
+        // Hard coded anomyous account for now
+        // TODO: Consider to move to step after 'TableMeta' and implement as to_account_id_ed_step(TableMeta) -> something something...
+        return CSV::MDTable<AccountID>{AccountID{"", "anonymous"}, table};
 
-        // TODO: Consider to replace NORDEA / SKV specifics below
-        //       with generic is_account_statement_table and to_account_no.
-        //       Possibly a single step operation?
-        //       Something that returns pair(AccountStatement, maybe account_id)?
+        // logger::development_trace("to_account_id_ed_step: Starting AccountID extraction");
 
-        if (account::statement::NORDEA::is_account_statement_table(table)) {
-          std::string account_number = account::statement::NORDEA::to_account_no(table).value_or("");
-          logger::development_trace("to_account_id_ed_step: Detected NORDEA account: '{}'", account_number);
-          return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
-        }
+        // // Check for fundamentally invalid table
+        // if (table.heading.size() == 0 && table.rows.empty()) {
+        //   logger::development_trace("to_account_id_ed_step: Empty table, returning nullopt");
+        //   return std::nullopt;
+        // }
 
-        if (account::statement::SKV::is_account_statement_table(table)) {
-          auto maybe_org_number = account::statement::SKV::to_account_no(table);
-          std::string org_number = maybe_org_number.value_or("");
-          logger::development_trace("to_account_id_ed_step: Detected SKV account for org: '{}'", org_number);
-          return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
-        }
+        // if (account::statement::NORDEA::is_account_statement_table(table)) {
+        //   std::string account_number = account::statement::NORDEA::to_account_no(table).value_or("");
+        //   logger::development_trace("to_account_id_ed_step: Detected NORDEA account: '{}'", account_number);
+        //   return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
+        // }
 
-        // Unknown format - fully unknown AccountID, return nullopt (failure)
-        logger::development_trace("to_account_id_ed_step: Unknown Account Statement format, returning nullopt");
-        return std::nullopt;
+        // if (account::statement::SKV::is_account_statement_table(table)) {
+        //   auto maybe_org_number = account::statement::SKV::to_account_no(table);
+        //   std::string org_number = maybe_org_number.value_or("");
+        //   logger::development_trace("to_account_id_ed_step: Detected SKV account for org: '{}'", org_number);
+        //   return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
+        // }
+
+        // // Unknown format - fully unknown AccountID, return nullopt (failure)
+        // logger::development_trace("to_account_id_ed_step: Unknown Account Statement format, returning nullopt");
+        // return std::nullopt;
       }
 
     } // maybe

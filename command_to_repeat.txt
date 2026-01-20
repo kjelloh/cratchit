@@ -1,2 +1,3 @@
 # ./run.zsh --gtest_filter=AccountStatementDetectionTests*:CSVTable2TaggedAmountsTests*:CSVTable2AccountStatementTests*
-./run.zsh --test
+#./run.zsh --test
+./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountIDedTable
