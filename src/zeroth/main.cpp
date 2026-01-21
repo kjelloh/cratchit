@@ -5269,7 +5269,8 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem:
   if (pipeline_result) {
     result = pipeline_result.value();
     std::cout << "\n\tValid entries count:" << result.size();
-    if (true) {
+    constexpr bool disable_consumed_mechanism{false};
+    if (!disable_consumed_mechanism) {
       auto make_consumed_result = make_consumed(statement_file_path);
       if (make_consumed_result.second == true) {
         std::cout << "\n\tConsumed account statement file moved to " << make_consumed_result.first;

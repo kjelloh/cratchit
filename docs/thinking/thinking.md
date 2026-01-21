@@ -2,6 +2,110 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260121
+
+I am frustrated that fixing the account statement csv file parsing pipe line is so hard! I have a real problem to navigate the source code and see though the mess what is there, what is AI slop and what is redundancy.
+
+I have come up with an approach to try and navigate to a slimmer and focused cleaned up design.
+
+1. Identify the pipe line that is actually in use.
+2. Write down this pipe line in a test case to fix it in code for refactoring stability.
+3. Propose a new pipe line where Account ID is produced based on new account statement table meta analysis.
+4. Wite down the new pipe line in a test case to fix it in code for refactoring stability.
+5. Replace old pipe line with the new one.
+6. Remove redunant code and test cases based on new pipe line test case.
+
+### So where is the current pipe line?
+
+I found one candidate in tas_from_statment_file:
+
+```c++
+OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path) {
+
+  if (true) {
+    std::cout << "\nto_tagged_amounts(" << statement_file_path << ")";
+  }
+
+  if (true) {
+    // Refactored to pipeline
+
+    auto result = file_path_to_istream(statement_file_path)
+      .and_then(istream_to_decoding_in)
+      .and_then(decoding_in_to_field_rows)
+      .and_then(field_rows_to_table)
+      .and_then(table_to_account_statements)
+      .and_then(account_statements_to_tas);
+```
+
+I am surprised this pipe line is not made up my xxx_step named functions.
+
+I also found:
+
+```c++
+  TEST_F(MonadicCompositionFixture,PathToAccountIDedTable) {
+    logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountIDedTable)");
+
+    auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+      .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      .and_then([](auto const& byte_buffer){
+        return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
+      })
+      .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+      .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+      .and_then(cratchit::functional::to_annotated_nullopt(
+        CSV::parse::maybe::csv_text_to_table_step
+        ,"Failed to parse csv into a valid table"))
+      .and_then(cratchit::functional::to_annotated_nullopt(
+          account::statement::maybe::to_account_id_ed_step
+        ,"Failed to identify account statement csv table account id"
+      ));
+
+    ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
+  }
+```
+
+So what pipe line is used by first variant fron end?
+
+So AccountStatementFileState uses CSV::parse::monadic::file_to_table.
+
+And then it provides an option table -> maybe account statement as:
+
+```c++
+  auto annotated_statement = annotated_table
+    .and_then(to_annotated_nullopt(
+      account::statement::maybe::to_account_id_ed_step,
+      "Unknown CSV format - could not identify account"))
+    .and_then(to_annotated_nullopt(
+      account::statement::maybe::account_id_ed_to_account_statement_step,
+      "Could not extract account statement entries"));
+
+```
+
+That is table -> id:ed table -> statement using the 'annotated' pipeline.
+
+I am starting to see some pieces in the puzzle.
+
+* We have some steps based on std::optional and some on leverage 'AnnotatedMaybe'
+* We are using steps that are not yet named xxx_step for some reason
+* We have no test case for the whole pipline file path -> tagged amounts
+* We have disorder and confison in file naming and locations
+* We have simmilar disorder and confusion about test cases and locations of those.
+
+So where can I place the test case to achor the file path -> tagged amounts full pipe line?
+
+* TEST_F(MonadicCompositionFixture,PathToAccountIDedTable) is in test_csv_import_pipeline
+* TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader) is in test_csv_table_identification
+* TEST_F(MDTableToAccountStatementTestFixture, SKVNewerMDTableToAccountStatement) is in test_md_table_to_account_statement
+
+Wow, it is really 'upp hill'!!
+
+But the namespace namespace tests::csv_import_pipeline::monadic_composition_suite seems the best candidate for now. It is in test_csv_import_pipeline.
+
+
+
+
+
+
 ## How can I parse account statement csv files in a somewhat generic manner [20260120]?
 
 I decided to continue my thinking here on top (See thinging until now below).
