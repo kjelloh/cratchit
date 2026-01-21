@@ -134,8 +134,92 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
     }
 
-    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmounts) {
-      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmounts)");
+    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring0) {
+      ASSERT_TRUE(false) << "TODO: Implement std::optional and_then path -> tas ";
+    }
+
+
+    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1) {
+      // TODO: This test case is based on path_to_tagged_amounts_shortcut
+      // The goal is to make clear each AnnotatedMaybe<T> step as a base for
+      // cleaning up the code to those steps only.
+      // Also see other PathToAccountStatementTaggedAmountsRefactoring* with simmilar goals
+      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring0)");
+
+      AnnotatedMaybe<TaggedAmounts> result{};
+
+      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(m_valid_file_path);
+
+      if (!text_result) {
+        // Propagate file/encoding errors
+        result.m_messages = std::move(text_result.m_messages);
+        result.push_message("Pipeline failed at Step 1-5: File reading/encoding");
+      }
+
+      ASSERT_TRUE(text_result) << "Expected successful text result";
+
+      // Copy messages from file reading/encoding
+      result.m_messages = text_result.m_messages;
+      auto const& text = text_result.value();
+
+      // Handle empty file case
+      if (text.empty()) {
+        result.push_message("Pipeline complete: Empty file produced empty TaggedAmounts");
+        result.m_value = TaggedAmounts{};
+      }
+
+      ASSERT_FALSE(text.empty()) << "Expected text";
+
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(text);
+
+      if (!maybe_table) {
+        result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
+      }
+      else {
+        result.push_message(std::format("Step 6 complete: CSV parsed successfully ({} rows)",
+          maybe_table->rows.size()));
+      }
+
+      ASSERT_TRUE(maybe_table) << "Expected successfull table";
+
+      auto maybe_account_id_ed_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+
+      if (!maybe_account_id_ed_md_table) {
+        // Unknown format - fully unknown AccountID (no prefix, no value)
+        result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
+      }
+      else {
+        result.push_message(std::format("(3) Step 6.5 complete: AccountID detected: '{}'",
+          maybe_account_id_ed_md_table->meta.to_string()));
+      }
+
+      ASSERT_TRUE(maybe_account_id_ed_md_table) << "Expected successfull id:ed table";
+
+      AccountID const& account_id = maybe_account_id_ed_md_table->meta;
+      CSV::Table const& identified_table = maybe_account_id_ed_md_table->defacto;
+      result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
+        account_id.to_string()));
+
+      auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+
+      if (!maybe_tagged) {
+        result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
+      }
+      else {
+        result.m_value = std::move(*maybe_tagged);
+        result.push_message(std::format("Pipeline complete: {} TaggedAmounts created from '{}'",
+          result.value().size(),
+          m_valid_file_path.filename().string()));
+      }
+
+      ASSERT_TRUE(maybe_tagged) << "Expected succesfull tagged amounts";
+
+    }
+
+    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring2) {
+      // TODO: This test case is based on PathToAccountIDedTable anove.
+      // The goal is to refactor into full and_then composition into AnnotatedMaybe<TaggedAmounts>
+      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
 
       auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
@@ -154,7 +238,28 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
 
-      
+      // TODO: Make into extended and_then pipeline above
+      AnnotatedMaybe<TaggedAmounts> result{};
+
+      AccountID const& account_id = maybe_account_id_ed_table.value().meta;
+      CSV::Table const& identified_table = maybe_account_id_ed_table.value().defacto;
+      result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
+        account_id.to_string()));
+
+      auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+
+      if (!maybe_tagged) {
+        result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
+      }
+      else {
+        result.m_value = std::move(*maybe_tagged);
+        result.push_message(std::format("Pipeline complete: {} TaggedAmounts created from '{}'",
+          result.value().size(),
+          m_valid_file_path.filename().string()));
+      }
+
+      ASSERT_TRUE(maybe_tagged) << "Expected succesfull tagged amounts";
+
     }
 
 

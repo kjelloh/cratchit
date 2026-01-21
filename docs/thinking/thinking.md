@@ -101,6 +101,14 @@ Wow, it is really 'upp hill'!!
 
 But the namespace namespace tests::csv_import_pipeline::monadic_composition_suite seems the best candidate for now. It is in test_csv_import_pipeline.
 
+* So first front end has not yet any account statement -> tagged amounts in the ux
+
+Now I found a TODO comment for 'tas_from_statment_file' in TaggedAmountFramework. It states the current pipe line is 'csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp'.
+
+So tas_from_statment_file is not used? Yes, it is NOT called from anywhere!
+
+So what does path_to_tagged_amounts_shortcut do?
+
 
 
 
