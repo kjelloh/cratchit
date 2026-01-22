@@ -122,7 +122,9 @@ namespace tests::csv_import_pipeline {
           ,"Failed to identify account statement csv table account id"
         ));
 
-      ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
+      ASSERT_TRUE(maybe_account_id_ed_table) 
+        << "Expected successful account ID identification"
+        << "Got messages:" << maybe_account_id_ed_table.to_caption();
     }
 
     TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1) {
@@ -1378,7 +1380,9 @@ namespace tests::csv_import_pipeline {
 
       auto result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_file);
 
-      ASSERT_TRUE(result) << "Expected successful complete pipeline";
+      ASSERT_TRUE(result) 
+        << "Expected successful complete pipeline"
+        << ". Got messages:" << result.to_caption();
 
       // Verify all pipeline steps are documented in messages
       std::vector<std::string> expected_keywords = {
@@ -1396,7 +1400,10 @@ namespace tests::csv_import_pipeline {
             break;
           }
         }
-        EXPECT_TRUE(found) << "Expected message containing keyword: " << keyword;
+        EXPECT_TRUE(found) 
+          << "Expected message containing keyword: " << keyword
+          << ". Got messages:" << result.to_caption();
+          
       }
 
       // Log all messages for verification

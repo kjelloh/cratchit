@@ -124,22 +124,24 @@ namespace cratchit {
     // Free function: convert optional<T> + message → AnnotatedOptional<T>
     // Enables template argument deduction on return type
     template<typename T>
-    AnnotatedOptional<T> annotated_from(std::optional<T> maybe, std::string message_on_nullopt) {
+    AnnotatedOptional<T> annotated_from(std::optional<T> maybe, std::string message_on_nullopt,std::string message_on_value="") {
       AnnotatedOptional<T> result{};
       result.m_value = std::move(maybe);
-      if (!result) result.push_message(std::move(message_on_nullopt));
+      if (!result and message_on_nullopt.size()>0) result.push_message(std::move(message_on_nullopt));
+      else if (result and message_on_value.size()>0) result.push_message(std::move(message_on_value));
       return result;
     }
 
     // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
     template<typename F>
-    auto to_annotated_nullopt(F&& f, std::string message_on_nullopt) {
-      return [f = std::forward<F>(f), message_on_nullopt = std::move(message_on_nullopt)](auto&&... args) {
+    auto to_annotated_nullopt(F&& f, std::string message_on_nullopt,std::string message_on_value="") {
+      return [f = std::forward<F>(f), message_on_nullopt = std::move(message_on_nullopt),message_on_value = std::move(message_on_value)](auto&&... args) {
         using result_t = std::invoke_result_t<F, decltype(args)...>;
         using value_t = typename result_t::value_type;
         return annotated_from(
-           std::invoke(f, std::forward<decltype(args)>(args)...),
-           message_on_nullopt
+            std::invoke(f, std::forward<decltype(args)>(args)...)
+           ,message_on_nullopt
+           ,message_on_value
         );
       };
     }

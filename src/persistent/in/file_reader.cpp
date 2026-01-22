@@ -58,8 +58,10 @@ namespace persistent {
 
         auto f = cratchit::functional::to_annotated_nullopt(
            persistent::in::maybe::path_to_istream_ptr_step
-          ,std::format("Failed to open file for reading: {}"
-          ,error_string)
+          ,std::format(
+            "Failed to open file for reading: {}"
+            ,error_string)
+          ,std::format("File {} opened OK",file_path.string())
         );
 
         return f(file_path);
