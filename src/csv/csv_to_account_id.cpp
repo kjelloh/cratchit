@@ -37,5 +37,20 @@ namespace account {
 
 
     } // maybe
+
+    namespace monadic {
+      AnnotatedMaybe<CSV::MDTable<AccountID>> to_account_id_ed_step(CSV::Table const& table) {
+        using cratchit::functional::to_annotated_nullopt;
+
+        auto f =  to_annotated_nullopt(
+           account::statement::maybe::to_account_id_ed_step
+          ,"Failed to identify account statement csv table account id");
+
+        return f(table);
+
+      }
+
+    } // monadic
+
   } // statement
 } // account

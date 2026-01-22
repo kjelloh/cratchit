@@ -1,8 +1,9 @@
 #pragma once
 
 #include "csv/csv.hpp"                          // CSV::Table
+#include "functional/maybe.hpp"                 // AnnotatedMaybe<T>...
 #include "fiscal/amount/AccountStatement.hpp"   // AccountID, DomainPrefixedId
-#include "text/functional.hpp" // contains_any_keyword,...
+#include "text/functional.hpp"                  // contains_any_keyword,...
 #include "logger/log.hpp"                       // logger::...
 #include <optional>
 #include <string>
@@ -348,10 +349,14 @@ namespace account {
       }
 
 
-      // Monadic Maybe: Table -> (account ID,Table) pair
       std::optional<CSV::MDTable<AccountID>> to_account_id_ed_step(CSV::Table const& table);
 
     } // maybe
+
+    namespace monadic {
+      AnnotatedMaybe<CSV::MDTable<AccountID>> to_account_id_ed_step(CSV::Table const& table);
+
+    } // monadic
 
   } // statement
 } // account

@@ -263,10 +263,7 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(CSV::parse::monadic::csv_text_to_table_step)
-        .and_then(cratchit::functional::to_annotated_nullopt(
-           account::statement::maybe::to_account_id_ed_step
-          ,"Failed to identify account statement csv table account id"
-        ));
+        .and_then(account::statement::monadic::to_account_id_ed_step);
 
       ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
 
