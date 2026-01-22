@@ -258,22 +258,16 @@ namespace tests::csv_import_pipeline {
 
       logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
 
-      auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+      auto maybe_tagged_amounts = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(CSV::parse::monadic::csv_text_to_table_step)
-        .and_then(account::statement::monadic::to_account_id_ed_step);
-
-      ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
-
-      auto maybe_account_statement = maybe_account_id_ed_table
+        .and_then(account::statement::monadic::to_account_id_ed_step)
         .and_then(cratchit::functional::to_annotated_nullopt(
            account::statement::maybe::account_id_ed_to_account_statement_step
-          ,"Account ID.ed table -> account statement failed"));
-
-      auto maybe_tagged_amounts = maybe_account_statement
+          ,"Account ID.ed table -> account statement failed"))
         .and_then(cratchit::functional::to_annotated_nullopt(
            tas::maybe::account_statement_to_tagged_amounts_step
           ,"Failed to transform Account Statement to Tagged Amounts"));
