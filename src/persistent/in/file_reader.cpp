@@ -29,51 +29,35 @@ namespace persistent {
         ByteBuffer buffer;
         const size_t chunk_size = 4096;
 
+        // NOTE 20260122 - I am unsatisfied with the copde options to properly read bysetd from std::istream.
+        //                 I went with as_writable_bytes on spand on std::areray of bytes.
+        //                 We still need to cast from char/char* to bytes though.
+        //                 I left two other iptions for future revisiting this code.
+        //                 The compiler should eliminate the if(false) options.
+
         if (true) {
-          // C++23 variant of reading bytes from char stream
-          // NOTE: reinterpret_cast char <-> std::byte is specifically defined and OK in the standard
           std::array<std::byte, chunk_size> temp;
           auto writable = std::as_writable_bytes(std::span(temp));
 
-          while (istream_ptr->read(reinterpret_cast<char*>(writable.data()), chunk_size)) {
-              buffer.insert(buffer.end(), temp.begin(), temp.begin() + istream_ptr->gcount());
-          }
-          if (istream_ptr->gcount() > 0) {
-              buffer.insert(buffer.end(), temp.begin(), temp.begin() + istream_ptr->gcount());
-          }
-        }
+          while (true) {
+              istream_ptr->read(reinterpret_cast<char*>(writable.data()), writable.size());
 
+              std::streamsize n = istream_ptr->gcount();
+              if (n > 0) {
+                  buffer.insert(buffer.end(), temp.begin(), temp.begin() + n);
+              }
 
-        if (false) {
-          // C-style (ish) reading bytes from char stream
-          // NOTE: reinterpret_cast char <-> std::byte is specifically defined and OK in the standard
-          char chunk[chunk_size];
-
-          while (istream_ptr->read(chunk, sizeof(chunk)) || istream_ptr->gcount() > 0) {
-              auto count = istream_ptr->gcount();
-              buffer.insert(
-                  buffer.end(),
-                  reinterpret_cast<std::byte*>(chunk),
-                  reinterpret_cast<std::byte*>(chunk + count)
-              );
+              if (!*istream_ptr) {
+                  if (istream_ptr->eof()) {
+                      break; // clean EOF
+                  }
+                  // Read error
+                  return {}; // nullopt
+              }
           }
         }
 
-        if (false) {
-          // C++20 (ish) way of copying from char stream to bytes 
-          // NOTE: reinterpret_cast char <-> std::byte is specifically defined and OK in the standard
-
-          std::array<std::byte, chunk_size> temp;
-
-          while (istream_ptr->read(reinterpret_cast<char*>(temp.data()), chunk_size)) {
-              buffer.insert(buffer.end(), temp.begin(), temp.begin() + istream_ptr->gcount());
-          }
-          if (istream_ptr->gcount() > 0) {
-              buffer.insert(buffer.end(), temp.begin(), temp.begin() + istream_ptr->gcount());
-          }        
-        }
-
-        return buffer;
+        return buffer; 
 
       }
 
@@ -121,31 +105,14 @@ namespace persistent {
       AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr) {
         AnnotatedMaybe<ByteBuffer> result{};
 
-        std::string error_string{};
-
-        if (!istream_ptr->good()) {
-          error_string += "Stream is not in a good state for reading";
-          return result;
-        }
-
-        // Get stream size if possible
-        istream_ptr->seekg(0, std::ios::end);
-        auto size_pos = istream_ptr->tellg();
-        istream_ptr->seekg(0, std::ios::beg);
-
-        if (size_pos < 0) {
-          error_string += "Failed to determine stream size";
-        }
-
         auto f = cratchit::functional::to_annotated_nullopt(
            persistent::in::maybe::istream_ptr_to_byte_buffer_step
-          ,std::format(
-            "Failed to read. error:{}"
-            ,error_string)
+          ,"Failed to read stream"
         );
 
+        // NOTE: to_annotated_nullopt takes hard coded string before the result is known
+        //       So we add on a success message with resulting buffer size on success
         result = f(std::move(istream_ptr));
-
         if (result) {
           result.push_message(
             std::format("Successfully read {} bytes from stream", result.value().size())

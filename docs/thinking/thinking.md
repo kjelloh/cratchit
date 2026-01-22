@@ -122,6 +122,9 @@ cratchit:>
 
 Back to my refactoring. Next step is to implement a maybe variant of 'istream_ptr_to_byte_buffer_step'.
 
+I am a bit unsatisfied wigh the code options I found for 'proper' reading of bytes from std::istream. I used charGPT and Claude Code to serve me code snippets and I chose one but added three options in the code for future refactoring.
+
+It seems my AI coding friends are also confused aabout error handling in reading from std::istream. When I fed code back they changed their minds and proposed more safety nets and tweak.
 
 ## 20260121
 
