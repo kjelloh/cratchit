@@ -403,7 +403,9 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(result) << "Expected successful monadic composition";
       EXPECT_EQ(result.value(), test_content.size()) << "Expected correct buffer size";
-      EXPECT_GE(result.m_messages.size(), 3) << "Expected messages from each step";
+      EXPECT_GE(result.m_messages.size(), 2) 
+        << "Expected messages from istream_ptr_to_byte_buffer_step success and test lambda"
+        << " Got messages:" << result.to_caption();
 
       // Clean up
       std::filesystem::remove(temp_path);

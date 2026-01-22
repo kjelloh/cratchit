@@ -4,16 +4,29 @@ namespace persistent {
   namespace in {
     namespace maybe {
 
+      std::optional<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
+        std::optional<std::unique_ptr<std::istream>> result{};
+        auto iss_ptr = std::make_unique<std::istringstream>(s);
+        if (*iss_ptr) {
+          result = std::move(iss_ptr);
+        }
+        return result;
+      }
+
+
       std::optional<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
         std::optional<std::unique_ptr<std::istream>> result{};
-
         auto is_ptr = std::make_unique<std::ifstream>(file_path, std::ios::binary);
         if (*is_ptr) {
           result = std::move(is_ptr);
         }
-
         return result;
       }
+
+      // std::optional<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr) {
+      //   return {};
+      // }
+
 
     } // maybe
 
@@ -21,16 +34,15 @@ namespace persistent {
 
       // Helper std::string -> maybe istream
       AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
-        AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
-        result.m_value = std::move(std::make_unique<std::istringstream>(s));
-        if (!result) {
-          result.push_message("Failed to create istringstream");
-        }
-        return result;
+
+        auto f = cratchit::functional::to_annotated_nullopt(
+           persistent::in::maybe::injected_string_to_istream_ptr
+          ,"Failed to create istringstream"
+        );
+        return f(s);
       } // injected_string_to_istream_ptr
 
       AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
-        AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
 
         auto  error_string = std::format("Failed for file {}",file_path.string());
         std::error_code ec;
