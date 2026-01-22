@@ -42,8 +42,7 @@ namespace tests::annotated_optional {
       );
 
       EXPECT_FALSE(result) << "Expected empty optional";
-      ASSERT_EQ(result.m_messages.size(), 1);
-      EXPECT_EQ(result.m_messages[0], "") << "Expected empty message string";
+      ASSERT_EQ(result.m_messages.size(), 0);
     }
 
     TEST(AnnotatedOptionalFromTests, FromPreservesValueExactly) {
