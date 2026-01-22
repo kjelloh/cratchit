@@ -265,9 +265,7 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(CSV::parse::monadic::csv_text_to_table_step)
         .and_then(account::statement::monadic::to_account_id_ed_step)
-        .and_then(cratchit::functional::to_annotated_nullopt(
-           account::statement::maybe::account_id_ed_to_account_statement_step
-          ,"Account ID.ed table -> account statement failed"))
+        .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
         .and_then(cratchit::functional::to_annotated_nullopt(
            tas::maybe::account_statement_to_tagged_amounts_step
           ,"Failed to transform Account Statement to Tagged Amounts"));

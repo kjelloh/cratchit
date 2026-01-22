@@ -426,5 +426,20 @@ namespace account {
       } // csv_table_to_account_statement_step
 
     } // maybe
+
+    namespace monadic {
+
+      AnnotatedMaybe<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<AccountID> const& account_id_ed) {
+
+        auto f = cratchit::functional::to_annotated_nullopt(
+           account::statement::maybe::account_id_ed_to_account_statement_step
+          ,"Account ID.ed table -> account statement failed");
+
+        return f(account_id_ed);
+
+      }
+
+
+    } // monadic
   } // statement
 } // account

@@ -4,6 +4,7 @@
 #include "fiscal/amount/AmountFramework.hpp"
 #include "FiscalPeriod.hpp"
 #include "fiscal/amount/AccountStatement.hpp"
+#include "functional/maybe.hpp"
 #include "logger/log.hpp" // logger::...
 #include <optional>
 #include <string>
@@ -140,10 +141,9 @@ namespace account {
 
       OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table);
       std::optional<AccountStatement> csv_table_to_account_statement_step(CSV::Table const& table,AccountID const& account_id);
-      using MDAccountIdedTable = CSV::MDTable<AccountID>;
 
       inline std::optional<AccountStatement> account_id_ed_to_account_statement_step(
-        MDAccountIdedTable const& account_id_ed) {
+        CSV::MDTable<AccountID> const& account_id_ed) {
         logger::scope_logger log_raii{logger::development_trace,
           "account_id_ed_to_account_statement_step(account_id_ed)"};
 
@@ -171,6 +171,12 @@ namespace account {
       } // account_id_ed_to_account_statement_step
 
     } // maybe
+
+    namespace monadic {
+
+      AnnotatedMaybe<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<AccountID> const& account_id_ed);
+
+    }
 
   } // statement
 
