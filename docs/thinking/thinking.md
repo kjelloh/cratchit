@@ -51,6 +51,20 @@ Satying really focused I found the steps I wanted to use and now have the tail:
 
 I'm getting there! And it works to focus on the PathToAccountStatementTaggedAmountsRefactoring3 until I have the whole path -> tagged amounts based on AnnotatedMaybe<T>! Even with it I get lost over and over.
 
+I have now stayed focused and made the AnnotatedMaybe<T> chain complete:
+
+```c++
+    auto maybe_tagged_amounts = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+      .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      .and_then(text::encoding::monadic::to_with_threshold_step(100))
+      .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+      .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+      .and_then(CSV::parse::monadic::csv_text_to_table_step)
+      .and_then(account::statement::monadic::to_account_id_ed_step)
+      .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+      .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+```
+
 
 ## 20260121
 
