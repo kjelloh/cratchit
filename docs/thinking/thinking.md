@@ -67,9 +67,60 @@ I have now stayed focused and made the AnnotatedMaybe<T> chain complete:
 
 Now I think it is time to clean upp so that we also have this chain on std::optional?
 
-We do not yet have a  persistent::in::monadic::path_to_istream_ptr_step(path).
+We do not yet have a  maybe varaint of path_to_istream_ptr_step(path).
 
+So I have now implemented persistent::in::maybe::path_to_istream_ptr_step. I ran into test cases that now fails as they expect also successfull operations to inject side channel messages. So I made to_annotated_nullopt to take an optional message_on_value and made 'open file' log an 'opened' ok message to make CompleteIntegrationAllSteps test pass.
 
+I am on the way OK. But we are in the weeds in more ways.
+
+* Google tests also executes cratchit normal 'read environment' and sync with sie-files.
+* And this sync FAILS with:
+
+```sh
+...
+BEGIN: model_from_environment_and_md_filesystem 
+BEGIN REFACTORED posted SIE digest
+
+STAGE of cracthit entries FAILED when merging with posted (from external tool)
+Entries in sie-file:sie_in/TheITfiedAB20250812_145743.se overrides values in cratchit staged entries
+CONFLICTED! : No longer valid entry  A3 "Account:NORDEA Text:BG KONTOINS Message:5050-1030 SK5567828172" 20250516
+    1630 "" -1998.00
+    1920 "" 1998.00
+ year id:current - ALL POSTED OK
+END REFACTORED posted SIE digest
+SIE year id:current --> Tagged Amounts = size:9
+Account Statement Files --> Tagged Amounts = size:9
+[       OK ] ModelTests.Environment2ModelSIEStageOverlapConflictTest (5 ms)
+...
+```
+
+What is going on?
+
+* Is this triggered by Environment2ModelSIEStageOverlapConflictTest?
+
+YES! 
+
+* So the test needs to be updated to do semthing with the 'conflict'?
+
+Also, a normal start of cratchit seems ok enough for now:
+
+```sh
+...
+BEGIN: model_from_environment_and_md_filesystem 
+BEGIN REFACTORED posted SIE digest
+ year id:-2 - ALL POSTED OK
+ year id:-1 - ALL POSTED OK
+ year id:current - ALL POSTED OK
+END REFACTORED posted SIE digest
+SIE year id:-1 --> Tagged Amounts = size:440
+SIE year id:-2 --> Tagged Amounts = size:889
+SIE year id:current --> Tagged Amounts = size:1073
+Account Statement Files --> Tagged Amounts = size:1073
+Init from "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/cratchit.env"
+cratchit:>
+```
+
+Back to my refactoring. Next step is to implement a maybe variant of 'istream_ptr_to_byte_buffer_step'.
 
 
 ## 20260121
