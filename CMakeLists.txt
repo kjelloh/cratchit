@@ -103,7 +103,8 @@ add_executable(cratchit
         src/cpp_compile_playground.cpp
         src/csv/csv_to_account_id.cpp
         src/text/encoding_pipeline.cpp
-        src/domain/account_statement_to_tagged_amounts.cpp)
+        src/domain/account_statement_to_tagged_amounts.cpp
+        src/persistent/in/file_reader.cpp )
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)

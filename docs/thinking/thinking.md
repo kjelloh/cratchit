@@ -65,6 +65,12 @@ I have now stayed focused and made the AnnotatedMaybe<T> chain complete:
       .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 ```
 
+Now I think it is time to clean upp so that we also have this chain on std::optional?
+
+We do not yet have a  persistent::in::monadic::path_to_istream_ptr_step(path).
+
+
+
 
 ## 20260121
 
