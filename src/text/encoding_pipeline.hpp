@@ -20,9 +20,12 @@ namespace text {
 
       // Monadic AnnotatedMaybe #3: byte buffer -> (threshold,byte buffer) pair
       using WithThresholdByteBuffer = MetaDefacto<int32_t,ByteBuffer>;
-      inline AnnotatedMaybe<WithThresholdByteBuffer> to_with_threshold_step(int32_t confidence_threshold, ByteBuffer byte_buffer) {
-        return WithThresholdByteBuffer{confidence_threshold,std::move(byte_buffer)};
-      }
+      struct ToWithThresholdF {
+          int32_t confidence_threshold;
+
+          AnnotatedMaybe<WithThresholdByteBuffer> operator()(ByteBuffer byte_buffer) const;
+      };
+      ToWithThresholdF to_with_threshold_step(int32_t confidence_threshold);
 
       // Monadic AnnotatedMaybe #4: (threshold,byte buffer) pair -> (detected encoding,byte buffer) pair
       using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
@@ -102,9 +105,7 @@ namespace text {
       int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD) {
 
       return persistent::in::path_to_byte_buffer_shortcut(file_path) // #1 + #2
-        .and_then([confidence_threshold](ByteBuffer buffer) {
-          return monadic::to_with_threshold_step(confidence_threshold, std::move(buffer)); // #3
-        })
+        .and_then(monadic::to_with_threshold_step(confidence_threshold))
         .and_then(monadic::to_with_detected_encoding_step) // #4
         .and_then(monadic::to_platform_encoded_string_step); // #5
     }

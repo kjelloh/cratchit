@@ -71,18 +71,14 @@ namespace tests::csv_import_pipeline {
     TEST_F(MonadicCompositionFixture,PathToWithThreshold) {
       auto mayabe_with_threshold = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
-        .and_then([](auto const& byte_buffer){
-          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
-        });        
+        .and_then(text::encoding::monadic::to_with_threshold_step(100));
       ASSERT_TRUE(mayabe_with_threshold) << "Expected successful buffer with encoding confidence threshold";
     }
 
     TEST_F(MonadicCompositionFixture,PathToWithEncoding) {
       auto mayabe_with_encoding = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
-        .and_then([](auto const& byte_buffer){
-          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
-        })
+        .and_then(text::encoding::monadic::to_with_threshold_step(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step);
       ASSERT_TRUE(mayabe_with_encoding) << "Expected successful buffer with detected encoding";
     }
@@ -90,9 +86,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(MonadicCompositionFixture,PathToPlatformEncoded) {
       auto maybe_platform_encoded = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
-        .and_then([](auto const& byte_buffer){
-          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
-        })
+        .and_then(text::encoding::monadic::to_with_threshold_step(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step);
       ASSERT_TRUE(maybe_platform_encoded) << "Expected successful platform encoded string";
@@ -101,9 +95,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(MonadicCompositionFixture,PathToCSVTable) {
       auto maybe_csv_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
-        .and_then([](auto const& byte_buffer){
-          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
-        })
+        .and_then(text::encoding::monadic::to_with_threshold_step(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(cratchit::functional::to_annotated_nullopt(
@@ -118,9 +110,7 @@ namespace tests::csv_import_pipeline {
 
       auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
-        .and_then([](auto const& byte_buffer){
-          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
-        })
+        .and_then(text::encoding::monadic::to_with_threshold_step(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(cratchit::functional::to_annotated_nullopt(
@@ -217,15 +207,13 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring2) {
-      // TODO: This test case is based on PathToAccountIDedTable anove.
+      // TODO: This test case is based on PathToAccountIDedTable above.
       // The goal is to refactor into full and_then composition into AnnotatedMaybe<TaggedAmounts>
       logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
 
       auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
-        .and_then([](auto const& byte_buffer){
-          return text::encoding::monadic::to_with_threshold_step(100,byte_buffer);
-        })
+        .and_then(text::encoding::monadic::to_with_threshold_step(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(cratchit::functional::to_annotated_nullopt(
@@ -261,6 +249,53 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(maybe_tagged) << "Expected succesfull tagged amounts";
 
     }
+
+    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring3) {
+      // Test case to design and implement the 'next' path -> Tagged Amounts pipeline
+      // with identifying accound ID based on account statement table identification mechanism
+      // (Previous code had account_id:ed before the mapping mechanism which is suboptimal)
+
+      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
+
+      auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(cratchit::functional::to_annotated_nullopt(
+          CSV::parse::maybe::csv_text_to_table_step
+          ,"Failed to parse csv into a valid table"))
+        .and_then(cratchit::functional::to_annotated_nullopt(
+           account::statement::maybe::to_account_id_ed_step
+          ,"Failed to identify account statement csv table account id"
+        ));
+
+      ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
+
+      // TODO: Make into extended and_then pipeline above
+      AnnotatedMaybe<TaggedAmounts> result{};
+
+      AccountID const& account_id = maybe_account_id_ed_table.value().meta;
+      CSV::Table const& identified_table = maybe_account_id_ed_table.value().defacto;
+      result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
+        account_id.to_string()));
+
+      auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+
+      if (!maybe_tagged) {
+        result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
+      }
+      else {
+        result.m_value = std::move(*maybe_tagged);
+        result.push_message(std::format("Pipeline complete: {} TaggedAmounts created from '{}'",
+          result.value().size(),
+          m_valid_file_path.filename().string()));
+      }
+
+      ASSERT_TRUE(maybe_tagged) << "Expected succesfull tagged amounts";
+
+    }
+
 
 
 
