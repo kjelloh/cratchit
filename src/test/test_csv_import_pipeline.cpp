@@ -6,6 +6,7 @@
 #include "text/transcoding_views.hpp"
 #include "text/encoding_pipeline.hpp"
 #include "csv/parse_csv.hpp"
+#include "domain/csv_to_account_statement.hpp"
 #include "csv/csv_to_account_id.hpp"
 #include "csv/import_pipeline.hpp"
 #include "test/data/account_statements_csv.hpp"
@@ -267,27 +268,17 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(maybe_account_id_ed_table) << "Expected successful account ID identification";
 
-      // TODO: Make into extended and_then pipeline above
-      AnnotatedMaybe<TaggedAmounts> result{};
+      auto maybe_account_statement = maybe_account_id_ed_table
+        .and_then(cratchit::functional::to_annotated_nullopt(
+           account::statement::maybe::account_id_ed_to_account_statement_step
+          ,"Account ID.ed table -> account statement failed"));
 
-      AccountID const& account_id = maybe_account_id_ed_table.value().meta;
-      CSV::Table const& identified_table = maybe_account_id_ed_table.value().defacto;
-      result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
-        account_id.to_string()));
+      auto maybe_tagged_amounts = maybe_account_statement
+        .and_then(cratchit::functional::to_annotated_nullopt(
+           tas::maybe::account_statement_to_tagged_amounts_step
+          ,"Failed to transform Account Statement to Tagged Amounts"));
 
-      auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
-
-      if (!maybe_tagged) {
-        result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
-      }
-      else {
-        result.m_value = std::move(*maybe_tagged);
-        result.push_message(std::format("Pipeline complete: {} TaggedAmounts created from '{}'",
-          result.value().size(),
-          m_valid_file_path.filename().string()));
-      }
-
-      ASSERT_TRUE(maybe_tagged) << "Expected succesfull tagged amounts";
+      ASSERT_TRUE(maybe_tagged_amounts) << "Expected succesfull tagged amounts";
 
     }
 

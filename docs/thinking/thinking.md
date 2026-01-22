@@ -2,6 +2,56 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260122
+
+I think I have found a viable path though this mess of bloated and unorganised code I have.
+
+With the test case PathToAccountStatementTaggedAmountsRefactoring3 I can focus on making the whole operation path -> tagged amounts as an and_then based on AnnotatedMaybe<T>.
+
+So far I have managed to fill in previous gaps and now have:
+
+```c++
+      auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_account_id_ed_step);
+```
+
+To get to tagged amounts I now need to tackle the 'tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);'.
+
+* It is a shortcut (meaning it aggregates steps)
+* It takes two arguments (so can not work with my existing AnnotatedMaybe<T>::and_then(arg)).
+
+* It seems we need to aggregate identified_table, account_id into one 'thing'. A MetaDefacto seems a viable approach.
+* The refactor account::statement::maybe::csv_table_to_account_statement_step(table, account_id)
+
+NO!
+
+* The account::statement::maybe::csv_table_to_account_statement_step(table, account_id) is to be removed.
+* I already have the next steps.
+
+Satying really focused I found the steps I wanted to use and now have the tail:
+
+```c++
+    auto maybe_account_statement = maybe_account_id_ed_table
+      .and_then(cratchit::functional::to_annotated_nullopt(
+          account::statement::maybe::account_id_ed_to_account_statement_step
+        ,"Account ID.ed table -> account statement failed"));
+
+    auto maybe_tagged_amounts = maybe_account_statement
+      .and_then(cratchit::functional::to_annotated_nullopt(
+          tas::maybe::account_statement_to_tagged_amounts_step
+        ,"Failed to transform Account Statement to Tagged Amounts"));
+
+    ASSERT_TRUE(maybe_tagged_amounts) << "Expected succesfull tagged amounts";
+```
+
+I'm getting there! And it works to focus on the PathToAccountStatementTaggedAmountsRefactoring3 until I have the whole path -> tagged amounts based on AnnotatedMaybe<T>! Even with it I get lost over and over.
+
+
 ## 20260121
 
 I am frustrated that fixing the account statement csv file parsing pipe line is so hard! I have a real problem to navigate the source code and see though the mess what is there, what is AI slop and what is redundancy.
