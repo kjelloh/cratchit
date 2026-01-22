@@ -126,6 +126,10 @@ I am a bit unsatisfied wigh the code options I found for 'proper' reading of byt
 
 It seems my AI coding friends are also confused aabout error handling in reading from std::istream. When I fed code back they changed their minds and proposed more safety nets and tweak.
 
+I tweaked std::istream reading  with placeholder code and TODO about returning std::expected instead for better error tracking.
+
+The code should be stable against error for now I suppose?
+
 ## 20260121
 
 I am frustrated that fixing the account statement csv file parsing pipe line is so hard! I have a real problem to navigate the source code and see though the mess what is there, what is AI slop and what is redundancy.

@@ -24,6 +24,9 @@ namespace persistent {
         return result;
       }
 
+      // TODO: Consider to return std::expected<ByteBuffer,some error code>
+      //       For istream reading it may be to 'weak' to just return nullopt on failure.
+      //       But good enoigh for now I asume?
       std::optional<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr) {
 
         ByteBuffer buffer;
@@ -32,29 +35,29 @@ namespace persistent {
         // NOTE 20260122 - I am unsatisfied with the copde options to properly read bysetd from std::istream.
         //                 I went with as_writable_bytes on spand on std::areray of bytes.
         //                 We still need to cast from char/char* to bytes though.
-        //                 I left two other iptions for future revisiting this code.
-        //                 The compiler should eliminate the if(false) options.
 
-        if (true) {
-          std::array<std::byte, chunk_size> temp;
-          auto writable = std::as_writable_bytes(std::span(temp));
+        std::array<std::byte, chunk_size> temp;
+        auto writable = std::as_writable_bytes(std::span(temp));
 
-          while (true) {
-              istream_ptr->read(reinterpret_cast<char*>(writable.data()), writable.size());
+        while (true) {
+            istream_ptr->read(reinterpret_cast<char*>(writable.data()), writable.size());
 
-              std::streamsize n = istream_ptr->gcount();
-              if (n > 0) {
-                  buffer.insert(buffer.end(), temp.begin(), temp.begin() + n);
-              }
+            std::streamsize n = istream_ptr->gcount();
 
-              if (!*istream_ptr) {
-                  if (istream_ptr->eof()) {
-                      break; // clean EOF
-                  }
-                  // Read error
-                  return {}; // nullopt
-              }
-          }
+            if (n > 0) {
+                buffer.insert(buffer.end(), temp.begin(), temp.begin() + n);
+            }
+
+            // Check stream state BEFORE continuing
+            if (istream_ptr->eof()) {
+                break; // Clean EOF after processing all bytes
+            }
+
+            if (istream_ptr->fail() || istream_ptr->bad()) {
+                // Could capture: rdstate(), strerror(errno), etc.
+                return {}; // Error during read
+            }              
+
         }
 
         return buffer; 
