@@ -203,11 +203,10 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring0) {
-      ASSERT_TRUE(false) << "TODO: Implement std::optional and_then path -> tas ";
 
-      // auto maybe_tagged_amounts = persistent::in::maybe::path_to_istream_ptr_step(m_valid_file_path);
+      auto result = persistent::in::maybe::path_to_istream_ptr_step(m_valid_file_path);
 
-
+      // Based on:
       // auto maybe_tagged_amounts = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
       //   .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
       //   .and_then(text::encoding::monadic::to_with_threshold_step(100))
@@ -217,6 +216,8 @@ namespace tests::csv_import_pipeline {
       //   .and_then(account::statement::monadic::to_account_id_ed_step)
       //   .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
       //   .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+
+      ASSERT_TRUE(result) << "Expected and_then aggregation to succeed at all steps";
 
     }
 
@@ -235,7 +236,7 @@ namespace tests::csv_import_pipeline {
         .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
         .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
-      ASSERT_TRUE(maybe_tagged_amounts) << "Expected succesfull tagged amounts";
+      ASSERT_TRUE(maybe_tagged_amounts) << "Failed with messages:" << maybe_tagged_amounts.to_caption();
 
     }
 
@@ -256,7 +257,7 @@ namespace tests::csv_import_pipeline {
         .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
         .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
-      ASSERT_TRUE(maybe_tagged_amounts) << "Expected succesfull tagged amounts";
+      ASSERT_TRUE(maybe_tagged_amounts) << "Failed with messages:" << maybe_tagged_amounts.to_caption();
 
     }
 

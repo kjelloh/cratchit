@@ -4,6 +4,17 @@ namespace persistent {
   namespace in {
     namespace maybe {
 
+      std::optional<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
+        std::optional<std::unique_ptr<std::istream>> result{};
+
+        auto is_ptr = std::make_unique<std::ifstream>(file_path, std::ios::binary);
+        if (*is_ptr) {
+          result = std::move(is_ptr);
+        }
+
+        return result;
+      }
+
     } // maybe
 
     namespace monadic {
@@ -21,40 +32,26 @@ namespace persistent {
       AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
         AnnotatedMaybe<std::unique_ptr<std::istream>> result{};
 
-        // Check if file exists
+        auto  error_string = std::format("Failed for file {}",file_path.string());
         std::error_code ec;
         if (!std::filesystem::exists(file_path, ec)) {
-          result.push_message(
-            std::format("File does not exist: {}", file_path.string())
-          );
-          return result;
+          error_string += std::format(" - File does not exist");
         }
 
         if (ec) {
-          result.push_message(
-            std::format("Error checking file existence: {} ({})",
-                      file_path.string(), ec.message())
-          );
-          return result;
+          error_string += std::format(
+             " - Error checking file existence - message:{}"
+            ,ec.message());
         }
 
-        // Try to open file
-        auto stream = std::make_unique<std::ifstream>(file_path, std::ios::binary);
-
-        if (!stream || !stream->is_open() || !stream->good()) {
-          result.push_message(
-            std::format("Failed to open file for reading: {}", file_path.string())
-          );
-          return result;
-        }
-
-        // Success - move stream into result
-        result.m_value = std::move(stream);
-        result.push_message(
-          std::format("Successfully opened file: {}", file_path.string())
+        auto f = cratchit::functional::to_annotated_nullopt(
+           persistent::in::maybe::path_to_istream_ptr_step
+          ,std::format("Failed to open file for reading: {}"
+          ,error_string)
         );
 
-        return result;
+        return f(file_path);
+
       } // path_to_istream_ptr_step
 
       AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr) {
