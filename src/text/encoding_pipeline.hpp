@@ -15,6 +15,11 @@ namespace text {
   namespace encoding {
 
     using ByteBuffer = persistent::in::ByteBuffer;
+    using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
+
+    namespace maybe {
+
+    }
 
     namespace monadic {
 
@@ -27,18 +32,16 @@ namespace text {
       };
       ToWithThresholdF to_with_threshold_step(int32_t confidence_threshold);
 
-      // Monadic AnnotatedMaybe #4: (threshold,byte buffer) pair -> (detected encoding,byte buffer) pair
-      using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
       inline AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
 
         AnnotatedMaybe<WithDetectedEncodingByteBuffer> result{};
 
         auto const& [confidence_threshold,buffer] = wt_buffer;
-        auto encoding_result = icu::to_detetced_encoding(buffer, confidence_threshold);
+        auto encoding_result = icu_facade::to_detetced_encoding(buffer, confidence_threshold);
 
         if (encoding_result) {      
           result = WithDetectedEncodingByteBuffer{
-            .meta = encoding_result->encoding
+             .meta = encoding_result->encoding
             ,.defacto = std::move(wt_buffer.defacto)
           };
           result.push_message(
@@ -47,7 +50,8 @@ namespace text {
                       encoding_result->confidence,
                       encoding_result->detection_method)
           );
-        } else {
+        } 
+        else {
           // Default to UTF-8 on detection failure (permissive strategy)
           result = WithDetectedEncodingByteBuffer{
             .meta = DetectedEncoding::UTF8
@@ -102,7 +106,7 @@ namespace text {
     // Monadic AnnotatedMaybe #1 ... #5 shortcut
     inline AnnotatedMaybe<std::string> path_to_platform_encoded_string_shortcut(
       std::filesystem::path const& file_path,
-      int32_t confidence_threshold = icu::DEFAULT_CONFIDENCE_THERSHOLD) {
+      int32_t confidence_threshold = icu_facade::DEFAULT_CONFIDENCE_THERSHOLD) {
 
       return persistent::in::path_to_byte_buffer_shortcut(file_path) // #1 + #2
         .and_then(monadic::to_with_threshold_step(confidence_threshold))

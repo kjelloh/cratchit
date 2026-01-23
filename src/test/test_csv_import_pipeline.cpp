@@ -540,7 +540,7 @@ namespace tests::csv_import_pipeline {
       auto buffer = persistent::in::path_to_byte_buffer_shortcut(utf8_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
-      auto encoding = text::encoding::icu::to_detetced_encoding(buffer.value());
+      auto encoding = text::encoding::icu_facade::to_detetced_encoding(buffer.value());
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
       EXPECT_EQ(encoding->encoding, text::encoding::DetectedEncoding::UTF8)
@@ -554,7 +554,7 @@ namespace tests::csv_import_pipeline {
       auto buffer = persistent::in::path_to_byte_buffer_shortcut(iso8859_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
-      auto encoding = text::encoding::icu::to_detetced_encoding(buffer.value());
+      auto encoding = text::encoding::icu_facade::to_detetced_encoding(buffer.value());
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
       // ICU might detect as ISO-8859-1 or Windows-1252 (superset)
@@ -577,8 +577,8 @@ namespace tests::csv_import_pipeline {
       // Demonstrate monadic composition: file → buffer → encoding
       auto result = persistent::in::path_to_byte_buffer_shortcut(temp_path)
         .and_then([](auto buffer) {
-          AnnotatedMaybe<text::encoding::icu::EncodingDetectionResult> encoding_result;
-          auto maybe_encoding = text::encoding::icu::to_detetced_encoding(buffer);
+          AnnotatedMaybe<text::encoding::icu_facade::EncodingDetectionResult> encoding_result;
+          auto maybe_encoding = text::encoding::icu_facade::to_detetced_encoding(buffer);
           if (maybe_encoding) {
             encoding_result.m_value = *maybe_encoding;
             encoding_result.push_message(
@@ -607,7 +607,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt)"};
 
       persistent::in::ByteBuffer empty_buffer;
-      auto encoding = text::encoding::icu::to_detetced_encoding(empty_buffer);
+      auto encoding = text::encoding::icu_facade::to_detetced_encoding(empty_buffer);
 
       EXPECT_FALSE(encoding) << "Expected empty optional for empty buffer";
     }
@@ -622,7 +622,7 @@ namespace tests::csv_import_pipeline {
       std::memcpy(short_buffer.data(), short_text.data(), short_text.size());
 
       // Use high threshold to potentially get no match
-      auto encoding = text::encoding::icu::to_detetced_encoding(short_buffer, 95);
+      auto encoding = text::encoding::icu_facade::to_detetced_encoding(short_buffer, 95);
 
       // Either no detection or a detection - both are acceptable
       if (encoding) {
@@ -856,7 +856,7 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
-      auto encoding_result = text::encoding::icu::to_detetced_encoding(buffer_result.value());
+      auto encoding_result = text::encoding::icu_facade::to_detetced_encoding(buffer_result.value());
       ASSERT_TRUE(encoding_result) << "Expected successful encoding detection";
 
       // Step 3: Create transcoding view
@@ -1045,7 +1045,7 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
-      auto encoding_result = text::encoding::icu::to_detetced_encoding(buffer_result.value());
+      auto encoding_result = text::encoding::icu_facade::to_detetced_encoding(buffer_result.value());
       ASSERT_TRUE(encoding_result) << "Expected successful encoding detection";
 
       // Step 3: Create Unicode view

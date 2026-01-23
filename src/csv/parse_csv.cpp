@@ -10,7 +10,7 @@ namespace CSV {
   namespace parse {
 
     namespace deprecated {
-      std::string encoding_caption(text::encoding::icu::EncodingDetectionResult const& detection_result) {
+      std::string encoding_caption(text::encoding::icu_facade::EncodingDetectionResult const& detection_result) {
         // Format display string with confidence and method
         std::string result;
         if (detection_result.confidence >= 70) {
@@ -33,8 +33,8 @@ namespace CSV {
                 
           // Use ICU detection to determine appropriate encoding stream
 
-          // result.icu_detection_result = text::encoding::icu::to_file_at_path_encoding(file_path);
-          if (auto maybe_detection_result = text::encoding::icu::to_file_at_path_encoding(file_path)) {
+          // result.icu_detection_result = text::encoding::icu_facade::to_file_at_path_encoding(file_path);
+          if (auto maybe_detection_result = text::encoding::icu_facade::to_file_at_path_encoding(file_path)) {
             result.icu_detection_result = maybe_detection_result.value();
 
               logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);

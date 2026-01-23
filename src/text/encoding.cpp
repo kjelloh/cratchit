@@ -242,7 +242,7 @@ namespace text {
 
     } // unicode
 
-    namespace icu {
+    namespace icu_facade{
 
       std::string to_string(UErrorCode status) {
         return std::format(
@@ -514,10 +514,10 @@ namespace text {
         return DetectedEncoding::Unknown;
       }
 
-    } // icu
+    } // icu_facade
 
     MaybeDecodingIn to_decoding_in(
-       icu::EncodingDetectionResult const& detected_source_encoding
+       icu_facade::EncodingDetectionResult const& detected_source_encoding
       ,std::istream& is) {
       switch (detected_source_encoding.encoding) {
         case text::encoding::DetectedEncoding::UTF8: {

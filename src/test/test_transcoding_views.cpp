@@ -157,9 +157,9 @@ namespace tests::transcoding_views {
     ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
     // Detect encoding directly (or use known encoding for test)
-    auto encoding_result = text::encoding::icu::to_detetced_encoding(
+    auto encoding_result = text::encoding::icu_facade::to_detetced_encoding(
       buffer_result.value(),
-      text::encoding::icu::DEFAULT_CONFIDENCE_THERSHOLD
+      text::encoding::icu_facade::DEFAULT_CONFIDENCE_THERSHOLD
     );
     auto detected_encoding = encoding_result
       ? encoding_result->encoding

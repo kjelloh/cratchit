@@ -2,6 +2,16 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260123
+
+So next step is to make a maybe variant of to_with_threshold_step.
+
+I studied the code and got confused by icu::to_detetced_encoding. I imagined this was from the ICU library. But it was not. It was my own icu namespace. Ok, so I renamed my 'namespace icu' to 'namespace icu_facade'.
+
+But now my code fail on 'icu_facade::UnicodeString'. It turns out the ICU library DOES itself define an icu namespace! So good thing I renamed my own to not get confused in the future.
+
+So I fixed all places where the code was using actual ICU code as icu:: ok.
+
 ## 20260122
 
 I think I have found a viable path though this mess of bloated and unorganised code I have.

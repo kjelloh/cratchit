@@ -181,7 +181,7 @@ namespace text {
 
     } // namespace unicode
 
-    namespace icu {
+    namespace icu_facade {
 
       // Readable string from ICU UErrorCode
       std::string to_string(UErrorCode status);
@@ -195,11 +195,11 @@ namespace text {
 
       struct EncodingDetectionResult {
         DetectedEncoding encoding;
-        CanonicalEncodingName canonical_name;    // ICU canonical name (e.g., "UTF-8")
-        std::string display_name;      // Human readable name
-        int32_t confidence;            // ICU confidence (0-100)
-        std::string language;          // Detected language (e.g., "sv" for Swedish)
-        std::string detection_method;  // "ICU", "BOM", "Extension", "Default"
+        CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
+        std::string display_name;             // Human readable name
+        int32_t confidence;                   // ICU confidence (0-100)
+        std::string language;                 // Detected language (e.g., "sv" for Swedish)
+        std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
       };
 
       const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
@@ -236,7 +236,7 @@ namespace text {
           ,confidence_threshold);
       }
 
-    } // icu
+    } // icu_facade
 
     // TODO: Consider a design that does not lift the detected encoding on in stream to an actual unique type?
     //       Maybe it is a good thing to lift to a type to be clear about what encoding we support in code?
@@ -250,7 +250,7 @@ namespace text {
     >;
     using MaybeDecodingIn = cratchit::functional::memory::OwningMaybeRef<DecodingIn>;
     MaybeDecodingIn to_decoding_in(
-       icu::EncodingDetectionResult const& detected_source_encoding
+       icu_facade::EncodingDetectionResult const& detected_source_encoding
       ,std::istream& is);
 
   } // namespace encoding

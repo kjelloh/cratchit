@@ -921,7 +921,7 @@ AnnotatedMaybe<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persisten
 
   auto maybe_encoding = maybe_istream
     .and_then([](std::istream& is) {
-      return text::encoding::icu::to_istream_encoding(is);
+      return text::encoding::icu_facade::to_istream_encoding(is);
     });
 
   if (maybe_encoding) {
