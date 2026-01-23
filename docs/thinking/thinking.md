@@ -12,6 +12,8 @@ But now my code fail on 'icu_facade::UnicodeString'. It turns out the ICU librar
 
 So I fixed all places where the code was using actual ICU code as icu:: ok.
 
+So I feel I have to tread carefully in this step of refactoring. I started by clarifying existing 'maybe' returning functions in encoding unit. I introduced icu_facade::maybe and moved them there.
+
 ## 20260122
 
 I think I have found a viable path though this mess of bloated and unorganised code I have.

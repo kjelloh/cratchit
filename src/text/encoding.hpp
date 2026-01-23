@@ -204,37 +204,41 @@ namespace text {
 
       const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
 
-      std::optional<EncodingDetectionResult> to_content_encoding(
-         char const* data
-        ,size_t length
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+      namespace maybe {
+        std::optional<EncodingDetectionResult> to_content_encoding(
+          char const* data
+          ,size_t length
+          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+        std::optional<EncodingDetectionResult> to_istream_encoding(
+          std::istream& is
+          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+        std::optional<EncodingDetectionResult> to_file_at_path_encoding(
+          std::filesystem::path const& file_path
+          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);      
+
+        template<typename ByteBuffer>
+        std::optional<EncodingDetectionResult> to_detetced_encoding(
+            ByteBuffer const& buffer
+          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD) {
+          if (buffer.empty()) {
+            return std::nullopt;
+          }
+          return maybe::to_content_encoding(
+            reinterpret_cast<char const*>(buffer.data())
+            ,buffer.size()
+            ,confidence_threshold);
+        } // to_detetced_encoding
+
+      } // maybe
+
       std::vector<EncodingDetectionResult> to_encoding_options(
          char const* data
         ,size_t length
         ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      std::optional<EncodingDetectionResult> to_istream_encoding(
-        std::istream& is
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      std::optional<EncodingDetectionResult> to_file_at_path_encoding(
-        std::filesystem::path const& file_path
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);      
       EncodingDetectionResult to_bom_encoding(std::istream& is);
       EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
       EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
-      // Encoding detection for byte buffer (CSV import pipeline integration)
-      // Wraps to_content_encoding for use with persistent::in::ByteBuffer
-      template<typename ByteBuffer>
-      std::optional<EncodingDetectionResult> to_detetced_encoding(
-          ByteBuffer const& buffer
-         ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD) {
-        if (buffer.empty()) {
-          return std::nullopt;
-        }
-        return to_content_encoding(
-           reinterpret_cast<char const*>(buffer.data())
-          ,buffer.size()
-          ,confidence_threshold);
-      }
+
 
     } // icu_facade
 

@@ -253,132 +253,140 @@ namespace text {
 
       // ICU-based Encoding Detection Implementation
 
-      std::optional<EncodingDetectionResult> to_file_at_path_encoding(
-        std::filesystem::path const& file_path
-        ,int32_t confidence_threshold) {
+      namespace maybe {
+        std::optional<EncodingDetectionResult> to_content_encoding(
+          char const* data
+          ,size_t length
+          ,int32_t confidence_threshold) {
 
-        // First try BOM detection for quick wins
-        auto bom_result = to_bom_encoding(file_path);
-        if (bom_result.confidence >= confidence_threshold) {
-          return bom_result;
-        }
-
-        std::ifstream ifs(file_path, std::ios::binary);
-        auto maybe_icu_result = to_istream_encoding(ifs,confidence_threshold);
-
-        // If we did not reach threshold, combine with extension heuristics
-        if (!maybe_icu_result) {
-          auto ext_result = to_extension_heuristics_encoding(file_path);
-          if (ext_result.confidence >= confidence_threshold) {
-            return ext_result;
+          UErrorCode status = U_ZERO_ERROR;
+          
+          // Create ICU character set detector
+          UCharsetDetector* detector = ucsdet_open(&status);
+          if (U_FAILURE(status) || !detector) {
+            logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}"
+              ,to_string(status));
+            return {};
           }
+          
+          // Set the input data
+          ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
+          if (U_FAILURE(status)) {
+            ucsdet_close(detector);
+            logger::development_trace("ICU setText failed. status:{}"
+              ,to_string(status));
+            return {};
+          }
+          
+          // Detect the character set
+          const UCharsetMatch* match = ucsdet_detect(detector, &status);
+          if (U_FAILURE(status) || !match) {
+            ucsdet_close(detector);
+            logger::development_trace("ICU failed to detect the character set. status:{}"
+              ,to_string(status));
+            return {};
+          }
+          
+          // Extract results
+          const char* canonical_name = ucsdet_getName(match, &status);
+          int32_t confidence = ucsdet_getConfidence(match, &status);
+          const char* language = ucsdet_getLanguage(match, &status);
+          
+          if (U_FAILURE(status)) {
+            ucsdet_close(detector);
+            logger::development_trace(
+              "ICU result extraction of canonical_name,confidence or language failed. status:{}"
+              ,to_string(status));
+            return {};
+          }
+          
+          // Convert to our types
+          std::string canonical_str = canonical_name ? canonical_name : "UTF-8";
+          std::string language_str = language ? language : "";
+          DetectedEncoding encoding = canonical_name_to_enum(canonical_str);
+          std::string display_name = enum_to_display_name(encoding);
+          
+          ucsdet_close(detector);
+          
+          return EncodingDetectionResult{
+            encoding
+            ,canonical_str
+            ,display_name
+            ,confidence
+            ,language_str
+            ,"ICU"};
         }
-        else {
-          return maybe_icu_result.value();
-        }
 
-        return {}; // did not reach confidence threshold
+        std::optional<EncodingDetectionResult> to_istream_encoding(
+          std::istream& is,
+          int32_t confidence_threshold) {
 
-      }
+          // Save current stream position (if possible)
+          
 
-      std::optional<EncodingDetectionResult> to_istream_encoding(
-        std::istream& is,
-        int32_t confidence_threshold) {
+          if (std::istream::pos_type pos = is.tellg();pos != -1) {
+            // istream is seekable ok 
+            // (we can restore read position to have layter code process the content)
 
-        // Save current stream position (if possible)
-        
+            // Sample for encoding detection
+            std::vector<char> buffer(8192);
+            is.read(buffer.data(), buffer.size());
+            size_t bytes_read = is.gcount();
 
-        if (std::istream::pos_type pos = is.tellg();pos != -1) {
-          // istream is seekable ok 
-          // (we can restore read position to have layter code process the content)
+            // Restore position
+            is.clear();          // Clear EOF flag if we hit end
+            is.seekg(pos);       // Move back to original position
 
-          // Sample for encoding detection
-          std::vector<char> buffer(8192);
-          is.read(buffer.data(), buffer.size());
-          size_t bytes_read = is.gcount();
+            if (bytes_read > 0) {
+              return maybe::to_content_encoding(buffer.data(), bytes_read);
+            }
 
-          // Restore position
-          is.clear();          // Clear EOF flag if we hit end
-          is.seekg(pos);       // Move back to original position
-
-          if (bytes_read > 0) {
-            return to_content_encoding(buffer.data(), bytes_read);
+            return {};
+          }
+          else {
+            logger::design_insufficiency("to_istream_encoding: Failed - Called with non seekable istream.");
           }
 
+          // Stream is not seekable — we cannot “restore” it
+          // Only option is: avoid consuming it.
+          is.setstate(std::ios::failbit); // 'disable' later code from consuming from stream
           return {};
-        }
-        else {
-          logger::design_insufficiency("to_istream_encoding: Failed - Called with non seekable istream.");
-        }
+        } // to_istream_encoding
 
-        // Stream is not seekable — we cannot “restore” it
-        // Only option is: avoid consuming it.
-        is.setstate(std::ios::failbit); // 'disable' later code from consuming from stream
-        return {};
-      }
+        std::optional<EncodingDetectionResult> to_file_at_path_encoding(
+          std::filesystem::path const& file_path
+          ,int32_t confidence_threshold) {
 
-      std::optional<EncodingDetectionResult> to_content_encoding(
-         char const* data
-        ,size_t length
-        ,int32_t confidence_threshold) {
+          // First try BOM detection for quick wins
+          auto bom_result = to_bom_encoding(file_path);
+          if (bom_result.confidence >= confidence_threshold) {
+            return bom_result;
+          }
 
-        UErrorCode status = U_ZERO_ERROR;
-        
-        // Create ICU character set detector
-        UCharsetDetector* detector = ucsdet_open(&status);
-        if (U_FAILURE(status) || !detector) {
-          logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}"
-            ,to_string(status));
-          return {};
-        }
-        
-        // Set the input data
-        ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
-        if (U_FAILURE(status)) {
-          ucsdet_close(detector);
-          logger::development_trace("ICU setText failed. status:{}"
-            ,to_string(status));
-          return {};
-        }
-        
-        // Detect the character set
-        const UCharsetMatch* match = ucsdet_detect(detector, &status);
-        if (U_FAILURE(status) || !match) {
-          ucsdet_close(detector);
-          logger::development_trace("ICU failed to detect the character set. status:{}"
-            ,to_string(status));
-          return {};
-        }
-        
-        // Extract results
-        const char* canonical_name = ucsdet_getName(match, &status);
-        int32_t confidence = ucsdet_getConfidence(match, &status);
-        const char* language = ucsdet_getLanguage(match, &status);
-        
-        if (U_FAILURE(status)) {
-          ucsdet_close(detector);
-          logger::development_trace(
-             "ICU result extraction of canonical_name,confidence or language failed. status:{}"
-            ,to_string(status));
-          return {};
-        }
-        
-        // Convert to our types
-        std::string canonical_str = canonical_name ? canonical_name : "UTF-8";
-        std::string language_str = language ? language : "";
-        DetectedEncoding encoding = canonical_name_to_enum(canonical_str);
-        std::string display_name = enum_to_display_name(encoding);
-        
-        ucsdet_close(detector);
-        
-        return EncodingDetectionResult{
-           encoding
-          ,canonical_str
-          ,display_name
-          ,confidence
-          ,language_str
-          ,"ICU"};
-      }
+          std::ifstream ifs(file_path, std::ios::binary);
+          auto maybe_icu_result = maybe::to_istream_encoding(ifs,confidence_threshold);
+
+          // If we did not reach threshold, combine with extension heuristics
+          if (!maybe_icu_result) {
+            auto ext_result = to_extension_heuristics_encoding(file_path);
+            if (ext_result.confidence >= confidence_threshold) {
+              return ext_result;
+            }
+          }
+          else {
+            return maybe_icu_result.value();
+          }
+
+          return {}; // did not reach confidence threshold
+
+        } // to_file_at_path_encoding
+
+
+      } // maybe
+
+
+
+
 
       std::vector<EncodingDetectionResult> to_encoding_options(
          char const* data
