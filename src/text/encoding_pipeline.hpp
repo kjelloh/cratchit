@@ -31,14 +31,12 @@ namespace text {
 
     namespace monadic {
 
-      // Indirection to and_then aggregate with to_with_threshold_step_f(some_threshold)
-      // NOTE: It may not be a good idea but for now a good exersice to learn C++ functional composition :)
-      struct ToWithThresholdF {
-          int32_t confidence_threshold; 
+      using ToWithThresholdF =
+        cratchit::functional::annotated_maybe_f_t<
+          decltype(text::encoding::maybe::to_with_threshold_step_f(0))
+        >;
 
-          AnnotatedMaybe<WithThresholdByteBuffer> operator()(ByteBuffer byte_buffer) const;
-      };
-      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);
+      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);    
 
       inline AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
 

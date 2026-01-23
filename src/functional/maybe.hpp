@@ -144,7 +144,17 @@ namespace cratchit {
            ,message_on_value
         );
       };
-    }
+    } // to_annotated_maybe_f
+
+    // Helper for to_annotated_maybe_f template function instance return type
+    // To be able to do using Resulot = 
+    template<typename F>
+    using annotated_maybe_f_t =
+      decltype(to_annotated_maybe_f(
+        std::declval<F>(),
+        std::declval<std::string>(),
+        std::declval<std::string>()
+      ));    
 
   } // functional
 } // cratchit

@@ -45,6 +45,61 @@ It would have been nice if I could implement to_with_threshold_step_f return the
 
 I wonder it there is some C++ template magic I can use to create the return type of to_annotated_maybe_f and use in declaration and definition of to_with_threshold_step_f?
 
+I asked chatGPT and it sugested:
+
+```c++
+namespace cratchit::functional {
+
+template<typename F>
+using annotated_maybe_f_t =
+  decltype(to_annotated_maybe_f(
+    std::declval<F>(),
+    std::declval<std::string>(),
+    std::declval<std::string>()
+  ));
+
+} // namespace cratchit::functional
+
+// and usage
+
+namespace text::encoding::monadic {
+
+  using MaybeStep =
+    cratchit::functional::annotated_maybe_f_t<
+      decltype(text::encoding::maybe::to_with_threshold_step_f(0))
+    >;
+
+  MaybeStep to_with_threshold_step_f(int32_t confidence_threshold);
+
+} // namespace text::encoding::monadic
+```
+
+At first I thought this was a catch 22. But then I realised the 'monadic' variant uses the 'maybe' variant of to_with_threshold_step_f.
+
+So I wrote this code for the monaic variant:
+
+```c++
+
+      // hpp
+      using ToWithThresholdF =
+        cratchit::functional::annotated_maybe_f_t<
+          decltype(text::encoding::maybe::to_with_threshold_step_f(0))
+        >;
+
+      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);    
+
+      // cpp
+      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold) {   
+        auto lifted = cratchit::functional::to_annotated_maybe_f(
+           text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
+          ,"Failed to pair confidence_threshold with byte buffer"
+        );
+        return lifted;
+      }
+```
+
+So at least I got rid of the functor indirection and made the ToWithThresholdF be the lifted function itself.
+
 ## 20260122
 
 I think I have found a viable path though this mess of bloated and unorganised code I have.
