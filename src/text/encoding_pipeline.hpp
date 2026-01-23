@@ -16,15 +16,23 @@ namespace text {
 
     using ByteBuffer = persistent::in::ByteBuffer;
     using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
+    // Monadic AnnotatedMaybe #3: byte buffer -> (threshold,byte buffer) pair
+    using WithThresholdByteBuffer = MetaDefacto<int32_t,ByteBuffer>;
 
     namespace maybe {
+      struct ToWithThresholdF {
+          int32_t confidence_threshold; 
+
+          std::optional<WithThresholdByteBuffer> operator()(ByteBuffer byte_buffer) const;
+      };
+      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);
 
     }
 
     namespace monadic {
 
-      // Monadic AnnotatedMaybe #3: byte buffer -> (threshold,byte buffer) pair
-      using WithThresholdByteBuffer = MetaDefacto<int32_t,ByteBuffer>;
+      // Indirection to and_then aggregate with to_with_threshold_step_f(some_threshold)
+      // NOTE: It may not be a good idea but for now a good exersice to learn C++ functional composition :)
       struct ToWithThresholdF {
           int32_t confidence_threshold; 
 

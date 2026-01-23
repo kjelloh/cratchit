@@ -14,6 +14,37 @@ So I fixed all places where the code was using actual ICU code as icu:: ok.
 
 So I feel I have to tread carefully in this step of refactoring. I started by clarifying existing 'maybe' returning functions in encoding unit. I introduced icu_facade::maybe and moved them there.
 
+I continued to implement maybe-variant of to_with_threshold_step. ANd in the process I renamed 'to_annotated_nullopt' to 'to_annotated_maybe_f' ro reflect it takes a maybe-returing function and produces a function that returns an annotated maybe.
+
+I managed to implement text::encoding::maybe::to_with_threshold_step_f so I could do:
+
+```c++
+      auto result = persistent::in::maybe::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::maybe::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::maybe::to_with_threshold_step_f(100));
+```
+
+I also managed to make monadic variant lift the maybe-variant as:
+
+```c++
+      AnnotatedMaybe<WithThresholdByteBuffer> ToWithThresholdF::operator()(ByteBuffer byte_buffer) const {
+        auto lifted = cratchit::functional::to_annotated_maybe_f(
+           text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
+          ,"Failed to pair confidence_threshold with byte buffer"
+        );
+        return lifted(byte_buffer);
+      }
+      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold) {
+        return ToWithThresholdF{confidence_threshold};
+      }
+```
+
+That is, I made the indirection functor ToWithThresholdF use to_annotated_maybe_f to lift the maybe variant with an annotation and call it.
+
+It would have been nice if I could implement to_with_threshold_step_f return the to_annotated_maybe_f from maybe variant directly. But then I don't know the return type any longer. And tgus can't separate declaration from the definition.
+
+I wonder it there is some C++ template magic I can use to create the return type of to_annotated_maybe_f and use in declaration and definition of to_with_threshold_step_f?
+
 ## 20260122
 
 I think I have found a viable path though this mess of bloated and unorganised code I have.

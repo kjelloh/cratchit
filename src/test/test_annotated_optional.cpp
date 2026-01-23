@@ -97,7 +97,7 @@ namespace tests::annotated_optional {
 
   } // to_caption_suite
 
-  namespace to_annotated_nullopt_suite {
+  namespace to_annotated_maybe_f_suite {
 
     TEST(ToAnnotatedNulloptTests, LiftedFunctionReturnsAnnotatedOptionalWithValue) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(ToAnnotatedNulloptTests, LiftedFunctionReturnsAnnotatedOptionalWithValue)"};
@@ -107,7 +107,7 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::to_annotated_nullopt(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         parse_int, "failed to parse integer"
       );
 
@@ -126,7 +126,7 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::to_annotated_nullopt(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         parse_int, "failed to parse integer"
       );
 
@@ -145,7 +145,7 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::to_annotated_nullopt(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         add_if_positive, "both arguments must be positive"
       );
 
@@ -174,7 +174,7 @@ namespace tests::annotated_optional {
         );
       };
 
-      auto lifted = cratchit::functional::to_annotated_nullopt(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         parse_int, "failed to parse integer"
       );
 
@@ -185,6 +185,6 @@ namespace tests::annotated_optional {
       EXPECT_TRUE(result.m_messages.empty()) << "Expected no messages on success";
     }
 
-  } // to_annotated_nullopt_suite
+  } // to_annotated_maybe_f_suite
 
 } // tests::annotated_optional

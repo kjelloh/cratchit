@@ -99,7 +99,7 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
-        .and_then(cratchit::functional::to_annotated_nullopt(
+        .and_then(cratchit::functional::to_annotated_maybe_f(
           CSV::parse::maybe::csv_text_to_table_step
           ,"Failed to parse csv into a valid table"));
 
@@ -114,10 +114,10 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
-        .and_then(cratchit::functional::to_annotated_nullopt(
+        .and_then(cratchit::functional::to_annotated_maybe_f(
           CSV::parse::maybe::csv_text_to_table_step
           ,"Failed to parse csv into a valid table"))
-        .and_then(cratchit::functional::to_annotated_nullopt(
+        .and_then(cratchit::functional::to_annotated_maybe_f(
            account::statement::maybe::to_account_id_ed_step
           ,"Failed to identify account statement csv table account id"
         ));
@@ -132,7 +132,8 @@ namespace tests::csv_import_pipeline {
       // TODO: Implement / refactor into a full std::optonal and_then composiiton that mirrors AnnotatedMaybe<T> chain
 
       auto result = persistent::in::maybe::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::maybe::istream_ptr_to_byte_buffer_step);
+        .and_then(persistent::in::maybe::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::maybe::to_with_threshold_step_f(100));      
 
       // Based on:
       // auto maybe_tagged_amounts = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)

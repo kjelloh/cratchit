@@ -134,7 +134,7 @@ namespace cratchit {
 
     // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
     template<typename F>
-    auto to_annotated_nullopt(F&& f, std::string message_on_nullopt,std::string message_on_value="") {
+    auto to_annotated_maybe_f(F&& f, std::string message_on_nullopt,std::string message_on_value="") {
       return [f = std::forward<F>(f), message_on_nullopt = std::move(message_on_nullopt),message_on_value = std::move(message_on_value)](auto&&... args) {
         using result_t = std::invoke_result_t<F, decltype(args)...>;
         using value_t = typename result_t::value_type;

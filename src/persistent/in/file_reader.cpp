@@ -72,7 +72,7 @@ namespace persistent {
       // Helper std::string -> maybe istream
       AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
 
-        auto f = cratchit::functional::to_annotated_nullopt(
+        auto f = cratchit::functional::to_annotated_maybe_f(
            persistent::in::maybe::injected_string_to_istream_ptr
           ,"Failed to create istringstream"
         );
@@ -93,7 +93,7 @@ namespace persistent {
             ,ec.message());
         }
 
-        auto f = cratchit::functional::to_annotated_nullopt(
+        auto f = cratchit::functional::to_annotated_maybe_f(
            persistent::in::maybe::path_to_istream_ptr_step
           ,std::format(
             "Failed to open file for reading: {}"
@@ -108,12 +108,12 @@ namespace persistent {
       AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr) {
         AnnotatedMaybe<ByteBuffer> result{};
 
-        auto f = cratchit::functional::to_annotated_nullopt(
+        auto f = cratchit::functional::to_annotated_maybe_f(
            persistent::in::maybe::istream_ptr_to_byte_buffer_step
           ,"Failed to read stream"
         );
 
-        // NOTE: to_annotated_nullopt takes hard coded string before the result is known
+        // NOTE: to_annotated_maybe_f takes hard coded string before the result is known
         //       So we add on a success message with resulting buffer size on success
         result = f(std::move(istream_ptr));
         if (result) {

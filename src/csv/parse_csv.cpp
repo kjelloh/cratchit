@@ -135,17 +135,17 @@ namespace CSV {
 
       AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
 
-        using cratchit::functional::to_annotated_nullopt;
+        using cratchit::functional::to_annotated_maybe_f;
         return text::encoding::path_to_platform_encoded_string_shortcut(file_path)
-          .and_then(to_annotated_nullopt(
+          .and_then(to_annotated_maybe_f(
             CSV::parse::maybe::csv_text_to_table_step
             ,"Failed to parse csv into a valid table"));
       }
 
       AnnotatedMaybe<CSV::Table> csv_text_to_table_step(std::string_view csv_text) {
-        using cratchit::functional::to_annotated_nullopt;
+        using cratchit::functional::to_annotated_maybe_f;
 
-        auto f =  to_annotated_nullopt(
+        auto f =  to_annotated_maybe_f(
            CSV::parse::maybe::csv_text_to_table_step
           ,"Failed to parse csv into a valid table");
 

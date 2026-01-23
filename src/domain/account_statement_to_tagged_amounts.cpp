@@ -57,7 +57,7 @@ namespace tas {
   namespace monadic {
 
     AnnotatedMaybe<TaggedAmounts> account_statement_to_tagged_amounts_step(AccountStatement const& statement) {
-      auto f = cratchit::functional::to_annotated_nullopt(
+      auto f = cratchit::functional::to_annotated_maybe_f(
            tas::maybe::account_statement_to_tagged_amounts_step
           ,"Failed to transform Account Statement to Tagged Amounts");
 

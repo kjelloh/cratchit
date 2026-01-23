@@ -40,9 +40,9 @@ namespace account {
 
     namespace monadic {
       AnnotatedMaybe<CSV::MDTable<AccountID>> to_account_id_ed_step(CSV::Table const& table) {
-        using cratchit::functional::to_annotated_nullopt;
+        using cratchit::functional::to_annotated_maybe_f;
 
-        auto f =  to_annotated_nullopt(
+        auto f =  to_annotated_maybe_f(
            account::statement::maybe::to_account_id_ed_step
           ,"Failed to identify account statement csv table account id");
 
