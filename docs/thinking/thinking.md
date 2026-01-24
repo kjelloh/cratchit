@@ -404,6 +404,82 @@ On the other hand, I don't make it worse? I did this:
 
 This makes the code compile for now. Also, no encoding tests fail so I asume we can settle woth this for now?
 
+I now have implemented the maybe and monadic versions.
+
+```c++
+
+      std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
+        std::optional<WithDetectedEncodingByteBuffer> result{};
+
+        auto& [confidence_threshold,buffer] = wt_buffer;
+        auto encoding_result = icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold);
+
+        if (encoding_result) {      
+          result = WithDetectedEncodingByteBuffer{
+             .meta = encoding_result.value()
+            ,.defacto = std::move(buffer)
+          };
+        } 
+
+        return result;
+      }
+
+      // ...
+
+      AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
+
+        AnnotatedMaybe<WithDetectedEncodingByteBuffer> result{};
+
+        auto const& [confidence_threshold,buffer] = wt_buffer;
+        auto lifted = cratchit::functional::to_annotated_maybe_f(
+           text::encoding::maybe::to_with_detected_encoding_step
+          ,std::format(
+              "Encoding detection failed (confidence below threshold {}), defaulting to UTF-8"
+              ,confidence_threshold)
+        );
+
+        result = lifted(wt_buffer);
+
+        if (result) {
+          result.push_message(
+            std::format("Detected encoding: {} (confidence: {}, method: {})",
+                      result.value().meta.meta.display_name,
+                      result.value().meta.meta.confidence,
+                      result.value().meta.meta.detection_method)
+          );
+        }
+        else {
+          // Default to UTF-8 on detection failure (permissive strategy)
+          // TODO 20260124 - Consider to remove this else?
+          //                 It seems no test even triggers this else path?
+          //                 Or, the detection logic already defaults to UTF-8 (Never nullopt)?
+          result = WithDetectedEncodingByteBuffer{
+            .meta = text::encoding::icu_facade::EncodingDetectionResult{
+              .meta = {
+                "UTF-8"
+                ,"UTF-8"
+                ,100
+                ,""
+                ,"Assumed"
+              }
+              ,.defacto = DetectedEncoding::UTF8
+            }
+            ,.defacto = std::move(wt_buffer.defacto)
+          };
+        }
+
+        return result;
+
+      } // to_with_detected_encoding_step
+
+
+```
+
+It is worth noting that none of the tests triggered the else that hard codes the moinadic default to UTF-8.
+
+* Does the detection code already default to UTF-8?
+* Are there no tets on the fallback to UTF-8?
+
 ## 20260123
 
 So next step is to make a maybe variant of to_with_threshold_step.

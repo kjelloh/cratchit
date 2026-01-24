@@ -12,7 +12,19 @@ namespace text {
       }
 
       std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
-        return {};
+        std::optional<WithDetectedEncodingByteBuffer> result{};
+
+        auto& [confidence_threshold,buffer] = wt_buffer;
+        auto encoding_result = icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold);
+
+        if (encoding_result) {      
+          result = WithDetectedEncodingByteBuffer{
+             .meta = encoding_result.value()
+            ,.defacto = std::move(buffer)
+          };
+        } 
+
+        return result;
       }
 
     } // maybe
@@ -32,22 +44,28 @@ namespace text {
         AnnotatedMaybe<WithDetectedEncodingByteBuffer> result{};
 
         auto const& [confidence_threshold,buffer] = wt_buffer;
-        auto encoding_result = icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold);
+        auto lifted = cratchit::functional::to_annotated_maybe_f(
+           text::encoding::maybe::to_with_detected_encoding_step
+          ,std::format(
+              "Encoding detection failed (confidence below threshold {}), defaulting to UTF-8"
+              ,confidence_threshold)
+        );
 
-        if (encoding_result) {      
-          result = WithDetectedEncodingByteBuffer{
-             .meta = encoding_result.value()
-            ,.defacto = std::move(wt_buffer.defacto)
-          };
+        result = lifted(wt_buffer);
+
+        if (result) {
           result.push_message(
             std::format("Detected encoding: {} (confidence: {}, method: {})",
-                      encoding_result->meta.display_name,
-                      encoding_result->meta.confidence,
-                      encoding_result->meta.detection_method)
+                      result.value().meta.meta.display_name,
+                      result.value().meta.meta.confidence,
+                      result.value().meta.meta.detection_method)
           );
-        } 
+        }
         else {
           // Default to UTF-8 on detection failure (permissive strategy)
+          // TODO 20260124 - Consider to remove this else?
+          //                 It seems no test even triggers this else path?
+          //                 Or, the detection logic already defaults to UTF-8 (Never nullopt)?
           result = WithDetectedEncodingByteBuffer{
             .meta = text::encoding::icu_facade::EncodingDetectionResult{
               .meta = {
@@ -61,10 +79,6 @@ namespace text {
             }
             ,.defacto = std::move(wt_buffer.defacto)
           };
-          result.push_message(
-            std::format(
-              "Encoding detection failed (confidence below threshold {}), defaulting to UTF-8"
-              ,confidence_threshold));
         }
 
         return result;
