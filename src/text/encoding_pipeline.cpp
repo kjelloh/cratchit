@@ -36,7 +36,7 @@ namespace text {
 
         if (encoding_result) {      
           result = WithDetectedEncodingByteBuffer{
-             .meta = encoding_result->defacto
+             .meta = encoding_result.value()
             ,.defacto = std::move(wt_buffer.defacto)
           };
           result.push_message(
@@ -49,7 +49,16 @@ namespace text {
         else {
           // Default to UTF-8 on detection failure (permissive strategy)
           result = WithDetectedEncodingByteBuffer{
-            .meta = DetectedEncoding::UTF8
+            .meta = text::encoding::icu_facade::EncodingDetectionResult{
+              .meta = {
+                "UTF-8"
+                ,"UTF-8"
+                ,100
+                ,""
+                ,"Assumed"
+              }
+              ,.defacto = DetectedEncoding::UTF8
+            }
             ,.defacto = std::move(wt_buffer.defacto)
           };
           result.push_message(
@@ -61,6 +70,39 @@ namespace text {
         return result;
 
       } // to_with_detected_encoding_step
+
+      AnnotatedMaybe<std::string> to_platform_encoded_string_step(
+          WithDetectedEncodingByteBuffer wd_buffer) {
+
+        AnnotatedMaybe<std::string> result{};
+
+        auto const& [detected_encoding, buffer] = wd_buffer;
+
+        if (buffer.empty()) {
+          result.push_message("Empty buffer - no content to transcode");
+          return result;  // Return failure (nullopt)
+        }
+
+        // Create lazy transcoding pipeline: bytes → Unicode → Platform encoding
+        auto unicode_view = views::bytes_to_unicode(buffer, detected_encoding.defacto);
+        auto platform_view = views::unicode_to_runtime_encoding(unicode_view);
+
+        // Materialize the lazy view into a string (while buffer is still alive)
+        std::string transcoded;
+        transcoded.reserve(buffer.size()); // Reasonable initial capacity
+
+        for (char byte : platform_view) {
+          transcoded.push_back(byte);
+        }
+
+        result = std::move(transcoded);
+        result.push_message(
+          std::format("Successfully transcoded {} bytes to {} platform encoding bytes",
+                      buffer.size(), result.value().size())
+        );
+
+        return result;
+      } // to_platform_encoded_string_step
 
     } // monadic
   } // encoding

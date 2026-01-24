@@ -232,6 +232,177 @@ How can '.meta = encoding_result->defacto' compile?
 
 Oh! I see. I have not changed WithDetectedEncodingByteBuffer yet!
 
+Ok, time to have WithDetectedEncodingByteBuffer carry the whole EncodingDetectionResult as 'meta'.
+
+I made the change:
+
+```c++
+  // using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
+  using WithDetectedEncodingByteBuffer = MetaDefacto<icu_facade::EncodingDetectionResult,ByteBuffer>;
+```
+
+And got stumped by a template instantiation compilation error like:
+
+```sh
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/__type_traits/invoke.h:459:1: error: no type named 'type' in 'std::invoke_result<cratchit::functional::AnnotatedOptional<std::string> &, MetaDefacto<MetaDefacto<text::encoding::icu_facade::EncodingDetectionMeta, text::encoding::DetectedEncoding>, std::vector<std::byte>> &&>'
+  459 | using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      | ^~~~~
+
+  ...
+
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding_pipeline.hpp:56:10: note: in instantiation of function template specialization 'cratchit::functional::AnnotatedOptional<MetaDefacto<MetaDefacto<text::encoding::icu_facade::EncodingDetectionMeta, text::encoding::DetectedEncoding>, std::vector<std::byte>>>::and_then<cratchit::functional::AnnotatedOptional<std::string> &>' requested here
+   56 |         .and_then(monadic::to_platform_encoded_string_step); // #5
+      |          ^
+```
+
+I feel it is time I learn to read these errors!
+
+If I expand the code that is mine I can see:
+
+```c++
+      return persistent::in::path_to_byte_buffer_shortcut(file_path) // #1 + #2
+        .and_then(monadic::to_with_threshold_step_f(confidence_threshold))
+        .and_then(monadic::to_with_detected_encoding_step) // #4
+        .and_then(monadic::to_platform_encoded_string_step); // #5
+```
+
+And I know the return type of to_with_detected_encoding_step has changed (as I changed the WithDetectedEncodingByteBuffer).
+
+So how is to_platform_encoded_string_step declared?
+
+Oh! I broke the declaration when I split it into hpp declaration and cpp definition!
+
+Then I ran into this problem:
+
+```c++
+  // Default to UTF-8 on detection failure (permissive strategy)
+  result = WithDetectedEncodingByteBuffer{
+    .meta = DetectedEncoding::UTF8
+    ,.defacto = std::move(wt_buffer.defacto)
+  };
+```
+
+The previous code only passed on the default enum to signal UTF-8. Now I need to somehow provide also the meta-part.
+
+```c++
+    struct EncodingDetectionMeta {
+      CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
+      std::string display_name;             // Human readable name
+      int32_t confidence;                   // ICU confidence (0-100)
+      std::string language;                 // Detected language (e.g., "sv" for Swedish)
+      std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
+    };
+```
+
+Or do I really? None of the upstream code actually uses it!
+
+* Can I provide an empty one?
+* Can I make the meta into a maybe?
+
+If I provide an empty one I break the invariant that the defacto enum with the encoding must match the meta data for that enum. But then, do my existing AI generayed code even care? That is, have I already code that breaks this invariant?
+
+If I make the meta into a maybe I probably don't solve the problem as all code that access the meta must then also handle the nullopt. But then, this is also maybe not a problem? Maybe every such case is paired with an enum 'Undefied or Unknown'?
+
+But I extended the type to make maybe version signal mneta-data that variant version used. I did NOT extend it to provide meta-data upstream.
+
+* So we know that for now it is fine to break the invariant upstream as it does not access the meta part.
+* But future code may be tricked to access it and cause buds when the invariant is broken!
+
+This was a curious dilemma. Where have I gone wrong? Or hove can I proceed correctly?
+
+I wonder, how many hard coded 'default value' sites do I have? 
+
+AHA! It seems there is only one!?
+
+```c++
+        else {
+          // Default to UTF-8 on detection failure (permissive strategy)
+          result = WithDetectedEncodingByteBuffer{
+            .meta = DetectedEncoding::UTF8
+            ,.defacto = std::move(wt_buffer.defacto)
+          };
+          result.push_message(
+            std::format(
+              "Encoding detection failed (confidence below threshold {}), defaulting to UTF-8"
+              ,confidence_threshold));
+        }
+
+```
+
+And from below we have the productions:
+
+```c++
+  // ...
+
+          // UTF-8 BOM: EF BB BF
+          if (bom_bytes[0] == 0xEF && bom_bytes[1] == 0xBB && bom_bytes[2] == 0xBF) {
+            return EncodingDetectionResult{
+              .meta = {
+                 "UTF-8"
+                ,"UTF-8"
+                ,100
+                ,""
+                ,"BOM"
+              }
+              ,.defacto = DetectedEncoding::UTF8
+            };
+
+  // ...
+
+        if (ext == ".csv") {
+          return EncodingDetectionResult{
+            .meta = {
+              "UTF-8"
+              ,"UTF-8"
+              ,60
+              ,""
+              ,"Extension (.csv)"
+            }
+            ,.defacto = DetectedEncoding::UTF8
+          };
+
+  // ...
+
+        return EncodingDetectionResult{
+          .meta = {
+            "UTF-8"
+            ,"UTF-8"
+            ,30
+            ,""
+            ,"Extension (default)"
+          }
+          ,.defacto = DetectedEncoding::UTF8
+        };
+        
+```
+
+So my AI friends has already generated hard coded meta-data.
+
+It is also integersting that the propblem with the semantics of 'confidence' creeps up here again. My AI friends has stated 100% confidence from BOM detection, 60% confidence from '.csv' extension and 30% confidence for 'other file extension' assumed encoding?
+
+This is LEAKY AF!
+
+On the other hand, I don't make it worse? I did this:
+
+```c++
+          // Default to UTF-8 on detection failure (permissive strategy)
+          result = WithDetectedEncodingByteBuffer{
+            .meta = text::encoding::icu_facade::EncodingDetectionResult{
+              .meta = {
+                "UTF-8"
+                ,"UTF-8"
+                ,100
+                ,""
+                ,"Assumed"
+              }
+              ,.defacto = DetectedEncoding::UTF8
+            }
+            ,.defacto = std::move(wt_buffer.defacto)
+          };
+
+```
+
+This makes the code compile for now. Also, no encoding tests fail so I asume we can settle woth this for now?
 
 ## 20260123
 
