@@ -12,19 +12,14 @@ namespace text {
       }
 
       std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
-        std::optional<WithDetectedEncodingByteBuffer> result{};
-
         auto& [confidence_threshold,buffer] = wt_buffer;
-        auto encoding_result = icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold);
-
-        if (encoding_result) {      
-          result = WithDetectedEncodingByteBuffer{
-             .meta = encoding_result.value()
-            ,.defacto = std::move(buffer)
-          };
-        } 
-
-        return result;
+        return icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold)
+          .transform([buffer](auto&& meta){
+            return WithDetectedEncodingByteBuffer{
+              .meta = std::forward<decltype(meta)>(meta)
+              ,.defacto = std::move(buffer)
+            };
+          });
       }
 
     } // maybe
@@ -41,9 +36,7 @@ namespace text {
 
       AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
 
-        AnnotatedMaybe<WithDetectedEncodingByteBuffer> result{};
-
-        auto const& [confidence_threshold,buffer] = wt_buffer;
+        auto const& [confidence_threshold,_] = wt_buffer;
         auto lifted = cratchit::functional::to_annotated_maybe_f(
            text::encoding::maybe::to_with_detected_encoding_step
           ,std::format(
@@ -51,7 +44,7 @@ namespace text {
               ,confidence_threshold)
         );
 
-        result = lifted(wt_buffer);
+        auto result = lifted(wt_buffer);
 
         if (result) {
           result.push_message(
@@ -64,8 +57,8 @@ namespace text {
         else {
           // Default to UTF-8 on detection failure (permissive strategy)
           // TODO 20260124 - Consider to remove this else?
-          //                 It seems no test even triggers this else path?
-          //                 Or, the detection logic already defaults to UTF-8 (Never nullopt)?
+          //                 It seems no test even triggers this code?
+          //                 Or, the detection logic already defaults to UTF-8 (never nullopt:s)?
           result = WithDetectedEncodingByteBuffer{
             .meta = text::encoding::icu_facade::EncodingDetectionResult{
               .meta = {
