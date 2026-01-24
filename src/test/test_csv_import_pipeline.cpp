@@ -546,9 +546,9 @@ namespace tests::csv_import_pipeline {
       auto encoding = text::encoding::icu_facade::maybe::to_detetced_encoding(buffer.value());
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
-      EXPECT_EQ(encoding->encoding, text::encoding::DetectedEncoding::UTF8)
-        << "Expected UTF-8 detection, got: " << encoding->display_name;
-      EXPECT_GE(encoding->confidence, 50) << "Expected reasonable confidence";
+      EXPECT_EQ(encoding->defacto, text::encoding::DetectedEncoding::UTF8)
+        << "Expected UTF-8 detection, got: " << encoding->meta.display_name;
+      EXPECT_GE(encoding->meta.confidence, 50) << "Expected reasonable confidence";
     }
 
     TEST_F(EncodingDetectionTestFixture, DetectISO8859) {
@@ -561,10 +561,10 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
       // ICU might detect as ISO-8859-1 or Windows-1252 (superset)
-      bool is_latin = (encoding->encoding == text::encoding::DetectedEncoding::ISO_8859_1 ||
-                       encoding->encoding == text::encoding::DetectedEncoding::WINDOWS_1252);
+      bool is_latin = (encoding->defacto == text::encoding::DetectedEncoding::ISO_8859_1 ||
+                       encoding->defacto == text::encoding::DetectedEncoding::WINDOWS_1252);
       EXPECT_TRUE(is_latin)
-        << "Expected ISO-8859-1 or Windows-1252 detection, got: " << encoding->display_name;
+        << "Expected ISO-8859-1 or Windows-1252 detection, got: " << encoding->meta.display_name;
     }
 
     TEST(EncodingDetectionTests, ComposesWithFileIO) {
@@ -586,8 +586,8 @@ namespace tests::csv_import_pipeline {
             encoding_result.m_value = *maybe_encoding;
             encoding_result.push_message(
               std::format("Detected encoding: {} (confidence: {})",
-                         maybe_encoding->display_name,
-                         maybe_encoding->confidence));
+                         maybe_encoding->meta.display_name,
+                         maybe_encoding->meta.confidence));
           } else {
             encoding_result.push_message("Failed to detect encoding");
           }
@@ -596,10 +596,10 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(result) << "Expected successful encoding detection pipeline";
       // ASCII content can be detected as UTF-8 or ISO-8859-1 (both valid)
-      bool is_ascii_compatible = (result.value().encoding == text::encoding::DetectedEncoding::UTF8 ||
-                                   result.value().encoding == text::encoding::DetectedEncoding::ISO_8859_1);
+      bool is_ascii_compatible = (result.value().defacto == text::encoding::DetectedEncoding::UTF8 ||
+                                   result.value().defacto == text::encoding::DetectedEncoding::ISO_8859_1);
       EXPECT_TRUE(is_ascii_compatible)
-        << "Expected UTF-8 or ISO-8859-1 for ASCII text, got: " << result.value().display_name;
+        << "Expected UTF-8 or ISO-8859-1 for ASCII text, got: " << result.value().meta.display_name;
       EXPECT_GT(result.m_messages.size(), 1) << "Expected messages from both steps";
 
       // Clean up
@@ -630,7 +630,7 @@ namespace tests::csv_import_pipeline {
       // Either no detection or a detection - both are acceptable
       if (encoding) {
         logger::development_trace("Short buffer detected as: {} (confidence: {})",
-                                 encoding->display_name, encoding->confidence);
+                                 encoding->meta.display_name, encoding->meta.confidence);
       } else {
         logger::development_trace("Short buffer - no encoding detected (as expected for short content)");
       }
@@ -865,7 +865,7 @@ namespace tests::csv_import_pipeline {
       // Step 3: Create transcoding view
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer_result.value(),
-        encoding_result->encoding
+        encoding_result->defacto
       );
 
       // Collect all code points
@@ -1054,7 +1054,7 @@ namespace tests::csv_import_pipeline {
       // Step 3: Create Unicode view
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer_result.value(),
-        encoding_result->encoding
+        encoding_result->defacto
       );
 
       // Step 4: Create runtime encoding (UTF-8) view

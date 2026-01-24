@@ -81,6 +81,158 @@ I started to implement a to_assumed_encoding to create a fully WithDetectedEncod
 
 I have to give this some more thought!
 
+Ok, so here are some observations.
+
+1. I want text::encoding::monadic::to_with_detected_encoding_step
+   to be based on a text::encoding::maybe::to_with_detected_encoding_step.
+2. To keep monadic OK message with detected encoding info I need to pass
+   that back from the maybe variant.
+3. But then this extra information will also leak out from the maybe version.
+
+Is that bad? It feels bad. What options do I have?
+
+* I thought for a while I could make the monadic version re-cerate the 
+  missing info from the returned enum.
+  But NO - this is not possible as I still loose the confidence value.
+
+Now I have already decided I do not like the idea of 'conmfidence' in encoding detection. It feels leaky as a concept. I mean, what does it even mean? If I take a sample inoput and check the content for possible encodings and characters sets. The only think I can say is that an option is not violated. I can't say how probable it is that I am right? Let's say I find the sample matches encoding of pure 7-bit ASCII. The only think I then know is that the sample input does not violate being an encoding of a large set of character sets and encoings that maps to 7-bit ascci for that range of code points. It could still be the case that the inoput is UTF-8 or ISO 8859-1. The sample is just to small to know?
+
+* Another option is to change the WithDetectedEncodingByteBuffer to contain the full detection result 'from below'.
+
+Can I do this in a way to still keep the information that now leaks upsteram 'contained'?
+
+* I suppose I could make the field I use in existing code (the encdoing field) front-and-center and make the rest a 'meta' section?
+
+Hm, YES. That could work! Then the leak would be a new meta-section. And upstream code will not accidentally see it?
+
+Lets try!
+
+* I can basically use icu_facade::maybe::to_detetced_encoding as the maybe-bversion?
+* Although keeping text::encoding::maybe::to_with_detected_encoding_step as a wrapper is good for code clarity.
+* I tighten the EncodingDetectionResult tio be a MetaDefacto with defacto as the current enum.
+  And meta as the stuff the monadic variant needs for its OK message.
+
+I did the change:
+
+```c++
+    struct EncodingDetectionMeta {
+      CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
+      std::string display_name;             // Human readable name
+      int32_t confidence;                   // ICU confidence (0-100)
+      std::string language;                 // Detected language (e.g., "sv" for Swedish)
+      std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
+    };
+
+    using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,DetectedEncoding>;
+```
+
+With the plan to refactor the code guided by compiler errors. This worked until I got confuded by:
+
+```sh
+... error: no matching function for call to object of type '(lambda at /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/test/test_csv_import_pipeline.cpp:582:19)'
+  343 |     _NOEXCEPT_(noexcept(static_cast<_Fp&&>(__f)(static_cast<_Args&&>(__args)...)))
+```
+
+at:
+
+```c++
+...
+        .and_then([](auto buffer) {
+          AnnotatedMaybe<text::encoding::icu_facade::EncodingDetectionResult> encoding_result;
+          auto maybe_encoding = text::encoding::icu_facade::maybe::to_detetced_encoding(buffer);
+          if (maybe_encoding) {
+            encoding_result.m_value = *maybe_encoding;
+            encoding_result.push_message(
+              std::format("Detected encoding: {} (confidence: {})",
+                         maybe_encoding->meta.display_name,
+                         maybe_encoding->confidence));
+          } else {
+            encoding_result.push_message("Failed to detect encoding");
+          }
+          return encoding_result;
+        });
+
+```
+
+How can I understand the compiler error and how to fix it?
+
+After having chatted with my AI friends I get the notion that this is a 'red herring' caused by template 'subsistution is not a failure (SFINAE)' event. The lambda to and_then is treated as an 'auto type' and thus as a template. So according to SFINAE it is not an error for the lamda to not compile. And text::encoding::icu_facade::maybe::to_detetced_encoding does actually NOT compile with the change to the EncodingDetectionResult!
+
+It is PAIN to be a C++ programmer!
+
+I came up with the idea to change the compilation order to have the definition (the cpp file) be compiled before code that does template insrtantiation based on the changed code.
+
+Then I thought about it again. And started to wonder what the function definition had to do with the template instantiation failure?
+
+So I commented out the suspoicious code in the lamda. And the compiler error shifted to another location. By add code back in I identified the culprit as:
+
+```c++
+  encoding_result.push_message(
+    std::format("Detected encoding: {} (confidence: {})",
+                maybe_encoding->meta.display_name,
+                maybe_encoding->confidence));
+```
+
+And sure enough, this can't comopile with the changed type! I fixed to 'maybe_encoding->meta.confidence' and carried on.
+
+I made progress but all manual editing got tedious. I tried chatGPT to edit a code snippet for me. I prompted:
+
+```text
+I have '            return EncodingDetectionResult{
+              .meta = {
+                 "UTF-16LE"
+                ,"UTF-16 Little Endian"
+                ,100
+                ,""
+                ,"BOM"
+              }
+              ,.defacto = DetectedEncoding::UTF16LE
+            };'. Can you help me format 'return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "No BOM"};' the same way?
+```
+
+It returned:
+
+```text
+return EncodingDetectionResult{
+  .meta = {
+     "Unknown"
+    ,"Unknown"
+    ,0
+    ,""
+    ,"No BOM"
+  }
+  ,.defacto = DetectedEncoding::Unknown
+};
+```
+
+Which is NOT correct!
+
+So I conclude I can NOT trust my AI friends with changes that requires 100% adherence to code correctness!
+
+After all it did not take me so long to refactor the code manually. But now I got suspisous about:
+
+```c++
+  auto encoding_result = icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold);
+  ...
+  result = WithDetectedEncodingByteBuffer{
+      .meta = encoding_result->defacto
+    ,.defacto = std::move(wt_buffer.defacto)
+  };
+```
+
+How can '.meta = encoding_result->defacto' compile?
+
+* WithDetectedEncodingByteBuffer is:
+
+```c++
+  using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
+```
+
+* And encoding_result->defacto is DetectedEncoding
+
+Oh! I see. I have not changed WithDetectedEncodingByteBuffer yet!
+
+
 ## 20260123
 
 So next step is to make a maybe variant of to_with_threshold_step.

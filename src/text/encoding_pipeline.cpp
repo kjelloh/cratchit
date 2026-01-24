@@ -36,14 +36,14 @@ namespace text {
 
         if (encoding_result) {      
           result = WithDetectedEncodingByteBuffer{
-             .meta = encoding_result->encoding
+             .meta = encoding_result->defacto
             ,.defacto = std::move(wt_buffer.defacto)
           };
           result.push_message(
             std::format("Detected encoding: {} (confidence: {}, method: {})",
-                      encoding_result->display_name,
-                      encoding_result->confidence,
-                      encoding_result->detection_method)
+                      encoding_result->meta.display_name,
+                      encoding_result->meta.confidence,
+                      encoding_result->meta.detection_method)
           );
         } 
         else {

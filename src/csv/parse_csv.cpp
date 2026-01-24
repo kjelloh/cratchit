@@ -13,15 +13,24 @@ namespace CSV {
       std::string encoding_caption(text::encoding::icu_facade::EncodingDetectionResult const& detection_result) {
         // Format display string with confidence and method
         std::string result;
-        if (detection_result.confidence >= 70) {
-          result = std::format("{} ({}%)", detection_result.display_name, detection_result.confidence);
+        if (detection_result.meta.confidence >= 70) {
+          result = std::format(
+             "{} ({}%)"
+            ,detection_result.meta.display_name
+            ,detection_result.meta.confidence);
         } else {
-          result = std::format("{} ({}%, {})", detection_result.display_name, detection_result.confidence, detection_result.detection_method);
+          result = std::format(
+             "{} ({}%, {})"
+            ,detection_result.meta.display_name
+            ,detection_result.meta.confidence
+            ,detection_result.meta.detection_method);
         }
         
         // Add language info if detected
-        if (detection_result.language.empty()) {
-          result += std::format(" [{}]", detection_result.language);
+        if (detection_result.meta.language.empty()) {
+          result += std::format(
+             " [{}]"
+            ,detection_result.meta.language);
         }    
         return result;
       }
@@ -36,7 +45,7 @@ namespace CSV {
           if (auto maybe_detection_result = text::encoding::icu_facade::maybe::to_file_at_path_encoding(file_path)) {
             result.icu_detection_result = maybe_detection_result.value();
 
-              logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);
+              logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.meta.display_name);
 
               logger::development_trace("try_parse_csv: BEGIN");
               std::ifstream ifs{file_path};
@@ -50,7 +59,7 @@ namespace CSV {
                 .or_else([&result,&file_path] -> CSV::OptionalFieldRows {
                   spdlog::error(
                     "Unsupported encoding {} for CSV parsing: {}"
-                    ,result.icu_detection_result.display_name, file_path.string());
+                    ,result.icu_detection_result.meta.display_name, file_path.string());
                   return {};
                 });
               

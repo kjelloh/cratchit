@@ -2,6 +2,7 @@
 
 #include "std_overload.hpp"
 #include "charset.hpp"
+#include "MetaDefacto.hpp"
 #include "functional/memory.hpp" // OwningMaybeRef,...
 #include <array>
 #include <iostream>
@@ -193,14 +194,24 @@ namespace text {
       // ICU encoding name -> cratchit DetectedEncoding
       DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
 
-      struct EncodingDetectionResult {
-        DetectedEncoding encoding;
+      // struct EncodingDetectionResult {
+      //   DetectedEncoding encoding;
+      //   CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
+      //   std::string display_name;             // Human readable name
+      //   int32_t confidence;                   // ICU confidence (0-100)
+      //   std::string language;                 // Detected language (e.g., "sv" for Swedish)
+      //   std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
+      // };
+
+      struct EncodingDetectionMeta {
         CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
         std::string display_name;             // Human readable name
         int32_t confidence;                   // ICU confidence (0-100)
         std::string language;                 // Detected language (e.g., "sv" for Swedish)
         std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
       };
+
+      using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,DetectedEncoding>;
 
       const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
 

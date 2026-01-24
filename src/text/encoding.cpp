@@ -264,7 +264,7 @@ namespace text {
           // Create ICU character set detector
           UCharsetDetector* detector = ucsdet_open(&status);
           if (U_FAILURE(status) || !detector) {
-            logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}"
+            logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}" 
               ,to_string(status));
             return {};
           }
@@ -309,12 +309,15 @@ namespace text {
           ucsdet_close(detector);
           
           return EncodingDetectionResult{
-            encoding
-            ,canonical_str
-            ,display_name
-            ,confidence
-            ,language_str
-            ,"ICU"};
+            .meta = {
+               canonical_str
+              ,display_name
+              ,confidence
+              ,language_str
+              ,"ICU"            
+            }
+            ,.defacto = encoding
+          };
         }
 
         std::optional<EncodingDetectionResult> to_istream_encoding(
@@ -359,7 +362,7 @@ namespace text {
 
           // First try BOM detection for quick wins
           auto bom_result = to_bom_encoding(file_path);
-          if (bom_result.confidence >= confidence_threshold) {
+          if (bom_result.meta.confidence >= confidence_threshold) {
             return bom_result;
           }
 
@@ -369,7 +372,7 @@ namespace text {
           // If we did not reach threshold, combine with extension heuristics
           if (!maybe_icu_result) {
             auto ext_result = to_extension_heuristics_encoding(file_path);
-            if (ext_result.confidence >= confidence_threshold) {
+            if (ext_result.meta.confidence >= confidence_threshold) {
               return ext_result;
             }
           }
@@ -437,7 +440,16 @@ namespace text {
             std::string display_name = enum_to_display_name(encoding);
 
             if (confidence >= confidence_threshold) {
-              results.push_back({encoding, canonical_str, display_name, confidence, language_str, "ICU"});
+              results.push_back(EncodingDetectionResult{
+                .meta = {
+                   canonical_str
+                  ,display_name
+                  ,confidence
+                  ,language_str
+                  ,"ICU"
+                }
+                ,.defacto = encoding
+              });
             }
             else {
               logger::development_trace(
@@ -466,7 +478,16 @@ namespace text {
 
       EncodingDetectionResult to_bom_encoding(std::istream& file) {
         if (!file) {
-          return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "Cannot open file"};
+          return EncodingDetectionResult{
+            .meta = {
+              ""
+              ,"Unknown"
+              ,0
+              ,""
+              ,"Cannot open file"
+            }
+            ,.defacto = DetectedEncoding::Unknown
+          };
         }
         
         // Read first few bytes for BOM detection
@@ -477,22 +498,59 @@ namespace text {
         if (bytes_read >= 3) {
           // UTF-8 BOM: EF BB BF
           if (bom_bytes[0] == 0xEF && bom_bytes[1] == 0xBB && bom_bytes[2] == 0xBF) {
-            return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 100, "", "BOM"};
+            return EncodingDetectionResult{
+              .meta = {
+                 "UTF-8"
+                ,"UTF-8"
+                ,100
+                ,""
+                ,"BOM"
+              }
+              ,.defacto = DetectedEncoding::UTF8
+            };
           }
         }
         
         if (bytes_read >= 2) {
           // UTF-16 BE BOM: FE FF
           if (bom_bytes[0] == 0xFE && bom_bytes[1] == 0xFF) {
-            return {DetectedEncoding::UTF16BE, "UTF-16BE", "UTF-16 Big Endian", 100, "", "BOM"};
+            return EncodingDetectionResult{
+              .meta = {
+                 "UTF-16BE"
+                ,"UTF-16 Big Endian"
+                ,100
+                ,""
+                ,"BOM"
+              }
+              ,.defacto = DetectedEncoding::UTF16BE
+            };
           }
           // UTF-16 LE BOM: FF FE
           if (bom_bytes[0] == 0xFF && bom_bytes[1] == 0xFE) {
-            return {DetectedEncoding::UTF16LE, "UTF-16LE", "UTF-16 Little Endian", 100, "", "BOM"};
+            return EncodingDetectionResult{
+              .meta = {
+                 "UTF-16LE"
+                ,"UTF-16 Little Endian"
+                ,100
+                ,""
+                ,"BOM"
+              }
+              ,.defacto = DetectedEncoding::UTF16LE
+            };
           }
         }
         
-        return {DetectedEncoding::Unknown, "", "Unknown", 0, "", "No BOM"};
+        return EncodingDetectionResult{
+          .meta = {
+              ""
+              ,"Unknown"
+              ,0
+              ,""
+              ,"No BOM"
+          }
+          ,.defacto = DetectedEncoding::Unknown
+        };
+
       }
 
       EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path) {
@@ -500,12 +558,39 @@ namespace text {
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
         
         if (ext == ".csv") {
-          return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 60, "", "Extension (.csv)"};
+          return EncodingDetectionResult{
+            .meta = {
+              "UTF-8"
+              ,"UTF-8"
+              ,60
+              ,""
+              ,"Extension (.csv)"
+            }
+            ,.defacto = DetectedEncoding::UTF8
+          };
         } else if (ext == ".skv") {
-          return {DetectedEncoding::ISO_8859_1, "ISO-8859-1", "ISO-8859-1", 60, "sv", "Extension (.skv)"};
+          return EncodingDetectionResult{
+            .meta = {
+              "ISO-8859-1"
+              ,"ISO-8859-1"
+              ,60
+              ,"sv"
+              ,"Extension (.skv)"
+            }
+            ,.defacto = DetectedEncoding::ISO_8859_1
+          };
         }
         
-        return {DetectedEncoding::UTF8, "UTF-8", "UTF-8", 30, "", "Extension (default)"};
+        return EncodingDetectionResult{
+          .meta = {
+            "UTF-8"
+            ,"UTF-8"
+            ,30
+            ,""
+            ,"Extension (default)"
+          }
+          ,.defacto = DetectedEncoding::UTF8
+        };
       }
 
       DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name) {
@@ -527,7 +612,7 @@ namespace text {
     MaybeDecodingIn to_decoding_in(
        icu_facade::EncodingDetectionResult const& detected_source_encoding
       ,std::istream& is) {
-      switch (detected_source_encoding.encoding) {
+      switch (detected_source_encoding.defacto) {
         case text::encoding::DetectedEncoding::UTF8: {
           return MaybeDecodingIn(
               std::make_unique<DecodingIn>(text::encoding::UTF8::istream{is})
@@ -549,7 +634,7 @@ namespace text {
         default: {
           spdlog::error(
              "No decoding in stream support for source encoding {}"
-            ,detected_source_encoding.display_name);
+            ,detected_source_encoding.meta.display_name);
         } break;
       }
       return {};

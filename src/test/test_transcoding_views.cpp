@@ -162,7 +162,7 @@ namespace tests::transcoding_views {
       text::encoding::icu_facade::DEFAULT_CONFIDENCE_THERSHOLD
     );
     auto detected_encoding = encoding_result
-      ? encoding_result->encoding
+      ? encoding_result->defacto
       : text::encoding::DetectedEncoding::UTF8;
 
     // Create lazy view directly using view primitives
