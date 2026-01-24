@@ -2,6 +2,65 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260124
+
+Next to make into a maybe variant is to_with_detected_encoding_step. I started by separating existing text::encoding::monadic::to_with_detected_encoding_step into hpp declaration and cpp definition.
+
+I found out that if I have a function declaration as 'result_type to_with_detected_encoding_step(arg_type)' and a definition with the inline specifier 'inline result_type to_with_detected_encoding_step(arg_type)' - Then the linker will FAIL!
+
+This stumped me at first. Then I specualted that the 'inline' specifier actually tells the compiler to place the function code at all call sites as-is. That is, NOT implement a call with stack-frame and everything. So when the declaration specifies a function to be called. But he definition specifies an ilined function - then the caallable function is no where to be found by the linke?
+
+I asked my AI friends and they do NOT agree. The mechanism that fails is a bit different.
+
+I got this answer snippet:
+
+```text
+* Non-inline function → exactly one definition with external linkage must exist
+* Inline function → definitions may appear in multiple TUs, but all TUs that odr-use it must see a definition
+```
+
+And I got this answer snippet:
+
+```text
+  1. Declaration without inline (in header):
+    - Promises external linkage
+    - Tells the linker: "There will be exactly ONE definition of this function in some .cpp file"
+  2. Definition with inline (in .cpp):
+    - Has inline linkage (internal/weak linkage in modern C++)
+    - Tells the compiler: "This definition can appear in multiple translation units"
+    - The definition is NOT exported as an external symbol
+  3. The Mismatch:
+    - The linker looks for an external definition (because of the declaration)
+    - But finds none, because the inline definition wasn't exported as external
+    - Result: undefined reference error
+```
+
+So it seems thge mechanism is based on compiler and linker mechanosms called:
+
+* 'external linkage'
+* 'odr usgage' 
+* 'internal/weak linkage'
+* 'external symbol'
+
+So a normal declaration defines an 'external symbol' and a call site will engage 'external linkage' to this symbol. For this to work there must exist a definition for this external symbol somewhere in the linked files.
+
+So with the inline specifier the symbol becomes an 'internal' (weak) symbol. And the compiler must see the definition to generate the code itself? Or, the compiler tells the linker to look for the symbol in the object file and NOT in any of the linked object files?
+
+I also googled and found snippets from the C++ standard that states:
+
+```text
+An inline function shall be defined in every translation unit in which it is odr-used and shall have exactly the same definition in every case.
+...
+An inline function with external linkage shall have the same address in all translation units.
+```
+
+Wow, this was a rabbit hole! I think I will have to live this for now. I feel overwhelmed by all the ways this is talked about on the web and by AI. I fail to find a consistent cause-and-effect explanation that gives me a form model of what is going on. But I get some clues.
+
+* The 'inline' specifier causes the compiler to NOT 'create' an external symbol.
+* Thus the linker suceeds only if the symbol is in the same tramslation unit (and thus object file)
+
+Lets continue with our refactoring of the and_then chain for maybe variants of my step functions.
+
 ## 20260123
 
 So next step is to make a maybe variant of to_with_threshold_step.

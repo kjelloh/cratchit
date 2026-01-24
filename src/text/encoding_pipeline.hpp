@@ -27,6 +27,9 @@ namespace text {
       };
       ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);
 
+      std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer);
+
+
     }
 
     namespace monadic {
@@ -38,40 +41,7 @@ namespace text {
 
       ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);    
 
-      inline AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
-
-        AnnotatedMaybe<WithDetectedEncodingByteBuffer> result{};
-
-        auto const& [confidence_threshold,buffer] = wt_buffer;
-        auto encoding_result = icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold);
-
-        if (encoding_result) {      
-          result = WithDetectedEncodingByteBuffer{
-             .meta = encoding_result->encoding
-            ,.defacto = std::move(wt_buffer.defacto)
-          };
-          result.push_message(
-            std::format("Detected encoding: {} (confidence: {}, method: {})",
-                      encoding_result->display_name,
-                      encoding_result->confidence,
-                      encoding_result->detection_method)
-          );
-        } 
-        else {
-          // Default to UTF-8 on detection failure (permissive strategy)
-          result = WithDetectedEncodingByteBuffer{
-            .meta = DetectedEncoding::UTF8
-            ,.defacto = std::move(wt_buffer.defacto)
-          };
-          result.push_message(
-            std::format(
-              "Encoding detection failed (confidence below threshold {}), defaulting to UTF-8"
-              ,confidence_threshold));
-        }
-
-        return result;
-
-      }
+      AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer);
 
       // Monadic AnnotatedMaybe #5: (detected encoding,byte buffer) pair -> string (platform encoding)
       inline AnnotatedMaybe<std::string> to_platform_encoded_string_step(
