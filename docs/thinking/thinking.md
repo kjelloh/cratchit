@@ -472,10 +472,31 @@ I now have implemented the maybe and monadic versions.
 
       } // to_with_detected_encoding_step
 
-
 ```
 
-It is worth noting that none of the tests triggered the else that hard codes the moinadic default to UTF-8.
+I then made the maybe version into a pure monadic composition as:
+
+```c++
+      std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
+        auto& [confidence_threshold,buffer] = wt_buffer;
+        return icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold)
+          .transform([buffer = std::move(buffer)](auto&& meta){
+            return WithDetectedEncodingByteBuffer{
+              .meta = std::forward<decltype(meta)>(meta)
+              ,.defacto = std::move(buffer)
+            };
+          });
+      } // to_with_detected_encoding_step
+```
+
+* I move-capture the buffer into the lambda
+* I already move-from the meta into the lambda
+* The lambda forwards the meta (to take advantage of any move-assignment)
+* And the lamda already move the buffer to the result
+
+It seems I have all the bells and whistles in place correctly? At least all test run without any excpetions or faults. Even in the debugger I get no catch on any faults or memory issues.
+
+It is worth noting though that none of the tests triggered the else that hard codes the moinadic default to UTF-8.
 
 * Does the detection code already default to UTF-8?
 * Are there no tets on the fallback to UTF-8?

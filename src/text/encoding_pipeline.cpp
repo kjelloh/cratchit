@@ -14,13 +14,13 @@ namespace text {
       std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
         auto& [confidence_threshold,buffer] = wt_buffer;
         return icu_facade::maybe::to_detetced_encoding(buffer, confidence_threshold)
-          .transform([buffer](auto&& meta){
+          .transform([buffer = std::move(buffer)](auto&& meta){
             return WithDetectedEncodingByteBuffer{
               .meta = std::forward<decltype(meta)>(meta)
               ,.defacto = std::move(buffer)
             };
           });
-      }
+      } // to_with_detected_encoding_step
 
     } // maybe
 
