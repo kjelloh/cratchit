@@ -61,6 +61,26 @@ Wow, this was a rabbit hole! I think I will have to live this for now. I feel ov
 
 Lets continue with our refactoring of the and_then chain for maybe variants of my step functions.
 
+It turns out we have more incosnistencies to deal with now.
+
+* The text::encoding::monadic::to_with_detected_encoding_step generates an OK message 
+  with the detected encoidng spelled out in name and confidence.
+* If we place this code in the maybe-variant we hide these results behind the maybe-wall that only returns a single enum
+  that represents the detected encoding.
+* We have semantic clashes in that the maybe and the enum both can represent 'non viable' encoding.
+
+I tried to make WithDetectedEncodingByteBuffer result carry ALL meta-data from the detection.
+
+* But then I got code leakage in that WithDetectedEncodingByteBuffer allowed assignment to only encoding member
+  (passing WithDetectedEncodingByteBuffer with unititialied data).
+
+I started to implement a to_assumed_encoding to create a fully WithDetectedEncodingByteBuffer for the default UTF-8 case.
+
+* But then I introduced a new maybe case if this also failed.
+* Not to mention, when and how can to_assumed_encoding fail?
+
+I have to give this some more thought!
+
 ## 20260123
 
 So next step is to make a maybe variant of to_with_threshold_step.
