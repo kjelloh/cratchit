@@ -28,6 +28,8 @@ namespace text {
       ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);
 
       std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer);
+      std::optional<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer);
+
 
 
     }
@@ -41,8 +43,7 @@ namespace text {
 
       ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);    
       AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer);
-      AnnotatedMaybe<std::string> to_platform_encoded_string_step(
-          WithDetectedEncodingByteBuffer wd_buffer);
+      AnnotatedMaybe<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer);
 
 
     } // monadic

@@ -2,6 +2,10 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260125
+
+So time to make to_platform_encoded_string_step into a maybe version and base mondaic  version on that.
+
 ## 20260124
 
 Next to make into a maybe variant is to_with_detected_encoding_step. I started by separating existing text::encoding::monadic::to_with_detected_encoding_step into hpp declaration and cpp definition.

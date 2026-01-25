@@ -22,6 +22,11 @@ namespace text {
           });
       } // to_with_detected_encoding_step
 
+      std::optional<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer) {
+        return {};
+      }
+
+
     } // maybe
 
     namespace monadic {
