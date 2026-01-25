@@ -43,6 +43,270 @@ After having thought for a while I have a proposal.
 1. Implement a bridge to a 'normalised' encoding with a to_normalised_encoding(icu_facade::EncodingDetectionResult).
 2. Then make a meta='normalised encoding' and defacto='byte buffer' pair to pass to bytes_to_unicode.
 
+DARN! I have a 'catch 22' like identifier namespace problem.
+
+* The existing and used EncodingDetectionResult lives in icu_facade.
+* All existing detection functions also lives in icu_facade and returns this EncodingDetectionResult.
+* There are no 'normalised' API for encoding detection.
+
+To implement a 'normalised' EncodingDetectionResult I need also a 'normalised' API.
+
+Should I do the work and define a normalised 'encode detection' API that uses icu_facade for now? Is it worth it?
+
+I get an urge to break out the icu_facade to its own unit.
+
+Well, I tried. And now I get the classic circular hpp-file dependancies again.
+
+* I want icu_facade.hpp to include (know about) EncodingDetectionResult in normalised bytes_to_encode_id.hpp
+* But I also want bytes_to_encode_id.hpp to use / leverage / know about icu_facade.hpp API
+
+So what is the solution again? I need a common 'atomic' header with the normalised types like EncodingDetectionResult and EncodingID?
+
+Maybe the low level unit is the existing encoding?
+
+Yes, that can work. But then I need to make icu_facade::EncodingDetectionResult into a normalised one?
+
+What goes into icu_facade::EncodingDetectionResult?
+
+```c++
+  struct EncodingDetectionMeta {
+    CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
+    std::string display_name;             // Human readable name
+    int32_t confidence;                   // ICU confidence (0-100)
+    std::string language;                 // Detected language (e.g., "sv" for Swedish)
+    std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
+  };
+
+  using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,EncodingID>;
+```
+
+Well, the EncodingID is the 'normalised' enum. And the meta is ICU specific.
+
+So what depends on what here? If I want a cratchit normalised API for encoding detection, I need it to be able to leverage some underlying library like the ICU (or a crachit local implemented library).
+
+* normalised API -> uses ICU
+
+For this to work I need ICU to only use its own types and 'stuff'! It can NOT use EncodingID!
+
+I came upp with two new units:
+
+```sh
+	src/text/bytes_to_encode_id.cpp
+	src/text/bytes_to_encode_id.hpp
+	src/text/icu_facade.cpp
+	src/text/icu_facade.hpp
+```
+
+I get a good feeling for this. And it seems I should aim for encoding.hpp -> bytes_to_encode_id.hpp -> icu_facade.hpp?
+
+That is, encoding.hpp is the cratchit 'normalised' API. It depends on bytes_to_encode_id.hpp for 'normalised' encoding detection. It in turn uses icu_facade.hpp to implement this encoding detection.
+
+To make this work I need to make icu_facade to be self-contained regarding the encoding code. But it may use cratchit logging and stuff that is not about encoding.
+
+What could be the first step to get this ball rolling?
+
+This is trycky! It seems I first need to kind-of reverse the icu_facade dependancy?
+
+* How can I use the compiler to identify how icu_facade code depends on 'upstream' code?
+* Can I first move icu_facade to the new unit and see if it compiles?
+
+AHA! Yes, that could work. I can first add icu_facade as a stand alone unit and keep all the rest of the code as-is (NOT use icu_facade unit yet).
+
+Doing this I can see the following code that depends 'the wrong way':
+
+```c++
+
+  // hpp
+  EncodingID canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
+  using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,EncodingID>;
+
+  // cpp
+  
+```
+
+I came up with the following scheme to use the compiler to identify upstream dependancies in icu_facae.
+
+* I moved icu_facae hpp and cpp code to the new icu_facade hpp and cpp.
+* I added icu_facade.cpp to CMakeLists
+* I created namespace 'upstream' and added code there to make the unit comopile.
+* Finaly I commented out the namespace levels 'text::encoding' to NOT get duplicate symbol names
+  (icu_facade unit now places symbol names in top leve namespace icu_facade that does NOT clash with existing text::encoding::icu_facade)
+
+I now got upstream code clrealy defined as:
+
+```c++
+      namespace upstream {
+        // TODO: Refactor away this dependancy
+        enum class EncodingID {
+          Undefined,
+          UTF8,
+          UTF16BE,
+          UTF16LE, 
+          UTF32BE,
+          UTF32LE,
+          ISO_8859_1,
+          ISO_8859_15,
+          WINDOWS_1252,
+          CP437,
+          Unknown
+        };
+      } // upstream
+
+      namespace upstream {
+        // TODO: Refactor away this dependancy
+
+        std::string enum_to_display_name(EncodingID) {
+          return "enum_to_display_name dummy";
+        }
+      } // upstream
+
+```
+
+I now wanted to check in this new unit but I did not like the state of the code (I can't trust I remember to finalise the refactoring).
+
+I tried:
+
+```c++
+        [[deprecated("Refactoring incomplete: this code is temporary")]] 
+        std::string enum_to_display_name(EncodingID) {
+          return "enum_to_display_name dummy";
+        }
+```
+
+But I did not like this. It was good the code compiled. But this also meant I did not see the warnings as I had tests running by REPL so all looked fine in the restricted console winow output.
+
+How can I reach a step where my code is in a state I can keep if I forget to refactor further?
+
+I think I wait with checking in until I have icu_facade stand-alone.
+
+So what is the semantic of a stand-alone icu_facade?
+
+* upstream::EncodingID must go (be added by client code)
+* We still need an upstream API that provides the EncodingID
+* So what is left for icu_facade to provide?
+* And how to I determine this?
+
+Maybe I can now create the upstream API to see what the icu_facade can priovide?
+
+Can we implement the 'normalised API in the new bytes_to_encode_id?
+
+AHA!
+
+* The 'file extension' -> 'detected encoding' is NOT an icu thing!
+  So this we can already make 'normalised'
+* And maybe the only thing we need icu_facade to return is 'canocical name'?
+  This seems to be what the ICU code returns as a result when asked to detect coinrent?
+
+```c++
+  UCharsetDetector* detector = ucsdet_open(&status);
+  const UCharsetMatch* match = ucsdet_detect(detector, &status);
+  // ...
+  const char* canonical_name = ucsdet_getName(match, &status);
+  int32_t confidence = ucsdet_getConfidence(match, &status);
+  const char* language = ucsdet_getLanguage(match, &status);
+
+```
+
+Hm, it seems I need to investigate how ICU actually identifies a character set? Is it the whoel match? Or is there an enum or string that canonically identifies the character set?
+
+I have decided to tread carefully and first trim the EncodingDetectionMeta down.
+
+* I do not need the language detection.
+* I think I 'need' only 'canonical name' and 'confidence' for now?
+
+By renaming the laguage field I discovered only one place where it was accessed (and then only if empty!). So that was an easy removal.
+
+Then I discovered that actually removing the field gives me a compiler error regarding the count of members, not about what member is missing.
+
+If I:
+
+```c++
+      struct EncodingDetectionMeta {
+        CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
+        std::string display_name;             // Human readable name
+        int32_t confidence;                   // ICU confidence (0-100)
+        // std::string language_;                 // Detected language (e.g., "sv" for Swedish)
+        std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
+      };
+
+```
+
+It for one triggers a recompilation of a very large of files! And in the end the compiler errors are of the sort:
+
+```sh
+[ 30%] Building CXX object CMakeFiles/cratchit.dir/src/text/encoding.cpp.o
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.cpp:317:16: error: excess elements in struct initializer
+  317 |               ,"ICU"            
+      |                ^~~~~
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.cpp:449:20: error: excess elements in struct initializer
+  449 |                   ,"ICU"
+      |                    ^~~~~
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.cpp:487:16: error: excess elements in struct initializer
+  487 |               ,"Cannot open file"
+      |                ^~~~~~~~~~~~~~~~~~
+```
+
+So this is unhelpfull. I solved this by adding a constructor taking only the values I want to keep.
+
+```c++
+        EncodingDetectionMeta(
+           CanonicalEncodingName canonical_name
+          ,int32_t confidence
+          ,std::string detection_method);
+
+```
+
+And now the compiler is more helpfull:
+
+```sh
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.cpp:312:21: error: no matching constructor for initialization of 'Meta' (aka 'text::encoding::icu_facade::EncodingDetectionMeta')
+  312 |             .meta = {
+      |                     ^
+  313 |                canonical_str
+      |                ~~~~~~~~~~~~~
+  314 |               ,display_name
+      |               ~~~~~~~~~~~~~
+  315 |               ,confidence
+      |               ~~~~~~~~~~~
+  316 |               ,language_str
+      |               ~~~~~~~~~~~~~
+  317 |               ,"ICU"            
+      |               ~~~~~~
+  318 |             }
+      |             ~
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.hpp:202:9: note: candidate constructor not viable: requires 3 arguments, but 5 were provided
+  202 |         EncodingDetectionMeta(
+      |         ^
+  203 |            CanonicalEncodingName canonical_name
+      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  204 |           ,int32_t confidence
+      |           ~~~~~~~~~~~~~~~~~~~
+  205 |           ,std::string detection_method);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.hpp:196:14: note: candidate constructor (the implicit copy constructor) not viable: requires 1 argument, but 5 were provided
+  196 |       struct EncodingDetectionMeta {
+      |              ^~~~~~~~~~~~~~~~~~~~~
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.hpp:196:14: note: candidate constructor (the implicit move constructor) not viable: requires 1 argument, but 5 were provided
+  196 |       struct EncodingDetectionMeta {
+      |              ^~~~~~~~~~~~~~~~~~~~~
+
+```
+
+It is interesting that it seems adding a constructor does not remove the implicit copy and move constructors? AT least, the compiler tells me it failed to apply them?
+
+NO, this is not a good thing to do now.
+
+* I remove 'display name' before I have an upstream replacement.
+* I should actually remove 'detection method' also?
+  This is known by the caller, not by the icu_facade.
+
+AHA: The icu_facade actually ONLY performs the 'identify from data' part!
+
+So maybe I catually only need to return 'canonical name' and 'confidence'?
+
+This day has now come to an end and I decided this approach was a dead end for now.
+
+I delete my icu_facade unit again and tries something else tomorrow. It was a insightfull exersice never the less :)
 
 ## 20260124
 

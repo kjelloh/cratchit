@@ -26,12 +26,6 @@ namespace CSV {
             ,detection_result.meta.detection_method);
         }
         
-        // Add language info if detected
-        if (detection_result.meta.language.empty()) {
-          result += std::format(
-             " [{}]"
-            ,detection_result.meta.language);
-        }    
         return result;
       }
 
