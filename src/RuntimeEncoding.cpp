@@ -8,10 +8,10 @@
 
 // RuntimeEncoding Implementation
 
-RuntimeEncoding::RuntimeEncoding(DetectedEncoding const& detected_encoing)
+RuntimeEncoding::RuntimeEncoding(EncodingID const& detected_encoing)
   : m_detected_encoding{detected_encoing} {}
 
-RuntimeEncoding::DetectedEncoding RuntimeEncoding::detected_encoding() {
+RuntimeEncoding::EncodingID RuntimeEncoding::detected_encoding() {
   return m_detected_encoding;
 }
 
@@ -24,7 +24,7 @@ RuntimeEncoding to_inferred_runtime_encoding() {
   
 #ifdef __APPLE__
   // macOS: Terminal.app and most terminals default to UTF-8
-  auto encoding = RuntimeEncoding::DetectedEncoding::UTF8;
+  auto encoding = RuntimeEncoding::EncodingID::UTF8;
   spdlog::info("RuntimeEncoding: macOS detected - using UTF-8");
   return RuntimeEncoding(encoding);
   
@@ -32,23 +32,23 @@ RuntimeEncoding to_inferred_runtime_encoding() {
   // Windows: Check console code page (for narrow char I/O)
   // Note: Windows internally uses UTF-16, but console I/O depends on code page
   UINT cp = GetConsoleOutputCP();
-  auto encoding = RuntimeEncoding::DetectedEncoding::Unknown;
+  auto encoding = RuntimeEncoding::EncodingID::Unknown;
   
   switch (cp) {
     case 65001: // UTF-8 (modern Windows Terminal, WSL)
-      encoding = RuntimeEncoding::DetectedEncoding::UTF8;
+      encoding = RuntimeEncoding::EncodingID::UTF8;
       spdlog::info("RuntimeEncoding: Windows UTF-8 console (CP65001) detected");
       break;
     case 1252: // Windows-1252 (Western European)
-      encoding = RuntimeEncoding::DetectedEncoding::WINDOWS_1252;
+      encoding = RuntimeEncoding::EncodingID::WINDOWS_1252;
       spdlog::info("RuntimeEncoding: Windows-1252 console (CP1252) detected");
       break;
     case 437: // CP437 (legacy DOS)
-      encoding = RuntimeEncoding::DetectedEncoding::CP437;
+      encoding = RuntimeEncoding::EncodingID::CP437;
       spdlog::info("RuntimeEncoding: CP437 console detected");
       break;
     default:
-      encoding = RuntimeEncoding::DetectedEncoding::Unknown;
+      encoding = RuntimeEncoding::EncodingID::Unknown;
       spdlog::info("RuntimeEncoding: Windows unknown console code page {}", cp);
       break;
   }
@@ -56,13 +56,13 @@ RuntimeEncoding to_inferred_runtime_encoding() {
   
 #elif defined(__linux__)
   // Linux: Modern distributions default to UTF-8
-  auto encoding = RuntimeEncoding::DetectedEncoding::UTF8;
+  auto encoding = RuntimeEncoding::EncodingID::UTF8;
   spdlog::info("RuntimeEncoding: Linux detected - assuming UTF-8");
   return RuntimeEncoding(encoding);
   
 #else
   // Other POSIX systems
-  auto encoding = RuntimeEncoding::DetectedEncoding::Unknown;
+  auto encoding = RuntimeEncoding::EncodingID::Unknown;
   spdlog::info("RuntimeEncoding: Unknown platform - returning Unknown encoding");
   return RuntimeEncoding(encoding);
 #endif

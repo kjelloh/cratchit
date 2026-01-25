@@ -16,7 +16,7 @@ namespace text {
 
     using ByteBuffer = persistent::in::ByteBuffer;
     using WithThresholdByteBuffer = MetaDefacto<int32_t,ByteBuffer>;
-    // using WithDetectedEncodingByteBuffer = MetaDefacto<DetectedEncoding,ByteBuffer>;
+    // using WithDetectedEncodingByteBuffer = MetaDefacto<EncodingID,ByteBuffer>;
     using WithDetectedEncodingByteBuffer = MetaDefacto<icu_facade::EncodingDetectionResult,ByteBuffer>;
 
     namespace maybe {

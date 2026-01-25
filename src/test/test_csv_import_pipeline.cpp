@@ -547,7 +547,7 @@ namespace tests::csv_import_pipeline {
       auto encoding = text::encoding::icu_facade::maybe::to_detetced_encoding(buffer.value());
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
-      EXPECT_EQ(encoding->defacto, text::encoding::DetectedEncoding::UTF8)
+      EXPECT_EQ(encoding->defacto, text::encoding::EncodingID::UTF8)
         << "Expected UTF-8 detection, got: " << encoding->meta.display_name;
       EXPECT_GE(encoding->meta.confidence, 50) << "Expected reasonable confidence";
     }
@@ -562,8 +562,8 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(encoding) << "Expected successful encoding detection";
       // ICU might detect as ISO-8859-1 or Windows-1252 (superset)
-      bool is_latin = (encoding->defacto == text::encoding::DetectedEncoding::ISO_8859_1 ||
-                       encoding->defacto == text::encoding::DetectedEncoding::WINDOWS_1252);
+      bool is_latin = (encoding->defacto == text::encoding::EncodingID::ISO_8859_1 ||
+                       encoding->defacto == text::encoding::EncodingID::WINDOWS_1252);
       EXPECT_TRUE(is_latin)
         << "Expected ISO-8859-1 or Windows-1252 detection, got: " << encoding->meta.display_name;
     }
@@ -597,8 +597,8 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(result) << "Expected successful encoding detection pipeline";
       // ASCII content can be detected as UTF-8 or ISO-8859-1 (both valid)
-      bool is_ascii_compatible = (result.value().defacto == text::encoding::DetectedEncoding::UTF8 ||
-                                   result.value().defacto == text::encoding::DetectedEncoding::ISO_8859_1);
+      bool is_ascii_compatible = (result.value().defacto == text::encoding::EncodingID::UTF8 ||
+                                   result.value().defacto == text::encoding::EncodingID::ISO_8859_1);
       EXPECT_TRUE(is_ascii_compatible)
         << "Expected UTF-8 or ISO-8859-1 for ASCII text, got: " << result.value().meta.display_name;
       EXPECT_GT(result.m_messages.size(), 1) << "Expected messages from both steps";
@@ -655,7 +655,7 @@ namespace tests::csv_import_pipeline {
       // Create transcoding view
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer,
-        text::encoding::DetectedEncoding::UTF8
+        text::encoding::EncodingID::UTF8
       );
 
       // Collect code points
@@ -685,7 +685,7 @@ namespace tests::csv_import_pipeline {
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer,
-        text::encoding::DetectedEncoding::UTF8
+        text::encoding::EncodingID::UTF8
       );
 
       std::u16string result;
@@ -714,7 +714,7 @@ namespace tests::csv_import_pipeline {
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer,
-        text::encoding::DetectedEncoding::UTF8
+        text::encoding::EncodingID::UTF8
       );
 
       std::u16string result;
@@ -741,7 +741,7 @@ namespace tests::csv_import_pipeline {
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer,
-        text::encoding::DetectedEncoding::ISO_8859_1
+        text::encoding::EncodingID::ISO_8859_1
       );
 
       std::u16string result;
@@ -767,7 +767,7 @@ namespace tests::csv_import_pipeline {
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer,
-        text::encoding::DetectedEncoding::ISO_8859_1
+        text::encoding::EncodingID::ISO_8859_1
       );
 
       std::u16string result;
@@ -796,7 +796,7 @@ namespace tests::csv_import_pipeline {
       // Create view (should not process anything yet)
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         large_buffer,
-        text::encoding::DetectedEncoding::UTF8
+        text::encoding::EncodingID::UTF8
       );
 
       // Take only first 10 characters using ranges
@@ -826,7 +826,7 @@ namespace tests::csv_import_pipeline {
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         buffer,
-        text::encoding::DetectedEncoding::UTF8
+        text::encoding::EncodingID::UTF8
       );
 
       // Use standard range algorithms
@@ -891,7 +891,7 @@ namespace tests::csv_import_pipeline {
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         empty_buffer,
-        text::encoding::DetectedEncoding::UTF8
+        text::encoding::EncodingID::UTF8
       );
 
       // For input ranges, use std::ranges::distance instead of .empty()
@@ -1087,7 +1087,7 @@ namespace tests::csv_import_pipeline {
       // Step 3: Decode ISO-8859-1 to Unicode
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         iso_buffer,
-        text::encoding::DetectedEncoding::ISO_8859_1
+        text::encoding::EncodingID::ISO_8859_1
       );
 
       // Step 4: Encode Unicode to UTF-8
@@ -1118,7 +1118,7 @@ namespace tests::csv_import_pipeline {
 
       // Pipeline: bytes → Unicode → UTF-8 (using piping)
       auto pipeline = utf8_buffer
-        | text::encoding::views::adaptor::bytes_to_unicode(text::encoding::DetectedEncoding::UTF8)
+        | text::encoding::views::adaptor::bytes_to_unicode(text::encoding::EncodingID::UTF8)
         | text::encoding::views::adaptor::unicode_to_runtime_encoding();
 
       std::string result;
@@ -1164,7 +1164,7 @@ namespace tests::csv_import_pipeline {
       // Complete pipeline: CP437 → Unicode → UTF-8
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         cp437_buffer,
-        text::encoding::DetectedEncoding::CP437
+        text::encoding::EncodingID::CP437
       );
 
       auto utf8_view = text::encoding::views::unicode_to_runtime_encoding(unicode_view);

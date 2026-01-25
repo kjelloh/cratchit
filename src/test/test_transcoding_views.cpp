@@ -66,7 +66,7 @@ namespace tests::transcoding_views {
     // Create lazy decoding view: bytes → Unicode code points
     auto unicode_view = text::encoding::views::bytes_to_unicode(
       buffer_result.value(),
-      text::encoding::DetectedEncoding::UTF8
+      text::encoding::EncodingID::UTF8
     );
 
     // Demonstrate lazy evaluation: take only first 10 Unicode code points
@@ -127,7 +127,7 @@ namespace tests::transcoding_views {
     // Create full lazy transcoding pipeline: bytes → Unicode → platform encoding
     auto unicode_view = text::encoding::views::bytes_to_unicode(
       buffer_result.value(),
-      text::encoding::DetectedEncoding::UTF8
+      text::encoding::EncodingID::UTF8
     );
     auto platform_view = text::encoding::views::unicode_to_runtime_encoding(unicode_view);
 
@@ -163,7 +163,7 @@ namespace tests::transcoding_views {
     );
     auto detected_encoding = encoding_result
       ? encoding_result->defacto
-      : text::encoding::DetectedEncoding::UTF8;
+      : text::encoding::EncodingID::UTF8;
 
     // Create lazy view directly using view primitives
     auto unicode_view = text::encoding::views::bytes_to_unicode(

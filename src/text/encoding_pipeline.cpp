@@ -64,6 +64,11 @@ namespace text {
         auto result = lifted(wt_buffer);
 
         if (result) {
+          // TODO: Consider what we can do better for stacked MetaDefacto?
+          //       Ideally we would like to 'flatten' metas so we don't
+          //       get meta.meta... as below?
+          //       I suppose we have to manually define new meta-types that
+          //       aggregates stacked metas? (Is it worth it?)
           result.push_message(
             std::format("Detected encoding: {} (confidence: {}, method: {})",
                       result.value().meta.meta.display_name,
@@ -85,7 +90,7 @@ namespace text {
                 ,""
                 ,"Assumed"
               }
-              ,.defacto = DetectedEncoding::UTF8
+              ,.defacto = EncodingID::UTF8
             }
             ,.defacto = std::move(wt_buffer.defacto)
           };

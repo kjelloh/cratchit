@@ -6,6 +6,44 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 
 So time to make to_platform_encoded_string_step into a maybe version and base mondaic  version on that.
 
+I implemneted the maybe variant ok. I think it is quite neat actually? I think I like how the 'transcoding' turned out as:
+
+```c++
+  // buffer -> unicode -> runtime encoding
+  auto unicode_view = views::bytes_to_unicode(buffer, deteced_encoding);
+  auto platform_encoding_view = views::unicode_to_runtime_encoding(unicode_view);
+```
+
+For now it seems like a good design to have the transcoding work on a view that generates code points over the charachter set?
+
+* We get views::bytes_to_unicode to get a lazy range view to iterate over code points
+  where our 'bytes' gets decoded into unicode using the provided deteced_encoding enum.
+* We then get the runtime or 'platform' encoding as a lazy range view from views::unicode_to_runtime_encoding.
+
+What is less good is that we pass two arguments to views::bytes_to_unicode? We already have a pair WithDetectedEncodingByteBuffer.
+
+Would it be a good idea to pass the WithDetectedEncodingByteBuffer to views::bytes_to_unicode?
+
+Where does WithDetectedEncodingByteBuffer live?
+
+* We have text::encoding::WithDetectedEncodingByteBuffer
+* We have text::encoding::WithDetectedEncodingByteBuffer::Meta being icu_facade::EncodingDetectionResult.
+
+So we have not yet isolated a cratchit level EncodingDetectionResult that we can later free from icu_facade.
+
+Anyhow, where does bytes_to_unicode and unicode_to_runtime_encoding live?
+
+* text::encoding::views::bytes_to_unicode
+* text::encoding::views::unicode_to_runtime_encoding
+
+GERAT! The 'views' already lives in text::encoding.
+
+After having thought for a while I have a proposal.
+
+1. Implement a bridge to a 'normalised' encoding with a to_normalised_encoding(icu_facade::EncodingDetectionResult).
+2. Then make a meta='normalised encoding' and defacto='byte buffer' pair to pass to bytes_to_unicode.
+
+
 ## 20260124
 
 Next to make into a maybe variant is to_with_detected_encoding_step. I started by separating existing text::encoding::monadic::to_with_detected_encoding_step into hpp declaration and cpp definition.

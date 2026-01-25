@@ -13,19 +13,19 @@
 namespace text {
   namespace encoding {
 
-    std::string enum_to_display_name(DetectedEncoding encoding) {
+    std::string enum_to_display_name(EncodingID encoding) {
       switch (encoding) {
-        case DetectedEncoding::Undefined: return "Undefined";
-        case DetectedEncoding::UTF8: return "UTF-8";
-        case DetectedEncoding::UTF16BE: return "UTF-16 Big Endian";
-        case DetectedEncoding::UTF16LE: return "UTF-16 Little Endian";
-        case DetectedEncoding::UTF32BE: return "UTF-32 Big Endian";
-        case DetectedEncoding::UTF32LE: return "UTF-32 Little Endian";
-        case DetectedEncoding::ISO_8859_1: return "ISO-8859-1 (Latin-1)";
-        case DetectedEncoding::ISO_8859_15: return "ISO-8859-15 (Latin-9)";
-        case DetectedEncoding::WINDOWS_1252: return "Windows-1252";
-        case DetectedEncoding::CP437: return "CP437 (DOS)";
-        case DetectedEncoding::Unknown: return "Unknown";
+        case EncodingID::Undefined: return "Undefined";
+        case EncodingID::UTF8: return "UTF-8";
+        case EncodingID::UTF16BE: return "UTF-16 Big Endian";
+        case EncodingID::UTF16LE: return "UTF-16 Little Endian";
+        case EncodingID::UTF32BE: return "UTF-32 Big Endian";
+        case EncodingID::UTF32LE: return "UTF-32 Little Endian";
+        case EncodingID::ISO_8859_1: return "ISO-8859-1 (Latin-1)";
+        case EncodingID::ISO_8859_15: return "ISO-8859-15 (Latin-9)";
+        case EncodingID::WINDOWS_1252: return "Windows-1252";
+        case EncodingID::CP437: return "CP437 (DOS)";
+        case EncodingID::Unknown: return "Unknown";
       }
       return "Unknown";
     }
@@ -303,7 +303,7 @@ namespace text {
           // Convert to our types
           std::string canonical_str = canonical_name ? canonical_name : "UTF-8";
           std::string language_str = language ? language : "";
-          DetectedEncoding encoding = canonical_name_to_enum(canonical_str);
+          EncodingID encoding = canonical_name_to_enum(canonical_str);
           std::string display_name = enum_to_display_name(encoding);
           
           ucsdet_close(detector);
@@ -436,7 +436,7 @@ namespace text {
           if (U_SUCCESS(status) && canonical_name) {
             std::string canonical_str = canonical_name;
             std::string language_str = language ? language : "";
-            DetectedEncoding encoding = canonical_name_to_enum(canonical_str);
+            EncodingID encoding = canonical_name_to_enum(canonical_str);
             std::string display_name = enum_to_display_name(encoding);
 
             if (confidence >= confidence_threshold) {
@@ -486,7 +486,7 @@ namespace text {
               ,""
               ,"Cannot open file"
             }
-            ,.defacto = DetectedEncoding::Unknown
+            ,.defacto = EncodingID::Unknown
           };
         }
         
@@ -506,7 +506,7 @@ namespace text {
                 ,""
                 ,"BOM"
               }
-              ,.defacto = DetectedEncoding::UTF8
+              ,.defacto = EncodingID::UTF8
             };
           }
         }
@@ -522,7 +522,7 @@ namespace text {
                 ,""
                 ,"BOM"
               }
-              ,.defacto = DetectedEncoding::UTF16BE
+              ,.defacto = EncodingID::UTF16BE
             };
           }
           // UTF-16 LE BOM: FF FE
@@ -535,7 +535,7 @@ namespace text {
                 ,""
                 ,"BOM"
               }
-              ,.defacto = DetectedEncoding::UTF16LE
+              ,.defacto = EncodingID::UTF16LE
             };
           }
         }
@@ -548,7 +548,7 @@ namespace text {
               ,""
               ,"No BOM"
           }
-          ,.defacto = DetectedEncoding::Unknown
+          ,.defacto = EncodingID::Unknown
         };
 
       }
@@ -566,7 +566,7 @@ namespace text {
               ,""
               ,"Extension (.csv)"
             }
-            ,.defacto = DetectedEncoding::UTF8
+            ,.defacto = EncodingID::UTF8
           };
         } else if (ext == ".skv") {
           return EncodingDetectionResult{
@@ -577,7 +577,7 @@ namespace text {
               ,"sv"
               ,"Extension (.skv)"
             }
-            ,.defacto = DetectedEncoding::ISO_8859_1
+            ,.defacto = EncodingID::ISO_8859_1
           };
         }
         
@@ -589,22 +589,22 @@ namespace text {
             ,""
             ,"Extension (default)"
           }
-          ,.defacto = DetectedEncoding::UTF8
+          ,.defacto = EncodingID::UTF8
         };
       }
 
-      DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name) {
-        if (canonical_name == "Undefined") return DetectedEncoding::Undefined;
-        if (canonical_name == "UTF-8") return DetectedEncoding::UTF8;
-        if (canonical_name == "UTF-16BE") return DetectedEncoding::UTF16BE;
-        if (canonical_name == "UTF-16LE") return DetectedEncoding::UTF16LE;
-        if (canonical_name == "UTF-32BE") return DetectedEncoding::UTF32BE;
-        if (canonical_name == "UTF-32LE") return DetectedEncoding::UTF32LE;
-        if (canonical_name == "ISO-8859-1") return DetectedEncoding::ISO_8859_1;
-        if (canonical_name == "ISO-8859-15") return DetectedEncoding::ISO_8859_15;
-        if (canonical_name == "windows-1252") return DetectedEncoding::WINDOWS_1252;
-        if (canonical_name == "IBM437") return DetectedEncoding::CP437;
-        return DetectedEncoding::Unknown;
+      EncodingID canonical_name_to_enum(CanonicalEncodingName const& canonical_name) {
+        if (canonical_name == "Undefined") return EncodingID::Undefined;
+        if (canonical_name == "UTF-8") return EncodingID::UTF8;
+        if (canonical_name == "UTF-16BE") return EncodingID::UTF16BE;
+        if (canonical_name == "UTF-16LE") return EncodingID::UTF16LE;
+        if (canonical_name == "UTF-32BE") return EncodingID::UTF32BE;
+        if (canonical_name == "UTF-32LE") return EncodingID::UTF32LE;
+        if (canonical_name == "ISO-8859-1") return EncodingID::ISO_8859_1;
+        if (canonical_name == "ISO-8859-15") return EncodingID::ISO_8859_15;
+        if (canonical_name == "windows-1252") return EncodingID::WINDOWS_1252;
+        if (canonical_name == "IBM437") return EncodingID::CP437;
+        return EncodingID::Unknown;
       }
 
     } // icu_facade
@@ -613,19 +613,19 @@ namespace text {
        icu_facade::EncodingDetectionResult const& detected_source_encoding
       ,std::istream& is) {
       switch (detected_source_encoding.defacto) {
-        case text::encoding::DetectedEncoding::UTF8: {
+        case text::encoding::EncodingID::UTF8: {
           return MaybeDecodingIn(
               std::make_unique<DecodingIn>(text::encoding::UTF8::istream{is})
           );
         } break;
         
-        case text::encoding::DetectedEncoding::ISO_8859_1: {
+        case text::encoding::EncodingID::ISO_8859_1: {
           return MaybeDecodingIn(
               std::make_unique<DecodingIn>(text::encoding::ISO_8859_1::istream{is})
           );
         } break;
         
-        case text::encoding::DetectedEncoding::CP437: {
+        case text::encoding::EncodingID::CP437: {
           return MaybeDecodingIn(
               std::make_unique<DecodingIn>(text::encoding::CP437::istream{is})
           );

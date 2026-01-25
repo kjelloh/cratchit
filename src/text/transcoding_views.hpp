@@ -47,16 +47,16 @@ namespace text::encoding::views {
     using DecoderState = std::variant<UTF8State, ISO8859_1State, CP437State>;
 
     // Create decoder state based on detected encoding
-    inline DecoderState make_decoder_state(DetectedEncoding encoding) {
+    inline DecoderState make_decoder_state(EncodingID encoding) {
       switch (encoding) {
-        case DetectedEncoding::UTF8:
+        case EncodingID::UTF8:
           return UTF8State{};
-        case DetectedEncoding::ISO_8859_1:
-        case DetectedEncoding::ISO_8859_15:
-        case DetectedEncoding::WINDOWS_1252:
+        case EncodingID::ISO_8859_1:
+        case EncodingID::ISO_8859_15:
+        case EncodingID::WINDOWS_1252:
           // Note: Windows-1252 is a superset of ISO-8859-1 for 0x00-0xFF range
           return ISO8859_1State{};
-        case DetectedEncoding::CP437:
+        case EncodingID::CP437:
           return CP437State{};
         default:
           // Default to UTF-8 for unknown encodings
@@ -189,7 +189,7 @@ namespace text::encoding::views {
   public:
     bytes_to_unicode_view() = default;
 
-    bytes_to_unicode_view(ByteRange byte_range, DetectedEncoding encoding)
+    bytes_to_unicode_view(ByteRange byte_range, EncodingID encoding)
       : m_byte_range(std::move(byte_range))
       , m_encoding(encoding)
     {}
@@ -213,13 +213,13 @@ namespace text::encoding::views {
 
   private:
     ByteRange m_byte_range;
-    DetectedEncoding m_encoding;
+    EncodingID m_encoding;
   };
 
   // Range adaptor for piping syntax
   namespace adaptor {
     struct bytes_to_unicode_adaptor {
-      DetectedEncoding encoding;
+      EncodingID encoding;
 
       template<std::ranges::viewable_range ByteRange>
       auto operator()(ByteRange&& byte_range) const {
@@ -237,14 +237,14 @@ namespace text::encoding::views {
     }
 
     // Factory function for the adaptor
-    inline bytes_to_unicode_adaptor bytes_to_unicode(DetectedEncoding encoding) {
+    inline bytes_to_unicode_adaptor bytes_to_unicode(EncodingID encoding) {
       return {encoding};
     }
   }
 
   // Convenience function to create view directly
   template<std::ranges::viewable_range ByteRange>
-  auto bytes_to_unicode(ByteRange&& byte_range, DetectedEncoding encoding) {
+  auto bytes_to_unicode(ByteRange&& byte_range, EncodingID encoding) {
     return bytes_to_unicode_view<std::views::all_t<ByteRange>>(
        std::views::all(std::forward<ByteRange>(byte_range))
       ,encoding

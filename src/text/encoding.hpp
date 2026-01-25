@@ -18,7 +18,7 @@
 namespace text {
   namespace encoding {
 
-    enum class DetectedEncoding {
+    enum class EncodingID {
       Undefined,
       UTF8,
       UTF16BE,
@@ -32,7 +32,7 @@ namespace text {
       Unknown
     };
 
-    std::string enum_to_display_name(DetectedEncoding encoding);
+    std::string enum_to_display_name(EncodingID encoding);
 
     struct BOM {
       using value_type = std::array<unsigned char,3>; // Works for 3-byte BOM like UTF8
@@ -184,24 +184,14 @@ namespace text {
 
     namespace icu_facade {
 
-      // Readable string from ICU UErrorCode
-      std::string to_string(UErrorCode status);
+      // A facade to the ICU Unicode C++ library
 
-      // Encoding Detection Service using ICU
+      std::string to_string(UErrorCode status);
 
       using CanonicalEncodingName = std::string;
 
-      // ICU encoding name -> cratchit DetectedEncoding
-      DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
-
-      // struct EncodingDetectionResult {
-      //   DetectedEncoding encoding;
-      //   CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
-      //   std::string display_name;             // Human readable name
-      //   int32_t confidence;                   // ICU confidence (0-100)
-      //   std::string language;                 // Detected language (e.g., "sv" for Swedish)
-      //   std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
-      // };
+      // ICU encoding name -> cratchit EncodingID
+      EncodingID canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
 
       struct EncodingDetectionMeta {
         CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
@@ -211,7 +201,7 @@ namespace text {
         std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
       };
 
-      using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,DetectedEncoding>;
+      using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,EncodingID>;
 
       const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
 
