@@ -23,7 +23,19 @@ namespace text {
       } // to_with_detected_encoding_step
 
       std::optional<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer) {
-        return {};
+        auto const& [detected_encoding_result, buffer] = wd_buffer;
+        auto const& [_,deteced_encoding] = detected_encoding_result;
+
+        // buffer -> unicode -> runtime encoding
+        auto unicode_view = views::bytes_to_unicode(buffer, deteced_encoding);
+        auto platform_encoding_view = views::unicode_to_runtime_encoding(unicode_view);
+
+        std::string transcoded;
+        for (auto const code_point : platform_encoding_view) {
+          transcoded.push_back(code_point);
+        }
+
+        return transcoded;
       }
 
 
@@ -83,8 +95,7 @@ namespace text {
 
       } // to_with_detected_encoding_step
 
-      AnnotatedMaybe<std::string> to_platform_encoded_string_step(
-          WithDetectedEncodingByteBuffer wd_buffer) {
+      AnnotatedMaybe<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer) {
 
         AnnotatedMaybe<std::string> result{};
 
