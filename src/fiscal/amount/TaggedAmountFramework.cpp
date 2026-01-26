@@ -921,12 +921,12 @@ AnnotatedMaybe<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persisten
 
   auto maybe_encoding = maybe_istream
     .and_then([](std::istream& is) {
-      return text::encoding::icu_facade::maybe::to_istream_encoding(is);
+      return text::encoding::inferred::maybe::to_istream_encoding(is);
     });
 
   if (maybe_encoding) {
     result.m_value = text::encoding::to_decoding_in(
-       maybe_encoding.value()
+       maybe_encoding->defacto
       ,maybe_istream.value());
   }
 

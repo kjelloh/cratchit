@@ -3,6 +3,7 @@
 #include "text/encoding.hpp"
 #include "csv/projections.hpp"
 #include "persistent/in/file_reader.hpp"
+#include "text/to_inferred_encoding.hpp"
 #include "logger/log.hpp"
 #include <filesystem>
 
@@ -12,13 +13,13 @@ namespace CSV {
 
     namespace deprecated {
       struct ParseCSVResult {
-        text::encoding::icu_facade::EncodingDetectionResult icu_detection_result;
+        text::encoding::inferred::EncodingDetectionResult icu_detection_result;
         CSV::project::deprecated::HeadingId heading_id;
         CSV::OptionalTable maybe_table;
       };
 
       // 'Older' csv file path -> CSV::Table result
-      std::string encoding_caption(text::encoding::icu_facade::EncodingDetectionResult const& detection_result);
+      std::string encoding_caption(text::encoding::inferred::EncodingDetectionResult const& detection_result);
       ParseCSVResult try_parse_csv(std::filesystem::path const& file_path);
     }
 

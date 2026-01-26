@@ -3,6 +3,7 @@
 #include "logger/log.hpp"
 #include "persistent/in/file_reader.hpp"
 #include "text/encoding.hpp"
+#include "text/to_inferred_encoding.hpp"
 #include "text/transcoding_views.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
@@ -157,9 +158,8 @@ namespace tests::transcoding_views {
     ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
     // Detect encoding directly (or use known encoding for test)
-    auto encoding_result = text::encoding::icu_facade::maybe::to_detetced_encoding(
-      buffer_result.value(),
-      text::encoding::icu_facade::DEFAULT_CONFIDENCE_THERSHOLD
+    auto encoding_result = text::encoding::inferred::maybe::to_detetced_encoding(
+      buffer_result.value()
     );
     auto detected_encoding = encoding_result
       ? encoding_result->defacto

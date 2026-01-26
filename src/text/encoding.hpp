@@ -182,7 +182,7 @@ namespace text {
 
     } // namespace unicode
 
-    namespace icu_facade {
+    namespace icu_facade_deprecated {
 
       // A facade to the ICU Unicode C++ library
 
@@ -241,7 +241,7 @@ namespace text {
       EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
 
 
-    } // icu_facade
+    } // icu_facade_deprecated
 
     // TODO: Consider a design that does not lift the detected encoding on in stream to an actual unique type?
     //       Maybe it is a good thing to lift to a type to be clear about what encoding we support in code?
@@ -255,7 +255,7 @@ namespace text {
     >;
     using MaybeDecodingIn = cratchit::functional::memory::OwningMaybeRef<DecodingIn>;
     MaybeDecodingIn to_decoding_in(
-       icu_facade::EncodingDetectionResult const& detected_source_encoding
+       EncodingID const& encoding
       ,std::istream& is);
 
   } // namespace encoding

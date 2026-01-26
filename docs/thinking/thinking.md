@@ -2,6 +2,147 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260126
+
+Now when I have slept on this I have a new approach. It seems I can first create the 'nomralised' API for encoding inference.
+
+Thinking this way I can:
+
+1. Create a new unit to_inferred_encoding and implement text::encoding::inferred namespace with the existing API
+2. Then push down code that actually use ICU into the icu_facade namespace
+
+DARN! I still fail to find a strategy to refactor in small steps. How can I move code to to_inferred_encoding step-by-step and be guided by the compiler to reports what needs to be attended to?
+
+Maybe the encding should still be the base for to_inferred_encoding?
+
+In that case I can make to_inferred_encoding a clone of the encoding unit and then prune both until they are separate units?
+
+I did this and now both compile just fine (of course) but the linker reports duplicate symbols for all duplicated stuff.
+
+So now I can attend to each duplicate and decide where to put it?
+
+But maybe not. I would first like to make to_inferred_encoding include encoding.hpp to fix this design before moving on?
+
+So having to_inferred_encoding.hpp include encoding.hpp only works fine for now. So now I can I start pruning until I have no duplocate symbols?
+
+Or, maybe now is the time to first lift the whole 'inferr encoidng' API to become the 'normalised' API?
+
+I decided that tghe next step is to 'empty out' the icu_facade into the 'normalised' API first. It seems I can do this by renaming the existing icu_facade to get existing access to fail to compile. I now have a compiler guided process to move the API?
+
+1. Create the namespace 'inferred' for the normalised API.
+2. rename existing icu_facade to icu_facade_deprecated in encoidng unit.
+3. Move code to inferred and refactor call sites accodingly
+
+Let's try!
+
+I now get compiler errors like:
+
+```sh
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding.hpp:258:8: error: use of undeclared identifier 'icu_facade'
+  258 |        icu_facade::EncodingDetectionResult const& detected_source_encoding
+      |        ^
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/to_inferred_encoding.cpp:28:23: error: unknown type name 'EncodingDetectionResult'; did you mean 'icu_facade_deprecated::EncodingDetectionResult'?
+   28 |         std::optional<EncodingDetectionResult> to_content_encoding(
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~
+      |                       icu_facade_deprecated::EncodingDetectionResult
+...
+```
+
+GREAT! Now I can use the compiler to guide my refactorings.
+
+It turns out that the code worked better with the namespace 'inferred' before 'icu_facade'. In the hpp-file this enable icu_facade to referr to types in 'inferred'. And in cpp code in 'inferred' could still call 'icu_facade' due to declarations in hpp-file.
+
+GOSH! There is no end to the mess in the code! Now I found:
+
+```c++
+  std::optional<EncodingDetectionResult> to_content_encoding(
+    char const* data
+    ,size_t length
+    ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+
+  // But...
+
+  template<typename ByteBuffer>
+  std::optional<EncodingDetectionResult> to_detetced_encoding(
+      ByteBuffer const& buffer
+    ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD) {
+```
+
+My AI friends really lacks the ability to keep to a consistent architecture!
+
+I now realised I should first refactor the hpp-files (declarations).
+
+* In this way I get the compiler guide me to all call sites that need change.
+
+So I emptied out the to_inferred_encoding.cpp and continued with:
+
+* Moving from text::encoding::icu_facade_depracated to text::encoding::inferred
+
+Now I get compiler erros like:
+
+```sh
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/csv/parse_csv.hpp:15:25: error: no member named 'icu_facade' in namespace 'text::encoding'
+   15 |         text::encoding::icu_facade::EncodingDetectionResult icu_detection_result;
+      |         ~~~~~~~~~~~~~~~~^
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/csv/parse_csv.hpp:21:52: error: no member named 'icu_facade' in namespace 'text::encoding'
+   21 |       std::string encoding_caption(text::encoding::icu_facade::EncodingDetectionResult const& detection_result);
+      |                                    ~~~~~~~~~~~~~~~~^
+
+```
+
+In fact this approach worked well all the way. I could adress each compilation error and refactor each call site access to previous icu_facade to new inferred.
+
+I ended upp with linker error:
+
+```sh
+Undefined symbols for architecture arm64:
+  "text::encoding::inferred::maybe::to_content_encoding(char const*, unsigned long, int)", referenced from:
+      std::__1::optional<MetaDefacto<text::encoding::inferred::EncodingDetectionMeta, text::encoding::EncodingID>> text::encoding::inferred::maybe::to_detetced_encoding<std::__1::vector<std::byte, std::__1::allocator<std::byte>>>(std::__1::vector<std::byte, std::__1::allocator<std::byte>> const&, int) in test_csv_import_pipeline.cpp.o
+  "text::encoding::inferred::maybe::to_istream_encoding(std::__1::basic_istream<char, std::__1::char_traits<char>>&, int)", referenced from:
+      istream_to_decoding_in(cratchit::functional::memory::OwningMaybeRef<std::__1::basic_istream<char, std::__1::char_traits<char>>> const&)::$_0::operator()(std::__1::basic_istream<char, std::__1::char_traits<char>>&) const in TaggedAmountFramework.cpp.o
+  "text::encoding::inferred::maybe::to_file_at_path_encoding(std::__1::__fs::filesystem::path const&, int)", referenced from:
+      CSV::parse::deprecated::try_parse_csv(std::__1::__fs::filesystem::path const&) in parse_csv.cpp.o
+ld: symbol(s) not found for architecture arm64
+```
+
+Which told me that the only external dependancies where:
+
+* text::encoding::inferred::maybe::to_content_encoding
+* text::encoding::inferred::maybe::to_istream_encoding
+* text::encoding::inferred::maybe::to_file_at_path_encoding
+
+This verifies my assumption about how the API for encodining inference should work.
+
+I implemented them as dummy (nullopt return). And now cratchit compiles with failing tests:
+
+```sh
+[  FAILED  ] 16 tests, listed below:
+[  FAILED  ] MonadicCompositionFixture.PathToAccountIDedTable
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring0
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring1
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring2
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring3
+[  FAILED  ] EncodingDetectionTestFixture.DetectUTF8
+[  FAILED  ] EncodingDetectionTestFixture.DetectISO8859
+[  FAILED  ] EncodingDetectionTests.ComposesWithFileIO
+[  FAILED  ] BytesToUnicodeTests.IntegrationWithSteps1And2
+[  FAILED  ] RuntimeEncodingTests.CompleteTranscodingPipeline
+[  FAILED  ] EncodingPipelineTestFixture.ISO8859FileToUTF8Text
+[  FAILED  ] EncodingPipelineTestFixture.CompleteIntegrationAllSteps
+[  FAILED  ] CSVPipelineCompositionTestFixture.TranscodesISO8859ToUTF8ThenParsesCSV
+[  FAILED  ] GenericStatementCSVTests.NORDEAStatementOk
+[  FAILED  ] AccountStatementDetectionTests.GeneratedSingleRowMappingTest
+[  FAILED  ] AccountStatementDetectionTests.GeneratedRowsMappingTest
+```
+
+Do I dare to check this code in?
+
+If I check in this code it will be harder for me to back track?
+
+On the other had, maybe this is the time to try to check in code even though I am not at a working app?
+
+NOTE TO SELF: I have benn quite persistent to comment woth 'TODO' about deprecated and code to remove. So I can trust this is enough to clean out unwanted code later?
+
 ## 20260125
 
 So time to make to_platform_encoded_string_step into a maybe version and base mondaic  version on that.

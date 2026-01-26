@@ -10,7 +10,7 @@ namespace CSV {
   namespace parse {
 
     namespace deprecated {
-      std::string encoding_caption(text::encoding::icu_facade::EncodingDetectionResult const& detection_result) {
+      std::string encoding_caption(text::encoding::inferred::EncodingDetectionResult const& detection_result) {
         // Format display string with confidence and method
         std::string result;
         if (detection_result.meta.confidence >= 70) {
@@ -36,7 +36,7 @@ namespace CSV {
                 
           // Use ICU detection to determine appropriate encoding stream
 
-          if (auto maybe_detection_result = text::encoding::icu_facade::maybe::to_file_at_path_encoding(file_path)) {
+          if (auto maybe_detection_result = text::encoding::inferred::maybe::to_file_at_path_encoding(file_path)) {
             result.icu_detection_result = maybe_detection_result.value();
 
               logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.meta.display_name);
@@ -48,7 +48,7 @@ namespace CSV {
                 return result;
               }
 
-              CSV::OptionalFieldRows field_rows = text::encoding::to_decoding_in(result.icu_detection_result,ifs)
+              CSV::OptionalFieldRows field_rows = text::encoding::to_decoding_in(result.icu_detection_result.defacto,ifs)
                 .and_then(decoding_in_to_field_rows)
                 .or_else([&result,&file_path] -> CSV::OptionalFieldRows {
                   spdlog::error(

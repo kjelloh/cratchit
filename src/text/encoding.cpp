@@ -242,7 +242,7 @@ namespace text {
 
     } // unicode
 
-    namespace icu_facade{
+    namespace icu_facade_deprecated{
 
       std::string to_string(UErrorCode status) {
         return std::format(
@@ -386,10 +386,6 @@ namespace text {
 
 
       } // maybe
-
-
-
-
 
       std::vector<EncodingDetectionResult> to_encoding_options(
          char const* data
@@ -607,12 +603,12 @@ namespace text {
         return EncodingID::Unknown;
       }
 
-    } // icu_facade
+    } // icu_facade_deprecated
 
     MaybeDecodingIn to_decoding_in(
-       icu_facade::EncodingDetectionResult const& detected_source_encoding
+       EncodingID const& encoding
       ,std::istream& is) {
-      switch (detected_source_encoding.defacto) {
+      switch (encoding) {
         case text::encoding::EncodingID::UTF8: {
           return MaybeDecodingIn(
               std::make_unique<DecodingIn>(text::encoding::UTF8::istream{is})
@@ -634,7 +630,7 @@ namespace text {
         default: {
           spdlog::error(
              "No decoding in stream support for source encoding {}"
-            ,detected_source_encoding.meta.display_name);
+            ,enum_to_display_name(encoding));
         } break;
       }
       return {};

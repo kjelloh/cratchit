@@ -1,6 +1,7 @@
 #pragma once
 
-#include "encoding.hpp"
+// #include "encoding.hpp"
+#include "to_inferred_encoding.hpp"
 #include "transcoding_views.hpp"
 #include "persistent/in/file_reader.hpp"
 #include "MetaDefacto.hpp"
@@ -17,7 +18,7 @@ namespace text {
     using ByteBuffer = persistent::in::ByteBuffer;
     using WithThresholdByteBuffer = MetaDefacto<int32_t,ByteBuffer>;
     // using WithDetectedEncodingByteBuffer = MetaDefacto<EncodingID,ByteBuffer>;
-    using WithDetectedEncodingByteBuffer = MetaDefacto<icu_facade::EncodingDetectionResult,ByteBuffer>;
+    using WithDetectedEncodingByteBuffer = MetaDefacto<inferred::EncodingDetectionResult,ByteBuffer>;
 
     namespace maybe {
       struct ToWithThresholdF {
@@ -51,7 +52,7 @@ namespace text {
     // Monadic AnnotatedMaybe #1 ... #5 shortcut
     inline AnnotatedMaybe<std::string> path_to_platform_encoded_string_shortcut(
       std::filesystem::path const& file_path,
-      int32_t confidence_threshold = icu_facade::DEFAULT_CONFIDENCE_THERSHOLD) {
+      int32_t confidence_threshold = inferred::DEFAULT_CONFIDENCE_THERSHOLD) {
 
       return persistent::in::path_to_byte_buffer_shortcut(file_path) // #1 + #2
         .and_then(monadic::to_with_threshold_step_f(confidence_threshold))
