@@ -132,7 +132,11 @@ I think I will leave them be for now an focus on the code that affects the encod
 
 So what is next?
 
-* Removed istream_to_decoding_in with no repercussions
+* Removed istream_to_decoding_in with no repercussions.
+
+So next should now be to_istream_encoding?
+
+* Removed to_istream_encoding with to reprecussions.
 
 ## 20260126
 

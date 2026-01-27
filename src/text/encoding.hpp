@@ -210,9 +210,6 @@ namespace text {
           char const* data
           ,size_t length
           ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-        std::optional<EncodingDetectionResult> to_istream_encoding(
-          std::istream& is
-          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
 
         template<typename ByteBuffer>
         std::optional<EncodingDetectionResult> to_detetced_encoding(
