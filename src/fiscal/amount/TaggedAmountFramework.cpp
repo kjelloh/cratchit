@@ -916,25 +916,6 @@ AnnotatedMaybe<persistent::in::MaybeIStream> file_path_to_istream(std::filesyste
 }
 
 // TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
-AnnotatedMaybe<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
-  AnnotatedMaybe<text::encoding::MaybeDecodingIn> result{};
-
-  auto maybe_encoding = maybe_istream
-    .and_then([](std::istream& is) {
-      return text::encoding::inferred::maybe::to_istream_encoding(is);
-    });
-
-  if (maybe_encoding) {
-    result.m_value = text::encoding::to_decoding_in(
-       maybe_encoding->defacto
-      ,maybe_istream.value());
-  }
-
-  if (!result.m_value) result.push_message("istream_to_decoding_in: Failed to create a decoding in stream");
-  return result;
-}
-
-// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
   AnnotatedMaybe<CSV::FieldRows> result{};
   result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");

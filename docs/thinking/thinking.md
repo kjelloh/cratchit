@@ -82,7 +82,57 @@ What next?
 What is next?
 
 * Removed tas_from_statment_file with no repercussions.
-* NOTE: Consider to also remove account_statements_to_tas
+* NOTE: Consider to also remove account_statements_to_tas?
+
+In fact, all the 'original' pipe line can now be removed?
+
+```c++
+// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
+AnnotatedMaybe<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
+  AnnotatedMaybe<persistent::in::MaybeIStream> result{};
+  result.m_value = persistent::in::to_maybe_istream(statement_file_path);
+  if (!result.m_value) result.push_message("file_path_to_istream: Failed to create istream");
+  return result;
+}
+
+// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
+AnnotatedMaybe<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
+  AnnotatedMaybe<text::encoding::MaybeDecodingIn> result{};
+
+  auto maybe_encoding = maybe_istream
+    .and_then([](std::istream& is) {
+      return text::encoding::inferred::maybe::to_istream_encoding(is);
+    });
+
+  if (maybe_encoding) {
+    result.m_value = text::encoding::to_decoding_in(
+       maybe_encoding->defacto
+      ,maybe_istream.value());
+  }
+
+  if (!result.m_value) result.push_message("istream_to_decoding_in: Failed to create a decoding in stream");
+  return result;
+}
+
+// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
+AnnotatedMaybe<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
+  AnnotatedMaybe<CSV::FieldRows> result{};
+  result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");
+  return result;
+}
+// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
+AnnotatedMaybe<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
+  AnnotatedMaybe<CSV::Table> result{};
+  result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
+  return result;
+}
+```
+
+I think I will leave them be for now an focus on the code that affects the encoding inference API.
+
+So what is next?
+
+* Removed istream_to_decoding_in with no repercussions
 
 ## 20260126
 
