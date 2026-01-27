@@ -2,6 +2,79 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260127
+
+So let's implement:
+
+* text::encoding::inferred::maybe::to_content_encoding
+* text::encoding::inferred::maybe::to_istream_encoding
+* text::encoding::inferred::maybe::to_file_at_path_encoding
+
+It seems they depend on echother bottom up? Tah is to_file_at_path_encoding calls to_istream_encoding that calls to_content_encoding?
+
+YES! That is what my AI friend has created for me. Now this breaks the and_then pipe-line I have aimed for.
+
+Calling to_file_at_path_encoding actually opens the file and analyses the content.
+
+But creating the istream and read the content is the task of the pipe line:
+
+```c++
+      auto result = persistent::in::maybe::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::maybe::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
+        .and_then(text::encoding::maybe::to_with_detected_encoding_step)
+        ...
+
+```
+
+So where do we aactually have the call to to_file_at_path_encoding? Is it in to_with_detected_encoding_step?
+
+* From try_parse_csv
+* And thats it!
+* Not even any tests!
+
+wow, the scope of this mess just grows and grows!
+
+Anyhow, it seems I should just remove this whole branch of code.
+
+* Remove try_parse_csv
+* Remove to_file_at_path_encoding
+
+And fom where is to_istream_encoding called?
+
+* From istream_to_decoding_in (TaggedAmountFramework!)
+* And that is it!
+* Not even any tests!
+
+And istream_to_decoding_in is called ONLY from tas_from_statment_file. And tas_from_statment_file is marked as (TODO: Remove) and NOT called from anywhere!
+
+So it seems I should:
+
+* Remove tas_from_statment_file
+* Remove istream_to_decoding_in
+* Remove to_istream_encoding
+
+Should I do this now or keep focusing on the nromalised API for encoding inference?
+
+You know what? I SHOULD remove it! As it is not part of any active code but IS part of the 'encoing inference' API. Thus I shoudl remove it as part of the refactoring!
+
+So we have:
+
+* Remove tas_from_statment_file
+* Remove istream_to_decoding_in
+* Remove to_istream_encoding
+* Remove try_parse_csv
+* Remove to_file_at_path_encoding
+
+Good. Let's do this! In what order though? It would be nice to remove one-by-one and at each step get code that still 'works'?
+
+So what can we begin to remove as an isolated change?
+
+* Revoved csv::parse::deprecated with no problem at all.
+  - ParseCSVResult
+  - try_parse_csv
+  - encoding_caption
+
 ## 20260126
 
 Now when I have slept on this I have a new approach. It seems I can first create the 'nomralised' API for encoding inference.

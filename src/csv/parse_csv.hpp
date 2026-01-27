@@ -11,18 +11,6 @@ namespace CSV {
 
   namespace parse {
 
-    namespace deprecated {
-      struct ParseCSVResult {
-        text::encoding::inferred::EncodingDetectionResult icu_detection_result;
-        CSV::project::deprecated::HeadingId heading_id;
-        CSV::OptionalTable maybe_table;
-      };
-
-      // 'Older' csv file path -> CSV::Table result
-      std::string encoding_caption(text::encoding::inferred::EncodingDetectionResult const& detection_result);
-      ParseCSVResult try_parse_csv(std::filesystem::path const& file_path);
-    }
-
     namespace maybe {
 
       /**
