@@ -79,6 +79,11 @@ What next?
 
 * Removed to_file_at_path_encoding with no repercussions.
 
+What is next?
+
+* Removed tas_from_statment_file with no repercussions.
+* NOTE: Consider to also remove account_statements_to_tas
+
 ## 20260126
 
 Now when I have slept on this I have a new approach. It seems I can first create the 'nomralised' API for encoding inference.

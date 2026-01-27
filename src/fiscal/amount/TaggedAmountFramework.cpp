@@ -962,66 +962,6 @@ AnnotatedMaybe<TaggedAmounts> account_statements_to_tas(AccountStatements const&
   return result;
 }
 
-/**
-* Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
-* TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
-*/
-OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path) {
-
-  if (true) {
-    std::cout << "\nto_tagged_amounts(" << statement_file_path << ")";
-  }
-
-  if (true) {
-    // Refactored to pipeline
-
-    auto result = file_path_to_istream(statement_file_path)
-      .and_then(istream_to_decoding_in)
-      .and_then(decoding_in_to_field_rows)
-      .and_then(field_rows_to_table)
-      .and_then(table_to_account_statements)
-      .and_then(account_statements_to_tas);
-
-    std::ranges::for_each(result.m_messages,[](auto const& message){
-      std::cout << std::format("\nTODO: {}",message);
-    });
-    return result.m_value;
-  }
-  else {
-    OptionalTaggedAmounts result{};
-    CSV::OptionalFieldRows field_rows{};
-    std::ifstream ifs{statement_file_path};
-    // NOTE: The mechanism implemented to apply correct decoding and parsing of different files is a mess!
-    //       For one, The runtime on Mac uses UTF-8 through the console by default (which Windows and Unix may or may not do).
-    //       Also, The NORDEA CSV-file as downloaded from NORDEA web bank through Safari browser is also UTF-8 encoded (although I am not sure it will be using another browser on another platform?).
-    //       Finally, The SKV-file from Swedish Tax Agency web interface gets encoded in ISO8859-1 on Mac using Safari.
-    //       For now the whole thing is a patch-work that may or may not continue to work on Mac and will very unlikelly work on Linux or Windows?
-    //       TODO 20240527 - Try to refactor this into something more stable and cross-platform at some point in time?!
-    if (statement_file_path.extension() == ".csv") {
-      text::encoding::UTF8::istream utf8_in{ifs};
-      field_rows = CSV::to_field_rows(utf8_in,';'); // Call to_field_rows overload for "UTF8" input (assuming a CSV-file is ISO8859-1 encoded, as NORDEA csv-file is)
-    }
-    else if (statement_file_path.extension() == ".skv") {
-      text::encoding::ISO_8859_1::istream iso8859_in{ifs};
-      field_rows = CSV::to_field_rows(iso8859_in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
-    }
-    if (field_rows) {
-      // The file is some form of 'comma separated value' file using ';' as separators
-      // NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
-      // uses ';' as value separators
-      if (field_rows->size() > 0) {
-        auto csv_heading_id = CSV::project::deprecated::to_csv_heading_id(field_rows->at(0));
-        auto heading_projection = CSV::project::deprecated::make_heading_projection(csv_heading_id);
-        result = CSV::to_table(field_rows,heading_projection)
-          .and_then([&csv_heading_id](auto const& table) {
-            return CSV::project::to_tas(csv_heading_id,table);
-          });
-      }
-    }
-    return result;
-  }
-}
-
 auto ev_to_maybe_ta = [](Environment::Value const& ev) -> OptionalTaggedAmount {
   return to_tagged_amount(ev);
 };
