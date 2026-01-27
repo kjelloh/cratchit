@@ -356,35 +356,6 @@ namespace text {
           return {};
         } // to_istream_encoding
 
-        std::optional<EncodingDetectionResult> to_file_at_path_encoding(
-          std::filesystem::path const& file_path
-          ,int32_t confidence_threshold) {
-
-          // First try BOM detection for quick wins
-          auto bom_result = to_bom_encoding(file_path);
-          if (bom_result.meta.confidence >= confidence_threshold) {
-            return bom_result;
-          }
-
-          std::ifstream ifs(file_path, std::ios::binary);
-          auto maybe_icu_result = maybe::to_istream_encoding(ifs,confidence_threshold);
-
-          // If we did not reach threshold, combine with extension heuristics
-          if (!maybe_icu_result) {
-            auto ext_result = to_extension_heuristics_encoding(file_path);
-            if (ext_result.meta.confidence >= confidence_threshold) {
-              return ext_result;
-            }
-          }
-          else {
-            return maybe_icu_result.value();
-          }
-
-          return {}; // did not reach confidence threshold
-
-        } // to_file_at_path_encoding
-
-
       } // maybe
 
       std::vector<EncodingDetectionResult> to_encoding_options(
