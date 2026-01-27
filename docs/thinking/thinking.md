@@ -138,6 +138,75 @@ So next should now be to_istream_encoding?
 
 * Removed to_istream_encoding with to reprecussions.
 
+At this point I came to think I may be able to hit two birds withj the same stone kind-of.
+
+* Current code does NOT read (nor remove) a BOM in the inout csv file
+  - This can be seen in current parse of the SKV account statement file that has a BOM on my machine.
+* So we could be tempted to detect and pass on the BOM when reading the raw text in.
+* I have code that did this in the past (but my AI code does not use ii, has its own but still leave the BOM in place)
+
+But let's finalise the clean up we are currently working on and come back to this when we are done.
+
+What is next? Well, we are done with the removals we listed above.
+
+So now we can go back and implement what is now in the 'inferr encoding' API:
+
+Now I am CONFUSED! There is yet no text::encoding::inferred::monadic! Why NOT? ANd how does the code even compile?
+
+AHA! I forgot. This API is a supporting API. It is not part of the and_then pipeline of csv file -> account stetement -> tagged amounts
+
+But we have two functions where we need only one.
+
+* ```c++ std::optional<EncodingDetectionResult> to_content_encoding.```
+* ```c++         template<typename ByteBuffer>
+        std::optional<EncodingDetectionResult> to_detetced_encoding(... ```
+
+We should be just fine with one that takes ByteBuffer should we not?
+
+* Consider to use persistent::in::Bytebuffer
+* Consider to make to_detetced_encoding or to_content_encoding be the only one?
+
+I am thinking like this:
+
+* It is to_content_encoding that implements the mechanism.
+* If we make it take persistent::in::Bytebuffer we can later pass an optional BOM discovered by the read mechanism.
+* It should be OK to make the to_inferred_encoding unit depend on file_reader unit (Where Bytebuffer is defined)?
+
+Let's try!
+
+AHA, ok. We have not implemented text::encoding::inferred::maybe::to_content_encoding yet!
+
+So let's do that first! So we can attend to the consequences of tying it to ByteBuffer in one go later.
+
+* I first brought back icu_facade_ namespace as icu_facade (All external access is cleaned out now)
+* Then I first implemented the new icu_facade version of to_content_encoding
+* And the text::encoding::inferred::maybe::to_content_encoding using the icu_facade version.
+
+I succeeded to implement the change and cratchit now PASS all tests related to the API change I made.
+
+F**K!! I now discovered that I had NOT added the new to_inferred_encoding unit yet!
+
+* ALl my carefull refactoring steps with intermediate check-ins will NOT compile :(
+
+*SIGH* - SO much for trustworthy version control!
+
+I wonder, is there a way to make git warn if I committ with untracked files present?
+
+My AI friends tells me git has a 'pre-commit hook' in .git/hooks/pre-commit.
+
+```text
+If you want real cross-platform safety: Use the pre-commit framework
+It is:
+* Interpreter-stable
+* Version-controlled
+* CI-friendly
+*Explicitly designed to solve this problem
+
+This is the same solution used in LLVM, Chromium, and large C++ monorepos.
+```
+
+
+
 ## 20260126
 
 Now when I have slept on this I have a new approach. It seems I can first create the 'nomralised' API for encoding inference.
