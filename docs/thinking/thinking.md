@@ -186,7 +186,7 @@ I succeeded to implement the change and cratchit now PASS all tests related to t
 
 F**K!! I now discovered that I had NOT added the new to_inferred_encoding unit yet!
 
-* ALl my carefull refactoring steps with intermediate check-ins will NOT compile :(
+* ALL my carefull refactoring steps with intermediate check-ins will NOT compile :(
 
 *SIGH* - SO much for trustworthy version control!
 
@@ -205,7 +205,56 @@ It is:
 This is the same solution used in LLVM, Chromium, and large C++ monorepos.
 ```
 
+Ok, lets tread carefully now!
 
+* I still have not cleaned up template to_detetced_encoding calling to_content_encoding
+  - also to_content_encoding takes fragile C-like char* and length!
+* I still have BOM code in old icu_facade_deprecated.
+* I may now be tempted to make ByteBuffer somehow carry a maybe BOM from the reading phase?
+* If so I may be tempted to keep this BOM code in new inferred encoding API?
+* But then, Maybe I rather use my old BOM code?
+
+So what do I do now and what do I come back to later?
+
+* I am in the process of making a full and_then pipeline for maybe versions of existing monadic and_then pipe line.
+* And I am tempted to solve the missing BOM-reading and passing in this pipe line while I'm at it?
+
+I have come this far:
+
+```c++
+
+    // Done
+    auto result = persistent::in::maybe::path_to_istream_ptr_step(m_valid_file_path)
+      .and_then(persistent::in::maybe::istream_ptr_to_byte_buffer_step)
+      .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
+      .and_then(text::encoding::maybe::to_with_detected_encoding_step)
+      .and_then(text::encoding::maybe::to_platform_encoded_string_step);
+
+    // Left to attend to
+    //   .and_then(CSV::parse::monadic::csv_text_to_table_step)
+    //   .and_then(account::statement::monadic::to_account_id_ed_step)
+    //   .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+    //   .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+
+```
+
+So should I add BOM reading to istream_ptr_to_byte_buffer_step? And also extend ByteBuffer to pass optional BOM to to_with_detected_encoding_step?
+
+I think I should first:
+
+* finalise the clean up of template to_detetced_encoding calling to_content_encoding
+* Decide if to keep or remove to_encoding_options
+* Then study 
+
+```c++
+  EncodingDetectionResult to_bom_encoding(std::istream& is);
+  EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
+  EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
+```
+
+You know what? I think I can remove to_extension_heuristics_encoding right now!
+
+And so I did! No problems!
 
 ## 20260126
 

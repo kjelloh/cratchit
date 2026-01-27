@@ -51,7 +51,6 @@ namespace text {
 
       EncodingDetectionResult to_bom_encoding(std::istream& is);
       EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
-      EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
 
     } // inferred
 

@@ -143,6 +143,7 @@ namespace tests::csv_import_pipeline {
       //   .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
       //   .and_then(text::encoding::monadic::to_with_detected_encoding_step)
       //   .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+
       //   .and_then(CSV::parse::monadic::csv_text_to_table_step)
       //   .and_then(account::statement::monadic::to_account_id_ed_step)
       //   .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)

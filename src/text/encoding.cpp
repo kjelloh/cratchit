@@ -484,46 +484,6 @@ namespace text {
 
       }
 
-      EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path) {
-        auto ext = file_path.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        
-        if (ext == ".csv") {
-          return EncodingDetectionResult{
-            .meta = {
-              "UTF-8"
-              ,"UTF-8"
-              ,60
-              ,""
-              ,"Extension (.csv)"
-            }
-            ,.defacto = EncodingID::UTF8
-          };
-        } else if (ext == ".skv") {
-          return EncodingDetectionResult{
-            .meta = {
-              "ISO-8859-1"
-              ,"ISO-8859-1"
-              ,60
-              ,"sv"
-              ,"Extension (.skv)"
-            }
-            ,.defacto = EncodingID::ISO_8859_1
-          };
-        }
-        
-        return EncodingDetectionResult{
-          .meta = {
-            "UTF-8"
-            ,"UTF-8"
-            ,30
-            ,""
-            ,"Extension (default)"
-          }
-          ,.defacto = EncodingID::UTF8
-        };
-      }
-
       EncodingID canonical_name_to_enum(CanonicalEncodingName const& canonical_name) {
         if (canonical_name == "Undefined") return EncodingID::Undefined;
         if (canonical_name == "UTF-8") return EncodingID::UTF8;
