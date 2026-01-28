@@ -907,20 +907,7 @@ namespace CSV {
   } // project
 } // CSV
 
-// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
-AnnotatedMaybe<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
-  AnnotatedMaybe<CSV::Table> result{};
-  result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
-  return result;
-}
-
 using AccountStatements = std::vector<AccountStatement>;
-// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
-AnnotatedMaybe<AccountStatements> table_to_account_statements(CSV::Table const& table) {
-  AnnotatedMaybe<AccountStatements> result{};
-  result.push_message("table_to_account_statements: NOT YET IMPLEMENTED");
-  return result;
-}
 
 // TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
