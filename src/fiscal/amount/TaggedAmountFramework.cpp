@@ -909,13 +909,6 @@ namespace CSV {
 
 using AccountStatements = std::vector<AccountStatement>;
 
-// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
-AnnotatedMaybe<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
-  AnnotatedMaybe<TaggedAmounts> result{};
-  result.push_message("account_statements_to_tas: NOT YET IMPLEMENTED");
-  return result;
-}
-
 auto ev_to_maybe_ta = [](Environment::Value const& ev) -> OptionalTaggedAmount {
   return to_tagged_amount(ev);
 };

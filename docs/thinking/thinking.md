@@ -61,6 +61,9 @@ It seems I KNOW I will not use the Annotated Maybe API in TaggedAmountFramework?
 
 What about ```c++ using AccountStatements = std::vector<AccountStatement>; ```?
 
+API removed but AccountStatements in use ok.
+
+It seems we can now also remove to_decoding_in and DecodingIn type? It is a left-over from time when we 'assumed' an encoding and created an 'encdoding in' stream. Our new pipe line first read the stream raw. And only then inferr what encoding to apply.
 
 ## 20260127
 

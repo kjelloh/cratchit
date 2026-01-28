@@ -236,20 +236,5 @@ namespace text {
 
     } // icu_facade_deprecated
 
-    // TODO: Consider a design that does not lift the detected encoding on in stream to an actual unique type?
-    //       Maybe it is a good thing to lift to a type to be clear about what encoding we support in code?
-    //       Or maybe we only care about the end encoding so intermediate encodings 
-    //       to and from files is of no conscern to us?
-    //       For now we have a variant of decoding in streams that apply decoding to unicode.
-    using DecodingIn = std::variant<
-      text::encoding::UTF8::istream
-      ,text::encoding::ISO_8859_1::istream
-      ,text::encoding::CP437::istream
-    >;
-    using MaybeDecodingIn = cratchit::functional::memory::OwningMaybeRef<DecodingIn>;
-    MaybeDecodingIn to_decoding_in(
-       EncodingID const& encoding
-      ,std::istream& is);
-
   } // namespace encoding
 } // text

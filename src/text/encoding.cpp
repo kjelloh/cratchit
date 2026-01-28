@@ -500,36 +500,5 @@ namespace text {
 
     } // icu_facade_deprecated
 
-    MaybeDecodingIn to_decoding_in(
-       EncodingID const& encoding
-      ,std::istream& is) {
-      switch (encoding) {
-        case text::encoding::EncodingID::UTF8: {
-          return MaybeDecodingIn(
-              std::make_unique<DecodingIn>(text::encoding::UTF8::istream{is})
-          );
-        } break;
-        
-        case text::encoding::EncodingID::ISO_8859_1: {
-          return MaybeDecodingIn(
-              std::make_unique<DecodingIn>(text::encoding::ISO_8859_1::istream{is})
-          );
-        } break;
-        
-        case text::encoding::EncodingID::CP437: {
-          return MaybeDecodingIn(
-              std::make_unique<DecodingIn>(text::encoding::CP437::istream{is})
-          );
-        } break;
-        
-        default: {
-          spdlog::error(
-             "No decoding in stream support for source encoding {}"
-            ,enum_to_display_name(encoding));
-        } break;
-      }
-      return {};
-    }
-
   } // namespace encoding
 } // text
