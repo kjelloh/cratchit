@@ -32,6 +32,8 @@ OK, so the problem is that a BOM is a thing of text files, not any file. So the 
 
 I first renamed file_reader unit to raw_text_read unit to help me think.
 
+I then moved existing code for assumed 'text files / streams' from  persistent::in to persistent::in::text.
+
 
 ## 20260127
 

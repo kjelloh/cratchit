@@ -74,8 +74,8 @@ namespace tests::zeroth {
         : m_sie_content_map{
              { "TheITfiedAB20250812_145743.se", szPostedSIEContent}
             ,{"cratchit_2025-05-01_2026-04-30.se", szStagedSIEContent}} {} 
-      virtual persistent::in::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & final {
-        return persistent::in::from_string(
+      virtual persistent::in::text::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & final {
+        return persistent::in::text::from_string(
           m_sie_content_map[file_path.filename()]);
       }
     };

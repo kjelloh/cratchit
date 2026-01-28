@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <expected>
 
-using MaybeSIEInStream = persistent::in::MaybeIStream;
+using MaybeSIEInStream = persistent::in::text::MaybeIStream;
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path);
 
 namespace sie {

@@ -3638,12 +3638,12 @@ Cmd Updater::operator()(Command const& command) {
           //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
           {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
-            auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+            auto update_posted_result = persistent::in::text::to_maybe_istream(*sie_file_path)
               .and_then([](auto& istream){
                 return sie_from_stream(istream);
               })
               .and_then([this,year_key](auto const& sie_env){
-                auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
                   .and_then([](auto& istream){
                     return sie_from_stream(istream);
                   })
@@ -3729,12 +3729,12 @@ Cmd Updater::operator()(Command const& command) {
           //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
           {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
-            auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+            auto update_posted_result = persistent::in::text::to_maybe_istream(*sie_file_path)
               .and_then([](auto& istream){
                 return sie_from_stream(istream);
               })
               .and_then([this,year_key](auto const& sie_env){
-                auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
                   .and_then([](auto& istream){
                     return sie_from_stream(istream);
                   })

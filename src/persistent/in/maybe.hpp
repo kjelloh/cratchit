@@ -14,12 +14,15 @@ namespace persistent {
 
   namespace in {
 
-    using MaybeIStream = cratchit::functional::memory::OwningMaybeRef<std::istream>;
+    namespace text {
+      using MaybeIStream = cratchit::functional::memory::OwningMaybeRef<std::istream>;
 
-    MaybeIStream to_maybe_istream(std::filesystem::path sie_file_path);
-    MaybeIStream from_string(std::string const& s);
+      MaybeIStream to_maybe_istream(std::filesystem::path sie_file_path);
+      MaybeIStream from_string(std::string const& s);
 
-    std::optional<std::string> to_raw_bytes(std::istream& is);
+      std::optional<std::string> to_raw_bytes(std::istream& is);
+    } // text
+
 
   } // in
   

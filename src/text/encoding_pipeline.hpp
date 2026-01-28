@@ -15,7 +15,7 @@ namespace text {
 
   namespace encoding {
 
-    using ByteBuffer = persistent::in::ByteBuffer;
+    using ByteBuffer = persistent::in::text::ByteBuffer;
     using WithThresholdByteBuffer = MetaDefacto<int32_t,ByteBuffer>;
     // using WithDetectedEncodingByteBuffer = MetaDefacto<EncodingID,ByteBuffer>;
     using WithDetectedEncodingByteBuffer = MetaDefacto<inferred::EncodingDetectionResult,ByteBuffer>;
@@ -54,7 +54,7 @@ namespace text {
       std::filesystem::path const& file_path,
       int32_t confidence_threshold = inferred::DEFAULT_CONFIDENCE_THERSHOLD) {
 
-      return persistent::in::path_to_byte_buffer_shortcut(file_path) // #1 + #2
+      return persistent::in::text::path_to_byte_buffer_shortcut(file_path) // #1 + #2
         .and_then(monadic::to_with_threshold_step_f(confidence_threshold))
         .and_then(monadic::to_with_detected_encoding_step) // #4
         .and_then(monadic::to_platform_encoded_string_step); // #5

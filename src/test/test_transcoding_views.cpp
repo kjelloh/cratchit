@@ -61,7 +61,7 @@ namespace tests::transcoding_views {
     logger::scope_logger log_raii{logger::development_trace, "TEST(TranscodingViews, LazyDecodingDetectedEncodingToUnicode)"};
 
     // Read UTF-8 file
-    auto buffer_result = persistent::in::path_to_byte_buffer_shortcut(utf8_file);
+    auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
     ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
     // Create lazy decoding view: bytes → Unicode code points
@@ -122,7 +122,7 @@ namespace tests::transcoding_views {
     logger::scope_logger log_raii{logger::development_trace, "TEST(TranscodingViews, LazyTranscodingFullPipeline)"};
 
     // Read UTF-8 file
-    auto buffer_result = persistent::in::path_to_byte_buffer_shortcut(utf8_file);
+    auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
     ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
     // Create full lazy transcoding pipeline: bytes → Unicode → platform encoding
@@ -154,7 +154,7 @@ namespace tests::transcoding_views {
     logger::scope_logger log_raii{logger::development_trace, "TEST(TranscodingViews, LazyViewForMemoryEfficiency)"};
 
     // Read file to buffer
-    auto buffer_result = persistent::in::path_to_byte_buffer_shortcut(utf8_file);
+    auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
     ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
     // Detect encoding directly (or use known encoding for test)

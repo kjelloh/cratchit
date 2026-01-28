@@ -59,34 +59,34 @@ namespace tests::csv_import_pipeline {
     // Test of longer and longer AnnotatedMaybe 'and_then' composition path -> ... -> tagged Amounts
 
     TEST_F(MonadicCompositionFixture,PathToIStreeam) {
-      auto maybe_istream = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path);
+      auto maybe_istream = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path);
       ASSERT_TRUE(maybe_istream) << "Expected successful read of valid file";
     }
 
     TEST_F(MonadicCompositionFixture,PathToByteBuffer) {
-      auto mayabe_byte_buffer = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step);
+      auto mayabe_byte_buffer = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step);
       ASSERT_TRUE(mayabe_byte_buffer) << "Expected successful read of valid file";
     }
 
     TEST_F(MonadicCompositionFixture,PathToWithThreshold) {
-      auto mayabe_with_threshold = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      auto mayabe_with_threshold = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100));
       ASSERT_TRUE(mayabe_with_threshold) << "Expected successful buffer with encoding confidence threshold";
     }
 
     TEST_F(MonadicCompositionFixture,PathToWithEncoding) {
-      auto mayabe_with_encoding = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      auto mayabe_with_encoding = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step);
       ASSERT_TRUE(mayabe_with_encoding) << "Expected successful buffer with detected encoding";
     }
 
     TEST_F(MonadicCompositionFixture,PathToPlatformEncoded) {
-      auto maybe_platform_encoded = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      auto maybe_platform_encoded = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step);
@@ -94,8 +94,8 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST_F(MonadicCompositionFixture,PathToCSVTable) {
-      auto maybe_csv_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      auto maybe_csv_table = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
@@ -109,8 +109,8 @@ namespace tests::csv_import_pipeline {
     TEST_F(MonadicCompositionFixture,PathToAccountIDedTable) {
       logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountIDedTable)");
 
-      auto maybe_account_id_ed_table = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      auto maybe_account_id_ed_table = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
@@ -131,15 +131,15 @@ namespace tests::csv_import_pipeline {
 
       // TODO: Implement / refactor into a full std::optonal and_then composiiton that mirrors AnnotatedMaybe<T> chain
 
-      auto result = persistent::in::maybe::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::maybe::istream_ptr_to_byte_buffer_step)
+      auto result = persistent::in::text::maybe::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
         .and_then(text::encoding::maybe::to_with_detected_encoding_step)
         .and_then(text::encoding::maybe::to_platform_encoded_string_step);
 
       // Based on:
-      // auto maybe_tagged_amounts = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-      //   .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      // auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+      //   .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
       //   .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
       //   .and_then(text::encoding::monadic::to_with_detected_encoding_step)
       //   .and_then(text::encoding::monadic::to_platform_encoded_string_step)
@@ -158,8 +158,8 @@ namespace tests::csv_import_pipeline {
       // The goal is to refactor into full and_then composition into AnnotatedMaybe<TaggedAmounts>
       logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
 
-      auto maybe_tagged_amounts = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
@@ -179,8 +179,8 @@ namespace tests::csv_import_pipeline {
 
       logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
 
-      auto maybe_tagged_amounts = persistent::in::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+      auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
@@ -312,7 +312,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadValidFileSucceeds) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadValidFile)"};
 
-      auto result = persistent::in::path_to_byte_buffer_shortcut(valid_file_path);
+      auto result = persistent::in::text::path_to_byte_buffer_shortcut(valid_file_path);
 
       ASSERT_TRUE(result) << "Expected successful read of valid file";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty buffer";
@@ -329,7 +329,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadMissingFileReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadMissingFileReturnsEmpty)"};
 
-      auto result = persistent::in::path_to_byte_buffer_shortcut(missing_file_path);
+      auto result = persistent::in::text::path_to_byte_buffer_shortcut(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -348,7 +348,7 @@ namespace tests::csv_import_pipeline {
         ofs << "test content";
       }
 
-      auto result = persistent::in::monadic::path_to_istream_ptr_step(temp_path);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(temp_path);
 
       ASSERT_TRUE(result) << "Expected successful file open";
       EXPECT_TRUE(result.value() != nullptr) << "Expected non-null stream pointer";
@@ -363,7 +363,7 @@ namespace tests::csv_import_pipeline {
 
       auto non_existent_path = std::filesystem::path("/tmp/cratchit_nonexistent_file_12345.txt");
 
-      auto result = persistent::in::monadic::path_to_istream_ptr_step(non_existent_path);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(non_existent_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for non-existent file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -375,8 +375,8 @@ namespace tests::csv_import_pipeline {
       std::string test_data = "Hello, World! This is test data.";
 
       auto result = 
-         persistent::in::monadic::injected_string_to_istream_ptr(test_data)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step);
+         persistent::in::text::monadic::injected_string_to_istream_ptr(test_data)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step);
 
       ASSERT_TRUE(result) << "Expected successful buffer read from stream";
       EXPECT_EQ(result.value().size(), test_data.size()) << "Expected buffer size to match input";
@@ -402,8 +402,8 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate monadic composition with and_then
       auto result = 
-         persistent::in::monadic::path_to_istream_ptr_step(temp_path)
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+         persistent::in::text::monadic::path_to_istream_ptr_step(temp_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then([](auto buffer) -> AnnotatedMaybe<size_t> {
           AnnotatedMaybe<size_t> size_result;
           size_result.m_value = buffer.size();
@@ -430,12 +430,12 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate tap() for side effects without breaking the chain
       auto result =
-         persistent::in::monadic::injected_string_to_istream_ptr(test_data)
+         persistent::in::text::monadic::injected_string_to_istream_ptr(test_data)
         .tap([&stream_opened](auto const& ptr) {
           stream_opened++;
           EXPECT_TRUE(ptr != nullptr) << "Expected valid stream pointer";
         })
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .tap([&buffer_size](auto const& buf) {
           buffer_size = buf.size();
         });
@@ -456,9 +456,9 @@ namespace tests::csv_import_pipeline {
       // Composition should short-circuit on first failure
       // Using tap() to inject side effect without verbose lambda
       auto result =
-         persistent::in::monadic::path_to_istream_ptr_step(non_existent)
+         persistent::in::text::monadic::path_to_istream_ptr_step(non_existent)
         .tap([&and_then_called](auto const&) { and_then_called = true; })
-        .and_then(persistent::in::monadic::istream_ptr_to_byte_buffer_step);
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step);
 
       EXPECT_FALSE(result) << "Expected failure due to missing file";
       EXPECT_FALSE(and_then_called) << "Expected tap to NOT be called after failure";
@@ -473,7 +473,7 @@ namespace tests::csv_import_pipeline {
       std::ofstream ofs(empty_file);
       ofs.close();
 
-      auto result = persistent::in::path_to_byte_buffer_shortcut(empty_file);
+      auto result = persistent::in::text::path_to_byte_buffer_shortcut(empty_file);
 
       ASSERT_TRUE(result) << "Expected successful read of empty file";
       EXPECT_EQ(result.value().size(), 0) << "Expected empty buffer";
@@ -482,7 +482,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ErrorMessagesArePreserved) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ErrorMessagesArePreserved)"};
 
-      auto result = persistent::in::path_to_byte_buffer_shortcut(missing_file_path);
+      auto result = persistent::in::text::path_to_byte_buffer_shortcut(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_FALSE(result.m_messages.empty()) << "Expected error messages";
@@ -542,7 +542,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectUTF8) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectUTF8)"};
 
-      auto buffer = persistent::in::path_to_byte_buffer_shortcut(utf8_file);
+      auto buffer = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::inferred::maybe::to_detetced_encoding(buffer.value());
@@ -556,7 +556,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectISO8859) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectISO8859)"};
 
-      auto buffer = persistent::in::path_to_byte_buffer_shortcut(iso8859_file);
+      auto buffer = persistent::in::text::path_to_byte_buffer_shortcut(iso8859_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::inferred::maybe::to_detetced_encoding(buffer.value());
@@ -580,7 +580,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Demonstrate monadic composition: file → buffer → encoding
-      auto result = persistent::in::path_to_byte_buffer_shortcut(temp_path)
+      auto result = persistent::in::text::path_to_byte_buffer_shortcut(temp_path)
         .and_then([](auto buffer) {
           AnnotatedMaybe<text::encoding::inferred::EncodingDetectionResult> encoding_result;
           auto maybe_encoding = text::encoding::inferred::maybe::to_detetced_encoding(buffer);
@@ -611,7 +611,7 @@ namespace tests::csv_import_pipeline {
     TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, EmptyBufferReturnsNullopt)"};
 
-      persistent::in::ByteBuffer empty_buffer;
+      persistent::in::text::ByteBuffer empty_buffer;
       auto encoding = text::encoding::inferred::maybe::to_detetced_encoding(empty_buffer);
 
       EXPECT_FALSE(encoding) << "Expected empty optional for empty buffer";
@@ -621,7 +621,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, LowConfidenceHandling)"};
 
       // Very short content might have low confidence
-      persistent::in::ByteBuffer short_buffer;
+      persistent::in::text::ByteBuffer short_buffer;
       std::string short_text = "a";
       short_buffer.resize(short_text.size());
       std::memcpy(short_buffer.data(), short_text.data(), short_text.size());
@@ -648,7 +648,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesUTF8SimpleASCII)"};
 
       // Simple ASCII text (subset of UTF-8)
-      persistent::in::ByteBuffer buffer;
+      persistent::in::text::ByteBuffer buffer;
       std::string test_text = "Hello";
       buffer.resize(test_text.size());
       std::memcpy(buffer.data(), test_text.data(), test_text.size());
@@ -678,7 +678,7 @@ namespace tests::csv_import_pipeline {
 
       // UTF-8 encoded Swedish text: "Åsa"
       // Å (U+00C5) → UTF-8: 0xC3 0x85
-      persistent::in::ByteBuffer buffer{
+      persistent::in::text::ByteBuffer buffer{
         std::byte{0xC3}, std::byte{0x85},  // Å
         std::byte{0x73},                    // s
         std::byte{0x61}                     // a
@@ -707,7 +707,7 @@ namespace tests::csv_import_pipeline {
       // å (U+00E5) → UTF-8: 0xC3 0xA5
       // ä (U+00E4) → UTF-8: 0xC3 0xA4
       // ö (U+00F6) → UTF-8: 0xC3 0xB6
-      persistent::in::ByteBuffer buffer{
+      persistent::in::text::ByteBuffer buffer{
         std::byte{0xC3}, std::byte{0xA5},  // å
         std::byte{0xC3}, std::byte{0xA4},  // ä
         std::byte{0xC3}, std::byte{0xB6}   // ö
@@ -734,7 +734,7 @@ namespace tests::csv_import_pipeline {
 
       // ISO-8859-1 encoded: "Åsa"
       // Å → 0xC5 in ISO-8859-1
-      persistent::in::ByteBuffer buffer{
+      persistent::in::text::ByteBuffer buffer{
         std::byte{0xC5},  // Å
         std::byte{0x73},  // s
         std::byte{0x61}   // a
@@ -760,7 +760,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, TranscodesISO8859_1SwedishChars)"};
 
       // ISO-8859-1 encoded: "åäö"
-      persistent::in::ByteBuffer buffer{
+      persistent::in::text::ByteBuffer buffer{
         std::byte{0xE5},  // å
         std::byte{0xE4},  // ä
         std::byte{0xF6}   // ö
@@ -786,7 +786,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, LazyEvaluationNoEagerMaterialization)"};
 
       // Create a large buffer to verify lazy evaluation
-      persistent::in::ByteBuffer large_buffer;
+      persistent::in::text::ByteBuffer large_buffer;
       std::string repeated_text = "Test";
       for (int i = 0; i < 1000; ++i) {
         for (char ch : repeated_text) {
@@ -821,7 +821,7 @@ namespace tests::csv_import_pipeline {
 
       // UTF-8 encoded: "Hello World"
       std::string test_text = "Hello World";
-      persistent::in::ByteBuffer buffer;
+      persistent::in::text::ByteBuffer buffer;
       buffer.resize(test_text.size());
       std::memcpy(buffer.data(), test_text.data(), test_text.size());
 
@@ -857,7 +857,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::path_to_byte_buffer_shortcut(temp_path);
+      auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
@@ -888,7 +888,7 @@ namespace tests::csv_import_pipeline {
     TEST(BytesToUnicodeTests, EmptyBufferProducesEmptyRange) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(BytesToUnicodeTests, EmptyBufferProducesEmptyRange)"};
 
-      persistent::in::ByteBuffer empty_buffer;
+      persistent::in::text::ByteBuffer empty_buffer;
 
       auto unicode_view = text::encoding::views::bytes_to_unicode(
         empty_buffer,
@@ -1046,7 +1046,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::path_to_byte_buffer_shortcut(temp_path);
+      auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
@@ -1079,7 +1079,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, TranscodesFromISO8859ToUTF8)"};
 
       // ISO-8859-1 encoded: "Åsa" (0xC5 = Å in ISO-8859-1)
-      persistent::in::ByteBuffer iso_buffer{
+      persistent::in::text::ByteBuffer iso_buffer{
         std::byte{0xC5},  // Å
         std::byte{0x73},  // s
         std::byte{0x61}   // a
@@ -1112,7 +1112,7 @@ namespace tests::csv_import_pipeline {
       logger::scope_logger log_raii{logger::development_trace, "TEST(RuntimeEncodingTests, PipelineSyntaxWorks)"};
 
       // Test piping syntax for complete pipeline
-      persistent::in::ByteBuffer utf8_buffer;
+      persistent::in::text::ByteBuffer utf8_buffer;
       std::string test_text = "Hello";
       utf8_buffer.resize(test_text.size());
       std::memcpy(utf8_buffer.data(), test_text.data(), test_text.size());
@@ -1156,7 +1156,7 @@ namespace tests::csv_import_pipeline {
 
       // Test pipeline with CP437 input
       // CP437: å=0x86, ä=0x84, ö=0x94
-      persistent::in::ByteBuffer cp437_buffer{
+      persistent::in::text::ByteBuffer cp437_buffer{
         std::byte{0x86},  // å in CP437
         std::byte{0x84},  // ä in CP437
         std::byte{0x94}   // ö in CP437
