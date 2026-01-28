@@ -65,6 +65,20 @@ API removed but AccountStatements in use ok.
 
 It seems we can now also remove to_decoding_in and DecodingIn type? It is a left-over from time when we 'assumed' an encoding and created an 'encdoding in' stream. Our new pipe line first read the stream raw. And only then inferr what encoding to apply.
 
+I sucessfully removed identofied code. Where are we now?
+
+Can we now make to_detetced_encoding template and to_content_encoding function into one. That is, remove the template?
+
+I now tried to rename the ByteBuffer to something that eludes to 'a text buffer with unknown, yet to know, encoding'.
+
+* I tried AgnosticBuffer
+* It worked well in most cases.
+* EXCEPT: I had text cases and code that was specifically expected 'vector of bytes'!
+
+So I reversed this approach for now. It seems a better apporach would be to:
+
+* Add a new type when we are ready to do something for BOM mechanism handling?
+
 ## 20260127
 
 So let's implement:
