@@ -908,14 +908,6 @@ namespace CSV {
 } // CSV
 
 // TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
-AnnotatedMaybe<persistent::in::text::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
-  AnnotatedMaybe<persistent::in::text::MaybeIStream> result{};
-  result.m_value = persistent::in::text::to_maybe_istream(statement_file_path);
-  if (!result.m_value) result.push_message("file_path_to_istream: Failed to create istream");
-  return result;
-}
-
-// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
   AnnotatedMaybe<CSV::FieldRows> result{};
   result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");

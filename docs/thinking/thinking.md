@@ -34,6 +34,33 @@ I first renamed file_reader unit to raw_text_read unit to help me think.
 
 I then moved existing code for assumed 'text files / streams' from  persistent::in to persistent::in::text.
 
+OK. Better for now I think. At this point I also discovered that text files behave different also on different platyforms.
+
+* Carrige return and Line feed are encoded differently!
+* And this is in addition to text file character set encoding Issues and BOM mechanisms.
+
+Ok, so where are we?
+
+* We want to make to_detetced_encoding template and to_content_encoding function into one.
+* We still need to decide where to put the BOM mechanism!
+
+1. Read the file with bom_istream and pass maybe BOM -> EncodingID as side channel with ByteBuffer
+2. Or remove existing bom_istream mechanism and make to_content_encoding detect and strip-off BOM -> EncodingID
+
+How can I decide?
+
+You know what. I keep get distracted and confused about what code is actually active now? For one I am hesistant to remove code that I may still want to use? On the other hand, maybe it is time to commit? I HAVE the new pipe line. Is it time to take the plunge?
+
+It seems I KNOW I will not use the Annotated Maybe API in TaggedAmountFramework?
+
+* Remove file_path_to_istream
+* Remove decoding_in_to_field_rows
+* Remove field_rows_to_table
+* Remove table_to_account_statements
+* Remove account_statements_to_tas
+
+What about ```c++ using AccountStatements = std::vector<AccountStatement>; ```?
+
 
 ## 20260127
 
