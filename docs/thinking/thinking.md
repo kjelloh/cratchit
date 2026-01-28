@@ -107,6 +107,43 @@ Wait! I think I realised something:
   - So the encoding unit shall now be concerned with, well 'encoding'
   - Maybe even be combined with transcoding_views?
 
+So I did an 'evening shift' and brute forced the existing BOM mechanism into (kept in?) encoding unit. I also added units to communicate the split in/out and 'encode aware' vs 'raw' text. I now have:
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % git status
+On branch claude-001-refactor-csv-import-pipeline
+Your branch is up to date with 'origin/claude-001-refactor-csv-import-pipeline'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   CMakeLists.txt
+	modified:   docs/thinking/thinking.md
+	modified:   src/persistent/in/raw_text_read.cpp
+	modified:   src/persistent/in/raw_text_read.hpp
+	modified:   src/sie/SIEEnvironmentFramework.cpp
+	modified:   src/text/encoding.cpp
+	modified:   src/text/encoding.hpp
+	modified:   src/text/transcoding_views.hpp
+	modified:   src/zeroth/main.cpp
+	modified:   src/zeroth/main.hpp
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	src/persistent/in/encoding_aware_read.cpp
+	src/persistent/in/encoding_aware_read.hpp
+	src/persistent/out/
+
+no changes added to commit (use "git add" and/or "git commit -a")
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ls -l src/persistent/out
+total 16
+-rw-r--r--  1 kjell-olovhogdahl  staff  1419 Jan 28 21:53 encoding_aware_write.cpp
+-rw-r--r--  1 kjell-olovhogdahl  staff   358 Jan 28 22:21 encoding_aware_write.hpp
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+I will NOT commit this to git until I have gone over the code again tomorrow. Is it 'good enough'?
+
 ## 20260127
 
 So let's implement:
