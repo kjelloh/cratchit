@@ -908,12 +908,6 @@ namespace CSV {
 } // CSV
 
 // TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
-AnnotatedMaybe<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
-  AnnotatedMaybe<CSV::FieldRows> result{};
-  result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");
-  return result;
-}
-// TODO: Remove (Replaced by pipeline csv::path_to_tagged_amounts_shortcut in csv/import_pipeline.hpp)
 AnnotatedMaybe<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
   AnnotatedMaybe<CSV::Table> result{};
   result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
