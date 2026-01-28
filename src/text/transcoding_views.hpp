@@ -1,8 +1,7 @@
 #pragma once
 
-#include "encoding.hpp"
 #include "charset.hpp"
-#include "persistent/in/raw_text_read.hpp"
+#include "encoding.hpp"
 #include <ranges>
 #include <iterator>
 #include <optional>
