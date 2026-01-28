@@ -3,7 +3,7 @@
 // #include "encoding.hpp"
 #include "to_inferred_encoding.hpp"
 #include "transcoding_views.hpp"
-#include "persistent/in/file_reader.hpp"
+#include "persistent/in/raw_text_read.hpp"
 #include "MetaDefacto.hpp"
 #include <filesystem>
 #include <string>

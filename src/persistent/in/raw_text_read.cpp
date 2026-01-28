@@ -1,4 +1,4 @@
-#include "file_reader.hpp"
+#include "raw_text_read.hpp"
 #include <span>
 
 namespace persistent {
@@ -32,8 +32,8 @@ namespace persistent {
         ByteBuffer buffer;
         const size_t chunk_size = 4096;
 
-        // NOTE 20260122 - I am unsatisfied with the copde options to properly read bysetd from std::istream.
-        //                 I went with as_writable_bytes on spand on std::areray of bytes.
+        // NOTE 20260122 - I am unsatisfied with the code options to properly read bytes from std::istream.
+        //                 I went with as_writable_bytes on span over std::arrray of bytes.
         //                 We still need to cast from char/char* to bytes though.
 
         std::array<std::byte, chunk_size> temp;

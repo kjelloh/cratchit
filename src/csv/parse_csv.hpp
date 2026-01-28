@@ -2,7 +2,7 @@
 
 #include "text/encoding.hpp"
 #include "csv/projections.hpp"
-#include "persistent/in/file_reader.hpp"
+#include "persistent/in/raw_text_read.hpp"
 #include "text/to_inferred_encoding.hpp"
 #include "logger/log.hpp"
 #include <filesystem>

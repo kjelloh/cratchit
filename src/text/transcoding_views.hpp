@@ -2,7 +2,7 @@
 
 #include "encoding.hpp"
 #include "charset.hpp"
-#include "persistent/in/file_reader.hpp"
+#include "persistent/in/raw_text_read.hpp"
 #include <ranges>
 #include <iterator>
 #include <optional>

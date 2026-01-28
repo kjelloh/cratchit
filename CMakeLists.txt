@@ -109,7 +109,7 @@ add_executable(
         src/csv/csv_to_account_id.cpp
         src/text/encoding_pipeline.cpp
         src/domain/account_statement_to_tagged_amounts.cpp
-        src/persistent/in/file_reader.cpp
+        src/persistent/in/raw_text_read.cpp
       )
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?

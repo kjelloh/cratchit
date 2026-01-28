@@ -2,6 +2,37 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260128
+
+Can I (should I) make to_inferred_encoding dependent on file_reader ByteBuffer?
+
+First I thought this could be a good idea. But then thinking about it, I should not need to make text::encoding dependent on persistent::in? That is, inferring encdoing from data in a buffer is semantically 'closed'. The crux is how we pass (or detect) a BOM that marks wjat encoding to expect.
+
+1. Either we expect the data to to_content_encoding to be as-is (with or without BOM).
+  - Then we can make to_content_encoding leverage the BOM if it is there.
+  - But then we need a mechanism to ignore the BOM part (it is not part of the text)
+2. Or we use the existing bom_istream (that is already in the encoding unit).
+  - So the encoding unit is already tied to BOM stuff (but not to file_reader)
+
+WHY IS THIS SO HARD!! I am so frustrated. The pieces keeps restisting to come together in a natural way?
+
+* We have a text file that may or may not have a BOM
+* We have a pipeline based on path -> istream -> ByteBuffer -> 'detected encoding byte buffer'
+* We already have a bom_istream
+* We have some AI generated to_bom_encoding(istream / path)
+
+So the core decision now is to decide:
+
+* What do we pass to to_content_encoding (pass maybe BOM + Buffer OR pass full buffer with potential BOM still in the data)
+* Can we (do we want to) reuse bom_istream?
+
+So one problem is that we kind-if have assumed path_to_istream_ptr_step to be about text files? But the namespace is namespace persistent::in::maybe does not convey this. Should it be named text::in::maybe? Also, tne unit name file_reader is ambigous.
+
+OK, so the problem is that a BOM is a thing of text files, not any file. So the notion of a 'binary' file is not relevant for cratchit? Or at least, for now we read onoy text files. How can we clarify this?
+
+I first renamed file_reader unit to raw_text_read unit to help me think.
+
+
 ## 20260127
 
 So let's implement:
