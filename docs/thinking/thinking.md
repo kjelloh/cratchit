@@ -65,7 +65,7 @@ API removed but AccountStatements in use ok.
 
 It seems we can now also remove to_decoding_in and DecodingIn type? It is a left-over from time when we 'assumed' an encoding and created an 'encdoding in' stream. Our new pipe line first read the stream raw. And only then inferr what encoding to apply.
 
-I sucessfully removed identofied code. Where are we now?
+I sucessfully removed identified code. Where are we now?
 
 Can we now make to_detetced_encoding template and to_content_encoding function into one. That is, remove the template?
 
@@ -78,6 +78,34 @@ I now tried to rename the ByteBuffer to something that eludes to 'a text buffer 
 So I reversed this approach for now. It seems a better apporach would be to:
 
 * Add a new type when we are ready to do something for BOM mechanism handling?
+
+Back to make to_detetced_encoding template and to_content_encoding function into one. That is, remove the template?
+
+IF we make it into a function that takes ByteBuffer. Where shall ByteBuffer live?
+
+* Now it lives in raw_text_read and persistent::in::text::ByteBuffer
+* But do we want to_inferred_encoding depend on raw_text_read?
+
+Maybe we can place ByteBuffer in encoding unit?
+
+* It kind of feels ok for to_inferred_encoding to depend on encoding unit?
+* Only - encoding unit still contains BOM and 'encdoing aware' streams.
+
+But then, BOM and streams should now live in raw_text_read?
+
+* It seems ok to have BOM in raw_text_read
+* But encode aware istreams does NOT belong here!
+
+GOSH! The friction is still HIGH!
+
+Wait! I think I realised something:
+
+* The BOM type and bom_istream belongs in raw_text_read OK.
+* But the 'encoding aware istreams' needs a home of their own now!
+  - SIE file reading still uses a encoding aware istream (I think).
+  - But our new pipeline does not any longer (we have path -> bytes -> encoding aware bytes)
+  - So the encoding unit shall now be concerned with, well 'encoding'
+  - Maybe even be combined with transcoding_views?
 
 ## 20260127
 
