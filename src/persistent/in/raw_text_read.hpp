@@ -16,8 +16,7 @@ namespace persistent {
 
     namespace text {
 
-      // Byte buffer type for raw file content
-      using ByteBuffer = std::vector<std::byte>;
+      using ByteBuffer = ::text::encoding::ByteBuffer;
       using BOM = ::text::encoding::BOM;
 
       class bom_istream {

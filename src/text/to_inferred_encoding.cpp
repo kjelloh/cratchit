@@ -32,9 +32,13 @@ namespace text {
       namespace maybe {
 
         std::optional<EncodingDetectionResult> to_content_encoding(
-          char const* data
-          ,size_t length
+           ConstBytesSpan bytes
           ,int32_t confidence_threshold) {
+
+          UErrorCode status = U_ZERO_ERROR;
+
+          auto data = reinterpret_cast<char const*>(bytes.data());
+          auto length = bytes.size();
 
           auto maybe_icu_result = text::encoding::icu_facade::maybe::to_content_encoding(data,length,confidence_threshold);
 
@@ -48,7 +52,7 @@ namespace text {
                  .canonical_name = maybe_icu_result->canonical_name
                 ,.display_name = text::encoding::enum_to_display_name(encoding)
                 ,.confidence = maybe_icu_result->confidence
-                ,.language = "??"
+                ,.language = "*no operation*"
                 ,.detection_method = "ICU"
               }
               ,.defacto = encoding
@@ -58,11 +62,22 @@ namespace text {
           return {}; // TODO: Refactor from icu_facade_deprecated in encoding unit
         }
 
+        std::optional<EncodingDetectionResult> to_detetced_encoding(
+           ByteBuffer const& buffer
+          ,int32_t confidence_threshold) {
+
+          return maybe::to_content_encoding(buffer,confidence_threshold);
+          
+        }
+
+
       } // maybe
 
     } // inferred
 
     namespace icu_facade {
+
+      // Facade to the ICU unicode C++ library
 
       std::string to_string(UErrorCode status) {
         return std::format(
@@ -71,18 +86,17 @@ namespace text {
           ,u_errorName(status));
       }
 
-      // ICU-based Encoding Detection Implementation
 
       namespace maybe {
 
+        // ICU-based Encoding Detection Implementation
         std::optional<EncodingDetectionResult> to_content_encoding(
-          char const* data
+           char const* data
           ,size_t length
           ,int32_t confidence_threshold) {
 
           UErrorCode status = U_ZERO_ERROR;
           
-          // Create ICU character set detector
           UCharsetDetector* detector = ucsdet_open(&status);
           if (U_FAILURE(status) || !detector) {
             logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}" 
@@ -90,7 +104,6 @@ namespace text {
             return {};
           }
           
-          // Set the input data
           ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
           if (U_FAILURE(status)) {
             ucsdet_close(detector);
@@ -99,7 +112,6 @@ namespace text {
             return {};
           }
           
-          // Detect the character set
           const UCharsetMatch* match = ucsdet_detect(detector, &status);
           if (U_FAILURE(status) || !match) {
             ucsdet_close(detector);
@@ -116,15 +128,8 @@ namespace text {
             return {};
           }
           
-          // Extract results
           const char* canonical_name = ucsdet_getName(match, &status);
           int32_t confidence = ucsdet_getConfidence(match, &status);
-
-          // // Convert to our types
-          // std::string canonical_str = canonical_name ? canonical_name : "UTF-8";
-          // std::string language_str = language ? language : "";
-          // EncodingID encoding = canonical_name_to_enum(canonical_str);
-          // std::string display_name = enum_to_display_name(encoding);
           
           ucsdet_close(detector);
           
@@ -132,8 +137,7 @@ namespace text {
                canonical_name
               ,confidence
           };
-          return {}; // TODO: Refactor from icu_facade_deprecated in encoding unit
-        }
+        } // to_content_encoding
 
       } // maybe
 

@@ -24,23 +24,15 @@ namespace text {
       using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,EncodingID>;
 
       namespace maybe {
+        using ConstBytesSpan = std::span<std::byte const>;
+
         std::optional<EncodingDetectionResult> to_content_encoding(
-          char const* data
-          ,size_t length
+           ConstBytesSpan bytes
           ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
 
-        template<typename ByteBuffer>
         std::optional<EncodingDetectionResult> to_detetced_encoding(
-            ByteBuffer const& buffer
-          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD) {
-          if (buffer.empty()) {
-            return std::nullopt;
-          }
-          return maybe::to_content_encoding(
-            reinterpret_cast<char const*>(buffer.data())
-            ,buffer.size()
-            ,confidence_threshold);
-        } // to_detetced_encoding
+           ByteBuffer const& buffer
+          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
 
       } // maybe
 

@@ -36,12 +36,6 @@ find_package(GTest REQUIRED)
 
 add_executable(
         cratchit
-
-        src/text/to_inferred_encoding.cpp
-        src/persistent/out/raw_text_write.cpp
-        src/persistent/in/encoding_aware_read.cpp 
-        src/persistent/out/encoding_aware_write.cpp 
-
         src/test/test_runner.cpp
         src/test/test_fixtures.cpp
         src/test/test_integrations.cpp
@@ -113,6 +107,12 @@ add_executable(
         src/text/encoding_pipeline.cpp
         src/domain/account_statement_to_tagged_amounts.cpp
         src/persistent/in/raw_text_read.cpp
+
+        src/text/to_inferred_encoding.cpp
+        src/persistent/out/raw_text_write.cpp
+        src/persistent/in/encoding_aware_read.cpp 
+        src/persistent/out/encoding_aware_write.cpp 
+
       )
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?

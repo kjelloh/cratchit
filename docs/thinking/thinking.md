@@ -100,6 +100,70 @@ kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit %
 * Renamed to persistent::in::CP437::istream
 * Introduced persistent::out::text::bom_ostream (no definition yet)
 
+So what is next?
+
+I now tackled the to_detetced_encoding template calling to_content_encoding.
+
+* I moved ByteBuffer to encoding unit.
+* I could now make to_detetced_encoding a normal function taking Bytebuffer directly.
+* I also make text::encoding::inferred::to_content_encoding take an std::span.
+
+```c++
+  using BytesSpan = std::span<std::byte>;
+
+  std::optional<EncodingDetectionResult> to_content_encoding(
+    BytesSpan bytes
+    ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+
+  std::optional<EncodingDetectionResult> to_detetced_encoding(
+    ByteBuffer const& buffer
+    ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+
+```
+
+But now I get into 'constness preservation problems'. The 'ByteBuffer const& buffer' can not be implicitally converted to BytesSpan.
+
+It turns out I need to think in the same way as for 'const iterators'. That is, I need a span over const members to preserve constness in the same way as const ByteBuffer.
+
+Makes sense. And now I have:
+
+```c++
+
+  // hpp
+  using ConstBytesSpan = std::span<std::byte const>;
+
+  std::optional<EncodingDetectionResult> to_content_encoding(
+      ConstBytesSpan bytes
+    ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+
+  std::optional<EncodingDetectionResult> to_detetced_encoding(
+      ByteBuffer const& buffer
+    ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
+
+  // cpp
+
+  std::optional<EncodingDetectionResult> to_detetced_encoding(
+    ByteBuffer const& buffer
+    ,int32_t confidence_threshold) {
+
+    return maybe::to_content_encoding(buffer,confidence_threshold);
+
+    // ...
+
+    std::optional<EncodingDetectionResult> to_content_encoding(
+      ConstBytesSpan bytes
+      ,int32_t confidence_threshold) {
+
+      UErrorCode status = U_ZERO_ERROR;
+
+      auto data = reinterpret_cast<char const*>(bytes.data());
+      auto length = bytes.size();
+
+  // ...
+
+```
+
+It seems I could now be tempted to replace to_content_encoding(buffer) with to_content_encoding(ConstBytesSpan)? As the buffer implicitaly converts to the span this should works just fine.
 
 ## 20260128
 

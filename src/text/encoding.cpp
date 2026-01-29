@@ -1,5 +1,5 @@
 #include "encoding.hpp"
-// #include "persistent/out/encoding_aware_write.hpp"
+#include "persistent/out/encoding_aware_write.hpp"
 #include <deque>
 #include <iomanip>
 #include <fstream>

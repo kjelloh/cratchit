@@ -14,9 +14,12 @@
 #include <vector>
 #include <variant>
 #include <unicode/errorcode.h> // ICU library UErrorCode,...
+#include <span>
 
 namespace text {
   namespace encoding {
+
+    using ByteBuffer = std::vector<std::byte>;
 
     enum class EncodingID {
       Undefined,
