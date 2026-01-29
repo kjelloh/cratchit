@@ -38,6 +38,9 @@ add_executable(
         cratchit
 
         src/text/to_inferred_encoding.cpp
+        src/persistent/out/raw_text_write.cpp
+        src/persistent/in/encoding_aware_read.cpp 
+        src/persistent/out/encoding_aware_write.cpp 
 
         src/test/test_runner.cpp
         src/test/test_fixtures.cpp

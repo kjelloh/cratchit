@@ -2,6 +2,105 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260129
+
+So where are we?
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % git status
+On branch claude-001-refactor-csv-import-pipeline
+Your branch is up to date with 'origin/claude-001-refactor-csv-import-pipeline'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   CMakeLists.txt
+	modified:   docs/thinking/thinking.md
+	modified:   src/persistent/in/raw_text_read.cpp
+	modified:   src/persistent/in/raw_text_read.hpp
+	modified:   src/sie/SIEEnvironmentFramework.cpp
+	modified:   src/text/encoding.cpp
+	modified:   src/text/encoding.hpp
+	modified:   src/text/to_inferred_encoding.hpp
+	modified:   src/text/transcoding_views.hpp
+	modified:   src/zeroth/main.cpp
+	modified:   src/zeroth/main.hpp
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	src/persistent/in/encoding_aware_read.cpp
+	src/persistent/in/encoding_aware_read.hpp
+	src/persistent/out/
+
+no changes added to commit (use "git add" and/or "git commit -a")
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ls -l src/persistent/out 
+total 16
+-rw-r--r--  1 kjell-olovhogdahl  staff  1454 Jan 29 10:05 encoding_aware_write.cpp
+-rw-r--r--  1 kjell-olovhogdahl  staff   358 Jan 28 22:21 encoding_aware_write.hpp
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+I have now looked over the code so far and it seems legit.
+
+* We have base unit 'encoding' withg mechanisms to encode some character sets.
+  - This is the home of BOM and read and write of BOM
+  - This ise the hoem of UTF8 encoding to and from unicode
+  - In fact, the other character sets require no 'encoding' (they output their code points aas-is)
+* We have 'raw_text_read but no raw_text_write
+* We have encoding_aware_read and encoding_aware_write
+
+I could not resist but implemented raw_text_write with bom_ostream declaration (No implementation yet though).
+
+I think I am ready to commit this for now and go back to the main refacyorng track again?
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % git status
+On branch claude-001-refactor-csv-import-pipeline
+Your branch is up to date with 'origin/claude-001-refactor-csv-import-pipeline'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   CMakeLists.txt
+	modified:   docs/thinking/thinking.md
+	modified:   src/persistent/in/raw_text_read.cpp
+	modified:   src/persistent/in/raw_text_read.hpp
+	modified:   src/sie/SIEEnvironmentFramework.cpp
+	modified:   src/text/encoding.cpp
+	modified:   src/text/encoding.hpp
+	modified:   src/text/to_inferred_encoding.hpp
+	modified:   src/text/transcoding_views.hpp
+	modified:   src/zeroth/main.cpp
+	modified:   src/zeroth/main.hpp
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	src/persistent/in/encoding_aware_read.cpp
+	src/persistent/in/encoding_aware_read.hpp
+	src/persistent/out/
+
+no changes added to commit (use "git add" and/or "git commit -a")
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ls -l src/persistent/out                   
+total 32
+-rw-r--r--  1 kjell-olovhogdahl  staff  1624 Jan 29 10:41 encoding_aware_write.cpp
+-rw-r--r--  1 kjell-olovhogdahl  staff   318 Jan 29 10:36 encoding_aware_write.hpp
+-rw-r--r--  1 kjell-olovhogdahl  staff   277 Jan 29 10:33 raw_text_write.cpp
+-rw-r--r--  1 kjell-olovhogdahl  staff   539 Jan 29 10:39 raw_text_write.hpp
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+* Introduced encoding_aware_read unit
+* Introduced encoding_aware_write unit
+* Introduced raw_text_write unit
+* Reanmed to persistent::in::UTF8::istream
+* Renamed to persistent::out::UTF8::ostream
+* Removed deprecated to_bom_encoding(path)
+* Moved bom_istream to raw_text_read unit
+* Moved Renamed to persistent::in::ISO_8859_1::istream
+* Renamed to persistent::in::CP437::istream
+* Introduced persistent::out::text::bom_ostream (no definition yet)
+
+
 ## 20260128
 
 Can I (should I) make to_inferred_encoding dependent on file_reader ByteBuffer?

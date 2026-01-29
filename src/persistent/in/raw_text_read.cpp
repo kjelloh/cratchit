@@ -1,10 +1,32 @@
 #include "raw_text_read.hpp"
+#include "logger/log.hpp"
 #include <span>
 
 namespace persistent {
   namespace in {
 
+
     namespace text {
+
+      bom_istream::bom_istream(std::istream& in) : raw_in{in} {
+        // Check for BOM in fresh input stream
+        BOM candidate{};
+
+        if (raw_in >> candidate) {
+          logger::cout_proxy << "\nConsumed BOM:" << candidate;
+          this->bom = candidate;
+        }
+        else {
+          // std::cout << "\nNo BOM detected in stream";
+          raw_in.clear(); // clear the signalled failure to allow the stream to be read for non-BOM content
+        }
+        // std::cout << "\nbom_istream{} raw_in is at position:" << raw_in.tellg();
+      }
+
+      bom_istream::operator bool() {
+        return static_cast<bool>(raw_in);
+      }
+
       namespace maybe {
 
         std::optional<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {

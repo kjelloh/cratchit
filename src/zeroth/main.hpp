@@ -19,6 +19,7 @@ float const VERSION = 0.5;
 #include "PersistentFile.hpp"
 #include "text/charset.hpp"
 #include "text/encoding.hpp"
+#include "persistent/in/encoding_aware_read.hpp"
 #include "sie/sie.hpp"
 #include "csv/csv.hpp"
 #include "csv/projections.hpp"
@@ -1708,7 +1709,7 @@ inline TaggedAmounts to_tagged_amounts(BAS::MDJournalEntry const& mdje) {
 namespace CSV {
 
 	namespace NORDEA {
-		class istream : public text::encoding::UTF8::istream {};
+		class istream : public persistent::in::UTF8::istream {};
 
 		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 		/*

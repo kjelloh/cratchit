@@ -61,37 +61,7 @@ namespace text {
     std::istream& operator>>(std::istream& is,BOM& bom);
     std::ostream& operator<<(std::ostream& os,BOM const& bom);
 
-    class bom_istream {
-    public:
-        std::istream& raw_in;
-        std::optional<BOM> bom{};
-        bom_istream(std::istream& in);
-        operator bool();
-
-      // TODO: Move base class members from derived 8859_1 and UTF-8 istream classes to here
-    private:
-    };
-
     namespace ISO_8859_1  {
-
-      class istream : public bom_istream {
-      public:
-        istream(std::istream& in);
-        // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
-        // Emtpy line is allowed (returns nullopt only on failure to read)
-        template <class F>
-        std::optional<typename F::value_type> getline(F const& f) {
-          typename std::optional<typename F::value_type> result{};
-          std::string raw_entry{};
-          if (std::getline(raw_in,raw_entry)) {
-            auto unicode_s = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
-            result = f(unicode_s);
-          }
-          // if (result.size() > 0) return result;
-          // else return std::nullopt;
-          return result;
-        }
-      };
 
     }
 
@@ -111,13 +81,10 @@ namespace text {
             return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
       }
 
+      constexpr const char* REPLACEMENT_CHARACTER = "\uFFFD";
+
       bool is_valid_unicode(char32_t cp);
 
-      struct ostream {
-        std::ostream& os;
-      };
-
-      text::encoding::UTF8::ostream& operator<<(text::encoding::UTF8::ostream& os,char32_t cp);
       std::string unicode_to_utf8(cratchit_unicode_string const& s);
 
       // UTF-8 to Unicode
@@ -132,44 +99,10 @@ namespace text {
 
       cratchit_unicode_string utf8ToUnicode(std::string const& s_utf8);
 
-      class istream : public bom_istream {
-      public:
-        istream(std::istream& in);
-        // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
-        // Emtpy line is allowed (returns nullopt only on failure to read)
-        template <class F>
-        std::optional<typename F::value_type> getline(F const& f) {
-          typename std::optional<typename F::value_type> result{};
-          std::string raw_entry{};
-          if (std::getline(raw_in,raw_entry)) {
-            auto unicode_s = text::encoding::UTF8::utf8ToUnicode(raw_entry);
-            result = f(unicode_s);
-          }
-          return result;
-        }
-      };
 
     } // namespace UTF8
 
     namespace CP437 {
-      class istream : public bom_istream {
-      public:
-        istream(std::istream& in);
-        // getline: Transcodes input from CP437 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
-        // Emtpy line is allowed (returns nullopt only on failure to read)
-        template <class F>
-        std::optional<typename F::value_type> getline(F const& f) {
-          typename std::optional<typename F::value_type> result{};
-          std::string raw_entry{};
-          if (std::getline(raw_in,raw_entry)) {
-            auto unicode_s = charset::CP437::cp437ToUnicode(raw_entry);
-            result = f(unicode_s);
-          }
-          // if (result.size() > 0) return result;
-          // else return std::nullopt;
-          return result;
-        }
-      };    
     } // namespace CP437
     
     namespace unicode {
@@ -206,23 +139,6 @@ namespace text {
       const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
 
       namespace maybe {
-        std::optional<EncodingDetectionResult> to_content_encoding(
-          char const* data
-          ,size_t length
-          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-
-        template<typename ByteBuffer>
-        std::optional<EncodingDetectionResult> to_detetced_encoding(
-            ByteBuffer const& buffer
-          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD) {
-          if (buffer.empty()) {
-            return std::nullopt;
-          }
-          return maybe::to_content_encoding(
-            reinterpret_cast<char const*>(buffer.data())
-            ,buffer.size()
-            ,confidence_threshold);
-        } // to_detetced_encoding
 
       } // maybe
 
@@ -231,7 +147,6 @@ namespace text {
         ,size_t length
         ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
       EncodingDetectionResult to_bom_encoding(std::istream& is);
-      EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
 
 
     } // icu_facade_deprecated

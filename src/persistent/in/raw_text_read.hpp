@@ -1,5 +1,7 @@
 #pragma once
 
+#include "text/encoding.hpp" // BOM
+#include "functional/maybe.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -8,14 +10,27 @@
 #include <string>
 #include <format>
 #include <system_error>
-#include "functional/maybe.hpp"
 
 namespace persistent {
   namespace in {
 
     namespace text {
+
       // Byte buffer type for raw file content
       using ByteBuffer = std::vector<std::byte>;
+      using BOM = ::text::encoding::BOM;
+
+      class bom_istream {
+      public:
+          std::istream& raw_in;
+          std::optional<BOM> bom{};
+          bom_istream(std::istream& in);
+          operator bool();
+
+        // TODO: Move base class members from derived 8859_1 and UTF-8 istream classes to here
+      private:
+      };
+
 
       namespace maybe {
         std::optional<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s);

@@ -1,4 +1,5 @@
 #include "encoding.hpp"
+// #include "persistent/out/encoding_aware_write.hpp"
 #include <deque>
 #include <iomanip>
 #include <fstream>
@@ -30,7 +31,6 @@ namespace text {
       return "Unknown";
     }
 
-
     std::istream& operator>>(std::istream& is,BOM& bom) {
       using std_overload::operator>>; // to 'see' the defined overload for std::array
       using std_overload::operator<<; // to 'see' the defined overload for std::array
@@ -59,59 +59,15 @@ namespace text {
       return os;
     }
 
-    bom_istream::bom_istream(std::istream& in) : raw_in{in} {
-      // Check for BOM in fresh input stream
-      BOM candidate{};
-
-      if (raw_in >> candidate) {
-        logger::cout_proxy << "\nConsumed BOM:" << candidate;
-        this->bom = candidate;
-      }
-      else {
-        // std::cout << "\nNo BOM detected in stream";
-        raw_in.clear(); // clear the signalled failure to allow the stream to be read for non-BOM content
-      }
-      // std::cout << "\nbom_istream{} raw_in is at position:" << raw_in.tellg();
-    }
-
-    bom_istream::operator bool() {
-      return static_cast<bool>(raw_in);
-    }
-
     namespace UTF8 {
 
       bool is_valid_unicode(char32_t cp) {
         return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
       }
 
-      text::encoding::UTF8::ostream& operator<<(text::encoding::UTF8::ostream& os,char32_t cp) {
-        // Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
-        if (!is_valid_unicode(cp)) {
-          os.os << '?';
-        }
-        else if (cp < 0x80)                        // one octet
-            os.os << static_cast<char>(cp);
-        else if (cp < 0x800) {                // two octets
-            os.os << static_cast<char>((cp >> 6)            | 0xc0);
-            os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-        }
-        else if (cp < 0x10000) {              // three octets
-            os.os << static_cast<char>((cp >> 12)           | 0xe0);
-            os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
-            os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-        }
-        else {                                // four octets
-            os.os << static_cast<char>((cp >> 18)           | 0xf0);
-            os.os << static_cast<char>(((cp >> 12) & 0x3f)  | 0x80);
-            os.os << static_cast<char>(((cp >> 6) & 0x3f)   | 0x80);
-            os.os << static_cast<char>((cp & 0x3f)          | 0x80);
-        }
-        return os;
-      }
-
       std::string unicode_to_utf8(cratchit_unicode_string const& s) {
         std::ostringstream os{};
-        text::encoding::UTF8::ostream utf8_os{os};
+        persistent::out::UTF8::ostream utf8_os{os};
         for (auto cp : s) utf8_os << cp;
         if (false) {
           logger::cout_proxy << "\nunicode_to_utf8(";
@@ -195,42 +151,16 @@ namespace text {
 
     namespace ISO_8859_1 {
 
-      istream::istream(std::istream& in) : bom_istream{in} {
-        if (this->bom) {
-          // We expect the input stream to be without BOM
-          logger::cout_proxy << "\nSorry, Expected ISO8859-1 stream but found bom:" << *(this->bom);
-
-          this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
-        }
-      }
 
     } // namespace ISO_8859_1
 
     namespace CP437 {
 
-      istream::istream(std::istream& in) : bom_istream{in} {
-        if (this->bom) {
-          // We expect the input stream to be without BOM
-          logger::cout_proxy << "\nSorry, Expected CP437 (SIE-file) stream but found bom:" << *(this->bom);
-
-          this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
-        }
-      }
 
     } // namespace CP437
 
     namespace UTF8 {
 
-      istream::istream(std::istream& in) : bom_istream{in} {
-        if (this->bom) {
-          if (this->bom->value != BOM::UTF8_VALUE) {
-            // We expect the input stream to be in UTF8 and thus any BOM must confirm this
-            logger::cout_proxy << "\nSorry, Expected an UTF8 input stream but found contradicting BOM:" << *(this->bom);
-
-            this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
-          }
-        }
-      }
 
     } // namespace UTF8
 
@@ -254,71 +184,6 @@ namespace text {
       // ICU-based Encoding Detection Implementation
 
       namespace maybe {
-        std::optional<EncodingDetectionResult> to_content_encoding(
-          char const* data
-          ,size_t length
-          ,int32_t confidence_threshold) {
-
-          UErrorCode status = U_ZERO_ERROR;
-          
-          // Create ICU character set detector
-          UCharsetDetector* detector = ucsdet_open(&status);
-          if (U_FAILURE(status) || !detector) {
-            logger::development_trace("to_content_encoding: ICU detector creation failed. status:{}" 
-              ,to_string(status));
-            return {};
-          }
-          
-          // Set the input data
-          ucsdet_setText(detector, data, static_cast<int32_t>(length), &status);
-          if (U_FAILURE(status)) {
-            ucsdet_close(detector);
-            logger::development_trace("ICU setText failed. status:{}"
-              ,to_string(status));
-            return {};
-          }
-          
-          // Detect the character set
-          const UCharsetMatch* match = ucsdet_detect(detector, &status);
-          if (U_FAILURE(status) || !match) {
-            ucsdet_close(detector);
-            logger::development_trace("ICU failed to detect the character set. status:{}"
-              ,to_string(status));
-            return {};
-          }
-          
-          // Extract results
-          const char* canonical_name = ucsdet_getName(match, &status);
-          int32_t confidence = ucsdet_getConfidence(match, &status);
-          const char* language = ucsdet_getLanguage(match, &status);
-          
-          if (U_FAILURE(status)) {
-            ucsdet_close(detector);
-            logger::development_trace(
-              "ICU result extraction of canonical_name,confidence or language failed. status:{}"
-              ,to_string(status));
-            return {};
-          }
-          
-          // Convert to our types
-          std::string canonical_str = canonical_name ? canonical_name : "UTF-8";
-          std::string language_str = language ? language : "";
-          EncodingID encoding = canonical_name_to_enum(canonical_str);
-          std::string display_name = enum_to_display_name(encoding);
-          
-          ucsdet_close(detector);
-          
-          return EncodingDetectionResult{
-            .meta = {
-               canonical_str
-              ,display_name
-              ,confidence
-              ,language_str
-              ,"ICU"            
-            }
-            ,.defacto = encoding
-          };
-        }
 
       } // maybe
 
@@ -400,11 +265,6 @@ namespace text {
         
         ucsdet_close(detector);
         return results;
-      }
-
-      EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path) {
-        std::ifstream file(file_path, std::ios::binary);
-        return to_bom_encoding(file);
       }
 
       EncodingDetectionResult to_bom_encoding(std::istream& file) {

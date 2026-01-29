@@ -2707,7 +2707,7 @@ Cmd Updater::operator()(Command const& command) {
 
                 // k10_csv_to_sru_template
                 std::istringstream k10_is{SKV::SRU::INK1::k10_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_K10_in{k10_is};
+                persistent::in::UTF8::istream utf8_K10_in{k10_is};
                 if (auto field_rows = CSV::to_field_rows(utf8_K10_in)) {
                   // LOG
                   for (auto const& field_row : *field_rows) {
@@ -2725,7 +2725,7 @@ Cmd Updater::operator()(Command const& command) {
 
                 // ink1_csv_to_sru_template
                 std::istringstream ink1_is{SKV::SRU::INK1::ink1_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_ink1_in{ink1_is};
+                persistent::in::UTF8::istream utf8_ink1_in{ink1_is};
                 if (auto field_rows = CSV::to_field_rows(utf8_ink1_in)) {
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) prompt << "\n";
@@ -2906,7 +2906,7 @@ Cmd Updater::operator()(Command const& command) {
               {
                 // INK2R_csv_to_sru_template
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2R_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_in{is};
+                persistent::in::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
                   logger::cout_proxy << "\nParsing INK2R_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
@@ -2978,7 +2978,7 @@ Cmd Updater::operator()(Command const& command) {
               {
                 // INK2S_csv_to_sru_template
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2S_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_in{is};
+                persistent::in::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
                   logger::cout_proxy << "\nParsing INK2S_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
@@ -3047,7 +3047,7 @@ Cmd Updater::operator()(Command const& command) {
               {
                 // ink2_csv_to_sru_template
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_in{is};
+                persistent::in::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
                   logger::cout_proxy << "\nParsing INK2_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
@@ -3933,7 +3933,7 @@ Cmd Updater::operator()(Command const& command) {
           std::filesystem::path csv_file_path{ast[2]};
           if (std::filesystem::exists(csv_file_path)) {
             std::ifstream ifs{csv_file_path};
-            text::encoding::UTF8::istream utf8_in{ifs}; // Assume UTF8 encoded file (should work for all-digits csv.file as ASCII 0..7F overlaps with UTF8 encoing anyhow?)
+            persistent::in::UTF8::istream utf8_in{ifs}; // Assume UTF8 encoded file (should work for all-digits csv.file as ASCII 0..7F overlaps with UTF8 encoing anyhow?)
             if (auto const& field_rows = CSV::to_field_rows(utf8_in,';')) {
               for (auto const& field_row : *field_rows) {
                 if (field_row.size()==2) {
@@ -4073,7 +4073,7 @@ Cmd Updater::operator()(Command const& command) {
         std::filesystem::path csv_file_path{ast[2]};
         if (std::filesystem::exists(csv_file_path)) {
           std::ifstream ifs{csv_file_path};
-          text::encoding::UTF8::istream utf8_in{ifs};
+          persistent::in::UTF8::istream utf8_in{ifs};
           if (auto field_rows = CSV::to_field_rows(utf8_in)) {
             for (auto const& field_row : *field_rows) {
               if (field_row.size()>0) prompt << "\n";
@@ -5352,7 +5352,7 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
           std::cout << "\n\tBEGIN " <<  financial_year_member_path;
           if (std::filesystem::is_regular_file(financial_year_member_path) and (financial_year_member_path.extension() == ".csv")) {
             auto ifs = std::ifstream{financial_year_member_path};
-            text::encoding::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
+            persistent::in::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
             if (auto field_rows = CSV::to_field_rows(utf8_in,';')) {
               std::cout << "\n\tNo Operation implemented";
               // std::cout << "\n\t<Entries>";

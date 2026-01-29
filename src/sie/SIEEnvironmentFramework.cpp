@@ -1,4 +1,5 @@
 #include "SIEEnvironmentFramework.hpp"
+#include "persistent/in/encoding_aware_read.hpp"
 #include "logger/log.hpp"
 #include <fstream> // std::ifstream,...
 #include <vector>
@@ -32,7 +33,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
 
   OptionalSIEEnvironment result{};
 
-  text::encoding::CP437::istream cp437_in{cp437_is};
+  persistent::in::CP437::istream cp437_in{cp437_is};
   if (!cp437_in) {
     logger::cout_proxy << "\nFailed to open stream ";
     return result;

@@ -2,6 +2,7 @@
 
 #include "charset.hpp"
 #include "encoding.hpp"
+#include "persistent/out/encoding_aware_write.hpp"
 #include <ranges>
 #include <iterator>
 #include <optional>
@@ -332,7 +333,7 @@ namespace text::encoding::views {
 
         // Use std::ostringstream with UTF8::ostream to encode
         std::ostringstream oss;
-        text::encoding::UTF8::ostream utf8_os{oss};
+        persistent::out::UTF8::ostream utf8_os{oss};
 
         // Cast char16_t to char32_t for UTF8::ostream
         utf8_os << static_cast<char32_t>(cp);
