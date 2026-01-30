@@ -145,10 +145,6 @@ namespace text {
 
       } // maybe
 
-      std::vector<EncodingDetectionResult> to_encoding_options(
-         char const* data
-        ,size_t length
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
       EncodingDetectionResult to_bom_encoding(std::istream& is);
 
 

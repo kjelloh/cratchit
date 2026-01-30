@@ -34,6 +34,13 @@ Ok. I think I let that be for now. It is not clear to me how I can (or should) r
 
 I now have only a single to_inferred_encoding (combined previous two + renamed).
 
+I fight my 'loss aversion' (good to keep just in case) tendencies.
+
+* Should I remove unused to_encoding_options?
+* Should I remove unused to_bom_encoding?
+
+Well, I now have removed to_encoding_options. And GOOD RIDDANCE. It was the right decision.
+
 ## 20260129
 
 So where are we?
