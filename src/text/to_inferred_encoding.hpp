@@ -31,8 +31,6 @@ namespace text {
 
       } // maybe
 
-      EncodingDetectionResult to_bom_encoding(std::istream& is);
-
     } // inferred
 
     namespace icu_facade {

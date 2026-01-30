@@ -145,9 +145,6 @@ namespace text {
 
       } // maybe
 
-      EncodingDetectionResult to_bom_encoding(std::istream& is);
-
-
     } // icu_facade_deprecated
 
   } // namespace encoding
