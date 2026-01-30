@@ -59,6 +59,11 @@ namespace text {
       return os;
     }
 
+    namespace ISO_8859_1 {
+
+
+    } // namespace ISO_8859_1
+
     namespace UTF8 {
 
       bool is_valid_unicode(char32_t cp) {
@@ -149,20 +154,10 @@ namespace text {
 
     } // namespace UTF8
 
-    namespace ISO_8859_1 {
-
-
-    } // namespace ISO_8859_1
-
     namespace CP437 {
 
 
     } // namespace CP437
-
-    namespace UTF8 {
-
-
-    } // namespace UTF8
 
     namespace unicode {
 
@@ -171,37 +166,5 @@ namespace text {
       }
 
     } // unicode
-
-    namespace icu_facade_deprecated{
-
-      std::string to_string(UErrorCode status) {
-        return std::format(
-            "{} ()"
-          ,static_cast<int>(status)
-          ,u_errorName(status));
-      }
-
-      // ICU-based Encoding Detection Implementation
-
-      namespace maybe {
-
-      } // maybe
-
-      EncodingID canonical_name_to_enum(CanonicalEncodingName const& canonical_name) {
-        if (canonical_name == "Undefined") return EncodingID::Undefined;
-        if (canonical_name == "UTF-8") return EncodingID::UTF8;
-        if (canonical_name == "UTF-16BE") return EncodingID::UTF16BE;
-        if (canonical_name == "UTF-16LE") return EncodingID::UTF16LE;
-        if (canonical_name == "UTF-32BE") return EncodingID::UTF32BE;
-        if (canonical_name == "UTF-32LE") return EncodingID::UTF32LE;
-        if (canonical_name == "ISO-8859-1") return EncodingID::ISO_8859_1;
-        if (canonical_name == "ISO-8859-15") return EncodingID::ISO_8859_15;
-        if (canonical_name == "windows-1252") return EncodingID::WINDOWS_1252;
-        if (canonical_name == "IBM437") return EncodingID::CP437;
-        return EncodingID::Unknown;
-      }
-
-    } // icu_facade_deprecated
-
   } // namespace encoding
 } // text

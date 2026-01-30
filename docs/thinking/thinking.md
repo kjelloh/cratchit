@@ -41,7 +41,9 @@ I fight my 'loss aversion' (good to keep just in case) tendencies.
 
 Well, I now have removed to_encoding_options. And GOOD RIDDANCE. It was the right decision.
 
-And now I also removed to_bom_encoding. When looking at the code I saw no reason to keep it. I need one that can try to read a set of known BOMs. Lets aim for that should I decide o do so.
+And now I also removed to_bom_encoding. When looking at the code I saw no reason to keep it. I need one that can try to read a set of known BOMs. Lets aim for that should I decide to do so.
+
+And finally I now removed the 'emptied out' icu_facade_deprecated.
 
 ## 20260129
 

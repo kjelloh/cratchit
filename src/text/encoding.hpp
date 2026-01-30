@@ -118,34 +118,5 @@ namespace text {
 
     } // namespace unicode
 
-    namespace icu_facade_deprecated {
-
-      // A facade to the ICU Unicode C++ library
-
-      std::string to_string(UErrorCode status);
-
-      using CanonicalEncodingName = std::string;
-
-      // ICU encoding name -> cratchit EncodingID
-      EncodingID canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
-
-      struct EncodingDetectionMeta {
-        CanonicalEncodingName canonical_name; // ICU canonical name (e.g., "UTF-8")
-        std::string display_name;             // Human readable name
-        int32_t confidence;                   // ICU confidence (0-100)
-        std::string language;                 // Detected language (e.g., "sv" for Swedish)
-        std::string detection_method;         // "ICU", "BOM", "Extension", "Default"
-      };
-
-      using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,EncodingID>;
-
-      const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
-
-      namespace maybe {
-
-      } // maybe
-
-    } // icu_facade_deprecated
-
   } // namespace encoding
 } // text
