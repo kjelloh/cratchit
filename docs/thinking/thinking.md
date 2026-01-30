@@ -45,6 +45,23 @@ And now I also removed to_bom_encoding. When looking at the code I saw no reason
 
 And finally I now removed the 'emptied out' icu_facade_deprecated.
 
+So step-by-step I am 'eating this elephant'. What is next?
+
+* I could make istream_ptr_to_byte_buffer_step produce a MetaDefacto of the buffer paired with a maybe EncodingID from a read BOM?
+* I could continue to make maybe-variants for:
+
+```c++
+  //   .and_then(CSV::parse::monadic::csv_text_to_table_step)
+  //   .and_then(account::statement::monadic::to_account_id_ed_step)
+  //   .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+  //   .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+```
+
+I am tempted to do the BOM reading mechanism now while I have the mechanism fresh in my head. But also, cratchit works without it (The SKV file gets garabaged with the BOM but I do not care about the heding text where the intrusive BOM is so...).
+
+* Is there a compromise (e.g., mark with TODO-comments so I can pick up the ball later on)?
+* How much work can I imagine it to be to implement the BOM mechanism?
+
 ## 20260129
 
 So where are we?
