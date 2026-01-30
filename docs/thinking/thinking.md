@@ -2,6 +2,38 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260130
+
+OK, so next (I think) is:
+
+* Make the to_detetced_encoding calling to_content_encoding into one to_inferred_encoding.
+* Introuduce MetaDefacto: maybe BOM,ByteBuffer (BOMedByteBuffer?)
+* Make istream_ptr_to_byte_buffer_step return maybe BOM, ByteBuffer pair
+  - istream_to_maybe_bom_ed_byte_buffer?
+* Now to_with_detected_encoding_step can use the maybe BOM in received BOMedByteBuffer
+
+It seems I may be tempted to mark the older bom_istream mechanism in faviour of the new pipe line?
+
+But then, how does the bom_istream based decoding compare to the maybe-pipe-line?
+
+* ISO_8859_1::istream - not used
+* UTF8::istream
+  - persistent::in::UTF8::istream utf8_K10_in
+  - persistent::in::UTF8::istream utf8_ink1_in
+  - Parse of SKV::SRU::INK2::Y_2024::INK2R_csv_to_sru_template
+  - Parse SKV::SRU::INK2::Y_2024::INK2S_csv_to_sru_template
+  - Parse SKV::SRU::INK2::Y_2024::INK2_csv_to_sru_template
+  - Parse 'csv-file with SRU values' (provided by user in command -sru and -csv -sru)
+  - Parse 'all files in skv_specs_path' (in skv_specs_mapping_from_csv_files but *no operation* yet)
+* NORDEA::istream (is persistent::in::UTF8::istream)
+  - csv file -> had (Command "-csv -had *path*")
+* persistent::in::CP437::istream cp437_in (sie_from_stream)
+  - cp437_in.getline(text::encoding::unicode::to_utf8{}))
+
+Ok. I think I let that be for now. It is not clear to me how I can (or should) refactor that mechanism into using the new pipe line?
+
+I now have only a single to_inferred_encoding (combined previous two + renamed).
+
 ## 20260129
 
 So where are we?

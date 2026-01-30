@@ -24,13 +24,8 @@ namespace text {
       using EncodingDetectionResult = MetaDefacto<EncodingDetectionMeta,EncodingID>;
 
       namespace maybe {
-        using ConstBytesSpan = std::span<std::byte const>;
 
-        std::optional<EncodingDetectionResult> to_content_encoding(
-           ConstBytesSpan bytes
-          ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-
-        std::optional<EncodingDetectionResult> to_detetced_encoding(
+        std::optional<EncodingDetectionResult> to_inferred_encoding(
            ByteBuffer const& buffer
           ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
 

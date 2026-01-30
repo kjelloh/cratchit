@@ -158,7 +158,7 @@ namespace tests::transcoding_views {
     ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
     // Detect encoding directly (or use known encoding for test)
-    auto encoding_result = text::encoding::inferred::maybe::to_detetced_encoding(
+    auto encoding_result = text::encoding::inferred::maybe::to_inferred_encoding(
       buffer_result.value()
     );
     auto detected_encoding = encoding_result

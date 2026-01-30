@@ -31,14 +31,14 @@ namespace text {
 
       namespace maybe {
 
-        std::optional<EncodingDetectionResult> to_content_encoding(
-           ConstBytesSpan bytes
+        std::optional<EncodingDetectionResult> to_inferred_encoding(
+           ByteBuffer const& buffer
           ,int32_t confidence_threshold) {
 
           UErrorCode status = U_ZERO_ERROR;
 
-          auto data = reinterpret_cast<char const*>(bytes.data());
-          auto length = bytes.size();
+          auto data = reinterpret_cast<char const*>(buffer.data());
+          auto length = buffer.size();
 
           auto maybe_icu_result = text::encoding::icu_facade::maybe::to_content_encoding(data,length,confidence_threshold);
 
@@ -60,14 +60,7 @@ namespace text {
           }
 
           return {}; // TODO: Refactor from icu_facade_deprecated in encoding unit
-        }
 
-        std::optional<EncodingDetectionResult> to_detetced_encoding(
-           ByteBuffer const& buffer
-          ,int32_t confidence_threshold) {
-
-          return maybe::to_content_encoding(buffer,confidence_threshold);
-          
         }
 
 
