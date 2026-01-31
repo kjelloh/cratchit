@@ -2,6 +2,181 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260131
+
+I have been thinking about what I wnat and could do to enhance the account statement csv file parse and transform to tagged amounts.
+
+* I can make the 'istream to buffer' to 'buffer to encoded text' pass a BOM
+  - persistent::in::text::maybe::istream_ptr_to_byte_buffer_step -> BOMedBuffer
+  - BOMedBuffer -> text::encoding::maybe::to_with_threshold_step_f(100)
+  - BOMedBuffer + Threshold -> text::encoding::maybe::to_with_detected_encoding_step
+* I could remove the passing of threhold around while I am at it
+* I can make to_with_detected_encoding_step just transform a BOM to an Encoding ID and be done with it
+
+I also want to adress the 'to accound ID:ed step
+
+* I want to identify NORDEA based on content (Not header)
+  - Mirror the analysis for identification of SKV account statement
+  - All rows has the same column count
+  - One header row and all other rows are statement rows
+  - ALl Statement rows has Date in column 0, Amount in col 1 and caption in column '
+
+I am tempted to use the NORDEA header to project a mappint to optional fields.
+
+0. Bokföringsdag
+  - Required Date.
+1. Belopp
+  - Required transaction amount
+2. Avsändare
+  - Optional 'from'
+3. Mottagare
+  - Optional 'to'
+4. Namn
+  - I am unsure what this is? Is it the name of the sender, receiver or what?
+  - Maybe it is always the name of the 'other part'?
+  - NO! This is in fact the required caption!
+5. Ytterligare detaljer
+  - Seems redundant?
+6. Meddelande
+  - This seems to be the OCR for my own payments of invoices
+  - Make this into optional OCR?
+  - We can then later project it to OCR if the content matches an OCR?
+  - Consider some OCR data type and project mechanism?
+7. Egna anteckningar
+  - This is the txt I can enter myself for my own transactions
+  - Make into an optional 'meta info' or 'own note'
+8. Saldo
+  - Some rows contains this saldo amount (bot not all do!)
+  - Make into optional saldo?
+9. Valuta
+  - This is always SEK
+  - Cratchit can warn if this is not SEK?
+  - Or sghould I refuse to use the entry if this field is not empty and is not 'SEK'?
+
+It seems to me I now know the following:
+
+* It is a valid account statement table if:
+  - There is a range of entries that all have a date,amount and some non empty text.
+  - An entry is valid with two amounts (potential trasnaction amount + saldo amount)
+* It is a valid range of transaction entries if:
+  - All date are strict increasing or decerasing (both allowed)
+  - Any optional saldo amount is the previous saldo amount + transaction amounts up to this one
+
+It seems I would be tempted to implement a 'transaction entries checker'?
+
+* Sort entries on date (normalise low to high)
+* Loop through with a running saldo
+  - Use an optional running saldo to handle any initial unkn own saldo
+
+AHA! We need a mechanism to handle the case where all transaction entries have two amounts!
+
+* For the first entry we initiate both amounts and saldo candidate and transaction amount candidates.
+  - trans_amount_candidates = IndexDet (initiate with both first and second)
+  - saldo_amount_candidates = IndexSet (initiate with both first and second)
+* For second entry we check which second amount is the sum of the two first amounts plus one of the second entry amounts.
+  - If we have only one valid amount, this MAY be an 'Saldo in or out' entry.
+  - prev[first] + prev[second] + curr[first] = curr[second] ==> column first is transaction and secodn is Saldo
+  - prev[second] + prev[first] +  curr[second] ==> Column first is Saldo and second is trasnaction amount
+  - For a match we adjust trans_amount_candidates and saldo_amount_candidates to reflect the match
+* Wow - it seems tricky to make an algorithm that can handle both 'saldo only' entries AND optional-saldo entries?
+  - A saldo only entry may also be a transaction only entry.
+* Consider to have a running total for both amount values
+  - We always accumulate acc[first] and acc[second]
+  - We have 'maybe trans column ix' and 'maybe saldo column ix'
+  - If curr[first] + acc[first] = acc[second] then first is transaction and second ios Saldo
+  - If curr[second] + acc[second] = acc[first] then second is transaction and first is saldo
+  - Otherwise the entry is NOT a valid complement to the previous ones
+* It seems we may be able to handle an amount column that can host BOTH transaction and saldo amout?!
+  - The older SKV statement file uses column 2 as Saldo or Transaction depending on entry type
+  - A saldo entry has empty date column column[date]=0
+  - A saldo entry has the date baked into the caption column
+  - A saldo entry has caption 'Ingående saldo' or 'Utgående saldo' + date on the form yyyy-mm-dd
+
+Should I 'bite the bullet' and design an algorithm that can process also the older format of SKV stetment files?
+
+It also seems the 'account ID inference' should be done AFTER having analysed the table?
+
+* Only when we have a valid account statement table can we try and inferre an account ID?
+* We can inferr NORDEA from either column ix for Date,amount,text and/or the header text for those columns?
+  - column[date] = 0, column[amount]=1, column[caption]=4
+  - head[date] = 'Bokföringsdag'
+  - head[amount] = 'Belopp'
+  - head[caption] = 'Namn'
+* We can inferr SKV from identified content format *new*
+  - column[date]=0,column[amount]=2, column[caption]=1
+  - ALL rows have 4 columns
+  - row[0].column[1] is a swedish organisation number 'xxxxxx-xxxx' (or 'xxxxxxxx-xxxx'?)
+* We can inferr SKV from identified content format *older*
+  - column[date]=0,column[amount]=2, column[caption]=1
+  - ALL rows have  5 columns
+
+
+So bottom line is that I am tempted to:
+
+* Remove piping of 'confidence' (just hard code the constant for call to ICU)
+* Pass BOM from 'istream read' to 'inferr encoding'
+* Implement enhanced account statement table identification.
+  - A valid range of statement entries
+  - All entries of the same type:
+    - trans_only_entry
+    - trans_or_saldo_entry
+    - trans_maybe_saldo_entry
+  - Account ID inferred from valid statement table ONLY
+    - From date,amount,caption column index
+    - From heading text of date,amount,caption column
+  - Be able to produce optional meta-data
+    - Maybe 'our ornanisation number' (from SKV account statement)
+    - Maybe 'from' identifier (BBAN,PG,BG)
+    - Maybe 'to'  identifier (BBAN,PG,BG)
+    - Maybe 'OCR' (E.g. NORDEA column 'Meddelande' if valid OCR)
+
+I am starting to accept that this takes time beacuse it IS complicated. It may be worth doing though?
+
+* To support more cratchit automation if need stuff like 'to', 'from' and 'OCR'.
+
+Another side idea is that after having processed an account statement into HADs I can:
+
+* Cross reference events to identify 'amount flows' and suggest 'event sameness'?
+  - Two registered events (transactions) are 'the same' if only bank-days apart and same amount?
+  - An 'out' Transaction amount flow with no intiating 'debt' is either a direct/card purchase, a subscrioption or a missing invoice.
+  - We can suggest 'missing invoice' to enable user fill in what caused the debt.
+  - We can look for a registered debt either in VAT accounts or the 'Leverantörsskulder'
+* We can identify an in-flow of VAT to have identified steps?
+  - An initiating report of VAT debt (the VAT returns report)
+    - Registered in 'Momsfordran' or 'Momsskuld' BAS account
+  - A VAT debt confirmation (In SKV account stement as an accepted VAT return report)
+  - A VAT debt payment transaction (In SKV account statement as a VAT Payment transaction)
+  - An in-amount transaction in bank account statement
+  - This flow enables us to know to settle the BAS accounts VAT -> Bank Account
+* We can require an out-flow to have identified steps?
+  - An initiated debt (invoice) (BAS series F)
+  - A debt settlement (payment) (BAS series E)
+
+Can we imagine a seed to a general processing mechanism in cratchit that 'fills in the blanks'?
+
+* Identify an in-flow or out-flow
+* Identify missing steps
+* fill in the steps as we go though account statements
+* Propose HAD aggregates for event 'sameness' (account -> account)
+* Propose HADs for missing steps
+  - Proposed invoice
+  - Proposed Payment
+  - Proposed SKV VAT debt acceptance
+  - Proposed SKV VAT payment
+
+I wonder, can we even imagine a process that based on proposed 'gaps' in 'amount flows' is able to iterate until now more gaps are identified. ANd then have the user act on the identified gaps in the form of HADs?
+
+Also, it seems we have two types of 'event aggregation'? 
+
+* Voucher aggreation of 'same event' on debit/credit accounts?
+  - SKV account <-> Bank Account (for VAT, Tax, fees) (cross account statement events)
+  - Between two bank accounts (cross account statement events)
+* Voucher aggregation of 'same flow' over time (voucher -> voucher -> voucher)? 
+  - Debt event to payment event (event that caused account statement entry)
+  - Payment event to settlement event (account statement entry that inferres BAS account settlement)
+  ...
+
+
 ## 20260130
 
 OK, so next (I think) is:
