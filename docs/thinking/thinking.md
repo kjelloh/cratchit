@@ -176,6 +176,147 @@ Also, it seems we have two types of 'event aggregation'?
   - Payment event to settlement event (account statement entry that inferres BAS account settlement)
   ...
 
+I got another idea, to project a statement table meta data to a hash. And then match the hash to an accoint ID? My thinking stems from the observation:
+
+* We can inferr NORDEA from column ix for Date,amount,text and/or the header text for those columns?
+  - column[date] = 0, column[amount]=1, column[caption]=4
+  - head[date] = 'Bokföringsdag'
+  - head[amount] = 'Belopp'
+  - head[caption] = 'Namn'
+* We can inferr SKV from identified content format *new*
+  - column[date]=0,column[amount]=2, column[caption]=1
+  - ALL rows have 4 columns
+  - row[0].column[1] is a swedish organisation number 'xxxxxx-xxxx' (or 'xxxxxxxx-xxxx'?)
+* We can inferr SKV from identified content format *older*
+  - column[date]=0,column[amount]=2, column[caption]=1
+  - ALL rows have  5 columns
+
+If we can map the meta-data above to a unique hash value, then we can map this hash to an account ID.
+
+* The column ix:s for date,amount,caption
+* The heading text for column date,amount,caption
+* the histogram for the column counts of statement entries
+  - Or the column count that ALL statement entries have?
+  - We require all actual sttement entries to all have the same column count?
+  - YES. The three statement tables I know of all have all rows the same column count!
+* So NO histogram but: The column count of ALL rows.
+
+But for this to work we need a hash function that produces the same hash on all builds!
+
+* std::hash produces different hash values on different platfroms and tool chains.
+
+My AI friends tells me I can implement a constexpr FNV-1a hash.
+
+Now how can I evaluate if my idea of table -> meta -> hash -> switch statement?
+
+* I can first create a dummy constexpr hash function that takes std::span os std::bye.
+* I can then create a proposed struct with the meta data I want as inout
+* I can then create a constexpr function that transform the meta data into an std::array (I know the size)
+* I can then create constants for meta-data instances I recognise
+* I can then try to switch on runtime meta-data to compile time generated hash values.
+
+I made some progress but decided to reverse and think about this some more. I do NOT want to check in an 'ansats' that I do not know I can use as a seed (and not end up as dead code and future confusion).
+
+I did implement this header onluy hash OK (should I decide to come back and use this apporach).
+
+```c++
+#include <span>
+
+namespace FNV1a {
+  inline constexpr uint64_t OFFSET_BASIS_64 = 14695981039346656037ull;
+  inline constexpr uint64_t PRIME_64        = 1099511628211ull;
+
+  constexpr uint64_t hash64(std::span<const uint8_t> data,uint64_t hash = OFFSET_BASIS_64) {
+      for (size_t i = 0; i < data.size(); ++i) {
+          hash ^= data[i];
+          hash *= PRIME_64;
+      }
+
+      return hash;
+  } // hash64
+
+  struct hasher64 {
+      uint64_t value = OFFSET_BASIS_64;
+
+      constexpr void update(std::span<const uint8_t> data)
+      {
+          for (uint8_t b : data)
+          {
+              value ^= b;
+              value *= PRIME_64;
+          }
+      }
+
+      constexpr uint64_t digest() const
+      {
+          return value;
+      }
+  };  // hasher64
+
+} // FNV1a
+```
+
+And I started on this TEST:
+
+```c++
+#include "FNV1a.hpp"
+#include <gtest/gtest.h>
+
+namespace tests::FNV1a {
+
+  namespace suite_0 {
+
+    TEST(FNV1aTests,BasicConstexpr) {
+      constexpr ::FNV1a::hasher64 hasher{};
+
+      struct dummy_struct {
+        int i;
+        std::string s;
+      }; // dummy_struct
+
+      using ByteArray = std::array<uint8_t,16>;
+
+      constexpr auto to_bytes = [](dummy_struct const& ds) -> ByteArray {
+
+        return {};
+
+      };
+
+      constexpr dummy_struct ds{
+        .i = 17
+        ,.s = "Hello"
+      };
+
+      constexpr auto test_data = to_bytes(ds);
+
+    }
+
+  }
+
+} // tests::FNV1a
+```
+
+But so I did not make it as far as seeing what the 'switch' statement based code would look like? What I still do NOT know:
+
+* Is the meta-data -> hash sufficient to identify a unique 'account ID'
+* Do I even need to know account ID?
+
+You know what - Now when I think about it I think the whole idea to try and identify the account ID is a dead end? What exactly is it I want to determine?
+
+* I asume I would like to map an account statement to a BAS account (for automation)?
+  - E.g., Map bank statement entries to trasnactions to corresponding 1920 and 1930?
+  - E.g. SKV account statement to VAT accounts (debt and settlement BAS accounts)
+* But from what I can see the NORDEA statement files I have inspected does not provide enough information to know 1920 or 1930?
+  - Or can I imagine some mechanism to perform this mapping?
+
+GOOD! It is decided then. I can REMOVE the to_account_id_ed step all together!
+
+So we have this going forward:
+
+* Remove passing of detected coding 'confidence' though maybe and monadic pipe.
+* Remove 'to account ID:ed' mechanism all together
+* Pass BOM from istream reading to 'inferr encoding'
+
 
 ## 20260130
 
