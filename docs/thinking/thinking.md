@@ -2,6 +2,321 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260202
+
+I still feels STRONG resistance from the code against refactoring! I now want to try the approach to focus on function before form. So I know I have tests that fail for account statement file parse. And I have previosuly reasoned what processing steps I like to use.
+
+So if I wait with the BOM and encoding confidence processing and take a look at the actual parsing of the table. Where is the code at currectly?
+
+```c++
+        .and_then(account::statement::monadic::to_account_id_ed_step)
+        .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+```
+
+I suspect the code of intereset happens in these two steps?
+
+The account ID seems to be hard coded to look for NORDEA or SKV only?
+
+```c++
+        if (account::statement::NORDEA::is_account_statement_table(table)) {
+          std::string account_number = account::statement::NORDEA::to_account_no(table).value_or("");
+          logger::development_trace("to_account_id_ed_step: Detected NORDEA account: '{}'", account_number);
+          return CSV::MDTable<AccountID>{AccountID{"NORDEA", account_number}, table};
+        }
+
+        if (account::statement::SKV::is_account_statement_table(table)) {
+          auto maybe_org_number = account::statement::SKV::to_account_no(table);
+          std::string org_number = maybe_org_number.value_or("");
+          logger::development_trace("to_account_id_ed_step: Detected SKV account for org: '{}'", org_number);
+          return CSV::MDTable<AccountID>{AccountID{"SKV", org_number}, table};
+        }        
+```
+
+I found that the maybe version of account_id_ed_to_account_statement_step was defined in the header file. I moved definition to the cpp-file. But then I got a strange linkert error!
+
+```sh
+duplicate symbol 'account::statement::maybe::account_id_ed_to_account_statement_step(MetaDefacto<DomainPrefixedId, CSV::Table> const&)' in:
+    /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/CMakeFiles/cratchit.dir/src/domain/csv_to_account_statement.cpp.o
+    /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/CMakeFiles/cratchit.dir/src/main.cpp.o
+ld: 1 duplicate symbols
+```
+
+WOT? From what I cpould see I hade only one definition? I asked Claude Code and got the answer:
+
+```sh
+⏺ Now I understand the issue. The problem is on line 8 of src/main.cpp:
+
+  #include "zeroth/main.cpp" // zeroth variant while refactoring into 'this' variant
+
+  This line is including a .cpp file, which is a very bad practice. When you include a .cpp file, all the code in that file and anything it pulls in gets compiled twice:
+  1. Once as part of main.cpp
+  2. Once when CMake compiles it as a separate translation unit
+
+  The function account_id_ed_to_account_statement_step is properly:
+  - Declared in src/domain/csv_to_account_statement.hpp:144
+  - Defined in src/domain/csv_to_account_statement.cpp:428-453
+
+  But since csv_to_account_statement.cpp is likely being compiled both:
+  - As its own object file
+  - Indirectly through includes when main.cpp includes zeroth/main.cpp
+
+  This creates the duplicate symbol.
+```
+
+Which is totally WRONG! I told it so and to its credit, Claude Code now actually figured out what I alerady had started to suspect. That My change required a rebuild of older object files with the symbol 'inlined'.
+
+```text
+⏺ Found it! The git diff shows the issue. You recently refactored the function account_id_ed_to_account_statement_step:
+
+  - Before: It was defined as inline in the header file csv_to_account_statement.hpp
+  - After: You moved it to the .cpp file and changed it to a regular declaration in the header
+
+  The problem is that old object files still contain the inline version! When it was inline in the header, it was compiled into every .o file that included that header (including main.cpp.o). Now you've moved
+  it to the .cpp file, so it's also in csv_to_account_statement.cpp.o.
+
+  Solution: Clean rebuild
+
+```
+
+I now struggled a while to tell cmake to do the rebuild. It was SUPER FRUSTRATIMNG!
+
+Anyhow, Claude AI told me the solution that worked. Just remove the 'build/Debug' output folder.
+
+```sh
+rm -rf build/Debug && ./run.zsh --nop
+```
+
+Back to my original task! What does the code do?
+
+```c++
+
+        // account_id_ed_to_account_statement_step
+        // ...
+        auto maybe_entries = csv_table_to_account_statement_entries(table);
+
+        // csv_table_to_account_statement_entries
+        // ...
+        auto mapping = table::to_column_mapping(table);
+
+        for (auto const& row : table.rows) {
+          auto maybe_entry = extract_entry_from_row(row, mapping);
+          // ...
+
+        ColumnMapping to_column_mapping(CSV::Table const& table) {
+            for (auto project : detail::column_mapping_projectors) {
+                ColumnMapping mapping = project(table);
+                if (mapping.is_valid()) {
+                    return mapping;
+                }
+            }
+            return {};
+        } // to_column_mapping
+```
+
+And drilling down I finally find:
+
+```c++
+          constexpr std::array<ColumnMappingFn, 1> column_mapping_projectors = {
+              &to_column_mapping
+          };
+
+          // And ...
+
+          ColumnMapping to_column_mapping(CSV::Table const& table) {
+            ColumnMapping result{};
+            result = table::detect_columns_from_header(table.heading);
+            if (!result.is_valid()) {
+              result = table::detect_columns_from_data(table.rows);
+            }
+            return result;
+          } // to_column_mapping
+
+
+          // And ...
+
+        ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
+          ColumnMapping mapping;
+
+          logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_data");
+
+          if (true) {
+            // Refactored to use per row RowsMap analysis
+
+            auto rows_map = to_rows_map(rows);
+            // ...
+
+        // And ...
+
+        RowsMap to_rows_map(CSV::Table::Rows const& rows) {
+          RowsMap result{};
+
+          for (auto const& row : rows) {
+            result.push_back(to_row_map(row));
+          }
+
+          return result;
+        }
+
+
+        // And ...
+
+        RowMap to_row_map(CSV::Table::Row const& row) {
+          RowMap result{};
+
+          for (unsigned i=0;i<row.size();++i) {
+            result.ixs[to_field_type(row[i])].push_back(i);
+          }
+
+          return result;
+        }
+
+        // And ...
+
+        FieldType to_field_type(std::string const& s) {
+          if (s.size()==0) {
+            return FieldType::Empty;
+          }
+          else if (auto maybe_date = to_date(s)) {
+            return FieldType::Date;
+          }
+          else if (auto maybe_amount = to_amount(s)) {
+            return FieldType::Amount;
+          }
+          else if (text::functional::count_alpha(s) > 0) {
+            return FieldType::Text;
+          }
+          return FieldType::Unknown;
+        }
+        
+```
+
+So deep, deep, deep down I have implemented a projector from each row to a vector of IDs (enums) for the types of fields identified.
+
+So how do wer clean this MESS up?
+
+* I would like to leverage detail::column_mapping_projectors to add something that can parse NORDEA
+  (For now NORDEA is parsed based on identified header text?)
+* The interesting code is in refactored part of detect_columns_from_data (for SKV parsing)
+
+So how can I refactor this without breaking anthing while doing it?
+
+Maybe I should just add a new to_column_mapping version?  And add to:
+
+```c++
+          constexpr std::array<ColumnMappingFn, 1> column_mapping_projectors = {
+              &to_column_mapping
+          };
+```
+
+If I add it before the one that is there now it will override existing code. But existing code is still there as long as my added code returns nullopt?
+
+But I also have:
+
+```c++
+        struct TableMeta {
+          ColumnMapping trans_row_mapping;
+        }; // TableMeta
+
+        // ColumnMapping to_column_mapping(CSV::Table const& table);
+        TableMeta to_account_statement_table_meta(CSV::Table const& table);
+```
+
+This seems to be something I initiated but never did anything with?
+
+This also clashes with 'csv_to_account_id' unit code:
+
+```c++
+    namespace generic {
+
+      enum class ColumnType {
+         Undefined
+        ,Empty
+        ,Text
+        ,Amount
+        ,Date
+        ,Unknown
+      }; // ColumnType
+
+      // ...
+
+      inline ColumnType to_column_type(std::string field)
+
+      // ...
+      using ColumnMap = std::map<int,ColumnType>;
+
+      // ...
+      enum class EntryType
+
+      using EntryMap = MetaDefacto<EntryType,ColumnMap>;
+      using EntryMaps = std::vector<EntryMap>;
+
+      inline EntryType to_entry_type(EntryMap const& entry_map)
+
+      // ...
+      inline EntryMap to_entry_map(CSV::Table::Row const& row)
+
+      // ...
+      inline std::optional<CSV::MDTable<EntryMaps>> to_entries_mapped(CSV::Table const& table)
+
+
+```
+
+What a MESS! There, I said it again. Can I imagine a goald design and force what I have into it?
+
+* I want to remove 'accoubnt id inference' from before parsing
+  - I may be temped to inferr it while analysing the account statement table?
+* I want to base the mechanism on the latst SKV account statement table parsing in 'from content'
+  - See the injected 'refactored' code
+* I am tempted to have a table -> meta-defacto-table with account statement meta data added.
+* If so, then  this in fact replaces the 'to accoint id:ed step?
+  - table -> 'to identified meta data + table' -> account statement
+
+But I am still in the fog about how to get to this while having my existing code working?
+
+AHA! I can implement a paralell pipe path (and remove the current one when it works!)
+
+1. Implement paralell 'new' pipe
+
+```c++
+        .and_then(account::statement::monadic::to_with_statement_meta_step)
+        .and_then(account::statement::monadic::with_statement_meta_to_account_statement_step)
+```
+
+2. Pick existing code into 'new' pipe
+3. Mark 'old' code as 'deprecated' as I go
+4. Remove all old code when new steps work
+
+```c++
+  // DEPRECATED...
+
+        .and_then(account::statement::monadic::to_account_id_ed_step)
+        .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+
+```
+
+I can actually doi the same when I remove the 'confidence passing' steps.
+
+1. Implement non 'confidence passing' pipe
+
+```c++
+//       auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_bommed_byte_buffer_step)
+        .and_then(text::encoding::monadic::bommed_byte_buffer_to_with_detected_encoding_step)
+//        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+```
+
+2. Remove the no longer used 'confidence passing code
+
+```c++
+
+//       auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+//        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+
+```
+
 ## 20260131
 
 I have been thinking about what I wnat and could do to enhance the account statement csv file parse and transform to tagged amounts.
