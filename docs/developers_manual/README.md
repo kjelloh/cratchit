@@ -2,6 +2,20 @@
 
 * Also see AI assistance [ai/README.md](ai/README.md)
 
+## Cmake quirk to trigger a clean rebuild
+
+I found it super hard to figure out if and how I can tell cmake to tell my tool chain to do a celan rebuild based on a cmake preset? 
+
+So far I have failed to have cmake do the work for me. So instead I have started to:
+
+1. Remove the whole build folder
+2. Do ./init_toolchain.zsh again
+3. Do ./run.zsh --nop
+
+With the build directory 'fresh' cmake and tool chain has no choice but to do everything from scratch! 
+
+All the hoops a C++ programmer needs to jump trhiough...
+
 ## REPL like python based rinse_and_repeat.py script
 
 The python script 'rinse_and_repeat.py' observes the src folder for changes. And if a change is detected it will execute the command in 'command_to_repeat.txt'.
