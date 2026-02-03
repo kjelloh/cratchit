@@ -15,6 +15,53 @@ Now I am going to just add code to experimentally parse the NORDEA-like accountm
 
 I now have introduced skv_like_to_column_mapping and nordea_like_to_column_mapping. I gutted out older code to its original content and placed in namespace to_deperecate. And I now have three 'to column mapping' options scanned by top to_column_mapping. Also added seed for testing to_column_mapping mechanism.
 
+I now discovered I already had the test_csv_table_identification unit. So I moved my new test there.
+
+* Now I at least managed to have related tests at the same place.
+* These tests now adress CSV table identification based on the two mechanism I have introduced but barely use.
+  1. account::statement::maybe::table::to_column_mapping(table);
+  2. account::statement::maybe::table::to_account_statement_table_meta
+
+Good. Some anchoring of lose pieces now done?
+
+I now tweaked testing to gain more focus.
+
+* Test prefix 'MappingBased' for test of account::statement::maybe::table::to_column_mapping
+* Test prefix 'MetaBased' for test of account::statement::maybe::table::to_account_statement_table_meta
+
+WAIT! Does those two mechanism use the same 'to column mapping'?
+
+Jupp! 
+
+*       csv_to_account_statement//account::statement::maybe::table::to_account_statement_table_meta 
+* calls csv_to_account_statement//account::statement::maybe::table::to_column_mapping
+
+```c++
+        TableMeta to_account_statement_table_meta(CSV::Table const& table) {
+          TableMeta result{};
+          result.trans_row_mapping = to_column_mapping(table);
+          return result;
+        } // to_account_statement_table_meta
+
+```
+
+I now realise one problem why I have such a hard time to make sense of this MESS is that I am semi-dyslectic? I failed to see that both mechaniosm are in the SAME cpp unit AND name spae *sigh*!
+
+But are we now using code form 'to account id:ed'?
+
+NO. My memory is at fault here. The 'to account id' is based on hard coded parsing for NORDEA and SKV. No 'mapping' or 'meta analysing' going on here!
+
+Ok, so we clarified that confusion, GOOD!
+
+I wonder, can I add a new way to identify account id after meta analysis?
+
+1. Inferr account ID based on analysed table and inject into account statement?
+2. Remove 'account id_ed' step as discussed before? 
+
+In this way I can first make 'GenericStatementCSVTests.NORDEAStatementOk' PASS. Then refactor away 'to account id:ed' step?
+
+I think I shall first implement nordea_like_to_column_mapping.
+
 ## 20260202
 
 I still feels STRONG resistance from the code against refactoring! I now want to try the approach to focus on function before form. So I know I have tests that fail for account statement file parse. And I have previosuly reasoned what processing steps I like to use.

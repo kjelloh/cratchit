@@ -140,8 +140,6 @@ namespace account {
 
       } // table
 
-
-
       OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table);
       std::optional<AccountStatement> csv_table_to_account_statement_step(CSV::Table const& table,AccountID const& account_id);
       std::optional<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<AccountID> const& account_id_ed);

@@ -10,7 +10,7 @@ namespace tests::csv_table_identification {
 
   namespace account_statement_table_suite {
 
-    class AccountStatementTableTestFixture : public ::testing::Test {
+    class AccountStatementTableTestsFixture : public ::testing::Test {
     protected:
       // Helper to create a minimal CSV::Table with valid structure
       static CSV::Table to_minimal_table() {
@@ -22,9 +22,9 @@ namespace tests::csv_table_identification {
         };
         return table;
       }
-    }; // AccountStatementTableTestFixture
+    }; // AccountStatementTableTestsFixture
 
-    TEST_F(AccountStatementTableTestFixture,MinimalParseOK) {
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedMinimalParseOK) {
       auto table = to_minimal_table();
       auto mapping = account::statement::maybe::table::to_column_mapping(table);
 
@@ -32,16 +32,46 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(false) << "TODO: Impleent this test case";
     }
 
-    TEST(AccountStatementDetectionTests, GeneratedSingleRowMappingTest) {
-      EXPECT_TRUE(false) << std::format("TODO: Implement GeneratedSingleRowMappingTest");   
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedNordeaLikeOk) {
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_older;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Expetced sz_NORDEA_csv_20251120 -> Table OK";
+
+      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
     }
 
-    TEST(AccountStatementDetectionTests, GeneratedRowsMappingTest) {
-      EXPECT_TRUE(false) << std::format("TODO: Implement GeneratedRowsMappingTest");   
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedSKVLikeOlderOk) {
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      std::string csv_text = sz_SKV_csv_older;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "EWxpected sz_SKV_csv_older -> Table OK";
+
+      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
+
     }
 
-    TEST(AccountStatementDetectionTests, DetectColumnsFromHeader) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromHeader)"};
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedSKVLike20251120OOk) {
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_older;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected sz_SKV_csv_20251120 -> Table OK ";
+
+      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
+
+    }
+
+    TEST(AccountStatementTableTests, MetaBasedDetectColumnsFromHeader) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTableTests, DetectColumnsFromHeader)"};
 
       // Create a simple CSV table with headers
       CSV::Table table;
@@ -58,8 +88,8 @@ namespace tests::csv_table_identification {
       EXPECT_EQ(mapping.description_column, 2);
     }
 
-    TEST(AccountStatementDetectionTests, DetectColumnsFromData) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromData)"};
+    TEST(AccountStatementTableTests, MetaBasedDetectColumnsFromData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTableTests, DetectColumnsFromData)"};
 
       // Create a CSV table without meaningful headers
       CSV::Table table;
@@ -77,7 +107,7 @@ namespace tests::csv_table_identification {
       EXPECT_EQ(mapping.description_column, 1) << "Expected description in column 1";
     }
 
-    TEST(AccountStatementTests, InvalidDateHandledGracefully) {
+    TEST(AccountStatementTests, MetaBasedInvalidDateHandledGracefully) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, InvalidDateHandledGracefully)"};
 
       // Create a CSV table with invalid date
@@ -93,7 +123,7 @@ namespace tests::csv_table_identification {
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid date";
     }
 
-    TEST(AccountStatementTests, InvalidAmountHandledGracefully) {
+    TEST(AccountStatementTests, MetaBasedInvalidAmountHandledGracefully) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, InvalidAmountHandledGracefully)"};
 
       // Create a CSV table with invalid amount
@@ -109,7 +139,7 @@ namespace tests::csv_table_identification {
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid amount";
     }
 
-    TEST(AccountStatementTests, EmptyDescriptionHandledGracefully) {
+    TEST(AccountStatementTests, MetaBasedEmptyDescriptionHandledGracefully) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTests, EmptyDescriptionHandledGracefully)"};
 
       // Create a CSV table with empty description
@@ -125,8 +155,8 @@ namespace tests::csv_table_identification {
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for empty description";
     }
 
-    TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromNordeaHeader)"};
+    TEST(AccountStatementTableTests, DetectColumnsFromNordeaHeader) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTableTests, DetectColumnsFromNordeaHeader)"};
 
       std::string csv_text = sz_NORDEA_csv_20251120;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
@@ -141,8 +171,8 @@ namespace tests::csv_table_identification {
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
     }
 
-    TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementDetectionTests, DetectColumnsFromSKVNewData)"};
+    TEST(AccountStatementTableTests, DetectColumnsFromSKVNewData) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTableTests, DetectColumnsFromSKVNewData)"};
 
       std::string csv_text = sz_SKV_csv_20251120;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);

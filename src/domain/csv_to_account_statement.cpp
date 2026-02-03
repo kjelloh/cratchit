@@ -343,8 +343,6 @@ namespace account {
 
         } // to_deprecate
 
-
-
         namespace detail {
 
           using ColumnMappingFn = ColumnMapping(*)(CSV::Table const&);
