@@ -75,23 +75,12 @@ namespace account {
         void log_the_rows_map(CSV::Table::Rows const& rows,RowsMap const& rows_map) {
           for (size_t i=0;i<rows.size();++i) {
             logger::development_trace(
-              "row:{} map:{}"
+              "\n\trow:{} \n\tmap:{}"
               ,rows[i].to_string()
               ,to_string(rows_map[i]));
           } // for rows
 
         } // log_the_rows_map
-
-        void print_the_rows_map(CSV::Table::Rows const& rows,RowsMap const& rows_map) {
-          for (size_t i=0;i<rows.size();++i) {
-            std::print(
-              "\nrow:{} map:{}"
-              ,rows[i].to_string()
-              ,to_string(rows_map[i]));
-          } // for rows
-
-        } // log_the_rows_map
-
 
         ColumnMapping skv_like_to_column_mapping(CSV::Table const& table) {
           logger::scope_logger log_raii(logger::development_trace,"skv_like_to_column_mapping");
@@ -152,7 +141,7 @@ namespace account {
         } // skv_like_to_column_mapping
 
         ColumnMapping nordea_like_to_column_mapping(CSV::Table const& table) {
-          logger::scope_logger log_raii(logger::development_trace,"nordea_like_to_column_mapping");
+          logger::scope_logger log_raii(logger::development_trace,"nordea_like_to_column_mapping",logger::LogToConsole::ON);
 
           ColumnMapping result{};
 
@@ -161,12 +150,19 @@ namespace account {
           if (true) log_the_rows_map(table.rows,rows_map);
 
           // Try for NORDEA like account statement table
-          std::print("\rows_map size {}",rows_map.size());
+          logger::development_trace("\rows_map size {}",rows_map.size());
 
           if (rows_map.size() > 0) {
-            print_the_rows_map(rows,rows_map);
             // We expect row 0 to be column headers
-            if ((rows_map[0].ixs.size() == 1 and rows_map[0].ixs.contains(FieldType::Text))) {
+            if (std::ranges::all_of(rows_map,[](auto const& row_map){
+              // NOTE: The design is super inconveniant to check for
+              //       column 11 emtpy and nothing else...
+              bool is_ok = is_ok
+                and row_map.ixs.contains(FieldType::Empty) 
+                and row_map.ixs.at(FieldType::Empty).size() > 0
+                and row_map.ixs.at(FieldType::Empty).back() == 10; // one empty column 10
+              return is_ok;
+            })) {
               std::print("\nrow 0 = Header OK");
             }
           }

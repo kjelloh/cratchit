@@ -68,6 +68,12 @@ FOCUS!
 
 Found out that NORDEA csv table has an 'empty' 10:th column? This will be tideous (combinatorial explosion)!!
 
+AHA - The NORDEA csv file uses ';' as an 'end marker' and NOT as a 'separator'
+
+Should I trim the table from trailing empty columns?
+
+DARN! The last row does NOT detect column 11 (why?). My code to require column 11 to be ampty fails due to this...
+
 ## 20260202
 
 I still feels STRONG resistance from the code against refactoring! I now want to try the approach to focus on function before form. So I know I have tests that fail for account statement file parse. And I have previosuly reasoned what processing steps I like to use.
