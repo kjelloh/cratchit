@@ -62,6 +62,10 @@ In this way I can first make 'GenericStatementCSVTests.NORDEAStatementOk' PASS. 
 
 I think I shall first implement nordea_like_to_column_mapping.
 
+I now made MappingBasedNordeaLikeOk call only nordea_like_to_column_mapping. Now I can implement it unitl the test pass.
+
+FOCUS!
+
 ## 20260202
 
 I still feels STRONG resistance from the code against refactoring! I now want to try the approach to focus on function before form. So I know I have tests that fail for account statement file parse. And I have previosuly reasoned what processing steps I like to use.

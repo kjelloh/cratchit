@@ -29,7 +29,6 @@ namespace tests::csv_table_identification {
       auto mapping = account::statement::maybe::table::to_column_mapping(table);
 
       ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
-      ASSERT_TRUE(false) << "TODO: Impleent this test case";
     }
 
     TEST_F(AccountStatementTableTestsFixture,MappingBasedNordeaLikeOk) {
@@ -39,7 +38,7 @@ namespace tests::csv_table_identification {
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Expetced sz_NORDEA_csv_20251120 -> Table OK";
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
+      auto mapping = account::statement::maybe::table::nordea_like_to_column_mapping(*maybe_table);
 
       ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
     }
