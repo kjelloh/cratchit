@@ -119,6 +119,9 @@ namespace CSV {
 
             if (ch == delimiter) {
               pos++; // Skip delimiter, continue to next field
+              if (pos >= text.size()) {
+                fields.push_back(""); // Trailing delimiter => one more empty field
+              }
             } else if (ch == '\r') {
               pos++; // Skip \r
               if (pos < text.size() && text[pos] == '\n') {

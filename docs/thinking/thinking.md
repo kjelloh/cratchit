@@ -74,6 +74,11 @@ Should I trim the table from trailing empty columns?
 
 DARN! The last row does NOT detect column 11 (why?). My code to require column 11 to be ampty fails due to this...
 
+* csv_row_to_fields ok?
+* Key::Path ok?
+
+I asked Calude Code to fix csv_row_to_fields (it skipped last empty field if end of string)
+
 ## 20260202
 
 I still feels STRONG resistance from the code against refactoring! I now want to try the approach to focus on function before form. So I know I have tests that fail for account statement file parse. And I have previosuly reasoned what processing steps I like to use.

@@ -157,13 +157,17 @@ namespace account {
             if (std::ranges::all_of(rows_map,[](auto const& row_map){
               // NOTE: The design is super inconveniant to check for
               //       column 11 emtpy and nothing else...
-              bool is_ok = is_ok
-                and row_map.ixs.contains(FieldType::Empty) 
+              bool is_ok = 
+                    row_map.ixs.contains(FieldType::Empty) 
                 and row_map.ixs.at(FieldType::Empty).size() > 0
                 and row_map.ixs.at(FieldType::Empty).back() == 10; // one empty column 10
               return is_ok;
             })) {
-              std::print("\nrow 0 = Header OK");
+              logger::development_trace("\nColumn ix 10 empty OK");
+              // logger::development_trace("\nrow 0 = Header OK");
+            }
+            else {
+              logger::development_trace("\nExpected column ix 10 to be empty");
             }
           }
 
