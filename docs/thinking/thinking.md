@@ -66,6 +66,8 @@ I now made MappingBasedNordeaLikeOk call only nordea_like_to_column_mapping. Now
 
 FOCUS!
 
+Found out that NORDEA csv table has an 'empty' 10:th column? This will be tideous (combinatorial explosion)!!
+
 ## 20260202
 
 I still feels STRONG resistance from the code against refactoring! I now want to try the approach to focus on function before form. So I know I have tests that fail for account statement file parse. And I have previosuly reasoned what processing steps I like to use.

@@ -77,10 +77,21 @@ namespace account {
             logger::development_trace(
               "row:{} map:{}"
               ,rows[i].to_string()
-              ,to_string(rows[i]));
+              ,to_string(rows_map[i]));
           } // for rows
 
-        }
+        } // log_the_rows_map
+
+        void print_the_rows_map(CSV::Table::Rows const& rows,RowsMap const& rows_map) {
+          for (size_t i=0;i<rows.size();++i) {
+            std::print(
+              "\nrow:{} map:{}"
+              ,rows[i].to_string()
+              ,to_string(rows_map[i]));
+          } // for rows
+
+        } // log_the_rows_map
+
 
         ColumnMapping skv_like_to_column_mapping(CSV::Table const& table) {
           logger::scope_logger log_raii(logger::development_trace,"skv_like_to_column_mapping");
@@ -145,14 +156,18 @@ namespace account {
 
           ColumnMapping result{};
 
-          auto rows_map = to_rows_map(table.rows);
+          auto const& rows = table.rows;
+          auto rows_map = to_rows_map(rows);
           if (true) log_the_rows_map(table.rows,rows_map);
 
           // Try for NORDEA like account statement table
+          std::print("\rows_map size {}",rows_map.size());
 
           if (rows_map.size() > 0) {
+            print_the_rows_map(rows,rows_map);
             // We expect row 0 to be column headers
             if ((rows_map[0].ixs.size() == 1 and rows_map[0].ixs.contains(FieldType::Text))) {
+              std::print("\nrow 0 = Header OK");
             }
           }
 
