@@ -135,9 +135,12 @@ namespace account {
           return AccountStatementEntry(*maybe_date, *maybe_amount, description);
         } // extract_entry_from_row
 
-
+        // Expose for testing
+        ColumnMapping to_column_mapping(CSV::Table const& table);
 
       } // table
+
+
 
       OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table);
       std::optional<AccountStatement> csv_table_to_account_statement_step(CSV::Table const& table,AccountID const& account_id);

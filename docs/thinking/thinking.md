@@ -2,6 +2,19 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260203
+
+I am loosing my confidence that I will be able to clean this code up. That I will be able to figure out a design that I am satisfied with. It is super frustrating that every attempt I do to make the code better, just adds more mess and unclearity to it? What is going on?
+
+Anyhow, I will struggle on and hope this is a hill to climb. And even if I do it inefficiently, I will be able to make progress to something better.
+
+Now I am going to just add code to experimentally parse the NORDEA-like accountment statement file and see what comes out.
+
+* I will add the code to detect_columns_from_data
+* I will add code before the SKV parsing code
+
+I now have introduced skv_like_to_column_mapping and nordea_like_to_column_mapping. I gutted out older code to its original content and placed in namespace to_deperecate. And I now have three 'to column mapping' options scanned by top to_column_mapping. Also added seed for testing to_column_mapping mechanism.
+
 ## 20260202
 
 I still feels STRONG resistance from the code against refactoring! I now want to try the approach to focus on function before form. So I know I have tests that fail for account statement file parse. And I have previosuly reasoned what processing steps I like to use.
@@ -85,6 +98,8 @@ Anyhow, Claude AI told me the solution that worked. Just remove the 'build/Debug
 ```sh
 rm -rf build/Debug && ./run.zsh --nop
 ```
+
+Note: It turned out this actually requires also an 'init_toolchain' call to restore the cmake configuration.
 
 Back to my original task! What does the code do?
 

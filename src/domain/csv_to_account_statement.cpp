@@ -59,273 +59,301 @@ namespace account {
           return result;
         }
 
-        ColumnMapping detect_columns_from_header(CSV::Table::Heading const& heading) {
+        std::string to_string(RowMap const& row_map) {
+          std::string result{};
 
-          logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_header");
+          for (auto const& entry : row_map.ixs) {
+            result += std::format(" {}",to_string(entry.first));
+            result += ":";
+            for (auto ix : entry.second) {
+              result += std::format(" {}",ix);
+            }
+          }
+          return result;
+        }
 
-          ColumnMapping mapping;
+        void log_the_rows_map(CSV::Table::Rows const& rows,RowsMap const& rows_map) {
+          for (size_t i=0;i<rows.size();++i) {
+            logger::development_trace(
+              "row:{} map:{}"
+              ,rows[i].to_string()
+              ,to_string(rows[i]));
+          } // for rows
 
-          // Helper to check if a string contains a keyword (case-insensitive)
-          auto contains_keyword = [](std::string_view text, std::vector<std::string_view> const& keywords) {
-            std::string lower_text;
-            lower_text.reserve(text.size());
-            std::ranges::transform(text, std::back_inserter(lower_text),
-              [](char c) { return std::tolower(c); });
+        }
 
-            return std::ranges::any_of(keywords, [&lower_text](std::string_view keyword) {
-              return lower_text.find(keyword) != std::string::npos;
-            });
-          };
+        ColumnMapping skv_like_to_column_mapping(CSV::Table const& table) {
+          logger::scope_logger log_raii(logger::development_trace,"skv_like_to_column_mapping");
 
-          // Date keywords
-          std::vector<std::string_view> date_keywords = {
-            "date", "datum", "bokföringsdag", "dag", "bokforingsdag"
-          };
+          ColumnMapping result{};
+          auto rows_map = to_rows_map(table.rows);
+          // Try for SKV account statement file
 
-          // Amount keywords
-          std::vector<std::string_view> amount_keywords = {
-            "amount", "belopp", "suma", "summa"
-          };
+          if (true) log_the_rows_map(table.rows,rows_map);
 
-          // Description keywords (prioritized)
-          std::vector<std::string_view> primary_description_keywords = {
-            "namn", "name", "description", "rubrik", "titel", "title"
-          };
+          auto is_skv_saldo_entry_candidate = [](auto const& row_map){
+              if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+              if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()!=1) return false;
+              return true;
+            };
+          auto in_saldo_candidate_iter = std::ranges::find_if(
+            rows_map
+            ,is_skv_saldo_entry_candidate
+          );
 
-          std::vector<std::string_view> secondary_description_keywords = {
-            "meddelande", "message", "text", "detaljer", "details"
-          };
+          if (in_saldo_candidate_iter != rows_map.end()) {
+            auto trans_span_begin = in_saldo_candidate_iter+1;
+            auto out_saldo_candidate_iter = std::find_if(
+              trans_span_begin
+              ,rows_map.end()
+              ,is_skv_saldo_entry_candidate
+            );
 
-          // Scan header columns
-          for (size_t i = 0; i < heading.size(); ++i) {
-            std::string col_name = heading[i];
+            if (out_saldo_candidate_iter != rows_map.end()) {
+              auto trans_span_end = out_saldo_candidate_iter;
+              // We have a span to check
+              auto key_map = *(in_saldo_candidate_iter+1);
+              auto is_skv_trans_entry_candidate = [&key_map](auto const& row_map){
+                if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+                if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()!=1) return false;
+                if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()!=2) return false;
+                return row_map.ixs == key_map.ixs;
+              };
 
-            // Check for date column
-            if (mapping.date_column == -1 && contains_keyword(col_name, date_keywords)) {
-              mapping.date_column = static_cast<int>(i);
+              if (std::all_of(
+                trans_span_begin
+                ,trans_span_end
+                ,is_skv_trans_entry_candidate
+              )) {
+                // Good enough - This is probably an SKV account statement csv file table
+                result.date_column = key_map.ixs.at(FieldType::Date).front();
+                result.description_column = key_map.ixs.at(FieldType::Text).front();
+                result.transaction_amount_column = key_map.ixs.at(FieldType::Amount)[0];
+                result.saldo_amount_column = key_map.ixs.at(FieldType::Amount)[1];
+              }
             }
 
-            // Check for transaction amount column
-            if (mapping.transaction_amount_column == -1 && contains_keyword(col_name, amount_keywords)) {
-              mapping.transaction_amount_column = static_cast<int>(i);
-            }
+          }
 
-            // Check for primary description column
-            if (mapping.description_column == -1 && contains_keyword(col_name, primary_description_keywords)) {
-              mapping.description_column = static_cast<int>(i);
-            }
+          if (true) logger::development_trace("returns result.is_valid:{}",result.is_valid());
 
-            // Check for additional description columns
-            if (contains_keyword(col_name, secondary_description_keywords)) {
-              mapping.additional_description_columns.push_back(static_cast<int>(i));
+          return result;
+        } // skv_like_to_column_mapping
+
+        ColumnMapping nordea_like_to_column_mapping(CSV::Table const& table) {
+          logger::scope_logger log_raii(logger::development_trace,"nordea_like_to_column_mapping");
+
+          ColumnMapping result{};
+
+          auto rows_map = to_rows_map(table.rows);
+          if (true) log_the_rows_map(table.rows,rows_map);
+
+          // Try for NORDEA like account statement table
+
+          if (rows_map.size() > 0) {
+            // We expect row 0 to be column headers
+            if ((rows_map[0].ixs.size() == 1 and rows_map[0].ixs.contains(FieldType::Text))) {
             }
           }
 
-          logger::development_trace("returns mapping.is_valid:{}",mapping.is_valid());
+          if (true) logger::development_trace("returns result.is_valid:{}",result.is_valid());
 
-          return mapping;
-        } // detect_columns_from_header
+          return result;
+        } // nordea_like_to_column_mapping
 
+        namespace to_deprecate {
+          ColumnMapping detect_columns_from_header(CSV::Table::Heading const& heading) {
 
-        ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
-          ColumnMapping mapping;
+            logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_header");
 
-          logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_data");
+            ColumnMapping mapping;
 
-          if (true) {
-            // Refactored to use per row RowsMap analysis
+            // Helper to check if a string contains a keyword (case-insensitive)
+            auto contains_keyword = [](std::string_view text, std::vector<std::string_view> const& keywords) {
+              std::string lower_text;
+              lower_text.reserve(text.size());
+              std::ranges::transform(text, std::back_inserter(lower_text),
+                [](char c) { return std::tolower(c); });
 
-            auto rows_map = to_rows_map(rows);
+              return std::ranges::any_of(keywords, [&lower_text](std::string_view keyword) {
+                return lower_text.find(keyword) != std::string::npos;
+              });
+            };
 
-            if (true) {
+            // Date keywords
+            std::vector<std::string_view> date_keywords = {
+              "date", "datum", "bokföringsdag", "dag", "bokforingsdag"
+            };
 
-              // Log
-              for (size_t i=0;i<rows.size();++i) {
-                std::string map_string{};
+            // Amount keywords
+            std::vector<std::string_view> amount_keywords = {
+              "amount", "belopp", "suma", "summa"
+            };
 
-                for (auto const& entry : rows_map[i].ixs) {
-                  map_string += std::format(" {}",to_string(entry.first));
-                  map_string += ":";
-                  for (auto ix : entry.second) {
-                    map_string += std::format(" {}",ix);
-                  }
+            // Description keywords (prioritized)
+            std::vector<std::string_view> primary_description_keywords = {
+              "namn", "name", "description", "rubrik", "titel", "title"
+            };
+
+            std::vector<std::string_view> secondary_description_keywords = {
+              "meddelande", "message", "text", "detaljer", "details"
+            };
+
+            // Scan header columns
+            for (size_t i = 0; i < heading.size(); ++i) {
+              std::string col_name = heading[i];
+
+              // Check for date column
+              if (mapping.date_column == -1 && contains_keyword(col_name, date_keywords)) {
+                mapping.date_column = static_cast<int>(i);
+              }
+
+              // Check for transaction amount column
+              if (mapping.transaction_amount_column == -1 && contains_keyword(col_name, amount_keywords)) {
+                mapping.transaction_amount_column = static_cast<int>(i);
+              }
+
+              // Check for primary description column
+              if (mapping.description_column == -1 && contains_keyword(col_name, primary_description_keywords)) {
+                mapping.description_column = static_cast<int>(i);
+              }
+
+              // Check for additional description columns
+              if (contains_keyword(col_name, secondary_description_keywords)) {
+                mapping.additional_description_columns.push_back(static_cast<int>(i));
+              }
+            }
+
+            logger::development_trace("returns mapping.is_valid:{}",mapping.is_valid());
+
+            return mapping;
+          } // detect_columns_from_header
+
+          ColumnMapping detect_columns_from_data(CSV::Table::Rows const& rows) {
+            ColumnMapping mapping;
+
+            logger::scope_logger log_raii(logger::development_trace,"detect_columns_from_data");
+
+            if (rows.empty()) {
+              return mapping;
+            }
+
+            // Determine number of columns
+            size_t num_columns = 0;
+            for (auto const& row : rows) {
+              num_columns = std::max(num_columns, row.size());
+            }
+
+            if (num_columns == 0) {
+              return mapping;
+            }
+
+            // Sample rows for analysis (skip empty first columns - balance rows)
+            auto sample_rows = 
+                rows
+              | std::views::filter([](auto const& row) {
+                  return row.size() > 0 && row[0].size() > 0;
+                })
+              | std::views::take(10);
+
+            std::vector<CSV::Table::Row> sampled;
+            std::ranges::copy(sample_rows, std::back_inserter(sampled));
+
+            if (sampled.empty()) {
+              logger::development_trace("if (sampled.empty()) -> returns mapping.is_valid:{}",mapping.is_valid());
+              return mapping;
+            }
+
+            // Check each column
+            for (size_t col = 0; col < num_columns; ++col) {
+
+              int valid_dates = 0;
+              int valid_amounts = 0;
+
+              for (auto const& row : sampled) {
+                if (col >= row.size() || row[col].size() == 0) {
+                  continue;
                 }
 
-                logger::development_trace(
-                   "row:{} map:{}"
-                  ,rows[i].to_string()
-                  ,map_string);
-              }
-
-              // Hard coded for SKV account statement file
-              {
-                auto is_skv_saldo_entry_candidate = [](auto const& row_map){
-                    if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
-                    if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()!=1) return false;
-                    return true;
-                  };
-                auto in_saldo_candidate_iter = std::ranges::find_if(
-                  rows_map
-                  ,is_skv_saldo_entry_candidate
-                );
-
-                if (in_saldo_candidate_iter != rows_map.end()) {
-                  auto trans_span_begin = in_saldo_candidate_iter+1;
-                  auto out_saldo_candidate_iter = std::find_if(
-                     trans_span_begin
-                    ,rows_map.end()
-                    ,is_skv_saldo_entry_candidate
-                  );
-
-                  if (out_saldo_candidate_iter != rows_map.end()) {
-                    auto trans_span_end = out_saldo_candidate_iter;
-                    // We have a span to check
-                    auto key_map = *(in_saldo_candidate_iter+1);
-                    auto is_skv_trans_entry_candidate = [&key_map](auto const& row_map){
-                      if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
-                      if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()!=1) return false;
-                      if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()!=2) return false;
-                      return row_map.ixs == key_map.ixs;
-                    };
-
-                    if (std::all_of(
-                       trans_span_begin
-                      ,trans_span_end
-                      ,is_skv_trans_entry_candidate
-                    )) {
-                      // Good enough - This is probably an SKV account statement csv file table
-                      mapping.date_column = key_map.ixs.at(FieldType::Date).front();
-                      mapping.description_column = key_map.ixs.at(FieldType::Text).front();
-                      mapping.transaction_amount_column = key_map.ixs.at(FieldType::Amount)[0];
-                      mapping.saldo_amount_column = key_map.ixs.at(FieldType::Amount)[1];
-                      return mapping;
-                    }
-                  }
-
+                if (to_date(row[col]).has_value()) {
+                  valid_dates++;
                 }
+                else if (to_amount(row[col]).has_value()) {
+                  valid_amounts++;
+                }
+                else {
+                  // Nor date or amount
+                }
+              } // for row
 
-              } // SKV statement table påarsing
-
-            } // true (Log)
-
-          } // true (Refactored)
-
-          // 'Older' table parser
-
-          if (rows.empty()) {
-            return mapping;
-          }
-
-          // Determine number of columns
-          size_t num_columns = 0;
-          for (auto const& row : rows) {
-            num_columns = std::max(num_columns, row.size());
-          }
-
-          if (num_columns == 0) {
-            return mapping;
-          }
-
-          // Sample rows for analysis (skip empty first columns - balance rows)
-          auto sample_rows = 
-              rows
-            | std::views::filter([](auto const& row) {
-                return row.size() > 0 && row[0].size() > 0;
-              })
-            | std::views::take(10);
-
-          std::vector<CSV::Table::Row> sampled;
-          std::ranges::copy(sample_rows, std::back_inserter(sampled));
-
-          if (sampled.empty()) {
-            logger::development_trace("if (sampled.empty()) -> returns mapping.is_valid:{}",mapping.is_valid());
-            return mapping;
-          }
-
-          // Check each column
-          for (size_t col = 0; col < num_columns; ++col) {
-
-            int valid_dates = 0;
-            int valid_amounts = 0;
-
-            for (auto const& row : sampled) {
-              if (col >= row.size() || row[col].size() == 0) {
-                continue;
+              if (valid_dates == sampled.size()) {
+                // Column is Date if ALL values are valid dates
+                mapping.date_column = static_cast<int>(col);
               }
-
-              if (to_date(row[col]).has_value()) {
-                valid_dates++;
-              }
-              else if (to_amount(row[col]).has_value()) {
-                valid_amounts++;
+              else if (valid_amounts == sampled.size()) {
+                // First amount column found becomes transaction amount
+                // Second amount column found becomes saldo amount
+                if (mapping.transaction_amount_column == -1) {
+                  mapping.transaction_amount_column = static_cast<int>(col);
+                }
+                else if (mapping.saldo_amount_column == -1) {
+                  mapping.saldo_amount_column = static_cast<int>(col);
+                }
               }
               else {
-                // Nor date or amount
+                // Not a date nor an amount column
               }
-            } // for row
+            } // for column
 
-            if (valid_dates == sampled.size()) {
-              // Column is Date if ALL values are valid dates
-              mapping.date_column = static_cast<int>(col);
-            }
-            else if (valid_amounts == sampled.size()) {
-              // First amount column found becomes transaction amount
-              // Second amount column found becomes saldo amount
-              if (mapping.transaction_amount_column == -1) {
-                mapping.transaction_amount_column = static_cast<int>(col);
-              }
-              else if (mapping.saldo_amount_column == -1) {
-                mapping.saldo_amount_column = static_cast<int>(col);
-              }
-            }
-            else {
-              // Not a date nor an amount column
-            }
-          } // for column
+            // Description is typically the first text column that's not date or amount
+            for (size_t col = 0; col < num_columns; ++col) {
+              if (static_cast<int>(col) != mapping.date_column &&
+                  static_cast<int>(col) != mapping.transaction_amount_column &&
+                  static_cast<int>(col) != mapping.saldo_amount_column &&
+                  mapping.description_column == -1) {
 
-          // Description is typically the first text column that's not date or amount
-          for (size_t col = 0; col < num_columns; ++col) {
-            if (static_cast<int>(col) != mapping.date_column &&
-                static_cast<int>(col) != mapping.transaction_amount_column &&
-                static_cast<int>(col) != mapping.saldo_amount_column &&
-                mapping.description_column == -1) {
+                // Check if column has substantial text content
+                bool has_text = false;
+                for (auto const& row : sampled) {
+                  if (col < row.size() && row[col].size() > 2) {
+                    has_text = true;
+                    break;
+                  }
+                }
 
-              // Check if column has substantial text content
-              bool has_text = false;
-              for (auto const& row : sampled) {
-                if (col < row.size() && row[col].size() > 2) {
-                  has_text = true;
-                  break;
+                if (has_text) {
+                  mapping.description_column = static_cast<int>(col);
                 }
               }
-
-              if (has_text) {
-                mapping.description_column = static_cast<int>(col);
-              }
             }
-          }
 
-          logger::development_trace("returns mapping.is_valid:{}",mapping.is_valid());
+            logger::development_trace("returns mapping.is_valid:{}",mapping.is_valid());
 
-          return mapping;
-        } // detect_columns_from_data
-
-        namespace detail {
+            return mapping;
+          } // detect_columns_from_data
 
           ColumnMapping to_column_mapping(CSV::Table const& table) {
             ColumnMapping result{};
-            result = table::detect_columns_from_header(table.heading);
+            result = table::to_deprecate::detect_columns_from_header(table.heading);
             if (!result.is_valid()) {
-              result = table::detect_columns_from_data(table.rows);
+              result = table::to_deprecate::detect_columns_from_data(table.rows);
             }
             return result;
           } // to_column_mapping
 
+        } // to_deprecate
+
+
+
+        namespace detail {
+
           using ColumnMappingFn = ColumnMapping(*)(CSV::Table const&);
 
-          constexpr std::array<ColumnMappingFn, 1> column_mapping_projectors = {
-              &to_column_mapping
-          };
+          constexpr std::array<ColumnMappingFn, 3> column_mapping_projectors = {
+             &table::skv_like_to_column_mapping
+            ,&table::nordea_like_to_column_mapping
+            ,&table::to_deprecate::to_column_mapping
+          }; 
 
 
         } // detail
