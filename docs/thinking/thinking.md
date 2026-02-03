@@ -77,7 +77,15 @@ DARN! The last row does NOT detect column 11 (why?). My code to require column 1
 * csv_row_to_fields ok?
 * Key::Path ok?
 
-I asked Calude Code to fix csv_row_to_fields (it skipped last empty field if end of string)
+I asked Calude Code to fix csv_row_to_fields (it skipped last empty field if at end of string).
+
+Aftert some work I now have nordea_like_to_column_mapping able to identify all 12 transaction entry candidates.
+
+* I think I am to harch demanding 11 coumns with the last one empty
+  - I can be much more lose to be able to parse variations on table format and still be safe?
+* I get false positioves on OCR matrched as amount
+  - Can I require an amount to be with decimals?
+  - Can I detect an OCR as a 'largeer than life' integer?
 
 ## 20260202
 

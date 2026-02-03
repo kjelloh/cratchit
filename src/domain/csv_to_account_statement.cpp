@@ -150,26 +150,55 @@ namespace account {
           if (true) log_the_rows_map(table.rows,rows_map);
 
           // Try for NORDEA like account statement table
-          logger::development_trace("\rows_map size {}",rows_map.size());
+          logger::development_trace("rows_map size {}",rows_map.size());
 
-          if (rows_map.size() > 0) {
-            // We expect row 0 to be column headers
-            if (std::ranges::all_of(rows_map,[](auto const& row_map){
-              // NOTE: The design is super inconveniant to check for
-              //       column 11 emtpy and nothing else...
-              bool is_ok = 
-                    row_map.ixs.contains(FieldType::Empty) 
-                and row_map.ixs.at(FieldType::Empty).size() > 0
-                and row_map.ixs.at(FieldType::Empty).back() == 10; // one empty column 10
-              return is_ok;
-            })) {
-              logger::development_trace("\nColumn ix 10 empty OK");
-              // logger::development_trace("\nrow 0 = Header OK");
-            }
-            else {
-              logger::development_trace("\nExpected column ix 10 to be empty");
-            }
+          if (rows_map.size() == 0) return {}; // Empty table
+          if (not std::ranges::all_of(rows_map,[](auto const& row_map){
+            // NOTE: The design is super inconveniant to check for
+            //       column 11 emtpy and nothing else...
+            bool is_ok = 
+                  row_map.ixs.contains(FieldType::Empty) 
+              and row_map.ixs.at(FieldType::Empty).size() > 0
+              and row_map.ixs.at(FieldType::Empty).back() == 10; // one empty column 10
+            return is_ok;
+          })) {
+            logger::development_trace("Expected column ix 10 to be empty");
+            return {};
           }
+          else {
+            logger::development_trace("Column ix 10 empty OK");
+          }
+
+          auto is_amount_and_saldo_entry_candidate = [](auto const& row_map){
+              if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+              if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()<2) return false;
+              if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
+              return true;
+            };
+
+          auto first_trans_iter_candidate = std::ranges::find_if(
+             rows_map
+            ,is_amount_and_saldo_entry_candidate);
+
+          if (first_trans_iter_candidate == rows_map.end()) {
+            logger::development_trace("No is_amount_and_saldo_entry_candidate match");
+          }
+
+          auto last_trans_iter_candidate = std::find_if_not(
+             first_trans_iter_candidate
+            ,rows_map.end()
+            ,is_amount_and_saldo_entry_candidate
+          );
+
+          auto trans_candidates_count = std::distance(first_trans_iter_candidate,last_trans_iter_candidate);
+
+          if (true) logger::development_trace("trans_candidates_count:{}",trans_candidates_count);
+
+          // TODO: Figure out amounts
+          //       Current code (20260203) treats OCR numbers (long digit strings) as amounts.
+          //       We get false negatives and three amounts in these entries.
+          //       1. Either filter out outliers by detecting amount columnms ALL entreis have
+          //       2. Or implement an OCR type and have to_rows_map populate with OCR type
 
           if (true) logger::development_trace("returns result.is_valid:{}",result.is_valid());
 
