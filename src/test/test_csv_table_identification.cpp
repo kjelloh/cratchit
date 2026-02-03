@@ -10,6 +10,28 @@ namespace tests::csv_table_identification {
 
   namespace account_statement_table_suite {
 
+    class AccountStatementTableTestFixture : public ::testing::Test {
+    protected:
+      // Helper to create a minimal CSV::Table with valid structure
+      static CSV::Table to_minimal_table() {
+        CSV::Table table;
+        table.heading = Key::Path(std::vector<std::string>{"Datum", "Belopp", "Namn"});
+        table.rows = {
+          Key::Path(std::vector<std::string>{"Datum", "Belopp", "Namn"}),  // Header row (duplicated as per CSV::Table convention)
+          Key::Path(std::vector<std::string>{"2025-01-15", "100,50", "Test Transaction"})
+        };
+        return table;
+      }
+    }; // AccountStatementTableTestFixture
+
+    TEST_F(AccountStatementTableTestFixture,MinimalParseOK) {
+      auto table = to_minimal_table();
+      auto mapping = account::statement::maybe::table::to_column_mapping(table);
+
+      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
+      ASSERT_TRUE(false) << "TODO: Impleent this test case";
+    }
+
     TEST(AccountStatementDetectionTests, GeneratedSingleRowMappingTest) {
       EXPECT_TRUE(false) << std::format("TODO: Implement GeneratedSingleRowMappingTest");   
     }
