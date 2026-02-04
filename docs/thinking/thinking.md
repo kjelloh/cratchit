@@ -16,6 +16,18 @@ Which is quite informative and also took care of intermittent OCR numbers gettin
 
 Now it seems we can dissmiss the table if we don't have one date, two amounts and at least one text in common?
 
+DARN! The NORDEA CSV file lists the transaction in falling date order!
+
+I wonder if I mayy be tempted to actually create a new table woth only the columnn I have identified as candidfates for account statement entries?
+
+* Then I can instantiate a normalised account statement csv table?
+* In this table I know where date, amlunts and text columns are.
+* And processing for transaction vs saldo amounts can be done more easy?
+* On the other hand. I then create a nomrlaised table BEFORE I have idnetified which is transaction and which is saldo amount?
+  - This is not a good 'nomrlaised' table.
+
+No, I think it is better if we sort the CSV table as soon as we have identified valid candidates and know where the date is.
+      
 ## 20260203
 
 I am loosing my confidence that I will be able to clean this code up. That I will be able to figure out a design that I am satisfied with. It is super frustrating that every attempt I do to make the code better, just adds more mess and unclearity to it? What is going on?

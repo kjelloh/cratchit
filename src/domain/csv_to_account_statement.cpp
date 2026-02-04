@@ -215,8 +215,59 @@ namespace account {
             return {};
           }
 
-          
 
+          // Identify tarsnaction vs saldo amount coumns
+          std::vector<std::pair<Amount,Amount>> saldos{};
+          saldos.push_back({}); // zero in saldo
+          auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
+          auto end_rix = std::distance(rows_map.begin(),last_trans_iter_candidate);
+          for (auto rix=begin_rix;rix<end_rix;++rix) {
+            auto const& row = rows[rix];
+            auto first_cix = common.ixs.at(FieldType::Amount).front();
+            auto second_cix = common.ixs.at(FieldType::Amount).back();
+            auto maybe_first_amount = to_amount(row[first_cix]);
+            auto maybe_second_amount = to_amount(row[second_cix]);
+            if (maybe_first_amount and maybe_second_amount) {
+              auto saldo = saldos.back();
+              saldo.first += *maybe_first_amount;
+              saldo.second += *maybe_second_amount;
+              saldos.push_back(saldo);
+            }
+            else {
+              if (true) logger::design_insufficiency("Expected two valid amount after successfull rows mapping");
+              return {};
+            }
+          }
+
+          if (saldos.size()<3) {
+            if (true) logger::design_insufficiency("nordea_like_to_column_mapping - Failed to determine saldo amount column for less than two entry candidates");
+            return {};
+          }
+
+          unsigned first_trans_second_saldo_count{};
+          unsigned first_saldo_second_trans_count{};
+          unsigned undetermined_amounts_count{};
+          for (size_t rhs_six=2;rhs_six<saldos.size();++rhs_six) {
+            auto lhs_six = rhs_six-1;
+            auto const& [lhs_first,lhs_second] = saldos[lhs_six];
+            auto const& [rhs_first,rhs_second] = saldos[rhs_six];
+
+            if (lhs_second+rhs_first == rhs_second) {
+              ++first_trans_second_saldo_count;
+            }
+            else if (lhs_first+rhs_second == rhs_first) {
+              ++first_saldo_second_trans_count;
+            }
+            else {
+              ++undetermined_amounts_count;
+            }
+          }
+
+          if (true) logger::development_trace(
+             "first_trans_second_saldo_count:{} first_saldo_second_trans_count:{} undetermined_amounts_count:{}"
+            ,first_trans_second_saldo_count
+            ,first_saldo_second_trans_count
+            ,undetermined_amounts_count);
 
           if (true) logger::development_trace("returns result.is_valid:{}",result.is_valid());
 
