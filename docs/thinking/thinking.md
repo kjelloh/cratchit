@@ -4,6 +4,18 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 
 ## 20260203
 
+A new day and a new idea. If I add the row map for each transaction entry candidate with 'intersection'. So if I 'accumulate' or 'fold' each candidate entry row map, then the resulting row map will only contain the common map of all rows.
+
+I implemented a 'fold' into a common row map and got for my NORDEA csv:
+
+```text
+  TRACE: common : Empty: 10 Date: 0 Amount: 1 8 Text: 4 5 9
+```
+
+Which is quite informative and also took care of intermittent OCR numbers getting confused for amounts.
+
+## 20260203
+
 I am loosing my confidence that I will be able to clean this code up. That I will be able to figure out a design that I am satisfied with. It is super frustrating that every attempt I do to make the code better, just adds more mess and unclearity to it? What is going on?
 
 Anyhow, I will struggle on and hope this is a hill to climb. And even if I do it inefficiently, I will be able to make progress to something better.

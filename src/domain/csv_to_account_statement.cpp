@@ -153,21 +153,6 @@ namespace account {
           logger::development_trace("rows_map size {}",rows_map.size());
 
           if (rows_map.size() == 0) return {}; // Empty table
-          if (not std::ranges::all_of(rows_map,[](auto const& row_map){
-            // NOTE: The design is super inconveniant to check for
-            //       column 11 emtpy and nothing else...
-            bool is_ok = 
-                  row_map.ixs.contains(FieldType::Empty) 
-              and row_map.ixs.at(FieldType::Empty).size() > 0
-              and row_map.ixs.at(FieldType::Empty).back() == 10; // one empty column 10
-            return is_ok;
-          })) {
-            logger::development_trace("Expected column ix 10 to be empty");
-            return {};
-          }
-          else {
-            logger::development_trace("Column ix 10 empty OK");
-          }
 
           auto is_amount_and_saldo_entry_candidate = [](auto const& row_map){
               if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
@@ -191,8 +176,31 @@ namespace account {
           );
 
           auto trans_candidates_count = std::distance(first_trans_iter_candidate,last_trans_iter_candidate);
-
           if (true) logger::development_trace("trans_candidates_count:{}",trans_candidates_count);
+
+          // Fold all candidate row maps using 'common' to get the common row map
+          auto iter = first_trans_iter_candidate +1;
+          auto iter_end = last_trans_iter_candidate;
+          auto common = *first_trans_iter_candidate;
+          while (iter != iter_end) {
+            auto const& rhs = *iter;
+            RowMap next{};
+            for (auto const& [lhs_type,lhs_v] : common.ixs) {
+              if (!rhs.ixs.contains(lhs_type)) continue;
+              auto const& rhs_v = rhs.ixs.at(lhs_type);
+              std::vector<FieldIx> intersection_v{};
+              std::ranges::set_intersection(
+                 lhs_v
+                ,rhs_v
+                ,std::back_inserter(intersection_v)
+              );
+              if (intersection_v.size()>0) next.ixs[lhs_type] = intersection_v;
+            }
+            common = next;
+            ++iter;
+          }
+
+          if (true) logger::development_trace("common :{}",to_string(common));
 
           // TODO: Figure out amounts
           //       Current code (20260203) treats OCR numbers (long digit strings) as amounts.

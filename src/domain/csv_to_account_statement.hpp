@@ -32,8 +32,10 @@ namespace account {
           ,Undefined
         };
 
+        using FieldIx = unsigned;
+
         struct RowMap {
-          std::map<FieldType,std::vector<unsigned>> ixs;
+          std::map<FieldType,std::vector<FieldIx>> ixs;
         };
 
         RowMap to_row_map(CSV::Table::Row const& row);
