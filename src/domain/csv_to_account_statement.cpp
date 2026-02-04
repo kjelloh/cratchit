@@ -202,11 +202,21 @@ namespace account {
 
           if (true) logger::development_trace("common :{}",to_string(common));
 
-          // TODO: Figure out amounts
-          //       Current code (20260203) treats OCR numbers (long digit strings) as amounts.
-          //       We get false negatives and three amounts in these entries.
-          //       1. Either filter out outliers by detecting amount columnms ALL entreis have
-          //       2. Or implement an OCR type and have to_rows_map populate with OCR type
+          if (!common.ixs.contains(FieldType::Date) or common.ixs.at(FieldType::Date).size() != 1) {
+            if (true) logger::development_trace("Expected common Date column");
+            return {};
+          }
+          if (!common.ixs.contains(FieldType::Amount) or common.ixs.at(FieldType::Amount).size() != 2) {
+            if (true) logger::development_trace("Expected two common amount columns");
+            return {};
+          }
+          if (!common.ixs.contains(FieldType::Text) or common.ixs.at(FieldType::Text).size() == 0) {
+            if (true) logger::development_trace("Expected at least one common text column");
+            return {};
+          }
+
+          
+
 
           if (true) logger::development_trace("returns result.is_valid:{}",result.is_valid());
 

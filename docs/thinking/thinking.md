@@ -14,6 +14,8 @@ I implemented a 'fold' into a common row map and got for my NORDEA csv:
 
 Which is quite informative and also took care of intermittent OCR numbers getting confused for amounts.
 
+Now it seems we can dissmiss the table if we don't have one date, two amounts and at least one text in common?
+
 ## 20260203
 
 I am loosing my confidence that I will be able to clean this code up. That I will be able to figure out a design that I am satisfied with. It is super frustrating that every attempt I do to make the code better, just adds more mess and unclearity to it? What is going on?
