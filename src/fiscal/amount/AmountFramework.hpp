@@ -6,6 +6,7 @@
 #include <optional> // std::optional
 #include <algorithm> // std::copy_if
 #include <iomanip> // std::setprecision,
+#include <cmath> // std::round
 #include <chrono> // std::chrono::year_month_day
 #include "FiscalPeriod.hpp" // fiscal Date and period classes 
 
@@ -131,8 +132,11 @@ namespace WrappedDoubleAmount {
     */
 
     // Amount += Amount
-    Amount operator+=(const Amount& other) { 
+    Amount operator+=(const Amount& other) {
       this->m_double_value += other.m_double_value;
+      // Clean out roudning errors
+      this->m_double_value = std::round(this->m_double_value * 100.0) / 100.0;
+      // TODO: Replace this amount with something like IntCentsAmount?
       return *this;
     }
 

@@ -217,25 +217,7 @@ namespace account {
 
           auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
           auto end_rix = std::distance(rows_map.begin(),trans_iter_candidates_end);
-          // Reverse order so we have raising date
-          bool is_in_falling_date_order{false};
-          if (begin_rix + 2 < end_rix) {
-            // We have something to reverse
-            auto date_cix = common.ixs.at(FieldType::Date).front();
-            auto maybe_top_date = to_date(rows[begin_rix][date_cix]);
-            auto maybe_bottom_date = to_date(rows[end_rix-1][date_cix]);
-            if (maybe_top_date and maybe_bottom_date) {
-              is_in_falling_date_order = (*maybe_top_date > *maybe_bottom_date);
-            }
-            else {
-              if (true) logger::design_insufficiency("Expected valid top and bottom dates after successfull mapping");
-              return {};
-            }
-          }
 
-          if (true) logger::development_trace("is_in_falling_date_order:{}",is_in_falling_date_order);
-
-          // Identify tarsnaction vs saldo amount coumns
           std::vector<std::pair<Amount,Amount>> amounts{};
           for (auto rix=begin_rix;rix<end_rix;++rix) {
             auto const& row = rows[rix];
@@ -260,21 +242,24 @@ namespace account {
           unsigned first_trans_second_saldo_count{};
           unsigned first_saldo_second_trans_count{};
           unsigned undetermined_amounts_count{};
-          for (size_t later_six=1;later_six<amounts.size();++later_six) {
-            auto earlier_six = later_six-1;
+          // Assume transactions are in revrese new-to-old order
+          for (size_t earlier_six=amounts.size()-1;earlier_six > 0;--earlier_six) {
+            auto later_six = earlier_six-1;
             auto [earlier_first,earlier_second] = amounts[earlier_six];
             auto [later_first,later_second] = amounts[later_six];
 
-            if (is_in_falling_date_order) {
-              std::swap(earlier_first,later_first);
-              std::swap(earlier_second,later_second);
-            }
-
             logger::development_trace(
                "earlier_first:{} earlier_second:{} later_first:{} later_second:{}"
-               ,::to_string(earlier_first)
+              ,::to_string(earlier_first)
+              ,::to_string(earlier_second)
+              ,::to_string(later_first)
+              ,::to_string(later_second));
+            
+            logger::development_trace(
+               "earlier_second:{} + later_first:{} = {} ==?== {} : later_second"
                ,::to_string(earlier_second)
                ,::to_string(later_first)
+               ,::to_string(earlier_second+later_first)
                ,::to_string(later_second));
 
             if (earlier_second+later_first == later_second) {

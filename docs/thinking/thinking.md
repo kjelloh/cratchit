@@ -57,6 +57,36 @@ So maybe what I need to do is to process the list one time first to last. If I f
 
 In this way I duck the problem of failing to reverse a list that must be?
 
+I hard coded traversing the entries in reverse order. I still initially got 4 undetermined matches. This turned out to be due to 'epsilon garbage' in my floating point based Amount types!
+
+I asked Claude Code to find and fix the problem. And it actually did! I am impressed.
+
+```c++
+namespace WrappedDoubleAmount {
+
+  class Amount {
+
+    // Amount += Amount
+    Amount operator+=(const Amount& other) {
+      this->m_double_value += other.m_double_value;
+      // Clean out roudning errors
+      this->m_double_value = std::round(this->m_double_value * 100.0) / 100.0;
+      // TODO: Replace this amount with something like IntCentsAmount?
+      return *this;
+    }
+
+```
+
+This is BAD!!!
+
+* I can NOT trust any Amount arithmetic results to not have 'epsilon garbage'?!
+* The fix is for '+' that uses '+='.
+* But what about '-', '*' and '/'?
+
+SHould I refactor into Amount as in IntCentsAmount? Is that even working?
+
+I REALLY have made som very bad decisions when I started off cratchit with Double amounts!!
+
 ## 20260203
 
 I am loosing my confidence that I will be able to clean this code up. That I will be able to figure out a design that I am satisfied with. It is super frustrating that every attempt I do to make the code better, just adds more mess and unclearity to it? What is going on?
