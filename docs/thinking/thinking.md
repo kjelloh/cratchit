@@ -27,7 +27,36 @@ I wonder if I mayy be tempted to actually create a new table woth only the colum
   - This is not a good 'nomrlaised' table.
 
 No, I think it is better if we sort the CSV table as soon as we have identified valid candidates and know where the date is.
-      
+
+WAIT! We can't sort the table!
+
+* We risk getting transaction on the same date in the wrong order.
+* That is, we need to either keep the order or reverse the order!
+* In this way the saldo will reflect the previous saldo + trans.
+* Otherwise 'previous' saldo may end up in the wrong location!
+
+WAIT. I have the core logic wrong anyhow. I implemented two running saldos. But I don't think I will be aböle to tell which one is transaction and which one is saldo from looking at those two? I will basically just get two salos that increment with the same amount each step.
+
+So what do we need?
+
+* I need the first and second amount as-is!
+* Now I can check if one 'after' amount is the sum of one 'before' amount and the other 'after' amount.
+
+I madew the change. I also introduced a flag to idnetify if the transactios are in falling date order. I now get a better matching:
+
+```text
+TRACE: first_trans_second_saldo_count:7 first_saldo_second_trans_count:0 undetermined_amounts_count:4
+```
+
+I still have undetermined matches though. I wonder if I am missing something here?
+
+* What if I have 2 or more transactions on the same date?
+* I still need to check them in reverse order to detect tarns vs saldo amount changes in the right order!
+
+So maybe what I need to do is to process the list one time first to last. If I fail to make sense of ALL amounts, I then try the reverse order as-is.
+
+In this way I duck the problem of failing to reverse a list that must be?
+
 ## 20260203
 
 I am loosing my confidence that I will be able to clean this code up. That I will be able to figure out a design that I am satisfied with. It is super frustrating that every attempt I do to make the code better, just adds more mess and unclearity to it? What is going on?

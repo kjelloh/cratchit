@@ -169,18 +169,18 @@ namespace account {
             logger::development_trace("No is_amount_and_saldo_entry_candidate match");
           }
 
-          auto last_trans_iter_candidate = std::find_if_not(
+          auto trans_iter_candidates_end = std::find_if_not(
              first_trans_iter_candidate
             ,rows_map.end()
             ,is_amount_and_saldo_entry_candidate
           );
 
-          auto trans_candidates_count = std::distance(first_trans_iter_candidate,last_trans_iter_candidate);
+          auto trans_candidates_count = std::distance(first_trans_iter_candidate,trans_iter_candidates_end);
           if (true) logger::development_trace("trans_candidates_count:{}",trans_candidates_count);
 
           // Fold all candidate row maps using 'common' to get the common row map
           auto iter = first_trans_iter_candidate +1;
-          auto iter_end = last_trans_iter_candidate;
+          auto iter_end = trans_iter_candidates_end;
           auto common = *first_trans_iter_candidate;
           while (iter != iter_end) {
             auto const& rhs = *iter;
@@ -215,12 +215,28 @@ namespace account {
             return {};
           }
 
+          auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
+          auto end_rix = std::distance(rows_map.begin(),trans_iter_candidates_end);
+          // Reverse order so we have raising date
+          bool is_in_falling_date_order{false};
+          if (begin_rix + 2 < end_rix) {
+            // We have something to reverse
+            auto date_cix = common.ixs.at(FieldType::Date).front();
+            auto maybe_top_date = to_date(rows[begin_rix][date_cix]);
+            auto maybe_bottom_date = to_date(rows[end_rix-1][date_cix]);
+            if (maybe_top_date and maybe_bottom_date) {
+              is_in_falling_date_order = (*maybe_top_date > *maybe_bottom_date);
+            }
+            else {
+              if (true) logger::design_insufficiency("Expected valid top and bottom dates after successfull mapping");
+              return {};
+            }
+          }
+
+          if (true) logger::development_trace("is_in_falling_date_order:{}",is_in_falling_date_order);
 
           // Identify tarsnaction vs saldo amount coumns
-          std::vector<std::pair<Amount,Amount>> saldos{};
-          saldos.push_back({}); // zero in saldo
-          auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
-          auto end_rix = std::distance(rows_map.begin(),last_trans_iter_candidate);
+          std::vector<std::pair<Amount,Amount>> amounts{};
           for (auto rix=begin_rix;rix<end_rix;++rix) {
             auto const& row = rows[rix];
             auto first_cix = common.ixs.at(FieldType::Amount).front();
@@ -228,10 +244,7 @@ namespace account {
             auto maybe_first_amount = to_amount(row[first_cix]);
             auto maybe_second_amount = to_amount(row[second_cix]);
             if (maybe_first_amount and maybe_second_amount) {
-              auto saldo = saldos.back();
-              saldo.first += *maybe_first_amount;
-              saldo.second += *maybe_second_amount;
-              saldos.push_back(saldo);
+              amounts.push_back({*maybe_first_amount,*maybe_second_amount});
             }
             else {
               if (true) logger::design_insufficiency("Expected two valid amount after successfull rows mapping");
@@ -239,7 +252,7 @@ namespace account {
             }
           }
 
-          if (saldos.size()<3) {
+          if (amounts.size()<2) {
             if (true) logger::design_insufficiency("nordea_like_to_column_mapping - Failed to determine saldo amount column for less than two entry candidates");
             return {};
           }
@@ -247,20 +260,36 @@ namespace account {
           unsigned first_trans_second_saldo_count{};
           unsigned first_saldo_second_trans_count{};
           unsigned undetermined_amounts_count{};
-          for (size_t rhs_six=2;rhs_six<saldos.size();++rhs_six) {
-            auto lhs_six = rhs_six-1;
-            auto const& [lhs_first,lhs_second] = saldos[lhs_six];
-            auto const& [rhs_first,rhs_second] = saldos[rhs_six];
+          for (size_t later_six=1;later_six<amounts.size();++later_six) {
+            auto earlier_six = later_six-1;
+            auto [earlier_first,earlier_second] = amounts[earlier_six];
+            auto [later_first,later_second] = amounts[later_six];
 
-            if (lhs_second+rhs_first == rhs_second) {
-              ++first_trans_second_saldo_count;
+            if (is_in_falling_date_order) {
+              std::swap(earlier_first,later_first);
+              std::swap(earlier_second,later_second);
             }
-            else if (lhs_first+rhs_second == rhs_first) {
+
+            logger::development_trace(
+               "earlier_first:{} earlier_second:{} later_first:{} later_second:{}"
+               ,::to_string(earlier_first)
+               ,::to_string(earlier_second)
+               ,::to_string(later_first)
+               ,::to_string(later_second));
+
+            if (earlier_second+later_first == later_second) {
+              ++first_trans_second_saldo_count;
+              logger::development_trace("first_trans_second_saldo_count:{}",first_trans_second_saldo_count);
+            }
+            else if (earlier_first+later_second == later_first) {
               ++first_saldo_second_trans_count;
+              logger::development_trace("first_saldo_second_trans_count:{}",first_saldo_second_trans_count);
             }
             else {
               ++undetermined_amounts_count;
+              logger::development_trace("undetermined_amounts_count:{}",undetermined_amounts_count);
             }
+
           }
 
           if (true) logger::development_trace(
