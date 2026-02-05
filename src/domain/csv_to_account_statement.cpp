@@ -321,8 +321,26 @@ namespace account {
           result.transaction_amount_column = common.ixs[FieldType::Amount].front();
           result.saldo_amount_column = common.ixs[FieldType::Amount].back();
 
-          // TODO: Inferr description_column
+          std::vector<std::string> text_coumn_values{};
+          std::map<FieldIx,std::string> text_columns_map{};
+          for (auto ix : common.ixs.at(FieldType::Text)) {
+            auto const& text = rows[0][ix];
+            text_columns_map[ix] = text;
+            text_coumn_values.push_back(text);
+          }
+          if (true) logger::development_trace("text_coumn_values:{}",text_coumn_values);
+          if (true) logger::development_trace("text_columns_map:{}",text_columns_map);
 
+          const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
+             {4, "Namn"}
+            ,{5, "Ytterligare detaljer"}
+            ,{9, "Valuta"}};
+
+          if (text_columns_map == NORDEA_TEXT_MAP) {
+            result.description_column = 4;
+            result.additional_description_columns.push_back(5);
+          }
+          
           if (true) logger::development_trace("returns result.is_valid:{}",result.is_valid());
 
           return result;

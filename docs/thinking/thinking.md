@@ -116,8 +116,70 @@ I came to the conclusion that operato== should focus on 'cents-equal'.
     } // operator==
 ```
 
+With this:
+
 * My NORDEA like parsing still works.
 * And I have not introduced any implicit rouding into existing Amount arithmetics.
+
+So back to nordea_like_to_column_mapping. It seems what is missing is to determine what column and/or columns to use for the 'caption' of the transaction entry from the account statement.
+
+What we can do next is to get the heading text of the common text columns? And then be tempted to match these to the known values in current NORDEA account statement and take it from there? In this way:
+
+* We can use the common text column headers as a key to what account statement we have?
+* Or even use the heading text of all the common columns as a key?
+
+Lets try and see where this gets us?
+
+I created a map from index -> text from row 0 and used as key to accept hard coded currently known NORDEA header content.
+
+```c++
+          std::vector<std::string> text_coumn_values{};
+          std::map<FieldIx,std::string> text_columns_map{};
+          for (auto ix : common.ixs.at(FieldType::Text)) {
+            auto const& text = rows[0][ix];
+            text_columns_map[ix] = text;
+            text_coumn_values.push_back(text);
+          }
+
+          // ...
+
+          const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
+             {4, "Namn"}
+            ,{5, "Ytterligare detaljer"}
+            ,{9, "Valuta"}};
+
+          if (text_columns_map == NORDEA_TEXT_MAP) {
+            result.description_column = 4;
+            result.additional_description_columns.push_back(5);
+          }
+
+```
+
+So now the mapping is actually complete! And I am down to only 5 failing tests.
+
+```sh
+[  PASSED  ] 336 tests.
+[  FAILED  ] 5 tests, listed below:
+[  FAILED  ] MonadicCompositionFixture.PathToAccountIDedTable
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring1
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring2
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring3
+[  FAILED  ] GenericStatementCSVTests.NORDEAStatementOk
+```
+
+But there is still much to do!
+
+* Should I refactor out the meta-creation code from  nordea_like_to_column_mapping?
+  - The key new thing seems to be generating the common rows map?
+  - The identified transaction candidates range is also good to have?
+* Should I make 'to account id:ed' apply this meta creation to identify NORDE?
+  - And then extend it to identofy SKV?
+* Or should I somehow inject account id after the mapping?
+  - But then I have no way of doing this as I only pass ColumnMapping (not the meta data)
+    along to the next step csv_table_to_account_statement_entries (from csv_table_to_account_statement_step)
+* It seems the easiest next step is to pass the new meta as is introduced by TableMeta to_account_statement_table_meta?
+
+AHA, I already have the architecture provided by TableMeta to_account_statement_table_meta?!
 
 ## 20260204
 
