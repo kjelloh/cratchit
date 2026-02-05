@@ -14,7 +14,83 @@ The idea for nordea_like_to_column_mapping mechanism is to:
 * Always iterate as-is first-to-last candidate rows.
 * Update both a 'newer-to-older' and 'older-to-newer' counters for trans_saldo and saldo_trans counters
 
-I now succeeded to identify tarns- vs saldo-columns for newer-to-older ordered statement entry candidates.
+I now succeeded to identify trans- vs saldo-columns for newer-to-older ordered statement entry candidates. I also made nordea_like_to_column_mapping bail out early on candidate match failure. In this way the code is stable against e.g. SKV-like account statements.
+
+I now adressed the fragility of WrappedDoubleAmount::Amount against rouding errors. I first cleaned up the class into hpp/cpp design. And introduced private setter and getter for the actual aggergated double value. The idea was to protect the stored double though the setter to never obtain an invalid cents amount value.
+
+I then asked Claude to help me with the prompt:
+
+```text
+> I want you to do as follows. First rename m_double_value to cause all access to generate compiler errors. I then want you to repeat the following procedure. 1. Compile the code. 2. Fix the first compilation 
+error with a call to the setter or getter as required. 3. Repeat 1 and 2 until the code compiles. Then 4. Fix the linker error by implementing the setter and getter in the cpp-file. What are your prosed 
+step-by-step strategy to do this? 
+```
+
+Claude code performed this task quite OK. Algthough maybe a bit too much to the letter? If I had done it myself I may have been tempted to actually dont use a getter.
+
+I did not commit the code that Claude generated. Instead I asked chatGPT about it. And it seems I have to think about the folloiwng:
+
+* Having a double based Amount will always cause cents drifting in arithmetic expressions.
+
+```c++
+  0.1 + 0.2 != 0.3
+
+  Amount a = 0.01;
+  for (int i=0; i<1000; ++i)
+      a += 0.01;
+
+  // Your rounding helps — but it does not eliminate intermediate precision drift.
+  // With doubles, rounding after each step helps — but you still rely on floating behavior between operations.
+```
+
+* We don't know what rouding to apply!
+
+```text
+Rounding Strategy Needs Definition
+You use:
+
+  std::round(value * 100.0) / 100.0;
+
+That is: round half away from zero
+
+But financial systems often require:
+* banker’s rounding (round half to even)
+* configurable rounding mode
+* currency-dependent precision
+
+Consider making rounding policy explicit and configurable.
+```
+
+* Rounding for * or / with scalar may accumulate errors?
+
+```text
+Multiplication by Scalar — Rounding Timing
+
+  Amount * scalar
+
+If scalar has many decimals, rounding at each operation may accumulate error. Integer-cents storage avoids this entirely.
+```
+
+So this is tricky! I already adressed the rounding Issue in some report generating code. So I risk breaking that code if I hard code rounding on the stored double directly?
+
+Decision: I reject the round-on-write for Amount for now.
+
+But I should try to remember that I can refactor the existing Amount to use a cents amount internally directly. In this way I may be able to refactor to a safer state wihtout introducing say the WrappedCentsAmount, IntCentsAmount, UnitAndCents
+
+I may come back to the comment in main to guide what to do?
+
+```c++
+      // TODO: Clean up the 'amount strong type' mess?
+      //       For now we have a lot (to many) of experimental strong-type-amounts?
+      //       But keep currency amounts strongly typed while being able to
+      //       apply correct rounding to integer amounts (possibly applying different roundings for different domains?).
+      //       E.g., Swedish tax agencly may define one way to round to integer amounts? While BAS accounding, banks
+      //       invoices etc. may apply (call for) roduing with truncation, floor, ceil etc?
+
+      // For now, go through UnitsAndCents as the intemediate candidate type.
+      // CentsAmount -> UnitAndCents -> Amount -> C++ double -> C++ int (applying std::round)
+
+```
 
 ## 20260204
 

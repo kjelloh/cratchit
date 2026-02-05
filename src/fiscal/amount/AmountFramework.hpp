@@ -143,7 +143,7 @@ namespace WrappedDoubleAmount {
     // Amount / Amount
     double operator/(const Amount& other) const;
     // Amount / double
-    Amount operator/(double divisor) const { return Amount(m_double_value / divisor); }
+    Amount operator/(double divisor) const;
 
     bool operator==(Amount const& other) const;
     auto operator<=>(Amount const& other) const {
@@ -154,8 +154,6 @@ namespace WrappedDoubleAmount {
     friend Amount operator*(double a, Amount const& b);
     
   private:
-    Amount& set_double_value();
-    double get_double_value() const;
     double m_double_value;
   }; // class Amount
 

@@ -68,6 +68,10 @@ namespace WrappedDoubleAmount {
       return m_double_value / other.m_double_value;
     } // operator/
 
+    Amount Amount::operator/(double divisor) const {
+      return Amount(m_double_value / divisor); 
+    }
+
     bool Amount::operator==(Amount const& other) const {
       return this->m_double_value == other.m_double_value;
     } // operator==
