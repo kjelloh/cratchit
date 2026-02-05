@@ -14,9 +14,6 @@ namespace WrappedCentsAmount {
   }
 }
 
-namespace WrappedDoubleAmount {
-} // namespace WrappedDoubleAmount
-
 namespace IntCentsAmount {
 } // namespace IntCentsAmount
 
@@ -39,7 +36,41 @@ namespace WrappedDoubleAmount {
         this->m_double_value = value; // ok    
       }
         
-    }
+    } // Amount
+
+    Amount& Amount::operator+=(const Amount& other) {
+      this->m_double_value += other.m_double_value;
+      // Clean out roudning errors
+      this->m_double_value = std::round(this->m_double_value * 100.0) / 100.0;
+      // TODO: Replace this amount with something like IntCentsAmount?
+      return *this;
+    } // operator+=
+
+    Amount Amount::operator+(const Amount& other) const {
+      Amount result{*this};
+      result += other;
+      return result;
+    } // operator+
+
+    Amount Amount::operator-(const Amount& other) const {
+      return Amount(m_double_value - other.m_double_value); 
+    } // operator-
+
+    Amount Amount::operator-() const {
+      return Amount(-m_double_value); 
+    } // operator-
+
+    Amount Amount::operator*(double scalar) const {
+      return Amount(m_double_value * scalar); 
+    } // operator*
+
+    double Amount::operator/(const Amount& other) const {
+      return m_double_value / other.m_double_value;
+    } // operator/
+
+    bool Amount::operator==(Amount const& other) const {
+      return this->m_double_value == other.m_double_value;
+    } // operator==
 
 } // namespace WrappedDoubleAmount
 

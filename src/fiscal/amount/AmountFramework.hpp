@@ -132,32 +132,20 @@ namespace WrappedDoubleAmount {
     */
 
     // Amount += Amount
-    Amount operator+=(const Amount& other) {
-      this->m_double_value += other.m_double_value;
-      // Clean out roudning errors
-      this->m_double_value = std::round(this->m_double_value * 100.0) / 100.0;
-      // TODO: Replace this amount with something like IntCentsAmount?
-      return *this;
-    }
-
+    Amount& operator+=(const Amount& other);
     // Amount + Amount
-    Amount operator+(const Amount& other) const {
-      Amount result{*this};
-      result += other;
-      return result;
-    }
-
+    Amount operator+(const Amount& other) const;
     // Amount - Amount
-    Amount operator-(const Amount& other) const { return Amount(m_double_value - other.m_double_value); }
-    Amount operator-() const { return Amount(-m_double_value); }
+    Amount operator-(const Amount& other) const;
+    Amount operator-() const;
     // Amount * double
-    Amount operator*(double scalar) const { return Amount(m_double_value * scalar); }
-    double operator/(const Amount& other) const { return m_double_value / other.m_double_value; }
-
+    Amount operator*(double scalar) const;
+    // Amount / Amount
+    double operator/(const Amount& other) const;
     // Amount / double
     Amount operator/(double divisor) const { return Amount(m_double_value / divisor); }
 
-    bool operator==(Amount const& other) const {return this->m_double_value == other.m_double_value;}
+    bool operator==(Amount const& other) const;
     auto operator<=>(Amount const& other) const {
       return this->m_double_value <=> other.m_double_value;
     }
@@ -166,6 +154,8 @@ namespace WrappedDoubleAmount {
     friend Amount operator*(double a, Amount const& b);
     
   private:
+    Amount& set_double_value();
+    double get_double_value() const;
     double m_double_value;
   }; // class Amount
 
