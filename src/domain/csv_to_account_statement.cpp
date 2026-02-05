@@ -166,7 +166,8 @@ namespace account {
             ,is_amount_and_saldo_entry_candidate);
 
           if (first_trans_iter_candidate == rows_map.end()) {
-            logger::development_trace("No is_amount_and_saldo_entry_candidate match");
+            logger::development_trace("nordea_like_to_column_mapping  No is_amount_and_saldo_entry_candidate match");
+            return {};
           }
 
           auto trans_iter_candidates_end = std::find_if_not(
