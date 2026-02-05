@@ -92,6 +92,33 @@ I may come back to the comment in main to guide what to do?
 
 ```
 
+I decided to remove also the rounding in Amount + and += operations. I don't trust this will not break code I already have that applies rouding. To still make the equal operations in trans- vs saldo-amount detection of nordea_like_to_column_mapping I instead made Amount::operator== be 'weaker' to not let rodung creap affect the result.
+
+```c++
+    bool Amount::operator==(Amount const& other) const {
+      // return this->m_double_value == other.m_double_value;
+      // Be 'kind' to not let floating point rouning errors affect the equality of cent-based currency amounts
+      constexpr double EPS = 0.00001;
+      return std::fabs(this->m_double_value - other.m_double_value) < EPS;      
+    } // operator==
+```
+
+Now chatting with my AI friends again even this was NOT good! It is a learning experience to see how AI totally fails to understand what the end goal is and just riffs off on the current literal context.
+
+I came to the conclusion that operato== should focus on 'cents-equal'.
+
+```c++
+    bool Amount::operator==(Amount const& other) const {
+      // return this->m_double_value == other.m_double_value;
+      // Hard code cents-based-equal
+      return std::llround(m_double_value * 100) ==
+            std::llround(other.m_double_value * 100);
+    } // operator==
+```
+
+* My NORDEA like parsing still works.
+* And I have not introduced any implicit rouding into existing Amount arithmetics.
+
 ## 20260204
 
 A new day and a new idea. If I add the row map for each transaction entry candidate with 'intersection'. So if I 'accumulate' or 'fold' each candidate entry row map, then the resulting row map will only contain the common map of all rows.

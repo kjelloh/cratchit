@@ -21,17 +21,20 @@ namespace WrappedDoubleAmount {
     Amount::Amount(double value)  {
       // Convert to integer representation of cents
       long long cents = static_cast<long long>(std::round(value * 100));
-      double converted_back = cents / 100.0;
-      auto error = std::fabs(value - converted_back);
+      double cent_rounded_value = cents / 100.0;
+      auto error = std::fabs(value - cent_rounded_value);
 
       // If the converted back value does not match the original, it had more than two decimal places
+      // Note 20260205 - It seems floating-point values cannot represent most decimal fractions exactly.
+      //                 Therefore value*100 and /100 can produce visible representation error.
+      //                 Example: 0.29 * 100 may become 28.999999999999996.
       // Note 240601 - The value 0.01 comes from practical testing. I still fail to understand
       //               how *100 followed by /100 can introduce such a large error?
       //               This code seems to work for now.
       //               TODO: refactor Cratchit to represent Currency values as whole integer cents to avoid the floating point precision problems!
       if (error > 0.01) {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") has more than two decimal places. Error:" << error << ". Rounded it to " << converted_back;
-        this->m_double_value = converted_back;
+        std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") has more than two decimal places. Error:" << error << ". Rounded it to " << cent_rounded_value;
+        this->m_double_value = cent_rounded_value;
       } else {
         this->m_double_value = value; // ok    
       }
@@ -40,9 +43,6 @@ namespace WrappedDoubleAmount {
 
     Amount& Amount::operator+=(const Amount& other) {
       this->m_double_value += other.m_double_value;
-      // Clean out roudning errors
-      this->m_double_value = std::round(this->m_double_value * 100.0) / 100.0;
-      // TODO: Replace this amount with something like IntCentsAmount?
       return *this;
     } // operator+=
 
@@ -73,7 +73,10 @@ namespace WrappedDoubleAmount {
     }
 
     bool Amount::operator==(Amount const& other) const {
-      return this->m_double_value == other.m_double_value;
+      // return this->m_double_value == other.m_double_value;
+      // Hard code cents-based-equal
+      return std::llround(m_double_value * 100) ==
+            std::llround(other.m_double_value * 100);
     } // operator==
 
 } // namespace WrappedDoubleAmount
