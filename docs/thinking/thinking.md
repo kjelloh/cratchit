@@ -2,7 +2,21 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
-## 20260203
+## 20260205
+
+Today I think I want to start with two things based on yesterdays sucess.
+
+* Make nordea_like_to_column_mapping detect forward and reversed dated transaction order tarsn and saldo amounts
+* Secure WrappedDoubleAmount::Amount against 'epsilon garbage'
+
+The idea for nordea_like_to_column_mapping mechanism is to:
+
+* Always iterate as-is first-to-last candidate rows.
+* Update both a 'newer-to-older' and 'older-to-newer' counters for trans_saldo and saldo_trans counters
+
+I now succeeded to identify tarns- vs saldo-columns for newer-to-older ordered statement entry candidates.
+
+## 20260204
 
 A new day and a new idea. If I add the row map for each transaction entry candidate with 'intersection'. So if I 'accumulate' or 'fold' each candidate entry row map, then the resulting row map will only contain the common map of all rows.
 

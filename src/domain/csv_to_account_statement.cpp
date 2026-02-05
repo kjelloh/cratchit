@@ -239,36 +239,36 @@ namespace account {
             return {};
           }
 
-          unsigned first_trans_second_saldo_count{};
-          unsigned first_saldo_second_trans_count{};
+          // Detect trans- vs saldo-amount columns
+          unsigned raising_date_first_trans_second_saldo_count{};
+          unsigned falling_date_first_trans_second_saldo_count{};
           unsigned undetermined_amounts_count{};
-          // Assume transactions are in revrese new-to-old order
-          for (size_t earlier_six=amounts.size()-1;earlier_six > 0;--earlier_six) {
-            auto later_six = earlier_six-1;
-            auto [earlier_first,earlier_second] = amounts[earlier_six];
-            auto [later_first,later_second] = amounts[later_six];
+          for (size_t pred_six=0;pred_six+1 < amounts.size();++pred_six) {
+            auto succ_six = pred_six+1;
+            auto [pred_first,pred_second] = amounts[pred_six];
+            auto [succ_first,succ_second] = amounts[succ_six];
 
             logger::development_trace(
-               "earlier_first:{} earlier_second:{} later_first:{} later_second:{}"
-              ,::to_string(earlier_first)
-              ,::to_string(earlier_second)
-              ,::to_string(later_first)
-              ,::to_string(later_second));
+               "pred_first:{} pred_second:{} succ_first:{} succ_second:{}"
+              ,::to_string(pred_first)
+              ,::to_string(pred_second)
+              ,::to_string(succ_first)
+              ,::to_string(succ_second));
             
             logger::development_trace(
-               "earlier_second:{} + later_first:{} = {} ==?== {} : later_second"
-               ,::to_string(earlier_second)
-               ,::to_string(later_first)
-               ,::to_string(earlier_second+later_first)
-               ,::to_string(later_second));
+               "pred_second:{} + succ_first:{} = {} ==?== {} : succ_second"
+               ,::to_string(pred_second)
+               ,::to_string(succ_first)
+               ,::to_string(pred_second+succ_first)
+               ,::to_string(succ_second));
 
-            if (earlier_second+later_first == later_second) {
-              ++first_trans_second_saldo_count;
-              logger::development_trace("first_trans_second_saldo_count:{}",first_trans_second_saldo_count);
+            if (pred_second+succ_first == succ_second) {
+              ++raising_date_first_trans_second_saldo_count;
+              logger::development_trace("raising_date_first_trans_second_saldo_count:{}",raising_date_first_trans_second_saldo_count);
             }
-            else if (earlier_first+later_second == later_first) {
-              ++first_saldo_second_trans_count;
-              logger::development_trace("first_saldo_second_trans_count:{}",first_saldo_second_trans_count);
+            else if (succ_second+pred_first == pred_second) {
+              ++falling_date_first_trans_second_saldo_count;
+              logger::development_trace("falling_date_first_trans_second_saldo_count:{}",falling_date_first_trans_second_saldo_count);
             }
             else {
               ++undetermined_amounts_count;
@@ -277,11 +277,50 @@ namespace account {
 
           }
 
+          // Log
           if (true) logger::development_trace(
-             "first_trans_second_saldo_count:{} first_saldo_second_trans_count:{} undetermined_amounts_count:{}"
-            ,first_trans_second_saldo_count
-            ,first_saldo_second_trans_count
+             "raising_date_first_trans_second_saldo_count:{} falling_date_first_trans_second_saldo_count:{}"
+            ,raising_date_first_trans_second_saldo_count
+            ,falling_date_first_trans_second_saldo_count);
+
+          if (true) logger::development_trace(
+             "undetermined_amounts_count:{}"
             ,undetermined_amounts_count);
+
+          // Bail out on fails
+          if (undetermined_amounts_count > 0) {
+            if (true) logger::development_trace(
+               "undetermined_amounts_count:{} should be 0 for amounts.size()-1:{}"
+              ,undetermined_amounts_count
+              ,amounts.size()-1);
+            return {};
+          }
+          if (     (falling_date_first_trans_second_saldo_count > 0) 
+               and (falling_date_first_trans_second_saldo_count != amounts.size()-1)) {
+            if (true) logger::development_trace(
+               "falling_date_first_trans_second_saldo_count:{} don't match amounts.size()-1:{}"
+              ,falling_date_first_trans_second_saldo_count
+              ,amounts.size()-1);
+            return {};
+          }
+          if (     (raising_date_first_trans_second_saldo_count > 0) 
+               and (raising_date_first_trans_second_saldo_count != amounts.size()-1)) {
+            if (true) logger::development_trace(
+               "raising_date_first_trans_second_saldo_count:{} don't match amounts.size()-1:{}"
+              ,falling_date_first_trans_second_saldo_count
+              ,amounts.size()-1);
+            return {};
+          }
+
+          bool is_new_to_old_order = (falling_date_first_trans_second_saldo_count>0);
+          if (true) logger::development_trace("is_new_to_old_order:{}",is_new_to_old_order);
+
+          // Register validated Date and amount columns
+          result.date_column = common.ixs[FieldType::Date].front();
+          result.transaction_amount_column = common.ixs[FieldType::Amount].front();
+          result.saldo_amount_column = common.ixs[FieldType::Amount].back();
+
+          // TODO: Inferr description_column
 
           if (true) logger::development_trace("returns result.is_valid:{}",result.is_valid());
 
