@@ -181,6 +181,69 @@ But there is still much to do!
 
 AHA, I already have the architecture provided by TableMeta to_account_statement_table_meta?!
 
+But where and how does 'account ID' end up?
+
+1. It is provided to:
+
+```c++
+
+      std::optional<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<AccountID> const& account_id_ed);
+
+      // Calling...
+
+      std::optional<AccountStatement> csv_table_to_account_statement_step(
+          CSV::Table const& table,
+          AccountID const& account_id);
+
+```
+
+2. And injected to:
+
+```c++
+        AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
+
+        logger::development_trace("Creating AccountStatement with {} entries and account_id: {}",
+          maybe_entries->size(), account_id.to_string());
+
+        return AccountStatement(*maybe_entries, meta);
+
+        // account_id_ed_to_account_statement_step
+
+```
+
+So some where in that chain it seems we should be able to inject account id based on our new meta data?
+
+But first I think I will 'tear apart' **nordea_like_to_column_mapping** into meta-creating part and meta-using part?
+
+NO. This was premature. I did get this far:
+
+```c++
+          struct TableMeta {
+            std::ptrdiff_t begin_rix;
+            std::ptrdiff_t end_rix;
+            RowMap common;
+          }; // TableMeta
+
+          TableMeta table_meta{};          
+
+```
+
+The approach feels kind-of ok. But the code got a bit quirky.
+
+* Does this code scale to be usable for SKV-like input also?
+* For the above yes - But the header-based check for NORDEA will NOT.
+  - SKV style inout does not use column header names.
+* Can I use 'common' as key to inferr account id?
+* I CAN already use common to identify a valid statement table
+  - At least in combination with trans- vs saldo- checking.
+* But what is a more secure way to identify NORDEA, SKV or others using the same mechanism?
+
+So what is a better approach?
+
+* I could make account id a mebre of TableMeta?
+* Then I am free to invent whatever quirky mechanism to determine different statement tables?
+* And I can always fall back to 'anonumous' account id for a valid statement table?
+
 ## 20260204
 
 A new day and a new idea. If I add the row map for each transaction entry candidate with 'intersection'. So if I 'accumulate' or 'fold' each candidate entry row map, then the resulting row map will only contain the common map of all rows.
