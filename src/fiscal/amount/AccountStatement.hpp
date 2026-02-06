@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fiscal/amount/AmountFramework.hpp" // Amount,...
+#include "csv/statement_table_meta.hpp" // AccountID,
 #include <expected>
 #include <variant>
 #include <map>
@@ -30,19 +31,7 @@ struct AccountStatementEntry {
 
 using AccountStatementEntries = std::vector<AccountStatementEntry>;
 using OptionalAccountStatementEntries = std::optional<AccountStatementEntries>;
-
-struct DomainPrefixedId {
-  std::string m_prefix; // E.g., NORDEA,PG,BG,IBAN,SKV,
-  std::string m_value; // E.g. a bank account, a PG account etc...
-  std::string to_string() const {
-    return std::format(
-       "{}{}"
-      ,((m_prefix.size()>0)?m_prefix + "::":std::string{}) // Prefixed -> <prefix>::
-      ,m_value);
-  }
-};
-
-using AccountID = DomainPrefixedId;
+using AccountID = account::statement::AccountID;
 
 inline AccountID make_account_id(std::string const& prefix, std::string const& value) {
   return AccountID{.m_prefix = prefix, .m_value = value};

@@ -69,7 +69,7 @@ namespace csv {
       return result;
     }
 
-    AccountID const& account_id = maybe_account_id_ed_md_table->meta;
+    AccountID const& account_id = maybe_account_id_ed_md_table->meta.account_id;
     CSV::Table const& identified_table = maybe_account_id_ed_md_table->defacto;
     result.push_message(std::format("(1) Step 6.5 complete: AccountID detected: '{}'",
       account_id.to_string()));
@@ -125,7 +125,7 @@ namespace csv {
       return result;
     }
 
-    AccountID const& account_id = maybe_account_id_ed_md_table->meta;
+    AccountID const& account_id = maybe_account_id_ed_md_table->meta.account_id;
     CSV::Table const& identified_table = maybe_account_id_ed_md_table->defacto;
     result.push_message(std::format("(2) Step 6.5 complete: AccountID detected: '{}'",
       account_id.to_string()));
@@ -210,7 +210,7 @@ namespace csv {
     }
 
     result.push_message(std::format("(3) Step 6.5 complete: AccountID detected: '{}'",
-      maybe_account_id_ed_md_table->meta.to_string()));
+      maybe_account_id_ed_md_table->meta.account_id.to_string()));
 
     // ============================================================
     // Step 7: MDTable<AccountID> -> AccountStatement
@@ -285,7 +285,7 @@ namespace csv {
       return result;
     }
 
-    AccountID const& account_id = maybe_account_id_ed_md_table->meta;
+    AccountID const& account_id = maybe_account_id_ed_md_table->meta.account_id;
     CSV::Table const& identified_table = maybe_account_id_ed_md_table->defacto;
     result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
       account_id.to_string()));

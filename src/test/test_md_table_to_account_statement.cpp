@@ -18,7 +18,7 @@ namespace tests {
     class MDTableToAccountStatementTestFixture : public ::testing::Test {
     protected:
       // Helper to create an MDTable from CSV text using the real parsing/detection pipeline
-      static std::optional<CSV::MDTable<AccountID>> make_md_table_from_csv(
+      static std::optional<CSV::MDTable<account::statement::TableMeta>> make_md_table_from_csv(
           std::string const& csv_text,
           char delimiter = ';') {
         auto maybe_table = CSV::parse::maybe::csv_to_table(csv_text, delimiter);
@@ -29,10 +29,10 @@ namespace tests {
       }
 
       // Helper to create an MDTable directly with specific AccountID and Table
-      static CSV::MDTable<AccountID> make_md_table(
+      static CSV::MDTable<account::statement::TableMeta> make_md_table(
           AccountID const& account_id,
           CSV::Table const& table) {
-        return CSV::MDTable<AccountID>{account_id, table};
+        return CSV::MDTable<account::statement::TableMeta>{account_id, table};
       }
 
       // Helper to create a minimal CSV::Table with valid structure
@@ -125,8 +125,8 @@ namespace tests {
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
 
       // Verify detected AccountID before transformation
-      EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA");
-      EXPECT_FALSE(maybe_md_table->meta.m_value.empty()) << "Expected account number to be detected";
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA");
+      EXPECT_FALSE(maybe_md_table->meta.account_id.m_value.empty()) << "Expected account number to be detected";
 
       // Transform MDTable to AccountStatement
       auto result = account::statement::maybe::account_id_ed_to_account_statement_step(*maybe_md_table);
@@ -151,7 +151,7 @@ namespace tests {
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
 
       // Verify detected AccountID
-      EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV");
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV");
 
       // Transform MDTable to AccountStatement
       auto result = account::statement::maybe::account_id_ed_to_account_statement_step(*maybe_md_table);
@@ -176,7 +176,7 @@ namespace tests {
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
 
       // Verify detected AccountID (should find org number 5567828172)
-      EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV");
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV");
 
       // Transform MDTable to AccountStatement
       auto result = account::statement::maybe::account_id_ed_to_account_statement_step(*maybe_md_table);

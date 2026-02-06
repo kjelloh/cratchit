@@ -244,12 +244,12 @@ namespace tests::csv_import_pipeline {
       }
       else {
         result.push_message(std::format("(3) Step 6.5 complete: AccountID detected: '{}'",
-          maybe_account_id_ed_md_table->meta.to_string()));
+          maybe_account_id_ed_md_table->meta.account_id.to_string()));
       }
 
       ASSERT_TRUE(maybe_account_id_ed_md_table) << "Expected successfull id:ed table";
 
-      AccountID const& account_id = maybe_account_id_ed_md_table->meta;
+      AccountID const& account_id = maybe_account_id_ed_md_table->meta.account_id;
       CSV::Table const& identified_table = maybe_account_id_ed_md_table->defacto;
       result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
         account_id.to_string()));
@@ -2290,7 +2290,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta);
+      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta.account_id);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2321,7 +2321,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta);
+      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta.account_id);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2431,7 +2431,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_md_table.has_value()) << "Step 2: Failed to extract AccountID";
 
       // Step 3: Create AccountStatement with table + AccountID (from MDTable)
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta);
+      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_md_table->defacto, maybe_md_table->meta.account_id);
       ASSERT_TRUE(maybe_statement.has_value()) << "Step 3: Failed to create AccountStatement";
 
       // Verify complete result
@@ -2467,7 +2467,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for NORDEA CSV";
-      EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA")
         << "Expected NORDEA prefix for NORDEA bank statement";
 
       // Verify the table is preserved in defacto
@@ -2477,7 +2477,7 @@ Alice,30,"Stockholm, Sweden"
       // The NORDEA CSV has account numbers in the Avsandare column
       // Looking at the test data, some rows have empty Avsandare, but row with Insattning has "32592317244"
       // So we expect some account number to be extracted
-      logger::development_trace("Extracted NORDEA account: '{}'", maybe_md_table->meta.m_value);
+      logger::development_trace("Extracted NORDEA account: '{}'", maybe_md_table->meta.account_id.m_value);
 
       // The account value should not be empty for NORDEA CSV with valid data
       // Note: In the sample data, the Avsandare column is mostly empty, but we still detect NORDEA format
@@ -2495,9 +2495,9 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
-      EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV")
         << "Expected SKV prefix for tax agency statement";
-      EXPECT_EQ(maybe_md_table->meta.m_value, "5567828172")
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_value, "5567828172")
         << "Expected org number extracted from SKV CSV header";
     }
 
@@ -2513,10 +2513,10 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
-      EXPECT_EQ(maybe_md_table->meta.m_prefix, "SKV")
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV")
         << "Expected SKV prefix for tax agency statement";
       // Older format may or may not have org number - we just verify it's detected as SKV
-      logger::development_trace("Extracted SKV org number from older format: '{}'", maybe_md_table->meta.m_value);
+      logger::development_trace("Extracted SKV org number from older format: '{}'", maybe_md_table->meta.account_id.m_value);
     }
 
     TEST(AccountIdTests, UnknownCsvReturnsNullopt) {
@@ -2581,7 +2581,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(nordea_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
-      EXPECT_EQ(maybe_md_table->meta.m_prefix, "NORDEA")
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA")
         << "Expected NORDEA prefix when header contains NORDEA keywords";
     }
 

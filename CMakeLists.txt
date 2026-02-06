@@ -36,6 +36,9 @@ find_package(GTest REQUIRED)
 
 add_executable(
         cratchit
+
+        src/csv/statement_table_meta.cpp
+
         src/test/test_runner.cpp
         src/test/test_fixtures.cpp
         src/test/test_integrations.cpp

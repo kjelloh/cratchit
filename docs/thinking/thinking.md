@@ -101,6 +101,13 @@ I already have:
 * I introduced namespace to_deprecate and moved existing NORDEA, SKV and generic 'to id:ed' code there
 * I removed test_generic_account_statement_csv.cpp unit (now deprecated)
 
+I then needed a new place for AccountID and the meta data now in csv_to_account_statement.
+
+* I introuduced new unit statement_table_meta.hpp
+* I moved DomainPrefixedId and AccountID there.
+* I replaced passing of ```c++ CSV::MDTable<AccountID> ``` with ```c++  CSV::MDTable<account::statement::TableMeta> ```
+* I adapted all call sites accordingly  
+
 ## 20260205
 
 Today I think I want to start with two things based on yesterdays sucess.
