@@ -2,6 +2,105 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260206
+
+It just struck me - The 'to accound id:ed' step and mechanism and the to_column_mapping mechanism is the SAME step!
+
+It is also the case the the to_column_mapping is not exposed as a maybe-step. So it seems we should be able to make the 'to account id:ed' step become the meta-analysis we now have in to_column_mapping?
+
+So How can we test this proposal? What if:
+
+* We rename to_account_id_ed_step to to_statement_mapped_step?
+* We extend the transfer of ```c++ MDTable<AccountID> ````
+  to transfer ```c++ MDTable<TableMeta> ```
+* We can do this by moving the meta-code 
+  from cvs_to_account_statement/account::statement::maybe::table
+  to csv_to_account_id/account::statement *new* namespace meta?
+
+I could for example try this:
+
+1. Rename csv_to_account_id unit to table_to_mapped_statement unit
+2. Add table_to_statement_mapped/account::statement::meta
+3. Move meta-code from cvs_to_account_statement/account::statement::maybe::table
+  - FieldType
+  - FieldIx
+  - RowMap
+  - to_row_map, to_rows_map
+  - ColumnMapping
+  - TableMeta
+  - to_account_statement_table_meta
+  - 
+4. Make TableMeta carry the new meta values produced by nordea_like_to_column_mapping
+5. Make to_account_statement_table_meta produce the meta data
+  - Also no longer produce ColumnMapping
+6. Make csv_table_to_account_statement_entries use statement meta:
+  - From current:
+
+```c++
+        AccountStatementEntries entries;
+
+        for (auto const& row : table.rows) {
+          auto maybe_entry = extract_entry_from_row(row, mapping);
+          if (maybe_entry) {
+            entries.push_back(*maybe_entry);
+          }
+        }
+```
+
+  - To instead iterate rix begin,end in statement meta
+
+```c++
+        AccountStatementEntries entries;
+
+        for (auto rix = meta.rix_begin;rix<meta.rix_end;++rix ) {
+          auto maybe_entry = extract_entry_from_row(rows[rix], meta.mapping);
+          if (maybe_entry) {
+            entries.push_back(*maybe_entry);
+          }
+          else {
+            // DESIGN INSUFFICIENCY - Should succeed for valdi statement mapping (meta)
+          }
+        }
+```
+
+Can I do it without loosing track? Let's try!
+
+You know what? I think I go for a new step from a new unit?
+
+* New unit table_to_mapped_statement
+* New table_to_mapped_statement_step
+* New 'receiver step' cvs_to_account_statement/mapped_statement_to_manifetsed_step
+
+The downside to this apporach is that I side-step existing tests and also need a new test for the new step?
+
+ARGH! How hard can this be?!!!
+
+NO, I think I should try and operate on a living patient after all!
+
+Can I implement the changed data transfer without changing any names for now? That is keep:
+
+```c++
+  .and_then(account::statement::monadic::to_account_id_ed_step)
+  .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+```
+
+* But to_account_id_ed_step now returns the mapped statement table?
+* And account_id_ed_to_account_statement_step takes this mapped statement table?
+
+What would it look like to just do it without any (or as few as possible) name changes?
+
+I already have:
+
+```c++
+      inline std::optional<CSV::MDTable<generic::EntryMaps>> to_entries_mapped(CSV::Table const& table) {
+        return generic::to_entries_mapped(table);
+      }
+
+```
+
+* I introduced namespace to_deprecate and moved existing NORDEA, SKV and generic 'to id:ed' code there
+* I removed test_generic_account_statement_csv.cpp unit (now deprecated)
+
 ## 20260205
 
 Today I think I want to start with two things based on yesterdays sucess.

@@ -48,7 +48,6 @@ add_executable(
         src/test/test_md_table_to_account_statement.cpp
         src/test/test_swedish_bank_account.cpp
         src/test/test_giro_framework.cpp
-        src/test/test_generic_account_statement_csv.cpp
         src/test/zeroth/test_zeroth.cpp
         src/test/test_csv_table_identification.cpp
 
