@@ -32,7 +32,9 @@ namespace tests {
       static CSV::MDTable<account::statement::TableMeta> make_md_table(
           AccountID const& account_id,
           CSV::Table const& table) {
-        return CSV::MDTable<account::statement::TableMeta>{account_id, table};
+        return CSV::MDTable<account::statement::TableMeta>{
+          {account_id,{}}
+          ,table};
       }
 
       // Helper to create a minimal CSV::Table with valid structure

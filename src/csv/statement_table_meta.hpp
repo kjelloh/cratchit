@@ -17,8 +17,12 @@ namespace account {
 
     using AccountID = DomainPrefixedId;
 
+    struct StatementMapping {
+    }; // StatementMapping
+
     struct TableMeta {
       AccountID account_id;
+      StatementMapping mapping;
     }; // TableMeta
 
   } // statement

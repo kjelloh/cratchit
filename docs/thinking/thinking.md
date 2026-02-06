@@ -113,6 +113,42 @@ I now cleaned up and:
 * Replaced all snippets 'account_id_ed' with 'statement_id_ed'
 * Renamed src/csv/csv_to_account_id.cpp to src/csv/csv_to_statement_id_ed.cpp
 
+OK. So whats next? I am now passing TableMeta.
+
+```c++
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+```
+
+So now we want to:
+
+* Remove the mechanism that produce and use the meta-data in statement_id_ed_to_account_statement_step. 
+* And instead produce it at to_statement_id_ed_step and pass it on.
+
+So far we have:
+
+```c++
+    struct TableMeta {
+      AccountID account_id;
+    }; // TableMeta
+
+```
+
+We need to:
+
+* Extend the content.
+* Have a function: Table -> TableMeta
+* Put this function in statement_table_meta unit
+
+We can clone the existing nordea_like_to_column_mapping into nordea_like_to_statement_mapping and return TableMeta?
+
+* No, this does not work.
+* We have the code that creates AccountID in csv_to_statement_id_ed.
+* So, ok, we can have the production nordea_like_to_statement_mapping in csv_to_statement_id_ed?
+  - Then statement_table_meta unit is just the types (not the production).
+
+AHA! We need a StatementMapping type! With the stuff created by nordea_like_to_column_mapping.
+
 ## 20260205
 
 Today I think I want to start with two things based on yesterdays sucess.
