@@ -640,13 +640,13 @@ namespace account {
         return AccountStatement(*maybe_entries, meta);
       } // csv_table_to_account_statement_step
 
-      std::optional<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& account_id_ed) {
+      std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& statement_id_ed) {
         logger::scope_logger log_raii{logger::development_trace,
-          "account_id_ed_to_account_statement_step(account_id_ed)"};
+          "statement_id_ed_to_account_statement_step(statement_id_ed)"};
 
         // Extract components from MDTable
-        CSV::Table const& table = account_id_ed.defacto;
-        AccountID const& account_id = account_id_ed.meta.account_id;
+        CSV::Table const& table = statement_id_ed.defacto;
+        AccountID const& account_id = statement_id_ed.meta.account_id;
 
         logger::development_trace("Processing MDTable with AccountID: '{}'", account_id.to_string());
 
@@ -665,20 +665,20 @@ namespace account {
           maybe_entries->size(), account_id.to_string());
 
         return AccountStatement(*maybe_entries, meta);
-      } // account_id_ed_to_account_statement_step
+      } // statement_id_ed_to_account_statement_step
 
 
     } // maybe
 
     namespace monadic {
 
-      AnnotatedMaybe<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& account_id_ed) {
+      AnnotatedMaybe<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& statement_id_ed) {
 
         auto f = cratchit::functional::to_annotated_maybe_f(
-           account::statement::maybe::account_id_ed_to_account_statement_step
+           account::statement::maybe::statement_id_ed_to_account_statement_step
           ,"Account ID.ed table -> account statement failed");
 
-        return f(account_id_ed);
+        return f(statement_id_ed);
 
       }
 

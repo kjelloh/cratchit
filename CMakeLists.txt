@@ -105,7 +105,7 @@ add_executable(
         src/text/functional.cpp
         src/domain/csv_to_account_statement.cpp
         src/cpp_compile_playground.cpp
-        src/csv/csv_to_account_id.cpp
+        src/csv/csv_to_statement_id_ed.cpp
         src/text/encoding_pipeline.cpp
         src/domain/account_statement_to_tagged_amounts.cpp
         src/persistent/in/raw_text_read.cpp

@@ -7,7 +7,7 @@
 #include "text/encoding_pipeline.hpp"
 #include "csv/parse_csv.hpp"
 #include "domain/csv_to_account_statement.hpp"
-#include "csv/csv_to_account_id.hpp"
+#include "csv/csv_to_statement_id_ed.hpp"
 #include "csv/import_pipeline.hpp"
 #include "test/data/account_statements_csv.hpp"
 #include "domain/csv_to_account_statement.hpp"
@@ -109,7 +109,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(MonadicCompositionFixture,PathToAccountIDedTable) {
       logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountIDedTable)");
 
-      auto maybe_account_id_ed_table = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+      auto maybe_statement_id_ed_table = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
@@ -118,13 +118,13 @@ namespace tests::csv_import_pipeline {
           CSV::parse::maybe::csv_text_to_table_step
           ,"Failed to parse csv into a valid table"))
         .and_then(cratchit::functional::to_annotated_maybe_f(
-           account::statement::maybe::to_account_id_ed_step
+           account::statement::maybe::to_statement_id_ed_step
           ,"Failed to identify account statement csv table account id"
         ));
 
-      ASSERT_TRUE(maybe_account_id_ed_table) 
+      ASSERT_TRUE(maybe_statement_id_ed_table) 
         << "Expected successful account ID identification"
-        << "Got messages:" << maybe_account_id_ed_table.to_caption();
+        << "Got messages:" << maybe_statement_id_ed_table.to_caption();
     }
 
     TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring0) {
@@ -145,8 +145,8 @@ namespace tests::csv_import_pipeline {
       //   .and_then(text::encoding::monadic::to_platform_encoded_string_step)
 
       //   .and_then(CSV::parse::monadic::csv_text_to_table_step)
-      //   .and_then(account::statement::monadic::to_account_id_ed_step)
-      //   .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+      //   .and_then(account::statement::monadic::to_statement_id_ed_step)
+      //   .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
       //   .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected and_then aggregation to succeed at all steps";
@@ -164,8 +164,8 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(CSV::parse::monadic::csv_text_to_table_step)
-        .and_then(account::statement::monadic::to_account_id_ed_step)
-        .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
         .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(maybe_tagged_amounts) << "Failed with messages:" << maybe_tagged_amounts.to_caption();
@@ -185,8 +185,8 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
         .and_then(CSV::parse::monadic::csv_text_to_table_step)
-        .and_then(account::statement::monadic::to_account_id_ed_step)
-        .and_then(account::statement::monadic::account_id_ed_to_account_statement_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
         .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(maybe_tagged_amounts) << "Failed with messages:" << maybe_tagged_amounts.to_caption();
@@ -236,21 +236,21 @@ namespace tests::csv_import_pipeline {
 
       ASSERT_TRUE(maybe_table) << "Expected successfull table";
 
-      auto maybe_account_id_ed_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_statement_id_ed_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
-      if (!maybe_account_id_ed_md_table) {
+      if (!maybe_statement_id_ed_md_table) {
         // Unknown format - fully unknown AccountID (no prefix, no value)
         result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
       }
       else {
         result.push_message(std::format("(3) Step 6.5 complete: AccountID detected: '{}'",
-          maybe_account_id_ed_md_table->meta.account_id.to_string()));
+          maybe_statement_id_ed_md_table->meta.account_id.to_string()));
       }
 
-      ASSERT_TRUE(maybe_account_id_ed_md_table) << "Expected successfull id:ed table";
+      ASSERT_TRUE(maybe_statement_id_ed_md_table) << "Expected successfull id:ed table";
 
-      AccountID const& account_id = maybe_account_id_ed_md_table->meta.account_id;
-      CSV::Table const& identified_table = maybe_account_id_ed_md_table->defacto;
+      AccountID const& account_id = maybe_statement_id_ed_md_table->meta.account_id;
+      CSV::Table const& identified_table = maybe_statement_id_ed_md_table->defacto;
       result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
         account_id.to_string()));
 
@@ -2285,8 +2285,8 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
-      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed_step
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      // Extract MDTable<AccountID> using account::statement::maybe::to_statement_id_ed_step
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
@@ -2316,8 +2316,8 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
 
-      // Extract MDTable<AccountID> using account::statement::maybe::to_account_id_ed_step
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      // Extract MDTable<AccountID> using account::statement::maybe::to_statement_id_ed_step
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
       // Use the new combined function with meta (AccountID) and defacto (table)
@@ -2427,7 +2427,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Step 1: Failed to parse CSV";
 
       // Step 2: Extract MDTable<AccountID> from table
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Step 2: Failed to extract AccountID";
 
       // Step 3: Create AccountStatement with table + AccountID (from MDTable)
@@ -2452,7 +2452,7 @@ Alice,30,"Stockholm, Sweden"
 
   namespace account_id_suite {
 
-    // AccountID extraction tests for account::statement::maybe::to_account_id_ed_step function
+    // AccountID extraction tests for account::statement::maybe::to_statement_id_ed_step function
     // Tests the extraction of MDTable<AccountID> (table paired with AccountID) from CSV::Table
 
     TEST(AccountIdTests, ExtractNordeaAccountId) {
@@ -2464,7 +2464,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for NORDEA CSV";
       EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA")
@@ -2492,7 +2492,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (newer format)";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
       EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV")
@@ -2510,7 +2510,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV (older format)";
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID> for SKV CSV";
       EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV")
@@ -2528,7 +2528,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
 
       // Extract MDTable<AccountID> - should fail for unknown format
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
       // Unknown format should return nullopt (fully unknown AccountID is a failure)
       EXPECT_FALSE(maybe_md_table.has_value())
@@ -2543,7 +2543,7 @@ Alice,30,"Stockholm, Sweden"
       // heading and rows are default-constructed (empty)
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(empty_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(empty_table);
 
       EXPECT_FALSE(maybe_md_table.has_value())
         << "Expected nullopt for empty CSV::Table";
@@ -2559,7 +2559,7 @@ Alice,30,"Stockholm, Sweden"
       header_only_table.rows = {};
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(header_only_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(header_only_table);
 
       // Unknown format (neither NORDEA nor SKV) should return nullopt
       EXPECT_FALSE(maybe_md_table.has_value())
@@ -2578,7 +2578,7 @@ Alice,30,"Stockholm, Sweden"
       nordea_table.rows = {nordea_table.heading};  // Include header as first row (current behavior)
 
       // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(nordea_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(nordea_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
       EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA")

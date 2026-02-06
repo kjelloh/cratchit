@@ -161,7 +161,7 @@ namespace tests::csv_table_identification {
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
       auto table_meta = account::statement::maybe::table::to_account_statement_table_meta(maybe_md_table->defacto);
@@ -177,7 +177,7 @@ namespace tests::csv_table_identification {
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse SKV CSV";
 
-      auto maybe_md_table = account::statement::maybe::to_account_id_ed_step(*maybe_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from SKV CSV";
 
 

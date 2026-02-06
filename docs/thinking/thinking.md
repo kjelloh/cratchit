@@ -108,6 +108,11 @@ I then needed a new place for AccountID and the meta data now in csv_to_account_
 * I replaced passing of ```c++ CSV::MDTable<AccountID> ``` with ```c++  CSV::MDTable<account::statement::TableMeta> ```
 * I adapted all call sites accordingly  
 
+I now cleaned up and:
+
+* Replaced all snippets 'account_id_ed' with 'statement_id_ed'
+* Renamed src/csv/csv_to_account_id.cpp to src/csv/csv_to_statement_id_ed.cpp
+
 ## 20260205
 
 Today I think I want to start with two things based on yesterdays sucess.

@@ -355,12 +355,12 @@ namespace account {
 
     namespace maybe {
 
-      std::optional<CSV::MDTable<account::statement::TableMeta>> to_account_id_ed_step(CSV::Table const& table);
+      std::optional<CSV::MDTable<account::statement::TableMeta>> to_statement_id_ed_step(CSV::Table const& table);
 
     } // maybe
 
     namespace monadic {
-      AnnotatedMaybe<CSV::MDTable<account::statement::TableMeta>> to_account_id_ed_step(CSV::Table const& table);
+      AnnotatedMaybe<CSV::MDTable<account::statement::TableMeta>> to_statement_id_ed_step(CSV::Table const& table);
 
     } // monadic
 

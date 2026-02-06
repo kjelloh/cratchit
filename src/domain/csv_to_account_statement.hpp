@@ -145,13 +145,13 @@ namespace account {
 
       OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table);
       std::optional<AccountStatement> csv_table_to_account_statement_step(CSV::Table const& table,AccountID const& account_id);
-      std::optional<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& account_id_ed);
+      std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& statement_id_ed);
 
     } // maybe
 
     namespace monadic {
 
-      AnnotatedMaybe<AccountStatement> account_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& account_id_ed);
+      AnnotatedMaybe<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& statement_id_ed);
 
     }
 
