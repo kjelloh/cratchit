@@ -149,6 +149,15 @@ We can clone the existing nordea_like_to_column_mapping into nordea_like_to_stat
 
 AHA! We need a StatementMapping type! With the stuff created by nordea_like_to_column_mapping.
 
+I introduced an empty StatementMapping and provided in TableMeta. Then I tried to move the production of StatementMapping to csv_to_statement_id_ed TU. But that FAILED!
+
+* I can't move the mechanism until it handles ALL statement types
+* Because to_statement_id_ed_step returns nullopt on failure.
+* Then statement_id_ed_to_account_statement_step is not called.
+* So I cant 'fill in the blanks' for other statement tables there (we are cut short)
+
+So I reversed. I have to make the meta-mecanism work for both NORDEA and SKV (that we currently support) before I can move to csv_to_statement_id_ed and statement_table_meta TU:s.
+
 ## 20260205
 
 Today I think I want to start with two things based on yesterdays sucess.
