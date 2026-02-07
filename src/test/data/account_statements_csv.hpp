@@ -1,5 +1,10 @@
 #pragma once
 
+// NOTE: This file contains string literals and thus will be encoded as defined by this source file encoding!
+//       ==> Ensure this soruce code file is UTF-8 enclding (to provide text of csv files in UTF-8 encoding)
+
+inline char const* sz_UTF8_BOM = "\xEF\xBB\xBF";
+
 inline char const* sz_NORDEA_csv_20251120 = R"(Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
 2025/09/29;-1083,75;;5343-2795;LOOPIA AB (WEBSUPPORT);LOOPIA AB (WEBSUPPORT);62500011564840;Webhotell Q4;2776,88;SEK;
 2025/09/15;-2359,00;;824-3040;TELIA SVERIGE AB;TELIA SVERIGE AB;20230570259;Mobiltjänster Q3;3860,63;SEK;
@@ -27,3 +32,27 @@ inline char const* sz_SKV_csv_20251120 = R"("THE ITFIED AB";"556782-8172";"";""
 "2025-08-20";"Utbetalning";"-879";"659"
 "2025-09-06";"Intäktsränta";"1";"660"
 "";"Utgående saldo 2025-09-30";"";"660")";
+
+inline char const* sz_SKV_csv_20251120_BOM_ed = "\xEF\xBB\xBF" R"("THE ITFIED AB";"556782-8172";"";""
+"";"";"";""
+"";"Ingående saldo 2025-07-01";"";"658"
+"2025-07-05";"Intäktsränta";"1";"659"
+"2025-08-13";"Moms april 2025 - juni 2025";"879";"1 538"
+"2025-08-20";"Utbetalning";"-879";"659"
+"2025-09-06";"Intäktsränta";"1";"660"
+"";"Utgående saldo 2025-09-30";"";"660")";
+
+inline char const* sz_NORDEA_0_1 = R"(Bokföringsdag;Belopp;Avsändare;Mottagare;Namn;Ytterligare detaljer;Meddelande;Egna anteckningar;Saldo;Valuta;
+2026/02/04;-1,85;;;AVGIFTER NORDEA;AVGIFTER NORDEA;;;4371,75;SEK;)";
+
+inline char const* sz_SKV_0_0 = R"("THE ITFIED AB";"556782-8172";"";""
+"";"";"";""
+"";"Ingående saldo 2026-02-07";"";"663"
+"";"Utgående saldo 2026-02-07";"";"663"
+)";
+
+inline char const* sz_SKV_0_0_BOM_ed = "\xEF\xBB\xBF" R"("THE ITFIED AB";"556782-8172";"";""
+"";"";"";""
+"";"Ingående saldo 2026-02-07";"";"663"
+"";"Utgående saldo 2026-02-07";"";"663"
+)";

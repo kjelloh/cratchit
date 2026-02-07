@@ -137,7 +137,9 @@ namespace account {
           return AccountStatementEntry(*maybe_date, *maybe_amount, description);
         } // extract_entry_from_row
 
-        // Expose for testing
+        // Expose generic for testing
+        ColumnMapping generic_like_to_column_mapping(CSV::Table const& table);
+        // Expose for testing 
         ColumnMapping nordea_like_to_column_mapping(CSV::Table const& table);
         ColumnMapping to_column_mapping(CSV::Table const& table);
 

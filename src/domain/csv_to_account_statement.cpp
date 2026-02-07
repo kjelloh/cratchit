@@ -82,6 +82,12 @@ namespace account {
 
         } // log_the_rows_map
 
+        ColumnMapping generic_like_to_column_mapping(CSV::Table const& table) {
+          ColumnMapping result{};
+          return result;
+        }
+
+
         ColumnMapping skv_like_to_column_mapping(CSV::Table const& table) {
           logger::scope_logger log_raii(logger::development_trace,"skv_like_to_column_mapping");
 

@@ -69,6 +69,138 @@ namespace tests::csv_table_identification {
 
     }
 
+    // ***********************
+    // Test of Generic mapping
+    // ***********************
+
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedGeneric_sz_NORDEA_csv_20251120_Ok) {
+      std::string caption = "sz_SKV_csv_20251120";
+      std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      // std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto mapping = account::statement::maybe::table::generic_like_to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+    }
+
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedGeneric_sz_SKV_csv_20251120_Ok) {
+      std::string caption = "sz_SKV_csv_20251120";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      std::string csv_text = sz_SKV_csv_20251120;
+      // std::string = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      // std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto mapping = account::statement::maybe::table::generic_like_to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+    }
+
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedGeneric_sz_SKV_csv_20251120_BOM_ed_Ok) {
+      std::string caption = "sz_SKV_csv_20251120_BOM_ed";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      // std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto mapping = account::statement::maybe::table::generic_like_to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+    }
+
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedGeneric_sz_SKV_csv_older_Ok) {
+      std::string caption = "sz_SKV_csv_older";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      std::string csv_text = sz_SKV_csv_older;
+      // std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto mapping = account::statement::maybe::table::generic_like_to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+    }
+
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedGeneric_sz_NORDEA_0_1_Ok) {
+      std::string caption = "sz_NORDEA_0_1";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto mapping = account::statement::maybe::table::generic_like_to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+    }
+
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedGeneric_sz_SKV_0_0_Ok) {
+      std::string caption = "sz_SKV_0_0";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      // std::string csv_text = sz_NORDEA_0_1;
+      std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto mapping = account::statement::maybe::table::generic_like_to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+    }
+
+    TEST_F(AccountStatementTableTestsFixture,MappingBasedGeneric_sz_SKV_0_0_BOM_ed_Ok) {
+      std::string caption = "sz_SKV_0_0_BOM_ed";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      // std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto mapping = account::statement::maybe::table::generic_like_to_column_mapping(*maybe_table);
+
+      ASSERT_TRUE(mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+    }
+
+    // Meta based tests (to deprecate)
+
     TEST(AccountStatementTableTests, MetaBasedDetectColumnsFromHeader) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountStatementTableTests, DetectColumnsFromHeader)"};
 

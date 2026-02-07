@@ -2,6 +2,31 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260207
+
+Time to dig in and take this mess head on to the next 'better' state. I think I see the light in the end of the tunnel
+
+* Introduce a generic 'to column map' based on nordea_like_to_column_mapping and skv_line...
+* Make it generate and return both ColumnMapping and AccountID (to now override and later move to to_statement_id_ed_step.
+* Introduce TEST cases for generic 'to column map'
+  - For existing test sz texts
+  - For new 'single trans entry' sz text NORDEA
+  - For new 'single trans entry' sz text SKV
+
+Lets rig this up!
+
+I now introduced generic_like_to_column_mapping and rigged tests 'MappingBasedGeneric_xxx' with four new csv strings (two for NORDEA vs SKV minimal content and two SKV BOM-ed content)
+
+```c++
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      // std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+```
+
 ## 20260206
 
 It just struck me - The 'to accound id:ed' step and mechanism and the to_column_mapping mechanism is the SAME step!

@@ -3,5 +3,6 @@
 #./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountIDedTable
 #./run.zsh --gtest_filter=MonadicCompositionFixture.NORDEAStatementOk
 # ./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring*
-./run.zsh --gtest_filter=AccountStatementTableTestsFixture.MappingBasedNordeaLikeOk
+# ./run.zsh --gtest_filter=AccountStatementTableTestsFixture.MappingBasedNordeaLikeOk
+./run.zsh --gtest_filter=AccountStatementTableTestsFixture.MappingBasedGeneric*
 #./run.zsh --test
