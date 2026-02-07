@@ -17,12 +17,25 @@ namespace account {
 
     using AccountID = DomainPrefixedId;
 
+    struct ColumnMapping {
+      int date_column = -1;
+      int transaction_amount_column = -1;
+      int saldo_amount_column = -1;
+      int description_column = -1;
+      std::vector<int> additional_description_columns;
+
+      bool is_valid() const {
+        return date_column >= 0 && transaction_amount_column >= 0 && description_column >= 0;
+      }
+    }; // ColumnMapping
+
     struct StatementMapping {
+      ColumnMapping column_mapping;
     }; // StatementMapping
 
     struct TableMeta {
       AccountID account_id;
-      StatementMapping mapping;
+      StatementMapping statement_mapping;
     }; // TableMeta
 
   } // statement

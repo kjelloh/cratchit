@@ -15,7 +15,7 @@ Time to dig in and take this mess head on to the next 'better' state. I think I 
 
 Lets rig this up!
 
-I now introduced generic_like_to_column_mapping and rigged tests 'MappingBasedGeneric_xxx' with four new csv strings (two for NORDEA vs SKV minimal content and two SKV BOM-ed content)
+* I now introduced generic_like_to_column_mapping and rigged tests 'MappingBasedGeneric_xxx' with four new csv strings (two for NORDEA vs SKV minimal content and two SKV BOM-ed content)
 
 ```c++
       // std::string csv_text = sz_NORDEA_csv_20251120;
@@ -25,7 +25,44 @@ I now introduced generic_like_to_column_mapping and rigged tests 'MappingBasedGe
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
+
+      // ...
+
+      auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
+      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
 ```
+
+* I also made an effort to name tests in a universal way
+* I moved to use TableMeta in statement_table_meta only
+* I changed return type and renamed to TableMeta generic_like_to_statement_table_meta(CSV::Table const& table);
+* I introduced fallback:
+
+```c++
+        std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table) {
+          // TODO: Generalise code in skv_like_to_column_mapping and nordea_like_to_column_mapping
+          //       table -> meta -> StatementMapping
+          return {};
+        }
+
+        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table) {
+          TableMeta result{};
+          if (auto maybe_statement_mapping = generic_like_to_statement_mapping(table)) {
+            result.statement_mapping = *maybe_statement_mapping;
+          }
+          else {
+            // Fallback while refactoring
+            result.statement_mapping.column_mapping = to_column_mapping(table);
+          }
+          return result;
+        }
+```
+
+OK, a lot of details. And I am already over my head. But fingers crossed I have rigged it good enough to start implementing generic_like_to_statement_table_meta based on generic_like_to_statement_mapping based on nordea/skv _like_to_statement_mapping?
+
+DARN! Is STILL have no isolated test of only the NEW generic_like_to_statement_mapping!
+
+Well, I can disable the fallback in generic_like_to_statement_table_meta while coding?
 
 ## 20260206
 

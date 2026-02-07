@@ -82,8 +82,21 @@ namespace account {
 
         } // log_the_rows_map
 
-        ColumnMapping generic_like_to_column_mapping(CSV::Table const& table) {
-          ColumnMapping result{};
+        std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table) {
+          // TODO: Generalise code in skv_like_to_column_mapping and nordea_like_to_column_mapping
+          //       table -> meta -> StatementMapping
+          return {};
+        }
+
+        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table) {
+          TableMeta result{};
+          if (auto maybe_statement_mapping = generic_like_to_statement_mapping(table)) {
+            result.statement_mapping = *maybe_statement_mapping;
+          }
+          else {
+            // Fallback while refactoring
+            result.statement_mapping.column_mapping = to_column_mapping(table);
+          }
           return result;
         }
 
@@ -559,7 +572,7 @@ namespace account {
 
         TableMeta to_account_statement_table_meta(CSV::Table const& table) {
           TableMeta result{};
-          result.trans_row_mapping = to_column_mapping(table);
+          result.statement_mapping.column_mapping = to_column_mapping(table);
           return result;
         } // to_account_statement_table_meta
 
@@ -612,7 +625,7 @@ namespace account {
         AccountStatementEntries entries;
 
         for (auto const& row : table.rows) {
-          auto maybe_entry = extract_entry_from_row(row, mapping);
+          auto maybe_entry = table::extract_entry_from_row(row, mapping);
           if (maybe_entry) {
             entries.push_back(*maybe_entry);
           }

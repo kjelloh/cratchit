@@ -44,25 +44,6 @@ namespace account {
 
         RowsMap to_rows_map(CSV::Table::Rows const& rows);
 
-        struct ColumnMapping {
-          int date_column = -1;
-          int transaction_amount_column = -1;
-          int saldo_amount_column = -1;
-          int description_column = -1;
-          std::vector<int> additional_description_columns;
-
-          bool is_valid() const {
-            return date_column >= 0 && transaction_amount_column >= 0 && description_column >= 0;
-          }
-        }; // ColumnMapping
-
-        struct TableMeta {
-          ColumnMapping trans_row_mapping;
-        }; // TableMeta
-
-        // ColumnMapping to_column_mapping(CSV::Table const& table);
-        TableMeta to_account_statement_table_meta(CSV::Table const& table);
-
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping);
 
         /**
@@ -138,7 +119,7 @@ namespace account {
         } // extract_entry_from_row
 
         // Expose generic for testing
-        ColumnMapping generic_like_to_column_mapping(CSV::Table const& table);
+        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table);
         // Expose for testing 
         ColumnMapping nordea_like_to_column_mapping(CSV::Table const& table);
         ColumnMapping to_column_mapping(CSV::Table const& table);
