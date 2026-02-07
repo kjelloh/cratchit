@@ -39,7 +39,7 @@ namespace tests::csv_import_pipeline {
         // Create a valid test file with some content
         m_valid_file_path = m_test_dir / "valid_test.csv";
         std::ofstream ofs(m_valid_file_path, std::ios::binary);
-        std::string test_content = "Date,Description,Amount\n2025-01-01,Test Transaction,100.00\n";
+        std::string test_content = "Bokföringsdag,Namn,Belopp\n2025-01-01,Test Transaction,100.00\n";
         ofs.write(test_content.data(), test_content.size());
         ofs.close();
 

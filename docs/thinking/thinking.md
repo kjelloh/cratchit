@@ -130,7 +130,39 @@ Maybe it is time to make separate tests for:
 
 AHA! I can make the tests call them separartly instead of calling generic_like_to_statement_table_meta?!
 
+I now have the sevent tests that tries the seven string literal based statement tables to also call for separate production of maype_statement_mapping, maybe_column_mapping and maybe_account_id. I now have:
 
+```sh
+[  FAILED  ] 11 tests, listed below:
+[  FAILED  ] MonadicCompositionFixture.PathToAccountIDedTable
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring1
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring2
+[  FAILED  ] MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring3
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_20251120_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_20251120_BOM_ed_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_0_1_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
+Which means my fallback does not work properly. No, I fixed the header names in generated test file match NORDEA expected names. I am confused when this test started to fail? Anyhow, I MUST focus on my clean-up task!
+
+I now have:
+
+```c++
+[  FAILED  ] 7 tests, listed below:
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_20251120_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_20251120_BOM_ed_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_0_1_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
+GREAT! All tests but my refactyoring tests fail. NOW I have a better grip on things!
 
 ## 20260206
 

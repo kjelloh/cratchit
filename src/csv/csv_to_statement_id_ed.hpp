@@ -48,6 +48,7 @@ namespace account {
             "mottagare",                        // receiver
             "saldo",                            // balance
             "belopp"                            // amount
+            ,"namn"
           };
 
           for (auto const& col : heading) {
