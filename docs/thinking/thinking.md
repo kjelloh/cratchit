@@ -64,6 +64,70 @@ DARN! Is STILL have no isolated test of only the NEW generic_like_to_statement_m
 
 Well, I can disable the fallback in generic_like_to_statement_table_meta while coding?
 
+After some additional though I separated StatementMapping, ColumnMApping and AccountID as 'paralell' entities and placed them in TableMeta.
+
+```c++
+    struct TableMeta {
+      StatementMapping statement_mapping;
+      ColumnMapping column_mapping;
+      AccountID account_id;
+    }; // TableMeta
+
+```
+
+I also introuduce producers:
+
+```c++
+        std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table);
+        std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table);
+        std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table);
+        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table);
+
+        // ...
+
+        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table) {
+          std::optional<StatementMapping> maybe_statement_mapping;
+          std::optional<ColumnMapping> maybe_column_mapping;
+          std::optional<AccountID> maybe_account_id;
+          maybe_statement_mapping = generic_like_to_statement_mapping(table);
+          if (maybe_statement_mapping) {
+            CSV::MDTable<StatementMapping> mapped_table{*maybe_statement_mapping,table};
+            maybe_column_mapping = generic_like_to_column_mapping(mapped_table);
+            maybe_account_id = generic_like_to_account_id(mapped_table);
+          }
+          TableMeta result{
+             .statement_mapping = maybe_statement_mapping.value_or(StatementMapping{})
+            ,.column_mapping = maybe_column_mapping.value_or(to_column_mapping(table))
+            ,.account_id = maybe_account_id.value_or(AccountID{})
+          };
+          return result;
+        }
+
+```
+
+It is still convoluted and 'leaky'. But a step in the right direction I think?
+
+* TableMeta is now the top contaoiner to pass.
+* I have the seed for first StatementMapping and then ColumnMApping and AccountID from StatementMapping+Table.
+
+Problems are:
+
+* The generic_like_to_statement_table_meta is NOT a maybe (We break TableMeta if any member fails to manifest OK)
+* Clinet code is still based on ColumnMapping.is_valid() (And so are all tests).
+
+```c++
+      // ...
+      auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      // ...
+```
+
+Maybe it is time to make separate tests for:
+
+* generic_like_to_statement_mapping
+* generic_like_to_column_mapping
+* generic_like_to_account_id
+
 ## 20260206
 
 It just struck me - The 'to accound id:ed' step and mechanism and the to_column_mapping mechanism is the SAME step!

@@ -30,12 +30,12 @@ namespace account {
     }; // ColumnMapping
 
     struct StatementMapping {
-      ColumnMapping column_mapping;
     }; // StatementMapping
 
     struct TableMeta {
-      AccountID account_id;
       StatementMapping statement_mapping;
+      ColumnMapping column_mapping;
+      AccountID account_id;
     }; // TableMeta
 
   } // statement

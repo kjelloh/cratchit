@@ -33,7 +33,7 @@ namespace tests {
           AccountID const& account_id,
           CSV::Table const& table) {
         return CSV::MDTable<account::statement::TableMeta>{
-          {account_id,{}}
+          {{},{},account_id}
           ,table};
       }
 

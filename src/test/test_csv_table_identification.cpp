@@ -92,7 +92,7 @@ namespace tests::csv_table_identification {
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
 
-      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
     }
 
@@ -111,7 +111,7 @@ namespace tests::csv_table_identification {
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
 
-      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
     }
 
@@ -130,7 +130,7 @@ namespace tests::csv_table_identification {
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
 
-      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
     }
 
@@ -149,7 +149,7 @@ namespace tests::csv_table_identification {
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
 
-      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
     }
 
@@ -168,7 +168,7 @@ namespace tests::csv_table_identification {
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
 
-      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
     }
 
@@ -187,7 +187,7 @@ namespace tests::csv_table_identification {
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
 
-      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
     }
 
@@ -206,7 +206,7 @@ namespace tests::csv_table_identification {
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
 
-      ASSERT_TRUE(statement_table_meta.statement_mapping.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
     }
 
@@ -220,7 +220,7 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Transaction"}});
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
       EXPECT_EQ(mapping.date_column, 0);
@@ -239,7 +239,7 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-03", "Transfer", "200.00"}});
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
       EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
@@ -257,7 +257,7 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"not-a-date", "100.50", "Test"}});
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid date";
@@ -273,7 +273,7 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "not-an-amount", "Test"}});
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for invalid amount";
@@ -289,7 +289,7 @@ namespace tests::csv_table_identification {
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", ""}});
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
       auto maybe_entry = account::statement::maybe::table::extract_entry_from_row(table.rows[1], mapping);
 
       EXPECT_FALSE(maybe_entry.has_value()) << "Expected nullopt for empty description";
@@ -306,7 +306,7 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_md_table.has_value()) << "Failed to extract AccountID from NORDEA CSV";
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
     }
@@ -323,7 +323,7 @@ namespace tests::csv_table_identification {
 
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping from data analysis";
       EXPECT_EQ(mapping.date_column, 0) << "Expected date in column 0";
@@ -342,7 +342,7 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
 
@@ -366,7 +366,7 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-      auto mapping = statement_table_meta.statement_mapping.column_mapping;
+      auto mapping = statement_table_meta.column_mapping;
 
       EXPECT_TRUE(mapping.is_valid()) << "Expected valid column mapping";
 

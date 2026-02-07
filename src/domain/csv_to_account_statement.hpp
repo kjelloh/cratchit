@@ -46,15 +46,6 @@ namespace account {
 
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping);
 
-        /**
-        * Extract account statement entry from a CSV row
-        *
-        * Returns nullopt if:
-        * - Row is ignorable
-        * - Required fields are missing
-        * - Date cannot be parsed
-        * - Amount cannot be parsed
-        */
         inline std::optional<AccountStatementEntry> extract_entry_from_row(
             CSV::Table::Row const& row,
             ColumnMapping const& mapping) {
@@ -119,13 +110,19 @@ namespace account {
         } // extract_entry_from_row
 
         // Expose generic for testing
+        std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table);
+        std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table);
+        std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table);
         TableMeta generic_like_to_statement_table_meta(CSV::Table const& table);
+
         // Expose for testing 
         ColumnMapping nordea_like_to_column_mapping(CSV::Table const& table);
         ColumnMapping to_column_mapping(CSV::Table const& table);
 
       } // table
 
+
+      // maybe steps
       OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table);
       std::optional<AccountStatement> csv_table_to_account_statement_step(CSV::Table const& table,AccountID const& account_id);
       std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& statement_id_ed);

@@ -20,7 +20,7 @@ namespace account {
           std::string account_number = account::statement::to_deprecate::NORDEA::to_account_no(table).value_or("");
           logger::development_trace("to_statement_id_ed_step: Detected NORDEA account: '{}'", account_number);
           return CSV::MDTable<account::statement::TableMeta>{
-            {AccountID{"NORDEA", account_number},{}}
+            {{},{},AccountID{"NORDEA", account_number}}
             ,table};
         }
 
@@ -29,7 +29,7 @@ namespace account {
           std::string org_number = maybe_org_number.value_or("");
           logger::development_trace("to_statement_id_ed_step: Detected SKV account for org: '{}'", org_number);
           return CSV::MDTable<account::statement::TableMeta>{
-             {AccountID{"SKV", org_number},{}}
+             {{},{},AccountID{"SKV", org_number}}
             ,table};
         }
 

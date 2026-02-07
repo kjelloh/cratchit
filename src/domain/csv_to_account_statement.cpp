@@ -88,18 +88,31 @@ namespace account {
           return {};
         }
 
-        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table) {
-          TableMeta result{};
-          if (auto maybe_statement_mapping = generic_like_to_statement_mapping(table)) {
-            result.statement_mapping = *maybe_statement_mapping;
-          }
-          else {
-            // Fallback while refactoring
-            result.statement_mapping.column_mapping = to_column_mapping(table);
-          }
-          return result;
+        std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table) {
+          return {};
         }
 
+        std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table) {
+          return {};
+        }
+
+        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table) {
+          std::optional<StatementMapping> maybe_statement_mapping;
+          std::optional<ColumnMapping> maybe_column_mapping;
+          std::optional<AccountID> maybe_account_id;
+          maybe_statement_mapping = generic_like_to_statement_mapping(table);
+          if (maybe_statement_mapping) {
+            CSV::MDTable<StatementMapping> mapped_table{*maybe_statement_mapping,table};
+            maybe_column_mapping = generic_like_to_column_mapping(mapped_table);
+            maybe_account_id = generic_like_to_account_id(mapped_table);
+          }
+          TableMeta result{
+             .statement_mapping = maybe_statement_mapping.value_or(StatementMapping{})
+            ,.column_mapping = maybe_column_mapping.value_or(to_column_mapping(table))
+            ,.account_id = maybe_account_id.value_or(AccountID{})
+          };
+          return result;
+        }
 
         ColumnMapping skv_like_to_column_mapping(CSV::Table const& table) {
           logger::scope_logger log_raii(logger::development_trace,"skv_like_to_column_mapping");
@@ -570,11 +583,11 @@ namespace account {
             return {};
         } // to_column_mapping
 
-        TableMeta to_account_statement_table_meta(CSV::Table const& table) {
-          TableMeta result{};
-          result.statement_mapping.column_mapping = to_column_mapping(table);
-          return result;
-        } // to_account_statement_table_meta
+        // TableMeta to_account_statement_table_meta(CSV::Table const& table) {
+        //   TableMeta result{};
+        //   result.statement_mapping.column_mapping = to_column_mapping(table);
+        //   return result;
+        // } // to_account_statement_table_meta
 
 
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping) {
