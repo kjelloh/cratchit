@@ -1,6 +1,83 @@
 # Thinking out loud on cracthit development
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
+## 20260207 hledger, beancount and other text file based ledger aps
+
+Youtube presented me with videos on hledger and beancount. The are command line text file based double accounting apps!
+
+* [hledger: Robust, friendly, fast,plain text accounting](https://hledger.org)
+
+*"You can import CSV from banks, or enter data via web/terminal interfaces or your favorite text editor. hledger provides powerful reports and scales smoothly from simple to sophisticated needs. It works well with version control, scripts, and LLMs."*
+
+* [Beancount.io : Plain-Text Accounting. Powerful, Precise, Auditable](https://beancount.io) 
+
+*"Write your finances like code—with AI-assisted insights. Beancount makes accounting transparent, scriptable, and ready for the age of LLMs. Automate reports, analyze trends, and build financial workflows that think with you."*
+
+  - But they are a paid servcie?
+
+I wonder if Beancount.io uses hledger under the hood?
+
+* I found this journal entry in their demo
+
+```text
+2017-09-08 * "Cafe Modagor" "Eating out with Julie"
+  Liabilities:US:Chase:Slate                       -33.71 USD
+  Expenses:Food:Restaurant                          33.71 USD
+```
+
+* And an hledger journal entry is:
+
+```text
+2026-02-07 Min första transaktion
+    NORDEA::Kortkonto          73,00 SEK
+    expenses:carcharging      -73,00 SEK
+```
+
+YES! It is very much the same exact format?
+
+DARN! Have I made cratchit in vain?!
+
+There seems to be a whole community around  [Plain Text Accounting (PTA)](https://plaintextaccounting.org)?
+
+It seems hledger is Haskel based while there is also C++ based [Ledger](https://ledger-cli.org)?
+
+I installed 'brew install ledger' on my macOS.
+
+* Oh BOY - Was it bloated!!
+* Or NO - It seems to be only around 7MB?
+  - ```text Uninstalling /opt/homebrew/Cellar/ledger/3.4.1_1... (186 files, 6.6MB)```
+  - Altgough I counted also dependent code also uninstalled off around 120 MB
+* Compared to Haskel based hledger around 340 MB?
+  - ```text Uninstalling /opt/homebrew/Cellar/hledger/1.51.2... (16 files, 341.4MB) ```
+
+It seems ledger lives on github at [Ledger: Command-Line Accounting](https://github.com/ledger/ledger)?
+
+* But it has a long list of dependencies?
+* First hunch is that it is kind-of bloated (unclean)
+* Just as Cratchit has become for now.
+
+I investigated ledger licence 'BSD Public License' and how it compares to Creative Commopns licenses.
+
+* My AI friends told me the closest was Creative Commons Attribution (CC BY).
+* BUT: *"...with an important caveat: Creative Commons licenses are not recommended for software, and BSD is a software license. So this is a conceptual alignment, not a drop-in replacement."*
+
+What the heck?! Why have I missed this until now? My AI friends proposed the following short abstract:
+
+```text
+* CC licenses are for creative works, not software.
+* Missing for software:
+  - Explicit patent grants
+  - Source vs binary distribution rules
+  - Linking/derivative work clarity
+  - DRM/store compatibility guidance
+  - Software-specific attribution handling
+  - Proper warranty/liability disclaimers
+* BSD/MIT/Apache are designed for code; CC is fine for docs, media, art.
+
+Rule of thumb: Code → software license, content → CC license.
+```
+
+So it seems I should change the licenses I currently have for my source code projects?
 
 ## 20260207
 
@@ -162,7 +239,15 @@ I now have:
 [  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
 ```
 
-GREAT! All tests but my refactyoring tests fail. NOW I have a better grip on things!
+GREAT! All tests but my refactoring tests fail. NOW I have a better grip on things!
+
+Here is a plan:
+
+* Enhance generic_like_to_statement_mapping until it correctly maps my test tables.
+* Then Implement generic_like_to_column_mapping the same way
+* Finally fill in the blank by implementing generic_like_to_account_id.
+
+How far off is I now?
 
 ## 20260206
 
