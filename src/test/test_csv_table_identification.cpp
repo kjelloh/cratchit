@@ -91,8 +91,15 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
 
     }
 
@@ -110,8 +117,15 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
 
     }
 
@@ -129,8 +143,15 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
 
     }
 
@@ -148,8 +169,15 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
 
     }
 
@@ -167,8 +195,15 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
 
     }
 
@@ -186,8 +221,15 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
 
     }
 
@@ -205,8 +247,15 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
 
     }
 

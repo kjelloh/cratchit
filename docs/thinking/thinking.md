@@ -128,6 +128,10 @@ Maybe it is time to make separate tests for:
 * generic_like_to_column_mapping
 * generic_like_to_account_id
 
+AHA! I can make the tests call them separartly instead of calling generic_like_to_statement_table_meta?!
+
+
+
 ## 20260206
 
 It just struck me - The 'to accound id:ed' step and mechanism and the to_column_mapping mechanism is the SAME step!
