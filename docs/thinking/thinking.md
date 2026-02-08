@@ -1,6 +1,26 @@
 # Thinking out loud on cracthit development
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
+
+## 20260208
+
+I think it would be a good idea to make Cratchit be able to interact with 'Plain Text Accounting'?
+
+* Be able to parse and produce PTA transaction entries to and from test files.
+* Define a mapping from SIE-files to PTA test files?
+  - BAS accounts mapped to ```text <accounting type>::<BAS account number> ```
+  - Where ```text <accountint type> ``` is Tillgång, Skuld, Kostnad, Intäckt
+* Maybe my existing 'csv file parsing piupe-line' can be reused as:
+
+```c++
+auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        // and_then to_pta_transactions_step
+```
+
 ## 20260207 hledger, beancount and other text file based ledger aps
 
 Youtube presented me with videos on hledger and beancount. The are command line text file based double accounting apps!
