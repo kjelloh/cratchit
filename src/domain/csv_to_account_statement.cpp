@@ -83,13 +83,216 @@ namespace account {
         } // log_the_rows_map
 
         std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table) {
-          // TODO: Generalise code in skv_like_to_column_mapping and nordea_like_to_column_mapping
-          //       table -> meta -> StatementMapping
-          return {};
+
+          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_statement_mapping",logger::LogToConsole::ON);
+
+          StatementMapping candidate{};
+
+          auto const& rows = table.rows;
+          auto rows_map = to_rows_map(rows);
+          if (true) log_the_rows_map(table.rows,rows_map);
+
+          logger::development_trace("rows_map size {}",rows_map.size());
+
+          if (rows_map.size() == 0) return {}; // Empty table
+
+          auto is_amount_and_saldo_entry_candidate = [](auto const& row_map){
+              if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+              if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()<2) return false;
+              if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
+              return true;
+            };
+
+          auto first_trans_iter_candidate = std::ranges::find_if(
+             rows_map
+            ,is_amount_and_saldo_entry_candidate);
+
+          if (first_trans_iter_candidate == rows_map.end()) {
+            logger::development_trace("No is_amount_and_saldo_entry_candidate match");
+            return {};
+          }
+
+          auto trans_iter_candidates_end = std::find_if_not(
+             first_trans_iter_candidate
+            ,rows_map.end()
+            ,is_amount_and_saldo_entry_candidate
+          );
+
+          auto trans_candidates_count = std::distance(first_trans_iter_candidate,trans_iter_candidates_end);
+          if (true) logger::development_trace("trans_candidates_count:{}",trans_candidates_count);
+
+          // Fold all candidate row maps using 'common' to get the common row map
+          auto iter = first_trans_iter_candidate +1;
+          auto iter_end = trans_iter_candidates_end;
+          auto common = *first_trans_iter_candidate;
+          while (iter != iter_end) {
+            auto const& rhs = *iter;
+            RowMap next{};
+            for (auto const& [lhs_type,lhs_v] : common.ixs) {
+              if (!rhs.ixs.contains(lhs_type)) continue;
+              auto const& rhs_v = rhs.ixs.at(lhs_type);
+              std::vector<FieldIx> intersection_v{};
+              std::ranges::set_intersection(
+                 lhs_v
+                ,rhs_v
+                ,std::back_inserter(intersection_v)
+              );
+              if (intersection_v.size()>0) next.ixs[lhs_type] = intersection_v;
+            }
+            common = next;
+            ++iter;
+          }
+
+          if (true) logger::development_trace("common :{}",to_string(common));
+
+          if (!common.ixs.contains(FieldType::Date) or common.ixs.at(FieldType::Date).size() != 1) {
+            if (true) logger::development_trace("Expected common Date column");
+            return {};
+          }
+          if (!common.ixs.contains(FieldType::Amount) or common.ixs.at(FieldType::Amount).size() != 2) {
+            if (true) logger::development_trace("Expected two common amount columns");
+            return {};
+          }
+          if (!common.ixs.contains(FieldType::Text) or common.ixs.at(FieldType::Text).size() == 0) {
+            if (true) logger::development_trace("Expected at least one common text column");
+            return {};
+          }
+
+          auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
+          auto end_rix = std::distance(rows_map.begin(),trans_iter_candidates_end);
+
+          std::vector<std::pair<Amount,Amount>> amounts{};
+          for (auto rix=begin_rix;rix<end_rix;++rix) {
+            auto const& row = rows[rix];
+            auto first_cix = common.ixs.at(FieldType::Amount).front();
+            auto second_cix = common.ixs.at(FieldType::Amount).back();
+            auto maybe_first_amount = to_amount(row[first_cix]);
+            auto maybe_second_amount = to_amount(row[second_cix]);
+            if (maybe_first_amount and maybe_second_amount) {
+              amounts.push_back({*maybe_first_amount,*maybe_second_amount});
+            }
+            else {
+              if (true) logger::design_insufficiency("Expected two valid amount after successfull rows mapping");
+              return {};
+            }
+          }
+
+          if (amounts.size()<2) {
+            if (true) logger::design_insufficiency("Failed to determine saldo amount column for less than two entry candidates");
+            return {};
+          }
+
+          // Detect trans- vs saldo-amount columns
+          unsigned raising_date_first_trans_second_saldo_count{};
+          unsigned falling_date_first_trans_second_saldo_count{};
+          unsigned undetermined_amounts_count{};
+          for (size_t pred_six=0;pred_six+1 < amounts.size();++pred_six) {
+            auto succ_six = pred_six+1;
+            auto [pred_first,pred_second] = amounts[pred_six];
+            auto [succ_first,succ_second] = amounts[succ_six];
+
+            logger::development_trace(
+               "pred_first:{} pred_second:{} succ_first:{} succ_second:{}"
+              ,::to_string(pred_first)
+              ,::to_string(pred_second)
+              ,::to_string(succ_first)
+              ,::to_string(succ_second));
+            
+            logger::development_trace(
+               "pred_second:{} + succ_first:{} = {} ==?== {} : succ_second"
+               ,::to_string(pred_second)
+               ,::to_string(succ_first)
+               ,::to_string(pred_second+succ_first)
+               ,::to_string(succ_second));
+
+            if (pred_second+succ_first == succ_second) {
+              ++raising_date_first_trans_second_saldo_count;
+              logger::development_trace("raising_date_first_trans_second_saldo_count:{}",raising_date_first_trans_second_saldo_count);
+            }
+            else if (succ_second+pred_first == pred_second) {
+              ++falling_date_first_trans_second_saldo_count;
+              logger::development_trace("falling_date_first_trans_second_saldo_count:{}",falling_date_first_trans_second_saldo_count);
+            }
+            else {
+              ++undetermined_amounts_count;
+              logger::development_trace("undetermined_amounts_count:{}",undetermined_amounts_count);
+            }
+
+          }
+
+          // Log
+          if (true) logger::development_trace(
+             "raising_date_first_trans_second_saldo_count:{} falling_date_first_trans_second_saldo_count:{}"
+            ,raising_date_first_trans_second_saldo_count
+            ,falling_date_first_trans_second_saldo_count);
+
+          if (true) logger::development_trace(
+             "undetermined_amounts_count:{}"
+            ,undetermined_amounts_count);
+
+          // Bail out on fails
+          if (undetermined_amounts_count > 0) {
+            if (true) logger::development_trace(
+               "undetermined_amounts_count:{} should be 0 for amounts.size()-1:{}"
+              ,undetermined_amounts_count
+              ,amounts.size()-1);
+            return {};
+          }
+          if (     (falling_date_first_trans_second_saldo_count > 0) 
+               and (falling_date_first_trans_second_saldo_count != amounts.size()-1)) {
+            if (true) logger::development_trace(
+               "falling_date_first_trans_second_saldo_count:{} don't match amounts.size()-1:{}"
+              ,falling_date_first_trans_second_saldo_count
+              ,amounts.size()-1);
+            return {};
+          }
+          if (     (raising_date_first_trans_second_saldo_count > 0) 
+               and (raising_date_first_trans_second_saldo_count != amounts.size()-1)) {
+            if (true) logger::development_trace(
+               "raising_date_first_trans_second_saldo_count:{} don't match amounts.size()-1:{}"
+              ,falling_date_first_trans_second_saldo_count
+              ,amounts.size()-1);
+            return {};
+          }
+
+          bool is_new_to_old_order = (falling_date_first_trans_second_saldo_count>0);
+          if (true) logger::development_trace("is_new_to_old_order:{}",is_new_to_old_order);
+          
+          if (true) logger::development_trace(
+            "returns candidate");
+
+          return candidate;
+
         }
 
         std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table) {
           return {};
+
+          // // Register validated Date and amount columns
+          // result.date_column = common.ixs[FieldType::Date].front();
+          // result.transaction_amount_column = common.ixs[FieldType::Amount].front();
+          // result.saldo_amount_column = common.ixs[FieldType::Amount].back();
+
+          // std::vector<std::string> text_coumn_values{};
+          // std::map<FieldIx,std::string> text_columns_map{};
+          // for (auto ix : common.ixs.at(FieldType::Text)) {
+          //   auto const& text = rows[0][ix];
+          //   text_columns_map[ix] = text;
+          //   text_coumn_values.push_back(text);
+          // }
+          // if (true) logger::development_trace("text_coumn_values:{}",text_coumn_values);
+          // if (true) logger::development_trace("text_columns_map:{}",text_columns_map);
+
+          // const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
+          //    {4, "Namn"}
+          //   ,{5, "Ytterligare detaljer"}
+          //   ,{9, "Valuta"}};
+
+          // if (text_columns_map == NORDEA_TEXT_MAP) {
+          //   result.description_column = 4;
+          //   result.additional_description_columns.push_back(5);
+          // }
+
         }
 
         std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table) {
@@ -198,7 +401,7 @@ namespace account {
             ,is_amount_and_saldo_entry_candidate);
 
           if (first_trans_iter_candidate == rows_map.end()) {
-            logger::development_trace("nordea_like_to_column_mapping  No is_amount_and_saldo_entry_candidate match");
+            logger::development_trace("No is_amount_and_saldo_entry_candidate match");
             return {};
           }
 
@@ -268,7 +471,7 @@ namespace account {
           }
 
           if (amounts.size()<2) {
-            if (true) logger::design_insufficiency("nordea_like_to_column_mapping - Failed to determine saldo amount column for less than two entry candidates");
+            if (true) logger::design_insufficiency("Failed to determine saldo amount column for less than two entry candidates");
             return {};
           }
 

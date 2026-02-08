@@ -4,5 +4,6 @@
 #./run.zsh --gtest_filter=MonadicCompositionFixture.NORDEAStatementOk
 # ./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring*
 # ./run.zsh --gtest_filter=AccountStatementTableTestsFixture.MappingBasedNordeaLikeOk
-./run.zsh --gtest_filter=*TableMetaBasedGeneric*
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric*
+./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_0
 #./run.zsh --test

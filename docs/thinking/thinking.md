@@ -20,7 +20,9 @@ I now have:
 
 GREAT! I can now focus on making them PASS in the order they are repported.
 
-### Consider Cratchit support for PTA files and processing?
+
+
+### 10:00 - Consider Cratchit support for PTA files and processing?
 
 I think it would be a good idea to make Cratchit be able to interact with 'Plain Text Accounting'?
 
