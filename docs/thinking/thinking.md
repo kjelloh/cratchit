@@ -4,6 +4,24 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 
 ## 20260208
 
+I have now decided to split the test TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok into its four separarte tests.
+
+I now have:
+
+```sh
+...
+[  PASSED  ] 10 tests.
+[  FAILED  ] 9 tests, listed below:
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_0
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_1
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok__sub_2
+...
+```
+
+GREAT! I can now focus on making them PASS in the order they are repported.
+
+### Consider Cratchit support for PTA files and processing?
+
 I think it would be a good idea to make Cratchit be able to interact with 'Plain Text Accounting'?
 
 * Be able to parse and produce PTA transaction entries to and from test files.
