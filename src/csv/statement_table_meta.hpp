@@ -1,5 +1,6 @@
 #include <string>
 #include <format>
+#include <map>
 
 struct DomainPrefixedId {
   std::string m_prefix; // E.g., NORDEA,PG,BG,IBAN,SKV,
@@ -29,7 +30,31 @@ namespace account {
       }
     }; // ColumnMapping
 
+    enum class FieldType {
+        Unknown
+      ,Empty
+      ,Date
+      ,Amount
+      ,Text 
+      ,Undefined
+    };
+
+    using FieldIx = unsigned;
+
+    struct RowMap {
+      std::map<FieldType,std::vector<FieldIx>> ixs;
+    };
+
+    enum class EntryAmountsType {
+       Undefined
+      ,TransOnly
+      ,TransThenSaldo
+      ,Unknown
+    };
+
     struct StatementMapping {
+      EntryAmountsType entry_amounts_type;
+      RowMap common;
     }; // StatementMapping
 
     struct TableMeta {

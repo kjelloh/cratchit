@@ -22,22 +22,6 @@ namespace account {
 
       namespace table {
 
-
-        enum class FieldType {
-           Unknown
-          ,Empty
-          ,Date
-          ,Amount
-          ,Text 
-          ,Undefined
-        };
-
-        using FieldIx = unsigned;
-
-        struct RowMap {
-          std::map<FieldType,std::vector<FieldIx>> ixs;
-        };
-
         RowMap to_row_map(CSV::Table::Row const& row);
 
         using RowsMap = std::vector<RowMap>;

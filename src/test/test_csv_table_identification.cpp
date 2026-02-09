@@ -116,7 +116,7 @@ namespace tests::csv_table_identification {
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
     }
-    TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok__sub_2) {
+    TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_2) {
       logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok__sub_2)"};
       std::string caption = "sz_NORDEA_csv_20251120";
       std::string csv_text = sz_NORDEA_csv_20251120;

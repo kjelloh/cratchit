@@ -158,6 +158,8 @@ namespace account {
             return {};
           }
 
+          candidate.common = common;
+
           auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
           auto end_rix = std::distance(rows_map.begin(),trans_iter_candidates_end);
 
@@ -257,6 +259,14 @@ namespace account {
 
           bool is_new_to_old_order = (falling_date_first_trans_second_saldo_count>0);
           if (true) logger::development_trace("is_new_to_old_order:{}",is_new_to_old_order);
+
+          if (falling_date_first_trans_second_saldo_count>0 or raising_date_first_trans_second_saldo_count) {
+            candidate.entry_amounts_type = EntryAmountsType::TransThenSaldo;
+          }
+          else {
+            if (true) logger::development_trace("Failed to identify candidate.entry_amounts_type");
+            return {};
+          }
           
           if (true) logger::development_trace(
             "returns candidate");
@@ -266,32 +276,56 @@ namespace account {
         }
 
         std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table) {
+          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_column_mapping",logger::LogToConsole::ON);
+          ColumnMapping candidate{};
+
+          auto const& [statement_mapping,table] = mapped_table;
+
+          try {
+
+            candidate.date_column = statement_mapping.common.ixs.at(FieldType::Date).front();
+
+            switch (statement_mapping.entry_amounts_type) {
+              case EntryAmountsType::TransThenSaldo: {
+                candidate.transaction_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).front();
+                candidate.saldo_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).back();
+              } break;
+              default: {
+                logger::design_insufficiency(
+                  "generic_like_to_column_mapping failed. Unknwon entry_amounts_type:{}"
+                  ,static_cast<int>(statement_mapping.entry_amounts_type));
+                return {};
+              }
+            }
+
+            // std::vector<std::string> text_coumn_values{};
+            // std::map<FieldIx,std::string> text_columns_map{};
+            // for (auto ix : common.ixs.at(FieldType::Text)) {
+            //   auto const& text = rows[0][ix];
+            //   text_columns_map[ix] = text;
+            //   text_coumn_values.push_back(text);
+            // }
+            // if (true) logger::development_trace("text_coumn_values:{}",text_coumn_values);
+            // if (true) logger::development_trace("text_columns_map:{}",text_columns_map);
+
+            // const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
+            //    {4, "Namn"}
+            //   ,{5, "Ytterligare detaljer"}
+            //   ,{9, "Valuta"}};
+
+            // if (text_columns_map == NORDEA_TEXT_MAP) {
+            //   result.description_column = 4;
+            //   result.additional_description_columns.push_back(5);
+            // }
+
+          }
+          catch (std::exception const& e) {
+            logger::design_insufficiency(
+               "generic_like_to_column_mapping failed. Exception: {}"
+              ,e.what());
+          }
+
           return {};
-
-          // // Register validated Date and amount columns
-          // result.date_column = common.ixs[FieldType::Date].front();
-          // result.transaction_amount_column = common.ixs[FieldType::Amount].front();
-          // result.saldo_amount_column = common.ixs[FieldType::Amount].back();
-
-          // std::vector<std::string> text_coumn_values{};
-          // std::map<FieldIx,std::string> text_columns_map{};
-          // for (auto ix : common.ixs.at(FieldType::Text)) {
-          //   auto const& text = rows[0][ix];
-          //   text_columns_map[ix] = text;
-          //   text_coumn_values.push_back(text);
-          // }
-          // if (true) logger::development_trace("text_coumn_values:{}",text_coumn_values);
-          // if (true) logger::development_trace("text_columns_map:{}",text_columns_map);
-
-          // const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
-          //    {4, "Namn"}
-          //   ,{5, "Ytterligare detaljer"}
-          //   ,{9, "Valuta"}};
-
-          // if (text_columns_map == NORDEA_TEXT_MAP) {
-          //   result.description_column = 4;
-          //   result.additional_description_columns.push_back(5);
-          // }
 
         }
 
