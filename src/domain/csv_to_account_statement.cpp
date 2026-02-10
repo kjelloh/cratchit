@@ -355,7 +355,7 @@ namespace account {
             }
 
             if (true) logger::development_trace("column_headings_map:{}",column_headings_map);
-            
+
             // 0: "Bokföringsdag", 1: "Belopp", 4: "Namn", 5: "Ytterligare detaljer", 8: "Saldo", 9: "Valuta", 10: ""
             const auto NORDEA_HEADING_MAP = std::map<FieldIx,std::string>{
               {0,"Bokföringsdag"}
