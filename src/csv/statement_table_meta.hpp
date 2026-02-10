@@ -53,6 +53,7 @@ namespace account {
     };
 
     struct StatementMapping {
+      bool has_heading;
       EntryAmountsType entry_amounts_type;
       RowMap common;
     }; // StatementMapping

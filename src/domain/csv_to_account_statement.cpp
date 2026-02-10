@@ -92,9 +92,23 @@ namespace account {
           auto rows_map = to_rows_map(rows);
           if (true) log_the_rows_map(table.rows,rows_map);
 
-          logger::development_trace("rows_map size {}",rows_map.size());
+          if (true) logger::development_trace("rows_map size {}",rows_map.size());
 
           if (rows_map.size() == 0) return {}; // Empty table
+
+          // Has heading?
+          if (rows_map[0].ixs.contains(FieldType::Text)) {
+            auto text_count = rows_map[0].ixs.at(FieldType::Text).size(); 
+            auto empty_count = rows_map[0].ixs.contains(FieldType::Empty)?rows_map[0].ixs.at(FieldType::Empty).size():0;
+            if (true) logger::development_trace(
+               "text_count:{} empty_count:{} rows[0].size():{}"
+              ,text_count
+              ,empty_count
+              ,table.rows[0].size());
+
+            candidate.has_heading = (text_count+empty_count == table.rows[0].size());
+          }
+          if (true) logger::development_trace("candidate.has_heading {}",candidate.has_heading);
 
           auto is_amount_and_saldo_entry_candidate = [](auto const& row_map){
               if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
@@ -328,6 +342,39 @@ namespace account {
         }
 
         std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table) {
+          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_account_id",logger::LogToConsole::ON);
+          AccountID candidate{};
+          auto const& [statement_mapping,table] = mapped_table;
+          if (statement_mapping.has_heading) {
+            std::map<FieldIx,std::string> column_headings_map{};
+            for (auto const& [id,idxs] : statement_mapping.common.ixs) {
+              for (auto ix : idxs) {
+                auto const& text = table.rows[0][ix];
+                column_headings_map[ix] = text;
+              }
+            }
+
+            if (true) logger::development_trace("column_headings_map:{}",column_headings_map);
+            
+            // 0: "Bokföringsdag", 1: "Belopp", 4: "Namn", 5: "Ytterligare detaljer", 8: "Saldo", 9: "Valuta", 10: ""
+            const auto NORDEA_HEADING_MAP = std::map<FieldIx,std::string>{
+              {0,"Bokföringsdag"}
+              ,{1,"Belopp"}
+              ,{4,"Namn"}
+              ,{5,"Ytterligare detaljer"}
+              ,{8,"Saldo"}
+              ,{9,"Valuta"}
+              ,{10,""}
+            };
+
+            if (column_headings_map == NORDEA_HEADING_MAP) {
+              candidate = AccountID{"NORDEA",""};
+              return candidate; // SUCCESS
+            }
+
+          }
+          else {
+          }
           return {};
         }
 
