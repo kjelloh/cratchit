@@ -149,6 +149,19 @@ And of course, Claude Code praised my solution.
 
 ```
 
+I now have:
+
+```sh
+[  PASSED  ] 348 tests.
+[  FAILED  ] 4 tests, listed below:
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_0_1_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
+I think next is TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok? The others are for 'older' SKV and 'empty' but correct NORDEA and SKV. These can wait?
+
 ## 20260208
 
 I have now decided to split the test TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok into its four separarte tests.
