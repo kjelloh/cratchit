@@ -312,24 +312,38 @@ namespace account {
               }
             }
 
-            std::map<FieldIx,std::string> text_columns_map{};
-            for (auto ix : statement_mapping.common.ixs.at(FieldType::Text)) {
-              auto const& text = table.rows[0][ix];
-              text_columns_map[ix] = text;
+            if (statement_mapping.has_heading) {
+              std::map<FieldIx,std::string> text_columns_map{};
+              for (auto ix : statement_mapping.common.ixs.at(FieldType::Text)) {
+                auto const& text = table.rows[0][ix];
+                text_columns_map[ix] = text;
+              }
+              if (true) logger::development_trace("text_columns_map:{}",text_columns_map);
+
+              const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
+                {4, "Namn"}
+                ,{5, "Ytterligare detaljer"}
+                ,{9, "Valuta"}};
+
+              if (text_columns_map == NORDEA_TEXT_MAP) {
+                candidate.description_column = 4;
+                candidate.additional_description_columns.push_back(5);
+                return candidate; // SUCCESS
+              }
             }
-            if (true) logger::development_trace("text_columns_map:{}",text_columns_map);
-
-            const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
-               {4, "Namn"}
-              ,{5, "Ytterligare detaljer"}
-              ,{9, "Valuta"}};
-
-            if (text_columns_map == NORDEA_TEXT_MAP) {
-              candidate.description_column = 4;
-              candidate.additional_description_columns.push_back(5);
-              return candidate; // SUCCESS
+            else {
+              // SKV common : Date: 0 Amount: 2 3 Text: 1
+              auto const SKV_COMMON_ROW_MAP = RowMap{
+                .ixs = {
+                 {FieldType::Date,{0}}
+                ,{FieldType::Amount,{2,3}}
+                ,{FieldType::Text,{1}}
+              }};
+              if (statement_mapping.common == SKV_COMMON_ROW_MAP) {
+                candidate.description_column = statement_mapping.common.ixs.at(FieldType::Text).front();
+                return candidate; // SUCCESS
+              }
             }
-
           }
           catch (std::exception const& e) {
             logger::design_insufficiency(

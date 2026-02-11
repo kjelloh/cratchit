@@ -6,5 +6,5 @@
 # ./run.zsh --gtest_filter=AccountStatementTableTestsFixture.MappingBasedNordeaLikeOk
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric*
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_2
-./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_20251120_Ok_sub_*
+./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_20251120_Ok_sub_1
 #./run.zsh --test

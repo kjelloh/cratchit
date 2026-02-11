@@ -43,7 +43,8 @@ namespace account {
 
     struct RowMap {
       std::map<FieldType,std::vector<FieldIx>> ixs;
-    };
+      bool operator==(RowMap const&) const = default;      
+    }; // RowMap
 
     enum class EntryAmountsType {
        Undefined
