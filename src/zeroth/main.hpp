@@ -2762,6 +2762,7 @@ namespace SKV { // SKV
 			// The SKV XML IT-system requires 12 digit organisation numbers with digits only
 			// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into 16XXXXXXYYYY
 			// See https://sv.wikipedia.org/wiki/Organisationsnummer
+      // TODO: Also see SKV::OrgNo and SKV::to_org_no introduced for SKV statement csv table parse/20260211
 			std::string sdigits = functional::text::filtered(generic_org_no,::isdigit);
 			switch (sdigits.size()) {
 				case 10: result = std::string{"16"} + sdigits; break;
@@ -3336,6 +3337,7 @@ namespace SKV { // SKV
 				// The SKV CSV IT-system requires 10 digit organisation numbers with digits only
 				// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into XXXXXXYYYY
 				// See https://sv.wikipedia.org/wiki/Organisationsnummer
+        // TODO: Also see SKV::OrgNo and SKV::to_org_no introduced for SKV statement csv table parse/20260211
 				std::string sdigits = functional::text::filtered(generic_org_no,::isdigit);
 				switch (sdigits.size()) {
 					case 10: result = sdigits; break;
