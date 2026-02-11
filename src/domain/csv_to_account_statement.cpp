@@ -437,7 +437,7 @@ namespace account {
         }
 
         ColumnMapping skv_like_to_column_mapping(CSV::Table const& table) {
-          logger::scope_logger log_raii(logger::development_trace,"skv_like_to_column_mapping");
+          logger::scope_logger log_raii(logger::development_trace,"skv_like_to_column_mapping",logger::LogToConsole::ON);
 
           ColumnMapping result{};
           auto rows_map = to_rows_map(table.rows);
@@ -445,15 +445,26 @@ namespace account {
 
           if (true) log_the_rows_map(table.rows,rows_map);
 
-          auto is_skv_saldo_entry_candidate = [](auto const& row_map){
-              if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
-              if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()!=1) return false;
-              return true;
+          // row:^Ingående saldo 2025-07-01^^658 
+          // map: Empty: 0 2 Amount: 3 Text: 1
+          // row:^Utgående saldo 2025-09-30^^660 
+          // map: Empty: 0 2 Amount: 3 Text: 1
+          auto is_skv_saldo_entry_candidate = [](auto const& row_map) -> bool {    
+            static const auto SKV_SALDO_ROW_MAP = RowMap{
+              .ixs = {
+                {FieldType::Empty,{0,2}}
+                ,{FieldType::Amount,{3}}
+                ,{FieldType::Text,{1}}
+              }
             };
+            return row_map == SKV_SALDO_ROW_MAP;      
+          }; // is_skv_saldo_entry_candidate
           auto in_saldo_candidate_iter = std::ranges::find_if(
             rows_map
             ,is_skv_saldo_entry_candidate
           );
+
+          if (true) logger::development_trace("in_saldo_candidate_iter != rows_map.end():{}",in_saldo_candidate_iter != rows_map.end());
 
           if (in_saldo_candidate_iter != rows_map.end()) {
             auto trans_span_begin = in_saldo_candidate_iter+1;

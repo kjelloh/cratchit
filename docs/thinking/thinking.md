@@ -290,6 +290,23 @@ And ExtractFromSKVCSVNewer now seems to only try:
 
 I could not nake sense of this?
 
+I found the error. The RowMap changed for SKV statement csv table. The previous to_date interpreted 'Utgående saldo 2025-09-30' as a Date and not a Text!
+
+I now again have:
+
+```text
+[  PASSED  ] 349 tests.
+[  FAILED  ] 6 tests, listed below:
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_0
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_1
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_2
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_0_1_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
+Phiew!!
+
 ## 20260208
 
 I have now decided to split the test TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok into its four separarte tests.

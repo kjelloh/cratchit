@@ -3,6 +3,7 @@
 #include "text/functional.hpp" // functional::text::filtered
 #include <format>
 #include <iomanip> // std::setfill,...
+#include <set>
 
 namespace first {
 
@@ -208,28 +209,39 @@ Date to_date(int year,unsigned month,unsigned day) {
   };
 }
 OptionalDate to_date(std::string const& sYYYYMMDD) {
-  // std::cout << "\nto_date(" << sYYYYMMDD << ")";
-  OptionalDate result{};
-  try {
-    if (sYYYYMMDD.size()==8) {
-      result = to_date(
-        std::stoi(sYYYYMMDD.substr(0,4))
-        ,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(4,2)))
-        ,static_cast<unsigned>(std::stoul(sYYYYMMDD.substr(6,2))));
+  Date candidate{};
+  if (true) {
+    std::string digits{};
+    std::string seps{};
+    const std::set<unsigned char> valid_date_sep{
+       '-'
+      ,'/'
+      ,' '
+    };
+    for (size_t i=0;i<sYYYYMMDD.size();++i) {
+      auto ch = static_cast<unsigned char>(sYYYYMMDD[i]);
+      if (::isdigit(ch)) digits.push_back(ch);
+      if (valid_date_sep.contains(ch)) {
+        if (i!=4 and i!=7) return {};
+        seps.push_back(ch);
+      }
     }
-    else {
-      // Handle "YYYY-MM-DD" "YYYY MM DD" etc.
-      std::string sDate = functional::text::filtered(sYYYYMMDD,::isdigit);
-      if (sDate.size()==8) result = to_date(sDate);
+    if (!(digits.size()==8)) return {};
+    if (!(seps.size()==0 or seps.size()==2)) return {};
+    if (seps.size()==2 and seps[0] != seps[1]) return {};
+    try {
+      candidate = to_date(
+        std::stoi(digits.substr(0,4))
+        ,static_cast<unsigned>(std::stoul(digits.substr(4,2)))
+        ,static_cast<unsigned>(std::stoul(digits.substr(6,2))));
     }
-    // if (result) std::cout << " = " << *result;
-    // else std::cout << " = null";
+    catch (std::exception const& e) {
+      logger::development_trace("to_date Failed: Exception:{}",e.what());
+      logger::design_insufficiency("to_date Failed: Exception:{}",e.what());
+    }
   }
-  catch (std::exception const& e) {} // swallow silently (will result is nullopt)
-
-  return result.and_then([](auto const& date) {
-    return (date.ok()?OptionalDate(date):std::nullopt);
-  });
+  if (candidate.ok()) return candidate;
+  return {};
 }
 
 Date to_today() {
