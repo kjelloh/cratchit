@@ -13,6 +13,32 @@ struct DomainPrefixedId {
   }
 };
 
+// TODO: Move to shared TU if/when appropriate
+//       For now introduced for parsing SKV account statement csv tables
+namespace SKV {
+  struct OrgNo {
+    // 10 digits 'personnummer' or 'orgnaisationsnummer'
+    // 10 or 12 digits 'personnummer' YYYYMMDD-XXXX or YYYYMMDD-XXXX
+    // With or without '-' to separate last four digits
+    // Ex: YYMMDD-XXXX
+    // Ex: YYYYMMDD-XXXX
+    // Ex: NNNNNN-XXXX
+    // Ex: YYMMDDXXXX
+    // Ex: YYYYMMDDXXXX
+    // Ex: NNNNNNXXXX
+    std::string value;   // 10 or 12 'value' digits
+    std::string control; // four last digits
+    std::string with_hyphen() const {
+      return std::format("{}-{}",value,control);
+    }
+    std::string without_hyphen() const {
+      return std::format("{}{}",value,control);
+    }
+  }; // OrgNo
+
+  std::optional<OrgNo> to_org_no(std::string_view sv);
+} // SKV
+
 namespace account {
   namespace statement {
 

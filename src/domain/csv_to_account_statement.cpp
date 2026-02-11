@@ -1,63 +1,6 @@
 #include "csv_to_account_statement.hpp"
 #include "text/functional.hpp" // functional::text::filtered
 
-// TODO: Move to shared TU if/when appropriate
-//       For now introduced for parsing SKV account statement csv tables
-namespace SKV {
-  struct OrgNo {
-    // 10 digits 'personnummer' or 'orgnaisationsnummer'
-    // 10 or 12 digits 'personnummer' YYYYMMDD-XXXX or YYYYMMDD-XXXX
-    // With or without '-' to separate last four digits
-    // Ex: YYMMDD-XXXX
-    // Ex: YYYYMMDD-XXXX
-    // Ex: NNNNNN-XXXX
-    // Ex: YYMMDDXXXX
-    // Ex: YYYYMMDDXXXX
-    // Ex: NNNNNNXXXX
-    std::string value;   // 10 or 12 'value' digits
-    std::string control; // four last digits
-    std::string with_hyphen() const {
-      return std::format("{}-{}",value,control);
-    }
-    std::string without_hyphen() const {
-      return std::format("{}{}",value,control);
-    }
-  }; // OrgNo
-
-  auto to_org_no = [](std::string_view sv) -> std::optional<OrgNo> {
-    auto len = sv.size();
-    int digits_count{};
-    int hyphen_count{};
-    for (size_t i=0;i<sv.size();++i) {
-      auto ch = sv[i];
-      if (std::isdigit(ch)) ++digits_count;
-      if (ch == '-') {
-        if (i!=len-5) return {};
-        ++hyphen_count;
-      }
-    }
-
-    if (true) logger::development_trace(
-      "sv:{}:{} digits_count:{} hyphen_count:{}"
-      ,sv
-      ,len
-      ,digits_count
-      ,hyphen_count);
-
-    if (hyphen_count>1) return {};
-    if (digits_count + hyphen_count != len) return {};
-    if (!(digits_count == 10 or digits_count == 12)) return {};
-
-    if (true) logger::development_trace("org-no, candidate has acceptable counts");
-
-    return OrgNo{
-        .value = std::string(sv.substr(0,len-4-hyphen_count))
-      ,.control = std::string(sv.substr(len-4,4))
-    };
-  }; // to_org_no
-
-} // SKV
-
 namespace account {
 
   namespace statement {
