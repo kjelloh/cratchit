@@ -236,11 +236,12 @@ OptionalDate to_date(std::string const& sYYYYMMDD) {
         ,static_cast<unsigned>(std::stoul(digits.substr(6,2))));
     }
     catch (std::exception const& e) {
-      logger::development_trace("to_date Failed: Exception:{}",e.what());
       logger::design_insufficiency("to_date Failed: Exception:{}",e.what());
     }
   }
+  // Is the candidate a valid date (year,month, day makes sense?)
   if (candidate.ok()) return candidate;
+  // No, failed
   return {};
 }
 
