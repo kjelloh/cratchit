@@ -359,6 +359,7 @@ namespace account {
           logger::scope_logger log_raii(logger::development_trace,"generic_like_to_account_id",logger::LogToConsole::ON);
           AccountID candidate{};
           auto const& [statement_mapping,table] = mapped_table;
+
           if (statement_mapping.has_heading) {
             std::map<FieldIx,std::string> column_headings_map{};
             for (auto const& [id,idxs] : statement_mapping.common.ixs) {
@@ -386,9 +387,82 @@ namespace account {
               return candidate; // SUCCESS
             }
 
-          }
+          } // has heading
           else {
-          }
+            if (true) logger::development_trace("No Heading");
+
+            auto const SKV_COMMON_ROW_MAP = RowMap{
+              .ixs = {
+                {FieldType::Date,{0}}
+              ,{FieldType::Amount,{2,3}}
+              ,{FieldType::Text,{1}}
+            }};
+            if (statement_mapping.common == SKV_COMMON_ROW_MAP) {
+
+              if (true) logger::development_trace("Matches SKV_COMMON_ROW_MAP:{}",to_string(SKV_COMMON_ROW_MAP));
+
+              // "THE ITFIED AB";"556782-8172";"";""
+              auto const& org_name_candidate = table.rows[0][0];
+              auto const& org_nr_candidate = table.rows[0][1];
+
+              struct OrgNo {
+                // 10 digits 'personnummer' or 'orgnaisationsnummer'
+                // 10 or 12 digits 'personnummer' YYYYMMDD-XXXX or YYYYMMDD-XXXX
+                // With or without '-' to separate last four digits
+                // Ex: YYMMDD-XXXX
+                // Ex: YYYYMMDD-XXXX
+                // Ex: NNNNNN-XXXX
+                // Ex: YYMMDDXXXX
+                // Ex: YYYYMMDDXXXX
+                // Ex: NNNNNNXXXX
+                std::string value;   // 10 or 12 'value' digits
+                std::string control; // four last digits
+                std::string with_hyphen() const {
+                  return std::format("{}-{}",value,control);
+                }
+                std::string without_hyphen() const {
+                  return std::format("{}{}",value,control);
+                }
+              }; // OrgNo
+
+              auto to_org_no = [](std::string_view sv) -> std::optional<OrgNo> {
+                auto len = sv.size();
+                int digits_count{};
+                int hyphen_count{};
+                for (auto ch  : sv) {
+                  if (std::isdigit(ch)) ++digits_count;
+                  if (ch == '-') ++hyphen_count;
+                }
+
+                if (true) logger::development_trace(
+                  "sv:{}:{} digits_count:{} hyphen_count:{}"
+                  ,sv
+                  ,len
+                  ,digits_count
+                  ,hyphen_count);
+
+                if (hyphen_count>1) return {};
+                if (digits_count + hyphen_count != len) return {};
+                if (!(digits_count == 10 or digits_count == 12)) return {};
+
+                if (true) logger::development_trace("org-no, candidate has acceptable counts");
+
+                return OrgNo{
+                    .value = std::string(sv.substr(0,len-4-hyphen_count))
+                  ,.control = std::string(sv.substr(len-4,4))
+                };
+              }; // to_org_no
+
+              if (auto maybe_org_no = to_org_no(org_nr_candidate)) {
+                if (true) logger::development_trace("maybe_org_no:{}",maybe_org_no->with_hyphen());            
+                candidate = AccountID{"SKV",maybe_org_no->with_hyphen()};
+                return candidate; // SUCCESS
+              }
+
+            }
+          } // has heading
+
+          if (true) logger::development_trace("returns nullopt");
           return {};
         }
 

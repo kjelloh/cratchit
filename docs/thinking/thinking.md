@@ -2,6 +2,107 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260211
+
+Pushed on without any 'thinking'.
+
+I now have generic meta -> columns mapping -> account id for NORDE and SKV basic ok.
+
+I can't help but document what Claude Code proposed and what I implemented for a 'to_org_no' lambda.
+
+* I presented Claude Code with my type cpmmented and an empty to_org_no lambda.
+* Claude proposed:
+
+```c++
+                auto to_org_no = [](std::string_view sv) -> std::optional<OrgNo> {
+  429 -                  return std::nullopt;
+  429 +                  // Extract only digits and hyphen
+  430 +                  std::string cleaned;
+  431 +                  for (char c : sv) {
+  432 +                    if (std::isdigit(static_cast<unsigned char>(c)) || c == '-') {
+  433 +                      cleaned += c;
+  434 +                    }
+  435 +                  }
+  436 +  
+  437 +                  if (cleaned.empty()) return std::nullopt;
+  438 +  
+  439 +                  // Extract all digits (remove hyphen)
+  440 +                  std::string digits_only;
+  441 +                  for (char c : cleaned) {
+  442 +                    if (std::isdigit(static_cast<unsigned char>(c))) {
+  443 +                      digits_only += c;
+  444 +                    }
+  445 +                  }
+  446 +  
+  447 +                  // Must be 10 or 12 digits total
+  448 +                  if (digits_only.size() != 10 && digits_only.size() != 12) {
+  449 +                    return std::nullopt;
+  450 +                  }
+  451 +  
+  452 +                  // If hyphen exists, validate its position
+  453 +                  auto hyphen_pos = cleaned.find('-');
+  454 +                  if (hyphen_pos != std::string::npos) {
+  455 +                    // For 10 digits: hyphen after 6 digits (NNNNNN-XXXX or YYMMDD-XXXX)
+  456 +                    // For 12 digits: hyphen after 8 digits (YYYYMMDD-XXXX)
+  457 +                    size_t expected_hyphen_pos = (digits_only.size() == 10) ? 6 : 8;
+  458 +  
+  459 +                    // Count digits before hyphen
+  460 +                    size_t digits_before = 0;
+  461 +                    for (size_t i = 0; i < hyphen_pos; ++i) {
+  462 +                      if (std::isdigit(static_cast<unsigned char>(cleaned[i]))) {
+  463 +                        digits_before++;
+  464 +                      }
+  465 +                    }
+  466 +  
+  467 +                    if (digits_before != expected_hyphen_pos) {
+  468 +                      return std::nullopt;
+  469 +                    }
+  470 +                  }
+  471 +  
+  472 +                  // Split: value (first 6 or 8 digits) + control (last 4 digits)
+  473 +                  size_t value_len = digits_only.size() - 4;
+  474 +                  std::string value = digits_only.substr(0, value_len);
+  475 +                  std::string control = digits_only.substr(value_len, 4);
+  476 +  
+  477 +                  return OrgNo{value, control};
+  478                  };
+```
+
+* I looked at that and did NOT approve.
+* Instead I implemented this:
+
+```c++
+  auto to_org_no = [](std::string_view sv) -> std::optional<OrgNo> {
+    auto len = sv.size();
+    int digits_count{};
+    int hyphen_count{};
+    for (auto ch  : sv) {
+      if (std::isdigit(ch)) ++digits_count;
+      if (ch == '-') ++hyphen_count;
+    }
+
+    if (true) logger::development_trace(
+      "sv:{}:{} digits_count:{} hyphen_count:{}"
+      ,sv
+      ,len
+      ,digits_count
+      ,hyphen_count);
+
+    if (hyphen_count>1) return {};
+    if (digits_count + hyphen_count != len) return {};
+    if (!(digits_count == 10 or digits_count == 12)) return {};
+
+    if (true) logger::development_trace("org-no, candidate has acceptable counts");
+
+    return OrgNo{
+        .value = std::string(sv.substr(0,len-4-hyphen_count))
+      ,.control = std::string(sv.substr(len-4,4))
+    };
+  }; // to_org_no
+```
+
+Now I can't help but thinking Claude presented something 'less structured'. But hey, I am biased of course!
+
 ## 20260208
 
 I have now decided to split the test TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok into its four separarte tests.
