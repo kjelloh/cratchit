@@ -162,6 +162,134 @@ I now have:
 
 I think next is TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok? The others are for 'older' SKV and 'empty' but correct NORDEA and SKV. These can wait?
 
+On the other hand - Maybe I should stick to my plan and just carry on? I mean, I should get a beter statement parser mechanism, would I not?
+
+The 'old' SKV statement is tricky!
+
+```text
+  ;Ingående saldo 2025-04-01;656;0;
+  2025-04-05;Intäktsränta;1;;
+  2025-05-12;Moms jan 2025 - mars 2025;1997;;
+  2025-05-14;Utbetalning;-1997;;
+  2025-06-01;Intäktsränta;1;;
+  ;Utgående saldo 2025-06-30;658;0;
+```
+
+The first problem is that existing to_date will parse 'Ingående saldo 2025-04-01' to a date!
+
+* to_date simply ignores any non-digits!
+* So as long as 'what is left' is a valid date, it will accept it.
+* Do I dare to fix this?
+
+Lets make a plan to ensure we do not break anything?
+
+* Make to_date only match some valid dates
+* Run all existing test cases
+* Run cratchit on some csv statement files and try to generate a VAT Returns?
+* Is this sufficient?
+
+Where do I even call to_date in the code?
+
+AHA! I found the culprit!
+
+```c++
+OptionalDate to_date(std::string const& sYYYYMMDD_Candidate) {
+  OptionalDate result{};
+  try {
+    if (sYYYYMMDD_Candidate.size()==8) {
+      result = to_date(
+        std::stoi(sYYYYMMDD_Candidate.substr(0,4))
+        ,static_cast<unsigned>(std::stoul(sYYYYMMDD_Candidate.substr(4,2)))
+        ,static_cast<unsigned>(std::stoul(sYYYYMMDD_Candidate.substr(6,2))));
+    }
+    else {
+      // Handle "YYYY-MM-DD" "YYYY MM DD" etc.
+      auto to_canonical_yyyymmdd = [](std::string_view sv) -> std::string {
+        return std::string(sv);
+      }
+      std::string sDate = to_canonical_yyyymmdd(sYYYYMMDD_Candidate)
+      if (sDate.size()==8) result = to_date(sDate);
+    }
+  }
+  catch (std::exception const& e) {} // swallow silently (will result is nullopt)
+
+  return result.and_then([](auto const& date) {
+    return (date.ok()?OptionalDate(date):std::nullopt);
+  });
+}
+```
+
+I tried:
+
+```c++
+OptionalDate to_date(std::string const& sYYYYMMDD) {
+  Date candidate{};
+  if (true) {
+    std::string digits{};
+    std::string seps{};
+    const std::set<unsigned char> valid_date_sep{
+       '-'
+      ,'/'
+      ,' '
+    };
+    for (size_t i=0;i<sYYYYMMDD.size();++i) {
+      auto ch = static_cast<unsigned char>(sYYYYMMDD[i]);
+      if (::isdigit(ch)) digits.push_back(ch);
+      if (valid_date_sep.contains(ch)) {
+        if (i!=4 and i!=7) return {};
+        seps.push_back(ch);
+      }
+    }
+    if (!(digits.size()==8)) return {};
+    if (!(seps.size()==0 or seps.size()==2)) return {};
+    if (seps.size()==2 and seps[0] != seps[1]) return {};
+    try {
+      candidate = ::to_date(
+        std::stoi(digits.substr(0,4))
+        ,static_cast<unsigned>(std::stoul(digits.substr(4,2)))
+        ,static_cast<unsigned>(std::stoul(digits.substr(6,2))));
+    }
+    catch (std::exception const& e) {
+      logger::development_trace("to_date Failed: Exception:{}",e.what());
+      logger::design_insufficiency("to_date Failed: Exception:{}",e.what());
+    }
+  }
+  if (candidate.ok()) return candidate;
+  return to_deprecate::to_date(sYYYYMMDD);
+}
+```
+
+But then I got a slew ow tests failing!
+
+```text
+[  PASSED  ] 341 tests.
+[  FAILED  ] 14 tests, listed below:
+[  FAILED  ] AccountStatementTests.ExtractFromSKVCSVNewer
+[  FAILED  ] AccountStatementTests.ExtractTransactionAmountNotSaldo
+[  FAILED  ] AccountStatementTests.ThousandsSeparatorInSaldoDoesNotAffectTransaction
+[  FAILED  ] CSVTable2AccountStatementTests.CsvTableToAccountStatementWithSKV
+[  FAILED  ] FullPipelineTestFixture.ImportSkvFileSuccess
+[  FAILED  ] FullPipelineTextTests.ImportSkvTextSuccess
+[  FAILED  ] MDTableToAccountStatementTestFixture.SKVNewerMDTableToAccountStatement
+[  FAILED  ] AccountStatementTableTestsFixture.MappingBasedSKVLike20251120OOk
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_0
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_1
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_2
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_0_1_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
+And ExtractFromSKVCSVNewer now seems to only try:
+
+```text
+  TRACE: BEGIN nordea_like_to_column_mapping
+  ...
+  TRACE: END nordea_like_to_column_mapping
+ ```
+
+I could not nake sense of this?
+
 ## 20260208
 
 I have now decided to split the test TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok into its four separarte tests.
