@@ -103,6 +103,52 @@ I can't help but document what Claude Code proposed and what I implemented for a
 
 Now I can't help but thinking Claude presented something 'less structured'. But hey, I am biased of course!
 
+Now asking Claude to compare it actually found a bug in my code. My code will accept any position for '-' which is a little weak.
+
+* Claude proposed:
+
+```c++
+// Validate hyphen position if present
+  if (hyphen_count == 1) {
+    size_t expected_hyphen_pos = (digits_count == 10) ? 6 : 8;
+    auto hyphen_pos = sv.find('-');
+    if (hyphen_pos != expected_hyphen_pos) {
+      if (true) logger::development_trace("hyphen at wrong position: {} expected: {}", hyphen_pos, expected_hyphen_pos);
+      return {};
+    }
+  }
+```
+
+* While I implememnted:
+
+```c++
+  // ...
+  for (size_t i=0;i<sv.size();++i) {
+    auto ch = sv[i];
+    if (std::isdigit(ch)) ++digits_count;
+    if (ch == '-') {
+      if (!(i==6 or i==8)) return {};
+      ++hyphen_count;
+    }
+  }
+  //...
+```
+
+Again, I feel my code leveraged the existing loop while Claude added a whole extra mechanism?
+
+And of course, Claude Code praised my solution.
+
+```text
+ Verification:
+
+  - "556782-8172" (10 digits, 11 chars): hyphen at position 6, len-5 = 11-5 = 6 ✓
+  - "197001011234" (12 digits, 13 chars with hyphen): hyphen at position 8, len-5 = 13-5 = 8 ✓
+  - "19700101-1234" (12 digits, 13 chars with hyphen): hyphen at position 8, len-5 = 13-5 = 8 ✓
+
+  The code is clean, efficient, and correct. Well done! This is a textbook example of how to write robust validation logic for Swedish organization numbers.
+
+```
+
 ## 20260208
 
 I have now decided to split the test TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok into its four separarte tests.

@@ -429,9 +429,13 @@ namespace account {
                 auto len = sv.size();
                 int digits_count{};
                 int hyphen_count{};
-                for (auto ch  : sv) {
+                for (size_t i=0;i<sv.size();++i) {
+                  auto ch = sv[i];
                   if (std::isdigit(ch)) ++digits_count;
-                  if (ch == '-') ++hyphen_count;
+                  if (ch == '-') {
+                    if (i!=len-5) return {};
+                    ++hyphen_count;
+                  }
                 }
 
                 if (true) logger::development_trace(
