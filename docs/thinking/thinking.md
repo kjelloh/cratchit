@@ -2,6 +2,741 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260212 SIE roudntrip seems to be broken
+
+I succeeded to create and send VAT Returns report to SKV.
+
+I then imported the unposted SIE entries to Fortnox (In file 'cratchit_2025-05-01_2026-04-30.se')
+
+```text
+#GEN 20260212
+#RAR 0 20250501 20260430
+#VER A 26 20251003 "Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA"
+{
+#TRANS 1920 {} -3.70 "" ""
+#TRANS 6570 {} 3.70 "" ""
+}
+#VER A 27 20251004 "Account:SKV::5567828172 Text:IntÑktsrÑnta"
+{
+#TRANS 1630 {} 1.00 "" ""
+#TRANS 8314 {} -1.00 "" ""
+}
+#VER A 28 20251105 "Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA"
+{
+#TRANS 1920 {} -1.85 "" ""
+#TRANS 6570 {} 1.85 "" ""
+}
+#VER A 29 20251112 "Account:SKV::5567828172 Text:Moms juli 2025 - sept 2025"
+{
+#TRANS 1630 {} 1997.00 "" ""
+#TRANS 1650 {} -1997.00 "" ""
+}
+#VER A 30 20251114 "SKV Utbetalning Moms"
+{
+#TRANS 1630 {} -1997.00 "" ""
+#TRANS 1920 {} 1997.00 "" ""
+}
+#VER A 31 20251119 "Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26"
+{
+#TRANS 1920 {} -198.08 "" ""
+#TRANS 6230 {} 198.08 "" ""
+}
+#VER A 32 20251202 "Account:NORDEA::2025 Text:FRèN SPAR 518687-9 | FRèN SPAR"
+{
+#TRANS 1920 {} 10000.00 "" ""
+#TRANS 1930 {} -10000.00 "" ""
+}
+#VER A 33 20251203 "Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA"
+{
+#TRANS 1920 {} -1.85 "" ""
+#TRANS 6570 {} 1.85 "" ""
+}
+#VER A 34 20251206 "Account:SKV::5567828172 Text:IntÑktsrÑnta"
+{
+#TRANS 1630 {} 1.00 "" ""
+#TRANS 8314 {} -1.00 "" ""
+}
+#VER A 35 20251219 "Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26"
+{
+#TRANS 1920 {} -200.57 "" ""
+#TRANS 6230 {} 200.57 "" ""
+}
+#VER A 36 20251231 "Account:NORDEA::2025 Text:RÑnta 2025"
+{
+#TRANS 1920 {} 328.68 "" ""
+#TRANS 8310 {} -328.68 "" ""
+}
+#VER D 12 20251107 "Fortknox Faktura"
+{
+#TRANS 2440 {} -615.00 "" ""
+#TRANS 5420 {} 492.00 "" ""
+#TRANS 2641 {} 123.00 "" ""
+#TRANS 3740 {} 0.00 "" ""
+}
+#VER D 13 20251117 "Telia Faktura"
+{
+#TRANS 2440 {} -2359.00 "" ""
+#TRANS 6212 {} 1887.00 "" ""
+#TRANS 2641 {} 471.25 "" ""
+#TRANS 3740 {} 0.75 "" ""
+}
+#VER D 14 20251128 "Websupport Faktura"
+{
+#TRANS 2440 {} -1158.75 "" ""
+#TRANS 6210 {} 927.00 "" ""
+#TRANS 2641 {} 231.75 "" ""
+}
+#VER E 11 20251020 "Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT)"
+{
+#TRANS 1920 {} -323.75 "" ""
+#TRANS 2440 {} 323.75 "" ""
+}
+#VER E 12 20251127 "Account:NORDEA::32592317244 Text:Fortnox Finans AB | Fortnox Finans AB"
+{
+#TRANS 1920 {} -615.00 "" ""
+#TRANS 2440 {} 615.00 "" ""
+}
+#VER E 13 20251217 "Account:NORDEA::32592317244 Text:TELIA SVERIGE AB | TELIA SVERIGE AB"
+{
+#TRANS 1920 {} -2359.00 "" ""
+#TRANS 2440 {} 2359.00 "" ""
+}
+#VER E 14 20251229 "Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT)"
+{
+#TRANS 1920 {} -1158.75 "" ""
+#TRANS 2440 {} 1158.75 "" ""
+}
+```
+
+I then exported from Fortnox back to cratchit.
+
+But when I imported to Cratchit it reported conflicts!
+
+```text
+cratchit:>-sie sie_in/TheITfiedAB20260212_162605.se
+
+Importing SIE to current year from "sie_in/TheITfiedAB20260212_162605.se"
+
+STAGE of cracthit entries FAILED when merging with posted (from external tool)
+Entries in sie-file:sie_in/TheITfiedAB20260212_162605.se overrides values in cratchit staged entries
+CONFLICTED! : No longer valid entry  A26 "Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA" 20251003
+    "PlusGiro":1920 "" -3.70
+    "Bankkostnader":6570 "" 3.70
+OK - valid entry  A27 "Account:SKV::5567828172 Text:Intäktsränta" 20251004
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+CONFLICTED! : No longer valid entry  A28 "Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA" 20251105
+    "PlusGiro":1920 "" -1.85
+    "Bankkostnader":6570 "" 1.85
+OK - valid entry  A29 "Account:SKV::5567828172 Text:Moms juli 2025 - sept 2025" 20251112
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1997.00
+    "Momsfordran":1650 "" -1997.00
+OK - valid entry  A30 "SKV Utbetalning Moms" 20251114
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" -1997.00
+    "PlusGiro":1920 "" 1997.00
+CONFLICTED! : No longer valid entry  A31 "Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26" 20251119
+    "PlusGiro":1920 "" -198.08
+    "Datakommunikation":6230 "" 198.08
+CONFLICTED! : No longer valid entry  A32 "Account:NORDEA::2025 Text:FRÅN SPAR 518687-9 | FRÅN SPAR" 20251202
+    "PlusGiro":1920 "" 10000.00
+    "Företagskonto/checkkonto/affärskonto":1930 "" -10000.00
+CONFLICTED! : No longer valid entry  A33 "Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA" 20251203
+    "PlusGiro":1920 "" -1.85
+    "Bankkostnader":6570 "" 1.85
+OK - valid entry  A34 "Account:SKV::5567828172 Text:Intäktsränta" 20251206
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+CONFLICTED! : No longer valid entry  A35 "Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26" 20251219
+    "PlusGiro":1920 "" -200.57
+    "Datakommunikation":6230 "" 200.57
+OK - valid entry  A36 "Account:NORDEA::2025 Text:Ränta 2025" 20251231
+    "PlusGiro":1920 "" 328.68
+    "Ränteintäkter från omsättningstillgångar":8310 "" -328.68
+OK - valid entry  D12 "Fortknox Faktura" 20251107
+    "Leverantörsskulder":2440 "" -615.00
+    "Programvaror":5420 "" 492.00
+    "Debiterad ingående moms":2641 "" 123.00
+    "Öres- och kronutjämning":3740 "" 0.00
+OK - valid entry  D13 "Telia Faktura" 20251117
+    "Leverantörsskulder":2440 "" -2359.00
+    "Mobiltelefon":6212 "" 1887.00
+    "Debiterad ingående moms":2641 "" 471.25
+    "Öres- och kronutjämning":3740 "" 0.75
+OK - valid entry  D14 "Websupport Faktura" 20251128
+    "Leverantörsskulder":2440 "" -1158.75
+    "Telekommunikation":6210 "" 927.00
+    "Debiterad ingående moms":2641 "" 231.75
+CONFLICTED! : No longer valid entry  E11 "Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT)" 20251020
+    "PlusGiro":1920 "" -323.75
+    "Leverantörsskulder":2440 "" 323.75
+CONFLICTED! : No longer valid entry  E12 "Account:NORDEA::32592317244 Text:Fortnox Finans AB | Fortnox Finans AB" 20251127
+    "PlusGiro":1920 "" -615.00
+    "Leverantörsskulder":2440 "" 615.00
+CONFLICTED! : No longer valid entry  E13 "Account:NORDEA::32592317244 Text:TELIA SVERIGE AB | TELIA SVERIGE AB" 20251217
+    "PlusGiro":1920 "" -2359.00
+    "Leverantörsskulder":2440 "" 2359.00
+CONFLICTED! : No longer valid entry  E14 "Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT)" 20251229
+    "PlusGiro":1920 "" -1158.75
+    "Leverantörsskulder":2440 "" 1158.75
+ year id:current - ALL POSTED OK
+cratchit:>
+```
+
+When I exited Cratchit I now had 'cratchit_2025-05-01_2026-04-30.se':
+
+```text
+#GEN 20260212
+#RAR 0 20250501 20260430
+```
+
+I checked if Cratchit still had all the SIE entries as imported from Fortnox?
+
+* First I got confused as the last entry was:
+
+```text
+ 66 M2 "Momsrapport_2025-07-01-2025-09-30" 20250930
+    "Debiterad ingående moms":2641 "" -1997.25
+    "Momsfordran":1650 "" 1997.00
+    "Öres- och kronutjämning":3740 "" 0.25
+```
+* DARN! I have yet to account M3!
+* Because YES: Cratchit DOES now have all accounting OK in the imported SIE.
+
+Anyhow, I registered M3 (from HAD ok). And then I Exported to Fortnox and back again OK.
+
+* The import of the latest SIE from Fortnox (now with the additional M3) worked juste fine.
+  - Cratchit reported NO conflicts.
+
+So, what are the conflicts about??
+
+## 20260212
+
+So today I have to produce and deliver a VAR Returns report for Q4 of 2025 for my company activites.
+
+So I have to pause my csv statement file parsing refactoring.
+
+Instead I will take this opportunity to think about how Cratchit supports VAT Returns reporting.
+
+The curreent mechanism is based on the flow:
+
+1. Import bank and skv account statement files for the period -> Tagged Amounts
+
+  - I have three statement files for this period
+
+```sh
+-rw-r--r--@  1 kjell-olovhogdahl  staff   321 Jan 12 11:24 Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv
+-rw-r--r--@  1 kjell-olovhogdahl  staff  1194 Jan 12 11:22 PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv
+-rw-r--r--@  1 kjell-olovhogdahl  staff   246 Jan 12 11:22 SPARKONTO FÖRETAG 3259 23 17244 - 2026-01-12 11.22.36.csv
+```
+
+  - The import works but redundantly also tries non-statement files
+
+  ```sh
+BEGIN: Processing files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv"
+
+BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store"
+  ...
+*Note* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store" (produced zero entries)
+
+*Note* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store" (produced zero entries)
+*Ignored* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store" (File empty or failed to understand file content)
+END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store"
+
+BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv"
+  ...
+	[Pipeline] File /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv opened OK
+	[Pipeline] Successfully read 321 bytes from stream
+	[Pipeline] Detected encoding: UTF-8 (confidence: 100, method: ICU)
+	[Pipeline] Successfully transcoded 321 bytes to 321 platform encoding bytes
+	[Pipeline] Step 6 complete: CSV parsed successfully (8 rows)
+	[Pipeline] (4) Step 6.5 complete: AccountID detected: 'SKV::5567828172'
+	[Pipeline] Pipeline complete: 4 TaggedAmounts created from 'Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv'
+	Valid entries count:4
+	Consumed account statement file moved to "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv"
+END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/Bokförda transaktioner 556782-8172 Alla typer 2025-10-01--2025-12-31.csv"
+
+BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+  ... calls skv_like_to_column_mapping then nordea_like_to_column_mapping
+	[Pipeline] File /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv opened OK
+	[Pipeline] Successfully read 1194 bytes from stream
+	[Pipeline] Detected encoding: UTF-8 (confidence: 100, method: ICU)
+	[Pipeline] Successfully transcoded 1194 bytes to 1194 platform encoding bytes
+	[Pipeline] Step 6 complete: CSV parsed successfully (12 rows)
+	[Pipeline] (4) Step 6.5 complete: AccountID detected: 'NORDEA::32592317244'
+	[Pipeline] Pipeline complete: 11 TaggedAmounts created from 'PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv'
+	Valid entries count:11
+	Consumed account statement file moved to "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/PLUSGIROKONTO FTG 51 86 87-9 - 2026-01-12 11.22.11.csv"
+
+  ...
+```
+
+2. List the Tagged Amount for the period and transform them to HAD:s (Heading Amount Date:s)
+  - command:'-tas 20251001 20251231'
+  - command:'-to_hads'
+  - command:'-hads'
+
+```text
+  0   ?BAS? Account:NORDEA::2025 Text:Ränta 2025 328.68 20251231
+  1   ?BAS? Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT) -1158.75 20251229
+  2   ?BAS? Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26 -200.57 20251219
+  3   ?BAS? Account:NORDEA::32592317244 Text:TELIA SVERIGE AB | TELIA SVERIGE AB -2359.00 20251217
+  4   ?BAS? Account:SKV::5567828172 Text:Intäktsränta 1.00 20251206
+  5   ?BAS? Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA -1.85 20251203
+  6   ?BAS? Account:NORDEA::32592317244 Text:Insättning | Insättning 10000.00 20251202
+  7   ?BAS? Account:NORDEA::2025 Text:FRÅN SPAR 518687-9 | FRÅN SPAR -10000.00 20251202
+  8   ?BAS? Account:NORDEA::32592317244 Text:Fortnox Finans AB | Fortnox Finans AB -615.00 20251127
+  9   ?BAS? Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26 -198.08 20251119
+  10   ?BAS? Account:NORDEA::32592317244 Text:BG KONTOINS | BG KONTOINS 1997.00 20251118
+  11   ?BAS? Account:SKV::5567828172 Text:Utbetalning -1997.00 20251114
+  12   ?BAS? Account:SKV::5567828172 Text:Moms juli 2025 - sept 2025 1997.00 20251112
+  13   ?BAS? Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA -1.85 20251105
+  14   ?BAS? Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT) -323.75 20251020
+  15   ?BAS? Account:SKV::5567828172 Text:Intäktsränta 1.00 20251004
+  16   ?BAS? Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA -3.70 20251003
+```
+
+3. Print out pdf vouchers
+  - Invocies
+  - Account statements
+  - In this way I can mark them manually how they where anetered into the books
+3. Enter period invoices and events that are not reflected in account statement yet as HAD:s
+  - I have most invoices as pdf:s from emailed invoices.
+  - I may have Receipts from purchases (but then those are also reflected in account statement)
+  - command:'-'
+  - command:'Heading Amount Date' -> Cracthit parses into HAD
+
+```text
+cratchit:>Telia Faktura 2359,00 2025-11-17
+
+  ?BAS? Telia Faktura 2359.00 20251117
+cratchit:>SKV Utbetalning Moms 1997,00 2025-11-14
+
+  ?BAS? SKV Utbetalning Moms 1997.00 20251114
+cratchit:>Websupport Faktura 1158,75 2025-11-28
+
+  ?BAS? Websupport Faktura 1158.75 20251128
+cratchit:>Websupport Faktura 1058,75 2026-01-11
+
+  ?BAS? Websupport Faktura 1058.75 20260111
+cratchit:>Websupport Faktura 236,25 2026-01-16
+
+  ?BAS? Websupport Faktura 236.25 20260116
+cratchit:>Websupport Faktura 323,75 2026-02-07
+
+  ?BAS? Websupport Faktura 323.75 20260207
+cratchit:>Postnord Faktura 4037,50 2026-01-12
+
+  ?BAS? Postnord Faktura 4037.50 20260112
+cratchit:>Fortknox Faktura 615,00 2025-11-07
+
+  ?BAS? Fortknox Faktura 615.00 20251107
+cratchit:> 
+```
+
+  - command:'-hads'
+
+```text
+  0   ?BAS? Websupport Faktura 323.75 20260207
+  1   ?BAS? Websupport Faktura 236.25 20260116
+  2   ?BAS? Postnord Faktura 4037.50 20260112
+  3   ?BAS? Websupport Faktura 1058.75 20260111
+  4   ?BAS? Account:NORDEA::2025 Text:Ränta 2025 328.68 20251231
+  5   ?BAS? Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT) -1158.75 20251229
+  6   ?BAS? Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26 -200.57 20251219
+  7   ?BAS? Account:NORDEA::32592317244 Text:TELIA SVERIGE AB | TELIA SVERIGE AB -2359.00 20251217
+  8   ?BAS? Account:SKV::5567828172 Text:Intäktsränta 1.00 20251206
+  9   ?BAS? Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA -1.85 20251203
+  10   ?BAS? Account:NORDEA::32592317244 Text:Insättning | Insättning 10000.00 20251202
+  11   ?BAS? Account:NORDEA::2025 Text:FRÅN SPAR 518687-9 | FRÅN SPAR -10000.00 20251202
+  12   ?BAS? Websupport Faktura 1158.75 20251128
+  13   ?BAS? Account:NORDEA::32592317244 Text:Fortnox Finans AB | Fortnox Finans AB -615.00 20251127
+  14   ?BAS? Account:NORDEA::32592317244 Text:KORT             CLAUDE.AI SUBSC 26 | KORT             CLAUDE.AI SUBSC 26 -198.08 20251119
+  15   ?BAS? Account:NORDEA::32592317244 Text:BG KONTOINS | BG KONTOINS 1997.00 20251118
+  16   ?BAS? Telia Faktura 2359.00 20251117
+  17   ?BAS? Account:SKV::5567828172 Text:Utbetalning -1997.00 20251114
+  18   ?BAS? SKV Utbetalning Moms 1997.00 20251114
+  19   ?BAS? Account:SKV::5567828172 Text:Moms juli 2025 - sept 2025 1997.00 20251112
+  20   ?BAS? Fortknox Faktura 615.00 20251107
+  21   ?BAS? Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA -1.85 20251105
+  22   ?BAS? Account:NORDEA::32592317244 Text:LOOPIA AB (WEBSUPPORT) | LOOPIA AB (WEBSUPPORT) -323.75 20251020
+  23   ?BAS? Account:SKV::5567828172 Text:Intäktsränta 1.00 20251004
+  24   ?BAS? Account:NORDEA::32592317244 Text:AVGIFTER NORDEA | AVGIFTER NORDEA -3.70 20251003
+```
+4. Check that Cratchit SIE is the same as external Fortnox SIE
+  - If Not, Do SIE: Fortnox -> Cratchit (In this case the file TheITfiedAB20260212_113259.se)
+  - command: 'cratchit:>-sie sie_in/TheITfiedAB20260212_113259.se'
+
+```text
+Importing SIE to current year from "sie_in/TheITfiedAB20260212_113259.se"
+ year id:current - ALL POSTED OK
+ cratchit:>
+```
+5. Transform each HAD to SIE account entry
+  - I managed to do this in the 'zeroth' API
+  - I noted some quirks and shortcomings below
+  - I now have:
+
+```text
+cratchit:>-hads
+
+	to_box_49_amount += [10]:0.00 = 0.00
+	to_box_49_amount += [30]:0.00 = 0.00
+	to_box_49_amount += [60]:0.00 = 0.00
+	to_box_49_amount += [48]:826.00 = 826.00
+Period:20251001...20260331
+	to_box_49_amount += [10]:0.00 = 0.00
+	to_box_49_amount += [30]:0.00 = 0.00
+	to_box_49_amount += [60]:0.00 = 0.00
+	to_box_49_amount += [48]:826.00 = 826.00
+Period:20250701...20251231
+*UPDATED*   ?BAS? Momsrapport 2026-01-01...2026-03-31 826.00 20260331
+*UPDATED*   ?BAS? Momsrapport 2025-10-01...2025-12-31 826.00 20251231
+Please select:
+  0   ?BAS? Momsrapport 2026-01-01...2026-03-31 826.00 20260331
+  1   ?BAS? Websupport Faktura 323.75 20260207
+  2   ?BAS? Websupport Faktura 236.25 20260116
+  3   ?BAS? Postnord Faktura 4037.50 20260112
+  4   ?BAS? Websupport Faktura 1058.75 20260111
+  5   ?BAS? Momsrapport 2025-10-01...2025-12-31 826.00 20251231
+cratchit:had>
+```
+  - So VAT Returns aggregation  seems to work fine?
+
+6. Generate the VAT Returns report to SKV
+  - command: '-skv current'
+
+```text
+Till Skatteverket för år current
+0: Arbetsgivardeklaration (TAX Returns)
+1: Momsrapport (VAT Returns)
+2: K10 (TAX Declaration Appendix Form)
+3: INK1 + K10 (Swedish Tax Agency private TAX Form + Dividend Form
+4: INK2 + INK2S + INK2R (Company Tax Returns form(s))
+7. Enter the VAT Returns report as SIE Entry
+```
+
+  - command: '1: Momsrapport (VAT Returns)'
+
+```text
+0: Track Current Quarter 2026-01-01...2026-03-31
+1: Report Previous Quarter 2025-10-01...2025-12-31
+2: Check Quarter before previous 2025-07-01...2025-09-30
+3: Check Previous two Quarters 2025-07-01...2025-12-31
+```
+
+  -command: '1: Report Previous Quarter 2025-10-01...2025-12-31'
+
+```text
+	to_box_49_amount += [10]:0.00 = 0.00
+	to_box_49_amount += [30]:0.00 = 0.00
+	to_box_49_amount += [60]:0.00 = 0.00
+	to_box_49_amount += [48]:826.00 = 826.00
+Previous Quarter 2025-10-01...2025-12-31 (to report)
+VAT Returns for 2025-10-01...2025-12-31
+Created "to_skv/moms_202512.eskd"
+<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
+<eSKDUpload Version="6.0">
+  <OrgNr>556782-8172</OrgNr>
+  <Moms>
+   <Period>202512</Period>
+   <ForsMomsEjAnnan>0</ForsMomsEjAnnan>
+   <InkopVaruAnnatEg>0</InkopVaruAnnatEg>
+   <MomsUlagImport>0</MomsUlagImport>
+   <ForsTjSkskAnnatEg>0</ForsTjSkskAnnatEg>
+   <MomsUtgHog>0</MomsUtgHog>
+   <MomsInkopUtgHog>0</MomsInkopUtgHog>
+   <MomsImportUtgHog>0</MomsImportUtgHog>
+   <MomsIngAvdr>826</MomsIngAvdr>
+   <MomsBetala>-826</MomsBetala>
+  </Moms>
+</eSKDUpload>
+Created file "to_skv/periodisk_sammanstallning_25-4_20260212.csv" OK
+SKV574008;
+SE556782817201;25-4;Ville Vessla;555-244454;ville.vessla@foretaget.se
+cratchit:skv:tax_return:period>
+```
+
+  - I now have:
+
+```sh
+drwxr-xr-x  3 kjell-olovhogdahl  staff   96 Aug 27 10:20 INK2
+drwxr-xr-x  4 kjell-olovhogdahl  staff  128 Aug 26 12:40 K10
+drwxr-xr-x  4 kjell-olovhogdahl  staff  128 Aug 26 18:52 SRU
+-rw-r--r--  1 kjell-olovhogdahl  staff  616 Nov 11 17:11 moms_202409.eskd
+-rw-r--r--@ 1 kjell-olovhogdahl  staff  623 Feb 11  2025 moms_202412.eskd
+-rw-r--r--  1 kjell-olovhogdahl  staff  623 May 10  2025 moms_202503.eskd
+-rw-r--r--  1 kjell-olovhogdahl  staff  621 Aug 12  2025 moms_202506.eskd
+-rw-r--r--  1 kjell-olovhogdahl  staff  623 Nov 13 11:03 moms_202509.eskd
+-rw-r--r--  1 kjell-olovhogdahl  staff  621 Feb 12 16:09 moms_202512.eskd
+-rw-r--r--  1 kjell-olovhogdahl  staff   80 Nov 11 17:11 periodisk_sammanstallning_24-3_20251111.csv
+-rw-r--r--@ 1 kjell-olovhogdahl  staff   80 Feb 11  2025 periodisk_sammanstallning_24-4_20250211.csv
+-rw-r--r--  1 kjell-olovhogdahl  staff   80 May 10  2025 periodisk_sammanstallning_25-1_20250510.csv
+-rw-r--r--  1 kjell-olovhogdahl  staff   80 Aug 12  2025 periodisk_sammanstallning_25-2_20250812.csv
+-rw-r--r--  1 kjell-olovhogdahl  staff   80 Nov 12 23:12 periodisk_sammanstallning_25-3_20251112.csv
+-rw-r--r--  1 kjell-olovhogdahl  staff   80 Nov 13 11:03 periodisk_sammanstallning_25-3_20251113.csv
+-rw-r--r--  1 kjell-olovhogdahl  staff   80 Feb 12 16:09 periodisk_sammanstallning_25-4_20260212.csv
+```
+
+  - Now I can use the SKV Web interface to upload the file '/moms_202512.eskd'
+
+7. Account the M3 VAT Returns report from HAD.
+
+  - command: '-hads'
+  - option: ' 5   ?BAS? Momsrapport 2025-10-01...2025-12-31 826.00 20251231'
+  - option: 1 for yes in 'cratchit:had:vat:summary:ok?>'
+  - For here it is '1'a for yes all the way!
+  - NOTE: Ctachit actually generates THE SKV FILES ALSO!!
+  - So it seems I do not need to do the (6) separatly above?
+
+### Consider Cratchit Bank and SKV integration like Fortnox does?
+
+It seems Fortnox offers intergration with SKV and Bank accounts to enable book keeping based on account statement entries?
+
+* How does this work?
+* HWat does the Bank and SKV require to allow the integration?
+* Is there a fee or license requirement?
+* Is it maybe based on BankID
+* If so, how hard is it to implement in open source like Cratchit?
+
+### VAT Returns report - Proposed enhancements
+
+* Consider to make cratchit work on git repo folder?
+  - Consider framework.env that defines workspace path?
+  - framework.env is in runtime folder (with cratchit binary as 'installed')
+  - Or, simply configure a 'current folder' to git repo folder from the shell (how does that even work)?
+* Consider pdf-files -> HAD:s for vouchers?
+  - Cratchit can create a HAD (seed) with a path to an invoice file
+  - On macOS Cratchit can call the system 'open *path*' for conveniant Heading Amount and Date entry?
+* Consider to list HAD:s in olde-to-new order?
+  - Then the next HAD is always index 0?
+* Consider to reject SIE file import if content and target fiscal yer does not match?
+* Consider a mechanism that takes HAD:s and adds missing 'domino-events'?
+  - A bank statement payment -> find accounted debt (or previous HAD)
+  - A HAD Invoice -> Predict a future payment HAD
+  - Do we need HADs to 'know' if they are Debt/Asset/Cost/Income?
+* Consider to make Cratchit be able to re-create an account statement with the SIE accouning added?
+  - Consider to remember how account statement entries was entered into SIE books
+  - The have a function to re-create the account statement entries paierd with how they where accounted?
+  - Then I can print out and keep as a record of how the books where made?
+  - Then I would not have to manually write that down on the printed account statement?
+* Consider Cratchit to inject the SIE accointing into the vocuher file names?
+  - If the HAD can track the path.
+  - Then it may be possible for Cratchit to rename the voucer file when the HAD is booked into SIE?
+* Consider to output BAS account Saldo after each entered SIE?
+  - I can then verify I am 'on track' while entereing into the books
+* Consider to shorten the list of templates offered to account a HAD -> SIE
+  - List into groups of same BAS accounts aggregate (accounts + signs)
+* Consider to detect 'same HAD' from e.g., SKV and bank account transfers
+  - The same amount (and text?) is out on one and in oth the other?
+* Consider to show options for No/Yes when accepting generated VAT REturns SIE entry 'M'
+* Consider to have Cratchit detect zero VAT Returns and remove any VAT Resturn HAD:s in the listing?
+* Consider to add 'Print Entry' from the books?
+  - Then I can print the generated VAT Returns entry (e.g., M3) for the books? 
+
+### VAT Returns report ABSTRACT (Observations and notes)
+
+* WOT! Cratchid DOES generate SKV files AND SIE entry for HAD Vat Resturns selection!
+  - I though I had to do the files separate from the SIE entry?
+  - But now when I try it seems Cratchit first generates the files, then generates the Mx SIE entry?
+  - The MESS to keep track of what I have implemented or not...
+* Cratchit does noty remove VAT Returns HAD:s on VAT Resturns aggretagtion == 0
+  - That is, after having registered the VAT Resturns report, the HAD:s are still there.
+* Crathit does not show out-saldo after booked (entered) SIE
+  - It would be nice to confirm the Saldo when entering from account statement entry
+* Current version of Cratchit dispose tagged amounts at exit
+  - We must create HAD:s from imported statement files in the same session!
+  - TODO: Consider to activate saving tagged amounts to environment again?
+          Is the mechanism stable now after refactoring into 'prev' linked structure?
+* Cratchit does not support HAD:s with foreign amounts
+  - E.g., Anthropic invoices in $.
+* Cratchit confusingly shows HAD prefixed with '?BAS?'
+  - A left-over from unfinished mechanism to link to BAS account?
+* Cratchit has NO PROTECTION against importing an SIE file to a fiscal year that does not match the content fiscal year!
+* Command:'-balance' does not seem to work?
+* Command: '-huvudbok' seems to work?
+  - But lacks 'omslutning'
+* The list of proposals (matched templates) is WAY too long!
+* Command '-sie' now longer lists 'staged' (*) entries!
+  - command '-si *' does though (so they are there!)
+* I encountered failure to apply a template
+
+```text
+6  D1 "Faktura Fortnox" 20250508
+	 gross = sort_code: 0x3 : "Leverantörsskulder":2440 "" -615.00
+	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" 123.00
+	 eu_vat cents = sort_code: 0x57 : "Öres- och kronutjämning":3740 "" 0.00
+	 net = sort_code: 0x4 : "Programvaror":5420 "" 492.00
+```
+
+  - Is it because it contains 'öresavridning'?
+
+```text
+"cents" count:1
+"eu_vat" count:1
+"gross" count:1
+"net" count:1
+"vat" count:1
+Failed to recognise the VAT type
+vat_type = Undefined
+Sorry, I encountered Undefined VAT type for  D1 "Faktura Fortnox" 20250508
+	 gross = sort_code: 0x3 : "Leverantörsskulder":2440 "" -615.00
+	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" 123.00
+	 eu_vat cents = sort_code: 0x57 : "Öres- och kronutjämning":3740 "" 0.00
+	 net = sort_code: 0x4 : "Programvaror":5420 "" 492.00
+```
+
+  - But this template worked:
+
+  ```text
+  28  D1 "Fortnox Faktura" 20230511
+	 gross = sort_code: 0x3 : "Leverantörsskulder":2440 "" -521.00
+	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" 104.25
+	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" -0.25
+	 net = sort_code: 0x4 : "Programvaror":5420 "" 417.00
+  ```
+  - Became:
+
+```text
+"cents" count:1
+"gross" count:1
+"net" count:1
+"vat" count:1
+Template is a SWEDISH PURCHASE/sale
+vat_type = Swedish VAT
+Swedish VAT candidate  D _  "Fortknox Faktura" 20251107
+    "Leverantörsskulder":2440 "" -615.00
+    "Programvaror":5420 "" 492.00
+    "Debiterad ingående moms":2641 "" 123.00
+    "Öres- och kronutjämning":3740 "" 0.00
+```
+
+* SKV vat out payment and bank account in payment is not recognised as 'the same' event
+* TELIA invoices applies a VAT algorithm that differs from what Cratchit applies from template
+  - Cratchit does:
+
+```text
+
+35  D2 "Telia Faktura" 20250516
+	 gross = sort_code: 0x3 : "Leverantörsskulder":2440 "" -2359.00
+	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" 471.75
+	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" 0.25
+	 net = sort_code: 0x4 : "Mobiltelefon":6212 "" 1887.00
+
+--> Becomes
+
+"cents" count:1
+"gross" count:1
+"net" count:1
+"vat" count:1
+Template is a SWEDISH PURCHASE/sale
+vat_type = Swedish VAT
+Swedish VAT candidate  D _  "Telia Faktura" 20251117
+    "Leverantörsskulder":2440 "" -2359.00
+    "Mobiltelefon":6212 "" 1887.20
+    "Debiterad ingående moms":2641 "" 471.80
+    "Öres- och kronutjämning":3740 "" 0.00
+```
+
+  - But TELIA invoice states (would require)
+
+```text
+Swedish VAT candidate  D _  "Telia Faktura" 20251117
+    "Leverantörsskulder":2440 "" -2359.00
+    "Mobiltelefon":6212 "" 1887.00
+    "Debiterad ingående moms":2641 "" 471.75
+    "Öres- och kronutjämning":3740 "" -0.25
+
+```
+  - Does TELIA prefers 0,25 adjustment?
+  - Or NET amount without cents?
+  - Or both? (Cuts off 0,20 from net amount and places -0,05 on VAT and the rest on rounding)
+  - What is going on?
+
+* Edit TELIA invoice transaction is a bit tedious?
+  - command:'2 Edit account transactions'
+
+    I get options 'Options:
+    'Please enter index of entry to edit
+    ,or <BAS account> <Amount> to add a new entry
+    ;'-' to exit back to journal entry'
+
+  - command: '1 "Mobiltelefon":6212 "" 1887.20'
+
+    I get options: 'Options:
+    Please Enter new Account
+    ,new Amount (with decimal comma) or new transaction text
+    ; '-' to exit back to candidate'
+
+  - command:'1887,00'
+
+* Cratchit does not stay in edit or explain what is wrong on 'entry does not balance'
+  - I entered the wrong rounding in:
+
+```text
+"cents" count:1
+"gross" count:1
+"net" count:1
+"vat" count:1
+Template is a SWEDISH PURCHASE/sale
+ D _  "Telia Faktura" 20251117
+	 gross = sort_code: 0x3 : "Leverantörsskulder":2440 "" -2359.00
+	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" 471.25
+	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" -0.25
+	 net = sort_code: 0x4 : "Mobiltelefon":6212 "" 1887.00
+SORRY - Failed to stage entry
+```
+  - BUT, the HAD remembered the cadidate (So I could select it again and edit it correctly)
+
+```text
+"cents" count:1
+"gross" count:1
+"net" count:1
+"vat" count:1
+Template is a SWEDISH PURCHASE/sale
+ D _  "Telia Faktura" 20251117
+	 gross = sort_code: 0x3 : "Leverantörsskulder":2440 "" -2359.00
+	 vat = sort_code: 0x6 : "Debiterad ingående moms":2641 "" 471.25
+	 cents = sort_code: 0x7 : "Öres- och kronutjämning":3740 "" 0.75
+	 net = sort_code: 0x4 : "Mobiltelefon":6212 "" 1887.00
+ D13 "Telia Faktura" 20251117
+    "Leverantörsskulder":2440 "" -2359.00
+    "Mobiltelefon":6212 "" 1887.00
+    "Debiterad ingående moms":2641 "" 471.25
+    "Öres- och kronutjämning":3740 "" 0.75 STAGED
+```
+
+* Cratchit is unhelpfukl when there are no prov ided template is applicable
+
+  - It seems Cratchit supports BAS account = Amount?
+
+* Cratchit does not show the options to accept generated M entry to SIE (From HAD)
+
+  - command: '-hads'
+  - option: '5   ?BAS? Momsrapport 2025-10-01...2025-12-31 826.00 20251231'
+  - I guessed on 'Y' but that was wrong!
+
+```text
+cratchit:had:vat:summary:ok?>Y
+
+ERROR - Expected Heading + Amount + Date
+I Interpreted your input as,
+	token: "Y"
+
+Please check that your input matches my expectations?
+	Heading = any text ("..." enclosure allowed)
+	Amount = any positive or negative amount with optional ',' or '.' decimal point with one or two decimal digits
+	Date = YYYYMMDD or YYYY-MM-DD
+cratchit:had:vat:summary:ok?>
+
+Options:
+VAT Report Summary ok?
+0: No
+1: Yes
+cratchit:had:vat:summary:ok?>
+```
+
+
 ## 20260211
 
 Pushed on without any 'thinking'.
