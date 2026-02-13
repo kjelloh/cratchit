@@ -2,6 +2,33 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260213
+
+Back to account statement sv file parsing.
+
+The next step is to make the generic statement table parser be able to parse statements with in and out saldo like the 'old' SKV file was using.
+
+We have generic_like_to_statement_mapping doing:
+
+* A range from is_amount_and_saldo_entry_candidate to NOT is_amount_and_saldo_entry_candidate
+* Check that we get at least one entry in the range
+
+We now whant to also be able to handle:
+
+* An optional single amount in-saldo and out-saldo entry
+* A range of either is_single_amount_trans_candidate or is_amount_and_saldo_entry_candidate
+
+Question is, whould the in-saldo and out-saldo predicates be different from xxx_trans_candidate?
+
+* YES: It seems better to have a separate is_saldo_entry_candidate and some is_xxx_trans_candidate predicates?
+
+We could imagine the following:
+
+* First inferr if there are dedicated saldo_entries to surround the trans entry candidates?
+* If the in- and out-saldo entries has the same rowmap as the trans entreis, then we can safelly expand?
+
+I added a 'most permissive range of candidates' mechanism to generic_like_to_statement_mapping. And it succeeds on SKV 'old' statement table.
+
 ## 20260212 SIE roudntrip seems to be broken
 
 I succeeded to create and send VAT Returns report to SKV.

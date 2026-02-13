@@ -110,6 +110,49 @@ namespace account {
           }
           if (true) logger::development_trace("candidate.has_heading {}",candidate.has_heading);
 
+          // We want to know if the csv table has entry range od:
+          // 1. In-saldo + transactions + out-saldo
+          // 2. All transactions
+          // Where a transaction may be with or without saldo
+
+
+          {
+            // Find most permissive range of candidates
+
+            auto most_permissive_is_entry_candidate = [](auto const& row_map){
+                if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+                if (     !row_map.ixs.contains(FieldType::Amount) 
+                      or (row_map.ixs.at(FieldType::Amount).size()==0)
+                      or (row_map.ixs.at(FieldType::Amount).size()>2)) return false;
+                if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
+                return true;
+              };
+
+              auto first_most_permissive_trans_iter_candidate = std::ranges::find_if(
+                  rows_map
+                ,most_permissive_is_entry_candidate);
+
+              if (first_most_permissive_trans_iter_candidate == rows_map.end()) {
+                logger::development_trace("No most_permissive_is_entry_candidate match");
+                return {};
+              }
+
+              auto most_permissive_trans_iter_candidates_end = std::find_if_not(
+                 first_most_permissive_trans_iter_candidate
+                ,rows_map.end()
+                ,most_permissive_is_entry_candidate
+              );
+
+              auto most_permissive_trans_candidates_count = std::distance(first_most_permissive_trans_iter_candidate,most_permissive_trans_iter_candidates_end);
+              if (true) logger::development_trace("most_permissive_trans_candidates_count:{}",most_permissive_trans_candidates_count);
+
+
+
+          }
+
+          
+
+
           auto is_amount_and_saldo_entry_candidate = [](auto const& row_map){
               if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
               if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()<2) return false;
@@ -459,6 +502,7 @@ namespace account {
             };
             return row_map == SKV_SALDO_ROW_MAP;      
           }; // is_skv_saldo_entry_candidate
+          
           auto in_saldo_candidate_iter = std::ranges::find_if(
             rows_map
             ,is_skv_saldo_entry_candidate
