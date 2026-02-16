@@ -205,69 +205,30 @@ namespace account {
               ,::to_string(maybe_in_out_saldos->m_out_saldo.m_value.second)
               );
           }
-
-          {
-            // Find most permissive range of candidates
-
-            auto is_trans_entry_candidate = [](auto const& row_map) {
-                if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
-                if (     !row_map.ixs.contains(FieldType::Amount) 
-                      or (row_map.ixs.at(FieldType::Amount).size()==0)
-                      or (row_map.ixs.at(FieldType::Amount).size()>2)) return false;
-                if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
-                return true;
-              };
-
-              auto begin_trans_entry_candidate_iter = std::ranges::find_if(
-                  rows_map
-                ,is_trans_entry_candidate);
-
-              if (begin_trans_entry_candidate_iter == rows_map.end()) {
-                logger::development_trace("No is_trans_entry_candidate match");
-                return {};
-              }
-
-              auto end_trans_entry_candidate_iter = std::find_if_not(
-                 begin_trans_entry_candidate_iter
-                ,rows_map.end()
-                ,is_trans_entry_candidate
-              );
-
-              auto trans_entry_candidates_count = std::distance(begin_trans_entry_candidate_iter,end_trans_entry_candidate_iter);
-              if (true) logger::development_trace("trans_entry_candidates_count:{}",trans_entry_candidates_count);
-
-              if (trans_entry_candidates_count==0) return {};
-
-              // Entry index range
-              auto begin_erix = std::distance(rows_map.begin(),begin_trans_entry_candidate_iter);
-              auto end_erix = std::distance(rows_map.begin(),end_trans_entry_candidate_iter);
-
-
-          } // in/out saldo option
-
           
 
-
-          auto is_amount_and_saldo_entry_candidate = [](auto const& row_map){
-              if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
-              if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()<2) return false;
-              if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
-              return true;
-            };
+        auto is_trans_entry_candidate = [](auto const& row_map) {
+            if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
+            if (     !row_map.ixs.contains(FieldType::Amount) 
+                  or (row_map.ixs.at(FieldType::Amount).size()==0)
+                  or (row_map.ixs.at(FieldType::Amount).size()>2)) return false;
+            if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
+            return true;
+          };
 
           auto first_trans_iter_candidate = std::ranges::find_if(
              rows_map
-            ,is_amount_and_saldo_entry_candidate);
+            ,is_trans_entry_candidate);
 
           if (first_trans_iter_candidate == rows_map.end()) {
-            logger::development_trace("No is_amount_and_saldo_entry_candidate match");
+            logger::development_trace("No is_trans_entry_candidate match");
             return {};
           }
 
           auto trans_iter_candidates_end = std::find_if_not(
              first_trans_iter_candidate
             ,rows_map.end()
-            ,is_amount_and_saldo_entry_candidate
+            ,is_trans_entry_candidate
           );
 
           auto trans_candidates_count = std::distance(first_trans_iter_candidate,trans_iter_candidates_end);
@@ -297,30 +258,18 @@ namespace account {
 
           if (true) logger::development_trace("common :{}",to_string(common));
 
-          bool is_trans_and_saldo_entry_candidate = common.ixs.at(FieldType::Amount).size() == 2;
-          if (true) logger::development_trace("is_trans_and_saldo_entry_candidate:{}",is_trans_and_saldo_entry_candidate);
-
-          if (is_trans_and_saldo_entry_candidate) {
-
-          } // if is_trans_and_saldo_entry_candidate
-
-          if (!common.ixs.contains(FieldType::Date) or common.ixs.at(FieldType::Date).size() != 1) {
-            if (true) logger::development_trace("Expected common Date column");
-            return {};
-          }
-          if (!common.ixs.contains(FieldType::Amount) or common.ixs.at(FieldType::Amount).size() != 2) {
-            if (true) logger::development_trace("Expected two common amount columns");
-            return {};
-          }
-          if (!common.ixs.contains(FieldType::Text) or common.ixs.at(FieldType::Text).size() == 0) {
-            if (true) logger::development_trace("Expected at least one common text column");
-            return {};
-          }
+          bool is_single_amount_trans_candidates = common.ixs.at(FieldType::Amount).size() == 1;
+          if (true) logger::development_trace("is_single_amount_trans_candidates:{}",is_single_amount_trans_candidates);
 
           candidate.common = common;
 
           auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
           auto end_rix = std::distance(rows_map.begin(),trans_iter_candidates_end);
+
+          if (is_single_amount_trans_candidates) {
+            candidate.entry_amounts_type = EntryAmountsType::TransOnly;
+            return candidate;
+          } // if is_single_amount_trans_candidates
 
           std::vector<std::pair<Amount,Amount>> amounts{};
           for (auto rix=begin_rix;rix<end_rix;++rix) {
@@ -508,6 +457,9 @@ namespace account {
           if (statement_mapping.has_heading) {
             std::map<FieldIx,std::string> column_headings_map{};
             for (auto const& [id,idxs] : statement_mapping.common.ixs) {
+              if ( !(    (id == FieldType::Date) 
+                      or (id == FieldType::Amount) 
+                      or ( id == FieldType::Text))) continue;
               for (auto ix : idxs) {
                 auto const& text = table.rows[0][ix];
                 column_headings_map[ix] = text;
@@ -516,7 +468,7 @@ namespace account {
 
             if (true) logger::development_trace("column_headings_map:{}",column_headings_map);
 
-            // 0: "Bokföringsdag", 1: "Belopp", 4: "Namn", 5: "Ytterligare detaljer", 8: "Saldo", 9: "Valuta", 10: ""
+            // {0: "Bokföringsdag", 1: "Belopp", 4: "Namn", 5: "Ytterligare detaljer", 8: "Saldo", 9: "Valuta"}
             const auto NORDEA_HEADING_MAP = std::map<FieldIx,std::string>{
               {0,"Bokföringsdag"}
               ,{1,"Belopp"}
@@ -524,7 +476,6 @@ namespace account {
               ,{5,"Ytterligare detaljer"}
               ,{8,"Saldo"}
               ,{9,"Valuta"}
-              ,{10,""}
             };
 
             if (column_headings_map == NORDEA_HEADING_MAP) {
@@ -665,7 +616,7 @@ namespace account {
 
           if (rows_map.size() == 0) return {}; // Empty table
 
-          auto is_amount_and_saldo_entry_candidate = [](auto const& row_map){
+          auto is_trans_entry_candidate = [](auto const& row_map){
               if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
               if (!row_map.ixs.contains(FieldType::Amount) or row_map.ixs.at(FieldType::Amount).size()<2) return false;
               if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
@@ -674,17 +625,17 @@ namespace account {
 
           auto first_trans_iter_candidate = std::ranges::find_if(
              rows_map
-            ,is_amount_and_saldo_entry_candidate);
+            ,is_trans_entry_candidate);
 
           if (first_trans_iter_candidate == rows_map.end()) {
-            logger::development_trace("No is_amount_and_saldo_entry_candidate match");
+            logger::development_trace("No is_trans_entry_candidate match");
             return {};
           }
 
           auto trans_iter_candidates_end = std::find_if_not(
              first_trans_iter_candidate
             ,rows_map.end()
-            ,is_amount_and_saldo_entry_candidate
+            ,is_trans_entry_candidate
           );
 
           auto trans_candidates_count = std::distance(first_trans_iter_candidate,trans_iter_candidates_end);
