@@ -1,5 +1,6 @@
 #include "csv_to_account_statement.hpp"
 #include "text/functional.hpp" // functional::text::filtered
+#include "fiscal/amount/TaggedAmountFramework.hpp"
 
 namespace account {
 
@@ -82,6 +83,19 @@ namespace account {
 
         } // log_the_rows_map
 
+        struct FoundSaldo {
+          FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
+          using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
+          Value m_value;
+        }; // FoundSaldo
+        FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)
+          : m_value(rix,TaggedAmount(date,to_cents_amount(ta))) {}
+
+        struct FoundSaldos {
+          FoundSaldo m_in_saldo;
+          FoundSaldo m_out_saldo;
+        }; // FoundSaldos
+
         std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table) {
 
           logger::scope_logger log_raii(logger::development_trace,"generic_like_to_statement_mapping",logger::LogToConsole::ON);
@@ -110,16 +124,95 @@ namespace account {
           }
           if (true) logger::development_trace("candidate.has_heading {}",candidate.has_heading);
 
-          // We want to know if the csv table has entry range od:
-          // 1. In-saldo + transactions + out-saldo
-          // 2. All transactions
-          // Where a transaction may be with or without saldo
+          auto to_skv_in_out_saldos = [](CSV::Table const& table, RowsMap rows_map) -> std::optional<FoundSaldos> {
+
+            auto const& [heading,rows] = table;
+
+            auto is_saldo_candidate = [](RowMap const& row_map){
+              static auto const SKV_SALDO_ENTRY_MAP = RowMap{
+                .ixs = {
+                  {FieldType::Empty,{0,4}} 
+                  ,{FieldType::Amount,{2,3}} 
+                  ,{FieldType::Text,{1}}}
+              };
+              return (row_map == SKV_SALDO_ENTRY_MAP);
+            };
+
+
+            auto in_saldo_candidate_iter = std::ranges::find_if(
+                rows_map
+              ,is_saldo_candidate
+            );
+
+            auto out_saldo_candidate_iter = in_saldo_candidate_iter;
+            std::ptrdiff_t in_out_saldo_enveloped_size{};
+            if (in_saldo_candidate_iter != rows_map.end()) {
+              out_saldo_candidate_iter = std::find_if(
+                  in_saldo_candidate_iter+1
+                ,rows_map.end()
+                ,is_saldo_candidate
+              );
+              if (out_saldo_candidate_iter != rows_map.end()) {
+                in_out_saldo_enveloped_size = std::distance(in_saldo_candidate_iter,out_saldo_candidate_iter);
+              }
+            }
+            if (true) logger::development_trace("in_out_saldo_enveloped_size:{}",in_out_saldo_enveloped_size);
+
+            if (in_out_saldo_enveloped_size==0) return {}; // to_skv_in_out_saldos
+
+            auto in_saldo_rix = std::distance(rows_map.begin(),in_saldo_candidate_iter);
+            auto out_saldo_rix = std::distance(rows_map.begin(),out_saldo_candidate_iter);
+
+            auto to_skv_saldo_date = [](std::string const& skv_saldo_text) -> std::optional<Date> {
+              auto tokens = tokenize::splits(skv_saldo_text,' ');
+              if (true) logger::development_trace("tokens:{}",tokens);
+              if (tokens.size()==0) return {};
+              return to_date(tokens.back());
+            }; // to_skv_saldo_date
+
+            auto maybe_in_saldo_date = to_skv_saldo_date(rows[in_saldo_rix][1]);
+            auto maybe_out_saldo_date = to_skv_saldo_date(rows[out_saldo_rix][1]);
+
+            if (!maybe_in_saldo_date or !maybe_out_saldo_date) return {};
+
+            auto amount_cix = rows_map[in_saldo_rix].ixs.at(FieldType::Amount).front();
+            auto maybe_in_saldo_amount = to_amount(rows[in_saldo_rix][amount_cix]);
+            auto maybe_out_saldo_amount = to_amount(rows[out_saldo_rix][amount_cix]);
+
+            if (!maybe_in_saldo_amount or !maybe_out_saldo_amount) return {}; // to_skv_saldo_date
+
+            auto found_in_saldo = FoundSaldo{
+                in_saldo_rix
+              ,*maybe_in_saldo_date
+              ,*maybe_in_saldo_amount
+            };
+            auto found_out_saldo = FoundSaldo{
+                out_saldo_rix
+              ,*maybe_out_saldo_date
+              ,*maybe_out_saldo_amount
+            };
+            return FoundSaldos{found_in_saldo,found_out_saldo};
+            
+          }; // to_skv_in_out_saldos
+
+          auto maybe_in_out_saldos = to_skv_in_out_saldos(table,rows_map);
+          if (maybe_in_out_saldos) {
+            if (true) logger::development_trace(
+              "maybe_in_out_saldos: IN:[{},{}] OUT[{},{}]"
+              ,maybe_in_out_saldos->m_in_saldo.m_value.first
+              ,::to_string(maybe_in_out_saldos->m_in_saldo.m_value.second)
+              ,maybe_in_out_saldos->m_out_saldo.m_value.first
+              ,::to_string(maybe_in_out_saldos->m_out_saldo.m_value.second)
+              );
+          }
+
+
 
 
           {
             // Find most permissive range of candidates
 
-            auto most_permissive_is_entry_candidate = [](auto const& row_map){
+            auto most_permissive_is_entry_candidate = [](auto const& row_map) {
                 if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
                 if (     !row_map.ixs.contains(FieldType::Amount) 
                       or (row_map.ixs.at(FieldType::Amount).size()==0)
@@ -146,9 +239,33 @@ namespace account {
               auto most_permissive_trans_candidates_count = std::distance(first_most_permissive_trans_iter_candidate,most_permissive_trans_iter_candidates_end);
               if (true) logger::development_trace("most_permissive_trans_candidates_count:{}",most_permissive_trans_candidates_count);
 
+              if (most_permissive_trans_candidates_count==0) return {};
 
+              // Entry index range
+              auto begin_erix = std::distance(rows_map.begin(),first_most_permissive_trans_iter_candidate);
+              auto end_erix = std::distance(rows_map.begin(),most_permissive_trans_iter_candidates_end);
 
-          }
+              if (most_permissive_trans_candidates_count>2) {
+                // in/out saldo possible
+                auto is_enveloped_range = (
+                      (rows_map[begin_erix] != rows_map[begin_erix+1])
+                  and (rows_map[end_erix-1] != rows_map[end_erix-2])
+                );
+
+                if (true) logger::development_trace("is_enveloped_range:{}",is_enveloped_range);
+
+                // Default
+                auto begin_trix = begin_erix;
+                auto end_trix = end_erix;
+
+                if (is_enveloped_range) {
+                  ++begin_trix;
+                  --end_trix;
+                }
+                if (true) logger::development_trace("begin_trix::{} end_trix::{}",begin_trix,end_trix);
+              }
+
+          } // in/out saldo option
 
           
 

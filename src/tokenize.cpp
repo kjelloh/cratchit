@@ -40,8 +40,7 @@ namespace tokenize {
       return {"", s}; // split failed (return right = the unsplit string)
   }
 
-  std::vector<std::string>
-  splits(std::string s, char delim,
+  std::vector<std::string> splits(std::string const& s, char delim,
          eAllowEmptyTokens allow_empty_tokens) {
     std::vector<std::string> result;
     try {

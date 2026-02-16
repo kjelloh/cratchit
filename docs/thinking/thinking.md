@@ -2,6 +2,29 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260216
+
+Implemented, valled and logged to_skv_in_out_saldos lambda. It seems to work on old SKV + stable for other text statement files.
+
+Question is now:
+
+* How should I expect in/out saldos and transaction range to relate?
+* Should I require in/out saldos to 'embrace' any statement transaction entries?
+* Should I care?
+
+## 20260215
+
+I now have this idea for generic statement table parsing.
+
+1. Call a function to get optional in and out saldo
+  - Return index + tagged amount pair for in and out saldo found
+  - Reyurn nullopt if no in/out saldo found
+2. If saldo is found
+  - define transaction range based on in-salod index + 1 and out-saldo index -1
+  - Else define trasnaction ramge as from first one Date,one or two Amount,one or more Text
+3. produce common over transaction range.
+
+
 ## 20260213
 
 Back to account statement sv file parsing.

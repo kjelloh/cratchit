@@ -17,7 +17,7 @@ namespace tokenize {
 
   enum class eAllowEmptyTokens { unknown, no, YES, undefined };
 
-  std::vector<std::string> splits(std::string s, char delim,
+  std::vector<std::string> splits(std::string const& s, char delim,
          eAllowEmptyTokens allow_empty_tokens = eAllowEmptyTokens::no);
 
   std::vector<std::string> splits(std::string const& s);
