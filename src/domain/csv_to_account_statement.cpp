@@ -206,13 +206,10 @@ namespace account {
               );
           }
 
-
-
-
           {
             // Find most permissive range of candidates
 
-            auto most_permissive_is_entry_candidate = [](auto const& row_map) {
+            auto is_trans_entry_candidate = [](auto const& row_map) {
                 if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
                 if (     !row_map.ixs.contains(FieldType::Amount) 
                       or (row_map.ixs.at(FieldType::Amount).size()==0)
@@ -221,49 +218,30 @@ namespace account {
                 return true;
               };
 
-              auto first_most_permissive_trans_iter_candidate = std::ranges::find_if(
+              auto begin_trans_entry_candidate_iter = std::ranges::find_if(
                   rows_map
-                ,most_permissive_is_entry_candidate);
+                ,is_trans_entry_candidate);
 
-              if (first_most_permissive_trans_iter_candidate == rows_map.end()) {
-                logger::development_trace("No most_permissive_is_entry_candidate match");
+              if (begin_trans_entry_candidate_iter == rows_map.end()) {
+                logger::development_trace("No is_trans_entry_candidate match");
                 return {};
               }
 
-              auto most_permissive_trans_iter_candidates_end = std::find_if_not(
-                 first_most_permissive_trans_iter_candidate
+              auto end_trans_entry_candidate_iter = std::find_if_not(
+                 begin_trans_entry_candidate_iter
                 ,rows_map.end()
-                ,most_permissive_is_entry_candidate
+                ,is_trans_entry_candidate
               );
 
-              auto most_permissive_trans_candidates_count = std::distance(first_most_permissive_trans_iter_candidate,most_permissive_trans_iter_candidates_end);
-              if (true) logger::development_trace("most_permissive_trans_candidates_count:{}",most_permissive_trans_candidates_count);
+              auto trans_entry_candidates_count = std::distance(begin_trans_entry_candidate_iter,end_trans_entry_candidate_iter);
+              if (true) logger::development_trace("trans_entry_candidates_count:{}",trans_entry_candidates_count);
 
-              if (most_permissive_trans_candidates_count==0) return {};
+              if (trans_entry_candidates_count==0) return {};
 
               // Entry index range
-              auto begin_erix = std::distance(rows_map.begin(),first_most_permissive_trans_iter_candidate);
-              auto end_erix = std::distance(rows_map.begin(),most_permissive_trans_iter_candidates_end);
+              auto begin_erix = std::distance(rows_map.begin(),begin_trans_entry_candidate_iter);
+              auto end_erix = std::distance(rows_map.begin(),end_trans_entry_candidate_iter);
 
-              if (most_permissive_trans_candidates_count>2) {
-                // in/out saldo possible
-                auto is_enveloped_range = (
-                      (rows_map[begin_erix] != rows_map[begin_erix+1])
-                  and (rows_map[end_erix-1] != rows_map[end_erix-2])
-                );
-
-                if (true) logger::development_trace("is_enveloped_range:{}",is_enveloped_range);
-
-                // Default
-                auto begin_trix = begin_erix;
-                auto end_trix = end_erix;
-
-                if (is_enveloped_range) {
-                  ++begin_trix;
-                  --end_trix;
-                }
-                if (true) logger::development_trace("begin_trix::{} end_trix::{}",begin_trix,end_trix);
-              }
 
           } // in/out saldo option
 
@@ -318,6 +296,13 @@ namespace account {
           }
 
           if (true) logger::development_trace("common :{}",to_string(common));
+
+          bool is_trans_and_saldo_entry_candidate = common.ixs.at(FieldType::Amount).size() == 2;
+          if (true) logger::development_trace("is_trans_and_saldo_entry_candidate:{}",is_trans_and_saldo_entry_candidate);
+
+          if (is_trans_and_saldo_entry_candidate) {
+
+          } // if is_trans_and_saldo_entry_candidate
 
           if (!common.ixs.contains(FieldType::Date) or common.ixs.at(FieldType::Date).size() != 1) {
             if (true) logger::development_trace("Expected common Date column");
