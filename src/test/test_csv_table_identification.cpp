@@ -348,8 +348,71 @@ namespace tests::csv_table_identification {
 
     // END TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_x
 
-    TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_0_1_Ok) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_NORDEA_0_1_Ok)"};
+    // BEGIN TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_x
+
+    TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_0) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_0)"};
+      std::string caption = "sz_NORDEA_0_1";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+
+    } // TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_0
+
+    TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_1) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_1)"};
+      std::string caption = "sz_NORDEA_0_1";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+
+    } // TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_1
+    TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_2) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_2)"};
+      std::string caption = "sz_NORDEA_0_1";
+      // std::string csv_text = sz_NORDEA_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120;
+      // std::string csv_text = sz_SKV_csv_20251120_BOM_ed;
+      // std::string csv_text = sz_SKV_csv_older;
+      std::string csv_text = sz_NORDEA_0_1;
+      // std::string csv_text = sz_SKV_0_0;
+      // std::string csv_text = sz_SKV_0_0_BOM_ed;
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
+      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
+      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
+      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
+      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
+
+    } // TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_2
+    TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_3) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_3)"};
       std::string caption = "sz_NORDEA_0_1";
       // std::string csv_text = sz_NORDEA_csv_20251120;
       // std::string csv_text = sz_SKV_csv_20251120;
@@ -364,15 +427,9 @@ namespace tests::csv_table_identification {
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
 
-      auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
-      ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
-      auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
-      ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
-      auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
-      ASSERT_TRUE(maybe_account_id) << std::format("Expected valid account ID for {}",caption);
+    } // TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_3
 
-    }
+    // END TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_x
 
     TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_SKV_0_0_Ok) {
       logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_SKV_0_0_Ok)"};
