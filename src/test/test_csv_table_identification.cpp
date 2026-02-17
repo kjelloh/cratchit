@@ -509,7 +509,7 @@ namespace tests::csv_table_identification {
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
-      ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
+      ASSERT_FALSE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected NO Mapping for {}",caption);
 
     } // TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_3
 

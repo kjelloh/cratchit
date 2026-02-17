@@ -603,8 +603,16 @@ namespace account {
               ,rows_map.end()
               ,is_skv_saldo_entry_candidate
             );
-
+  
+  
+  
             if (out_saldo_candidate_iter != rows_map.end()) {
+  
+              auto trans_candidates_count = std::distance(in_saldo_candidate_iter,out_saldo_candidate_iter) -1;
+              logger::development_trace("trans_candidates_count:{}",trans_candidates_count);
+
+              if (trans_candidates_count==0) return {};
+
               auto trans_span_end = out_saldo_candidate_iter;
               // We have a span to check
               auto key_map = *(in_saldo_candidate_iter+1);
