@@ -121,13 +121,24 @@ namespace account {
             {
               // SKV statement table?
               auto is_saldo_candidate = [](RowMap const& row_map){
-                static auto const SKV_SALDO_ENTRY_MAP = RowMap{
+                // Empty: 0 2 Amount: 3 Text: 1
+                static auto const SKV_SALDO_ENTRY_MAP_1 = RowMap{
+                  .ixs = {
+                    {FieldType::Empty,{0,2}} 
+                    ,{FieldType::Amount,{3}} 
+                    ,{FieldType::Text,{1}}}
+                };
+
+                // Empty: 0 4 Amount: 2 3 Text: 1
+                static auto const SKV_SALDO_ENTRY_MAP_0 = RowMap{
                   .ixs = {
                     {FieldType::Empty,{0,4}} 
                     ,{FieldType::Amount,{2,3}} 
                     ,{FieldType::Text,{1}}}
                 };
-                return (row_map == SKV_SALDO_ENTRY_MAP);
+                return (
+                     (row_map == SKV_SALDO_ENTRY_MAP_0)
+                  or (row_map == SKV_SALDO_ENTRY_MAP_1));
               };
 
               auto in_saldo_candidate_iter = std::ranges::find_if(
@@ -216,6 +227,10 @@ namespace account {
 
           if (first_trans_iter_candidate == rows_map.end()) {
             logger::development_trace("No is_trans_entry_candidate match");
+            if (maybe_in_out_saldos) {
+              logger::development_trace("Has in/out saldos - returns candidate");
+              return candidate;
+            }
             return {};
           }
 
