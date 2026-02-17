@@ -49,9 +49,9 @@ namespace account {
         case FieldType::Empty: result = "Empty"; break;
         case FieldType::Date: result = "Date"; break;
         case FieldType::Amount: result = "Amount"; break;
+        case FieldType::OrgNo: result = "OrgNo"; break;
         case FieldType::Text: result = "Text"; break;
         case FieldType::Undefined: result = "Undefined"; break;
-        default: result = std::format("?FieldType:{}?",static_cast<int>(field_type)); break;
       }
       return result;
     }
@@ -65,6 +65,9 @@ namespace account {
       }
       else if (auto maybe_amount = to_amount(s)) {
         return FieldType::Amount;
+      }
+      else if (auto maybe_org_no = SKV::to_org_no(s)) {
+        return FieldType::OrgNo;
       }
       else if (text::functional::count_alpha(s) > 0) {
         return FieldType::Text;

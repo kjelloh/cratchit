@@ -74,7 +74,8 @@ namespace account {
       ,Empty
       ,Date
       ,Amount
-      ,Text 
+      ,OrgNo
+      ,Text
       ,Undefined
     };
 

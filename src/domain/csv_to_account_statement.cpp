@@ -459,6 +459,54 @@ namespace account {
           AccountID candidate{};
           auto const& [statement_mapping,table] = mapped_table;
 
+          {
+            // map: Empty: 0 4 Amount: 2 3 Text: 1
+            auto const SKV_ROW_0_MAP_0 = RowMap{
+              .ixs = {
+                {FieldType::Empty,{0,4}}
+              ,{FieldType::Amount,{2,3}}
+              ,{FieldType::Text,{1}}
+            }};
+
+            if (statement_mapping.m_row_0_map == SKV_ROW_0_MAP_0) {
+              if (true) logger::development_trace(
+                  "Matches SKV_ROW_0_MAP_0:{}"
+                ,to_string(SKV_ROW_0_MAP_0));
+                candidate = AccountID{"SKV","??"};
+                return candidate; // SUCCESS
+            }
+
+          } // SKV 'older'
+
+          {
+
+            // Empty: 2 3 OrgNo: 1 Text: 0
+            auto const SKV_ROW_0_MAP_1 = RowMap{
+              .ixs = {
+                {FieldType::Empty,{2,3}}
+              ,{FieldType::OrgNo,{1}}
+              ,{FieldType::Text,{0}}
+            }};
+
+            if (statement_mapping.m_row_0_map == SKV_ROW_0_MAP_1) {
+              if (true) logger::development_trace(
+                  "Matches SKV_ROW_0_MAP_1:{}"
+                ,to_string(SKV_ROW_0_MAP_1));
+              // "THE ITFIED AB";"556782-8172";"";""
+              auto org_name_cix = statement_mapping.m_row_0_map.ixs.at(FieldType::Text).front();
+              auto org_no_cix = statement_mapping.m_row_0_map.ixs.at(FieldType::OrgNo).front();
+              auto const& org_name_candidate = table.rows[0][org_name_cix];
+              auto const& org_nr_candidate = table.rows[0][org_no_cix];
+
+              if (auto maybe_org_no = SKV::to_org_no(org_nr_candidate)) {
+                if (true) logger::development_trace("maybe_org_no:{}",maybe_org_no->with_hyphen());            
+                candidate = AccountID{"SKV",maybe_org_no->with_hyphen()};
+                return candidate; // SUCCESS
+              }
+            }
+
+          } // 'newer' SKV
+
           if (!statement_mapping.maybe_common) return {};
 
           if (statement_mapping.has_heading) {
@@ -493,50 +541,7 @@ namespace account {
           }
           else {
             if (true) logger::development_trace("No Heading");
-
-            {
-              // map: Empty: 0 4 Amount: 2 3 Text: 1
-              auto const SKV_COMMON_ROW_MAP = RowMap{
-                .ixs = {
-                  {FieldType::Empty,{0,4}}
-                ,{FieldType::Amount,{2,3}}
-                ,{FieldType::Text,{1}}
-              }};
-              if (statement_mapping.m_row_0_map == SKV_COMMON_ROW_MAP) {
-                if (true) logger::development_trace("Matches SKV_COMMON_ROW_MAP:{}",to_string(SKV_COMMON_ROW_MAP));
-                  candidate = AccountID{"SKV","??"};
-                  return candidate; // SUCCESS
-              }
-            } // SKV 'older'
-
-            {
-              auto const SKV_COMMON_ROW_MAP = RowMap{
-                .ixs = {
-                  {FieldType::Date,{0}}
-                ,{FieldType::Amount,{2,3}}
-                ,{FieldType::Text,{1}}
-              }};
-              if (*statement_mapping.maybe_common == SKV_COMMON_ROW_MAP) {
-
-                if (true) logger::development_trace("Matches SKV_COMMON_ROW_MAP:{}",to_string(SKV_COMMON_ROW_MAP));
-
-                // "THE ITFIED AB";"556782-8172";"";""
-                auto const& org_name_candidate = table.rows[0][0];
-                auto const& org_nr_candidate = table.rows[0][1];
-
-                if (auto maybe_org_no = SKV::to_org_no(org_nr_candidate)) {
-                  if (true) logger::development_trace("maybe_org_no:{}",maybe_org_no->with_hyphen());            
-                  candidate = AccountID{"SKV",maybe_org_no->with_hyphen()};
-                  return candidate; // SUCCESS
-                }
-              }
-            } // 'newer' SKV
-
           } // has heading
-
-          if (statement_mapping.m_maybe_in_out_saldos) {
-
-          }
 
           if (true) logger::development_trace("returns nullopt");
           return {};

@@ -87,7 +87,9 @@ Let's try and see how much work it may be?
 
 DARN! This exposed a dependancy and namespace confusion hell.
 
-* I tried to move the 'to row map' mechanism to statement_table_meta unit but failed.
+I moved only to_field_type to the meta unit and this worked out fine for now.
+
+
 
 ## 20260216
 
