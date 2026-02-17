@@ -381,7 +381,7 @@ namespace account {
 
           return candidate;
 
-        }
+        } // generic_like_to_statement_mapping
 
         std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table) {
           logger::scope_logger log_raii(logger::development_trace,"generic_like_to_column_mapping",logger::LogToConsole::ON);
@@ -394,6 +394,9 @@ namespace account {
             candidate.date_column = statement_mapping.common.ixs.at(FieldType::Date).front();
 
             switch (statement_mapping.entry_amounts_type) {
+              case EntryAmountsType::TransOnly: {
+                candidate.transaction_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).front();
+              } break;
               case EntryAmountsType::TransThenSaldo: {
                 candidate.transaction_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).front();
                 candidate.saldo_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).back();
@@ -426,14 +429,9 @@ namespace account {
               }
             }
             else {
+              // common : Empty: 3 4 Date: 0 Amount: 2 Text: 1
               // SKV common : Date: 0 Amount: 2 3 Text: 1
-              auto const SKV_COMMON_ROW_MAP = RowMap{
-                .ixs = {
-                 {FieldType::Date,{0}}
-                ,{FieldType::Amount,{2,3}}
-                ,{FieldType::Text,{1}}
-              }};
-              if (statement_mapping.common == SKV_COMMON_ROW_MAP) {
+              if (statement_mapping.common.ixs.at(FieldType::Text).size()==1) {
                 candidate.description_column = statement_mapping.common.ixs.at(FieldType::Text).front();
                 return candidate; // SUCCESS
               }
