@@ -113,77 +113,82 @@ namespace account {
           }
           if (true) logger::development_trace("candidate.has_heading {}",candidate.has_heading);
 
-          auto to_skv_in_out_saldos = [](CSV::Table const& table, RowsMap rows_map) -> std::optional<FoundSaldos> {
+          auto to_in_out_saldos = [](CSV::Table const& table, RowsMap rows_map) -> std::optional<FoundSaldos> {
 
             auto const& [heading,rows] = table;
 
-            auto is_saldo_candidate = [](RowMap const& row_map){
-              static auto const SKV_SALDO_ENTRY_MAP = RowMap{
-                .ixs = {
-                  {FieldType::Empty,{0,4}} 
-                  ,{FieldType::Amount,{2,3}} 
-                  ,{FieldType::Text,{1}}}
+            {
+              // SKV statement table?
+              auto is_saldo_candidate = [](RowMap const& row_map){
+                static auto const SKV_SALDO_ENTRY_MAP = RowMap{
+                  .ixs = {
+                    {FieldType::Empty,{0,4}} 
+                    ,{FieldType::Amount,{2,3}} 
+                    ,{FieldType::Text,{1}}}
+                };
+                return (row_map == SKV_SALDO_ENTRY_MAP);
               };
-              return (row_map == SKV_SALDO_ENTRY_MAP);
-            };
 
-            auto in_saldo_candidate_iter = std::ranges::find_if(
-                rows_map
-              ,is_saldo_candidate
-            );
-
-            auto out_saldo_candidate_iter = in_saldo_candidate_iter;
-            std::ptrdiff_t in_out_saldo_enveloped_size{};
-            if (in_saldo_candidate_iter != rows_map.end()) {
-              out_saldo_candidate_iter = std::find_if(
-                  in_saldo_candidate_iter+1
-                ,rows_map.end()
+              auto in_saldo_candidate_iter = std::ranges::find_if(
+                  rows_map
                 ,is_saldo_candidate
               );
-              if (out_saldo_candidate_iter != rows_map.end()) {
-                in_out_saldo_enveloped_size = std::distance(in_saldo_candidate_iter,out_saldo_candidate_iter);
+
+              auto out_saldo_candidate_iter = in_saldo_candidate_iter;
+              std::ptrdiff_t in_out_saldo_enveloped_size{};
+              if (in_saldo_candidate_iter != rows_map.end()) {
+                out_saldo_candidate_iter = std::find_if(
+                    in_saldo_candidate_iter+1
+                  ,rows_map.end()
+                  ,is_saldo_candidate
+                );
+                if (out_saldo_candidate_iter != rows_map.end()) {
+                  in_out_saldo_enveloped_size = std::distance(in_saldo_candidate_iter,out_saldo_candidate_iter);
+                }
               }
+              if (true) logger::development_trace("in_out_saldo_enveloped_size:{}",in_out_saldo_enveloped_size);
+
+              if (in_out_saldo_enveloped_size==0) return {}; // to_in_out_saldos
+
+              auto in_saldo_rix = std::distance(rows_map.begin(),in_saldo_candidate_iter);
+              auto out_saldo_rix = std::distance(rows_map.begin(),out_saldo_candidate_iter);
+
+              auto to_skv_saldo_date = [](std::string const& skv_saldo_text) -> std::optional<Date> {
+                auto tokens = tokenize::splits(skv_saldo_text,' ');
+                if (true) logger::development_trace("tokens:{}",tokens);
+                if (tokens.size()==0) return {};
+                return to_date(tokens.back());
+              }; // to_skv_saldo_date
+
+              auto maybe_in_saldo_date = to_skv_saldo_date(rows[in_saldo_rix][1]);
+              auto maybe_out_saldo_date = to_skv_saldo_date(rows[out_saldo_rix][1]);
+
+              if (!maybe_in_saldo_date or !maybe_out_saldo_date) return {};
+
+              auto amount_cix = rows_map[in_saldo_rix].ixs.at(FieldType::Amount).front();
+              auto maybe_in_saldo_amount = to_amount(rows[in_saldo_rix][amount_cix]);
+              auto maybe_out_saldo_amount = to_amount(rows[out_saldo_rix][amount_cix]);
+
+              if (!maybe_in_saldo_amount or !maybe_out_saldo_amount) return {}; // to_skv_saldo_date
+
+              auto found_in_saldo = FoundSaldo{
+                  in_saldo_rix
+                ,*maybe_in_saldo_date
+                ,*maybe_in_saldo_amount
+              };
+              auto found_out_saldo = FoundSaldo{
+                  out_saldo_rix
+                ,*maybe_out_saldo_date
+                ,*maybe_out_saldo_amount
+              };
+              return FoundSaldos{found_in_saldo,found_out_saldo};
             }
-            if (true) logger::development_trace("in_out_saldo_enveloped_size:{}",in_out_saldo_enveloped_size);
 
-            if (in_out_saldo_enveloped_size==0) return {}; // to_skv_in_out_saldos
-
-            auto in_saldo_rix = std::distance(rows_map.begin(),in_saldo_candidate_iter);
-            auto out_saldo_rix = std::distance(rows_map.begin(),out_saldo_candidate_iter);
-
-            auto to_skv_saldo_date = [](std::string const& skv_saldo_text) -> std::optional<Date> {
-              auto tokens = tokenize::splits(skv_saldo_text,' ');
-              if (true) logger::development_trace("tokens:{}",tokens);
-              if (tokens.size()==0) return {};
-              return to_date(tokens.back());
-            }; // to_skv_saldo_date
-
-            auto maybe_in_saldo_date = to_skv_saldo_date(rows[in_saldo_rix][1]);
-            auto maybe_out_saldo_date = to_skv_saldo_date(rows[out_saldo_rix][1]);
-
-            if (!maybe_in_saldo_date or !maybe_out_saldo_date) return {};
-
-            auto amount_cix = rows_map[in_saldo_rix].ixs.at(FieldType::Amount).front();
-            auto maybe_in_saldo_amount = to_amount(rows[in_saldo_rix][amount_cix]);
-            auto maybe_out_saldo_amount = to_amount(rows[out_saldo_rix][amount_cix]);
-
-            if (!maybe_in_saldo_amount or !maybe_out_saldo_amount) return {}; // to_skv_saldo_date
-
-            auto found_in_saldo = FoundSaldo{
-                in_saldo_rix
-              ,*maybe_in_saldo_date
-              ,*maybe_in_saldo_amount
-            };
-            auto found_out_saldo = FoundSaldo{
-                out_saldo_rix
-              ,*maybe_out_saldo_date
-              ,*maybe_out_saldo_amount
-            };
-            return FoundSaldos{found_in_saldo,found_out_saldo};
+            return {};
             
-          }; // to_skv_in_out_saldos
+          }; // to_in_out_saldos
 
-          auto maybe_in_out_saldos = to_skv_in_out_saldos(table,rows_map);
+          auto maybe_in_out_saldos = to_in_out_saldos(table,rows_map);
           candidate.m_maybe_in_out_saldos = maybe_in_out_saldos;
           if (maybe_in_out_saldos) {
             if (true) logger::development_trace(
@@ -195,8 +200,7 @@ namespace account {
               );
           }
           
-
-        auto is_trans_entry_candidate = [](auto const& row_map) {
+          auto is_trans_entry_candidate = [](auto const& row_map) {
             if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
             if (     !row_map.ixs.contains(FieldType::Amount) 
                   or (row_map.ixs.at(FieldType::Amount).size()==0)
@@ -250,7 +254,7 @@ namespace account {
           bool is_single_amount_trans_candidates = common.ixs.at(FieldType::Amount).size() == 1;
           if (true) logger::development_trace("is_single_amount_trans_candidates:{}",is_single_amount_trans_candidates);
 
-          candidate.common = common;
+          candidate.maybe_common = common;
 
           auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
           auto end_rix = std::distance(rows_map.begin(),trans_iter_candidates_end);
@@ -380,15 +384,17 @@ namespace account {
 
           try {
 
-            candidate.date_column = statement_mapping.common.ixs.at(FieldType::Date).front();
+            if (!statement_mapping.maybe_common) return {};
+
+            candidate.date_column = statement_mapping.maybe_common->ixs.at(FieldType::Date).front();
 
             switch (statement_mapping.entry_amounts_type) {
               case EntryAmountsType::TransOnly: {
-                candidate.transaction_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).front();
+                candidate.transaction_amount_column = statement_mapping.maybe_common->ixs.at(FieldType::Amount).front();
               } break;
               case EntryAmountsType::TransThenSaldo: {
-                candidate.transaction_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).front();
-                candidate.saldo_amount_column = statement_mapping.common.ixs.at(FieldType::Amount).back();
+                candidate.transaction_amount_column = statement_mapping.maybe_common->ixs.at(FieldType::Amount).front();
+                candidate.saldo_amount_column = statement_mapping.maybe_common->ixs.at(FieldType::Amount).back();
               } break;
               default: {
                 logger::design_insufficiency(
@@ -400,7 +406,7 @@ namespace account {
 
             if (statement_mapping.has_heading) {
               std::map<FieldIx,std::string> text_columns_map{};
-              for (auto ix : statement_mapping.common.ixs.at(FieldType::Text)) {
+              for (auto ix : statement_mapping.maybe_common->ixs.at(FieldType::Text)) {
                 auto const& text = table.rows[0][ix];
                 text_columns_map[ix] = text;
               }
@@ -420,8 +426,8 @@ namespace account {
             else {
               // common : Empty: 3 4 Date: 0 Amount: 2 Text: 1
               // SKV common : Date: 0 Amount: 2 3 Text: 1
-              if (statement_mapping.common.ixs.at(FieldType::Text).size()==1) {
-                candidate.description_column = statement_mapping.common.ixs.at(FieldType::Text).front();
+              if (statement_mapping.maybe_common->ixs.at(FieldType::Text).size()==1) {
+                candidate.description_column = statement_mapping.maybe_common->ixs.at(FieldType::Text).front();
                 return candidate; // SUCCESS
               }
             }
@@ -438,12 +444,15 @@ namespace account {
 
         std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table) {
           logger::scope_logger log_raii(logger::development_trace,"generic_like_to_account_id",logger::LogToConsole::ON);
+
           AccountID candidate{};
           auto const& [statement_mapping,table] = mapped_table;
 
+          if (!statement_mapping.maybe_common) return {};
+
           if (statement_mapping.has_heading) {
             std::map<FieldIx,std::string> column_headings_map{};
-            for (auto const& [id,idxs] : statement_mapping.common.ixs) {
+            for (auto const& [id,idxs] : statement_mapping.maybe_common->ixs) {
               if ( !(    (id == FieldType::Date) 
                       or (id == FieldType::Amount) 
                       or ( id == FieldType::Text))) continue;
@@ -496,7 +505,7 @@ namespace account {
                 ,{FieldType::Amount,{2,3}}
                 ,{FieldType::Text,{1}}
               }};
-              if (statement_mapping.common == SKV_COMMON_ROW_MAP) {
+              if (*statement_mapping.maybe_common == SKV_COMMON_ROW_MAP) {
 
                 if (true) logger::development_trace("Matches SKV_COMMON_ROW_MAP:{}",to_string(SKV_COMMON_ROW_MAP));
 

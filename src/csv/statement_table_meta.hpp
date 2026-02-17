@@ -98,7 +98,7 @@ namespace account {
       bool has_heading;
       std::optional<FoundSaldos> m_maybe_in_out_saldos;
       EntryAmountsType entry_amounts_type;
-      RowMap common;
+      std::optional<RowMap> maybe_common;
     }; // StatementMapping
 
     struct TableMeta {
