@@ -11,20 +11,6 @@ namespace account {
 
       namespace table {
 
-        std::string to_string(FieldType field_type) {
-          std::string result{"?FieldType?"};
-          switch (field_type) {
-           case FieldType::Unknown: result = "Unknown"; break;
-            case FieldType::Empty: result = "Empty"; break;
-            case FieldType::Date: result = "Date"; break;
-            case FieldType::Amount: result = "Amount"; break;
-            case FieldType::Text: result = "Text"; break;
-            case FieldType::Undefined: result = "Undefined"; break;
-            default: result = std::format("?FieldType:{}?",static_cast<int>(field_type)); break;
-          }
-          return result;
-        }
-
         FieldType to_field_type(std::string const& s) {
           if (s.size()==0) {
             return FieldType::Empty;

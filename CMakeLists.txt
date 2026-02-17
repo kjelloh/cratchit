@@ -37,8 +37,11 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
-        src/fiscal/amount/TaggedAmount.cpp
         src/csv/statement_table_meta.cpp
+        src/domain/csv_to_account_statement.cpp
+        src/csv/csv_to_statement_id_ed.cpp
+        src/domain/account_statement_to_tagged_amounts.cpp
+        src/fiscal/amount/TaggedAmount.cpp
 
         src/test/test_runner.cpp
         src/test/test_fixtures.cpp
@@ -104,11 +107,8 @@ add_executable(
         src/persistent/in/maybe.cpp
         src/HAD2JournalEntryFramework.cpp
         src/text/functional.cpp
-        src/domain/csv_to_account_statement.cpp
         src/cpp_compile_playground.cpp
-        src/csv/csv_to_statement_id_ed.cpp
         src/text/encoding_pipeline.cpp
-        src/domain/account_statement_to_tagged_amounts.cpp
         src/persistent/in/raw_text_read.cpp
 
         src/text/to_inferred_encoding.cpp

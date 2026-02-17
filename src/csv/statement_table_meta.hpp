@@ -56,7 +56,6 @@ namespace account {
       FoundSaldo m_out_saldo;
     }; // FoundSaldos
 
-    using AccountID = DomainPrefixedId;
 
     struct ColumnMapping {
       int date_column = -1;
@@ -79,6 +78,8 @@ namespace account {
       ,Undefined
     };
 
+    std::string to_string(FieldType field_type);
+
     using FieldIx = unsigned;
 
     struct RowMap {
@@ -100,6 +101,8 @@ namespace account {
       EntryAmountsType entry_amounts_type;
       std::optional<RowMap> maybe_common;
     }; // StatementMapping
+
+    using AccountID = DomainPrefixedId;
 
     struct TableMeta {
       StatementMapping statement_mapping;

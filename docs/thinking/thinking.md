@@ -66,6 +66,29 @@ We are now down to:
 [  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
 ```
 
+I have now pushed on and have:
+
+```sh
+[  PASSED  ] 358 tests.
+[  FAILED  ] 3 tests, listed below:
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_2
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_3
+```
+
+This means I am now accepting failure to produce a column mapping for an emty account statement (this is OK).
+
+But I fail to detect in and out saldo for current SKV statement file. And is also unable to produce an account id for an emtpy SKV statement.
+
+* Maybe this is the time to implement detection of org-no fields?
+  - Then I can use this to get a correct key for the first row and know it is an SKV account
+* And if so, I may be tempted to also identify PG,BG and Bank account number fields in the statement table?
+
+Let's try and see how much work it may be?
+
+DARN! This exposed a dependancy and namespace confusion hell.
+
+* I tried to move the 'to row map' mechanism to statement_table_meta unit but failed.
+
 ## 20260216
 
 Implemented, valled and logged to_skv_in_out_saldos lambda. It seems to work on old SKV + stable for other text statement files.
