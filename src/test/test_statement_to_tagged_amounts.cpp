@@ -2,7 +2,7 @@
 #include "test_fixtures.hpp"
 #include "logger/log.hpp"
 #include "fiscal/amount/AccountStatement.hpp"
-#include "fiscal/amount/TaggedAmountFramework.hpp"
+#include "fiscal/amount/TaggedAmount.hpp"
 #include "fiscal/amount/AmountFramework.hpp"
 #include "domain/account_statement_to_tagged_amounts.hpp"
 #include "domain/csv_to_account_statement.hpp"

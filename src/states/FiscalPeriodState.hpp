@@ -5,7 +5,7 @@
 #include "FiscalPeriod.hpp"
 #include "PeriodConstrainedContent.hpp"
 #include "fiscal/amount/HADFramework.hpp"
-#include "fiscal/amount/TaggedAmountFramework.hpp"
+#include "fiscal/amount/TaggedAmount.hpp"
 
 
 namespace first {

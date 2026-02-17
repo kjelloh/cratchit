@@ -37,6 +37,7 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
+        src/fiscal/amount/TaggedAmount.cpp
         src/csv/statement_table_meta.cpp
 
         src/test/test_runner.cpp

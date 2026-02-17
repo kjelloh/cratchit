@@ -1,7 +1,7 @@
 #pragma once
 
 #include "fiscal/amount/AccountStatement.hpp"
-#include "fiscal/amount/TaggedAmountFramework.hpp"
+#include "fiscal/amount/TaggedAmount.hpp"
 #include "functional/maybe.hpp"
 #include "fiscal/amount/AmountFramework.hpp"
 #include "domain/csv_to_account_statement.hpp"

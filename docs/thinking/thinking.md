@@ -2,6 +2,51 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260217
+
+I now have managed to brute force an algorithm that can parse both NORDEA and SKV current and older to a usable column map to extract statement entries. I am still baffelled how complicated and fiddly this still is? It feels I am missing something?
+
+Never the less, I now aim and just push forward and see if I can see a pattern in the mess once it works.
+
+I now want to move the types I used for the in- and out-saldo inference to live in the statement_table_meta TU.
+
+```c++
+  struct FoundSaldo {
+    FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
+    using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
+    Value m_value;
+  }; // FoundSaldo
+  FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)
+    : m_value(rix,TaggedAmount(date,to_cents_amount(ta))) {}
+
+  struct FoundSaldos {
+    FoundSaldo m_in_saldo;
+    FoundSaldo m_out_saldo;
+  }; // FoundSaldos
+```
+
+* But then statement_table_meta must know about TaggedAmount
+* And when I include TaggedAmountFramework.hpp I get a circualr dependancy of header files!
+
+I want to break this loop. What do I need to do?
+
+```sh
+[  1%] Building CXX object CMakeFiles/cratchit.dir/src/csv/statement_table_meta.cpp.o
+In file included from /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/csv/statement_table_meta.cpp:1:
+In file included from /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/csv/statement_table_meta.hpp:3:
+In file included from /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/fiscal/amount/TaggedAmountFramework.hpp:7:
+In file included from /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/csv/parse_csv.hpp:4:
+In file included from /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/csv/projections.hpp:4:
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/fiscal/amount/AccountStatement.hpp:34:19: error: use of undeclared identifier 'account'
+   34 | using AccountID = account::statement::AccountID;
+    ...
+```
+
+* TaggedAmountFramework.hpp includes parse_csv.hpp (Seems the wrong way around)?
+* Or should I make an atomic TaggedAmount TU for the raw type?
+
+Yes, I made TaggedAmount a separate unit to ioslarte type spcific functionality ok.
+
 ## 20260216
 
 Implemented, valled and logged to_skv_in_out_saldos lambda. It seems to work on old SKV + stable for other text statement files.

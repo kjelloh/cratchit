@@ -1,3 +1,6 @@
+#pragma once 
+
+#include "fiscal/amount/TaggedAmount.hpp"
 #include <string>
 #include <format>
 #include <map>
