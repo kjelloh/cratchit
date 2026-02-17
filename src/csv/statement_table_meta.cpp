@@ -1,4 +1,5 @@
 #include "statement_table_meta.hpp"
+#include "text/functional.hpp" // text::functional::count_alpha
 #include "logger/log.hpp"
 
 namespace SKV {
@@ -39,6 +40,8 @@ namespace SKV {
 namespace account {
   namespace statement {
 
+    // BEGIN FieldType
+
     std::string to_string(FieldType field_type) {
       std::string result{"?FieldType?"};
       switch (field_type) {
@@ -53,9 +56,30 @@ namespace account {
       return result;
     }
 
+    FieldType to_field_type(std::string const& s) {
+      if (s.size()==0) {
+        return FieldType::Empty;
+      }
+      else if (auto maybe_date = to_date(s)) {
+        return FieldType::Date;
+      }
+      else if (auto maybe_amount = to_amount(s)) {
+        return FieldType::Amount;
+      }
+      else if (text::functional::count_alpha(s) > 0) {
+        return FieldType::Text;
+      }
+      return FieldType::Unknown;
+    }
+
+    // END FieldType
+
+    // BEGIN FoundSaldo
 
     FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)
       : m_value(rix,TaggedAmount(date,to_cents_amount(ta))) {}
+
+    // END FoundSaldo
 
   } // statement
 } // acount

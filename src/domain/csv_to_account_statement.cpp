@@ -1,5 +1,4 @@
 #include "csv_to_account_statement.hpp"
-#include "text/functional.hpp" // functional::text::filtered
 #include "fiscal/amount/TaggedAmountFramework.hpp"
 #include <set>
 
@@ -10,22 +9,6 @@ namespace account {
     namespace maybe {
 
       namespace table {
-
-        FieldType to_field_type(std::string const& s) {
-          if (s.size()==0) {
-            return FieldType::Empty;
-          }
-          else if (auto maybe_date = to_date(s)) {
-            return FieldType::Date;
-          }
-          else if (auto maybe_amount = to_amount(s)) {
-            return FieldType::Amount;
-          }
-          else if (text::functional::count_alpha(s) > 0) {
-            return FieldType::Text;
-          }
-          return FieldType::Unknown;
-        }
 
         RowMap to_row_map(CSV::Table::Row const& row) {
           RowMap result{};

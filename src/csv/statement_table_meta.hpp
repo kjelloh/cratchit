@@ -79,6 +79,7 @@ namespace account {
     };
 
     std::string to_string(FieldType field_type);
+    FieldType to_field_type(std::string const& s);
 
     using FieldIx = unsigned;
 
