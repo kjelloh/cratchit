@@ -1,6 +1,7 @@
 #include "csv_to_account_statement.hpp"
 #include "text/functional.hpp" // functional::text::filtered
 #include "fiscal/amount/TaggedAmountFramework.hpp"
+#include <set>
 
 namespace account {
 
@@ -263,6 +264,32 @@ namespace account {
             candidate.entry_amounts_type = EntryAmountsType::TransOnly;
             return candidate;
           } // if is_single_amount_trans_candidates
+
+          if (trans_candidates_count == 1) {
+            // Inferr (bet on) it being trans- and then saldo amount entry?
+            if (candidate.has_heading) {
+              auto const& lhs_amount_heading = rows[0][common.ixs.at(FieldType::Amount).front()];
+              auto const& rhs_amount_heading = rows[0][common.ixs.at(FieldType::Amount).back()];
+              if (true) logger::development_trace(
+                "lhs_amount_heading:{} rhs_amount_heading:{}"
+                ,lhs_amount_heading
+                ,rhs_amount_heading);
+              std::set<std::string> trans_heading_candidates{
+                "Belopp"
+              };
+              std::set<std::string> saldo_heading_candidates{
+                "Saldo"
+              };
+              if (trans_heading_candidates.contains(lhs_amount_heading) and saldo_heading_candidates.contains(rhs_amount_heading)) {
+                candidate.entry_amounts_type = EntryAmountsType::TransThenSaldo;
+                return candidate; // SUCCESS
+
+              }
+            }
+            else {
+              // No heading
+            }
+          }
 
           std::vector<std::pair<Amount,Amount>> amounts{};
           for (auto rix=begin_rix;rix<end_rix;++rix) {
