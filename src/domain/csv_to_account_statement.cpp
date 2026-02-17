@@ -83,19 +83,6 @@ namespace account {
 
         } // log_the_rows_map
 
-        struct FoundSaldo {
-          FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
-          using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
-          Value m_value;
-        }; // FoundSaldo
-        FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)
-          : m_value(rix,TaggedAmount(date,to_cents_amount(ta))) {}
-
-        struct FoundSaldos {
-          FoundSaldo m_in_saldo;
-          FoundSaldo m_out_saldo;
-        }; // FoundSaldos
-
         std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table) {
 
           logger::scope_logger log_raii(logger::development_trace,"generic_like_to_statement_mapping",logger::LogToConsole::ON);
@@ -109,6 +96,8 @@ namespace account {
           if (true) logger::development_trace("rows_map size {}",rows_map.size());
 
           if (rows_map.size() == 0) return {}; // Empty table
+
+          candidate.m_row_0_map = rows_map[0];
 
           // Has heading?
           if (rows_map[0].ixs.contains(FieldType::Text)) {
@@ -137,7 +126,6 @@ namespace account {
               };
               return (row_map == SKV_SALDO_ENTRY_MAP);
             };
-
 
             auto in_saldo_candidate_iter = std::ranges::find_if(
                 rows_map
@@ -196,6 +184,7 @@ namespace account {
           }; // to_skv_in_out_saldos
 
           auto maybe_in_out_saldos = to_skv_in_out_saldos(table,rows_map);
+          candidate.m_maybe_in_out_saldos = maybe_in_out_saldos;
           if (maybe_in_out_saldos) {
             if (true) logger::development_trace(
               "maybe_in_out_saldos: IN:[{},{}] OUT[{},{}]"
@@ -481,32 +470,53 @@ namespace account {
               return candidate; // SUCCESS
             }
 
-          } // has heading
+          }
           else {
             if (true) logger::development_trace("No Heading");
 
-            auto const SKV_COMMON_ROW_MAP = RowMap{
-              .ixs = {
-                {FieldType::Date,{0}}
-              ,{FieldType::Amount,{2,3}}
-              ,{FieldType::Text,{1}}
-            }};
-            if (statement_mapping.common == SKV_COMMON_ROW_MAP) {
-
-              if (true) logger::development_trace("Matches SKV_COMMON_ROW_MAP:{}",to_string(SKV_COMMON_ROW_MAP));
-
-              // "THE ITFIED AB";"556782-8172";"";""
-              auto const& org_name_candidate = table.rows[0][0];
-              auto const& org_nr_candidate = table.rows[0][1];
-
-              if (auto maybe_org_no = SKV::to_org_no(org_nr_candidate)) {
-                if (true) logger::development_trace("maybe_org_no:{}",maybe_org_no->with_hyphen());            
-                candidate = AccountID{"SKV",maybe_org_no->with_hyphen()};
-                return candidate; // SUCCESS
+            {
+              // map: Empty: 0 4 Amount: 2 3 Text: 1
+              auto const SKV_COMMON_ROW_MAP = RowMap{
+                .ixs = {
+                  {FieldType::Empty,{0,4}}
+                ,{FieldType::Amount,{2,3}}
+                ,{FieldType::Text,{1}}
+              }};
+              if (statement_mapping.m_row_0_map == SKV_COMMON_ROW_MAP) {
+                if (true) logger::development_trace("Matches SKV_COMMON_ROW_MAP:{}",to_string(SKV_COMMON_ROW_MAP));
+                  candidate = AccountID{"SKV","??"};
+                  return candidate; // SUCCESS
               }
+            } // SKV 'older'
 
-            }
+            {
+              auto const SKV_COMMON_ROW_MAP = RowMap{
+                .ixs = {
+                  {FieldType::Date,{0}}
+                ,{FieldType::Amount,{2,3}}
+                ,{FieldType::Text,{1}}
+              }};
+              if (statement_mapping.common == SKV_COMMON_ROW_MAP) {
+
+                if (true) logger::development_trace("Matches SKV_COMMON_ROW_MAP:{}",to_string(SKV_COMMON_ROW_MAP));
+
+                // "THE ITFIED AB";"556782-8172";"";""
+                auto const& org_name_candidate = table.rows[0][0];
+                auto const& org_nr_candidate = table.rows[0][1];
+
+                if (auto maybe_org_no = SKV::to_org_no(org_nr_candidate)) {
+                  if (true) logger::development_trace("maybe_org_no:{}",maybe_org_no->with_hyphen());            
+                  candidate = AccountID{"SKV",maybe_org_no->with_hyphen()};
+                  return candidate; // SUCCESS
+                }
+              }
+            } // 'newer' SKV
+
           } // has heading
+
+          if (statement_mapping.m_maybe_in_out_saldos) {
+
+          }
 
           if (true) logger::development_trace("returns nullopt");
           return {};

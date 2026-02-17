@@ -45,6 +45,17 @@ namespace SKV {
 namespace account {
   namespace statement {
 
+    struct FoundSaldo {
+      FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
+      using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
+      Value m_value;
+    }; // FoundSaldo
+
+    struct FoundSaldos {
+      FoundSaldo m_in_saldo;
+      FoundSaldo m_out_saldo;
+    }; // FoundSaldos
+
     using AccountID = DomainPrefixedId;
 
     struct ColumnMapping {
@@ -83,7 +94,9 @@ namespace account {
     };
 
     struct StatementMapping {
+      RowMap m_row_0_map;
       bool has_heading;
+      std::optional<FoundSaldos> m_maybe_in_out_saldos;
       EntryAmountsType entry_amounts_type;
       RowMap common;
     }; // StatementMapping

@@ -38,5 +38,9 @@ namespace SKV {
 
 namespace account {
   namespace statement {
+
+    FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)
+      : m_value(rix,TaggedAmount(date,to_cents_amount(ta))) {}
+
   } // statement
 } // acount

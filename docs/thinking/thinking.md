@@ -47,6 +47,25 @@ In file included from /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/csv
 
 Yes, I made TaggedAmount a separate unit to ioslarte type spcific functionality ok.
 
+Ok, but the friction just refuses to go away! Now I have the delicate problem of producing an account ID for the older SKV statement table format. This is also a bit discouraging as I am pritty sure I will want to remove the whole 'account ID' mechanism as it will probably not be viable for most statement file content?
+
+Maybe I can provide the map of row zero in the statement map?
+
+* A valid statement file must have at least one row?
+* For current SKV statement file row 0 contains the organisation number ok.
+* And for older SKV I can detetc it to be an SKV statement table from row 0.
+* And Current NORDEA detection also uses row 0 (then the heaader).
+
+I now added row 0 map to statement map and account id is now determined for 'older' SKV using this info ok.
+
+We are now down to:
+
+```sh
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_0_1_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
 ## 20260216
 
 Implemented, valled and logged to_skv_in_out_saldos lambda. It seems to work on old SKV + stable for other text statement files.
