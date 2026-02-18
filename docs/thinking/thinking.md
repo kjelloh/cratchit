@@ -58,6 +58,14 @@ You know what? Why are the 'generic_line_xxx' now returning optionals?
 
 AHA! So it is these three I should enhance the test covarge on?!
 
+I have now added test of members of 'Statement Mapping' produced by generic_like_to_statement_mapping for all test csv input
+
+```sh
+[==========] 361 tests from 67 test suites ran. (500 ms total)
+[  PASSED  ] 361 tests.
+All tests PASSED
+```
+
 ## 20260217
 
 I now have managed to brute force an algorithm that can parse both NORDEA and SKV current and older to a usable column map to extract statement entries. I am still baffelled how complicated and fiddly this still is? It feels I am missing something?

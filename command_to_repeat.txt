@@ -5,12 +5,12 @@
 # ./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring*
 # ./run.zsh --gtest_filter=AccountStatementTableTestsFixture.MappingBasedNordeaLikeOk
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric*
-./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_0
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_0
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_20251120_Ok_sub_0
-#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_2
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_0
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_0
-#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_3
-#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok_sub_*
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_0
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
 
 #./run.zsh --gtest_filter=*ExtractFromSKVCSVNewer
-#./run.zsh --test
+./run.zsh --test
