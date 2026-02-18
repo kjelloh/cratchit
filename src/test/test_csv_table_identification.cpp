@@ -206,6 +206,13 @@ namespace tests::csv_table_identification {
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
+      // TODO: Move this test to istream -> csv-text tests
+      std::string const& prefix(maybe_table->rows[0][0]); 
+      ASSERT_FALSE(prefix.starts_with("\xEF\xBB\xBF")) << std::format(
+         "Expected NO UTF8 BOM in  {}"
+        ,caption);
+
+
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
@@ -360,6 +367,12 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      // TODO: Move this test to istream -> csv-text tests
+      std::string const& prefix(maybe_table->rows[0][0]); 
+      ASSERT_FALSE(prefix.starts_with("\xEF\xBB\xBF")) << std::format(
+         "Expected UTF8 BOM to be removed in  {}"
+        ,caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -807,6 +820,12 @@ namespace tests::csv_table_identification {
       std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+
+      // TODO: Move this test to istream -> csv-text tests
+      std::string const& prefix(maybe_table->rows[0][0]); 
+      ASSERT_FALSE(prefix.starts_with("\xEF\xBB\xBF")) << std::format(
+         "Expected UTF8 BOM to be removed in  {}"
+        ,caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
