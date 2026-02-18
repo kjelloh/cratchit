@@ -84,7 +84,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_NORDEA_csv_20251120";
       std::string csv_text = sz_NORDEA_csv_20251120;
       // std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
@@ -95,6 +94,44 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
+      using namespace account::statement;
+      // Empty: 10 Text: 0 1 2 3 4 5 6 7 8 9
+      static const RowMap EXPECTED_ROW_0_MAP{
+        .ixs = {
+           {FieldType::Empty,{10}}
+          ,{FieldType::Text,{0,1,2,3,4,5,6,7,8,9}}
+        }
+      };
+      ASSERT_TRUE(maybe_statement_mapping->m_row_0_map == EXPECTED_ROW_0_MAP) << std::format(
+        "Expected row map:'{}' but got:'{}' for {}"
+        ,to_string(EXPECTED_ROW_0_MAP)
+        ,to_string(maybe_statement_mapping->m_row_0_map)
+        ,caption);
+      ASSERT_TRUE(maybe_statement_mapping->has_heading) << std::format("Expected heading for {}",caption);
+      ASSERT_FALSE(maybe_statement_mapping->m_maybe_in_out_saldos) << std::format("Expected NO saldos for {}",caption);
+      ASSERT_TRUE(maybe_statement_mapping->entry_amounts_type == EntryAmountsType::TransThenSaldo) << std::format(
+        "Expected TransThenSaldo bit got {} for {}"
+        ,static_cast<int>(maybe_statement_mapping->entry_amounts_type)
+        ,caption);
+      ASSERT_TRUE(maybe_statement_mapping->maybe_common) << std::format("Expected maybe_common for {}",caption);
+      {
+        // Empty: 2 3 7 10 Date: 0 Amount: 1 8 Text: 4 5 9
+        static const RowMap EXPECTED_COMMON_ROW_MAP{
+          .ixs = {
+             {FieldType::Empty,{2,3,7,10}}
+            ,{FieldType::Date,{0}}
+            ,{FieldType::Amount,{1,8}}
+            ,{FieldType::Text,{4,5,9}}
+          }
+        };
+        ASSERT_TRUE(maybe_statement_mapping->maybe_common == EXPECTED_COMMON_ROW_MAP) << std::format(
+          "Expected common row map:'{}' but got:'{}' for {}"
+          ,to_string(EXPECTED_COMMON_ROW_MAP)
+          ,to_string(*maybe_statement_mapping->maybe_common)
+          ,caption);
+
+      }
+
     }
 
     TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_1) {
@@ -102,7 +139,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_NORDEA_csv_20251120";
       std::string csv_text = sz_NORDEA_csv_20251120;
       // std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
@@ -121,7 +157,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_NORDEA_csv_20251120";
       std::string csv_text = sz_NORDEA_csv_20251120;
       // std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
@@ -143,7 +178,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_NORDEA_csv_20251120";
       std::string csv_text = sz_NORDEA_csv_20251120;
       // std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
@@ -165,7 +199,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_SKV_csv_20251120";
       // std::string csv_text = sz_NORDEA_csv_20251120;
       std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
@@ -176,6 +209,84 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
+      using namespace account::statement;
+      // Empty: 2 3 OrgNo: 1 Text: 0
+      static const RowMap EXPECTED_ROW_0_MAP{
+        .ixs = {
+           {FieldType::Empty,{2,3}}
+          ,{FieldType::OrgNo,{1}}
+          ,{FieldType::Text,{0}}
+        }
+      };
+      ASSERT_TRUE(maybe_statement_mapping->m_row_0_map == EXPECTED_ROW_0_MAP) << std::format(
+        "Expected row map:'{}' but got:'{}' for {}"
+        ,to_string(EXPECTED_ROW_0_MAP)
+        ,to_string(maybe_statement_mapping->m_row_0_map)
+        ,caption);
+      ASSERT_FALSE(maybe_statement_mapping->has_heading) << std::format("Expected NO heading for {}",caption);
+      ASSERT_TRUE(maybe_statement_mapping->m_maybe_in_out_saldos) << std::format("Expected saldos for {}",caption);
+      {
+        int const SALDO_RIX = 2;
+        auto saldo_rix = maybe_statement_mapping->m_maybe_in_out_saldos->m_in_saldo.rix();
+        ASSERT_TRUE(saldo_rix == SALDO_RIX) 
+          << std::format(
+                "Expected in saldo rix:{} but got: {} for {}"
+                ,SALDO_RIX
+                ,saldo_rix
+                ,caption);
+      }
+      {
+        CentsAmount CENTS_SALDO{65800};
+        auto cents_saldo = maybe_statement_mapping->m_maybe_in_out_saldos->m_in_saldo.ta().cents_amount();
+        ASSERT_TRUE(cents_saldo == CENTS_SALDO) 
+          << std::format(
+                "Expected in saldo:{} but got:{} for {}"
+                ,to_string(CENTS_SALDO)
+                ,to_string(cents_saldo)
+                ,caption);
+      }
+      {
+        CentsAmount CENTS_SALDO{66000};
+        auto cents_saldo = maybe_statement_mapping->m_maybe_in_out_saldos->m_out_saldo.ta().cents_amount();
+        ASSERT_TRUE(cents_saldo == CENTS_SALDO) 
+          << std::format(
+                "Expected out saldo:{} but got:{} for {}"
+                ,to_string(CENTS_SALDO)
+                ,to_string(cents_saldo)
+                ,caption);
+      }
+      {
+        int const SALDO_RIX = 7;
+        auto saldo_rix = maybe_statement_mapping->m_maybe_in_out_saldos->m_out_saldo.rix();
+        ASSERT_TRUE(saldo_rix == SALDO_RIX) 
+          << std::format(
+                "Expected out saldo rix:{} but got: {} for {}"
+                ,SALDO_RIX
+                ,saldo_rix
+                ,caption);
+      }
+      ASSERT_TRUE(maybe_statement_mapping->entry_amounts_type == EntryAmountsType::TransThenSaldo) << std::format(
+        "Expected TransThenSaldo bit got {} for {}"
+        ,static_cast<int>(maybe_statement_mapping->entry_amounts_type)
+        ,caption);
+      ASSERT_TRUE(maybe_statement_mapping->maybe_common) << std::format("Expected maybe_common for {}",caption);
+      {
+        // Date: 0 Amount: 2 3 Text: 1
+        static const RowMap EXPECTED_COMMON_ROW_MAP{
+          .ixs = {
+            {FieldType::Date,{0}}
+            ,{FieldType::Amount,{2,3}}
+            ,{FieldType::Text,{1}}
+          }
+        };
+        ASSERT_TRUE(maybe_statement_mapping->maybe_common == EXPECTED_COMMON_ROW_MAP) << std::format(
+          "Expected common row map:'{}' but got:'{}' for {}"
+          ,to_string(EXPECTED_COMMON_ROW_MAP)
+          ,to_string(*maybe_statement_mapping->maybe_common)
+          ,caption);
+
+      }
+
     }
 
     TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_SKV_csv_20251120_Ok_sub_1) {
@@ -183,7 +294,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_SKV_csv_20251120";
       // std::string csv_text = sz_NORDEA_csv_20251120;
       std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
@@ -203,7 +313,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_SKV_csv_20251120";
       // std::string csv_text = sz_NORDEA_csv_20251120;
       std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
@@ -225,7 +334,6 @@ namespace tests::csv_table_identification {
       std::string caption = "sz_SKV_csv_20251120";
       // std::string csv_text = sz_NORDEA_csv_20251120;
       std::string csv_text = sz_SKV_csv_20251120;
-      // std::string = sz_SKV_csv_20251120_BOM_ed;
       // std::string csv_text = sz_SKV_csv_older;
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;

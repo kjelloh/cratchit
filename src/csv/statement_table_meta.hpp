@@ -49,6 +49,8 @@ namespace account {
       FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
       using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
       Value m_value;
+      auto rix() const {return m_value.first;}
+      auto ta() const {return m_value.second;}
     }; // FoundSaldo
 
     struct FoundSaldos {
@@ -88,6 +90,8 @@ namespace account {
       std::map<FieldType,std::vector<FieldIx>> ixs;
       bool operator==(RowMap const&) const = default;      
     }; // RowMap
+
+    std::string to_string(RowMap const& row_map);
 
     enum class EntryAmountsType {
        Undefined

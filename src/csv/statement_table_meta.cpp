@@ -77,6 +77,19 @@ namespace account {
 
     // END FieldType
 
+    std::string to_string(RowMap const& row_map) {
+      std::string result{};
+
+      for (auto const& entry : row_map.ixs) {
+        result += std::format(" {}",to_string(entry.first));
+        result += ":";
+        for (auto ix : entry.second) {
+          result += std::format(" {}",ix);
+        }
+      }
+      return result;
+    }
+
     // BEGIN FoundSaldo
 
     FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)

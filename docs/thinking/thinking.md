@@ -2,6 +2,62 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260218
+
+I have now made ALL test pass.
+
+```sh
+[==========] 364 tests from 67 test suites ran. (501 ms total)
+[  PASSED  ] 364 tests.
+All tests PASSED
+```
+
+But I am still far from finished.
+
+* I have an unknown amount of now redundant code
+  - The whole old to_column_mapping is now obsolete?
+* I have yet to move the account statement mapping to the to_statement_id_ed_step.
+* I still feel the test coverage is not good enough
+  - I lack test of the actual produced members of 'statement mapping'
+* I am still unsure if BOM is removed
+  - And if not, why it does not show up in the log output?
+
+Maybe I should begin with detecting any BOM remaining in the table passed to statement_id_ed_to_account_statement_step?
+
+So how can I proceed?
+
+WAIT! All my new code is still NOT USED by the maybe pipeline! DARN! I am really struggling with this task??!
+
+So what is actually happening in the pipe line as of now?
+
+```c++
+  // ...
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+  // ...
+```
+
+My GOD! It is still a mess!!
+
+Maybe I should tread carefully and take a small chew of the elephant?
+
+* Remove the fallback to 'to_column_map' in the new code?
+* Try to move the 'new' code to the meta unit?
+  - Move generic_like_to_account_id
+  - Move generic_like_to_column_mapping
+  - Move generic_like_to_statement_mapping
+* But first add better test covarge of the new code?
+
+Yes, I should take the opportunity to now make the tests have better coverage to be better prepared to move and use the new code as I intended.
+
+You know what? Why are the 'generic_line_xxx' now returning optionals?
+
+* generic_like_to_statement_mapping -> Optional OK
+* generic_like_to_column_mapping -> Optional OK
+* generic_like_to_account_id -> Optional OK
+
+AHA! So it is these three I should enhance the test covarge on?!
+
 ## 20260217
 
 I now have managed to brute force an algorithm that can parse both NORDEA and SKV current and older to a usable column map to extract statement entries. I am still baffelled how complicated and fiddly this still is? It feels I am missing something?
@@ -88,8 +144,6 @@ Let's try and see how much work it may be?
 DARN! This exposed a dependancy and namespace confusion hell.
 
 I moved only to_field_type to the meta unit and this worked out fine for now.
-
-
 
 ## 20260216
 

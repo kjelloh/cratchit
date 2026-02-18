@@ -30,19 +30,6 @@ namespace account {
           return result;
         }
 
-        std::string to_string(RowMap const& row_map) {
-          std::string result{};
-
-          for (auto const& entry : row_map.ixs) {
-            result += std::format(" {}",to_string(entry.first));
-            result += ":";
-            for (auto ix : entry.second) {
-              result += std::format(" {}",ix);
-            }
-          }
-          return result;
-        }
-
         void log_the_rows_map(CSV::Table::Rows const& rows,RowsMap const& rows_map) {
           for (size_t i=0;i<rows.size();++i) {
             logger::development_trace(
@@ -1147,9 +1134,9 @@ namespace account {
         logger::scope_logger log_raii{logger::development_trace,
           "statement_id_ed_to_account_statement_step(statement_id_ed)"};
 
-        // Extract components from MDTable
-        CSV::Table const& table = statement_id_ed.defacto;
-        AccountID const& account_id = statement_id_ed.meta.account_id;
+        auto const& [table_meta,table] = statement_id_ed;
+
+        AccountID const& account_id = table_meta.account_id;
 
         logger::development_trace("Processing MDTable with AccountID: '{}'", account_id.to_string());
 
