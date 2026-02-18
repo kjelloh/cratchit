@@ -398,11 +398,13 @@ namespace account {
                 logger::design_insufficiency(
                   "generic_like_to_column_mapping failed. Unknwon entry_amounts_type:{}"
                   ,static_cast<int>(statement_mapping.entry_amounts_type));
-                return {};
               }
             }
 
-            if (statement_mapping.has_heading) {
+            if (statement_mapping.maybe_common->ixs.at(FieldType::Text).size()==1) {
+                candidate.description_column = statement_mapping.maybe_common->ixs.at(FieldType::Text).front();
+            }
+            else if (statement_mapping.has_heading) {
               std::map<FieldIx,std::string> text_columns_map{};
               for (auto ix : statement_mapping.maybe_common->ixs.at(FieldType::Text)) {
                 auto const& text = table.rows[0][ix];
@@ -418,15 +420,6 @@ namespace account {
               if (text_columns_map == NORDEA_TEXT_MAP) {
                 candidate.description_column = 4;
                 candidate.additional_description_columns.push_back(5);
-                return candidate; // SUCCESS
-              }
-            }
-            else {
-              // common : Empty: 3 4 Date: 0 Amount: 2 Text: 1
-              // SKV common : Date: 0 Amount: 2 3 Text: 1
-              if (statement_mapping.maybe_common->ixs.at(FieldType::Text).size()==1) {
-                candidate.description_column = statement_mapping.maybe_common->ixs.at(FieldType::Text).front();
-                return candidate; // SUCCESS
               }
             }
           }
@@ -435,6 +428,8 @@ namespace account {
                "generic_like_to_column_mapping failed. Exception: {}"
               ,e.what());
           }
+
+          if (candidate.is_valid()) return candidate;
 
           return {};
 
@@ -546,7 +541,7 @@ namespace account {
           }
           TableMeta result{
              .statement_mapping = maybe_statement_mapping.value_or(StatementMapping{})
-            ,.column_mapping = maybe_column_mapping.value_or(to_column_mapping(table))
+            ,.column_mapping = maybe_column_mapping.value_or(ColumnMapping{})
             ,.account_id = maybe_account_id.value_or(AccountID{})
           };
           return result;

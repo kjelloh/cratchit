@@ -66,6 +66,19 @@ I have now added test of members of 'Statement Mapping' produced by generic_like
 All tests PASSED
 ```
 
+I could not help myself and added a chekc for 'no BOM' in some parsed csv tables. I now have:
+
+```sh
+[  PASSED  ] 359 tests.
+[  FAILED  ] 2 tests, listed below:
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_20251120_BOM_ed_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
+So, the BOM is NOT removed!
+
+I now made generic_like_to_column_mapping handle anonymous but ok statement table and removed fallback to 'older' to_column_mapping in generic_like_to_statement_table_meta (All tests still PASS ok).
+
 ## 20260217
 
 I now have managed to brute force an algorithm that can parse both NORDEA and SKV current and older to a usable column map to extract statement entries. I am still baffelled how complicated and fiddly this still is? It feels I am missing something?
