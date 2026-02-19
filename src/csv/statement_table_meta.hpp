@@ -1,6 +1,7 @@
 #pragma once 
 
 #include "fiscal/amount/TaggedAmount.hpp"
+#include "csv/csv.hpp" // CSV::Table
 #include <string>
 #include <format>
 #include <map>
@@ -45,6 +46,41 @@ namespace SKV {
 namespace account {
   namespace statement {
 
+        enum class FieldType {
+            Unknown
+          ,Empty
+          ,Date
+          ,Amount
+          ,OrgNo
+          ,Text
+          ,Undefined
+        };
+
+        std::string to_string(FieldType field_type);
+        FieldType to_field_type(std::string const& s);
+
+        using FieldIx = unsigned;
+
+        struct RowMap {
+          std::map<FieldType,std::vector<FieldIx>> ixs;
+          bool operator==(RowMap const&) const = default;      
+        }; // RowMap
+
+        std::string to_string(RowMap const& row_map);
+
+    namespace maybe {
+
+      namespace table {
+
+        RowMap to_row_map(CSV::Table::Row const& row);
+
+        using RowsMap = std::vector<RowMap>;
+
+        RowsMap to_rows_map(CSV::Table::Rows const& rows);
+
+      } // table
+    } // maybe
+
     struct FoundSaldo {
       FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
       using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
@@ -70,28 +106,6 @@ namespace account {
         return date_column >= 0 && transaction_amount_column >= 0 && description_column >= 0;
       }
     }; // ColumnMapping
-
-    enum class FieldType {
-        Unknown
-      ,Empty
-      ,Date
-      ,Amount
-      ,OrgNo
-      ,Text
-      ,Undefined
-    };
-
-    std::string to_string(FieldType field_type);
-    FieldType to_field_type(std::string const& s);
-
-    using FieldIx = unsigned;
-
-    struct RowMap {
-      std::map<FieldType,std::vector<FieldIx>> ixs;
-      bool operator==(RowMap const&) const = default;      
-    }; // RowMap
-
-    std::string to_string(RowMap const& row_map);
 
     enum class EntryAmountsType {
        Undefined

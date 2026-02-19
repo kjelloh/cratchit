@@ -77,6 +77,33 @@ namespace account {
 
     // END FieldType
 
+    namespace maybe {
+
+      namespace table {
+
+        RowMap to_row_map(CSV::Table::Row const& row) {
+          RowMap result{};
+
+          for (unsigned i=0;i<row.size();++i) {
+            result.ixs[to_field_type(row[i])].push_back(i);
+          }
+
+          return result;
+        }
+
+        RowsMap to_rows_map(CSV::Table::Rows const& rows) {
+          RowsMap result{};
+
+          for (auto const& row : rows) {
+            result.push_back(to_row_map(row));
+          }
+
+          return result;
+        }
+      
+      } // table
+    } // maybe
+
     std::string to_string(RowMap const& row_map) {
       std::string result{};
 

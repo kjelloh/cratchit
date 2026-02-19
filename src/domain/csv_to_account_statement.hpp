@@ -22,12 +22,6 @@ namespace account {
 
       namespace table {
 
-        RowMap to_row_map(CSV::Table::Row const& row);
-
-        using RowsMap = std::vector<RowMap>;
-
-        RowsMap to_rows_map(CSV::Table::Rows const& rows);
-
         bool is_ignorable_row(CSV::Table::Row const& row, ColumnMapping const& mapping);
 
         inline std::optional<AccountStatementEntry> extract_entry_from_row(
