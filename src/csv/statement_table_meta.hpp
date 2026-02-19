@@ -128,13 +128,11 @@ namespace account {
         RowsMap to_rows_map(CSV::Table::Rows const& rows);
         void log_the_rows_map(CSV::Table::Rows const& rows,RowsMap const& rows_map);
 
-
         // Expose generic for testing
         std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table);
         std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table);
         std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table);
         TableMeta generic_like_to_statement_table_meta(CSV::Table const& table);
-
 
       } // table
 

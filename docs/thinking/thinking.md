@@ -2,6 +2,25 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260219
+
+I have now brute-forced the generic accounty statement projection code to statement_table_meta TU. It is NOT pritty. But at least it is now in its own TU for access by account::statement::monadic::to_statement_id_ed_step?
+
+I have now made to_statement_id_ed_step call generic_like_to_statement_table_meta ok! Now some tests fail:
+
+```sh
+[  PASSED  ] 355 tests.
+[  FAILED  ] 6 tests, listed below:
+[  FAILED  ] AccountIdTests.UnknownCsvReturnsNullopt
+[  FAILED  ] FullPipelineTestFixture.ImportSimpleCsvFailsForUnknownFormat
+[  FAILED  ] FullPipelineTableTests.ImportTableFailsForUnknownFormat
+[  FAILED  ] MDTableToAccountStatementTestFixture.NordeaMDTableToAccountStatement
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_csv_20251120_BOM_ed_Ok
+[  FAILED  ] AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+```
+
+But I think I can be confident this is fixable?
+
 ## 20260218
 
 I have now made ALL test pass.

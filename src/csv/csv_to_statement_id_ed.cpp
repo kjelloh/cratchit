@@ -1,4 +1,5 @@
 #include "csv_to_statement_id_ed.hpp"
+#include "statement_table_meta.hpp"
 
 namespace account {
   namespace statement {
@@ -7,6 +8,9 @@ namespace account {
       std::optional<CSV::MDTable<maybe::table::TableMeta>> to_statement_id_ed_step(CSV::Table const& table) {
 
         logger::scope_logger log_raii(logger::development_trace,"to_statement_id_ed_step");
+
+        auto table_meta = table::generic_like_to_statement_table_meta(table);
+        if (table_meta.column_mapping.is_valid()) return CSV::MDTable<maybe::table::TableMeta>{table_meta,table};
 
         logger::development_trace("to_statement_id_ed_step: Starting AccountID extraction");
 

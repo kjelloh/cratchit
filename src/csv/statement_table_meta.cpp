@@ -573,8 +573,8 @@ namespace account {
               auto const& org_nr_candidate = table.rows[0][org_no_cix];
 
               if (auto maybe_org_no = SKV::to_org_no(org_nr_candidate)) {
-                if (true) logger::development_trace("maybe_org_no:{}",maybe_org_no->with_hyphen());            
-                candidate = AccountID{"SKV",maybe_org_no->with_hyphen()};
+                if (true) logger::development_trace("maybe_org_no:{}",maybe_org_no->without_hyphen());            
+                candidate = AccountID{"SKV",maybe_org_no->without_hyphen()};
                 return candidate; // SUCCESS
               }
             }
