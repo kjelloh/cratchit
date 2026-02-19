@@ -652,7 +652,7 @@ namespace account {
         return AccountStatement(*maybe_entries, meta);
       } // csv_table_to_account_statement_step
 
-      std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& statement_id_ed) {
+      std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<table::TableMeta> const& statement_id_ed) {
         logger::scope_logger log_raii{logger::development_trace,
           "statement_id_ed_to_account_statement_step(statement_id_ed)"};
 
@@ -684,7 +684,7 @@ namespace account {
 
     namespace monadic {
 
-      AnnotatedMaybe<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<account::statement::TableMeta> const& statement_id_ed) {
+      AnnotatedMaybe<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<maybe::table::TableMeta> const& statement_id_ed) {
 
         auto f = cratchit::functional::to_annotated_maybe_f(
            account::statement::maybe::statement_id_ed_to_account_statement_step

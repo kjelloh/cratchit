@@ -41,66 +41,66 @@ namespace SKV {
 namespace account {
   namespace statement {
 
-    // BEGIN FieldType
-
-    std::string to_string(FieldType field_type) {
-      std::string result{"?FieldType?"};
-      switch (field_type) {
-        case FieldType::Unknown: result = "Unknown"; break;
-        case FieldType::Empty: result = "Empty"; break;
-        case FieldType::Date: result = "Date"; break;
-        case FieldType::Amount: result = "Amount"; break;
-        case FieldType::OrgNo: result = "OrgNo"; break;
-        case FieldType::Text: result = "Text"; break;
-        case FieldType::Undefined: result = "Undefined"; break;
-      }
-      return result;
-    }
-
-    FieldType to_field_type(std::string const& s) {
-      if (s.size()==0) {
-        return FieldType::Empty;
-      }
-      else if (auto maybe_date = to_date(s)) {
-        return FieldType::Date;
-      }
-      else if (auto maybe_amount = to_amount(s)) {
-        return FieldType::Amount;
-      }
-      else if (auto maybe_org_no = SKV::to_org_no(s)) {
-        return FieldType::OrgNo;
-      }
-      else if (text::functional::count_alpha(s) > 0) {
-        return FieldType::Text;
-      }
-      return FieldType::Unknown;
-    }
-
-    // END FieldType
-
-    std::string to_string(RowMap const& row_map) {
-      std::string result{};
-
-      for (auto const& entry : row_map.ixs) {
-        result += std::format(" {}",to_string(entry.first));
-        result += ":";
-        for (auto ix : entry.second) {
-          result += std::format(" {}",ix);
-        }
-      }
-      return result;
-    }
-
-    // BEGIN FoundSaldo
-
-    FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)
-      : m_value(rix,TaggedAmount(date,to_cents_amount(ta))) {}
-
-    // END FoundSaldo
-
     namespace maybe {
 
       namespace table {
+
+        // BEGIN FieldType
+
+        std::string to_string(FieldType field_type) {
+          std::string result{"?FieldType?"};
+          switch (field_type) {
+            case FieldType::Unknown: result = "Unknown"; break;
+            case FieldType::Empty: result = "Empty"; break;
+            case FieldType::Date: result = "Date"; break;
+            case FieldType::Amount: result = "Amount"; break;
+            case FieldType::OrgNo: result = "OrgNo"; break;
+            case FieldType::Text: result = "Text"; break;
+            case FieldType::Undefined: result = "Undefined"; break;
+          }
+          return result;
+        }
+
+        FieldType to_field_type(std::string const& s) {
+          if (s.size()==0) {
+            return FieldType::Empty;
+          }
+          else if (auto maybe_date = to_date(s)) {
+            return FieldType::Date;
+          }
+          else if (auto maybe_amount = to_amount(s)) {
+            return FieldType::Amount;
+          }
+          else if (auto maybe_org_no = SKV::to_org_no(s)) {
+            return FieldType::OrgNo;
+          }
+          else if (text::functional::count_alpha(s) > 0) {
+            return FieldType::Text;
+          }
+          return FieldType::Unknown;
+        }
+
+        // END FieldType
+
+        std::string to_string(RowMap const& row_map) {
+          std::string result{};
+
+          for (auto const& entry : row_map.ixs) {
+            result += std::format(" {}",to_string(entry.first));
+            result += ":";
+            for (auto ix : entry.second) {
+              result += std::format(" {}",ix);
+            }
+          }
+          return result;
+        }
+
+        // BEGIN FoundSaldo
+
+        FoundSaldo::FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta)
+          : m_value(rix,TaggedAmount(date,to_cents_amount(ta))) {}
+
+        // END FoundSaldo
 
         RowMap to_row_map(CSV::Table::Row const& row) {
           RowMap result{};

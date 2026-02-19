@@ -94,7 +94,7 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
-      using namespace account::statement;
+      using namespace account::statement::maybe::table;
       // Empty: 10 Text: 0 1 2 3 4 5 6 7 8 9
       static const RowMap EXPECTED_ROW_0_MAP{
         .ixs = {
@@ -148,7 +148,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
     }
@@ -166,7 +166,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
       auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
@@ -216,7 +216,7 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
-      using namespace account::statement;
+      using namespace account::statement::maybe::table;
       // Empty: 2 3 OrgNo: 1 Text: 0
       static const RowMap EXPECTED_ROW_0_MAP{
         .ixs = {
@@ -310,7 +310,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
 
@@ -329,7 +329,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
       auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
@@ -397,7 +397,7 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
-      using namespace account::statement;
+      using namespace account::statement::maybe::table;
       // Empty: 0 4 Amount: 2 3 Text: 1
       static const RowMap EXPECTED_ROW_0_MAP{
         .ixs = {
@@ -494,7 +494,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
 
@@ -514,7 +514,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
       auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
@@ -560,7 +560,7 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
-      using namespace account::statement;
+      using namespace account::statement::maybe::table;
       // Empty: 10 Text: 0 1 2 3 4 5 6 7 8 9
       static const RowMap EXPECTED_ROW_0_MAP{
         .ixs = {
@@ -615,7 +615,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
 
@@ -635,7 +635,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_TRUE(maybe_column_mapping) << std::format("Expected valid column mapping for {}",caption);
       auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);
@@ -680,7 +680,7 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
-      using namespace account::statement;
+      using namespace account::statement::maybe::table;
       // Empty: 2 3 OrgNo: 1 Text: 0
       static const RowMap EXPECTED_ROW_0_MAP{
         .ixs = {
@@ -759,7 +759,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_FALSE(maybe_column_mapping) << std::format("Expected NO column mapping for {}",caption);
 
@@ -780,7 +780,7 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
-      CSV::MDTable<account::statement::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
+      CSV::MDTable<account::statement::maybe::table::StatementMapping>  mapped_table{*maybe_statement_mapping,*maybe_table};
       auto maybe_column_mapping = account::statement::maybe::table::generic_like_to_column_mapping(mapped_table);
       ASSERT_FALSE(maybe_column_mapping) << std::format("Expected NO column mapping for {}",caption);
       auto maybe_account_id = account::statement::maybe::table::generic_like_to_account_id(mapped_table);

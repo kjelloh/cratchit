@@ -18,7 +18,7 @@ namespace tests {
     class MDTableToAccountStatementTestFixture : public ::testing::Test {
     protected:
       // Helper to create an MDTable from CSV text using the real parsing/detection pipeline
-      static std::optional<CSV::MDTable<account::statement::TableMeta>> make_md_table_from_csv(
+      static std::optional<CSV::MDTable<account::statement::maybe::table::TableMeta>> make_md_table_from_csv(
           std::string const& csv_text,
           char delimiter = ';') {
         auto maybe_table = CSV::parse::maybe::csv_to_table(csv_text, delimiter);
@@ -29,10 +29,10 @@ namespace tests {
       }
 
       // Helper to create an MDTable directly with specific AccountID and Table
-      static CSV::MDTable<account::statement::TableMeta> make_md_table(
+      static CSV::MDTable<account::statement::maybe::table::TableMeta> make_md_table(
           AccountID const& account_id,
           CSV::Table const& table) {
-        return CSV::MDTable<account::statement::TableMeta>{
+        return CSV::MDTable<account::statement::maybe::table::TableMeta>{
           {{},{},account_id}
           ,table};
       }

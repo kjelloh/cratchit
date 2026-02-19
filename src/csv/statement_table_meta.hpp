@@ -46,80 +46,80 @@ namespace SKV {
 namespace account {
   namespace statement {
 
-    enum class FieldType {
-        Unknown
-      ,Empty
-      ,Date
-      ,Amount
-      ,OrgNo
-      ,Text
-      ,Undefined
-    };
-
-    std::string to_string(FieldType field_type);
-    FieldType to_field_type(std::string const& s);
-
-    using FieldIx = unsigned;
-
-    struct RowMap {
-      std::map<FieldType,std::vector<FieldIx>> ixs;
-      bool operator==(RowMap const&) const = default;      
-    }; // RowMap
-
-    std::string to_string(RowMap const& row_map);
-
-    struct FoundSaldo {
-      FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
-      using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
-      Value m_value;
-      auto rix() const {return m_value.first;}
-      auto ta() const {return m_value.second;}
-    }; // FoundSaldo
-
-    struct FoundSaldos {
-      FoundSaldo m_in_saldo;
-      FoundSaldo m_out_saldo;
-    }; // FoundSaldos
-
-
-    struct ColumnMapping {
-      int date_column = -1;
-      int transaction_amount_column = -1;
-      int saldo_amount_column = -1;
-      int description_column = -1;
-      std::vector<int> additional_description_columns;
-
-      bool is_valid() const {
-        return date_column >= 0 && transaction_amount_column >= 0 && description_column >= 0;
-      }
-    }; // ColumnMapping
-
-    enum class EntryAmountsType {
-       Undefined
-      ,TransOnly
-      ,TransThenSaldo
-      ,Unknown
-    };
-
-    struct StatementMapping {
-      RowMap m_row_0_map;
-      bool has_heading;
-      std::optional<FoundSaldos> m_maybe_in_out_saldos;
-      EntryAmountsType entry_amounts_type;
-      std::optional<RowMap> maybe_common;
-    }; // StatementMapping
-
-    using AccountID = DomainPrefixedId;
-
-    struct TableMeta {
-      StatementMapping statement_mapping;
-      ColumnMapping column_mapping;
-      AccountID account_id;
-    }; // TableMeta
+  using AccountID = DomainPrefixedId;
 
     namespace maybe {
 
       namespace table {
+
+        enum class FieldType {
+            Unknown
+          ,Empty
+          ,Date
+          ,Amount
+          ,OrgNo
+          ,Text
+          ,Undefined
+        };
+
+        std::string to_string(FieldType field_type);
+        FieldType to_field_type(std::string const& s);
+
+        using FieldIx = unsigned;
+
+        struct RowMap {
+          std::map<FieldType,std::vector<FieldIx>> ixs;
+          bool operator==(RowMap const&) const = default;      
+        }; // RowMap
+
+        std::string to_string(RowMap const& row_map);
+
+        struct FoundSaldo {
+          FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
+          using Value = std::pair<std::ptrdiff_t,TaggedAmount>;
+          Value m_value;
+          auto rix() const {return m_value.first;}
+          auto ta() const {return m_value.second;}
+        }; // FoundSaldo
+
+        struct FoundSaldos {
+          FoundSaldo m_in_saldo;
+          FoundSaldo m_out_saldo;
+        }; // FoundSaldos
+
+
+        struct ColumnMapping {
+          int date_column = -1;
+          int transaction_amount_column = -1;
+          int saldo_amount_column = -1;
+          int description_column = -1;
+          std::vector<int> additional_description_columns;
+
+          bool is_valid() const {
+            return date_column >= 0 && transaction_amount_column >= 0 && description_column >= 0;
+          }
+        }; // ColumnMapping
+
+        enum class EntryAmountsType {
+          Undefined
+          ,TransOnly
+          ,TransThenSaldo
+          ,Unknown
+        };
+
+        struct StatementMapping {
+          RowMap m_row_0_map;
+          bool has_heading;
+          std::optional<FoundSaldos> m_maybe_in_out_saldos;
+          EntryAmountsType entry_amounts_type;
+          std::optional<RowMap> maybe_common;
+        }; // StatementMapping
+
+        struct TableMeta {
+          StatementMapping statement_mapping;
+          ColumnMapping column_mapping;
+          AccountID account_id;
+        }; // TableMeta
 
         RowMap to_row_map(CSV::Table::Row const& row);
 
