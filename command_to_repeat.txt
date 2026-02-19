@@ -17,4 +17,8 @@
 #./run.zsh --gtest_filter=*ExtractFromSKVCSVNewer
 #./run.zsh --gtest_filter=*CSVTable2AccountStatementTests.CsvTableToAccountStatementWithSKV
 #./run.zsh --gtest_filter=*AccountIdTests.ValidGenericStatementOk
-./run.zsh --test
+#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*
+./run.zsh --gtest_filter=*FullPipelineTestFixture.ImportSimpleCsvFailsForUnknownFormat
+#./run.zsh --test

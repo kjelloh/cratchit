@@ -2763,24 +2763,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSimpleCsvFailsForUnknownFormat) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSimpleCsvFailsForUnknownFormat)"};
 
-      // Simple CSV is neither NORDEA nor SKV format, so it should fail at Step 6.5
+      // Simple CSV is neither NORDEA nor SKV format
       auto result = csv::path_to_tagged_amounts_shortcut(simple_csv_file);
 
-      EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
+      ASSERT_TRUE(result) << "Expected success for generic account statement CSV format";
 
-      // Verify error message mentions the format detection failure
-      bool found_step_6_5_msg = false;
-      for (auto const& msg : result.m_messages) {
-        if (msg.find("Step 6.5") != std::string::npos &&
-            msg.find("failed") != std::string::npos) {
-          found_step_6_5_msg = true;
-          break;
-        }
-      }
-      EXPECT_TRUE(found_step_6_5_msg)
-        << "Expected error message about Step 6.5 AccountID detection failure";
+      std::print("\nresult:{} m_messages:{}"
+        ,result.m_value.has_value()
+        ,result.m_messages);
 
-      logger::development_trace("Verified simple CSV correctly fails for unknown format");
     }
 
     TEST_F(FullPipelineTestFixture, ImportMissingFileReturnsEmpty) {

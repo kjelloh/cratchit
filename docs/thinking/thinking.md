@@ -26,7 +26,15 @@ Side note: Handle the BOM in to_with_detected_encoding_step?
 * We need to mutate the buffer but it is worth the cost?
 * The function can detect BOM and confirm the encoding matches?
 
+I have now attended to some test cases to make them PASS ok. I now encountered 'ISSUE20260114_SKV_CSV' in the log output.
 
+* Is this issue now attended to?
+* What should I do to clean up the log outoput?
+
+NO. The Issue is still valid.
+
+* is_ignorable_row does NOT yet check if mapping is applicable.
+* Then again, we may no longer need is_ignorable_row (remove all together)?
 
 ## 20260218
 
