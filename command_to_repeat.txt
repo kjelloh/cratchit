@@ -17,7 +17,6 @@
 #./run.zsh --gtest_filter=*ExtractFromSKVCSVNewer
 #./run.zsh --gtest_filter=*CSVTable2AccountStatementTests.CsvTableToAccountStatementWithSKV
 #./run.zsh --gtest_filter=*AccountIdTests.ValidGenericStatementOk
-#./run.zsh --gtest_filter=*FullPipelineTestFixture.ImportSimpleCsvFailsForUnknownFormat
-#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*MDTableToAccountStatementTestFixture.NordeaMDTableToAccountStatement
 #./run.zsh --gtest_filter=*
 ./run.zsh --test

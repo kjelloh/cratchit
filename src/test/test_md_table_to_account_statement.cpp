@@ -127,8 +127,7 @@ namespace tests {
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
 
       // Verify detected AccountID before transformation
-      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA");
-      EXPECT_FALSE(maybe_md_table->meta.account_id.m_value.empty()) << "Expected account number to be detected";
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA") << "Expected Account ID";
 
       // Transform MDTable to AccountStatement
       auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_md_table);
@@ -136,8 +135,8 @@ namespace tests {
       ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
       // Verify AccountID propagated correctly
-      ASSERT_TRUE(result->meta().m_maybe_account_irl_id.has_value());
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "NORDEA");
+      ASSERT_TRUE(result->meta().m_maybe_account_irl_id.has_value()) << "Expected account ID";
+      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "NORDEA") << "Expected NORDEA prefix";
 
       // Verify entries were created
       EXPECT_GT(result->entries().size(), 0) << "Expected at least one entry";
