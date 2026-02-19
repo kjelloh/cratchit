@@ -365,7 +365,14 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+
+      auto maybe_table = persistent::in::text::maybe::injected_string_to_istream_ptr(csv_text)
+        .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
+        .and_then(text::encoding::maybe::to_with_detected_encoding_step)
+        .and_then(text::encoding::maybe::to_platform_encoded_string_step)
+        .and_then(CSV::parse::maybe::csv_text_to_table_step);
+
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       // TODO: Move this test to istream -> csv-text tests
@@ -809,7 +816,11 @@ namespace tests::csv_table_identification {
     // END TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_x
 
     TEST_F(AccountStatementTableTestsFixture,TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok)"};
+      logger::scope_logger log_raii{
+         logger::development_trace
+        ,"TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok)"
+        ,logger::LogToConsole::ON
+        };
       std::string caption = "sz_SKV_0_0_BOM_ed";
       // std::string csv_text = sz_NORDEA_csv_20251120;
       // std::string csv_text = sz_SKV_csv_20251120;
@@ -818,7 +829,14 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_NORDEA_0_1;
       // std::string csv_text = sz_SKV_0_0;
       std::string csv_text = sz_SKV_0_0_BOM_ed;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+
+      auto maybe_table = persistent::in::text::maybe::injected_string_to_istream_ptr(csv_text)
+        .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
+        .and_then(text::encoding::maybe::to_with_detected_encoding_step)
+        .and_then(text::encoding::maybe::to_platform_encoded_string_step)
+        .and_then(CSV::parse::maybe::csv_text_to_table_step);
+
       ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
 
       // TODO: Move this test to istream -> csv-text tests

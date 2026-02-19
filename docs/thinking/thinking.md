@@ -36,6 +36,154 @@ NO. The Issue is still valid.
 * is_ignorable_row does NOT yet check if mapping is applicable.
 * Then again, we may no longer need is_ignorable_row (remove all together)?
 
+Anyhow, now (some time later) I have managed to get all tests to PASS again using the 'new' generic meta generation and passing from to_statement_id_ed_step.
+
+Now only the not-removed BOM in BOM:ed statement csv tests fail.
+
+* Can we make to_with_detected_encoding_step detect and remove the BOM?
+* Also, I seem to remember clause generated some BOM handling code?
+  - Where is it?
+
+So we have:
+
+```c++
+      std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
+        auto& [confidence_threshold,buffer] = wt_buffer;
+        return text::encoding::inferred::maybe::to_inferred_encoding(buffer, confidence_threshold)
+          .transform([buffer = std::move(buffer)](auto&& meta){
+            return WithDetectedEncodingByteBuffer{
+              .meta = std::forward<decltype(meta)>(meta)
+              ,.defacto = std::move(buffer)
+            };
+          });
+      } // to_with_detected_encoding_step
+```
+
+It is not super obvious how to add BOM detection and buffer mutation? Or at least, we need to do more than I hoped for.
+
+I found my own BOM code:
+
+```c++
+namespace persistent {
+  namespace in {
+
+    namespace UTF8 {
+
+      istream::istream(std::istream& in) : bom_istream{in} {
+        if (this->bom) {
+          if (this->bom->value != text::BOM::UTF8_VALUE) {
+            // We expect the input stream to be in UTF8 and thus any BOM must confirm this
+            logger::cout_proxy << "\nSorry, Expected an UTF8 input stream but found contradicting BOM:" << *(this->bom);
+
+            this->raw_in.setstate(std::ios_base::failbit); // disable reading this stream
+          }
+        }
+      }
+
+    } // namespace UTF8
+
+```
+
+And the BOM type:
+
+```c++
+    struct BOM {
+      using value_type = std::array<unsigned char,3>; // Works for 3-byte BOM like UTF8
+      value_type value;
+
+      // TODO: Refactor to handle BOM of length other than 3 *sigh*
+      // NOTE: It seems no BOM is more than 4 bytes (So 4 bytes with checking the third and fourth only if the first two and three match?)
+      /*
+      Encoding	              BOM
+      UTF-8	                  EF BB BF
+      UTF-16 (Big endian)	    FE FF
+      UTF-16 (Little endian)	FF FE
+      UTF-32 (Big endian)	    00 00 FE FF
+      UTF-32 (Little endian)  FF FE 00 00
+      UTF-7	                  2B 2F 76 followed by 38, 39, 2B, 2F, or 38 2D
+      UTF-1	                  F7 64 4C
+      UTF-EBCDIC	            DD 73 66 73
+      SCSU	                  0E FE FF
+      BOCU-1	                FB EE 28
+      GB-18030	              84 31 95 33
+      */    
+
+      static constexpr BOM::value_type UTF8_VALUE{0xEF,0xBB,0xBF};
+    };
+
+    std::istream& operator>>(std::istream& is,BOM& bom);
+    std::ostream& operator<<(std::ostream& os,BOM const& bom);
+```
+
+Now this is lind of nice and all:
+
+* I have a BOM usable for three bytes UTF8
+* I can stream in and treat success as available checker
+* Do I dare to just use bom_istream instead of std::istream in my pipe line?
+  - NO. In to_with_detected_encoding_step I have already used and discarded any stream I used
+  - I have the byte buffer prefixed with potential BOM
+
+So I need a way to check for BOM at the beginning of the byte buffer.
+
+But we are kind of stuck:
+
+```c++
+        std::optional<EncodingDetectionResult> to_inferred_encoding(
+           ByteBuffer const& buffer
+          ,int32_t confidence_threshold) {
+
+          UErrorCode status = U_ZERO_ERROR;
+
+          auto data = reinterpret_cast<char const*>(buffer.data());
+          auto length = buffer.size();
+
+          auto maybe_icu_result = text::encoding::icu_facade::maybe::to_content_encoding(data,length,confidence_threshold);
+
+          // ...
+```
+
+The to_inferred_encoding is prohibited from mutating the buffer. And to_with_detected_encoding_step has currently no way to detect a BOM.
+
+* It seems inconveniant to have to_inferred_encoding call icu that may then use the BOM but without removing it?
+* And if we make to_with_detected_encoding_step detect BOM we should also check it matches detected encoding by ICU?
+
+I have now made a 'dirty fix':
+
+```c++
+      std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
+        logger::development_trace("to_with_detected_encoding_step");
+        auto& [confidence_threshold,buffer] = wt_buffer;
+        return text::encoding::inferred::maybe::to_inferred_encoding(buffer, confidence_threshold)
+          .transform([buffer = std::move(buffer)](auto&& meta) mutable {
+
+            if (    buffer.size() >= 3 
+                 && buffer[0] == std::byte{0xEF}
+                 && buffer[1] == std::byte{0xBB}
+                 && buffer[2] == std::byte{0xBF}) {
+
+                logger::development_trace("to_with_detected_encoding_step - BOM detected");
+                logger::development_trace("to_with_detected_encoding_step - buffer.size:{}",buffer.size());
+                buffer.erase(buffer.begin(), buffer.begin() + 3);
+                logger::development_trace("to_with_detected_encoding_step - buffer.size:{}",buffer.size());
+            }
+
+            return WithDetectedEncodingByteBuffer{
+              .meta = std::forward<decltype(meta)>(meta)
+              ,.defacto = std::move(buffer)
+            };
+          });
+      } // to_with_detected_encoding_step
+
+```
+
+I also spent some time fixing the exit code.
+
+* Google test exists with 0 on OK
+* But then we (main) exited with true (1) on google test 0.
+* I fixed so we exit with POSIX sematics (0 == No errors and 1 = failed for some reason)
+
+Took me a while **sigh**! All these small things to stumble on!!
+
 ## 20260218
 
 I have now made ALL test pass.

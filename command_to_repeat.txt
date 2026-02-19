@@ -12,7 +12,6 @@
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_0
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_0
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
-#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_DetectColumnsFromHeader
 #./run.zsh --gtest_filter=*ExtractFromSKVCSVNewer
 #./run.zsh --gtest_filter=*CSVTable2AccountStatementTests.CsvTableToAccountStatementWithSKV
