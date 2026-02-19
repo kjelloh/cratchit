@@ -46,40 +46,27 @@ namespace SKV {
 namespace account {
   namespace statement {
 
-        enum class FieldType {
-            Unknown
-          ,Empty
-          ,Date
-          ,Amount
-          ,OrgNo
-          ,Text
-          ,Undefined
-        };
+    enum class FieldType {
+        Unknown
+      ,Empty
+      ,Date
+      ,Amount
+      ,OrgNo
+      ,Text
+      ,Undefined
+    };
 
-        std::string to_string(FieldType field_type);
-        FieldType to_field_type(std::string const& s);
+    std::string to_string(FieldType field_type);
+    FieldType to_field_type(std::string const& s);
 
-        using FieldIx = unsigned;
+    using FieldIx = unsigned;
 
-        struct RowMap {
-          std::map<FieldType,std::vector<FieldIx>> ixs;
-          bool operator==(RowMap const&) const = default;      
-        }; // RowMap
+    struct RowMap {
+      std::map<FieldType,std::vector<FieldIx>> ixs;
+      bool operator==(RowMap const&) const = default;      
+    }; // RowMap
 
-        std::string to_string(RowMap const& row_map);
-
-    namespace maybe {
-
-      namespace table {
-
-        RowMap to_row_map(CSV::Table::Row const& row);
-
-        using RowsMap = std::vector<RowMap>;
-
-        RowsMap to_rows_map(CSV::Table::Rows const& rows);
-
-      } // table
-    } // maybe
+    std::string to_string(RowMap const& row_map);
 
     struct FoundSaldo {
       FoundSaldo(std::ptrdiff_t rix,Date date,Amount ta);
@@ -129,6 +116,31 @@ namespace account {
       ColumnMapping column_mapping;
       AccountID account_id;
     }; // TableMeta
+
+    namespace maybe {
+
+      namespace table {
+
+        RowMap to_row_map(CSV::Table::Row const& row);
+
+        using RowsMap = std::vector<RowMap>;
+
+        RowsMap to_rows_map(CSV::Table::Rows const& rows);
+        void log_the_rows_map(CSV::Table::Rows const& rows,RowsMap const& rows_map);
+
+
+        // Expose generic for testing
+        std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table);
+        std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table);
+        std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table);
+        TableMeta generic_like_to_statement_table_meta(CSV::Table const& table);
+
+
+      } // table
+
+
+    } // maybe
+
 
   } // statement
 } // acount
