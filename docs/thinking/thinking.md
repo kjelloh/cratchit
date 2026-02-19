@@ -21,6 +21,13 @@ I have now made to_statement_id_ed_step call generic_like_to_statement_table_met
 
 But I think I can be confident this is fixable?
 
+Side note: Handle the BOM in to_with_detected_encoding_step?
+
+* We need to mutate the buffer but it is worth the cost?
+* The function can detect BOM and confirm the encoding matches?
+
+
+
 ## 20260218
 
 I have now made ALL test pass.

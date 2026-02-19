@@ -2519,11 +2519,11 @@ Alice,30,"Stockholm, Sweden"
       logger::development_trace("Extracted SKV org number from older format: '{}'", maybe_md_table->meta.account_id.m_value);
     }
 
-    TEST(AccountIdTests, UnknownCsvReturnsNullopt) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, UnknownCsvReturnsNullopt)"};
+    TEST(AccountIdTests, NotStatementReturnsNullopt) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, NotStatementReturnsNullopt)"};
 
       // Create a generic CSV that is neither NORDEA nor SKV format
-      std::string csv_text = "Name,Value,Date\nAlice,100,2025-01-01\nBob,200,2025-01-02\n";
+      std::string csv_text = "Name,Value,Date\nAlice,Y,2025-01-01\nBob,N,2025-01-02\n";
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
 
@@ -2533,6 +2533,19 @@ Alice,30,"Stockholm, Sweden"
       // Unknown format should return nullopt (fully unknown AccountID is a failure)
       EXPECT_FALSE(maybe_md_table.has_value())
         << "Expected nullopt for unknown CSV format (fully unknown AccountID)";
+    }
+
+    TEST(AccountIdTests, ValidGenericStatementOk) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, ValidGenericStatementOk)"};
+
+      // Create a generic CSV that is neither NORDEA nor SKV format
+      std::string csv_text = "Name,Value,Date\nAlice,100,2025-01-01\nBob,200,2025-01-02\n";
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
+      EXPECT_TRUE(maybe_md_table) << "Expected valid Name,Amount,Date statement to be accepted";
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "Generisk")
+        << "Expected NORDEA prefix when header contains NORDEA keywords";
     }
 
     TEST(AccountIdTests, EmptyTableReturnsNullopt) {
