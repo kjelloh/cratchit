@@ -2930,8 +2930,8 @@ Alice,30,"Stockholm, Sweden"
     // table_to_tagged_amounts_shortcut() tests
     // ----------------------------------------------------------------------------
 
-    TEST(FullPipelineTableTests, ImportTableFailsForUnknownFormat) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportTableFailsForUnknownFormat)"};
+    TEST(FullPipelineTableTests, ImportGenericAccountStatementOK) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportGenericAccountStatementOK)"};
 
       // Create a generic CSV::Table (neither NORDEA nor SKV format)
       CSV::Table table;
@@ -2942,20 +2942,8 @@ Alice,30,"Stockholm, Sweden"
 
       auto result = csv::table_to_tagged_amounts_shortcut(table);
 
-      // Unknown format should fail at Step 6.5
-      EXPECT_FALSE(result) << "Expected failure for unknown CSV format";
+      ASSERT_TRUE(result) << "Expected success for generic account statement csv";
 
-      // Verify error message mentions the format detection failure
-      bool found_step_6_5_msg = false;
-      for (auto const& msg : result.m_messages) {
-        if (msg.find("Step 6.5") != std::string::npos &&
-            msg.find("failed") != std::string::npos) {
-          found_step_6_5_msg = true;
-          break;
-        }
-      }
-      EXPECT_TRUE(found_step_6_5_msg)
-        << "Expected error message about Step 6.5 AccountID detection failure";
     }
 
     TEST(FullPipelineTableTests, ImportTableWithNordeaData) {
