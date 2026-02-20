@@ -18,4 +18,14 @@
 #./run.zsh --gtest_filter=*AccountIdTests.ValidGenericStatementOk
 #./run.zsh --gtest_filter=*MDTableToAccountStatementTestFixture.NordeaMDTableToAccountStatement
 #./run.zsh --gtest_filter=*
-./run.zsh --test
+#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*GenericAccountIdTests.HeaderSingleAmountTransOK
+#./run.zsh --gtest_filter=*GenericAccountIdTests.NoHeaderSingleAmountTransOK
+#./run.zsh --gtest_filter=*GenericAccountIdTests.HeaderTransSaldoAmountsOK
+#./run.zsh --gtest_filter=*GenericAccountIdTests.NoHeaderTransSaldoAmountsOK
+./run.zsh --gtest_filter=GenericAccountIdTests*
+
+#./run.zsh --test

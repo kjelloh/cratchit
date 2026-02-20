@@ -38,9 +38,9 @@ namespace logger {
       */
     proxy& operator()(const char* msg) {
       auto formatted = std::format("{}: {}", m_caption, msg);
-      spdlog::info("{}", formatted);
+      spdlog::info("{}{}",m_indent_string,formatted);
       if (m_log_to_console == LogToConsole::ON) {
-        std::print("\n{}",formatted);
+        std::print("\n{}{}",m_indent_string,formatted);
       }
       return *this;
     }

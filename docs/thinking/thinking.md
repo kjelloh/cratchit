@@ -88,7 +88,17 @@ I was tempted to try and implement a variable length BOM, detection and removal.
 
 * Implementing a varuable length BOM is a beast of its own.
 * This works for UTF8 for now.
-* ANd is clear enough to later refactor into variable lentgh BOM?
+* And is clear enough to later refactor into variable lentgh BOM?
+
+I now doscovered I have NO test cases for generic statement tables! I mean, when I have put all this effort in, I should be able to process generic statement tables OK?
+
+```sh
+[  FAILED  ] 4 tests, listed below:
+[  FAILED  ] GenericAccountIdTests.HeaderSingleAmountTransOK
+[  FAILED  ] GenericAccountIdTests.NoHeaderSingleAmountTransOK
+[  FAILED  ] GenericAccountIdTests.HeaderTransSaldoAmountsOK
+[  FAILED  ] GenericAccountIdTests.NoHeaderTransSaldoAmountsOK
+```
 
 ## 20260219
 

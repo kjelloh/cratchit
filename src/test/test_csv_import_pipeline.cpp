@@ -2579,24 +2579,82 @@ Alice,30,"Stockholm, Sweden"
         << "Expected nullopt for unknown format (fully unknown AccountID)";
     }
 
-    TEST(AccountIdTests, NordeaHeaderDetection) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, NordeaHeaderDetection)"};
+    TEST(GenericAccountIdTests, HeaderSingleAmountTransOK) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
 
-      // Create a table with NORDEA-style header using Key::Path constructor
-      std::vector<std::string> nordea_header_vec = {
+      std::vector<std::string> heading = {
         "Bokforingsdag", "Belopp", "Avsandare", "Mottagare", "Namn", "Saldo", "Valuta"
       };
-      CSV::Table nordea_table;
-      nordea_table.heading = Key::Path(nordea_header_vec);
-      nordea_table.rows = {nordea_table.heading};  // Include header as first row (current behavior)
+      CSV::Table generic_statement_table{
+         .heading = heading
+        ,.rows = {
+           heading
+          ,std::vector<std::string>{"2025-03-01", "100.00", "", "", "Kort Elfa", "", "SEK"}
+        }
+      };
 
-      // Extract MDTable<AccountID>
-      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(nordea_table);
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
 
       ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
-      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA")
-        << "Expected NORDEA prefix when header contains NORDEA keywords";
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "Generisk")
+        << "Expected Generic prefix for Generic statement table";
     }
+
+    TEST(GenericAccountIdTests, NoHeaderSingleAmountTransOK) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
+
+      CSV::Table generic_statement_table{
+        .rows = {
+          std::vector<std::string>{"2025-03-01", "100.00", "", "", "Kort Elfa", "", "SEK"}
+        }
+      };
+
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
+
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "Generisk")
+        << "Expected Generic prefix for Generic statement table";
+    }
+
+    TEST(GenericAccountIdTests, HeaderTransSaldoAmountsOK) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
+
+      std::vector<std::string> heading = {
+        "Bokforingsdag", "Belopp", "Avsandare", "Mottagare", "Namn", "Saldo", "Valuta"
+      };
+      CSV::Table generic_statement_table{
+        .heading = heading
+        ,.rows = {
+           heading
+          ,std::vector<std::string>{"2025-03-01", "100.00", "", "", "Kort Elfa", "500.00", "SEK"}
+          ,std::vector<std::string>{"2025-03-01", "100.00", "", "", "Kort Elfa", "600.00", "SEK"}
+        }
+      };
+
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
+
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "Generisk")
+        << "Expected Generic prefix for Generic statement table";
+    }
+
+    TEST(GenericAccountIdTests, NoHeaderTransSaldoAmountsOK) {
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
+
+      CSV::Table generic_statement_table{
+        .rows = {
+           std::vector<std::string>{"2025-03-01", "100.00", "", "", "Kort Elfa", "500.00", "SEK"}
+          ,std::vector<std::string>{"2025-03-01", "100.00", "", "", "Kort Elfa", "600.00", "SEK"}
+        }
+      };
+
+      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
+
+      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected valid MDTable<AccountID>";
+      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "Generisk")
+        << "Expected Generic prefix for Generic statement table";
+    }
+
 
     TEST(AccountIdTests, AccountIdToStringFormat) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, AccountIdToStringFormat)"};
