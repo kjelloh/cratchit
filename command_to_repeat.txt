@@ -26,6 +26,7 @@
 #./run.zsh --gtest_filter=*GenericAccountIdTests.NoHeaderSingleAmountTransOK
 #./run.zsh --gtest_filter=*GenericAccountIdTests.HeaderTransSaldoAmountsOK
 #./run.zsh --gtest_filter=*GenericAccountIdTests.NoHeaderTransSaldoAmountsOK
-./run.zsh --gtest_filter=GenericAccountIdTests*
+./run.zsh --gtest_filter=GenericAccountIdTests.Header*
+#./run.zsh --gtest_filter=GenericAccountIdTests*
 
 #./run.zsh --test

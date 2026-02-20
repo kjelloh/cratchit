@@ -504,15 +504,33 @@ namespace account {
               }
               if (true) logger::development_trace("text_columns_map:{}",text_columns_map);
 
-              const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
-                {4, "Namn"}
-                ,{5, "Ytterligare detaljer"}
-                ,{9, "Valuta"}};
+              if (!candidate.is_valid()) {
+                const auto NORDEA_TEXT_MAP = std::map<FieldIx,std::string>{
+                  {4, "Namn"}
+                  ,{5, "Ytterligare detaljer"}
+                  ,{9, "Valuta"}};
 
-              if (text_columns_map == NORDEA_TEXT_MAP) {
-                candidate.description_column = 4;
-                candidate.additional_description_columns.push_back(5);
+                if (text_columns_map == NORDEA_TEXT_MAP) {
+                  candidate.description_column = 4;
+                  candidate.additional_description_columns.push_back(5);
+                }
               }
+
+              if (!candidate.is_valid()) {
+                // Final call - generic assign of columns left to right (fingers crossed)
+                int state{0};
+                for (auto const& [cix,text] : text_columns_map) {
+                  switch (state) {
+                    case 0: candidate.description_column = cix; break;
+                    default:
+                      candidate.additional_description_columns.push_back(cix);
+                      break;
+                  }
+                  ++state;
+                }
+                
+              }
+
             }
           }
           catch (std::exception const& e) {
