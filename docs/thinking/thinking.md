@@ -100,6 +100,14 @@ I now doscovered I have NO test cases for generic statement tables! I mean, when
 [  FAILED  ] GenericAccountIdTests.NoHeaderTransSaldoAmountsOK
 ```
 
+I now made all the new generic tests pass.
+
+* Fallback for table with header to assign description and additional left-to-right from text columns
+* Fallback for table with no header the same way
+* I kept the mechanism separate to enable future filter on header text like 'Valuta'
+
+I could now clean out csv_to_statement_id_ed to only use generic mapping.
+
 ## 20260219
 
 I have now brute-forced the generic accounty statement projection code to statement_table_meta TU. It is NOT pritty. But at least it is now in its own TU for access by account::statement::monadic::to_statement_id_ed_step?
