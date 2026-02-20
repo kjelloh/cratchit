@@ -18,26 +18,11 @@ namespace text {
         return text::encoding::inferred::maybe::to_inferred_encoding(buffer, confidence_threshold)
           .transform([buffer = std::move(buffer)](auto&& meta) mutable {
 
-            // TODO: Consider a cleaner and more flexible BOM detection and removal
-            //       This works for UTF8 BOM
-            //       Note that we do not check if BOM and 'inferred encoding' matches (ICU should get this right?)
-            //       Also, it seems ICU have no way of doing this for us (so whe have to apply out own removal?) 
-            //       What we have is a mutual lambda that mutates the buffer copy we have moved from our
-            //       in-buffer passed by value OK (it is ours and not a ref)
-            if (    buffer.size() >= 3 
-                 && buffer[0] == std::byte{0xEF}
-                 && buffer[1] == std::byte{0xBB}
-                 && buffer[2] == std::byte{0xBF}) {
-
-                logger::development_trace("to_with_detected_encoding_step - BOM detected");
-                logger::development_trace("to_with_detected_encoding_step - buffer.size:{}",buffer.size());
-                buffer.erase(buffer.begin(), buffer.begin() + 3);
-                logger::development_trace("to_with_detected_encoding_step - BOM STRIPPED, new buffer.size:{}",buffer.size());
-            }
+            auto [maybe_bom,stripped_buffer] = text::encoding::to_bom_and_buffer(buffer);
 
             return WithDetectedEncodingByteBuffer{
               .meta = std::forward<decltype(meta)>(meta)
-              ,.defacto = std::move(buffer)
+              ,.defacto = std::move(stripped_buffer)
             };
           });
       } // to_with_detected_encoding_step

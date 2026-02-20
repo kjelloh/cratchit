@@ -31,10 +31,25 @@ namespace text {
       return "Unknown";
     }
 
+    BOM::BOM(ByteBuffer::const_iterator begin,ByteBuffer::const_iterator end) {
+      value.fill(0);
+      auto len = std::min<size_t>(value.size(),std::distance(begin,end));
+      std::transform(
+         begin
+        ,std::next(begin, len)
+        ,value.begin()
+        ,[](std::byte b) {
+          return static_cast<unsigned char>(b);
+        });    
+    }
+
     std::istream& operator>>(std::istream& is,BOM& bom) {
       using std_overload::operator>>; // to 'see' the defined overload for std::array
       using std_overload::operator<<; // to 'see' the defined overload for std::array
       auto original_pos = is.tellg();
+      // TODO: Beware that this always consumes value.size() chars
+      //       Future variable length BOM needs another mechanism
+      //       For now only UTF8 BOM is supported
       if (is >> bom.value) {
         if (bom.value == BOM::UTF8_VALUE) {      
           // std::cout << "\noperator>>(BOM) consumed from read file. bom:" << bom.value;
@@ -57,6 +72,30 @@ namespace text {
       using std_overload::operator<<; // to 'see' the defined overload for std::array
       os << bom.value;
       return os;
+    }
+
+    MetaDefacto<std::optional<BOM>,ByteBuffer> to_bom_and_buffer(ByteBuffer buffer) {
+
+      // TODO: Consider a cleaner and more flexible BOM detection and removal
+      //       This works for UTF8 BOM
+      //       Note that we do not check if BOM and 'inferred encoding' matches (ICU should get this right?)
+      //       Also, it seems ICU have no way of doing this for us (so whe have to apply out own removal?) 
+      //       What we have is a mutual lambda that mutates the buffer copy we have moved from our
+      //       in-buffer passed by value OK (it is ours and not a ref)
+
+      if (    buffer.size() >= 3 
+            && buffer[0] == std::byte{0xEF}
+            && buffer[1] == std::byte{0xBB}
+            && buffer[2] == std::byte{0xBF}) {
+          BOM bom(buffer.begin(),buffer.begin()+3);
+          logger::development_trace("to_bom_and_buffer - BOM detected: buffer.size:{}",buffer.size());
+          buffer.erase(buffer.begin(), buffer.begin() + 3);
+          logger::development_trace("to_bom_and_buffer - BOM STRIPPED, new buffer.size:{}",buffer.size());
+          return {bom,std::move(buffer)};
+      }
+
+      return {std::nullopt,std::move(buffer)};
+
     }
 
     namespace ISO_8859_1 {

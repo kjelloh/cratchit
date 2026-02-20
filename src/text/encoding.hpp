@@ -41,6 +41,9 @@ namespace text {
       using value_type = std::array<unsigned char,3>; // Works for 3-byte BOM like UTF8
       value_type value;
 
+      BOM() = default;
+      explicit BOM(ByteBuffer::const_iterator begin,ByteBuffer::const_iterator end);
+
       // TODO: Refactor to handle BOM of length other than 3 *sigh*
       // NOTE: It seems no BOM is more than 4 bytes (So 4 bytes with checking the third and fourth only if the first two and three match?)
       /*
@@ -63,6 +66,8 @@ namespace text {
 
     std::istream& operator>>(std::istream& is,BOM& bom);
     std::ostream& operator<<(std::ostream& os,BOM const& bom);
+
+    MetaDefacto<std::optional<BOM>,ByteBuffer> to_bom_and_buffer(ByteBuffer buffer);
 
     namespace ISO_8859_1  {
 

@@ -132,6 +132,8 @@ namespace account {
         std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table);
         std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table);
         std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table);
+
+        // Expose for to_statement_id_ed_step
         TableMeta generic_like_to_statement_table_meta(CSV::Table const& table);
 
       } // table

@@ -2,6 +2,94 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260220
+
+So, time to continue the 'clean up'.
+
+* Remove NORDEA, SKV specific code from csv_to_statement_id_ed (now replaced with generic)
+* Remove nordea_like and skv_line from csv_to_account_statement (Now replaced with received ready-to-use TableMeta)
+* Make BOM removal in to_with_detected_encoding_step into a fincion based mechanism
+* remove the 'with threshold' in account statement parse pipe line
+
+```c++
+        .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::maybe::to_with_threshold_step_f(100)) // REMOVE
+        .and_then(text::encoding::maybe::to_with_detected_encoding_step)
+```
+
+* Finalize PathToAccountStatementTaggedAmountsRefactoring* to all have maybe vs monadic counterparts
+  - 
+
+```c++
+      //   .and_then(CSV::parse::monadic::csv_text_to_table_step)
+      //   .and_then(account::statement::monadic::to_statement_id_ed_step)
+      //   .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+      //   .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+```
+
+I started with a functional explcit BOM removal for future clarity
+
+```c++
+
+      std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
+        logger::development_trace("to_with_detected_encoding_step");
+        auto& [confidence_threshold,buffer] = wt_buffer;
+        return text::encoding::inferred::maybe::to_inferred_encoding(buffer, confidence_threshold)
+          .transform([buffer = std::move(buffer)](auto&& meta) mutable {
+
+            auto [maybe_bom,stripped_buffer] = text::encoding::to_bom_and_buffer(buffer);
+
+            return WithDetectedEncodingByteBuffer{
+              .meta = std::forward<decltype(meta)>(meta)
+              ,.defacto = std::move(stripped_buffer)
+            };
+          });
+      } // to_with_detected_encoding_step
+
+    MetaDefacto<std::optional<BOM>,ByteBuffer> to_bom_and_buffer(ByteBuffer buffer) {
+
+      // TODO: Consider a cleaner and more flexible BOM detection and removal
+      //       This works for UTF8 BOM
+      //       Note that we do not check if BOM and 'inferred encoding' matches (ICU should get this right?)
+      //       Also, it seems ICU have no way of doing this for us (so whe have to apply out own removal?) 
+      //       What we have is a mutual lambda that mutates the buffer copy we have moved from our
+      //       in-buffer passed by value OK (it is ours and not a ref)
+
+      if (    buffer.size() >= 3 
+            && buffer[0] == std::byte{0xEF}
+            && buffer[1] == std::byte{0xBB}
+            && buffer[2] == std::byte{0xBF}) {
+          BOM bom(buffer.begin(),buffer.begin()+3);
+          logger::development_trace("to_bom_and_buffer - BOM detected: buffer.size:{}",buffer.size());
+          buffer.erase(buffer.begin(), buffer.begin() + 3);
+          logger::development_trace("to_bom_and_buffer - BOM STRIPPED, new buffer.size:{}",buffer.size());
+          return {bom,std::move(buffer)};
+      }
+
+      return {std::nullopt,std::move(buffer)};
+
+    }
+
+      BOM::BOM(ByteBuffer::const_iterator begin,ByteBuffer::const_iterator end) {
+      value.fill(0);
+      auto len = std::min<size_t>(value.size(),std::distance(begin,end));
+      std::transform(
+         begin
+        ,std::next(begin, len)
+        ,value.begin()
+        ,[](std::byte b) {
+          return static_cast<unsigned char>(b);
+        });    
+    }
+
+```
+
+I was tempted to try and implement a variable length BOM, detection and removal. But I fought hard to not do this in one go.
+
+* Implementing a varuable length BOM is a beast of its own.
+* This works for UTF8 for now.
+* ANd is clear enough to later refactor into variable lentgh BOM?
+
 ## 20260219
 
 I have now brute-forced the generic accounty statement projection code to statement_table_meta TU. It is NOT pritty. But at least it is now in its own TU for access by account::statement::monadic::to_statement_id_ed_step?
