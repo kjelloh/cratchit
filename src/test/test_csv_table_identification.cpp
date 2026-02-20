@@ -27,9 +27,8 @@ namespace tests::csv_table_identification {
     TEST_F(AccountStatementTableTestsFixture,MappingBasedMinimalParseOK) {
       logger::scope_logger log_raii{logger::development_trace, "TEST_F(AccountStatementTableTestsFixture, MappingBasedMinimalParseOK)"};
       auto table = to_minimal_table();
-      auto mapping = account::statement::maybe::table::to_column_mapping(table);
-
-      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
+      auto table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(table);
+      ASSERT_TRUE(table_meta.column_mapping.is_valid()) << "Expected Valid Mapping";
     }
 
     TEST_F(AccountStatementTableTestsFixture,MappingBasedNordeaLikeOk) {
@@ -40,9 +39,8 @@ namespace tests::csv_table_identification {
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Expetced sz_NORDEA_csv_20251120 -> Table OK";
 
-      auto mapping = account::statement::maybe::table::nordea_like_to_column_mapping(*maybe_table);
-
-      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
+      auto table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
+      ASSERT_TRUE(table_meta.column_mapping.is_valid()) << "Expected Valid Mapping";
     }
 
     TEST_F(AccountStatementTableTestsFixture,MappingBasedSKVLikeOlderOk) {
@@ -53,9 +51,8 @@ namespace tests::csv_table_identification {
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "EWxpected sz_SKV_csv_older -> Table OK";
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
-
-      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
+      auto table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
+      ASSERT_TRUE(table_meta.column_mapping.is_valid()) << "Expected Valid Mapping";
 
     }
 
@@ -67,9 +64,8 @@ namespace tests::csv_table_identification {
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value()) << "Expected sz_SKV_csv_20251120 -> Table OK ";
 
-      auto mapping = account::statement::maybe::table::to_column_mapping(*maybe_table);
-
-      ASSERT_TRUE(mapping.is_valid()) << "Expected Valid Mapping";
+      auto table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
+      ASSERT_TRUE(table_meta.column_mapping.is_valid()) << "Expected Valid Mapping";
 
     }
 
