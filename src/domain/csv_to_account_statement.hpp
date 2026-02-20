@@ -35,9 +35,10 @@ namespace account {
       } // table
 
 
-      // maybe steps
       OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table);
       std::optional<AccountStatement> csv_table_to_account_statement_step(CSV::Table const& table,AccountID const& account_id);
+
+      // maybe step
       std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<table::TableMeta> const& statement_id_ed);
 
     } // maybe

@@ -108,6 +108,21 @@ I now made all the new generic tests pass.
 
 I could now clean out csv_to_statement_id_ed to only use generic mapping.
 
+The next step is to clean up csv_to_account_statement. But this seems easier said than done?
+
+I tried to comment out csv_table_to_account_statement_step (that seesm to be the top-dog to start removing?)
+
+```c++
+  std::optional<AccountStatement> csv_table_to_account_statement_step(CSV::Table const& table,AccountID const& account_id);
+```
+
+That resulted in many many places that breaks. But:
+
+* Call to csv_table_to_account_statement_step should now be call to statement_id_ed_to_account_statement_step
+  - Only, the new function takes Table Meta (and not plain Account ID)
+  - So we still have this dependancy on 'older' code
+
+
 ## 20260219
 
 I have now brute-forced the generic accounty statement projection code to statement_table_meta TU. It is NOT pritty. But at least it is now in its own TU for access by account::statement::monadic::to_statement_id_ed_step?
