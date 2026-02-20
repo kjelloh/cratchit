@@ -518,6 +518,7 @@ namespace account {
 
               if (!candidate.is_valid()) {
                 // Final call - generic assign of columns left to right (fingers crossed)
+                // TODO: Consider to filter on heading names like 'Namn', "Valuta"?
                 int state{0};
                 for (auto const& [cix,text] : text_columns_map) {
                   switch (state) {
@@ -532,6 +533,20 @@ namespace account {
               }
 
             }
+            else if (statement_mapping.maybe_common->ixs.at(FieldType::Text).size()>1) {
+              // fall back - fingers crossed the left-most text column is description
+              // TODO: Consider to filter on actual text field that are currency like 'SEK'?
+              int state{};
+              for (auto cix : statement_mapping.maybe_common->ixs.at(FieldType::Text)) {
+                switch (state) {
+                  case 0: candidate.description_column = cix; break;
+                  default:
+                      candidate.additional_description_columns.push_back(cix);
+                      break;
+                }
+              }
+            }
+
           }
           catch (std::exception const& e) {
             logger::design_insufficiency(
