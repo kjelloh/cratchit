@@ -36,7 +36,22 @@ So, in what order do we celan this up?
 
 I have now cleaned upp TEST focusing on AccountID and csv_table_to_account_statement_step with statement id:ed and statement_id_ed_to_account_statement_step ok.
 
-And now I have cleaned up also test_statement_to_tagged_amounts TU
+And now I have cleaned up also test_statement_to_tagged_amounts TU.
+
+Now we have csv_table_to_tagged_amounts_shortcut still calling csv_table_to_account_statement_step.
+
+* It also take table and Account ID - So this should also go?!
+
+I have now removed deprecated csv_table_to_account_statement_step and csv_table_to_tagged_amounts_shortcut. I have doen it kind-of brute force. I keep getting confused about what code does what.
+
+* But code that takes table and accountID is arguments should go.
+* So that is what I am doing.
+
+I suppose the call sites also needs a refactoring later. But at least I have the test in place until I am sure I can get rid of some?
+
+Next to go is:
+
+* csv_table_to_account_statement_entries?
 
 ## 20260220
 

@@ -387,11 +387,10 @@ TEST_F(StatementToTaggedAmountsTestFixture, ComposedCsvTableToTaggedAmounts) {
 
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
-  // Create AccountID for NORDEA
-  AccountID account_id = make_account_id("NORDEA", "51 86 87-9");
-
   // Use composed function (Steps 7+8 in one call)
-  auto result = tas::csv_table_to_tagged_amounts_shortcut(*maybe_table, account_id);
+  auto result = account::statement::maybe::to_statement_id_ed_step(*maybe_table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step)
+        .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
 
   ASSERT_TRUE(result.has_value()) << "Expected successful composed transformation";
   EXPECT_GT(result->size(), 0) << "Expected at least one TaggedAmount";
@@ -400,7 +399,7 @@ TEST_F(StatementToTaggedAmountsTestFixture, ComposedCsvTableToTaggedAmounts) {
   for (auto const& ta : *result) {
     ASSERT_TRUE(ta.tags().contains("Account"));
     ASSERT_TRUE(ta.tags().contains("Text"));
-    EXPECT_EQ(ta.tags().at("Account"), "NORDEA::51 86 87-9");
+    EXPECT_EQ(ta.tags().at("Account"), "NORDEA::??");
   }
 }
 

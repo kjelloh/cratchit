@@ -34,21 +34,16 @@ namespace csv {
       ,table.rows.size()));
 
     // Step 6.5: CSV::Table -> MDTable<AccountID>
-    auto maybe_statement_id_ed_md_table = account::statement::maybe::to_statement_id_ed_step(table);
+    auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(table);
 
-    if (!maybe_statement_id_ed_md_table) {
+    if (!maybe_statement_id_ed) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
       result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
       return result;
     }
 
-    AccountID const& account_id = maybe_statement_id_ed_md_table->meta.account_id;
-    CSV::Table const& identified_table = maybe_statement_id_ed_md_table->defacto;
-    result.push_message(std::format("(1) Step 6.5 complete: AccountID detected: '{}'",
-      account_id.to_string()));
-
-    // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-    auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+    auto maybe_tagged = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed)
+        .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -90,21 +85,21 @@ namespace csv {
       maybe_table->rows.size()));
 
     // Monadic Maybe: Table -> (account ID,table) pair
-    auto maybe_statement_id_ed_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
+    auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
-    if (!maybe_statement_id_ed_md_table) {
+    if (!maybe_statement_id_ed) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
       result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
       return result;
     }
 
-    AccountID const& account_id = maybe_statement_id_ed_md_table->meta.account_id;
-    CSV::Table const& identified_table = maybe_statement_id_ed_md_table->defacto;
+    AccountID const& account_id = maybe_statement_id_ed->meta.account_id;
+    CSV::Table const& identified_table = maybe_statement_id_ed->defacto;
     result.push_message(std::format("(2) Step 6.5 complete: AccountID detected: '{}'",
       account_id.to_string()));
 
-    // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-    auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+    auto maybe_tagged = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed)
+        .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
@@ -174,21 +169,21 @@ namespace csv {
     // ============================================================
     // Step 6.5: CSV::Table -> MDTable<AccountID>
     // ============================================================
-    auto maybe_statement_id_ed_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
+    auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
-    if (!maybe_statement_id_ed_md_table) {
+    if (!maybe_statement_id_ed) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
       result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
       return result;
     }
 
     result.push_message(std::format("(3) Step 6.5 complete: AccountID detected: '{}'",
-      maybe_statement_id_ed_md_table->meta.account_id.to_string()));
+      maybe_statement_id_ed->meta.account_id.to_string()));
 
     // ============================================================
     // Step 7: MDTable<AccountID> -> AccountStatement
     // ============================================================
-    auto maybe_statement = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed_md_table);
+    auto maybe_statement = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed);
 
     if (!maybe_statement) {
       result.push_message("Pipeline failed at Step 7: Domain transformation failed - Could not extract account statement");
@@ -250,23 +245,21 @@ namespace csv {
     // ============================================================
     // Step 6.5: CSV::Table -> MDTable<AccountID>
     // ============================================================
-    auto maybe_statement_id_ed_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
+    auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
 
-    if (!maybe_statement_id_ed_md_table) {
+    if (!maybe_statement_id_ed) {
       // Unknown format - fully unknown AccountID (no prefix, no value)
       result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
       return result;
     }
 
-    AccountID const& account_id = maybe_statement_id_ed_md_table->meta.account_id;
-    CSV::Table const& identified_table = maybe_statement_id_ed_md_table->defacto;
+    AccountID const& account_id = maybe_statement_id_ed->meta.account_id;
+    CSV::Table const& identified_table = maybe_statement_id_ed->defacto;
     result.push_message(std::format("(4) Step 6.5 complete: AccountID detected: '{}'",
       account_id.to_string()));
 
-    // ============================================================
-    // Steps 7+8: CSV::Table + AccountID -> TaggedAmounts
-    // ============================================================
-    auto maybe_tagged = tas::csv_table_to_tagged_amounts_shortcut(identified_table, account_id);
+    auto maybe_tagged = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed)
+        .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
 
     if (!maybe_tagged) {
       result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
