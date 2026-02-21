@@ -631,32 +631,31 @@ namespace account {
       } // csv_table_to_account_statement_entries
 
       std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<table::TableMeta> const& statement_id_ed) {
-        logger::scope_logger log_raii{logger::development_trace,
-          "statement_id_ed_to_account_statement_step(statement_id_ed)"};
+        logger::scope_logger log_raii{
+           logger::development_trace
+          ,"statement_id_ed_to_account_statement_step(statement_id_ed)"};
 
         auto const& [table_meta,table] = statement_id_ed;
+        auto mapping = table_meta.column_mapping;
 
-        AccountID const& account_id = table_meta.account_id;
+        if (!mapping.is_valid()) return std::nullopt;
 
-        logger::development_trace("Processing MDTable with AccountID: '{}'", account_id.to_string());
-
-        // Extract entries from the CSV table
-        auto maybe_entries = csv_table_to_account_statement_entries(table);
-
-        if (!maybe_entries) {
-          logger::development_trace("Failed to extract entries from CSV table in MDTable");
-          return std::nullopt;
+        AccountStatementEntries candidate;
+        for (auto const& row : table.rows) {
+          auto maybe_entry = table::extract_entry_from_row(row, mapping);
+          if (maybe_entry) {
+            candidate.push_back(*maybe_entry);
+          }
         }
 
-        // Create AccountStatement with entries and account ID metadata
+        AccountID const& account_id = table_meta.account_id;
         AccountStatement::Meta meta{.m_maybe_account_irl_id = account_id};
 
         logger::development_trace("Creating AccountStatement with {} entries and account_id: {}",
-          maybe_entries->size(), account_id.to_string());
+          candidate.size(), account_id.to_string());
 
-        return AccountStatement(*maybe_entries, meta);
+        return AccountStatement(candidate, meta);
       } // statement_id_ed_to_account_statement_step
-
 
     } // maybe
 

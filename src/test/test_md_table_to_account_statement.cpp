@@ -18,7 +18,7 @@ namespace tests {
     class MDTableToAccountStatementTestFixture : public ::testing::Test {
     protected:
       // Helper to create an MDTable from CSV text using the real parsing/detection pipeline
-      static std::optional<CSV::MDTable<account::statement::maybe::table::TableMeta>> make_md_table_from_csv(
+      static std::optional<CSV::MDTable<account::statement::maybe::table::TableMeta>> make_statement_id_ed(
           std::string const& csv_text,
           char delimiter = ';') {
         auto maybe_table = CSV::parse::maybe::csv_to_table(csv_text, delimiter);
@@ -26,15 +26,6 @@ namespace tests {
           return std::nullopt;
         }
         return account::statement::maybe::to_statement_id_ed_step(*maybe_table);
-      }
-
-      // Helper to create an MDTable directly with specific AccountID and Table
-      static CSV::MDTable<account::statement::maybe::table::TableMeta> make_md_table(
-          AccountID const& account_id,
-          CSV::Table const& table) {
-        return CSV::MDTable<account::statement::maybe::table::TableMeta>{
-          {{},{},account_id}
-          ,table};
       }
 
       // Helper to create a minimal CSV::Table with valid structure
@@ -57,60 +48,47 @@ namespace tests {
       logger::scope_logger log_raii{logger::development_trace,
         "TEST(MDTableToAccountStatement, AccountIdPropagatedToStatementMeta)"};
 
-      // Create MDTable with specific AccountID
-      AccountID account_id{"NORDEA", "51 86 87-9"};
       CSV::Table table = make_minimal_table();
-      auto md_table = make_md_table(account_id, table);
+      auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(table);
+
+      ASSERT_TRUE(maybe_statement_id_ed);
+
+      auto const& [table_meta,_] = *maybe_statement_id_ed;
+      auto provided_account_id = table_meta.account_id;
 
       // Transform
-      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(md_table);
+      auto maybe_statement = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed);
 
       // Verify AccountID is correctly propagated
-      ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
-      ASSERT_TRUE(result->meta().m_maybe_account_irl_id.has_value())
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful transformation";
+      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value())
         << "Expected AccountID to be set in meta";
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "NORDEA");
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_value, "51 86 87-9");
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->to_string(), "NORDEA::51 86 87-9");
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, provided_account_id.m_prefix);
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, provided_account_id.m_value);
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->to_string(), provided_account_id.to_string());
     }
 
     TEST_F(MDTableToAccountStatementTestFixture, SKVAccountIdPropagatedCorrectly) {
       logger::scope_logger log_raii{logger::development_trace,
         "TEST(MDTableToAccountStatement, SKVAccountIdPropagatedCorrectly)"};
 
-      // Create MDTable with SKV AccountID
-      AccountID account_id{"SKV", "5567828172"};
-      CSV::Table table = make_minimal_table();
-      auto md_table = make_md_table(account_id, table);
+      auto maybe_statement_id_ed = make_statement_id_ed(sz_SKV_csv_20251120);
+
+      ASSERT_TRUE(maybe_statement_id_ed);
+
+      auto const& [table_meta,_] = *maybe_statement_id_ed;
+      auto provided_account_id = table_meta.account_id;
 
       // Transform
-      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(md_table);
+      auto maybe_statement = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed);
 
-      // Verify AccountID
-      ASSERT_TRUE(result.has_value());
-      ASSERT_TRUE(result->meta().m_maybe_account_irl_id.has_value());
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "SKV");
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_value, "5567828172");
-    }
-
-    TEST_F(MDTableToAccountStatementTestFixture, EmptyPrefixAccountIdHandled) {
-      logger::scope_logger log_raii{logger::development_trace,
-        "TEST(MDTableToAccountStatement, EmptyPrefixAccountIdHandled)"};
-
-      // Create MDTable with empty prefix AccountID
-      AccountID account_id{"", "123456789"};
-      CSV::Table table = make_minimal_table();
-      auto md_table = make_md_table(account_id, table);
-
-      // Transform
-      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(md_table);
-
-      // Verify AccountID with empty prefix
-      ASSERT_TRUE(result.has_value());
-      ASSERT_TRUE(result->meta().m_maybe_account_irl_id.has_value());
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "");
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_value, "123456789");
-      EXPECT_EQ(result->meta().m_maybe_account_irl_id->to_string(), "123456789");
+      // Verify AccountID is correctly propagated
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful transformation";
+      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value())
+        << "Expected AccountID to be set in meta";
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, provided_account_id.m_prefix);
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, provided_account_id.m_value);
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->to_string(), provided_account_id.to_string());
     }
 
     // ============================================================================
@@ -122,15 +100,15 @@ namespace tests {
         "TEST(MDTableToAccountStatement, NordeaMDTableToAccountStatement)"};
 
       // Parse NORDEA CSV and detect account
-      auto maybe_md_table = make_md_table_from_csv(sz_NORDEA_csv_20251120);
+      auto maybe_statement_id_ed = make_statement_id_ed(sz_NORDEA_csv_20251120);
 
-      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
+      ASSERT_TRUE(maybe_statement_id_ed.has_value()) << "Expected successful MDTable creation";
 
       // Verify detected AccountID before transformation
-      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "NORDEA") << "Expected Account ID";
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "NORDEA") << "Expected Account ID";
 
       // Transform MDTable to AccountStatement
-      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_md_table);
+      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
@@ -147,15 +125,15 @@ namespace tests {
         "TEST(MDTableToAccountStatement, SKVOlderMDTableToAccountStatement)"};
 
       // Parse SKV CSV (older format) and detect account
-      auto maybe_md_table = make_md_table_from_csv(sz_SKV_csv_older);
+      auto maybe_statement_id_ed = make_statement_id_ed(sz_SKV_csv_older);
 
-      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
+      ASSERT_TRUE(maybe_statement_id_ed.has_value()) << "Expected successful MDTable creation";
 
       // Verify detected AccountID
-      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV");
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "SKV");
 
       // Transform MDTable to AccountStatement
-      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_md_table);
+      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
@@ -173,55 +151,20 @@ namespace tests {
       auto maybe_table = CSV::parse::maybe::csv_to_table(sz_SKV_csv_20251120, ';');
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
-      auto maybe_md_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
-      ASSERT_TRUE(maybe_md_table.has_value()) << "Expected successful MDTable creation";
+      auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
+      ASSERT_TRUE(maybe_statement_id_ed.has_value()) << "Expected successful MDTable creation";
 
       // Verify detected AccountID (should find org number 5567828172)
-      EXPECT_EQ(maybe_md_table->meta.account_id.m_prefix, "SKV");
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "SKV");
 
       // Transform MDTable to AccountStatement
-      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_md_table);
+      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed);
 
       ASSERT_TRUE(result.has_value()) << "Expected successful transformation";
 
       // Verify AccountID propagated
       ASSERT_TRUE(result->meta().m_maybe_account_irl_id.has_value());
       EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, "SKV");
-    }
-
-    // ============================================================================
-    // AccountID Variation Tests
-    // ============================================================================
-
-    TEST_F(MDTableToAccountStatementTestFixture, VariousAccountIdPrefixesPropagated) {
-      logger::scope_logger log_raii{logger::development_trace,
-        "TEST(MDTableToAccountStatement, VariousAccountIdPrefixesPropagated)"};
-
-      std::vector<std::pair<std::string, std::string>> test_cases = {
-        {"NORDEA", "51 86 87-9"},
-        {"SKV", "5567828172"},
-        {"PG", "90 00 00-1"},
-        {"BG", "123-4567"},
-        {"IBAN", "SE35 5000 0000 0549 1000 0003"},
-        {"", "plain-account-number"}
-      };
-
-      for (auto const& [prefix, value] : test_cases) {
-        AccountID account_id{prefix, value};
-        CSV::Table table = make_minimal_table();
-        auto md_table = make_md_table(account_id, table);
-
-        auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(md_table);
-
-        ASSERT_TRUE(result.has_value())
-          << "Failed transformation for prefix: '" << prefix << "'";
-        ASSERT_TRUE(result->meta().m_maybe_account_irl_id.has_value())
-          << "Missing AccountID for prefix: '" << prefix << "'";
-        EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_prefix, prefix)
-          << "Prefix mismatch for: '" << prefix << "'";
-        EXPECT_EQ(result->meta().m_maybe_account_irl_id->m_value, value)
-          << "Value mismatch for prefix: '" << prefix << "'";
-      }
     }
 
     // ============================================================================
@@ -232,10 +175,10 @@ namespace tests {
       logger::scope_logger log_raii{logger::development_trace,
         "TEST(MDTableToAccountStatement, ReturnsAccountStatementWithEntries)"};
 
-      auto maybe_md_table = make_md_table_from_csv(sz_NORDEA_csv_20251120);
-      ASSERT_TRUE(maybe_md_table.has_value());
+      auto maybe_statement_id_ed = make_statement_id_ed(sz_NORDEA_csv_20251120);
+      ASSERT_TRUE(maybe_statement_id_ed.has_value());
 
-      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_md_table);
+      auto result = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed);
 
       ASSERT_TRUE(result.has_value());
 

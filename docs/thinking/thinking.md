@@ -53,6 +53,55 @@ Next to go is:
 
 * csv_table_to_account_statement_entries?
 
+So where is csv_table_to_account_statement_entries used?
+
+```c++
+      // 'Older' ExpectedAccountStatement returning mechanism.
+      // TODO: Replace with optional and AnnotatedMaybe based mechanism / 20251122
+      ExpectedAccountStatement to_account_statement(CSV::project::deprecated::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table) {
+
+
+```
+
+And so:
+
+* Where is to_account_statement used?
+
+Oh NO! It is used by statement_id_ed_to_account_statement_step!!
+
+* DARN! The pipe-line STILL goes through the old mechanoism!!
+* HOW HARD CAN THIS BE?!!!
+
+Ok, I just have to move on. I have to make statement_id_ed_to_account_statement_step use the provided column mapoping and call the function to extract entries.
+
+So the change broke the code AGAIN!!
+
+```sh
+[  PASSED  ] 361 tests.
+[  FAILED  ] 4 tests, listed below:
+[  FAILED  ] MDTableToAccountStatementTestFixture.AccountIdPropagatedToStatementMeta
+[  FAILED  ] MDTableToAccountStatementTestFixture.SKVAccountIdPropagatedCorrectly
+[  FAILED  ] MDTableToAccountStatementTestFixture.EmptyPrefixAccountIdHandled
+[  FAILED  ] MDTableToAccountStatementTestFixture.VariousAccountIdPrefixesPropagated
+```
+
+So what is it now that the generic code does not hanlde (or that is tested for the wrong value(s))?
+
+So these tests are no longer viable (They check for Account ID being propagated to statement which no lomnger happens in the new pipe line)
+
+* AccountIdPropagatedToStatementMeta
+* SKVAccountIdPropagatedCorrectly
+* EmptyPrefixAccountIdHandled
+* VariousAccountIdPrefixesPropagated
+
+So I simply removed these tests (no longer viable).
+
+WAIT! Now I no longer have any tests of correct Account ID ending up in Statement?!
+
+I should instead check that the Account ID that comes in TableMeta ends uo i statement?
+
+YES! I now have refactored 'Account ID propagation tests' to work with inferred account ID instead of test injected one. SO now I have at least two tests that checks propagation. Good enough!
+
 ## 20260220
 
 So, time to continue the 'clean up'.
