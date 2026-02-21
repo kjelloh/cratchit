@@ -5,6 +5,7 @@
 #include "fiscal/amount/TaggedAmount.hpp"
 #include "fiscal/amount/AmountFramework.hpp"
 #include "domain/account_statement_to_tagged_amounts.hpp"
+#include "csv/csv_to_statement_id_ed.hpp"
 #include "domain/csv_to_account_statement.hpp"
 #include "csv/parse_csv.hpp"
 #include "test/data/account_statements_csv.hpp"
@@ -316,11 +317,8 @@ TEST(CSVTable2TaggedAmountsTests, IntegrationWithNordeaCsvData) {
 
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
-  // Create AccountID for NORDEA
-  AccountID account_id = make_account_id("NORDEA", "51 86 87-9");
-
-  // Step 7: CSV::Table -> AccountStatement
-  auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(*maybe_table, account_id);
+  auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(*maybe_table)
+    .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
   ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful statement creation";
 
@@ -333,7 +331,7 @@ TEST(CSVTable2TaggedAmountsTests, IntegrationWithNordeaCsvData) {
   // Verify all entries have correct Account tag
   for (auto const& ta : *result) {
     ASSERT_TRUE(ta.tags().contains("Account"));
-    EXPECT_EQ(ta.tags().at("Account"), "NORDEA::51 86 87-9");
+    EXPECT_EQ(ta.tags().at("Account"), "NORDEA::??");
 
     ASSERT_TRUE(ta.tags().contains("Text"));
     EXPECT_FALSE(ta.tags().at("Text").empty()) << "Expected non-empty Text tag";
@@ -358,11 +356,8 @@ TEST(CSVTable2TaggedAmountsTests, IntegrationWithSkvCsvData) {
 
   ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parsing";
 
-  // Create AccountID for SKV
-  AccountID account_id = make_account_id("SKV", "5567828172");
-
-  // Step 7: CSV::Table -> AccountStatement
-  auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(*maybe_table, account_id);
+  auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(*maybe_table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
   ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful statement creation";
 
@@ -374,7 +369,7 @@ TEST(CSVTable2TaggedAmountsTests, IntegrationWithSkvCsvData) {
   // Verify all entries have correct Account tag
   for (auto const& ta : *result) {
     ASSERT_TRUE(ta.tags().contains("Account"));
-    EXPECT_EQ(ta.tags().at("Account"), "SKV::5567828172");
+    EXPECT_EQ(ta.tags().at("Account"), "SKV::??");
   }
 }
 

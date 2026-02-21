@@ -19,8 +19,6 @@
 #./run.zsh --gtest_filter=*MDTableToAccountStatementTestFixture.NordeaMDTableToAccountStatement
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
-#./run.zsh --gtest_filter=*
-#./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*GenericAccountIdTests.HeaderSingleAmountTransOK
 #./run.zsh --gtest_filter=*GenericAccountIdTests.NoHeaderSingleAmountTransOK
 #./run.zsh --gtest_filter=*GenericAccountIdTests.HeaderTransSaldoAmountsOK
@@ -29,5 +27,7 @@
 #./run.zsh --gtest_filter=GenericAccountIdTests*
 
 #./run.zsh --gtest_filter=*CSVTable2AccountStatementTests.CsvTableToAccountStatementPreservesEntryData
+#./run.zsh --gtest_filter=*CSVTable2TaggedAmountsTests.IntegrationWithNordeaCsvData
+#./run.zsh --gtest_filter=*CSVTable2TaggedAmountsTests.IntegrationWithSkvCsvData
 
 ./run.zsh --test

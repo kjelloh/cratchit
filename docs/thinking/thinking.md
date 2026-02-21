@@ -34,7 +34,9 @@ So, in what order do we celan this up?
 * It seems we should clean up TESTS that calls statement_id_ed_to_account_statement_step but still focus on Account ID?
 * Then we have TESTS that instantiates their own Account ID and uses to call csv_table_to_account_statement_step
 
+I have now cleaned upp TEST focusing on AccountID and csv_table_to_account_statement_step with statement id:ed and statement_id_ed_to_account_statement_step ok.
 
+And now I have cleaned up also test_statement_to_tagged_amounts TU
 
 ## 20260220
 
