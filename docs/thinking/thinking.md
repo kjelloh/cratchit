@@ -2,6 +2,40 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260221
+
+Time to get rid of csv_table_to_account_statement_step.
+
+* Where is it called?
+* What should I remove and what should I replace with statement_id_ed_to_account_statement_step?
+
+So csv_table_to_account_statement_step is: Table -> Account ID -> Account Statement.
+
+While statement_id_ed_to_account_statement_step is: Table -> TableMeta -> Account Statement.
+
+So what have I done. I have expanded **table -> account ID** with **table -> TableMeta**
+
+Or have I?
+
+* It is called from csv_table_to_tagged_amounts_shortcut
+* It is called by test_csv_import TESTS
+  - Hm... The test cases are now a MESS!
+  - There are loads of test cases focusing and using Account ID
+  - When we now have changed to use TableMeta
+
+But things are clearing up so slowly.
+
+* The 'old' code just piped Account ID from below into the statement meta
+* AND - The 'old' code created the column mapping as part of csv_table_to_account_statement_step
+* While the 'new' code takes in all meta data for statement extraction and just applies received column mapping
+
+So, in what order do we celan this up?
+
+* It seems we should clean up TESTS that calls statement_id_ed_to_account_statement_step but still focus on Account ID?
+* Then we have TESTS that instantiates their own Account ID and uses to call csv_table_to_account_statement_step
+
+
+
 ## 20260220
 
 So, time to continue the 'clean up'.
