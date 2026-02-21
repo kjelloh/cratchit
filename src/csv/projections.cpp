@@ -1,5 +1,5 @@
 #include "projections.hpp"
-#include "domain/csv_to_account_statement.hpp" // account::statement::maybe::csv_table_to_account_statement_entries,...
+#include "domain/csv_to_account_statement.hpp"
 #include <sstream> // std::ostringstream,
 #include "logger/log.hpp"
 
@@ -89,29 +89,6 @@ namespace CSV {
         }
       }
 
-      // 'Older' ExpectedAccountStatement returning mechanism.
-      // TODO: Replace with optional and AnnotatedMaybe based mechanism / 20251122
-      ExpectedAccountStatement to_account_statement(CSV::project::deprecated::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table) {
-        logger::development_trace("to_account_statement: csv_heading_id:{}",static_cast<unsigned int>(csv_heading_id));
-        if (maybe_csv_table) {
-          logger::development_trace("to_account_statement: table heading:{} rows.size():{}",maybe_csv_table->heading,maybe_csv_table->rows.size());
-
-          AccountStatementEntries entries{};
-          auto maybe_entries = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_csv_table);
-          if (maybe_entries) {
-            for (auto const& entry : *maybe_entries) {
-              entries.push_back(entry);
-            }
-          }
-
-          logger::development_trace("to_account_statement: returned {} entries",entries.size());
-          return AccountStatement{entries};
-        }
-        else {
-          logger::development_trace("to_account_statement: NULL maybe_csv_table");
-        }
-        return std::unexpected("Unsupported (not viable?) account statement file");
-      }
 
     } // deprecated 
 

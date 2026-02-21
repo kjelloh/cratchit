@@ -102,6 +102,8 @@ I should instead check that the Account ID that comes in TableMeta ends uo i sta
 
 YES! I now have refactored 'Account ID propagation tests' to work with inferred account ID instead of test injected one. SO now I have at least two tests that checks propagation. Good enough!
 
+I now finally removed csv_table_to_account_statement_entries. And so I could also remove to_account_statement.
+
 ## 20260220
 
 So, time to continue the 'clean up'.

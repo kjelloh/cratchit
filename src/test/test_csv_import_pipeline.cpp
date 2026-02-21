@@ -202,19 +202,19 @@ namespace tests::csv_import_pipeline {
 
       AnnotatedMaybe<TaggedAmounts> result{};
 
-      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(m_valid_file_path);
+      auto maybe_text = text::encoding::path_to_platform_encoded_string_shortcut(m_valid_file_path);
 
-      if (!text_result) {
+      if (!maybe_text) {
         // Propagate file/encoding errors
-        result.m_messages = std::move(text_result.m_messages);
+        result.m_messages = std::move(maybe_text.m_messages);
         result.push_message("Pipeline failed at Step 1-5: File reading/encoding");
       }
 
-      ASSERT_TRUE(text_result) << "Expected successful text result";
+      ASSERT_TRUE(maybe_text) << "Expected successful text result";
 
       // Copy messages from file reading/encoding
-      result.m_messages = text_result.m_messages;
-      auto const& text = text_result.value();
+      result.m_messages = maybe_text.m_messages;
+      auto const& text = maybe_text.value();
 
       // Handle empty file case
       if (text.empty()) {
@@ -1850,22 +1850,22 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, CompletePipelineFileToTable)"};
 
       // Complete pipeline: file_path → UTF-8 text → CSV::Table
-      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_csv_file);
-      ASSERT_TRUE(text_result) << "Expected successful encoding pipeline";
+      auto maybe_text = text::encoding::path_to_platform_encoded_string_shortcut(utf8_csv_file);
+      ASSERT_TRUE(maybe_text) << "Expected successful encoding pipeline";
 
-      auto table_result = CSV::parse::maybe::csv_text_to_table_step(text_result.value());
-      ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(maybe_text.value());
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       // Verify the table structure
-      EXPECT_EQ(table_result->heading.size(), 3) << "Expected 3 columns";
-      EXPECT_EQ(table_result->heading[0], "Name");
-      EXPECT_EQ(table_result->heading[1], "Amount");
-      EXPECT_EQ(table_result->heading[2], "City");
+      EXPECT_EQ(maybe_table->heading.size(), 3) << "Expected 3 columns";
+      EXPECT_EQ(maybe_table->heading[0], "Name");
+      EXPECT_EQ(maybe_table->heading[1], "Amount");
+      EXPECT_EQ(maybe_table->heading[2], "City");
 
-      EXPECT_EQ(table_result->rows.size(), 3) << "Expected 3 rows (header + 2 data)";
-      EXPECT_EQ(table_result->rows[1][0], "Johan");
-      EXPECT_EQ(table_result->rows[2][0], "Åsa") << "Expected Swedish character preserved";
-      EXPECT_EQ(table_result->rows[2][2], "Göteborg") << "Expected Swedish ö preserved";
+      EXPECT_EQ(maybe_table->rows.size(), 3) << "Expected 3 rows (header + 2 data)";
+      EXPECT_EQ(maybe_table->rows[1][0], "Johan");
+      EXPECT_EQ(maybe_table->rows[2][0], "Åsa") << "Expected Swedish character preserved";
+      EXPECT_EQ(maybe_table->rows[2][2], "Göteborg") << "Expected Swedish ö preserved";
     }
 
     TEST_F(CSVPipelineCompositionTestFixture, MonadicCompositionWithAndThen) {
@@ -1909,19 +1909,19 @@ Alice,30,"Stockholm, Sweden"
       logger::scope_logger log_raii{logger::development_trace, "TEST(CSVPipelineCompositionTests, TranscodesISO8859ToUTF8ThenParsesCSV)"};
 
       // Complete pipeline with ISO-8859-1 source
-      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(iso8859_csv_file);
-      ASSERT_TRUE(text_result) << "Expected successful encoding pipeline";
+      auto maybe_text = text::encoding::path_to_platform_encoded_string_shortcut(iso8859_csv_file);
+      ASSERT_TRUE(maybe_text) << "Expected successful encoding pipeline";
 
-      logger::development_trace("Transcoded text: {}", text_result.value());
+      logger::development_trace("Transcoded text: {}", maybe_text.value());
 
-      auto table_result = CSV::parse::maybe::csv_text_to_table_step(text_result.value());
-      ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(maybe_text.value());
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
       // Verify Swedish characters were correctly transcoded and parsed
-      EXPECT_EQ(table_result->heading[0], "Name");
-      EXPECT_EQ(table_result->heading[1], "City");
-      EXPECT_EQ(table_result->rows[1][0], "Åsa") << "Expected Å transcoded correctly";
-      EXPECT_EQ(table_result->rows[1][1], "Göteborg") << "Expected ö transcoded correctly";
+      EXPECT_EQ(maybe_table->heading[0], "Name");
+      EXPECT_EQ(maybe_table->heading[1], "City");
+      EXPECT_EQ(maybe_table->rows[1][0], "Åsa") << "Expected Å transcoded correctly";
+      EXPECT_EQ(maybe_table->rows[1][1], "Göteborg") << "Expected ö transcoded correctly";
     }
 
     TEST_F(CSVPipelineCompositionTestFixture, ErrorPropagationFromEncodingStage) {
@@ -1953,9 +1953,9 @@ Alice,30,"Stockholm, Sweden"
         std::ofstream ofs(empty_file);
       }
 
-      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(empty_file);
-      ASSERT_FALSE(text_result) << "Expected failure for empty file - no content to process";
-      EXPECT_GT(text_result.m_messages.size(), 0) << "Expected error messages about empty buffer";
+      auto maybe_text = text::encoding::path_to_platform_encoded_string_shortcut(empty_file);
+      ASSERT_FALSE(maybe_text) << "Expected failure for empty file - no content to process";
+      EXPECT_GT(maybe_text.m_messages.size(), 0) << "Expected error messages about empty buffer";
     }
 
     TEST(CSVPipelineCompositionTests, ParsesRealNordeaCSVWithEncoding) {
@@ -1965,14 +1965,14 @@ Alice,30,"Stockholm, Sweden"
       // (In real usage, this would come through the file reading pipeline)
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto table_result = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(table_result.has_value()) << "Expected successful parse";
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful parse";
 
-      EXPECT_EQ(table_result->heading[0], "Bokföringsdag");
-      EXPECT_GT(table_result->rows.size(), 5) << "Expected multiple transaction rows";
+      EXPECT_EQ(maybe_table->heading[0], "Bokföringsdag");
+      EXPECT_GT(maybe_table->rows.size(), 5) << "Expected multiple transaction rows";
 
       logger::development_trace("Real Nordea CSV parsed successfully with {} rows",
-                               table_result->rows.size());
+                               maybe_table->rows.size());
     }
 
   } // namespace csv_pipeline_composition_suite
@@ -1984,24 +1984,22 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse the NORDEA CSV sample data
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
 
-      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+      auto maybe_statement = CSV::parse::maybe::csv_text_to_table_step(csv_text)
+        .and_then(account::statement::maybe::to_statement_id_ed_step)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      // Extract account statements
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_table);
-
-      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
-      EXPECT_GT(maybe_statements->size(), 0) << "Expected at least one account statement entry";
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful account statement extraction";
+      EXPECT_GT(maybe_statement->entries().size(), 0) << "Expected at least one account statement entry";
 
       // Verify first entry
-      auto const& first_entry = maybe_statements->at(0);
+      auto const& first_entry = maybe_statement->entries().at(0);
       EXPECT_EQ(first_entry.transaction_date, to_date(2025, 9, 29));
       EXPECT_EQ(first_entry.transaction_amount, *to_amount("-1083,75"));
       EXPECT_FALSE(first_entry.transaction_caption.empty()) << "Expected non-empty description";
 
       logger::development_trace("Extracted {} account statement entries from NORDEA CSV",
-                               maybe_statements->size());
+                               maybe_statement->entries().size());
     }
 
     TEST(AccountStatementTests, ExtractFromSKVCSVWithoutHeaders) {
@@ -2009,20 +2007,18 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse the SKV CSV sample data (older format)
       std::string csv_text = sz_SKV_csv_older;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
 
-      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+      auto maybe_statement = CSV::parse::maybe::csv_text_to_table_step(csv_text)
+        .and_then(account::statement::maybe::to_statement_id_ed_step)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      // Extract account statements
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_table);
-
-      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful account statement extraction";
 
       // Should have extracted transaction rows (not balance rows)
-      EXPECT_GT(maybe_statements->size(), 0) << "Expected at least one transaction entry";
+      EXPECT_GT(maybe_statement->entries().size(), 0) << "Expected at least one transaction entry";
 
       // Verify that balance rows were filtered out
-      for (auto const& entry : *maybe_statements) {
+      for (auto const& entry : maybe_statement->entries()) {
         std::string desc_lower = entry.transaction_caption;
         std::ranges::transform(desc_lower, desc_lower.begin(),
           [](char c) { return std::tolower(c); });
@@ -2032,7 +2028,7 @@ Alice,30,"Stockholm, Sweden"
       }
 
       logger::development_trace("Extracted {} transaction entries from SKV CSV (balance rows filtered)",
-                               maybe_statements->size());
+                               maybe_statement->entries().size());
     }
 
     TEST(AccountStatementTests, ExtractFromSKVCSVNewer) {
@@ -2040,21 +2036,19 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse the newer SKV CSV format
       std::string csv_text = sz_SKV_csv_20251120;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
 
-      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
+      auto maybe_statement = CSV::parse::maybe::csv_text_to_table_step(csv_text)
+        .and_then(account::statement::maybe::to_statement_id_ed_step)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      // Extract account statements
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_table);
-
-      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful account statement extraction";
 
       // Should have extracted transaction rows
-      EXPECT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
+      EXPECT_EQ(maybe_statement->entries().size(), 4) << "Expected four transaction entries";
 
       // Verify one specific entry
       bool found_interest = false;
-      for (auto const& entry : *maybe_statements) {
+      for (auto const& entry : maybe_statement->entries()) {
         if (entry.transaction_caption.find("Intäktsränta") != std::string::npos) {
           found_interest = true;
           EXPECT_GT(entry.transaction_amount, Amount{0}) << "Expected positive interest amount";
@@ -2063,7 +2057,7 @@ Alice,30,"Stockholm, Sweden"
       }
       EXPECT_TRUE(found_interest) << "Expected to find interest transaction";
 
-      logger::development_trace("Extracted {} entries from newer SKV CSV", maybe_statements->size());
+      logger::development_trace("Extracted {} entries from newer SKV CSV", maybe_statement->entries().size());
     }
 
     TEST(AccountStatementTests, EmptyCSVReturnsEmptyList) {
@@ -2074,10 +2068,10 @@ Alice,30,"Stockholm, Sweden"
       table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
       table.rows.push_back(table.heading);
 
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(table);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful extraction";
-      EXPECT_EQ(maybe_statements->size(), 0) << "Expected empty list for headers-only CSV";
+      ASSERT_FALSE(maybe_statement.has_value()) << "Expected header only csv to be invalid";
     }
 
     TEST(AccountStatementTests, BalanceRowsAreIgnored) {
@@ -2091,13 +2085,14 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-05", "Payment", "100"}});
       table.rows.push_back(Key::Path{std::vector<std::string>{"", "Utgående saldo 2025-01-31", "1100"}});
 
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(table);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful extraction";
-      EXPECT_EQ(maybe_statements->size(), 1) << "Expected only transaction row, balance rows ignored";
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful extraction";
+      EXPECT_EQ(maybe_statement->entries().size(), 1) << "Expected only transaction row, balance rows ignored";
 
-      if (!maybe_statements->empty()) {
-        EXPECT_EQ(maybe_statements->at(0).transaction_caption, "Payment");
+      if (!maybe_statement->entries().empty()) {
+        EXPECT_EQ(maybe_statement->entries().at(0).transaction_caption, "Payment");
       }
     }
 
@@ -2110,9 +2105,10 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"value1", "value2"}});
 
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(table);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      EXPECT_FALSE(maybe_statements.has_value()) << "Expected nullopt when required columns cannot be detected";
+      EXPECT_FALSE(maybe_statement.has_value()) << "Expected nullopt when required columns cannot be detected";
     }
 
     TEST(AccountStatementTests, MultipleDescriptionColumnsAreConcatenated) {
@@ -2120,17 +2116,16 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse NORDEA CSV which has multiple description columns
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
 
-      ASSERT_TRUE(maybe_table.has_value());
+      auto maybe_statement = CSV::parse::maybe::csv_text_to_table_step(csv_text)
+        .and_then(account::statement::maybe::to_statement_id_ed_step)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_table);
-
-      ASSERT_TRUE(maybe_statements.has_value());
-      EXPECT_GT(maybe_statements->size(), 0);
+      ASSERT_TRUE(maybe_statement.has_value());
+      EXPECT_GT(maybe_statement->entries().size(), 0);
 
       // Check that descriptions are not empty and contain meaningful content
-      auto const& first_entry = maybe_statements->at(0);
+      auto const& first_entry = maybe_statement->entries().at(0);
       EXPECT_GT(first_entry.transaction_caption.size(), 5)
         << "Expected substantial description content";
 
@@ -2151,21 +2146,23 @@ Alice,30,"Stockholm, Sweden"
       }
 
       // Complete pipeline: file → text → CSV::Table → AccountStatementEntries
-      auto text_result = text::encoding::path_to_platform_encoded_string_shortcut(temp_path);
-      ASSERT_TRUE(text_result) << "Expected successful file read";
+      auto maybe_text = text::encoding::path_to_platform_encoded_string_shortcut(temp_path);
+      ASSERT_TRUE(maybe_text) << "Expected successful file read";
 
-      auto table_result = CSV::parse::maybe::csv_text_to_table_step(text_result.value());
-      ASSERT_TRUE(table_result.has_value()) << "Expected successful CSV parse";
+      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(maybe_text.value());
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      auto statements_result = account::statement::maybe::csv_table_to_account_statement_entries(*table_result);
-      ASSERT_TRUE(statements_result.has_value()) << "Expected successful account statement extraction";
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(*maybe_table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
+      
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful account statement extraction";
 
-      EXPECT_EQ(statements_result->size(), 3) << "Expected 3 account statement entries";
+      EXPECT_EQ(maybe_statement->entries().size(), 3) << "Expected 3 account statement entries";
 
       // Verify entries
-      EXPECT_EQ(statements_result->at(0).transaction_date, to_date(2025, 1, 1));
-      EXPECT_EQ(statements_result->at(1).transaction_amount, *to_amount("-50.00"));
-      EXPECT_EQ(statements_result->at(2).transaction_caption, "Transfer in");
+      EXPECT_EQ(maybe_statement->entries().at(0).transaction_date, to_date(2025, 1, 1));
+      EXPECT_EQ(maybe_statement->entries().at(1).transaction_amount, *to_amount("-50.00"));
+      EXPECT_EQ(maybe_statement->entries().at(2).transaction_caption, "Transfer in");
 
       // Clean up
       std::filesystem::remove(temp_path);
@@ -2183,10 +2180,11 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(*maybe_table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
-      ASSERT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful account statement extraction";
+      ASSERT_EQ(maybe_statement->entries().size(), 4) << "Expected four transaction entries";
 
       // Expected transaction amounts (column 2), NOT saldo values (column 3)
       // Row: "2025-07-05";"Intäktsränta";"1";"659"     -> amount=1, NOT 659
@@ -2194,7 +2192,7 @@ Alice,30,"Stockholm, Sweden"
       // Row: "2025-08-20";"Utbetalning";"-879";"659"   -> amount=-879, NOT 659
       // Row: "2025-09-06";"Intäktsränta";"1";"660"     -> amount=1, NOT 660
 
-      auto const& entries = *maybe_statements;
+      auto const& entries = maybe_statement->entries();
 
       // Verify each transaction has correct transaction amount (not saldo)
       EXPECT_EQ(entries[0].transaction_amount, Amount{1})
@@ -2219,12 +2217,13 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(maybe_table.has_value()) << "Expected successful CSV parse";
 
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_table);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(*maybe_table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      ASSERT_TRUE(maybe_statements.has_value()) << "Expected successful account statement extraction";
-      ASSERT_EQ(maybe_statements->size(), 4) << "Expected four transaction entries";
+      ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful account statement extraction";
+      ASSERT_EQ(maybe_statement->entries().size(), 4) << "Expected four transaction entries";
 
-      auto const& entries = *maybe_statements;
+      auto const& entries = maybe_statement->entries();
 
       // Verify transaction amounts from older format
       // Row: 2025-04-05;Intäktsränta;1;;
@@ -2258,14 +2257,16 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
       ASSERT_TRUE(maybe_table.has_value());
 
-      auto maybe_statements = account::statement::maybe::csv_table_to_account_statement_entries(*maybe_table);
-      ASSERT_TRUE(maybe_statements.has_value());
-      ASSERT_EQ(maybe_statements->size(), 4);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(*maybe_table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
+
+      ASSERT_TRUE(maybe_statement.has_value());
+      ASSERT_EQ(maybe_statement->entries().size(), 4);
 
       // The row with "1 538" saldo should have 879 as transaction amount
       // Row: "2025-08-13";"Moms april 2025 - juni 2025";"879";"1 538"
       // Extraction uses transaction_amount_column (879), not saldo_amount_column (1538)
-      auto const& moms_entry = maybe_statements->at(1);
+      auto const& moms_entry = maybe_statement->entries().at(1);
       EXPECT_EQ(moms_entry.transaction_amount, Amount{879})
         << "Transaction amount should be 879, not saldo 1538";
 

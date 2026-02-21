@@ -605,31 +605,6 @@ namespace account {
 
       } // table
 
-      OptionalAccountStatementEntries csv_table_to_account_statement_entries(CSV::Table const& table) {
-        logger::scope_logger log_raii{logger::development_trace, "csv_table_to_account_statement_entries(table)"};
-        
-        auto mapping = table::to_column_mapping(table);
-
-        if (!mapping.is_valid()) {
-          return std::nullopt;
-        }
-
-        // Extract entries from rows
-        AccountStatementEntries entries;
-
-        for (auto const& row : table.rows) {
-          auto maybe_entry = table::extract_entry_from_row(row, mapping);
-          if (maybe_entry) {
-            entries.push_back(*maybe_entry);
-          }
-        }
-
-        logger::development_trace("Returns entries with size:{}",entries.size());
-
-        // Return the entries (may be empty if all rows were ignorable)
-        return entries;
-      } // csv_table_to_account_statement_entries
-
       std::optional<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<table::TableMeta> const& statement_id_ed) {
         logger::scope_logger log_raii{
            logger::development_trace

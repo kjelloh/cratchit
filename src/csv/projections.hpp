@@ -26,8 +26,8 @@ namespace CSV {
       // 'Older' ExpectedAccountStatement returning mechanism.
       // DEPRECATED: Use csv::monadic::import_table_to_account_statement() instead
       // TODO: Remove after all call sites have been refactored / 20251124
-      [[deprecated("Use csv::monadic::import_table_to_account_statement() instead")]]
-      ExpectedAccountStatement to_account_statement(CSV::project::deprecated::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
+      // [[deprecated("Use csv::monadic::import_table_to_account_statement() instead")]]
+      // ExpectedAccountStatement to_account_statement(CSV::project::deprecated::HeadingId const& csv_heading_id, CSV::OptionalTable const& maybe_csv_table);
 
     } // deprecated
 
