@@ -2273,7 +2273,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     // ============================================================================
-    // Tests for csv_table_to_account_statement_step
+    // Tests for statement_id_ed_to_account_statement_step
     // ============================================================================
 
     TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementWithNordea) {
@@ -2287,7 +2287,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_statement_id_ed_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_statement_id_ed_table.has_value()) << "Failed to identify account statement from NORDEA CSV";
 
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_statement_id_ed_table->defacto, maybe_statement_id_ed_table->meta.account_id);
+      auto maybe_statement = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed_table);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2315,7 +2315,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_statement_id_ed_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_statement_id_ed_table.has_value()) << "Failed to identify account statement from SKV CSV";
 
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_statement_id_ed_table->defacto, maybe_statement_id_ed_table->meta.account_id);
+      auto maybe_statement = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed_table);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2343,11 +2343,8 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Payment"}});
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "-50.00", "Withdrawal"}});
 
-      // Create an AccountID
-      AccountID test_account_id{"TEST_BANK", "12345"};
-
-      // Create AccountStatement
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(table, test_account_id);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
       ASSERT_TRUE(maybe_statement.has_value()) << "Expected successful AccountStatement creation";
 
@@ -2366,8 +2363,8 @@ Alice,30,"Stockholm, Sweden"
 
       // Verify AccountID is preserved
       ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value());
-      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "TEST_BANK");
-      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, "12345");
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "Generisk");
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, "??");
     }
 
     TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementWithInvalidTable) {
@@ -2379,10 +2376,8 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"value1", "value2"}});
 
-      AccountID test_account_id{"TEST", "123"};
-
-      // Attempt to create AccountStatement
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(table, test_account_id);
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
       EXPECT_FALSE(maybe_statement.has_value())
         << "Expected nullopt when columns cannot be detected";
@@ -2396,17 +2391,11 @@ Alice,30,"Stockholm, Sweden"
       table.heading = Key::Path{std::vector<std::string>{"Date", "Amount", "Description"}};
       table.rows.push_back(table.heading);
 
-      AccountID test_account_id{"EMPTY_BANK", "000"};
+      auto maybe_statement = account::statement::maybe::to_statement_id_ed_step(table)
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
 
-      // Create AccountStatement - should succeed with empty entries
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(table, test_account_id);
-
-      ASSERT_TRUE(maybe_statement.has_value())
-        << "Expected valid AccountStatement even with no data rows";
-      EXPECT_EQ(maybe_statement->entries().size(), 0)
-        << "Expected empty entries list";
-      ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value());
-      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "EMPTY_BANK");
+      ASSERT_FALSE(maybe_statement.has_value())
+        << "Expected NO AccountStatement for table with no data rows";
     }
 
     TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementIntegrationPipeline) {
@@ -2420,7 +2409,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_statement_id_ed_table = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       ASSERT_TRUE(maybe_statement_id_ed_table.has_value()) << "Step 2: Failed to identify account statement";
 
-      auto maybe_statement = account::statement::maybe::csv_table_to_account_statement_step(maybe_statement_id_ed_table->defacto, maybe_statement_id_ed_table->meta.account_id);
+      auto maybe_statement = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed_table);
       ASSERT_TRUE(maybe_statement.has_value()) << "Step 3: Failed to create AccountStatement";
 
       EXPECT_GT(maybe_statement->entries().size(), 0);

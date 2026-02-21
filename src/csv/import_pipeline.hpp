@@ -1,43 +1,16 @@
 #pragma once
 
-#include "text/encoding_pipeline.hpp"        // path_to_platform_encoded_string_shortcut (Steps 1-5)
-#include "csv/parse_csv.hpp"            // CSV::parse::maybe::csv_text_to_table_step (Step 6)
-#include "csv/csv_to_statement_id_ed.hpp"         // account::statement::maybe::to_statement_id_ed_step (Step 6.5)
-#include "domain/csv_to_account_statement.hpp"  // account::statement::maybe::csv_table_to_account_statement_step (Step 7)
+#include "text/encoding_pipeline.hpp"
+#include "csv/parse_csv.hpp"
+#include "csv/csv_to_statement_id_ed.hpp"
+#include "domain/csv_to_account_statement.hpp"
 #include "domain/account_statement_to_tagged_amounts.hpp"
-#include "functional/maybe.hpp"              // AnnotatedMaybe
-#include "logger/log.hpp"                    // logger::...
+#include "functional/maybe.hpp"
+#include "logger/log.hpp"
 #include <filesystem>
 #include <format>
 
 namespace csv {
-
-  /**
-  * CSV monadic Pipeline
-  *
-  * This header provides the unified high-level API for the complete CSV import pipeline:
-  *   file_path -> Maybe<TaggedAmounts>
-  *
-  * The pipeline composes all steps (1-8) of the CSV file path -> CSV monadic pipeline
-  *   1. File I/O: Read file to byte buffer
-  *   2. Encoding detection: Detect source encoding using ICU
-  *   3. Transcoding: Bytes -> Unicode code points (lazy view)
-  *   4. Encoding: Unicode -> Platform encoding (lazy view)
-  *   5. Materialization: Lazy view -> std::string (path_to_platform_encoded_string_shortcut)
-  *   6. CSV parsing: Text -> CSV::Table
-  *   6.5. AccountID detection: Identify bank/SKV format and extract account ID
-  *   7. Domain extraction: CSV::Table + AccountID -> AccountStatement
-  *   8. Final transformation: AccountStatement -> TaggedAmounts
-  *
-  * Error Handling:
-  *   - File not found: Returns empty AnnotatedMaybe with error message
-  *   - Encoding detection failure: Defaults to UTF-8 (permissive strategy)
-  *   - CSV parsing failure: Returns empty AnnotatedMaybe with error message
-  *   - AccountID detection failure: Uses empty AccountID (graceful fallback)
-  *   - Invalid business data: Returns empty AnnotatedMaybe with error message
-  *
-  * All errors and success messages are preserved in AnnotatedMaybe::m_messages.
-  */
 
   namespace monadic {
 
