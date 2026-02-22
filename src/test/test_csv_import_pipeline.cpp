@@ -99,9 +99,7 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
-        .and_then(cratchit::functional::to_annotated_maybe_f(
-          CSV::parse::maybe::csv_text_to_table_step
-          ,"Failed to parse csv into a valid table"));
+        .and_then(CSV::parse::monadic::csv_text_to_table_step);
 
       ASSERT_TRUE(maybe_csv_table) << "Expected successful csv table";
     }
@@ -114,22 +112,15 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_detected_encoding_step)
         .and_then(text::encoding::monadic::to_platform_encoded_string_step)
-        .and_then(cratchit::functional::to_annotated_maybe_f(
-          CSV::parse::maybe::csv_text_to_table_step
-          ,"Failed to parse csv into a valid table"))
-        .and_then(cratchit::functional::to_annotated_maybe_f(
-           account::statement::maybe::to_statement_id_ed_step
-          ,"Failed to identify account statement csv table account id"
-        ));
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step);
 
       ASSERT_TRUE(maybe_statement_id_ed) 
         << "Expected successful statement identification"
         << "Got messages:" << maybe_statement_id_ed.to_caption();
     }
 
-    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring0) {
-
-      // TODO: Implement / refactor into a full std::optonal and_then composiiton that mirrors AnnotatedMaybe<T> chain
+    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsMaybePipeline) {
 
       auto result = persistent::in::text::maybe::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
@@ -138,49 +129,15 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::maybe::to_platform_encoded_string_step)
         .and_then(CSV::parse::maybe::csv_text_to_table_step)
         .and_then(account::statement::maybe::to_statement_id_ed_step)
-        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step);
-
-      // Based on:
-      // auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
-      //   .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
-      //   .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
-      //   .and_then(text::encoding::monadic::to_with_detected_encoding_step)
-      //   .and_then(text::encoding::monadic::to_platform_encoded_string_step)
-      //   .and_then(CSV::parse::monadic::csv_text_to_table_step)
-      //   .and_then(account::statement::monadic::to_statement_id_ed_step)
-
-      //   .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
-      //   .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+        .and_then(account::statement::maybe::statement_id_ed_to_account_statement_step)
+        .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected and_then aggregation to succeed at all steps";
 
     }
 
-    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1) {
-      // TODO: This test case is based on PathToStatementIDedTable above.
-      // The goal is to refactor into full and_then composition into AnnotatedMaybe<TaggedAmounts>
-      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
-
-      auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
-        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
-        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
-        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
-        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
-        .and_then(CSV::parse::monadic::csv_text_to_table_step)
-        .and_then(account::statement::monadic::to_statement_id_ed_step)
-        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
-        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
-
-      ASSERT_TRUE(maybe_tagged_amounts) << "Failed with messages:" << maybe_tagged_amounts.to_caption();
-
-    }
-
-    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring2) {
-      // Test case to design and implement the 'next' path -> Tagged Amounts pipeline
-      // with identifying accound ID based on account statement table identification mechanism
-      // (Previous code had account_id:ed before the mapping mechanism which is suboptimal)
-
-      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring1)");
+    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsAnnotatedPipeline) {
+      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsAnnotatedPipeline)");
 
       auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
         .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)

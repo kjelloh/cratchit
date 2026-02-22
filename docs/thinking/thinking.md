@@ -25,8 +25,12 @@ I am still not satisfied with TableMeta generattion. But it works and I think I 
 
 Now I can go back and finalise the maybe vs monadic pairing of the complete path -> tagged amounts pipeline for account statement files.
 
+I now cleaned up the test cases to have the maybe and annotated pipe line tests complete as and_then compositions ok.
 
+Next may be to clean up our xxx_shortcut functions?
 
+* path_to_tagged_amounts_shortcut as and_then composition only?
+* TEST PathToAccountStatementTaggedAmountsRefactoring3 no longer viable?
 
 ## 20260221
 
