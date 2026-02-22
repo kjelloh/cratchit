@@ -136,7 +136,8 @@ namespace tests::csv_import_pipeline {
         .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
         .and_then(text::encoding::maybe::to_with_detected_encoding_step)
         .and_then(text::encoding::maybe::to_platform_encoded_string_step)
-        .and_then(CSV::parse::maybe::csv_text_to_table_step);
+        .and_then(CSV::parse::maybe::csv_text_to_table_step)
+        .and_then(account::statement::maybe::to_statement_id_ed_step);
 
       // Based on:
       // auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
@@ -144,8 +145,8 @@ namespace tests::csv_import_pipeline {
       //   .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
       //   .and_then(text::encoding::monadic::to_with_detected_encoding_step)
       //   .and_then(text::encoding::monadic::to_platform_encoded_string_step)
-
       //   .and_then(CSV::parse::monadic::csv_text_to_table_step)
+
       //   .and_then(account::statement::monadic::to_statement_id_ed_step)
       //   .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
       //   .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
