@@ -2,6 +2,23 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260222
+
+So where are we? It seems I still walk around in this process without any clear aim? Or at least, I fail to see what is the core and what I can clean out? On one hand, this is what I am good at. On the other hand, it is unsatisfactory to never reach an understanding of what is good enough and what is the shortest path to this state?
+
+I now have the following ideas:
+
+* I want to inspect the affected TU and see if I can spot code that needs to go.
+* I know I want to complete the maybe vs monadic pairing of each step in the path -> tagged amlunts pipe line for account statement csv file.
+* I imagine I can spot code that needs to go by identifying xxx_step and xxx_shortcut functions with more than one argumnet?
+
+```c++
+    inline AnnotatedMaybe<std::string> path_to_platform_encoded_string_shortcut(
+      std::filesystem::path const& file_path,
+      int32_t confidence_threshold = inferred::DEFAULT_CONFIDENCE_THERSHOLD) {
+
+```
+
 ## 20260221
 
 Time to get rid of csv_table_to_account_statement_step.

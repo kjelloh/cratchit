@@ -529,14 +529,14 @@ namespace account {
             return mapping;
           } // detect_columns_from_data
 
-          ColumnMapping to_column_mapping(CSV::Table const& table) {
-            ColumnMapping result{};
-            result = table::to_deprecate::detect_columns_from_header(table.heading);
-            if (!result.is_valid()) {
-              result = table::to_deprecate::detect_columns_from_data(table.rows);
-            }
-            return result;
-          } // to_column_mapping
+          // ColumnMapping to_column_mapping(CSV::Table const& table) {
+          //   ColumnMapping result{};
+          //   result = table::to_deprecate::detect_columns_from_header(table.heading);
+          //   if (!result.is_valid()) {
+          //     result = table::to_deprecate::detect_columns_from_data(table.rows);
+          //   }
+          //   return result;
+          // } // to_column_mapping
 
         } // to_deprecate
 
@@ -547,21 +547,21 @@ namespace account {
           constexpr std::array<ColumnMappingFn, 3> column_mapping_projectors = {
              &table::skv_like_to_column_mapping
             ,&table::nordea_like_to_column_mapping
-            ,&table::to_deprecate::to_column_mapping
+            // ,&table::to_deprecate::to_column_mapping
           }; 
 
 
         } // detail
 
-        ColumnMapping to_column_mapping(CSV::Table const& table) {
-            for (auto project : detail::column_mapping_projectors) {
-                ColumnMapping mapping = project(table);
-                if (mapping.is_valid()) {
-                    return mapping;
-                }
-            }
-            return {};
-        } // to_column_mapping
+        // ColumnMapping to_column_mapping(CSV::Table const& table) {
+        //     for (auto project : detail::column_mapping_projectors) {
+        //         ColumnMapping mapping = project(table);
+        //         if (mapping.is_valid()) {
+        //             return mapping;
+        //         }
+        //     }
+        //     return {};
+        // } // to_column_mapping
 
         // TableMeta to_account_statement_table_meta(CSV::Table const& table) {
         //   TableMeta result{};
