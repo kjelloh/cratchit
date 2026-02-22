@@ -19,6 +19,15 @@ I now have the following ideas:
 
 ```
 
+I now have managed to clean up old dead code from Table -> Account ID -> AccountStatement. Now only code for Table -> TableMeta -> AccountStatement is there ok.
+
+I am still not satisfied with TableMeta generattion. But it works and I think I can now leave it for future tempering with.
+
+Now I can go back and finalise the maybe vs monadic pairing of the complete path -> tagged amounts pipeline for account statement files.
+
+
+
+
 ## 20260221
 
 Time to get rid of csv_table_to_account_statement_step.

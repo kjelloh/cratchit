@@ -113,16 +113,6 @@ namespace csv {
     return result;
   }
 
-  /**
-  * Import CSV file to AccountStatement - Complete Pipeline (Steps 1-7)
-  *
-  * This function composes the CSV import pipeline up to AccountStatement:
-  *   1-5. File -> Text (with encoding detection via path_to_platform_encoded_string_shortcut)
-  *   6.   Text -> CSV::Table (via CSV::parse::maybe::csv_text_to_table_step)
-  *   6.5  CSV::Table -> MDTable<AccountID> (via account::statement::maybe::to_statement_id_ed_step)
-  *   7.   MDTable<AccountID> -> AccountStatement (via account::statement::maybe::statement_id_ed_to_account_statement_step)
-  *
-  */
   inline AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
       std::filesystem::path const& file_path) {
     logger::scope_logger log_raii{logger::development_trace,

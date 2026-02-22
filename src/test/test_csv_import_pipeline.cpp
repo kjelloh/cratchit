@@ -135,7 +135,8 @@ namespace tests::csv_import_pipeline {
         .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
         .and_then(text::encoding::maybe::to_with_detected_encoding_step)
-        .and_then(text::encoding::maybe::to_platform_encoded_string_step);
+        .and_then(text::encoding::maybe::to_platform_encoded_string_step)
+        .and_then(CSV::parse::maybe::csv_text_to_table_step);
 
       // Based on:
       // auto maybe_tagged_amounts = persistent::in::text::monadic::path_to_istream_ptr_step(m_valid_file_path)
