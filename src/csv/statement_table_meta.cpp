@@ -672,8 +672,6 @@ namespace account {
           return result;
         } // generic_like_to_statement_table_meta
 
-
-      
       } // table
     } // maybe
 
