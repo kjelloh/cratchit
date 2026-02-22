@@ -244,5 +244,6 @@ namespace csv {
       file_path.filename().string()));
 
     return result;
-  }
+  } // path_to_tagged_amounts_shortcut
+  
 } // csv

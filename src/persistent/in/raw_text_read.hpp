@@ -43,14 +43,8 @@ namespace persistent {
         AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr);
       } // monadic
 
-      // Monadic AnnotatedMaybe #1 + #2
       AnnotatedMaybe<ByteBuffer> path_to_byte_buffer_shortcut(std::filesystem::path const& file_path);
 
-      inline AnnotatedMaybe<ByteBuffer> path_to_byte_buffer_shortcut(std::filesystem::path const& file_path) {
-        // Monadic composition: file_path → istream_ptr → buffer
-        return monadic::path_to_istream_ptr_step(file_path)
-          .and_then(monadic::istream_ptr_to_byte_buffer_step);
-      }
     } // text
 
   } // in

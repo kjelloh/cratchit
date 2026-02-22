@@ -49,16 +49,9 @@ namespace text {
 
     } // monadic
 
-    // Monadic AnnotatedMaybe #1 ... #5 shortcut
-    inline AnnotatedMaybe<std::string> path_to_platform_encoded_string_shortcut(
+    AnnotatedMaybe<std::string> path_to_platform_encoded_string_shortcut(
       std::filesystem::path const& file_path,
-      int32_t confidence_threshold = inferred::DEFAULT_CONFIDENCE_THERSHOLD) {
-
-      return persistent::in::text::path_to_byte_buffer_shortcut(file_path) // #1 + #2
-        .and_then(monadic::to_with_threshold_step_f(confidence_threshold))
-        .and_then(monadic::to_with_detected_encoding_step) // #4
-        .and_then(monadic::to_platform_encoded_string_step); // #5
-    }
+      int32_t confidence_threshold = inferred::DEFAULT_CONFIDENCE_THERSHOLD);
 
   } // encoding
 

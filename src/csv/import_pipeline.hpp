@@ -14,18 +14,14 @@ namespace csv {
 
   namespace monadic {
 
-    // TODO: Consider to rename namesopace monadic to 'annotated'?
-    //       For now it contains 'single step' functions returning AnnotatedMaybe<T> things
-    //       Note that 'shortcuts' combining several 'annotated' steps are outside
-    //       this namespace.
 
   } // monadic
 
-  AnnotatedMaybe<TaggedAmounts> table_to_tagged_amounts_shortcut(
-      CSV::Table const& table);
-
   AnnotatedMaybe<TaggedAmounts> csv_to_tagged_amounts_shortcut(
       std::string_view csv_text);
+
+  AnnotatedMaybe<TaggedAmounts> table_to_tagged_amounts_shortcut(
+      CSV::Table const& table);
 
   AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
       std::filesystem::path const& file_path);
