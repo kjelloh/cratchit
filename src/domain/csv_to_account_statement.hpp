@@ -29,7 +29,7 @@ namespace account {
             ColumnMapping const& mapping);
 
         // Expose for testing 
-        ColumnMapping nordea_like_to_column_mapping(CSV::Table const& table);
+        // ColumnMapping nordea_like_to_column_mapping(CSV::Table const& table);
         // ColumnMapping to_column_mapping(CSV::Table const& table);
 
       } // table
