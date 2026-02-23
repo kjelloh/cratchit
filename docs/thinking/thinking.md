@@ -2,6 +2,25 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260223
+
+Ok, so here is an idea for what to do to clean up the statement csv file parsng pipeline.
+
+* Implement the xxx_shortcut functions as monadic composition.
+  - This will tell me if and why I should keep them or remove them all together?
+* I can step by step refactor each xxx_shortcut into more and more direct and_then aggeregation.
+  - I can then tryst the test cases to tell me if somethong breaks?
+* This may also tell me if and how many tests are based on the annotation generated?
+
+GOSH! Yes! I started with csv_to_tagged_amounts_shortcut and it is a mess!
+
+* It calls maybe variants and assembles Annotated result manually!
+* And there is a test case that requires the manually inserted message on emopty cvs text failure!
+
+I refactored csv_to_tagged_amounts_shortcut to simply return and_then aggregation plus made test expect empty inout to be a null result.
+
+* This makes more sens as an ampty input can NOT be regadred as a valdi account statement.
+
 ## 20260222
 
 So where are we? It seems I still walk around in this process without any clear aim? Or at least, I fail to see what is the core and what I can clean out? On one hand, this is what I am good at. On the other hand, it is unsatisfactory to never reach an understanding of what is good enough and what is the shortest path to this state?
@@ -31,6 +50,14 @@ Next may be to clean up our xxx_shortcut functions?
 
 * path_to_tagged_amounts_shortcut as and_then composition only?
 * TEST PathToAccountStatementTaggedAmountsRefactoring3 no longer viable?
+
+I now have made some minor preparation and look-over of xxx_shortcut functions.
+
+* They are bloated (in that they do not and_then compose nor call eachother to compose)
+* Some are in monadic namespace. Some are outside (what should I prefer)?
+* Should I even have xxx_shortcut functions (or require call site to and_then compose themselbves)?
+
+And by the way - I think now is the time to get rid of the 'with threshold' step?!
 
 ## 20260221
 

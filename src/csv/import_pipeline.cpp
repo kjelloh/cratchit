@@ -47,53 +47,16 @@ namespace csv {
     logger::scope_logger log_raii{logger::development_trace,
       "csv_to_tagged_amounts_shortcut(csv_text)"};
 
-    AnnotatedMaybe<TaggedAmounts> result{};
+    return persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(csv_text))
+      .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+      .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+      .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+      .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+      .and_then(CSV::parse::monadic::csv_text_to_table_step)
+      .and_then(account::statement::monadic::to_statement_id_ed_step)
+      .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+      .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
-    // Handle empty text case
-    if (csv_text.empty()) {
-      result.push_message("Pipeline complete: Empty text produced empty TaggedAmounts");
-      result.m_value = TaggedAmounts{};
-      return result;
-    }
-
-    // Monadic Maybe: csv text -> Table
-    auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-
-    if (!maybe_table) {
-      result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
-      return result;
-    }
-
-    result.push_message(std::format("Step 6 complete: CSV parsed successfully ({} rows)",
-      maybe_table->rows.size()));
-
-    // Monadic Maybe: Table -> (account ID,table) pair
-    auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
-
-    if (!maybe_statement_id_ed) {
-      // Unknown format - fully unknown AccountID (no prefix, no value)
-      result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
-      return result;
-    }
-
-    AccountID const& account_id = maybe_statement_id_ed->meta.account_id;
-    CSV::Table const& identified_table = maybe_statement_id_ed->defacto;
-    result.push_message(std::format("(2) Step 6.5 complete: AccountID detected: '{}'",
-      account_id.to_string()));
-
-    auto maybe_tagged = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed)
-        .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
-
-    if (!maybe_tagged) {
-      result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
-      return result;
-    }
-
-    result.m_value = std::move(*maybe_tagged);
-    result.push_message(std::format("Pipeline complete: {} TaggedAmounts created",
-      result.value().size()));
-
-    return result;
   } // csv_to_tagged_amounts_shortcut
 
   AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
@@ -245,5 +208,5 @@ namespace csv {
 
     return result;
   } // path_to_tagged_amounts_shortcut
-  
+
 } // csv

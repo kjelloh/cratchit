@@ -33,11 +33,11 @@
 #./run.zsh --gtest_filter=*StatementToTaggedAmountsTestFixture.ComposedCsvTableToTaggedAmounts
 
 #./run.zsh --gtest_filter=*MDTableToAccountStatementTestFixture.AccountIdPropagatedToStatementMeta
-#./run.zsh --gtest_filter=*
+./run.zsh --gtest_filter=*FullPipelineTextTests.ImportEmptyTextReturnsEmpty
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 
-./run.zsh --test
+#./run.zsh --test

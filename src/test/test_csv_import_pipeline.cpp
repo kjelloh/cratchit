@@ -2890,14 +2890,13 @@ Alice,30,"Stockholm, Sweden"
     }
 
     TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty)"};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty)",logger::LogToConsole::ON};
 
       std::string empty_text;
 
       auto result = csv::csv_to_tagged_amounts_shortcut(empty_text);
 
-      ASSERT_TRUE(result) << "Expected successful import of empty text";
-      EXPECT_EQ(result.value().size(), 0) << "Expected empty TaggedAmounts";
+      ASSERT_FALSE(result) << "Expected null result for empty text";
     }
 
     TEST(FullPipelineTextTests, ImportInvalidTextReturnsEmpty) {
