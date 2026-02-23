@@ -136,6 +136,93 @@ I came this far:
 
 Anyhow, I gave up and reversed this approach for now.
 
+I now made the code use the 'old' shortcut and printed the acceptable message as:
+
+```sh
+got msg:["File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK", "Successfully read 1305 bytes from stream", "Detected encoding: UTF-8 (confidence: 100, method: ICU)", "Successfully transcoded 1305 bytes to 1305 platform encoding bytes", "Step 6 complete: CSV parsed successfully (13 rows)", "(4) Step 6.5 complete: AccountID detected: 'NORDEA::??'", "Pipeline complete: 12 TaggedAmounts created from 'nordea_test.csv'"][       OK ] FullPipelineTestFixture.MessagesPreservedThroughPipeline (6 ms)
+[----------] 1 test from FullPipelineTestFixture (6 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (6 ms total)
+[  PASSED  ] 1 test.
+```
+
+As opposed to what the and_then composition variant generates:
+
+```sh
+got msg:["File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK", "Successfully read 1305 bytes from stream", "Detected encoding: UTF-8 (confidence: 100, method: ICU)", "Successfully transcoded 1305 bytes to 1305 platform encoding bytes"]/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/test/test_csv_import_pipeline.cpp:2845: Failure
+Value of: has_csv_msg
+  Actual: false
+Expected: true
+Expected CSV parsing message in ["File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK", "Successfully read 1305 bytes from stream", "Detected encoding: UTF-8 (confidence: 100, method: ICU)", "Successfully transcoded 1305 bytes to 1305 platform encoding bytes"]
+
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/test/test_csv_import_pipeline.cpp:2848: Failure
+Value of: has_account_id_msg
+  Actual: false
+Expected: true
+Expected AccountID detection message in ["File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK", "Successfully read 1305 bytes from stream", "Detected encoding: UTF-8 (confidence: 100, method: ICU)", "Successfully transcoded 1305 bytes to 1305 platform encoding bytes"]
+
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/test/test_csv_import_pipeline.cpp:2851: Failure
+Value of: has_completion_msg
+  Actual: false
+Expected: true
+Expected pipeline completion message in ["File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK", "Successfully read 1305 bytes from stream", "Detected encoding: UTF-8 (confidence: 100, method: ICU)", "Successfully transcoded 1305 bytes to 1305 platform encoding bytes"]
+
+[  FAILED  ] FullPipelineTestFixture.MessagesPreservedThroughPipeline (6 ms)
+[----------] 1 test from FullPipelineTestFixture (6 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (6 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] FullPipelineTestFixture.MessagesPreservedThroughPipeline
+
+ 1 FAILED TEST
+All tests FAILED
+```
+
+So a simple solution to make this test pass with the and_then composiiton is to make selected steps generate.
+
+* Accepted by test is annotation:
+
+```sh
+got msg:["File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK", "Successfully read 1305 bytes from stream", "Detected encoding: UTF-8 (confidence: 100, method: ICU)", "Successfully transcoded 1305 bytes to 1305 platform encoding bytes", "Step 6 complete: CSV parsed successfully (13 rows)", "(4) Step 6.5 complete: AccountID detected: 'NORDEA::??'", "Pipeline complete: 12 TaggedAmounts created from 'nordea_test.csv'"]
+```
+
+  - "File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK"
+  - "Successfully read 1305 bytes from stream"
+  - "Detected encoding: UTF-8 (confidence: 100, method: ICU)"
+  - "Successfully transcoded 1305 bytes to 1305 platform encoding bytes"
+  - "Step 6 complete: CSV parsed successfully (13 rows)"
+  - "(4) Step 6.5 complete: AccountID detected: 'NORDEA::??'"
+  - "Pipeline complete: 12 TaggedAmounts created from 'nordea_test.csv'"
+
+* While and_then generates annotation:
+
+```sh
+got msg:["File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK", "Successfully read 1305 bytes from stream", "Detected encoding: UTF-8 (confidence: 100, method: ICU)", "Successfully transcoded 1305 bytes to 1305 platform encoding bytes"]
+```
+
+  - "File /var/folders/d9/b6h8_0457ddd9qnrzmhvxm480000gn/T/cratchit_test_full_pipeline/nordea_test.csv opened OK"
+  - "Successfully read 1305 bytes from stream"
+  - "Detected encoding: UTF-8 (confidence: 100, method: ICU)"
+  - "Successfully transcoded 1305 bytes to 1305 platform encoding bytes"
+
+Question is: Should I define an annotation for a full succesfull path -> ragged amounts and have the TEST confirm it?
+
+* I am tempted to caption is step on the form 'xxx -> yyy'?
+* I am tempted to try and get a result on the form ': OK' or ': failed'?
+* But I am also tempted to be able to format values from the OK result?
+  - parsed file name
+  - read bytes count
+  - detected encoding
+  - BOM or not BOM
+  - converted result bytes count
+  - anonymous table row count
+  - Identified account statement table heading, common, Account ID
+  - Count of created tagged amounts
+
+What could be a conveniant way to enhance to_annotated_f to accomplish this?
 
 ## 20260222
 

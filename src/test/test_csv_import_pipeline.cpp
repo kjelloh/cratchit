@@ -2808,6 +2808,10 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(result) << "Expected successful import";
 
+      std::print(
+         "\ngot msg:{}"
+        ,result.m_messages);
+
       // Look for messages from different pipeline stages
       bool has_encoding_msg = false;
       bool has_csv_msg = false;
