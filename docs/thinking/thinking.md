@@ -21,6 +21,122 @@ I refactored csv_to_tagged_amounts_shortcut to simply return and_then aggregatio
 
 * This makes more sens as an ampty input can NOT be regadred as a valdi account statement.
 
+I now managed to make all xxx_shortcut in import_pipeline TU except path_to_tagged_amounts_shortcut.
+
+* When I make path_to_tagged_amounts_shortcut return an and_then composition test FullPipelineTestFixture.MessagesPreservedThroughPipeline fail!
+* It suspect this test obsess over what mesages that are generated?
+
+So I have now studied the test FullPipelineTestFixture and found that it relies on messages injected manually by path_to_tagged_amounts_shortcut.
+
+* Either I defined each xxx_step inject an appropriate success messa that makes the test pass.
+* Or I remove the test all together (Don't obsess about what messages gets generated in success path)?
+
+But I am tempted to actually make the 'lifter' define the message generation?
+
+* Make to_annotated_maybe_f take a caption string and a to_message(maybe_result) lambda?
+
+The tempting thing with this approach is that this pattern also work for a future lift of an std::expected returning function?
+
+I experimented wth making the lift function take a maybe_result -> std::string function. But I fialed to get something that was conventient to use.
+
+* I succeeded to make a _to_annotated_maybe_f alternative with a message producer
+
+```c++
+    template<typename F,typename ToMsgF>
+    auto _to_annotated_maybe_f(
+       F&& f
+      ,std::string caption
+      ,ToMsgF&& to_msg_f) { // ...
+
+```
+
+* But it was inconveniet to handle the nullopt case.
+* And I failed to design a way to write _to_annotated_maybe_f to apply a to_success_msg(T)
+  - How can I strip of the std::optional to get the actual type T?
+  - It seems the internals of _to_annotated_maybe_f must be able to do this to be able to call with actual T
+  - Also, I have to be careful to pass unique_ptr<sistream> by const ref?
+
+I came this far:
+
+```c++
+    // Free function: convert optional<T> + message → AnnotatedOptional<T>
+    // Enables template argument deduction on return type
+    template<typename T>
+    AnnotatedOptional<T> _annotated_from(std::optional<T> maybe, std::string message) {
+      AnnotatedOptional<T> result{};
+      result.m_value = std::move(maybe);
+      if (message.size()>0) result.push_message(std::move(message));
+      return result;
+    }
+
+    // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
+    template<typename F,typename ToMsgF>
+    auto _to_annotated_maybe_f(
+       F&& f
+      ,std::string caption
+      ,ToMsgF&& to_msg_f) {
+      return [
+         f = std::forward<F>(f)
+        ,caption = std::move(caption)
+        ,to_msg_f = std::forward<ToMsgF>(to_msg_f)](auto&&... args) {
+
+        using result_t = std::invoke_result_t<F, decltype(args)...>;
+        using value_t = typename result_t::value_type;
+        auto maybe_result = std::invoke(f, std::forward<decltype(args)>(args)...);
+        auto msg = std::format("{} : {}",caption,to_msg_f(maybe_result));
+        return _annotated_from(
+            std::move(maybe_result)
+           ,msg
+        );
+
+      }; // lambda
+
+    } // _to_annotated_maybe_f
+
+    // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
+    template<typename F>
+    auto _to_annotated_maybe_f(
+       F&& f
+      ,std::string caption) {
+
+      return [
+         f = std::forward<F>(f)
+        ,caption = std::move(caption)] (auto&&... args) {
+
+
+        using result_t = std::invoke_result_t<F, decltype(args)...>;
+        using value_t = typename result_t::value_type;
+
+        auto to_default_msg = [](auto const& maybe_value) -> std::string {
+          if (!maybe_value) return "failed";
+          return "OK";
+        };
+
+        auto maybe_result = std::invoke(f, std::forward<decltype(args)>(args)...);
+        return _annotated_from(
+            std::move(maybe_result)
+           ,std::format("{} : {}", caption,to_default_msg(maybe_result))
+        );
+
+      }; // lambda
+
+    } // _to_annotated_maybe_f
+
+    // Helper for to_annotated_maybe_f template function instance return type
+    // To be able to do 'using Result = ...'
+    template<typename F,typename ToMsgF>
+    using _annotated_maybe_f_t =
+      decltype(_to_annotated_maybe_f(
+         std::declval<F>()
+        ,std::declval<std::string>()
+        ,std::declval<ToMsgF>()
+      ));    
+
+```
+
+Anyhow, I gave up and reversed this approach for now.
+
+
 ## 20260222
 
 So where are we? It seems I still walk around in this process without any clear aim? Or at least, I fail to see what is the core and what I can clean out? On one hand, this is what I am good at. On the other hand, it is unsatisfactory to never reach an understanding of what is good enough and what is the shortest path to this state?

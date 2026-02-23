@@ -2835,10 +2835,18 @@ Alice,30,"Stockholm, Sweden"
         }
       }
 
-      EXPECT_TRUE(has_encoding_msg) << "Expected encoding-related message";
-      EXPECT_TRUE(has_csv_msg) << "Expected CSV parsing message";
-      EXPECT_TRUE(has_account_id_msg) << "Expected AccountID detection message";
-      EXPECT_TRUE(has_completion_msg) << "Expected pipeline completion message";
+      EXPECT_TRUE(has_encoding_msg) << std::format(
+         "Expected encoding-related message in {}"
+        ,result.m_messages);
+      EXPECT_TRUE(has_csv_msg) << std::format(
+         "Expected CSV parsing message in {}"
+        ,result.m_messages);
+      EXPECT_TRUE(has_account_id_msg) << std::format(
+         "Expected AccountID detection message in {}"
+        ,result.m_messages);
+      EXPECT_TRUE(has_completion_msg) << std::format(
+         "Expected pipeline completion message in {}"
+        ,result.m_messages);
 
       logger::development_trace("Found {} messages from pipeline", result.m_messages.size());
     }
