@@ -11,35 +11,10 @@ namespace csv {
     logger::scope_logger log_raii{logger::development_trace,
       "table_to_tagged_amounts_shortcut(table)"};
 
-    AnnotatedMaybe<TaggedAmounts> result{};
+    return account::statement::monadic::to_statement_id_ed_step(table)
+      .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+      .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
-    result.push_message(std::format(
-       "Starting from Step 6.5 with CSV::Table ({} rows)"
-      ,table.rows.size()));
-
-    // Step 6.5: CSV::Table -> MDTable<AccountID>
-    auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(table);
-
-    if (!maybe_statement_id_ed) {
-      // Unknown format - fully unknown AccountID (no prefix, no value)
-      result.push_message("Step 6.5 failed: Unknown CSV format - could not identify account");
-      return result;
-    }
-
-    auto maybe_tagged = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed)
-        .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
-
-    if (!maybe_tagged) {
-      result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
-      return result;
-    }
-
-    result.m_value = std::move(*maybe_tagged);
-    result.push_message(std::format(
-       "Pipeline complete: {} TaggedAmounts created"
-      ,result.value().size()));
-
-    return result;
   } // table_to_tagged_amounts_shortcut
 
   AnnotatedMaybe<TaggedAmounts> csv_to_tagged_amounts_shortcut(
