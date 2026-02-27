@@ -53,7 +53,7 @@ namespace text {
 
       AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
 
-        auto const& [confidence_threshold,_] = wt_buffer;
+        auto const& [confidence_threshold,buffer] = wt_buffer;
 
         auto to_msg = [](WithDetectedEncodingByteBuffer const& result) -> std::string {
           return std::format("Detected: {}",result.meta.meta.display_name);
@@ -67,8 +67,8 @@ namespace text {
 
         auto result = lifted(wt_buffer);
 
-        if (!result) {
-          // Default to UTF-8 on detection failure (permissive strategy)
+        if (!result and buffer.size() > 0) {
+          // Default to UTF-8 on detection failure (permissive strategy) for non empty buffer
           // TODO 20260124 - Consider to remove this else?
           //                 It seems no test even triggers this code?
           //                 Or, the detection logic already defaults to UTF-8 (never nullopt:s)?

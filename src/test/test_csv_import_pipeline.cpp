@@ -1283,6 +1283,11 @@ namespace tests::csv_import_pipeline {
 
       auto result = text::encoding::path_to_platform_encoded_string_shortcut(empty_file);
 
+      std::print(
+         "\ngot msg:{}"
+        ,result.m_messages);
+
+
       ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
 
       // Check that we got a message about the empty buffer
@@ -2820,9 +2825,9 @@ Alice,30,"Stockholm, Sweden"
         , "tagged ampunts : 12 amounts"]
       */
 
-      std::print(
-         "\ngot msg:{}"
-        ,result.m_messages);
+      // std::print(
+      //    "\ngot msg:{}"
+      //   ,result.m_messages);
 
       // Look for messages from different pipeline stages
       bool has_encoding_msg = false;
