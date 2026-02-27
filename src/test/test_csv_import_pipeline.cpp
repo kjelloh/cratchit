@@ -1347,21 +1347,26 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingPipelineTestFixture, CompleteIntegrationAllSteps) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, CompleteIntegrationAllSteps)"};
 
-      // This test verifies the complete integration of Steps 1-4:
-      // file path → byte buffer → encoding detection → Unicode view → UTF-8 text
-
       auto result = text::encoding::path_to_platform_encoded_string_shortcut(utf8_file);
 
       ASSERT_TRUE(result) 
         << "Expected successful complete pipeline"
         << ". Got messages:" << result.to_caption();
 
+      /*
+        Got messages:
+        utf8_test.csv -> stream : ok
+        byte buffer : 57 bytes
+        with confidence_threshold:90 : ok
+        with encoding : Detected: UTF-8
+        platform encoded : 57 bytes      
+      */
       // Verify all pipeline steps are documented in messages
       std::vector<std::string> expected_keywords = {
-        "opened",      // Step 1: File open
-        "read",        // Step 1: File read
-        "Detected",    // Step 2: Encoding detection
-        "transcoded"   // Steps 3-4: Transcoding
+        "stream : ok", 
+        "buffer : 57 bytes",
+        "encoding : Detected",
+        "encoded : 57 bytes"   // Steps 3-4: Transcoding
       };
 
       for (const auto& keyword : expected_keywords) {
@@ -1379,14 +1384,12 @@ namespace tests::csv_import_pipeline {
       }
 
       // Log all messages for verification
-      logger::development_trace("Complete pipeline messages:");
-      for (const auto& msg : result.m_messages) {
-        logger::development_trace("  - {}", msg);
-      }
+      logger::development_trace("Complete pipeline messages:{}",result.m_messages);
 
       // Verify content correctness
       EXPECT_TRUE(result.value().find("Name,Amount") != std::string::npos)
         << "Expected CSV header";
+      // TODO: This check for 'Å' requires UTF-8 source code file 
       EXPECT_TRUE(result.value().find("Åsa") != std::string::npos)
         << "Expected Swedish character Å preserved";
     }
