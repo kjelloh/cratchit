@@ -107,7 +107,7 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         parse_int, "parse integer"
       );
 
@@ -126,7 +126,7 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         parse_int, "parse integer"
       );
 
@@ -145,7 +145,7 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         add_if_positive, "both positive"
       );
 
@@ -174,7 +174,7 @@ namespace tests::annotated_optional {
         );
       };
 
-      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+      auto lifted = cratchit::functional::to_annotated_maybe_f(
         parse_int, "parse integer"
       );
 

@@ -34,7 +34,7 @@ namespace account {
             ,result.meta.column_mapping.description_column);
         };
 
-        auto f =  cratchit::functional::_to_annotated_maybe_f(
+        auto f =  cratchit::functional::to_annotated_maybe_f(
            account::statement::maybe::to_statement_id_ed_step
           ,"statement id:ed table"
           ,to_msg);

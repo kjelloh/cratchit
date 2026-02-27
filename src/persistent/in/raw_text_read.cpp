@@ -96,7 +96,7 @@ namespace persistent {
         // Helper std::string -> maybe istream
         AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
 
-          auto f = cratchit::functional::_to_annotated_maybe_f(
+          auto f = cratchit::functional::to_annotated_maybe_f(
             persistent::in::text::maybe::injected_string_to_istream_ptr
             ,std::format("{} bytes -> stream",s.size())
           );
@@ -105,7 +105,7 @@ namespace persistent {
 
         AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
 
-          auto f = cratchit::functional::_to_annotated_maybe_f(
+          auto f = cratchit::functional::to_annotated_maybe_f(
              persistent::in::text::maybe::path_to_istream_ptr_step
             ,std::format("{} -> stream",file_path.filename().string())
           );
@@ -121,7 +121,7 @@ namespace persistent {
             return std::format("{} bytes",buffer.size());
           };
 
-          auto f = cratchit::functional::_to_annotated_maybe_f(
+          auto f = cratchit::functional::to_annotated_maybe_f(
             persistent::in::text::maybe::istream_ptr_to_byte_buffer_step
             ,"byte buffer"
             ,to_msg

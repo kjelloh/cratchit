@@ -106,7 +106,7 @@ namespace account {
             );
         };
 
-        auto f = cratchit::functional::_to_annotated_maybe_f(
+        auto f = cratchit::functional::to_annotated_maybe_f(
            account::statement::maybe::statement_id_ed_to_account_statement_step
           ,"account statement"
           ,to_msg);

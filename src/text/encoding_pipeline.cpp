@@ -59,7 +59,7 @@ namespace text {
           return std::format("Detected: {}",result.meta.meta.display_name);
         };
 
-        auto lifted = cratchit::functional::_to_annotated_maybe_f(
+        auto lifted = cratchit::functional::to_annotated_maybe_f(
           text::encoding::maybe::to_with_detected_encoding_step
           ,"with encoding"
           ,to_msg
@@ -99,7 +99,7 @@ namespace text {
           return std::format("{} bytes",result.size());
         };
 
-        auto lifted = cratchit::functional::_to_annotated_maybe_f(
+        auto lifted = cratchit::functional::to_annotated_maybe_f(
           text::encoding::maybe::to_platform_encoded_string_step
           ,"platform encoded"
           ,to_msg
@@ -108,7 +108,7 @@ namespace text {
         result =  lifted(wd_buffer);
 
         return result;
-        
+
       } // to_platform_encoded_string_step
 
     } // monadic

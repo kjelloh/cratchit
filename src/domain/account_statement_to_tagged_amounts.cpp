@@ -63,7 +63,7 @@ namespace tas {
           "{} amounts"
           ,result.size());
       };
-      auto f = cratchit::functional::_to_annotated_maybe_f(
+      auto f = cratchit::functional::to_annotated_maybe_f(
            tas::maybe::account_statement_to_tagged_amounts_step
           ,"tagged ampunts"
           ,to_msg);

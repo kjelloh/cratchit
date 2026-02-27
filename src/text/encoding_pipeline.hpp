@@ -43,7 +43,7 @@ namespace text {
       //   >;
 
       inline auto to_with_threshold_step_f(int32_t confidence_threshold) {   
-        return cratchit::functional::_to_annotated_maybe_f(
+        return cratchit::functional::to_annotated_maybe_f(
            text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
           ,std::format("with confidence_threshold:{}",confidence_threshold)
         );

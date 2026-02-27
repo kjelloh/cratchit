@@ -82,7 +82,7 @@ namespace CSV {
           return std::format("{} rows",result.rows.size());
         };
 
-        auto f =  cratchit::functional::_to_annotated_maybe_f(
+        auto f =  cratchit::functional::to_annotated_maybe_f(
           CSV::parse::maybe::csv_text_to_table_step
           ,"csv table"
           ,to_msg);
