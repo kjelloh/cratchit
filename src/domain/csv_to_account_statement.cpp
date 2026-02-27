@@ -98,9 +98,18 @@ namespace account {
 
       AnnotatedMaybe<AccountStatement> statement_id_ed_to_account_statement_step(CSV::MDTable<maybe::table::TableMeta> const& statement_id_ed) {
 
-        auto f = cratchit::functional::to_annotated_maybe_f(
+        auto to_msg = [](AccountStatement const& result) -> std::string {
+          return std::format(
+            "{} : {} entries"
+            ,result.meta().m_maybe_account_irl_id.value_or(AccountID{"??,??"}).to_string()
+            ,result.entries().size()
+            );
+        };
+
+        auto f = cratchit::functional::_to_annotated_maybe_f(
            account::statement::maybe::statement_id_ed_to_account_statement_step
-          ,"Account ID.ed table -> account statement failed");
+          ,"account statement"
+          ,to_msg);
 
         return f(statement_id_ed);
 

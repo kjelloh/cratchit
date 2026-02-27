@@ -133,7 +133,6 @@ namespace csv {
       .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
       .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
-
     AnnotatedMaybe<TaggedAmounts> result{};
 
     // ============================================================

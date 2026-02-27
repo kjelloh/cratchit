@@ -291,6 +291,8 @@ namespace account {
           auto trans_candidates_count = std::distance(first_trans_iter_candidate,trans_iter_candidates_end);
           if (true) logger::development_trace("trans_candidates_count:{}",trans_candidates_count);
 
+          candidate.trans_candidates_count = trans_candidates_count;
+
           // Fold all candidate row maps using 'common' to get the common row map
           auto iter = first_trans_iter_candidate +1;
           auto iter_end = trans_iter_candidates_end;

@@ -1,10 +1,10 @@
 #include "AccountStatementFileState.hpp"
 #include "TaggedAmountsState.hpp"
 #include "AccountStatementState.hpp"
-#include "csv/projections.hpp" // CSV::project::to_account_statement,...
-#include "csv/csv_to_statement_id_ed.hpp" // account::statement::maybe::to_statement_id_ed_step
-#include "domain/csv_to_account_statement.hpp" // account::statement::maybe::statement_id_ed_to_account_statement_step
-#include "functional/maybe.hpp" // to_annotated_maybe_f, AnnotatedMaybe
+#include "csv/projections.hpp" 
+#include "csv/csv_to_statement_id_ed.hpp" 
+#include "domain/csv_to_account_statement.hpp"
+#include "functional/maybe.hpp" 
 #include <format>
 #include <fstream>
 #include "logger/log.hpp"
@@ -63,12 +63,8 @@ namespace first {
 
         // Compose: AnnotatedMaybe<Table> → AnnotatedMaybe<MDTable<AccountID>> → AnnotatedMaybe<AccountStatement>
         auto annotated_statement = annotated_table
-          .and_then(to_annotated_maybe_f(
-            account::statement::maybe::to_statement_id_ed_step,
-            "Unknown CSV format - could not identify account"))
-          .and_then(to_annotated_maybe_f(
-            account::statement::maybe::statement_id_ed_to_account_statement_step,
-            "Could not extract account statement entries"));
+          .and_then(account::statement::monadic::to_statement_id_ed_step)
+          .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step);
 
         AccountStatementState::PeriodPairedAnnotatedAccountStatement period_paired{
            fiscal_period

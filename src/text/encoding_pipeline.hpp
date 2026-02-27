@@ -37,12 +37,18 @@ namespace text {
 
     namespace monadic {
 
-      using ToWithThresholdF =
-        cratchit::functional::annotated_maybe_f_t<
-          decltype(text::encoding::maybe::to_with_threshold_step_f(0))
-        >;
+      // using ToWithThresholdF =
+      //   cratchit::functional::annotated_maybe_f_t<
+      //     decltype(text::encoding::maybe::to_with_threshold_step_f(0))
+      //   >;
 
-      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold);    
+      inline auto to_with_threshold_step_f(int32_t confidence_threshold) {   
+        return cratchit::functional::_to_annotated_maybe_f(
+           text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
+          ,std::format("with confidence_threshold:{}",confidence_threshold)
+        );
+      }
+
       AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer);
       AnnotatedMaybe<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer);
 

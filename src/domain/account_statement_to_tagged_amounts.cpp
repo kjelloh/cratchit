@@ -57,9 +57,16 @@ namespace tas {
   namespace monadic {
 
     AnnotatedMaybe<TaggedAmounts> account_statement_to_tagged_amounts_step(AccountStatement const& statement) {
-      auto f = cratchit::functional::to_annotated_maybe_f(
+
+      auto to_msg = [](TaggedAmounts const& result) -> std::string {
+        return std::format(
+          "{} amounts"
+          ,result.size());
+      };
+      auto f = cratchit::functional::_to_annotated_maybe_f(
            tas::maybe::account_statement_to_tagged_amounts_step
-          ,"Failed to transform Account Statement to Tagged Amounts");
+          ,"tagged ampunts"
+          ,to_msg);
 
       return f(statement);
 

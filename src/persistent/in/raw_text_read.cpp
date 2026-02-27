@@ -96,33 +96,18 @@ namespace persistent {
         // Helper std::string -> maybe istream
         AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
 
-          auto f = cratchit::functional::to_annotated_maybe_f(
+          auto f = cratchit::functional::_to_annotated_maybe_f(
             persistent::in::text::maybe::injected_string_to_istream_ptr
-            ,"Failed to create istringstream"
+            ,std::format("{} bytes -> stream",s.size())
           );
           return f(s);
         } // injected_string_to_istream_ptr
 
         AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
 
-          auto  error_string = std::format("Failed for file {}",file_path.string());
-          std::error_code ec;
-          if (!std::filesystem::exists(file_path, ec)) {
-            error_string += std::format(" - File does not exist");
-          }
-
-          if (ec) {
-            error_string += std::format(
-              " - Error checking file existence - message:{}"
-              ,ec.message());
-          }
-
-          auto f = cratchit::functional::to_annotated_maybe_f(
-            persistent::in::text::maybe::path_to_istream_ptr_step
-            ,std::format(
-              "Failed to open file for reading: {}"
-              ,error_string)
-            ,std::format("File {} opened OK",file_path.string())
+          auto f = cratchit::functional::_to_annotated_maybe_f(
+             persistent::in::text::maybe::path_to_istream_ptr_step
+            ,std::format("{} -> stream",file_path.filename().string())
           );
 
           return f(file_path);
@@ -132,19 +117,17 @@ namespace persistent {
         AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr) {
           AnnotatedMaybe<ByteBuffer> result{};
 
-          auto f = cratchit::functional::to_annotated_maybe_f(
+          auto to_msg = [](ByteBuffer const& buffer){
+            return std::format("{} bytes",buffer.size());
+          };
+
+          auto f = cratchit::functional::_to_annotated_maybe_f(
             persistent::in::text::maybe::istream_ptr_to_byte_buffer_step
-            ,"Failed to read stream"
+            ,"byte buffer"
+            ,to_msg
           );
 
-          // NOTE: to_annotated_maybe_f takes hard coded string before the result is known
-          //       So we add on a success message with resulting buffer size on success
           result = f(std::move(istream_ptr));
-          if (result) {
-            result.push_message(
-              std::format("Successfully read {} bytes from stream", result.value().size())
-            );
-          }
 
           return result;
         } // istream_ptr_to_byte_buffer_step

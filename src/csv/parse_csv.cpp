@@ -71,19 +71,21 @@ namespace CSV {
 
       AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
 
-        using cratchit::functional::to_annotated_maybe_f;
         return text::encoding::path_to_platform_encoded_string_shortcut(file_path)
-          .and_then(to_annotated_maybe_f(
-            CSV::parse::maybe::csv_text_to_table_step
-            ,"Failed to parse csv into a valid table"));
+          .and_then(CSV::parse::monadic::csv_text_to_table_step);
+
       }
 
       AnnotatedMaybe<CSV::Table> csv_text_to_table_step(std::string_view csv_text) {
-        using cratchit::functional::to_annotated_maybe_f;
 
-        auto f =  to_annotated_maybe_f(
-           CSV::parse::maybe::csv_text_to_table_step
-          ,"Failed to parse csv into a valid table");
+        auto to_msg = [](CSV::Table const& result){
+          return std::format("{} rows",result.rows.size());
+        };
+
+        auto f =  cratchit::functional::_to_annotated_maybe_f(
+          CSV::parse::maybe::csv_text_to_table_step
+          ,"csv table"
+          ,to_msg);
 
         return f(csv_text);
 

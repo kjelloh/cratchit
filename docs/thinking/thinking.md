@@ -2,6 +2,144 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260227
+
+OK, time to get this baby cross the finnish line!
+
+My plan is to try and use the 'new' 
+
+```c++
+    return persistent::in::text::monadic::path_to_istream_ptr_step(file_path)
+      .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+      .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+      .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+      .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+      .and_then(CSV::parse::monadic::csv_text_to_table_step)
+      .and_then(account::statement::monadic::to_statement_id_ed_step)
+      .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+      .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+```
+
+I get problems with 'to_with_threshold_step_f'. If I just change to using _to_annotated_maybe_f:
+
+```c++
+      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold) {   
+        // auto lifted = cratchit::functional::to_annotated_maybe_f(
+        //    text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
+        //   ,"Failed to pair confidence_threshold with byte buffer"
+        // );
+        auto lifted = cratchit::functional::_to_annotated_maybe_f(
+           text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
+          ,"Failed to pair confidence_threshold with byte buffer"
+        );
+        return lifted;
+      }
+```
+
+I get:
+
+```sh
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/text/encoding_pipeline.cpp:63:16: error: no viable conversion from returned value of type '(lambda at /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:173:14)' to function return type 'ToWithThresholdF' (aka '(lambda at /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:150:14)')
+   63 |         return lifted;
+      |                ^~~~~~
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:150:14: note: candidate constructor (the implicit copy constructor) not viable: no known conversion from '(lambda at /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:173:14)' to 'const (lambda at /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:150:14) &' for 1st argument
+  150 |       return [
+      |              ^
+/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:150:14: note: candidate constructor (the implicit move constructor) not viable: no known conversion from '(lambda at /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:173:14)' to '(lambda at /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/functional/maybe.hpp:150:14) &&' for 1st argument
+  150 |       return [
+      |           
+```
+
+It seems the first error is about 'lambda maybe.hpp:173:14' not being possble to convert (assign to) 'ToWithThresholdF'?
+
+```c++
+  struct ToWithThresholdF {
+      int32_t confidence_threshold; 
+
+      std::optional<WithThresholdByteBuffer> operator()(ByteBuffer byte_buffer) const;
+  };
+```
+
+WAIT? How is this supposed to work?
+
+* I have the explicit type ToWithThresholdF to pair the buffer with the threhold on call.
+* But do I need the explicit type or can I 'auto' the return type all the way?
+
+The second error is 'maybe.hpp:173:14' to 'const maybe.hpp:150:14'.
+
+```c++
+// maybe.hpp:173:14
+return [
+         f = std::forward<F>(f)
+        ,to_success_msg = std::forward<ToSuccessMsg>(to_success_msg)
+        ,caption = std::move(caption)] (auto&&... args) {
+
+// maybe.hpp:150:14
+return [
+         f = std::forward<F>(f)
+        ,message_on_nullopt = std::move(message_on_nullopt)
+        ,message_on_value = std::move(message_on_value)] (auto&&... args) {
+```
+
+But that seems wrong? The maybe.hpp:173:14 is _to_annotated_maybe_f and maybe.hpp:150:14 is to_annotated_maybe_f?
+
+So why does the code compile with original call?
+
+```c++
+        // auto lifted = cratchit::functional::to_annotated_maybe_f(
+        //    text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
+        //   ,"Failed to pair confidence_threshold with byte buffer"
+        // );
+
+    template<typename F>
+    auto to_annotated_maybe_f(
+       F&& f
+      ,std::string message_on_nullopt
+      ,std::string message_on_value="") {
+
+      return [
+         f = std::forward<F>(f)
+        ,message_on_nullopt = std::move(message_on_nullopt)
+        ,message_on_value = std::move(message_on_value)] (auto&&... args) {
+
+```
+
+WAIT! There is something strange with ToWithThresholdF? The compiler sais that ToWithThresholdF is maybe.hpp:150:14?
+
+Found it! I have:
+
+```c++
+    namespace monadic {
+
+      using ToWithThresholdF =
+        cratchit::functional::annotated_maybe_f_t<
+          decltype(text::encoding::maybe::to_with_threshold_step_f(0))
+        >;
+
+```
+
+This is to be able to avoid auto return type and thus be able to separate declaration from definition (hpp/cpp separation).
+
+But this no lomnger works!
+
+* My new _to_annotated_maybe_f is overloaded.
+* And it takes a to_msg function type.
+
+ARGH!!!
+
+OK. Snabbaste lösningen är väl att göra monadic::to_with_threshold_step_f auto return type?
+
+YES, this compiles:
+
+```c++
+      inline auto to_with_threshold_step_f(int32_t confidence_threshold) {   
+        return cratchit::functional::_to_annotated_maybe_f(
+           text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
+          ,std::format("with confidence_threshold:{}",confidence_threshold)
+        );
+      }
+```
+
 ## 20260223
 
 Ok, so here is an idea for what to do to clean up the statement csv file parsng pipeline.

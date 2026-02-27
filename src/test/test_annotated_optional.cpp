@@ -107,8 +107,8 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::to_annotated_maybe_f(
-        parse_int, "failed to parse integer"
+      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+        parse_int, "parse integer"
       );
 
       auto result = lifted("42");
@@ -126,8 +126,8 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::to_annotated_maybe_f(
-        parse_int, "failed to parse integer"
+      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+        parse_int, "parse integer"
       );
 
       auto result = lifted("not a number");
@@ -145,8 +145,8 @@ namespace tests::annotated_optional {
         return std::nullopt;
       };
 
-      auto lifted = cratchit::functional::to_annotated_maybe_f(
-        add_if_positive, "both arguments must be positive"
+      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+        add_if_positive, "both positive"
       );
 
       auto result = lifted(10, 20);
@@ -174,8 +174,8 @@ namespace tests::annotated_optional {
         );
       };
 
-      auto lifted = cratchit::functional::to_annotated_maybe_f(
-        parse_int, "failed to parse integer"
+      auto lifted = cratchit::functional::_to_annotated_maybe_f(
+        parse_int, "parse integer"
       );
 
       auto result = lifted("42").and_then(double_if_even);

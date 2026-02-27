@@ -12,8 +12,9 @@ namespace cratchit {
       std::vector<Message> m_messages;
 
       AnnotatedOptional() = default;
+
       template <typename U>
-      AnnotatedOptional(U&& u_value) : m_value{u_value} {} 
+      AnnotatedOptional(U&& u_value) : m_value(std::forward<U>(u_value)) {} 
 
       operator bool() const {return m_value.has_value();}
       T const& value() const& {return m_value.value();} // lvalue contxt
@@ -140,37 +141,93 @@ namespace cratchit {
     }
 
     // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
-    template<typename F>
-    auto to_annotated_maybe_f(
+    // template<typename F>
+    // auto to_annotated_maybe_f(
+    //    F&& f
+    //   ,std::string message_on_nullopt
+    //   ,std::string message_on_value="") {
+
+    //   return [
+    //      f = std::forward<F>(f)
+    //     ,message_on_nullopt = std::move(message_on_nullopt)
+    //     ,message_on_value = std::move(message_on_value)] (auto&&... args) {
+
+    //     using result_t = std::invoke_result_t<F, decltype(args)...>;
+    //     using value_t = typename result_t::value_type;
+
+    //     return annotated_from(
+    //         std::invoke(f, std::forward<decltype(args)>(args)...)
+    //        ,message_on_nullopt
+    //        ,message_on_value
+    //     );
+    //   };
+    // } // to_annotated_maybe_f
+
+    // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
+    template<typename F,typename ToSuccessMsg>
+    auto _to_annotated_maybe_f(
        F&& f
-      ,std::string message_on_nullopt
-      ,std::string message_on_value="") {
+      ,std::string caption
+      ,ToSuccessMsg&& to_success_msg) {
 
       return [
          f = std::forward<F>(f)
-        ,message_on_nullopt = std::move(message_on_nullopt)
-        ,message_on_value = std::move(message_on_value)] (auto&&... args) {
+        ,to_success_msg = std::forward<ToSuccessMsg>(to_success_msg)
+        ,caption = std::move(caption)] (auto&&... args) {
 
-        using result_t = std::invoke_result_t<F, decltype(args)...>;
-        using value_t = typename result_t::value_type;
+        using optional_t = std::invoke_result_t<F, decltype(args)...>;
+        using concrete_t = typename optional_t::value_type;
 
-        return annotated_from(
-            std::invoke(f, std::forward<decltype(args)>(args)...)
-           ,message_on_nullopt
-           ,message_on_value
-        );
-      };
-    } // to_annotated_maybe_f
+        AnnotatedOptional<concrete_t> result{std::invoke(f, std::forward<decltype(args)>(args)...)};
+
+        if (!result) result.push_message(std::format("{} : failed",caption));
+        // else if (result and message_on_value.size()>0) result.push_message(std::move(message_on_value));
+        else result.push_message(std::format("{} : {}",caption,to_success_msg(*result.m_value)));
+
+        return result;
+
+      }; // lambda
+
+    } // _to_annotated_maybe_f
+
+    struct default_success_msg {
+      template<class T>
+      std::string operator()(const T&) const {
+          return "ok";
+      }
+    };
+
+    // Lift: f: T -> optional<T> to f: T -> AnnotatedOptional<T>
+    template<typename F>
+    auto _to_annotated_maybe_f(
+       F&& f
+      ,std::string caption) {
+
+      return _to_annotated_maybe_f(
+         std::move(f)
+        ,std::move(caption)
+        ,default_success_msg{});        
+    }
 
     // Helper for to_annotated_maybe_f template function instance return type
-    // To be able to do using Resulot = 
-    template<typename F>
-    using annotated_maybe_f_t =
-      decltype(to_annotated_maybe_f(
-        std::declval<F>(),
-        std::declval<std::string>(),
-        std::declval<std::string>()
-      ));    
+    // To be able to do using Result = 
+    // template<typename F>
+    // using _annotated_maybe_f_t =
+    //   decltype(_to_annotated_maybe_f(
+    //     std::declval<F>(),
+    //     std::declval<std::string>(),
+    //     std::declval<std::string>()
+    //   ));    
+
+    // Helper for to_annotated_maybe_f template function instance return type
+    // To be able to do using Result = 
+    // template<typename F>
+    // using annotated_maybe_f_t =
+    //   decltype(to_annotated_maybe_f(
+    //     std::declval<F>(),
+    //     std::declval<std::string>(),
+    //     std::declval<std::string>()
+    //   ));    
 
   } // functional
 } // cratchit

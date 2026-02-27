@@ -20,6 +20,9 @@ namespace text {
 
             auto [maybe_bom,stripped_buffer] = text::encoding::to_bom_and_buffer(buffer);
 
+            // TODO: Consider to pass the BOM on?
+            //       Or at least ensure the BOM matches the 'meta' that is the detected encoding?
+            //       For now we are satisfied to have a detected enocing and have removed the BOM.
             return WithDetectedEncodingByteBuffer{
               .meta = std::forward<decltype(meta)>(meta)
               ,.defacto = std::move(stripped_buffer)
@@ -48,40 +51,23 @@ namespace text {
 
     namespace monadic {
 
-      ToWithThresholdF to_with_threshold_step_f(int32_t confidence_threshold) {   
-        auto lifted = cratchit::functional::to_annotated_maybe_f(
-           text::encoding::maybe::to_with_threshold_step_f(confidence_threshold)
-          ,"Failed to pair confidence_threshold with byte buffer"
-        );
-        return lifted;
-      }
-
       AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
 
         auto const& [confidence_threshold,_] = wt_buffer;
-        auto lifted = cratchit::functional::to_annotated_maybe_f(
-           text::encoding::maybe::to_with_detected_encoding_step
-          ,std::format(
-              "Encoding detection failed (confidence below threshold {}), defaulting to UTF-8"
-              ,confidence_threshold)
+
+        auto to_msg = [](WithDetectedEncodingByteBuffer const& result) -> std::string {
+          return std::format("Detected: {}",result.meta.meta.display_name);
+        };
+
+        auto lifted = cratchit::functional::_to_annotated_maybe_f(
+          text::encoding::maybe::to_with_detected_encoding_step
+          ,"with encoding"
+          ,to_msg
         );
 
         auto result = lifted(wt_buffer);
 
-        if (result) {
-          // TODO: Consider what we can do better for stacked MetaDefacto?
-          //       Ideally we would like to 'flatten' metas so we don't
-          //       get meta.meta... as below?
-          //       I suppose we have to manually define new meta-types that
-          //       aggregates stacked metas? (Is it worth it?)
-          result.push_message(
-            std::format("Detected encoding: {} (confidence: {}, method: {})",
-                      result.value().meta.meta.display_name,
-                      result.value().meta.meta.confidence,
-                      result.value().meta.meta.detection_method)
-          );
-        }
-        else {
+        if (!result) {
           // Default to UTF-8 on detection failure (permissive strategy)
           // TODO 20260124 - Consider to remove this else?
           //                 It seems no test even triggers this code?
@@ -109,32 +95,20 @@ namespace text {
 
         AnnotatedMaybe<std::string> result{};
 
-        auto const& [detected_encoding, buffer] = wd_buffer;
+        auto to_msg = [](std::string const& result) -> std::string {
+          return std::format("{} bytes",result.size());
+        };
 
-        if (buffer.empty()) {
-          result.push_message("Empty buffer - no content to transcode");
-          return result;  // Return failure (nullopt)
-        }
-
-        // Create lazy transcoding pipeline: bytes → Unicode → Platform encoding
-        auto unicode_view = views::bytes_to_unicode(buffer, detected_encoding.defacto);
-        auto platform_view = views::unicode_to_runtime_encoding(unicode_view);
-
-        // Materialize the lazy view into a string (while buffer is still alive)
-        std::string transcoded;
-        transcoded.reserve(buffer.size()); // Reasonable initial capacity
-
-        for (char byte : platform_view) {
-          transcoded.push_back(byte);
-        }
-
-        result = std::move(transcoded);
-        result.push_message(
-          std::format("Successfully transcoded {} bytes to {} platform encoding bytes",
-                      buffer.size(), result.value().size())
+        auto lifted = cratchit::functional::_to_annotated_maybe_f(
+          text::encoding::maybe::to_platform_encoded_string_step
+          ,"platform encoded"
+          ,to_msg
         );
 
+        result =  lifted(wd_buffer);
+
         return result;
+        
       } // to_platform_encoded_string_step
 
     } // monadic

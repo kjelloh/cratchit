@@ -23,11 +23,21 @@ namespace account {
 
     namespace monadic {
       AnnotatedMaybe<CSV::MDTable<maybe::table::TableMeta>> to_statement_id_ed_step(CSV::Table const& table) {
-        using cratchit::functional::to_annotated_maybe_f;
 
-        auto f =  to_annotated_maybe_f(
+        auto to_msg = [](CSV::MDTable<maybe::table::TableMeta> const& result) -> std::string {
+          return std::format(
+            "{} transaction candidates, columns[date:{} amount:{} saldo:{} description:{}]"
+            ,result.meta.statement_mapping.trans_candidates_count
+            ,result.meta.column_mapping.date_column
+            ,result.meta.column_mapping.transaction_amount_column
+            ,result.meta.column_mapping.saldo_amount_column
+            ,result.meta.column_mapping.description_column);
+        };
+
+        auto f =  cratchit::functional::_to_annotated_maybe_f(
            account::statement::maybe::to_statement_id_ed_step
-          ,"Failed to identify account statement csv table account id");
+          ,"statement id:ed table"
+          ,to_msg);
 
         return f(table);
 
