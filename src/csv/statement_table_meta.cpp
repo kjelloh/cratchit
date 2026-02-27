@@ -262,10 +262,8 @@ namespace account {
           
           auto is_trans_entry_candidate = [](auto const& row_map) {
             if (!row_map.ixs.contains(FieldType::Date) or row_map.ixs.at(FieldType::Date).size()!=1) return false;
-            if (     !row_map.ixs.contains(FieldType::Amount) 
-                  or (row_map.ixs.at(FieldType::Amount).size()==0)
-                  or (row_map.ixs.at(FieldType::Amount).size()>2)) return false;
-            if (!row_map.ixs.contains(FieldType::Text) or row_map.ixs.at(FieldType::Text).size()==0) return false;
+            if (!row_map.ixs.contains(FieldType::Amount)) return false;
+            if (!row_map.ixs.contains(FieldType::Text)) return false;
             return true;
           };
 

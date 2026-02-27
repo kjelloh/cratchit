@@ -49,7 +49,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_csv_20251120;
       std::string csv_text = sz_SKV_csv_older;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << "EWxpected sz_SKV_csv_older -> Table OK";
+      ASSERT_TRUE(maybe_table.has_value()) << "Expected sz_SKV_csv_older -> Table OK";
 
       auto table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
       ASSERT_TRUE(table_meta.column_mapping.is_valid()) << "Expected Valid Mapping";
@@ -85,7 +85,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -111,10 +111,10 @@ namespace tests::csv_table_identification {
         ,caption);
       ASSERT_TRUE(maybe_statement_mapping->maybe_common) << std::format("Expected maybe_common for {}",caption);
       {
-        // Empty: 2 3 7 10 Date: 0 Amount: 1 8 Text: 4 5 9
+        // Empty: 10 Date: 0 Amount: 1 8 Text: 4 5 9
         static const RowMap EXPECTED_COMMON_ROW_MAP{
           .ixs = {
-             {FieldType::Empty,{2,3,7,10}}
+             {FieldType::Empty,{10}}
             ,{FieldType::Date,{0}}
             ,{FieldType::Amount,{1,8}}
             ,{FieldType::Text,{4,5,9}}
@@ -140,7 +140,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -158,7 +158,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -179,7 +179,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
@@ -200,7 +200,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       // TODO: Move this test to istream -> csv-text tests
       std::string const& prefix(maybe_table->rows[0][0]); 
@@ -302,7 +302,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -321,7 +321,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -342,7 +342,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
@@ -369,7 +369,7 @@ namespace tests::csv_table_identification {
         .and_then(text::encoding::maybe::to_platform_encoded_string_step)
         .and_then(CSV::parse::maybe::csv_text_to_table_step);
 
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       // TODO: Move this test to istream -> csv-text tests
       std::string const& prefix(maybe_table->rows[0][0]); 
@@ -395,7 +395,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -493,7 +493,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -513,7 +513,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -535,7 +535,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
@@ -557,7 +557,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
@@ -614,7 +614,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -634,7 +634,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -656,7 +656,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
       ASSERT_TRUE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected Valid Mapping for {}",caption);
@@ -678,7 +678,7 @@ namespace tests::csv_table_identification {
       std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -758,7 +758,7 @@ namespace tests::csv_table_identification {
       std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -779,7 +779,7 @@ namespace tests::csv_table_identification {
       std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
@@ -802,7 +802,7 @@ namespace tests::csv_table_identification {
       std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
       auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       auto statement_table_meta = account::statement::maybe::table::generic_like_to_statement_table_meta(*maybe_table);
       ASSERT_FALSE(statement_table_meta.column_mapping.is_valid()) << std::format("Expected NO Mapping for {}",caption);
@@ -833,7 +833,7 @@ namespace tests::csv_table_identification {
         .and_then(text::encoding::maybe::to_platform_encoded_string_step)
         .and_then(CSV::parse::maybe::csv_text_to_table_step);
 
-      ASSERT_TRUE(maybe_table.has_value()) << std::format("EWxpected {} -> Table OK",caption);
+      ASSERT_TRUE(maybe_table.has_value()) << std::format("Expected {} -> Table OK",caption);
 
       // TODO: Move this test to istream -> csv-text tests
       std::string const& prefix(maybe_table->rows[0][0]); 
