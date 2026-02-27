@@ -158,6 +158,24 @@ My tests are now broken:
 [  FAILED  ] ToAnnotatedNulloptTests.LiftedFunctionComposesWithAndThen
 ```
 
+It turned out to be just a little fidley to make the tests PASS. But I manage to do it. Although it is still AI slop test code I think. But I just don't have the guts or the energy to go through the test cases as of now to mold them into something actually good.
+
+At least they show how the code works and what to expect. So I will leave it as good enough for now.
+
+Next up could be:
+
+* Remove excess logging?
+* Turn off logger::LogToConsole::ON?
+* Remove any other cosnole output?
+* Check for any DESIGN_INSUFFICIENCY that gets triggered?
+
+Also, some function changes I have been thinking about.
+
+* Replace the auto-import of csv-files with an actual command (or is there already a command)?
+  - This would enable me to also try the TEA front end account statement state processing?
+
+Also, I should now check that the real import if real csv-files still works?!
+
 ## 20260223
 
 Ok, so here is an idea for what to do to clean up the statement csv file parsng pipeline.
