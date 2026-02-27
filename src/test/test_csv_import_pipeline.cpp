@@ -1857,20 +1857,29 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_EQ(result.value().heading.size(), 3) << "Expected 3 columns";
       EXPECT_GT(result.m_messages.size(), 2) << "Expected messages from both pipeline stages";
 
+      /*
+        ["utf8_test.csv -> stream : ok"
+        , "byte buffer : 62 bytes"
+        , "with confidence_threshold:90 : ok"
+        , "with encoding : Detected: UTF-8"
+        , "platform encoded : 62 bytes"
+        , "Parsed CSV with 3 rows"]      
+      */
       // Verify messages document the complete pipeline
       bool has_encoding_msg = false;
       bool has_csv_msg = false;
       for (const auto& msg : result.m_messages) {
-        if (msg.find("Detected encoding") != std::string::npos ||
-            msg.find("transcoded") != std::string::npos) {
+        if (msg.find("with encoding") != std::string::npos) {
           has_encoding_msg = true;
         }
         if (msg.find("Parsed CSV") != std::string::npos) {
           has_csv_msg = true;
         }
       }
-      EXPECT_TRUE(has_encoding_msg) << "Expected encoding pipeline message";
-      EXPECT_TRUE(has_csv_msg) << "Expected CSV parsing message";
+      EXPECT_TRUE(has_encoding_msg) 
+        << std::format("Expected encoding pipeline message in {}",result.m_messages);
+      EXPECT_TRUE(has_csv_msg) 
+        << std::format("Expected CSV parsing message in {}",result.m_messages);
     }
 
     TEST_F(CSVPipelineCompositionTestFixture, TranscodesISO8859ToUTF8ThenParsesCSV) {
