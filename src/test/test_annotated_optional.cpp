@@ -134,7 +134,7 @@ namespace tests::annotated_optional {
 
       EXPECT_FALSE(result) << "Expected failed parse";
       ASSERT_EQ(result.m_messages.size(), 1);
-      EXPECT_EQ(result.m_messages[0], "failed to parse integer");
+      EXPECT_EQ(result.m_messages[0], "parse integer : failed");
     }
 
     TEST(ToAnnotatedNulloptTests, LiftedFunctionPreservesArguments) {
