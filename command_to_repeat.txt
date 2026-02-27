@@ -40,8 +40,8 @@
 #./run.zsh --gtest_filter=*EncodingPipelineTestFixture.CompleteIntegrationAllSteps
 #./run.zsh --gtest_filter=*CSVPipelineCompositionTestFixture.MonadicCompositionWithAndThen
 #./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithValue
-./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithMessageOnNullopt
-#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithMessageOnNullopt
+./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionComposesWithAndThen
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 

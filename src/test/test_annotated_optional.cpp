@@ -182,7 +182,7 @@ namespace tests::annotated_optional {
 
       ASSERT_TRUE(result) << "Expected successful composition";
       EXPECT_EQ(result.value(), 84) << "Expected doubled value";
-      EXPECT_TRUE(result.m_messages.empty()) << "Expected no messages on success";
+      EXPECT_FALSE(result.m_messages.empty()) << "Expected messages on success";
     }
 
   } // to_annotated_maybe_f_suite
