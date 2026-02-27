@@ -2808,6 +2808,18 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(result) << "Expected successful import";
 
+      /* got msg:[
+        "nordea_test.csv -> stream : ok"
+        , "byte buffer : 1305 bytes"
+        , "with confidence_threshold:100 : ok"
+        , "with encoding : Detected: UTF-8"
+        , "platform encoded : 1305 bytes"
+        , "csv table : 13 rows"
+        , "statement id:ed table : 2 transaction candidates, columns[date:0 amount:1 saldo:8 description:4]"
+        , "account statement : NORDEA::?? : 12 entries"
+        , "tagged ampunts : 12 amounts"]
+      */
+
       std::print(
          "\ngot msg:{}"
         ,result.m_messages);
@@ -2815,26 +2827,20 @@ Alice,30,"Stockholm, Sweden"
       // Look for messages from different pipeline stages
       bool has_encoding_msg = false;
       bool has_csv_msg = false;
-      bool has_account_id_msg = false;
+      bool has_stement_id_ed_msg = false;
       bool has_completion_msg = false;
 
       for (auto const& msg : result.m_messages) {
-        if (msg.find("encoding") != std::string::npos ||
-            msg.find("Detected") != std::string::npos ||
-            msg.find("transcoded") != std::string::npos) {
+        if (msg.find("with encoding") != std::string::npos) {
           has_encoding_msg = true;
         }
-        if (msg.find("CSV") != std::string::npos ||
-            msg.find("parsed") != std::string::npos ||
-            msg.find("Step 6") != std::string::npos) {
+        if (msg.find("csv table") != std::string::npos) {
           has_csv_msg = true;
         }
-        if (msg.find("AccountID") != std::string::npos ||
-            msg.find("Step 6.5") != std::string::npos) {
-          has_account_id_msg = true;
+        if (msg.find("account statement") != std::string::npos) {
+          has_stement_id_ed_msg = true;
         }
-        if (msg.find("Pipeline complete") != std::string::npos ||
-            msg.find("TaggedAmounts created") != std::string::npos) {
+        if (msg.find("tagged ampunts") != std::string::npos) {
           has_completion_msg = true;
         }
       }
@@ -2845,7 +2851,7 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_TRUE(has_csv_msg) << std::format(
          "Expected CSV parsing message in {}"
         ,result.m_messages);
-      EXPECT_TRUE(has_account_id_msg) << std::format(
+      EXPECT_TRUE(has_stement_id_ed_msg) << std::format(
          "Expected AccountID detection message in {}"
         ,result.m_messages);
       EXPECT_TRUE(has_completion_msg) << std::format(
