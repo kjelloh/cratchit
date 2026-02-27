@@ -1279,7 +1279,7 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST_F(EncodingPipelineTestFixture, EmptyFileHandledGracefully) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, EmptyFileHandledGracefully)"};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, EmptyFileHandledGracefully)",logger::LogToConsole::ON};
 
       auto result = text::encoding::path_to_platform_encoded_string_shortcut(empty_file);
 
@@ -1297,7 +1297,7 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST(EncodingPipelineTests, FileNotFoundHandledGracefully) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, FileNotFoundHandledGracefully)"};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, FileNotFoundHandledGracefully)",logger::LogToConsole::ON};
 
       auto non_existent = std::filesystem::path("/tmp/cratchit_nonexistent_file_99999.csv");
 
@@ -1309,7 +1309,7 @@ namespace tests::csv_import_pipeline {
       // Verify error messages are informative
       bool has_file_error = false;
       for (const auto& msg : result.m_messages) {
-        if (msg.find("not exist") != std::string::npos || msg.find("Failed") != std::string::npos) {
+        if (msg.find("failed") != std::string::npos) {
           has_file_error = true;
           logger::development_trace("Error message: {}", msg);
           break;

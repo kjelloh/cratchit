@@ -140,6 +140,24 @@ YES, this compiles:
       }
 ```
 
+I have now refactored all call sites to use the 'new' _to_annotated_maybe_f. AND, I have removed the 'old' and renamed the new one to_annotated_maybe_f again. Tjhis is MUCH cleaner now.
+
+Although, I see this as a leraning exersice mofre than a refactopring and design that is actually 'good'. Time will tell?
+
+My tests are now broken:
+
+```sh
+[  FAILED  ] 8 tests, listed below:
+[  FAILED  ] EncodingPipelineTestFixture.EmptyFileHandledGracefully
+[  FAILED  ] EncodingPipelineTestFixture.CompleteIntegrationAllSteps
+[  FAILED  ] EncodingPipelineTests.FileNotFoundHandledGracefully
+[  FAILED  ] CSVPipelineCompositionTestFixture.MonadicCompositionWithAndThen
+[  FAILED  ] CSVPipelineCompositionTestFixture.MalformedCSVReturnsNullopt
+[  FAILED  ] ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithValue
+[  FAILED  ] ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithMessageOnNullopt
+[  FAILED  ] ToAnnotatedNulloptTests.LiftedFunctionComposesWithAndThen
+```
+
 ## 20260223
 
 Ok, so here is an idea for what to do to clean up the statement csv file parsng pipeline.
