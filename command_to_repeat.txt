@@ -38,8 +38,8 @@
 #./run.zsh --gtest_filter=*EncodingPipelineTestFixture.EmptyFileHandledGracefully
 #./run.zsh --gtest_filter=*EncodingPipelineTests.FileNotFoundHandledGracefully
 #./run.zsh --gtest_filter=*EncodingPipelineTestFixture.CompleteIntegrationAllSteps
-./run.zsh --gtest_filter=*CSVPipelineCompositionTestFixture.MonadicCompositionWithAndThen
-#./run.zsh --gtest_filter=*
+#./run.zsh --gtest_filter=*CSVPipelineCompositionTestFixture.MonadicCompositionWithAndThen
+./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithValue
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
