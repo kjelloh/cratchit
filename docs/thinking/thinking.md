@@ -2,6 +2,77 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260228
+
+I wonder if I should clean upp the tests of maybe and monadic xxx_step and xxx_shortcut code?
+
+* How many test files for xxx_step exists (did Claude Code create)?
+  - test_csv_import_pipeline.cpp (both step and shortcut)
+  - test_csv_table_identification.cpp (step only)
+  - test_md_table_to_account_statement.cpp (step only)
+  - test_statement_to_tagged_amounts.cpp (step only)
+
+* How many test files for xxx_shortcut exists?
+  - test_csv_import_pipeline.cpp (both step and shortcut)
+  - test_transcoding_views.cpp (shoprtcut only)
+
+I also wonder what TU:s implemenets xxx_step and xxx_shortcut code?
+
+* What TU:s defines xxx_shortcut code?
+  - src/csv/import_pipeline.cpp
+  - src/csv/import_pipeline.hpp
+  - src/csv/parse_csv.cpp
+  - src/csv/parse_csv.hpp
+  - src/persistent/in/raw_text_read.cpp
+  - src/persistent/in/raw_text_read.hpp
+  - src/text/encoding_pipeline.cpp
+  - src/text/encoding_pipeline.hpp
+
+* What TU:s defines xxx_step code?
+  - src/csv/csv_to_statement_id_ed.cpp
+  - src/csv/csv_to_statement_id_ed.hpp
+  - src/csv/parse_csv.cpp
+  - src/csv/parse_csv.hpp
+  - src/domain/account_statement_to_tagged_amounts.cpp
+  - src/domain/account_statement_to_tagged_amounts.hpp
+  - src/domain/csv_to_account_statement.cpp
+  - src/domain/csv_to_account_statement.hpp
+  - src/persistent/in/raw_text_read.cpp
+  - src/persistent/in/raw_text_read.hpp
+  - src/text/encoding_pipeline.cpp
+  - src/text/encoding_pipeline.hpp
+
+* What non test units calls xxx_shortcut code?
+  - src/states/AccountStatementFileState.cpp
+  - src/zeroth/main.cpp
+* What non test units calls xxx_step code?
+  - src/csv/import_pipeline.cpp
+
+Some enhancements comes to mind:
+
+* Rename import_pipeline.cpp (The term 'import' nor 'pipeline' carries any clarity)?
+* Rename encoding_pipeline (the term pipeline seems vauge)?
+* Rename csv_to_account_statement (it is table to account statement)?
+* Rename csv_to_statement_id_ed (Is table to statement ID:ed)?
+
+Let that sink in for a while.
+
+Another thing - is there a standard API to make 'apps' for swedish bank accounts?
+
+* PSD2 (Payment Services Directive 2)
+  - [Wikipedia: Payment Services Directive](https://en.wikipedia.org/wiki/Payment_Services_Directive)
+* Open Banking
+  - [Wikipedia: Open Banking](https://en.wikipedia.org/wiki/Open_banking)
+  - [Open Banking](https://www.openbankingeurope.eu)
+  - NO - This does not seem legit!!
+* NORDEA
+  - [NORDEA API Market: Personal Accounts Information](https://developer.nordeaopenbanking.com/products/accounts-information)
+  - [NORDEA: Accounts API](https://developer.nordeaopenbanking.com/apiReference?api=Accounts%2520API&version=5)
+    *"Base URL: api.nordeaopenbanking.com/personal"*
+  - [NORDEA API Market: Personal Accounts Information](https://developer.nordeaopenbanking.com/products/accounts-information)
+
+WOW! This was **super** over-engineered!! I am NOT a fan of REST API:s, web technology and multi actor systems. OK, the latter is kond-of hard to get away from. But the JSON (XML?) based interactions with built in security tokens and values just rubs me the wrong way. I mean, all we want is to synchorinise states as in share some data? Why do we need jump through all rhese hoops over and over again?
+
 ## 20260227
 
 OK, time to get this baby cross the finnish line!
