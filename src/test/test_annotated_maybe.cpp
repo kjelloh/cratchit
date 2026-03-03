@@ -11,6 +11,16 @@
 #include <filesystem>
 #include <fstream>
 
+// TODO: Refactor this TU into menaingful and consice test cases.
+//       For now it contains all the 'AI slop' that claude code generated for me.
+//       I tried 'vibe coding' and this is what it got me!
+//       Anyhow, the tests are there. That is something?
+//       But thye tests are all over the place. ANd the cross test the same thing over and over.
+//       1. Consider to find all and_then compositions below.
+//          They define the actual 'steps' that we can test one by one.
+//       2. Then identify and atomic-tests of interest for each step.
+//       3. Finally try to celan out any tests that are now redunant (tested by each step tests)
+
 namespace tests::csv_import_pipeline {
 
   namespace monadic_composition_suite {
