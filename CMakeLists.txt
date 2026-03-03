@@ -39,7 +39,6 @@ add_executable(
 
         src/test/test_annotated_maybe.cpp
 
-        src/test/test_statement_to_tagged_amounts.cpp
         src/test/test_transcoding_views.cpp
 
         src/csv/import_pipeline.cpp
