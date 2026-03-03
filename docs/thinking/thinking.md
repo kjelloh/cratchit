@@ -2,6 +2,23 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260303
+
+Time to put all tests for the account statement file to tagged amounts 'pipe line' to a new test_annotated:_maybe.cpp TU.
+
+From before we have:
+
+* How many test files for xxx_step exists (did Claude Code create)?
+  - test_csv_import_pipeline.cpp (both step and shortcut)
+  - test_csv_table_identification.cpp (step only)
+  - test_md_table_to_account_statement.cpp (step only)
+  - test_statement_to_tagged_amounts.cpp (step only)
+
+* How many test files for xxx_shortcut exists?
+  - test_csv_import_pipeline.cpp (both step and shortcut)
+  - test_transcoding_views.cpp (shoprtcut only)
+
+
 ## 20260228
 
 I wonder if I should clean upp the tests of maybe and monadic xxx_step and xxx_shortcut code?

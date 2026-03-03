@@ -37,6 +37,13 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
+        src/test/test_annotated_maybe.cpp
+
+        src/test/test_csv_table_identification.cpp
+        src/test/test_md_table_to_account_statement.cpp
+        src/test/test_statement_to_tagged_amounts.cpp
+        src/test/test_transcoding_views.cpp
+
         src/csv/import_pipeline.cpp
         src/csv/statement_table_meta.cpp
         src/domain/csv_to_account_statement.cpp
@@ -48,16 +55,11 @@ add_executable(
         src/test/test_fixtures.cpp
         src/test/test_integrations.cpp
         src/test/test_atomics.cpp
-        src/test/test_csv_import_pipeline.cpp
-        src/test/test_transcoding_views.cpp
         src/test/test_annotated_optional.cpp
         src/test/test_amount_framework.cpp
-        src/test/test_statement_to_tagged_amounts.cpp
-        src/test/test_md_table_to_account_statement.cpp
         src/test/test_swedish_bank_account.cpp
         src/test/test_giro_framework.cpp
         src/test/zeroth/test_zeroth.cpp
-        src/test/test_csv_table_identification.cpp
 
         src/cratchit.cpp 
         src/cratchit_tea.cpp
