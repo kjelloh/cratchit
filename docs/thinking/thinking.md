@@ -18,6 +18,7 @@ From before we have:
   - test_csv_import_pipeline.cpp (both step and shortcut)
   - test_transcoding_views.cpp (shoprtcut only)
 
+I have now moved all code in test units above to the sungle test_annotated_maybe.cpp ok.
 
 ## 20260228
 
