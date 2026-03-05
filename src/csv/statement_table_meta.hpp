@@ -110,7 +110,9 @@ namespace account {
         struct StatementMapping {
           RowMap m_row_0_map;
           bool has_heading;
-          std::ptrdiff_t trans_candidates_count;
+          std::ptrdiff_t tix_begin; // for (tix_begin,<tix_end,++ix) range
+          std::ptrdiff_t tix_end;   // size = tix_end - tix_begin
+          std::size_t transaction_candidates_count() const;
           std::optional<FoundSaldos> m_maybe_in_out_saldos;
           EntryAmountsType entry_amounts_type;
           std::optional<RowMap> maybe_common;

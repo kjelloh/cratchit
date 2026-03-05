@@ -2839,9 +2839,9 @@ Alice,30,"Stockholm, Sweden"
         , "tagged ampunts : 12 amounts"]
       */
 
-      // std::print(
-      //    "\ngot msg:{}"
-      //   ,result.m_messages);
+      std::print(
+         "\ngot msg:{}"
+        ,result.m_messages);
 
       // Look for messages from different pipeline stages
       bool has_encoding_msg = false;

@@ -2,6 +2,12 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260305
+
+I get an itch to change the statement table meta data to provide the beging and end index to the transaction candiadets range.
+
+Is this possible? Can I do it and still have all the tests pass?
+
 ## 20260303
 
 Time to put all tests for the account statement file to tagged amounts 'pipe line' to a new test_annotated:_maybe.cpp TU.

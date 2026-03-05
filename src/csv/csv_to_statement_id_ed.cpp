@@ -26,8 +26,10 @@ namespace account {
 
         auto to_msg = [](CSV::MDTable<maybe::table::TableMeta> const& result) -> std::string {
           return std::format(
-            "{} transaction candidates, columns[date:{} amount:{} saldo:{} description:{}]"
-            ,result.meta.statement_mapping.trans_candidates_count
+            "transaction candidates:{}[{}..end:{}], columns[date:{} amount:{} saldo:{} description:{}]"
+            ,result.meta.statement_mapping.transaction_candidates_count()
+            ,result.meta.statement_mapping.tix_begin
+            ,result.meta.statement_mapping.tix_end
             ,result.meta.column_mapping.date_column
             ,result.meta.column_mapping.transaction_amount_column
             ,result.meta.column_mapping.saldo_amount_column

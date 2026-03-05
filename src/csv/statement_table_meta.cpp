@@ -132,6 +132,10 @@ namespace account {
 
         } // log_the_rows_map
 
+        std::size_t StatementMapping::transaction_candidates_count() const {
+          return tix_end-tix_begin;
+        }
+
         std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table) {
 
           logger::scope_logger log_raii(logger::development_trace,"generic_like_to_statement_mapping",logger::LogToConsole::ON);
@@ -289,8 +293,6 @@ namespace account {
           auto trans_candidates_count = std::distance(first_trans_iter_candidate,trans_iter_candidates_end);
           if (true) logger::development_trace("trans_candidates_count:{}",trans_candidates_count);
 
-          candidate.trans_candidates_count = trans_candidates_count;
-
           // Fold all candidate row maps using 'common' to get the common row map
           auto iter = first_trans_iter_candidate +1;
           auto iter_end = trans_iter_candidates_end;
@@ -320,8 +322,12 @@ namespace account {
 
           candidate.maybe_common = common;
 
-          auto begin_rix = std::distance(rows_map.begin(),first_trans_iter_candidate);
-          auto end_rix = std::distance(rows_map.begin(),trans_iter_candidates_end);
+          auto tix_begin = std::distance(rows_map.begin(),first_trans_iter_candidate);
+          auto tix_end = std::distance(rows_map.begin(),trans_iter_candidates_end);
+
+          candidate.tix_begin = tix_begin;
+          candidate.tix_end = tix_end;
+
 
           if (is_single_amount_trans_candidates) {
             candidate.entry_amounts_type = EntryAmountsType::TransOnly;
@@ -355,7 +361,7 @@ namespace account {
           }
 
           std::vector<std::pair<Amount,Amount>> amounts{};
-          for (auto rix=begin_rix;rix<end_rix;++rix) {
+          for (auto rix=tix_begin;rix<tix_end;++rix) {
             auto const& row = rows[rix];
             auto first_cix = common.ixs.at(FieldType::Amount).front();
             auto second_cix = common.ixs.at(FieldType::Amount).back();
