@@ -10,7 +10,7 @@
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_20251120_BOM_ed_Ok
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_0
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_0
-#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_0
+./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_0
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
 #./run.zsh --gtest_filter=*TableMetaBasedGeneric_DetectColumnsFromHeader
 #./run.zsh --gtest_filter=*ExtractFromSKVCSVNewer
@@ -34,7 +34,7 @@
 
 #./run.zsh --gtest_filter=*MDTableToAccountStatementTestFixture.AccountIdPropagatedToStatementMeta
 #./run.zsh --gtest_filter=*FullPipelineTextTests.ImportEmptyTextReturnsEmpty
-./run.zsh --gtest_filter=*FullPipelineTestFixture.MessagesPreservedThroughPipeline
+#./run.zsh --gtest_filter=*FullPipelineTestFixture.MessagesPreservedThroughPipeline
 #./run.zsh --gtest_filter=*EncodingPipelineTestFixture.EmptyFileHandledGracefully
 #./run.zsh --gtest_filter=*EncodingPipelineTests.FileNotFoundHandledGracefully
 #./run.zsh --gtest_filter=*EncodingPipelineTestFixture.CompleteIntegrationAllSteps

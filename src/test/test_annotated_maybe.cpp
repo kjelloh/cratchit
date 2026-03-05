@@ -3166,6 +3166,12 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
+      const size_t EXPECTED_CANDIDATE_COUNT = 12;
+      ASSERT_TRUE(maybe_statement_mapping->transaction_candidates_count() == EXPECTED_CANDIDATE_COUNT) << std::format(
+         "Expected {} candidates but got {}"
+        ,EXPECTED_CANDIDATE_COUNT
+        ,maybe_statement_mapping->transaction_candidates_count());
+
       using namespace account::statement::maybe::table;
       // Empty: 10 Text: 0 1 2 3 4 5 6 7 8 9
       static const RowMap EXPECTED_ROW_0_MAP{
@@ -3287,6 +3293,12 @@ namespace tests::csv_table_identification {
 
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
+
+      const size_t EXPECTED_CANDIDATE_COUNT = 4;
+      ASSERT_TRUE(maybe_statement_mapping->transaction_candidates_count() == EXPECTED_CANDIDATE_COUNT) << std::format(
+         "Expected {} candidates but got {}"
+        ,EXPECTED_CANDIDATE_COUNT
+        ,maybe_statement_mapping->transaction_candidates_count());
 
       using namespace account::statement::maybe::table;
       // Empty: 2 3 OrgNo: 1 Text: 0
@@ -3476,6 +3488,12 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
+      const size_t EXPECTED_CANDIDATE_COUNT = 4;
+      ASSERT_TRUE(maybe_statement_mapping->transaction_candidates_count() == EXPECTED_CANDIDATE_COUNT) << std::format(
+         "Expected {} candidates but got {}"
+        ,EXPECTED_CANDIDATE_COUNT
+        ,maybe_statement_mapping->transaction_candidates_count());
+
       using namespace account::statement::maybe::table;
       // Empty: 0 4 Amount: 2 3 Text: 1
       static const RowMap EXPECTED_ROW_0_MAP{
@@ -3639,6 +3657,12 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
+      const size_t EXPECTED_CANDIDATE_COUNT = 1;
+      ASSERT_TRUE(maybe_statement_mapping->transaction_candidates_count() == EXPECTED_CANDIDATE_COUNT) << std::format(
+         "Expected {} candidates but got {}"
+        ,EXPECTED_CANDIDATE_COUNT
+        ,maybe_statement_mapping->transaction_candidates_count());
+
       using namespace account::statement::maybe::table;
       // Empty: 10 Text: 0 1 2 3 4 5 6 7 8 9
       static const RowMap EXPECTED_ROW_0_MAP{
@@ -3759,6 +3783,12 @@ namespace tests::csv_table_identification {
       auto maybe_statement_mapping = account::statement::maybe::table::generic_like_to_statement_mapping(*maybe_table);
       ASSERT_TRUE(maybe_statement_mapping) << std::format("Expected valid statement mapping for {}",caption);
 
+      const size_t EXPECTED_CANDIDATE_COUNT = 0;
+      ASSERT_TRUE(maybe_statement_mapping->transaction_candidates_count() == EXPECTED_CANDIDATE_COUNT) << std::format(
+         "Expected {} candidates but got {}"
+        ,EXPECTED_CANDIDATE_COUNT
+        ,maybe_statement_mapping->transaction_candidates_count());
+      
       using namespace account::statement::maybe::table;
       // Empty: 2 3 OrgNo: 1 Text: 0
       static const RowMap EXPECTED_ROW_0_MAP{
