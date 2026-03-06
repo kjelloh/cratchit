@@ -17,7 +17,4 @@ namespace csv {
 
   } // monadic
 
-  AnnotatedMaybe<TaggedAmounts> path_to_tagged_amounts_shortcut(
-      std::filesystem::path const& file_path);
-
 } // csv

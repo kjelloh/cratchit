@@ -155,83 +155,6 @@ namespace tests::csv_import_pipeline {
 
     }
 
-    TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring3) {
-      // TODO: This test case is based on path_to_tagged_amounts_shortcut
-      // The goal is to make clear each AnnotatedMaybe<T> step as a base for
-      // cleaning up the code to those steps only.
-      // Also see other PathToAccountStatementTaggedAmountsRefactoring* with simmilar goals
-      logger::scope_logger log_raii(logger::development_trace,"TEST_F(MonadicCompositionFixture,PathToAccountStatementTaggedAmountsRefactoring0)");
-
-      AnnotatedMaybe<TaggedAmounts> result{};
-
-      auto maybe_text = text::encoding::path_to_platform_encoded_string_shortcut(m_valid_file_path);
-
-      if (!maybe_text) {
-        // Propagate file/encoding errors
-        result.m_messages = std::move(maybe_text.m_messages);
-        result.push_message("Pipeline failed at Step 1-5: File reading/encoding");
-      }
-
-      ASSERT_TRUE(maybe_text) << "Expected successful text result";
-
-      // Copy messages from file reading/encoding
-      result.m_messages = maybe_text.m_messages;
-      auto const& text = maybe_text.value();
-
-      // Handle empty file case
-      if (text.empty()) {
-        result.push_message("Pipeline complete: Empty file produced empty TaggedAmounts");
-        result.m_value = TaggedAmounts{};
-      }
-
-      ASSERT_FALSE(text.empty()) << "Expected text";
-
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(text);
-
-      if (!maybe_table) {
-        result.push_message("Pipeline failed at Step 6: CSV parsing failed - Could not parse text as CSV");
-      }
-      else {
-        result.push_message(std::format("Step 6 complete: CSV parsed successfully ({} rows)",
-          maybe_table->rows.size()));
-      }
-
-      ASSERT_TRUE(maybe_table) << "Expected successfull table";
-
-      auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
-
-      if (!maybe_statement_id_ed) {
-        result.push_message("Unknown CSV format - could not identify statement");
-      }
-      else {
-        result.push_message(std::format("Account ID detected: '{}'",
-          maybe_statement_id_ed->meta.account_id.to_string()));
-      }
-
-      ASSERT_TRUE(maybe_statement_id_ed) << "Expected successfull id:ed table";
-
-      AccountID const& account_id = maybe_statement_id_ed->meta.account_id;
-      result.push_message(std::format("AccountID detected: '{}'",
-        account_id.to_string()));
-
-      auto maybe_tagged = account::statement::maybe::statement_id_ed_to_account_statement_step(*maybe_statement_id_ed)
-          .and_then(tas::maybe::account_statement_to_tagged_amounts_step);
-
-      if (!maybe_tagged) {
-        result.push_message("Pipeline failed at Steps 7-8: Domain transformation failed - Could not extract tagged amounts");
-      }
-      else {
-        result.m_value = std::move(*maybe_tagged);
-        result.push_message(std::format("Pipeline complete: {} TaggedAmounts created from '{}'",
-          result.value().size(),
-          m_valid_file_path.filename().string()));
-      }
-
-      ASSERT_TRUE(maybe_tagged) << "Expected succesfull tagged amounts";
-
-    }
-
-
   } // monadic_composition_suite
 
   namespace file_io_suite {
@@ -2620,8 +2543,7 @@ Alice,30,"Stockholm, Sweden"
   namespace full_pipeline_suite {
 
     // ============================================================================
-    // Full Pipeline Tests - Step 9: Complete CSV Import Pipeline
-    // Tests for csv::path_to_tagged_amounts_shortcut() and related functions
+    // Full Pipeline Tests
     // ============================================================================
 
     // Test fixture for full pipeline tests with file I/O
@@ -2695,14 +2617,18 @@ Alice,30,"Stockholm, Sweden"
       }
     };
 
-    // ----------------------------------------------------------------------------
-    // path_to_tagged_amounts_shortcut() tests
-    // ----------------------------------------------------------------------------
-
     TEST_F(FullPipelineTestFixture, ImportNordeaFileSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportNordeaFileSuccess)"};
 
-      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(nordea_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV file";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2732,7 +2658,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSkvFileSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvFileSuccess)"};
 
-      auto result = csv::path_to_tagged_amounts_shortcut(skv_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(skv_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import of SKV CSV file";
       EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts from SKV CSV";
@@ -2755,7 +2689,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSkvOlderFormatSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSkvOlderFormatSuccess)"};
 
-      auto result = csv::path_to_tagged_amounts_shortcut(skv_older_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(skv_older_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import of older SKV CSV file";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2766,8 +2708,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportSimpleCsvFailsForUnknownFormat) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportSimpleCsvFailsForUnknownFormat)"};
 
-      // Simple CSV is neither NORDEA nor SKV format
-      auto result = csv::path_to_tagged_amounts_shortcut(simple_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(simple_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected success for generic account statement CSV format";
 
@@ -2782,7 +2731,15 @@ Alice,30,"Stockholm, Sweden"
 
       auto missing_path = test_dir / "nonexistent_file.csv";
 
-      auto result = csv::path_to_tagged_amounts_shortcut(missing_path);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(missing_path)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -2805,7 +2762,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportEmptyFileReturnsEmptyTaggedAmounts) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportEmptyFileReturnsEmptyTaggedAmounts)"};
 
-      auto result = csv::path_to_tagged_amounts_shortcut(empty_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(empty_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages about empty file";
@@ -2814,7 +2779,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, ImportInvalidCsvReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, ImportInvalidCsvReturnsEmpty)"};
 
-      auto result = csv::path_to_tagged_amounts_shortcut(invalid_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(invalid_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       EXPECT_FALSE(result) << "Expected failure for CSV with undetectable columns";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -2823,7 +2796,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, MessagesPreservedThroughPipeline) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, MessagesPreservedThroughPipeline)"};
 
-      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(nordea_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import";
 
@@ -3036,8 +3017,15 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, CompletePipelineVerifyTaggedAmountStructureWithNordea) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, CompletePipelineVerifyTaggedAmountStructureWithNordea)"};
 
-      // Use NORDEA file instead of simple CSV (which now fails for unknown format)
-      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(nordea_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV";
       ASSERT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -3062,14 +3050,20 @@ Alice,30,"Stockholm, Sweden"
     TEST_F(FullPipelineTestFixture, PipelinePreservesAllEntries) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTests, PipelinePreservesAllEntries)"};
 
-      // Import NORDEA CSV and verify we get all expected entries
-      auto result = csv::path_to_tagged_amounts_shortcut(nordea_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(nordea_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import";
 
-      // Count entries - should match the number of valid transaction rows in sample data
-      // Looking at sz_NORDEA_csv_20251120, there are multiple transaction rows
-      EXPECT_GT(result.value().size(), 5)
+      // Count entries - should match the number of valid transaction rows in sample data sz_NORDEA_csv_20251120
+      EXPECT_EQ(result.value().size(), 12)
         << "Expected more than 5 entries from NORDEA sample data";
 
       // Verify each entry has required tags
@@ -3096,7 +3090,15 @@ Alice,30,"Stockholm, Sweden"
         ofs.write(reinterpret_cast<char*>(iso_content), sizeof(iso_content));
       }
 
-      auto result = csv::path_to_tagged_amounts_shortcut(iso_csv_file);
+      auto result = persistent::in::text::monadic::path_to_istream_ptr_step(iso_csv_file)
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       // The pipeline should handle encoding automatically
       // Even if it defaults to UTF-8, it should produce some result
