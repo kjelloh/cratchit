@@ -12,8 +12,8 @@ namespace text {
         return ToWithThresholdF{confidence_threshold};
       }
 
-      std::optional<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
-        logger::development_trace("to_with_detected_encoding_step");
+      std::optional<WithDetectedEncodingByteBuffer> to_with_inferred_encoding(WithThresholdByteBuffer wt_buffer) {
+        logger::development_trace("to_with_inferred_encoding");
         auto& [confidence_threshold,buffer] = wt_buffer;
         return text::encoding::inferred::maybe::to_inferred_encoding(buffer, confidence_threshold)
           .transform([buffer = std::move(buffer)](auto&& meta) mutable {
@@ -28,7 +28,7 @@ namespace text {
               ,.defacto = std::move(stripped_buffer)
             };
           });
-      } // to_with_detected_encoding_step
+      } // to_with_inferred_encoding
 
       std::optional<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer) {
         auto const& [detected_encoding_result, buffer] = wd_buffer;
@@ -51,7 +51,7 @@ namespace text {
 
     namespace monadic {
 
-      AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_detected_encoding_step(WithThresholdByteBuffer wt_buffer) {
+      AnnotatedMaybe<WithDetectedEncodingByteBuffer> to_with_inferred_encoding(WithThresholdByteBuffer wt_buffer) {
 
         auto const& [confidence_threshold,buffer] = wt_buffer;
 
@@ -60,7 +60,7 @@ namespace text {
         };
 
         auto lifted = cratchit::functional::to_annotated_maybe_f(
-          text::encoding::maybe::to_with_detected_encoding_step
+          text::encoding::maybe::to_with_inferred_encoding
           ,"with encoding"
           ,to_msg
         );
@@ -89,7 +89,7 @@ namespace text {
 
         return result;
 
-      } // to_with_detected_encoding_step
+      } // to_with_inferred_encoding
 
       AnnotatedMaybe<std::string> to_platform_encoded_string_step(WithDetectedEncodingByteBuffer wd_buffer) {
 
@@ -119,7 +119,7 @@ namespace text {
 
       return persistent::in::text::path_to_byte_buffer_shortcut(file_path) // #1 + #2
         .and_then(monadic::to_with_threshold_step_f(confidence_threshold))
-        .and_then(monadic::to_with_detected_encoding_step) // #4
+        .and_then(monadic::to_with_inferred_encoding) // #4
         .and_then(monadic::to_platform_encoded_string_step); // #5
     }
 

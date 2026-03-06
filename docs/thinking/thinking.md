@@ -14,6 +14,49 @@ How mnay call sites are there for path -> account statement -> tagged amounts?
 
 * DARN! path_to_account_statement_shortcut is not even called anywhere!
 
+I have now removed the whole import_pipeline TU and replaced all call sites with and_then composition OK.
+
+GOOD RIDENCE!
+
+I now notice that cratchit seems to parse also the .DS_Store binary file when consuming account statement files?
+
+```sh
+dotas_from_sie_environment
+Opening Saldo Date:20250501
+BEGIN: Processing files in "from_bank_or_skv"
+
+BEGIN File: "from_bank_or_skv/.DS_Store"
+      TRACE: BEGIN to_statement_id_ed_step
+        TRACE: BEGIN generic_like_to_statement_mapping
+          TRACE: sv:Bud1
+                     umedbwsp
+```
+
+Why does it not stop at the 'with detected encoding' step? I think I want the 'encoding inference' step to discard any non-text-file?
+
+* Does the ICU library have any function to conform a text file?
+  - NO, it does not according to my AI friends.
+
+I sugested a byte-value-histogram function and my AI friends proposed:
+
+```c++
+using ByteHistogram = std::array<size_t, 256>;
+
+ByteHistogram computeHistogram(const ByteBuffer& buffer)
+{
+    ByteHistogram hist{};
+
+    for (std::byte b : buffer)
+        hist[std::to_integer<uint8_t>(b)]++;
+
+    return hist;
+}
+```
+
+I imagine I can then also implement some heuristic that infers if the histogram can be of a text file or not?
+
+Now I remembered I have more xxx_shortcut functions to attend to.
+
 
 
 ## 20260305

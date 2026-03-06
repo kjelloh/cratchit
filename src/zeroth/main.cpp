@@ -5263,7 +5263,7 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem:
   auto pipeline_result = persistent::in::text::monadic::path_to_istream_ptr_step(statement_file_path)
     .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
     .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
-    .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+    .and_then(text::encoding::monadic::to_with_inferred_encoding)
     .and_then(text::encoding::monadic::to_platform_encoded_string_step)
     .and_then(CSV::parse::monadic::csv_text_to_table_step)
     .and_then(account::statement::monadic::to_statement_id_ed_step)
