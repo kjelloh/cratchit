@@ -6,17 +6,6 @@ namespace csv {
   namespace monadic {
   } // monadic
 
-  AnnotatedMaybe<TaggedAmounts> table_to_tagged_amounts_shortcut(
-      CSV::Table const& table) {
-    logger::scope_logger log_raii{logger::development_trace,
-      "table_to_tagged_amounts_shortcut(table)"};
-
-    return account::statement::monadic::to_statement_id_ed_step(table)
-      .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
-      .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
-
-  } // table_to_tagged_amounts_shortcut
-
   AnnotatedMaybe<TaggedAmounts> csv_to_tagged_amounts_shortcut(
       std::string_view csv_text) {
     logger::scope_logger log_raii{logger::development_trace,

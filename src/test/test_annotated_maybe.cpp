@@ -2946,10 +2946,6 @@ Alice,30,"Stockholm, Sweden"
       EXPECT_FALSE(result) << "Expected failure for invalid CSV text";
     }
 
-    // ----------------------------------------------------------------------------
-    // table_to_tagged_amounts_shortcut() tests
-    // ----------------------------------------------------------------------------
-
     TEST(FullPipelineTableTests, ImportGenericAccountStatementOK) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportGenericAccountStatementOK)"};
 
@@ -2960,7 +2956,9 @@ Alice,30,"Stockholm, Sweden"
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-01", "100.50", "Test Payment"}});
       table.rows.push_back(Key::Path{std::vector<std::string>{"2025-01-02", "-50.00", "Withdrawal"}});
 
-      auto result = csv::table_to_tagged_amounts_shortcut(table);
+      auto result = account::statement::monadic::to_statement_id_ed_step(table)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected success for generic account statement csv";
 
@@ -2971,11 +2969,11 @@ Alice,30,"Stockholm, Sweden"
 
       // Parse NORDEA CSV to get a table
       std::string csv_text = sz_NORDEA_csv_20251120;
-      auto maybe_table = CSV::parse::maybe::csv_text_to_table_step(csv_text);
-      ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse NORDEA CSV";
 
-      // Import the table
-      auto result = csv::table_to_tagged_amounts_shortcut(*maybe_table);
+      auto result = CSV::parse::monadic::csv_text_to_table_step(csv_text)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA table";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2991,13 +2989,14 @@ Alice,30,"Stockholm, Sweden"
     TEST(FullPipelineTableTests, ImportInvalidTableReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTableTests, ImportInvalidTableReturnsEmpty)"};
 
-      // Create a table with undetectable columns
       CSV::Table table;
       table.heading = Key::Path{std::vector<std::string>{"Foo", "Bar"}};
       table.rows.push_back(table.heading);
       table.rows.push_back(Key::Path{std::vector<std::string>{"x", "y"}});
 
-      auto result = csv::table_to_tagged_amounts_shortcut(table);
+      auto result = account::statement::monadic::to_statement_id_ed_step(table)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       EXPECT_FALSE(result) << "Expected failure for invalid table";
     }
