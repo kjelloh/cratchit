@@ -39,7 +39,6 @@ add_executable(
 
         src/test/test_annotated_maybe.cpp
 
-        src/csv/import_pipeline.cpp
         src/csv/statement_table_meta.cpp
         src/domain/csv_to_account_statement.cpp
         src/csv/csv_to_statement_id_ed.cpp

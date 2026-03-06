@@ -1,6 +1,8 @@
 #include "zeroth/main.hpp"
 #include "HAD2JournalEntryFramework.hpp" // to_md_entry,...
-#include "csv/import_pipeline.hpp"
+#include "text/encoding_pipeline.hpp"
+#include "csv/csv_to_statement_id_ed.hpp"
+#include "domain/account_statement_to_tagged_amounts.hpp"
 
 // Cpp file to isolate this 'zeroth' variant of cratchin until refactored to 'next' variant
 // (This whole file conatins the 'zeroth' version of cratchit)

@@ -4,7 +4,6 @@
 #include "csv/parse_csv.hpp"
 #include "csv/csv_to_statement_id_ed.hpp"
 #include "domain/account_statement_to_tagged_amounts.hpp"
-#include "csv/import_pipeline.hpp" // xxx_shortcut
 
 #include "test/data/account_statements_csv.hpp"
 #include <gtest/gtest.h>
