@@ -2880,16 +2880,20 @@ Alice,30,"Stockholm, Sweden"
       logger::development_trace("Found {} messages from pipeline", result.m_messages.size());
     }
 
-    // ----------------------------------------------------------------------------
-    // csv_to_tagged_amounts_shortcut() tests
-    // ----------------------------------------------------------------------------
-
     TEST(FullPipelineTextTests, ImportNordeaTextSuccess) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportNordeaTextSuccess)"};
 
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto result = csv::csv_to_tagged_amounts_shortcut(csv_text);
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(csv_text))
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import of NORDEA CSV text";
       EXPECT_GT(result.value().size(), 0) << "Expected at least one TaggedAmount";
@@ -2909,7 +2913,15 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_SKV_csv_20251120;
 
-      auto result = csv::csv_to_tagged_amounts_shortcut(csv_text);
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(csv_text))
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_TRUE(result) << "Expected successful import of SKV CSV text";
       EXPECT_EQ(result.value().size(), 4) << "Expected 4 transaction TaggedAmounts";
@@ -2931,7 +2943,15 @@ Alice,30,"Stockholm, Sweden"
 
       std::string empty_text;
 
-      auto result = csv::csv_to_tagged_amounts_shortcut(empty_text);
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(empty_text))
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       ASSERT_FALSE(result) << "Expected null result for empty text";
     }
@@ -2941,7 +2961,15 @@ Alice,30,"Stockholm, Sweden"
 
       std::string invalid_text = "UnknownCol1,UnknownCol2\nvalue1,value2\n";
 
-      auto result = csv::csv_to_tagged_amounts_shortcut(invalid_text);
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(invalid_text))
+        .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+        .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+        .and_then(text::encoding::monadic::to_with_detected_encoding_step)
+        .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+        .and_then(CSV::parse::monadic::csv_text_to_table_step)
+        .and_then(account::statement::monadic::to_statement_id_ed_step)
+        .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+        .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
 
       EXPECT_FALSE(result) << "Expected failure for invalid CSV text";
     }
