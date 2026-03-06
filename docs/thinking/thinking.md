@@ -57,7 +57,25 @@ I imagine I can then also implement some heuristic that infers if the histogram 
 
 Now I remembered I have more xxx_shortcut functions to attend to.
 
+Ok, not clear if and how to remove any of the remaining _shortcut as of now.
 
+What can we do about the vauge 'domain' source code folder?
+
+* account_statement_to_tagged_amounts TU
+  - Function: AccountStatement -> TaggedAmounts
+* csv_to_account_statement TU
+  - Projects a CSV::Table to a manifest 'account statement' type
+
+It is not super clear where it could fit? I suppose form a 'header include' dependancy aspect we want to 'include' (depend on' downstream types)?
+
+* AccountStatement -> TaggedAmounts should be in 'tagged amounts' domain and depend on AccountStatement?
+  - TaggedAmount(s) live in fiscal/amount
+  - Awkward?
+* CSV::Table -> AccountStatement should be in 'account statement' domain and depend on CSV::Table?
+  - AccountStatement now lives in fiscal/amount?!
+  - Awkward?
+
+OK, I have to think some more about this. Maybe if I sleep on it?
 
 ## 20260305
 
