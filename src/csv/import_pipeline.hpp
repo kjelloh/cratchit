@@ -23,9 +23,6 @@ namespace csv {
   AnnotatedMaybe<TaggedAmounts> table_to_tagged_amounts_shortcut(
       CSV::Table const& table);
 
-  AnnotatedMaybe<AccountStatement> path_to_account_statement_shortcut(
-      std::filesystem::path const& file_path);
-
   AnnotatedMaybe<TaggedAmounts> path_to_tagged_amounts_shortcut(
       std::filesystem::path const& file_path);
 

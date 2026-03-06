@@ -2,11 +2,30 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260306
+
+Now I wonder if I should get rid of the import_pipeline TU?
+
+* It only contains 'shortcuts'
+* And thus is entangles all the TU:s involved from path -> tagged amounts
+* Something the call site could (should) do itself
+
+How mnay call sites are there for path -> account statement -> tagged amounts?
+
+* DARN! path_to_account_statement_shortcut is not even called anywhere!
+
+
+
 ## 20260305
 
 I get an itch to change the statement table meta data to provide the beging and end index to the transaction candiadets range.
 
 Is this possible? Can I do it and still have all the tests pass?
+
+YES. It worked out well I think.
+
+* TableMeta now has tix_begin and tix_end and also a 'candidates count' function.
+* I also added tests for the example statements to check for correct transaction count.
 
 ## 20260303
 
