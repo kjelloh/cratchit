@@ -55,6 +55,55 @@ namespace TEA {
       wnoutrefresh(win); // Update to buffer
     }
 
+    // Hand-rolled encoding-aware box function
+    // TODO: Consider to investigate why ncurses own box() function stopped rendering correct border on my macOS machine?
+    //       I spend HOURS trying to understand how it works (but failed)
+    //       It has something to do with box() using 'Alternate Character Set' and mapping to DEC graphics block characters
+    //       Somehow the DEC graphics support seems to have 'disapperaed' from my machine?
+    //       I got plain ascii characters as framing.
+    //       This hand-rolled box renderer does the job for UTF-8 for now.
+    // NOTE: The whole runtime encoding mechanism is full of holes ofr now. Consider it a 'seed' for now...
+    void encoding_aware_box(WINDOW* win, text::encoding::EncodingID detected_encoding) {
+        int rows, cols;
+        getmaxyx(win, rows, cols);
+
+        // Characters to draw depending on encoding
+        std::string tl, tr, bl, br, h, v;
+
+        switch (detected_encoding) {
+            case text::encoding::EncodingID::UTF8: {
+                // UTF-8 box-drawing characters
+              // NOTE: Requires this source code file is UTF-8 encoded! (The C++ source code file encoding mess...)
+                tl = "┌"; tr = "┐"; bl = "└"; br = "┘";
+                h  = "─"; v  = "│";
+            } break;
+
+            default: {
+                // ASCII fallback
+                tl = "+"; tr = "+"; bl = "+"; br = "+";
+                h  = "-"; v  = "|";
+            } break;
+        }
+
+        // Draw corners
+        mvwaddstr(win, 0, 0, tl.c_str());
+        mvwaddstr(win, 0, cols-1, tr.c_str());
+        mvwaddstr(win, rows-1, 0, bl.c_str());
+        mvwaddstr(win, rows-1, cols-1, br.c_str());
+
+        // Draw top/bottom horizontal lines
+        for (int x = 1; x < cols-1; ++x) {
+            mvwaddstr(win, 0, x, h.c_str());          // top
+            mvwaddstr(win, rows-1, x, h.c_str());    // bottom
+        }
+
+        // Draw left/right vertical lines
+        for (int y = 1; y < rows-1; ++y) {
+            mvwaddstr(win, y, 0, v.c_str());          // left
+            mvwaddstr(win, y, cols-1, v.c_str());    // right
+        }
+    }
+
     // Renders doc as HTML to ncurses screen
     // Note: HTML doc semantics may be tested at:
     // https://www.w3schools.com/html/tryit.asp?filename=tryhtml_intro
@@ -72,14 +121,14 @@ namespace TEA {
 
       // Create windows for the app screen sections
       WINDOW *top_win = newwin(section_height, screen_width, 0, 0);
-      box(top_win, 0, 0); // Draw border around the top section
+      encoding_aware_box(top_win, text::encoding::EncodingID::UTF8); // Draw border around the top section
 
       WINDOW *middle_win = newwin(section_height, screen_width, section_height, 0);
-      box(middle_win, 0, 0); // Draw border around the middle section
+      encoding_aware_box(middle_win, text::encoding::EncodingID::UTF8); // Draw border around the middle section
 
       WINDOW *bottom_win =
           newwin(section_height, screen_width, 2 * section_height, 0);
-      box(bottom_win, 0, 0); // Draw border around the bottom section
+      encoding_aware_box(bottom_win, text::encoding::EncodingID::UTF8); // Draw border around the bottom section
 
       // Parse the HTML-like structure
       pugi::xml_node html = doc.child("html");

@@ -3,6 +3,8 @@ from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
 from conan.errors import ConanInvalidConfiguration
 
 class cratchitRecipe(ConanFile):
+    settings = "os", "compiler", "build_type", "arch"
+
     name = "cratchit"
     version = "0.6"
     package_type = "application"
@@ -13,9 +15,6 @@ class cratchitRecipe(ConanFile):
     url = "https://github.com/kjelloh/cratchit.git"
     description = "C++ console app for Swedish book keeping"
     topics = ("SIE", "BAS", "SKV","Finance", "Book keeping")
-
-    # Binary configuration (defile the keys we want to access)
-    settings = "os", "compiler", "build_type", "arch"
 
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "src/*"
@@ -43,7 +42,7 @@ class cratchitRecipe(ConanFile):
     def layout(self):
         cmake_layout(self)
 
-    def generate(self):
+    def generate(self):        
         cppstd = self.settings.get_safe("compiler.cppstd")
         self.output.info(f"cratchit (conanfile.py) Compiler C++ standard (from profile/settings): {cppstd}")        
         deps = CMakeDeps(self)

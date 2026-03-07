@@ -121,7 +121,7 @@ add_executable(
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
+target_link_libraries(cratchit PRIVATE sol2::sol2)
 target_link_libraries(cratchit PRIVATE Curses::Curses)
 target_link_libraries(cratchit PRIVATE pugixml::pugixml)
 target_link_libraries(cratchit PRIVATE ICU::i18n ICU::uc)

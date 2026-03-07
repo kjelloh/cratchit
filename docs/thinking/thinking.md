@@ -2,6 +2,123 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260307
+
+The NCurses front end has now stopped working correctly!
+
+* The corners are 'l','k','j','m' clockwise (instead of corner line symbols)
+* Horizontal lines are 'q'
+* Vertical lines are 'x' 
+
+What has broken?
+
+I found these NCurses log entries:
+
+```sh
+[10:29:07.483] NCursesHead: Initializing with target encoding: UTF-8
+[10:29:07.483] NCursesHead: Setting up UTF-8 support using setlocale
+[10:29:07.485] NCursesHead: Successfully set locale to: en_US.UTF-8
+```
+
+My AI friend tells me the order of ncurses init is crucial:
+
+```c++
+setlocale(LC_ALL, "");
+initscr();
+start_color();
+```
+
+NO. Something has probably happen to environment variable 'TERMINFO' and the acsc setting?
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % infocmp -I $TERMINFO xterm-256color | grep acsc
+        acsc=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % infocmp xterm-256color | grep acsc
+        acsc=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit %
+```
+
+* So what is the acsc setting?
+* And what is the TERMINFO environment variable?
+  - NOTE: I have fixed this before with the code:
+
+```c++
+    #ifdef __APPLE__
+    // Quick fix to make ncurses find the terminal setting on macOS
+    setenv("TERMINFO", "/usr/share/terminfo", 1);
+    #endif
+```
+
+I have now spent HOURS on this problem and I am still unable to get to grips with where the drawing of the frames in ncurses are broken?
+
+* Should NCurses 'know' to output the Unicode characters for corners and borders?
+* Or do we expect NCurses to draw 'boxes' with lkjmqx ASCII and rely on acsc to map them?
+
+My AI friend sugested to check that cmake actually tells the compiler to link with the 'correct' ncurses linrary?
+
+```sh
+...
+100%] Linking CXX executable cratchit
+/opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cratchit.dir/link.txt --verbose=1
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ -stdlib=libc++ -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cratchit.dir/src/test/test_annotated_maybe.cpp.o CMakeFiles/cratchit.dir/src/csv/statement_table_meta.cpp.o CMakeFiles/cratchit.dir/src/domain/csv_to_account_statement.cpp.o CMakeFiles/cratchit.dir/src/csv/csv_to_statement_id_ed.cpp.o CMakeFiles/cratchit.dir/src/domain/account_statement_to_tagged_amounts.cpp.o CMakeFiles/cratchit.dir/src/fiscal/amount/TaggedAmount.cpp.o CMakeFiles/cratchit.dir/src/test/test_runner.cpp.o CMakeFiles/cratchit.dir/src/test/test_fixtures.cpp.o CMakeFiles/cratchit.dir/src/test/test_integrations.cpp.o CMakeFiles/cratchit.dir/src/test/test_atomics.cpp.o CMakeFiles/cratchit.dir/src/test/test_annotated_optional.cpp.o CMakeFiles/cratchit.dir/src/test/test_amount_framework.cpp.o CMakeFiles/cratchit.dir/src/test/test_swedish_bank_account.cpp.o CMakeFiles/cratchit.dir/src/test/test_giro_framework.cpp.o CMakeFiles/cratchit.dir/src/test/zeroth/test_zeroth.cpp.o CMakeFiles/cratchit.dir/src/cratchit.cpp.o CMakeFiles/cratchit.dir/src/cratchit_tea.cpp.o CMakeFiles/cratchit.dir/src/tea/ncurses_head.cpp.o CMakeFiles/cratchit.dir/src/tea/test_head.cpp.o CMakeFiles/cratchit.dir/src/main.cpp.o CMakeFiles/cratchit.dir/src/Mod10View.cpp.o CMakeFiles/cratchit.dir/src/msgs/msg.cpp.o CMakeFiles/cratchit.dir/src/cmd.cpp.o CMakeFiles/cratchit.dir/src/sub.cpp.o CMakeFiles/cratchit.dir/src/states/StateImpl.cpp.o CMakeFiles/cratchit.dir/src/states/HADState.cpp.o CMakeFiles/cratchit.dir/src/states/HADsState.cpp.o CMakeFiles/cratchit.dir/src/states/VATReturnsState.cpp.o CMakeFiles/cratchit.dir/src/states/AccountStatementFilesState.cpp.o CMakeFiles/cratchit.dir/src/states/AccountStatementFileState.cpp.o CMakeFiles/cratchit.dir/src/states/ProjectState.cpp.o CMakeFiles/cratchit.dir/src/states/WorkspaceState.cpp.o CMakeFiles/cratchit.dir/src/states/FrameworkState.cpp.o CMakeFiles/cratchit.dir/src/tokenize.cpp.o CMakeFiles/cratchit.dir/src/env/environment.cpp.o CMakeFiles/cratchit.dir/src/FiscalPeriod.cpp.o CMakeFiles/cratchit.dir/src/fiscal/amount/AmountFramework.cpp.o CMakeFiles/cratchit.dir/src/fiscal/amount/TaggedAmountFramework.cpp.o CMakeFiles/cratchit.dir/src/fiscal/BASFramework.cpp.o CMakeFiles/cratchit.dir/src/fiscal/BBANFramework.cpp.o CMakeFiles/cratchit.dir/src/fiscal/SwedishGiroFramework.cpp.o CMakeFiles/cratchit.dir/src/fiscal/amount/HADFramework.cpp.o CMakeFiles/cratchit.dir/src/Key.cpp.o CMakeFiles/cratchit.dir/src/fiscal/SKVFramework.cpp.o CMakeFiles/cratchit.dir/src/cargo/CargoBase.cpp.o CMakeFiles/cratchit.dir/src/states/FiscalPeriodState.cpp.o CMakeFiles/cratchit.dir/src/text/charset.cpp.o CMakeFiles/cratchit.dir/src/text/encoding.cpp.o CMakeFiles/cratchit.dir/src/sie/sie.cpp.o CMakeFiles/cratchit.dir/src/csv/csv.cpp.o CMakeFiles/cratchit.dir/src/states/TaggedAmountsState.cpp.o CMakeFiles/cratchit.dir/src/states/TaggedAmountState.cpp.o CMakeFiles/cratchit.dir/src/RuntimeEncoding.cpp.o CMakeFiles/cratchit.dir/src/csv/projections.cpp.o CMakeFiles/cratchit.dir/src/logger/log.cpp.o CMakeFiles/cratchit.dir/src/fiscal/amount/AccountStatement.cpp.o CMakeFiles/cratchit.dir/src/csv/parse_csv.cpp.o CMakeFiles/cratchit.dir/src/states/AccountStatementState.cpp.o CMakeFiles/cratchit.dir/src/text/format.cpp.o CMakeFiles/cratchit.dir/src/sie/SIEEnvironment.cpp.o CMakeFiles/cratchit.dir/src/sie/SIEEnvironmentframework.cpp.o CMakeFiles/cratchit.dir/src/persistent/in/maybe.cpp.o CMakeFiles/cratchit.dir/src/HAD2JournalEntryFramework.cpp.o CMakeFiles/cratchit.dir/src/text/functional.cpp.o CMakeFiles/cratchit.dir/src/cpp_compile_playground.cpp.o CMakeFiles/cratchit.dir/src/text/encoding_pipeline.cpp.o CMakeFiles/cratchit.dir/src/persistent/in/raw_text_read.cpp.o CMakeFiles/cratchit.dir/src/text/to_inferred_encoding.cpp.o CMakeFiles/cratchit.dir/src/persistent/out/raw_text_write.cpp.o CMakeFiles/cratchit.dir/src/persistent/in/encoding_aware_read.cpp.o CMakeFiles/cratchit.dir/src/persistent/out/encoding_aware_write.cpp.o -o cratchit   -L/Users/kjell-olovhogdahl/.conan2/p/b/luac0e1ce7266ab2/p/lib  -L/Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib  -L/Users/kjell-olovhogdahl/.conan2/p/b/pugixd0f9273d4be72/p/lib  -L/Users/kjell-olovhogdahl/.conan2/p/b/icu6e5030f500ebb/p/lib  -L/Users/kjell-olovhogdahl/.conan2/p/b/spdlo2546609b62f8c/p/lib  -L/Users/kjell-olovhogdahl/.conan2/p/b/fmtafb3ea753c758/p/lib  -L/Users/kjell-olovhogdahl/.conan2/p/b/gtest778a6ea33a560/p/lib  -Wl,-rpath,/Users/kjell-olovhogdahl/.conan2/p/b/luac0e1ce7266ab2/p/lib -Wl,-rpath,/Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib -Wl,-rpath,/Users/kjell-olovhogdahl/.conan2/p/b/pugixd0f9273d4be72/p/lib -Wl,-rpath,/Users/kjell-olovhogdahl/.conan2/p/b/icu6e5030f500ebb/p/lib -Wl,-rpath,/Users/kjell-olovhogdahl/.conan2/p/b/spdlo2546609b62f8c/p/lib -Wl,-rpath,/Users/kjell-olovhogdahl/.conan2/p/b/fmtafb3ea753c758/p/lib -Wl,-rpath,/Users/kjell-olovhogdahl/.conan2/p/b/gtest778a6ea33a560/p/lib /Users/kjell-olovhogdahl/.conan2/p/b/luac0e1ce7266ab2/p/lib/liblua.a /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libncurses++w.a /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libticw.a /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libformw.a /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libmenuw.a /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libpanelw.a /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libncursesw.a /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libtinfow.a /Users/kjell-olovhogdahl/.conan2/p/b/pugixd0f9273d4be72/p/lib/libpugixml.a /Users/kjell-olovhogdahl/.conan2/p/b/icu6e5030f500ebb/p/lib/libicui18n.a /Users/kjell-olovhogdahl/.conan2/p/b/icu6e5030f500ebb/p/lib/libicuuc.a /Users/kjell-olovhogdahl/.conan2/p/b/icu6e5030f500ebb/p/lib/libicudata.a -lc++ /Users/kjell-olovhogdahl/.conan2/p/b/spdlo2546609b62f8c/p/lib/libspdlogd.a /Users/kjell-olovhogdahl/.conan2/p/b/fmtafb3ea753c758/p/lib/libfmtd.a /Users/kjell-olovhogdahl/.conan2/p/b/gtest778a6ea33a560/p/lib/libgmock_main.a /Users/kjell-olovhogdahl/.conan2/p/b/gtest778a6ea33a560/p/lib/libgmock.a /Users/kjell-olovhogdahl/.conan2/p/b/gtest778a6ea33a560/p/lib/libgtest_main.a /Users/kjell-olovhogdahl/.conan2/p/b/gtest778a6ea33a560/p/lib/libgtest.a
+ld: warning: ignoring duplicate libraries: '-lc++'
+[100%] Built target cratchit
+/opt/homebrew/bin/cmake -E cmake_progress_start /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/CMakeFiles 0
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit/build/Debug % 
+```
+
+So it seems it links the following libs from conan cache?
+
+* /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libncurses++w.a 
+* /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libticw.a 
+* /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libformw.a 
+* /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libmenuw.a 
+* /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libpanelw.a 
+* /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libncursesw.a 
+* /Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/libtinfow.a
+
+I found a seemingly good API documentation for ncurses [NCURSES Programming HOWTO](https://invisible-island.net/ncurses/NCURSES-Programming-HOWTO.html).
+
+I tried:
+
+```c++
+  printw("Upper left corner           "); addch(ACS_ULCORNER); printw("\n");
+```
+
+And YES, I get a simple 'l' out!
+
+OK, so lets drill drown from here?
+
+*"14.3. ACS_ variables. If you have ever programmed in DOS, you know about those nifty characters in extended character set. They are printable only on some terminals. NCURSES functions like box() use these characters. All these variables start with ACS meaning alternative character set."*
+
+So the mechanism is from old loved DOS?!
+
+So why is this mechanosm broken on my machine as of now?
+
+I tried again with chatGPT and now I was able to create a prompt that at least gace me an answer that sounds reasonable [NCurses UTF-8 on macOS](https://chatgpt.com/share/69ac3a34-ace0-8004-b457-292573afdcfe)
+
+* It proposes we have four layers. Cratchit calls ncurses API that calls C 'standard io' that calls a Terminal Emulator using UTF-8.
+
+```text
+Your C++ program
+    ↓
+ncurses / ncursesw
+    ↓
+C stdio / terminfo
+    ↓
+Terminal emulator (UTF-8)
+```
+
+* It proposes I must call the runtime to use the standard locale?
+
+```c++
+  setlocale(LC_ALL, "");
+```
+
+  - I have this and the call succeeds.
+
+I now GAVE UP! Instead I made my AI friend write me a hand-rolled encoding_aware_box to use instead. Works for now...
+
 ## 20260306
 
 Now I wonder if I should get rid of the import_pipeline TU?
