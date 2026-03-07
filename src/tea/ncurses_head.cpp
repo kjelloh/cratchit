@@ -116,22 +116,6 @@ namespace TEA {
         std::raise(sig);           // Re-raise signal
     }
 
-    class Ncurses {
-    public:
-      Ncurses() {
-        // 20250616/KOH: Registring this signal handler disables any ASAN linked machinery
-        // std::signal(SIGSEGV, ncurses_cleanup_on_crash);
-        initscr();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        refresh();
-      }
-      ~Ncurses() {
-        endwin(); // End ncurses mode
-      }
-    };
-
   } // render
 } // TEA
 
@@ -189,7 +173,7 @@ namespace TEA {
     //       Consider to revise if/when supported platfrom requires it.
     //       20250727 - For now macOS UTF-8 for ISO 8859-1 (Latin-1)
     //                  will work (maps to Unicode ASCII + extended 0x80..0xFF)
-    //                  for one byte copde points ok.
+    //                  for one byte code points ok.
     //                  Other character sets may or may not map to two byte code points
     //                  that will fit into an int.
     //                  Also, 'int' may be more than two bytes...
