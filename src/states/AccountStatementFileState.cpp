@@ -1,6 +1,7 @@
 #include "AccountStatementFileState.hpp"
 #include "TaggedAmountsState.hpp"
 #include "AccountStatementState.hpp"
+#include "text/encoding_pipeline.hpp"
 #include "csv/projections.hpp" 
 #include "csv/csv_to_statement_id_ed.hpp" 
 #include "domain/csv_to_account_statement.hpp"
@@ -9,11 +10,25 @@
 #include <fstream>
 #include "logger/log.hpp"
 
+namespace {
+
+  AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
+
+    return persistent::in::text::path_to_byte_buffer_shortcut(file_path) // #1 + #2
+      .and_then(text::encoding::monadic::to_with_threshold_step_f(text::encoding::inferred::DEFAULT_CONFIDENCE_THERSHOLD))
+      .and_then(text::encoding::monadic::to_with_inferred_encoding) // #4
+      .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+      .and_then(CSV::parse::monadic::csv_text_to_table_step);
+
+  } // path_to_table_shortcut
+
+} // namespace
+
 namespace first {
   
   AccountStatementFileState::AccountStatementFileState(PeriodPairedFilePath period_paired_file_path)
     :  StateImpl{}
-      ,m_maybe_table_result{CSV::parse::monadic::path_to_table_shortcut(period_paired_file_path.content())}
+      ,m_maybe_table_result{path_to_table_shortcut(period_paired_file_path.content())}
       ,m_period_paired_file_path{period_paired_file_path} {}
 
   std::string AccountStatementFileState::caption() const {

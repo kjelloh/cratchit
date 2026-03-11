@@ -147,7 +147,6 @@ namespace CSV {
     } // maybe
 
     namespace monadic {
-      AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path);
       AnnotatedMaybe<CSV::Table> csv_text_to_table_step(std::string_view csv_text);
       
     }

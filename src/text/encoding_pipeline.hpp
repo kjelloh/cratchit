@@ -55,10 +55,6 @@ namespace text {
 
     } // monadic
 
-    AnnotatedMaybe<std::string> path_to_platform_encoded_string_shortcut(
-      std::filesystem::path const& file_path,
-      int32_t confidence_threshold = inferred::DEFAULT_CONFIDENCE_THERSHOLD);
-
   } // encoding
 
 } // text

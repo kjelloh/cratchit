@@ -1,6 +1,6 @@
 
 #include "parse_csv.hpp"
-#include "text/encoding_pipeline.hpp" // path_to_platform_encoded_string_shortcut,...
+// #include "text/encoding_pipeline.hpp" // path_to_platform_encoded_string_shortcut,...
 #include "logger/log.hpp"
 #include "std_overload.hpp" // std_overload::overload,...
 #include <fstream>
@@ -68,13 +68,6 @@ namespace CSV {
     } // maybe
 
     namespace monadic {
-
-      AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
-
-        return text::encoding::path_to_platform_encoded_string_shortcut(file_path)
-          .and_then(CSV::parse::monadic::csv_text_to_table_step);
-
-      }
 
       AnnotatedMaybe<CSV::Table> csv_text_to_table_step(std::string_view csv_text) {
 

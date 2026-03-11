@@ -2,6 +2,15 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260311
+
+You know what? I imagine I want to do two things before merging back to master?
+
+1. Move all xxx_shortcut as helpers in test TU.
+2. Clean up all standard out printing and remove excessive logging (turn off scope logging)
+
+I moved path_to_platform_encoded_string_shortcut and path_to_table_shortcut to call sites AccountStatementFileState and test_annotated_maybe.
+
 ## 20260307
 
 The NCurses front end has now stopped working correctly!
