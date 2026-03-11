@@ -5184,7 +5184,7 @@ void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_
 } // synchronize_tagged_amounts_with_sie
 
 DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
-  if (true) {
+  if (false) {
     std::cout << "\ndotas_from_sie_environment" << std::flush;
   }
   DateOrderedTaggedAmountsContainer result{};

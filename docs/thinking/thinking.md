@@ -13,6 +13,8 @@ I have now moved path_to_platform_encoded_string_shortcut and path_to_table_shor
 
 An now I have moved path_to_byte_buffer_shortcut to test TU and removed from production code.
 
+That was it! I now have no _shortcut functions for annotated maybe in production code. All call sites but the test TU compose their own and_then pipe ok.
+
 ## 20260307
 
 The NCurses front end has now stopped working correctly!
@@ -468,7 +470,7 @@ At least they show how the code works and what to expect. So I will leave it as 
 Next up could be:
 
 * Remove excess logging?
-* Turn off logger::LogToConsole::ON?
+* Turn off logger::LogToConsole::OFF?
 * Remove any other cosnole output?
 * Check for any DESIGN_INSUFFICIENCY that gets triggered?
 

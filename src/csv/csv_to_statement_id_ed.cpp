@@ -6,7 +6,7 @@ namespace account {
     namespace maybe {
 
       std::optional<CSV::MDTable<maybe::table::TableMeta>> to_statement_id_ed_step(CSV::Table const& table) {
-        logger::scope_logger log_raii(logger::development_trace,"to_statement_id_ed_step",logger::LogToConsole::ON);
+        logger::scope_logger log_raii(logger::development_trace,"to_statement_id_ed_step",logger::LogToConsole::OFF);
 
         auto table_meta = table::generic_like_to_statement_table_meta(table);
 

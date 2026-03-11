@@ -1230,14 +1230,15 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST_F(EncodingPipelineTestFixture, EmptyFileHandledGracefully) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, EmptyFileHandledGracefully)",logger::LogToConsole::ON};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, EmptyFileHandledGracefully)",logger::LogToConsole::OFF};
 
       auto result = path_to_platform_encoded_string_shortcut(empty_file);
 
-      std::print(
-         "\ngot msg:{}"
-        ,result.m_messages);
-
+      if (false) {
+        std::print(
+          "\ngot msg:{}"
+          ,result.m_messages);
+      }
 
       ASSERT_FALSE(result) << "Expected failure for empty file - no content to process";
 
@@ -1253,7 +1254,7 @@ namespace tests::csv_import_pipeline {
     }
 
     TEST(EncodingPipelineTests, FileNotFoundHandledGracefully) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, FileNotFoundHandledGracefully)",logger::LogToConsole::ON};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingPipelineTests, FileNotFoundHandledGracefully)",logger::LogToConsole::OFF};
 
       auto non_existent = std::filesystem::path("/tmp/cratchit_nonexistent_file_99999.csv");
 
@@ -2474,7 +2475,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     TEST(GenericAccountIdTests, HeaderSingleAmountTransOK) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::OFF};
 
       std::vector<std::string> heading = {
         "Bokforingsdag", "Belopp", "Avsandare", "Mottagare", "Namn", "Saldo", "Valuta"
@@ -2495,7 +2496,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     TEST(GenericAccountIdTests, NoHeaderSingleAmountTransOK) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::OFF};
 
       CSV::Table generic_statement_table{
         .rows = {
@@ -2511,7 +2512,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     TEST(GenericAccountIdTests, HeaderTransSaldoAmountsOK) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::OFF};
 
       std::vector<std::string> heading = {
         "Bokforingsdag", "Belopp", "Avsandare", "Mottagare", "Namn", "Saldo", "Valuta"
@@ -2533,7 +2534,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     TEST(GenericAccountIdTests, NoHeaderTransSaldoAmountsOK) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::ON};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(AccountIdTests, GenericHeaderSingleAmountTransOK)",logger::LogToConsole::OFF};
 
       CSV::Table generic_statement_table{
         .rows = {
@@ -2746,9 +2747,11 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(result) << "Expected success for generic account statement CSV format";
 
-      std::print("\nresult:{} m_messages:{}"
-        ,result.m_value.has_value()
-        ,result.m_messages);
+      if (false) {
+        std::print("\nresult:{} m_messages:{}"
+          ,result.m_value.has_value()
+          ,result.m_messages);
+      }
 
     }
 
@@ -2834,21 +2837,24 @@ Alice,30,"Stockholm, Sweden"
 
       ASSERT_TRUE(result) << "Expected successful import";
 
-      /* got msg:[
-        "nordea_test.csv -> stream : ok"
-        , "byte buffer : 1305 bytes"
-        , "with confidence_threshold:100 : ok"
-        , "with encoding : Detected: UTF-8"
-        , "platform encoded : 1305 bytes"
-        , "csv table : 13 rows"
-        , "statement id:ed table : 2 transaction candidates, columns[date:0 amount:1 saldo:8 description:4]"
-        , "account statement : NORDEA::?? : 12 entries"
-        , "tagged ampunts : 12 amounts"]
-      */
+      if (false) {
+        /* got msg:[
+          "nordea_test.csv -> stream : ok"
+          , "byte buffer : 1305 bytes"
+          , "with confidence_threshold:100 : ok"
+          , "with encoding : Detected: UTF-8"
+          , "platform encoded : 1305 bytes"
+          , "csv table : 13 rows"
+          , "statement id:ed table : 2 transaction candidates, columns[date:0 amount:1 saldo:8 description:4]"
+          , "account statement : NORDEA::?? : 12 entries"
+          , "tagged ampunts : 12 amounts"]
+        */
 
-      std::print(
-         "\ngot msg:{}"
-        ,result.m_messages);
+        std::print(
+          "\ngot msg:{}"
+          ,result.m_messages);
+      }
+
 
       // Look for messages from different pipeline stages
       bool has_encoding_msg = false;
@@ -2946,7 +2952,7 @@ Alice,30,"Stockholm, Sweden"
     }
 
     TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty) {
-      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty)",logger::LogToConsole::ON};
+      logger::scope_logger log_raii{logger::development_trace, "TEST(FullPipelineTextTests, ImportEmptyTextReturnsEmpty)",logger::LogToConsole::OFF};
 
       std::string empty_text;
 
@@ -3976,7 +3982,7 @@ namespace tests::csv_table_identification {
       logger::scope_logger log_raii{
          logger::development_trace
         ,"TEST_F(AccountStatementTableTestsFixture, TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok)"
-        ,logger::LogToConsole::ON
+        ,logger::LogToConsole::OFF
         };
       std::string caption = "sz_SKV_0_0_BOM_ed";
       // std::string csv_text = sz_NORDEA_csv_20251120;

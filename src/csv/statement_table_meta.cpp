@@ -138,7 +138,7 @@ namespace account {
 
         std::optional<StatementMapping> generic_like_to_statement_mapping(CSV::Table const& table) {
 
-          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_statement_mapping",logger::LogToConsole::ON);
+          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_statement_mapping",logger::LogToConsole::OFF);
 
           StatementMapping candidate{};
 
@@ -473,7 +473,7 @@ namespace account {
         } // generic_like_to_statement_mapping
 
         std::optional<ColumnMapping> generic_like_to_column_mapping(CSV::MDTable<StatementMapping> const& mapped_table) {
-          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_column_mapping",logger::LogToConsole::ON);
+          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_column_mapping",logger::LogToConsole::OFF);
           ColumnMapping candidate{};
 
           auto const& [statement_mapping,table] = mapped_table;
@@ -567,7 +567,7 @@ namespace account {
         }
 
         std::optional<AccountID> generic_like_to_account_id(CSV::MDTable<StatementMapping> const& mapped_table) {
-          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_account_id",logger::LogToConsole::ON);
+          logger::scope_logger log_raii(logger::development_trace,"generic_like_to_account_id",logger::LogToConsole::OFF);
 
           AccountID candidate{};
           auto const& [statement_mapping,table] = mapped_table;
