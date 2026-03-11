@@ -32,10 +32,10 @@ namespace {
     std::filesystem::path const& file_path,
     int32_t confidence_threshold = text::encoding::inferred::DEFAULT_CONFIDENCE_THERSHOLD) {
 
-    return path_to_byte_buffer_shortcut(file_path) // #1 + #2
+    return path_to_byte_buffer_shortcut(file_path)
       .and_then(text::encoding::monadic::to_with_threshold_step_f(confidence_threshold))
-      .and_then(text::encoding::monadic::to_with_inferred_encoding) // #4
-      .and_then(text::encoding::monadic::to_platform_encoded_string_step); // #5
+      .and_then(text::encoding::monadic::to_with_inferred_encoding)
+      .and_then(text::encoding::monadic::to_platform_encoded_string_step);
   }
 
   AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
