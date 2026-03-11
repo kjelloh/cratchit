@@ -9,7 +9,9 @@ You know what? I imagine I want to do two things before merging back to master?
 1. Move all xxx_shortcut as helpers in test TU.
 2. Clean up all standard out printing and remove excessive logging (turn off scope logging)
 
-I moved path_to_platform_encoded_string_shortcut and path_to_table_shortcut to call sites AccountStatementFileState and test_annotated_maybe.
+I have now moved path_to_platform_encoded_string_shortcut and path_to_table_shortcut to call sites AccountStatementFileState and test_annotated_maybe.
+
+An now I have moved path_to_byte_buffer_shortcut to test TU and removed from production code.
 
 ## 20260307
 

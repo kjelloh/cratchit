@@ -14,7 +14,8 @@ namespace {
 
   AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
 
-    return persistent::in::text::path_to_byte_buffer_shortcut(file_path) // #1 + #2
+    return persistent::in::text::monadic::path_to_istream_ptr_step(file_path)
+      .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
       .and_then(text::encoding::monadic::to_with_threshold_step_f(text::encoding::inferred::DEFAULT_CONFIDENCE_THERSHOLD))
       .and_then(text::encoding::monadic::to_with_inferred_encoding) // #4
       .and_then(text::encoding::monadic::to_platform_encoded_string_step)

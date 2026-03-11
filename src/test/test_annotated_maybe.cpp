@@ -21,11 +21,18 @@
 //       3. Finally try to celan out any tests that are now redunant (tested by each step tests)
 
 namespace {
+
+  AnnotatedMaybe<persistent::in::text::ByteBuffer> path_to_byte_buffer_shortcut(std::filesystem::path const& file_path) {
+    // Monadic composition: file_path → istream_ptr → buffer
+    return persistent::in::text::monadic::path_to_istream_ptr_step(file_path)
+      .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step);
+  }
+
   AnnotatedMaybe<std::string> path_to_platform_encoded_string_shortcut(
     std::filesystem::path const& file_path,
     int32_t confidence_threshold = text::encoding::inferred::DEFAULT_CONFIDENCE_THERSHOLD) {
 
-    return persistent::in::text::path_to_byte_buffer_shortcut(file_path) // #1 + #2
+    return path_to_byte_buffer_shortcut(file_path) // #1 + #2
       .and_then(text::encoding::monadic::to_with_threshold_step_f(confidence_threshold))
       .and_then(text::encoding::monadic::to_with_inferred_encoding) // #4
       .and_then(text::encoding::monadic::to_platform_encoded_string_step); // #5
@@ -215,7 +222,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadValidFileSucceeds) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadValidFile)"};
 
-      auto result = persistent::in::text::path_to_byte_buffer_shortcut(valid_file_path);
+      auto result = path_to_byte_buffer_shortcut(valid_file_path);
 
       ASSERT_TRUE(result) << "Expected successful read of valid file";
       EXPECT_GT(result.value().size(), 0) << "Expected non-empty buffer";
@@ -232,7 +239,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ReadMissingFileReturnsEmpty) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ReadMissingFileReturnsEmpty)"};
 
-      auto result = persistent::in::text::path_to_byte_buffer_shortcut(missing_file_path);
+      auto result = path_to_byte_buffer_shortcut(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected empty optional for missing file";
       EXPECT_GT(result.m_messages.size(), 0) << "Expected error messages";
@@ -376,7 +383,7 @@ namespace tests::csv_import_pipeline {
       std::ofstream ofs(empty_file);
       ofs.close();
 
-      auto result = persistent::in::text::path_to_byte_buffer_shortcut(empty_file);
+      auto result = path_to_byte_buffer_shortcut(empty_file);
 
       ASSERT_TRUE(result) << "Expected successful read of empty file";
       EXPECT_EQ(result.value().size(), 0) << "Expected empty buffer";
@@ -385,7 +392,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(FileIOTestFixture, ErrorMessagesArePreserved) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(FileIOTests, ErrorMessagesArePreserved)"};
 
-      auto result = persistent::in::text::path_to_byte_buffer_shortcut(missing_file_path);
+      auto result = path_to_byte_buffer_shortcut(missing_file_path);
 
       EXPECT_FALSE(result) << "Expected failure for missing file";
       EXPECT_FALSE(result.m_messages.empty()) << "Expected error messages";
@@ -445,7 +452,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectUTF8) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectUTF8)"};
 
-      auto buffer = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
+      auto buffer = path_to_byte_buffer_shortcut(utf8_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::inferred::maybe::to_inferred_encoding(buffer.value());
@@ -459,7 +466,7 @@ namespace tests::csv_import_pipeline {
     TEST_F(EncodingDetectionTestFixture, DetectISO8859) {
       logger::scope_logger log_raii{logger::development_trace, "TEST(EncodingDetectionTests, DetectISO8859)"};
 
-      auto buffer = persistent::in::text::path_to_byte_buffer_shortcut(iso8859_file);
+      auto buffer = path_to_byte_buffer_shortcut(iso8859_file);
       ASSERT_TRUE(buffer) << "Expected successful file read";
 
       auto encoding = text::encoding::inferred::maybe::to_inferred_encoding(buffer.value());
@@ -483,7 +490,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Demonstrate monadic composition: file → buffer → encoding
-      auto result = persistent::in::text::path_to_byte_buffer_shortcut(temp_path)
+      auto result = path_to_byte_buffer_shortcut(temp_path)
         .and_then([](auto buffer) {
           AnnotatedMaybe<text::encoding::inferred::EncodingDetectionResult> encoding_result;
           auto maybe_encoding = text::encoding::inferred::maybe::to_inferred_encoding(buffer);
@@ -760,7 +767,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(temp_path);
+      auto buffer_result = path_to_byte_buffer_shortcut(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
@@ -949,7 +956,7 @@ namespace tests::csv_import_pipeline {
       }
 
       // Step 1: Read file to buffer
-      auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(temp_path);
+      auto buffer_result = path_to_byte_buffer_shortcut(temp_path);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Step 2: Detect encoding
@@ -4846,7 +4853,7 @@ namespace tests {
       logger::scope_logger log_raii{logger::development_trace, "TEST(TranscodingViews, LazyDecodingDetectedEncodingToUnicode)"};
 
       // Read UTF-8 file
-      auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
+      auto buffer_result = path_to_byte_buffer_shortcut(utf8_file);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Create lazy decoding view: bytes → Unicode code points
@@ -4907,7 +4914,7 @@ namespace tests {
       logger::scope_logger log_raii{logger::development_trace, "TEST(TranscodingViews, LazyTranscodingFullPipeline)"};
 
       // Read UTF-8 file
-      auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
+      auto buffer_result = path_to_byte_buffer_shortcut(utf8_file);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Create full lazy transcoding pipeline: bytes → Unicode → platform encoding
@@ -4939,7 +4946,7 @@ namespace tests {
       logger::scope_logger log_raii{logger::development_trace, "TEST(TranscodingViews, LazyViewForMemoryEfficiency)"};
 
       // Read file to buffer
-      auto buffer_result = persistent::in::text::path_to_byte_buffer_shortcut(utf8_file);
+      auto buffer_result = path_to_byte_buffer_shortcut(utf8_file);
       ASSERT_TRUE(buffer_result) << "Expected successful file read";
 
       // Detect encoding directly (or use known encoding for test)
