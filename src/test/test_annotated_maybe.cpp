@@ -285,7 +285,7 @@ namespace tests::csv_import_pipeline {
       std::string test_data = "Hello, World! This is test data.";
 
       auto result = 
-         persistent::in::text::monadic::injected_string_to_istream_ptr(test_data)
+         persistent::in::text::monadic::injected_string_to_istream_ptr_step(test_data)
         .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step);
 
       ASSERT_TRUE(result) << "Expected successful buffer read from stream";
@@ -340,7 +340,7 @@ namespace tests::csv_import_pipeline {
 
       // Demonstrate tap() for side effects without breaking the chain
       auto result =
-         persistent::in::text::monadic::injected_string_to_istream_ptr(test_data)
+         persistent::in::text::monadic::injected_string_to_istream_ptr_step(test_data)
         .tap([&stream_opened](auto const& ptr) {
           stream_opened++;
           EXPECT_TRUE(ptr != nullptr) << "Expected valid stream pointer";
@@ -2892,7 +2892,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_NORDEA_csv_20251120;
 
-      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(csv_text))
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr_step(std::string(csv_text))
         .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_inferred_encoding)
@@ -2920,7 +2920,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string csv_text = sz_SKV_csv_20251120;
 
-      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(csv_text))
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr_step(std::string(csv_text))
         .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_inferred_encoding)
@@ -2950,7 +2950,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string empty_text;
 
-      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(empty_text))
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr_step(std::string(empty_text))
         .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_inferred_encoding)
@@ -2968,7 +2968,7 @@ Alice,30,"Stockholm, Sweden"
 
       std::string invalid_text = "UnknownCol1,UnknownCol2\nvalue1,value2\n";
 
-      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr(std::string(invalid_text))
+      auto result = persistent::in::text::monadic::injected_string_to_istream_ptr_step(std::string(invalid_text))
         .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
         .and_then(text::encoding::monadic::to_with_inferred_encoding)
@@ -3505,7 +3505,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       // std::string csv_text = sz_SKV_0_0_BOM_ed;
 
-      auto maybe_table = persistent::in::text::maybe::injected_string_to_istream_ptr(csv_text)
+      auto maybe_table = persistent::in::text::maybe::injected_string_to_istream_ptr_step(csv_text)
         .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
         .and_then(text::encoding::maybe::to_with_inferred_encoding)
@@ -3987,7 +3987,7 @@ namespace tests::csv_table_identification {
       // std::string csv_text = sz_SKV_0_0;
       std::string csv_text = sz_SKV_0_0_BOM_ed;
 
-      auto maybe_table = persistent::in::text::maybe::injected_string_to_istream_ptr(csv_text)
+      auto maybe_table = persistent::in::text::maybe::injected_string_to_istream_ptr_step(csv_text)
         .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
         .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
         .and_then(text::encoding::maybe::to_with_inferred_encoding)

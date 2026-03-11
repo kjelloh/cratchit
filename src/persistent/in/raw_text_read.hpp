@@ -32,13 +32,13 @@ namespace persistent {
 
 
       namespace maybe {
-        std::optional<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s);
+        std::optional<std::unique_ptr<std::istream>> injected_string_to_istream_ptr_step(std::string s);
         std::optional<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path);
         std::optional<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr);
       } // maybe
 
       namespace monadic {
-        AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s);
+        AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr_step(std::string s);
         AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path);
         AnnotatedMaybe<ByteBuffer> istream_ptr_to_byte_buffer_step(std::unique_ptr<std::istream>&& istream_ptr);
       } // monadic

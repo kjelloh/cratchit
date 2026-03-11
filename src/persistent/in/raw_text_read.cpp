@@ -29,7 +29,7 @@ namespace persistent {
 
       namespace maybe {
 
-        std::optional<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
+        std::optional<std::unique_ptr<std::istream>> injected_string_to_istream_ptr_step(std::string s) {
           std::optional<std::unique_ptr<std::istream>> result{};
           auto iss_ptr = std::make_unique<std::istringstream>(s);
           if (*iss_ptr) {
@@ -94,14 +94,14 @@ namespace persistent {
       namespace monadic {
 
         // Helper std::string -> maybe istream
-        AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr(std::string s) {
+        AnnotatedMaybe<std::unique_ptr<std::istream>> injected_string_to_istream_ptr_step(std::string s) {
 
           auto f = cratchit::functional::to_annotated_maybe_f(
-            persistent::in::text::maybe::injected_string_to_istream_ptr
+            persistent::in::text::maybe::injected_string_to_istream_ptr_step
             ,std::format("{} bytes -> stream",s.size())
           );
           return f(s);
-        } // injected_string_to_istream_ptr
+        } // injected_string_to_istream_ptr_step
 
         AnnotatedMaybe<std::unique_ptr<std::istream>> path_to_istream_ptr_step(std::filesystem::path const& file_path) {
 
