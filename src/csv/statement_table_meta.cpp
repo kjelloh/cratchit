@@ -585,7 +585,7 @@ namespace account {
               if (true) logger::development_trace(
                   "Matches SKV_ROW_0_MAP_0:{}"
                 ,to_string(SKV_ROW_0_MAP_0));
-                candidate = AccountID{"SKV","??"};
+                candidate = AccountID{"SKV","Anonymous"};
                 return candidate; // SUCCESS
             }
 

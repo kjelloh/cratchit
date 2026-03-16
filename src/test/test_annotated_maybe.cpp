@@ -4714,7 +4714,7 @@ namespace tests {
     // Verify all entries have correct Account tag
     for (auto const& ta : *result) {
       ASSERT_TRUE(ta.tags().contains("Account"));
-      EXPECT_EQ(ta.tags().at("Account"), "SKV::??");
+      EXPECT_EQ(ta.tags().at("Account"), "SKV::Anonymous");
     }
   }
 
