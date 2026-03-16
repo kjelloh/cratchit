@@ -637,7 +637,7 @@ namespace account {
             if (true) logger::development_trace("column_headings_map:{}",column_headings_map);
 
             // {0: "Bokföringsdag", 1: "Belopp", 4: "Namn", 5: "Ytterligare detaljer", 8: "Saldo", 9: "Valuta"}
-            const auto NORDEA_HEADING_MAP = std::map<FieldIx,std::string>{
+            const auto NORDEA_HEADING_MAP_1 = std::map<FieldIx,std::string>{
               {0,"Bokföringsdag"}
               ,{1,"Belopp"}
               ,{4,"Namn"}
@@ -646,7 +646,28 @@ namespace account {
               ,{9,"Valuta"}
             };
 
-            if (column_headings_map == NORDEA_HEADING_MAP) {
+            // {0: "Datum", 1: "Belopp", 5: "Ytterligare detaljer", 8: "Saldo", 9: "Valuta"}
+            const auto NORDEA_HEADING_MAP_2 = std::map<FieldIx,std::string>{
+               {0,"Datum"}
+              ,{1,"Belopp"}
+              ,{5,"Ytterligare detaljer"}
+              ,{8,"Saldo"}
+              ,{9,"Valuta"}
+            };
+
+            // {0: "Datum", 1: "Belopp", 5: "Ytterligare detaljer", 6: "Meddelande", 8: "Saldo", 9: "Valuta"}
+            const auto NORDEA_HEADING_MAP_3 = std::map<FieldIx,std::string>{
+               {0,"Datum"}
+              ,{1,"Belopp"}
+              ,{5,"Ytterligare detaljer"}
+              ,{6,"Meddelande"}
+              ,{8,"Saldo"}
+              ,{9,"Valuta"}
+            };
+
+            if (     (column_headings_map == NORDEA_HEADING_MAP_1)
+                  or (column_headings_map == NORDEA_HEADING_MAP_2)
+                  or (column_headings_map == NORDEA_HEADING_MAP_3)) {
               candidate = AccountID{"NORDEA","??"};
               return candidate; // SUCCESS
             }

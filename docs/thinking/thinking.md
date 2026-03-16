@@ -2,6 +2,42 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260316
+
+So am I now ready to close the claude-001-refactor-csv-import-pipeline branch?
+
+* Does account statement -> tagged amounts -> HADs -> SIE still work for new pipeline?
+  1. Download account statements for jan+feb
+  2. Check that cratchit imports them ok
+  3. Check that tagged amounts -> HADs work
+  4. Check that HADs can be turned into SIE ok (with the potentially new tag content they now have)
+* I the generated logs acceptable (or do I need to disable excessive logging)?
+  1. Erase all logs
+  2. Do run --nop, run --test and run + exit and clean logs
+
+When these actions are done - consider to merge claude-001-refactor-csv-import-pipeline back to master?
+
+I now have downloaded account statement files and started cratchit with them.
+
+* Parse NORDEA and SKV files confirmed OK.
+* Account ID
+  - SKV::5567828172 for SKV OK.
+  - Generisk::?? for NORDEA
+
+Follow up questions:
+
+* Is SKV::5567828172 generated from file content?
+* Should I make NORDEA account statement map to NORDEA::Generic?
+
+I now have tried to use account statement tagged amounts to turn them into SIE.
+
+* Tagged Amounts -> HADS OK
+* HADs -> candidates OK
+
+So all in all cratchit seems to work just fine as is?
+
+So why does cratchit not recognise the NORDEA account statement format?
+
 ## 20260311
 
 You know what? I imagine I want to do two things before merging back to master?
