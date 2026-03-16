@@ -38,6 +38,16 @@ So all in all cratchit seems to work just fine as is?
 
 So why does cratchit not recognise the NORDEA account statement format?
 
+OK, so I brute forced identification of account ID and made minor changes:
+
+* Three variants of NORDEA now identified OK
+  - The header has changed
+  - The common map changes with content in columns like 'Namn' and 'Meddelande'
+* Account number '??' now replaved with 'Anonymous'
+* Generic account is now labelled 'Generic' (english)
+
+You know what? Lets now merge this back to master! We can attend to logging later.
+
 ## 20260311
 
 You know what? I imagine I want to do two things before merging back to master?
