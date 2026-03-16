@@ -2293,8 +2293,8 @@ Alice,30,"Stockholm, Sweden"
 
       // Verify AccountID is preserved
       ASSERT_TRUE(maybe_statement->meta().m_maybe_account_irl_id.has_value());
-      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "Generisk");
-      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, "??");
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_prefix, "Generic");
+      EXPECT_EQ(maybe_statement->meta().m_maybe_account_irl_id->m_value, "Anonymous");
     }
 
     TEST(CSVTable2AccountStatementTests, CsvTableToAccountStatementWithInvalidTable) {
@@ -2442,7 +2442,7 @@ Alice,30,"Stockholm, Sweden"
       ASSERT_TRUE(maybe_table.has_value()) << "Failed to parse generic CSV";
       auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(*maybe_table);
       EXPECT_TRUE(maybe_statement_id_ed) << "Expected valid Name,Amount,Date statement to be accepted";
-      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generisk")
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generic")
         << "Expected NORDEA prefix when header contains NORDEA keywords";
     }
 
@@ -2491,7 +2491,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
 
       ASSERT_TRUE(maybe_statement_id_ed.has_value()) << "Expected valid statement id:ed";
-      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generisk")
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generic")
         << "Expected Generic prefix for Generic statement table";
     }
 
@@ -2507,7 +2507,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
 
       ASSERT_TRUE(maybe_statement_id_ed.has_value()) << "Expected valid statement id:ed";
-      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generisk")
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generic")
         << "Expected Generic prefix for Generic statement table";
     }
 
@@ -2529,7 +2529,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
 
       ASSERT_TRUE(maybe_statement_id_ed.has_value()) << "Expected valid statement id:ed";
-      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generisk")
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generic")
         << "Expected Generic prefix for Generic statement table";
     }
 
@@ -2546,7 +2546,7 @@ Alice,30,"Stockholm, Sweden"
       auto maybe_statement_id_ed = account::statement::maybe::to_statement_id_ed_step(generic_statement_table);
 
       ASSERT_TRUE(maybe_statement_id_ed.has_value()) << "Expected valid statement id:ed";
-      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generisk")
+      EXPECT_EQ(maybe_statement_id_ed->meta.account_id.m_prefix, "Generic")
         << "Expected Generic prefix for Generic statement table";
     }
 

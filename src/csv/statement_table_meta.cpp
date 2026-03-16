@@ -694,7 +694,7 @@ namespace account {
           TableMeta result{
              .statement_mapping = maybe_statement_mapping.value_or(StatementMapping{})
             ,.column_mapping = maybe_column_mapping.value_or(ColumnMapping{})
-            ,.account_id = maybe_account_id.value_or(AccountID{"Generisk","??"})
+            ,.account_id = maybe_account_id.value_or(AccountID{"Generic","Anonymous"})
           };
           return result;
         } // generic_like_to_statement_table_meta
