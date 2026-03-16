@@ -7,11 +7,17 @@
 
 namespace logger {
 
+  enum class LogToConsole : bool {
+     ON = true
+    ,OFF = false
+  };
+
   class proxy {
   public:
     proxy(std::string const& caption) 
       :  m_caption{caption}
-        ,m_indent_string{} {}
+        ,m_indent_string{}
+        ,m_log_to_console{LogToConsole::OFF} {}
 
     /*
       * proxy("String with {}...",args to format) 
@@ -19,8 +25,11 @@ namespace logger {
     template <typename... Args>
     proxy& operator()(std::format_string<Args...> fmt, Args&&... args) {
         auto msg = std::format(fmt, std::forward<Args>(args)...);
-        auto log_string = std::format("{}: {}", m_caption, msg);
-        spdlog::info("{}{}",m_indent_string,log_string);
+        auto formatted = std::format("{}: {}", m_caption, msg);
+        spdlog::info("{}{}",m_indent_string,formatted);
+        if (m_log_to_console == LogToConsole::ON) {
+          std::print("\n{}{}",m_indent_string,formatted);
+        }
         return *this;
     }
 
@@ -29,7 +38,10 @@ namespace logger {
       */
     proxy& operator()(const char* msg) {
       auto formatted = std::format("{}: {}", m_caption, msg);
-      spdlog::info("{}", formatted);
+      spdlog::info("{}{}",m_indent_string,formatted);
+      if (m_log_to_console == LogToConsole::ON) {
+        std::print("\n{}{}",m_indent_string,formatted);
+      }
       return *this;
     }
 
@@ -48,6 +60,13 @@ namespace logger {
   private:
     std::string m_caption;
     std::string m_indent_string;
+    LogToConsole m_log_to_console;
+    proxy& log_to_console(LogToConsole flag) {
+      m_log_to_console = flag;
+      return *this;
+    }
+    friend class scope_logger;
+
   };
 
   class std_out_proxy {
@@ -74,14 +93,22 @@ namespace logger {
 
   class scope_logger {
   public:
-    scope_logger(proxy& p,std::string const& caption)
+    scope_logger(proxy& p,std::string const& caption,LogToConsole log_to_console = LogToConsole::OFF)
       :  m_proxy{p}
         ,m_caption(caption) {
+      m_proxy.log_to_console(log_to_console);
       m_proxy("BEGIN {}",m_caption).indent(2);
     }
     ~scope_logger() {
       m_proxy.unindent(2)("END {}",m_caption);
+      m_proxy.log_to_console(LogToConsole::OFF); // Scoped logging to console
     }
+
+    scope_logger& log_to_console(LogToConsole flag) {
+      m_proxy.log_to_console(flag);
+      return *this;
+    }
+
   private:
     proxy& m_proxy;
     std::string m_caption;

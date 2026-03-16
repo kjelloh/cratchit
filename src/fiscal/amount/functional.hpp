@@ -1,6 +1,6 @@
 #pragma once
 
-#include "TaggedAmountFramework.hpp" // TaggedAmount, Date, CentsAmount
+#include "TaggedAmount.hpp" // TaggedAmount, Date, CentsAmount
 #include "functional/combinators.hpp" // cratchit::functional::xxx
 #include <algorithm>
 #include <functional>

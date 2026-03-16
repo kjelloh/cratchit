@@ -19,6 +19,7 @@ float const VERSION = 0.5;
 #include "PersistentFile.hpp"
 #include "text/charset.hpp"
 #include "text/encoding.hpp"
+#include "persistent/in/encoding_aware_read.hpp"
 #include "sie/sie.hpp"
 #include "csv/csv.hpp"
 #include "csv/projections.hpp"
@@ -1708,7 +1709,7 @@ inline TaggedAmounts to_tagged_amounts(BAS::MDJournalEntry const& mdje) {
 namespace CSV {
 
 	namespace NORDEA {
-		class istream : public text::encoding::UTF8::istream {};
+		class istream : public persistent::in::UTF8::istream {};
 
 		// Assume Finland located bank Nordea swedish web csv format of transactions to/from an account
 		/*
@@ -2761,6 +2762,7 @@ namespace SKV { // SKV
 			// The SKV XML IT-system requires 12 digit organisation numbers with digits only
 			// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into 16XXXXXXYYYY
 			// See https://sv.wikipedia.org/wiki/Organisationsnummer
+      // TODO: Also see SKV::OrgNo and SKV::to_org_no introduced for SKV statement csv table parse/20260211
 			std::string sdigits = functional::text::filtered(generic_org_no,::isdigit);
 			switch (sdigits.size()) {
 				case 10: result = std::string{"16"} + sdigits; break;
@@ -3335,6 +3337,7 @@ namespace SKV { // SKV
 				// The SKV CSV IT-system requires 10 digit organisation numbers with digits only
 				// E.g., SIE-file organisation XXXXXX-YYYY has to be transformed into XXXXXXYYYY
 				// See https://sv.wikipedia.org/wiki/Organisationsnummer
+        // TODO: Also see SKV::OrgNo and SKV::to_org_no introduced for SKV statement csv table parse/20260211
 				std::string sdigits = functional::text::filtered(generic_org_no,::isdigit);
 				switch (sdigits.size()) {
 					case 10: result = sdigits; break;
@@ -4363,8 +4366,8 @@ struct CratchitFSMeta {
   // ConfiguredSIEFilePaths m_configured_sie_file_paths{};
 };
 struct CratchitFSDefacto {
-  virtual persistent::in::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & {
-    return persistent::in::to_maybe_istream(file_path);
+  virtual persistent::in::text::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & {
+    return persistent::in::text::to_maybe_istream(file_path);
   }
 };
 using CratchitFSDefactoPtr = std::unique_ptr<CratchitFSDefacto>;

@@ -1,3 +1,33 @@
+2025-11-30 Struggling with cleaning up after Claude 'monadic file -> tagged amounts'
+
+  It seems I have the first half of steps in AnnotatedMaybe ok?
+
+  | Step | Function                                 | Return Type                      | Namespace                 | File                                    |
+  |------|------------------------------------------|----------------------------------|---------------------------|-----------------------------------------|
+  | 1    | path_to_istream_ptr_step                 | AnnotatedMaybe<istream*>         | persistent::in::monadic   | file_reader.hpp                         |
+  | 2    | istream_ptr_to_byte_buffer_step          | AnnotatedMaybe<ByteBuffer>       | persistent::in::monadic   | file_reader.hpp                         |
+  | 3    | to_with_threshold_step                   | AnnotatedMaybe<WithThreshold...> | text::encoding::monadic   | encoding_pipeline.hpp                   |
+  | 4    | to_with_detetced_encoding_step           | AnnotatedMaybe<WithDetected...>  | text::encoding::monadic   | encoding_pipeline.hpp                   |
+  | 5    | to_platform_encoded_string_step          | AnnotatedMaybe<string>           | text::encoding::monadic   | encoding_pipeline.hpp                   |
+
+
+  And have the final (higher) steps only in optional?
+
+  | 6    | csv_text_to_table_step                   | std::optional<CSV::Table>        | CSV::parse::maybe         | parse_csv.hpp                           |
+  | 6.5  | to_account_id_ed_step                    | std::optional<MDTable<...>>      | account::statement::maybe | csv_to_account_id.hpp                   |
+  | 7    | csv_table_to_account_statement_step      | std::optional<AccountStatement>  | ⚠️ account::statement     | csv_to_account_statement.hpp            |
+  | 8    | account_statement_to_tagged_amounts_step | std::optional<TaggedAmounts>     | tas::maybe                | account_statement_to_tagged_amounts.hpp |
+
+  // And I have these (redundant?) shortcut functions?
+
+  1. path_to_byte_buffer_shortcut (Steps 1-2)
+  2. path_to_platform_encoded_string_shortcut (Steps 1-5) ⭐ Complete file→text
+  3. csv_table_to_tagged_amounts_shortcut (Steps 7-8)
+  4. table_to_tagged_amounts_shortcut (Steps 6.5, 7-8)
+  5. csv_to_tagged_amounts_shortcut (Steps 6, 6.5, 7-8)
+  6. path_to_account_statement_shortcut (Steps 1-7)
+  7. path_to_tagged_amounts_shortcut (Steps 1-8) ⭐ Complete pipeline
+
 2025-06-14 REFACTORED
     + Renamed RBD to HAD (established english Heading Amout Date)
     + Now processes environment for HADs ok (test code for non existing key removed)

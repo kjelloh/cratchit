@@ -24,7 +24,7 @@ namespace first {
   private:
     // std::filesystem::path m_file_path;
     PeriodPairedFilePath m_period_paired_file_path;
-    CSV::ParseCSVResult m_parse_csv_result;
+    AnnotatedMaybe<CSV::Table> m_maybe_table_result;
     
   }; // AccountStatementFileState
 }

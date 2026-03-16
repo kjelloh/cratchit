@@ -34,7 +34,27 @@ find_package(immer REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(GTest REQUIRED)
 
-add_executable(cratchit 
+add_executable(
+        cratchit
+
+        src/test/test_annotated_maybe.cpp
+
+        src/csv/statement_table_meta.cpp
+        src/domain/csv_to_account_statement.cpp
+        src/csv/csv_to_statement_id_ed.cpp
+        src/domain/account_statement_to_tagged_amounts.cpp
+        src/fiscal/amount/TaggedAmount.cpp
+
+        src/test/test_runner.cpp
+        src/test/test_fixtures.cpp
+        src/test/test_integrations.cpp
+        src/test/test_atomics.cpp
+        src/test/test_annotated_optional.cpp
+        src/test/test_amount_framework.cpp
+        src/test/test_swedish_bank_account.cpp
+        src/test/test_giro_framework.cpp
+        src/test/zeroth/test_zeroth.cpp
+
         src/cratchit.cpp 
         src/cratchit_tea.cpp
         src/tea/ncurses_head.cpp
@@ -58,11 +78,9 @@ add_executable(cratchit
         src/FiscalPeriod.cpp
         src/fiscal/amount/AmountFramework.cpp 
         src/fiscal/amount/TaggedAmountFramework.cpp
-        src/test/test_runner.cpp
-        src/test/test_fixtures.cpp
-        src/test/test_integrations.cpp
-        src/test/test_atomics.cpp
         src/fiscal/BASFramework.cpp
+        src/fiscal/BBANFramework.cpp
+        src/fiscal/SwedishGiroFramework.cpp
         src/fiscal/amount/HADFramework.cpp
         src/Key.cpp
         src/fiscal/SKVFramework.cpp
@@ -83,9 +101,19 @@ add_executable(cratchit
         src/text/format.cpp
         src/sie/SIEEnvironment.cpp
         src/sie/SIEEnvironmentframework.cpp
-        src/test/zeroth/test_zeroth.cpp
         src/persistent/in/maybe.cpp
-        src/HAD2JournalEntryFramework.cpp)
+        src/HAD2JournalEntryFramework.cpp
+        src/text/functional.cpp
+        src/cpp_compile_playground.cpp
+        src/text/encoding_pipeline.cpp
+        src/persistent/in/raw_text_read.cpp
+
+        src/text/to_inferred_encoding.cpp
+        src/persistent/out/raw_text_write.cpp
+        src/persistent/in/encoding_aware_read.cpp 
+        src/persistent/out/encoding_aware_write.cpp 
+
+      )
 
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)
@@ -93,7 +121,7 @@ add_executable(cratchit
 
 target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-target_link_libraries(cratchit PRIVATE sol2::sol2 Curses::Curses)
+target_link_libraries(cratchit PRIVATE sol2::sol2)
 target_link_libraries(cratchit PRIVATE Curses::Curses)
 target_link_libraries(cratchit PRIVATE pugixml::pugixml)
 target_link_libraries(cratchit PRIVATE ICU::i18n ICU::uc)

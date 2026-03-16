@@ -1,5 +1,7 @@
 #pragma once
 
+#include <numeric> // std::accumulate,...
+
 // 1. map 2. fold (reduce) 3. scan 4. key 5. stencil 6. filter 7. partition
 // 8. groupBy (or bucketBy) 9. sortBy 10. zip / zipWith
 

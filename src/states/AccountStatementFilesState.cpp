@@ -148,7 +148,8 @@ namespace first {
 
   AccountStatementFilesState::FilePaths AccountStatementFilesState::scan_from_bank_or_skv_directory() {
     FilePaths result;
-    std::filesystem::path dir_path = "from_bank_or_skv";
+    // std::filesystem::path dir_path = "from_bank_or_skv";
+    std::filesystem::path dir_path = "from_bank_or_skv/consumed";
     
     try {
       if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path)) {

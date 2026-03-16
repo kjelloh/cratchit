@@ -1,5 +1,46 @@
 # cratchit developers manual
 
+* Also see AI assistance [ai/README.md](ai/README.md)
+
+## Cmake quirk to trigger a clean rebuild
+
+I found it super hard to figure out if and how I can tell cmake to tell my tool chain to do a celan rebuild based on a cmake preset? 
+
+So far I have failed to have cmake do the work for me. So instead I have started to:
+
+1. Remove the whole build folder
+2. Do ./init_toolchain.zsh again
+3. Do ./run.zsh --nop
+
+With the build directory 'fresh' cmake and tool chain has no choice but to do everything from scratch! 
+
+All the hoops a C++ programmer needs to jump trhiough...
+
+## REPL like python based rinse_and_repeat.py script
+
+The python script 'rinse_and_repeat.py' observes the src folder for changes. And if a change is detected it will execute the command in 'command_to_repeat.txt'.
+
+On macOS I have found it is more conveniant to start a python virtual envirnment and do 'pip install watchdog' there. In this way you don't have to fight macOS protecting changes to the global python environment.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % python -m venv venv
+
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % source venv/bin/activate
+(venv) kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ./rinse_and_repeat.py
+Traceback (most recent call last):
+  File "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/./rinse_and_repeat.py", line 3, in <module>
+    from watchdog.observers import Observer
+ModuleNotFoundError: No module named 'watchdog'
+(venv) kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % pip install watchdog
+
+Collecting watchdog
+  Using cached watchdog-6.0.0-cp314-cp314-macosx_14_0_arm64.whl
+Installing collected packages: watchdog
+Successfully installed watchdog-6.0.0
+(venv) kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ./rinse_and_repeat.py
+👀 Watching src/ for changes... (Press Ctrl+C to stop)
+```
+
 ## git command reference (good to remember)
 
 To get a 'proper' visual feed back how branches relates to master the 'git log' with '--graph' seems to do the job and show branches 'indented' in paralell with 'matsre' as I like to have it visualised?
@@ -92,4 +133,3 @@ if (environment.contains("sie_file")) {
 Maybe it would be better to organise SIE files indexed by an actual financial year?
 
 20250806 - Started refactoring from SIEEnvironments_X -> SIEEnvironments_R. Where 'X' maps from int 0,-1,-2... relative index to SIEEnvironment and 'R maps Date -> SIEEnvironment (Date being forst day of financial year)
-

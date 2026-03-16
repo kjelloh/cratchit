@@ -1,4 +1,5 @@
 #include "SIEEnvironmentFramework.hpp"
+#include "persistent/in/encoding_aware_read.hpp"
 #include "logger/log.hpp"
 #include <fstream> // std::ifstream,...
 #include <vector>
@@ -26,9 +27,13 @@ BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
 }
 
 OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
+
+  // scope Log
+  logger::scope_logger log_raii{logger::development_trace,"sie_from_stream"};
+
   OptionalSIEEnvironment result{};
 
-  text::encoding::CP437::istream cp437_in{cp437_is};
+  persistent::in::CP437::istream cp437_in{cp437_is};
   if (!cp437_in) {
     logger::cout_proxy << "\nFailed to open stream ";
     return result;
@@ -60,7 +65,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
   }
 
   if (parsed_elements.empty()) {
-    logger::cout_proxy << "\nNo SIE elements found";
+    logger::development_trace("No SIE elements found");
     return result;
   }
 
@@ -119,7 +124,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
 }
 
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
-  return persistent::in::to_maybe_istream(sie_file_path);
+  return persistent::in::text::to_maybe_istream(sie_file_path);
 }
 
 // ------------------------------------------

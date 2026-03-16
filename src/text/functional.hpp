@@ -2,6 +2,8 @@
 #include "tokenize.hpp" // TODO: Consider to move here?
 #include <string>
 #include <algorithm> // std::copy_if,
+#include <map>
+#include <sstream> // std::ostringstream,...
 
 namespace functional {
   namespace text {
@@ -17,6 +19,36 @@ namespace functional {
 namespace text {
   namespace functional {
 
+      // TODO: Find a way to make these functions process 'runtime encoded' string views.
+      //       There are range adaptors in text/transcoding_views.hpp that projects a 'byte range'
+      //       to a 'unicode code point' range.
+      //       I had Calude Code generate it for me but it is A MESS!
+      //       But the idea is sound I think.
+      //       1. Asume all internal text is in 'runtime encoding' (For now UTF-8 semi-hard-coded and/or asumed)
+      //       2. Process by projecting runtoime encoded text to unicode code point range
+      //       In this way we can have text encoded efficiently and project to unicde only when required?
+
+      // Trim whitespace from both ends
+      std::string_view trim(std::string_view s);
+
+      size_t count_alpha(std::string_view s);
+
+      // Count digits in a string
+      size_t count_digits(std::string_view s);
+
+      // Check if string contains only digits
+      bool is_all_digits(std::string_view s);
+
+      // Check if suffix is all zeros
+      bool is_all_zeros(std::string_view s);
+
+      // Find dash position in string
+      std::optional<size_t> find_dash_position(std::string_view s);
+
+      // Count occurrences of dash character
+      size_t count_dashes(std::string_view s);
+
+      bool contains_any_keyword(std::string_view text, std::initializer_list<std::string_view> keywords);
 
       inline std::string utf_ignore_to_upper(std::string const& s) {
 
@@ -55,6 +87,26 @@ namespace text {
       auto upper_s2 = utf_ignore_to_upper(s2);
       return (upper_s2.find(upper_s1) != std::string::npos);
     }
+
+    namespace out {
+
+      template <typename K,typename T>
+      std::string to_string(std::map<K,T> const& c,std::string sep = " ") {
+        std::ostringstream os{};
+        bool not_first{false};
+        std::for_each(c.begin(), c.end(), [&sep,&not_first, &os](auto const& entry) {
+          if (not_first) {
+            os << sep; // separator
+          }
+          os << entry.first;
+          os << "=";
+          os << entry.second;
+          not_first = true;
+        });
+        return os.str();
+      }
+
+    }
   
-  }
-}
+  } // functional
+} // text

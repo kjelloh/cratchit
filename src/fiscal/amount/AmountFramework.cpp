@@ -14,9 +14,6 @@ namespace WrappedCentsAmount {
   }
 }
 
-namespace WrappedDoubleAmount {
-} // namespace WrappedDoubleAmount
-
 namespace IntCentsAmount {
 } // namespace IntCentsAmount
 
@@ -24,53 +21,160 @@ namespace WrappedDoubleAmount {
     Amount::Amount(double value)  {
       // Convert to integer representation of cents
       long long cents = static_cast<long long>(std::round(value * 100));
-      double converted_back = cents / 100.0;
-      auto error = std::fabs(value - converted_back);
+      double cent_rounded_value = cents / 100.0;
+      auto error = std::fabs(value - cent_rounded_value);
 
       // If the converted back value does not match the original, it had more than two decimal places
+      // Note 20260205 - It seems floating-point values cannot represent most decimal fractions exactly.
+      //                 Therefore value*100 and /100 can produce visible representation error.
+      //                 Example: 0.29 * 100 may become 28.999999999999996.
       // Note 240601 - The value 0.01 comes from practical testing. I still fail to understand
       //               how *100 followed by /100 can introduce such a large error?
       //               This code seems to work for now.
       //               TODO: refactor Cratchit to represent Currency values as whole integer cents to avoid the floating point precision problems!
       if (error > 0.01) {
-        std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") has more than two decimal places. Error:" << error << ". Rounded it to " << converted_back;
-        this->m_double_value = converted_back;
+        std::cout << "\nDESIGN_INSUFFICIENCY: Amount(" << value << ") has more than two decimal places. Error:" << error << ". Rounded it to " << cent_rounded_value;
+        this->m_double_value = cent_rounded_value;
       } else {
         this->m_double_value = value; // ok    
       }
         
+    } // Amount
+
+    Amount& Amount::operator+=(const Amount& other) {
+      this->m_double_value += other.m_double_value;
+      return *this;
+    } // operator+=
+
+    Amount Amount::operator+(const Amount& other) const {
+      Amount result{*this};
+      result += other;
+      return result;
+    } // operator+
+
+    Amount Amount::operator-(const Amount& other) const {
+      return Amount(m_double_value - other.m_double_value); 
+    } // operator-
+
+    Amount Amount::operator-() const {
+      return Amount(-m_double_value); 
+    } // operator-
+
+    Amount Amount::operator*(double scalar) const {
+      return Amount(m_double_value * scalar); 
+    } // operator*
+
+    double Amount::operator/(const Amount& other) const {
+      return m_double_value / other.m_double_value;
+    } // operator/
+
+    Amount Amount::operator/(double divisor) const {
+      return Amount(m_double_value / divisor); 
     }
+
+    bool Amount::operator==(Amount const& other) const {
+      // return this->m_double_value == other.m_double_value;
+      // Hard code cents-based-equal
+      return std::llround(m_double_value * 100) ==
+            std::llround(other.m_double_value * 100);
+    } // operator==
 
 } // namespace WrappedDoubleAmount
 
 namespace DoubleAmount {
 } // namespace DoubleAmount
 
+/**
+ * Normalize amount string to standard format for parsing
+ *
+ * Handles various number formats:
+ * - Swedish: "1 538,50" (space thousands, comma decimal)
+ * - English: "1,538.50" (comma thousands, dot decimal)
+ * - Plain: "1538.50" or "1538,50"
+ *
+ * Returns normalized string with dot as decimal separator and no thousands separators
+ */
+namespace {
+  std::string normalize_amount_string(std::string const& input) {
+    std::string result;
+    result.reserve(input.size());
+
+    // Determine format by analyzing the string
+    bool has_dot = input.find('.') != std::string::npos;
+    auto comma_pos = input.rfind(',');  // Find last comma
+    bool comma_is_decimal = false;
+
+    if (comma_pos != std::string::npos) {
+      // Comma is decimal separator if:
+      // 1. No dot exists AND
+      // 2. Comma is followed by 1-2 digits at the end (e.g., "123,5" or "123,50")
+      if (!has_dot) {
+        size_t digits_after_comma = 0;
+        for (size_t i = comma_pos + 1; i < input.size(); ++i) {
+          if (std::isdigit(static_cast<unsigned char>(input[i]))) {
+            digits_after_comma++;
+          } else {
+            break;  // Non-digit found
+          }
+        }
+        // Check if all remaining chars after comma are digits and count is 1-2
+        bool all_digits_after = (comma_pos + 1 + digits_after_comma == input.size());
+        comma_is_decimal = all_digits_after && (digits_after_comma >= 1 && digits_after_comma <= 2);
+      }
+      // If dot exists, comma is thousands separator (English format)
+    }
+
+    for (char ch : input) {
+      if (ch == ' ' || ch == '\xA0') {
+        // Skip space and non-breaking space (thousands separators)
+        continue;
+      }
+      else if (ch == ',') {
+        if (comma_is_decimal) {
+          result += '.';  // Convert decimal comma to dot
+        }
+        // else: skip comma (thousands separator)
+      }
+      else {
+        result += ch;
+      }
+    }
+
+    return result;
+  }
+} // anonymous namespace
+
 OptionalAmount to_amount(std::string const& sAmount) {
-	// std::cout << "\nto_amount " << std::quoted(sAmount);
-	OptionalAmount result{};
-	Amount amount{};
-	std::istringstream is{sAmount};
-	if (auto pos = sAmount.find(','); pos != std::string::npos) {
-		// Handle 123,45 ==> 123.45
-		result = to_amount(std::accumulate(sAmount.begin(),sAmount.end(),std::string{},[](auto acc,char ch){
-			acc += (ch==',')?'.':ch;
-			return acc;
-		}));
-	}
-	else if (is >> amount) {
-		result = amount;
-	}
-	else {
-		// handle integer (no decimal point)
-		try {
-			auto int_amount = std::stoi(sAmount);
-			result = static_cast<Amount>(int_amount);
-		}
-		catch (std::exception const& e) { /* failed - do nothing */}
-	}
-	// if (result) std::cout << "\nresult " << *result;
-	return result;
+  OptionalAmount result{};
+
+  // Handle empty or whitespace-only input
+  if (sAmount.empty()) {
+    return result;
+  }
+
+  // Normalize the amount string
+  std::string normalized = normalize_amount_string(sAmount);
+
+  // Handle case where normalization results in empty string
+  if (normalized.empty()) {
+    return result;
+  }
+
+  // Try parsing with std::stod
+  try {
+    size_t pos = 0;
+    double value = std::stod(normalized, &pos);
+
+    // Verify entire string was consumed (no trailing garbage)
+    if (pos == normalized.size()) {
+      result = Amount{value};
+    }
+  }
+  catch (std::exception const&) {
+    // Parsing failed - return empty optional
+  }
+
+  return result;
 }
 
 std::string to_string(Amount const& amount) {

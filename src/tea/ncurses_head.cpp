@@ -55,6 +55,55 @@ namespace TEA {
       wnoutrefresh(win); // Update to buffer
     }
 
+    // Hand-rolled encoding-aware box function
+    // TODO: Consider to investigate why ncurses own box() function stopped rendering correct border on my macOS machine?
+    //       I spend HOURS trying to understand how it works (but failed)
+    //       It has something to do with box() using 'Alternate Character Set' and mapping to DEC graphics block characters
+    //       Somehow the DEC graphics support seems to have 'disapperaed' from my machine?
+    //       I got plain ascii characters as framing.
+    //       This hand-rolled box renderer does the job for UTF-8 for now.
+    // NOTE: The whole runtime encoding mechanism is full of holes ofr now. Consider it a 'seed' for now...
+    void encoding_aware_box(WINDOW* win, text::encoding::EncodingID detected_encoding) {
+        int rows, cols;
+        getmaxyx(win, rows, cols);
+
+        // Characters to draw depending on encoding
+        std::string tl, tr, bl, br, h, v;
+
+        switch (detected_encoding) {
+            case text::encoding::EncodingID::UTF8: {
+                // UTF-8 box-drawing characters
+              // NOTE: Requires this source code file is UTF-8 encoded! (The C++ source code file encoding mess...)
+                tl = "┌"; tr = "┐"; bl = "└"; br = "┘";
+                h  = "─"; v  = "│";
+            } break;
+
+            default: {
+                // ASCII fallback
+                tl = "+"; tr = "+"; bl = "+"; br = "+";
+                h  = "-"; v  = "|";
+            } break;
+        }
+
+        // Draw corners
+        mvwaddstr(win, 0, 0, tl.c_str());
+        mvwaddstr(win, 0, cols-1, tr.c_str());
+        mvwaddstr(win, rows-1, 0, bl.c_str());
+        mvwaddstr(win, rows-1, cols-1, br.c_str());
+
+        // Draw top/bottom horizontal lines
+        for (int x = 1; x < cols-1; ++x) {
+            mvwaddstr(win, 0, x, h.c_str());          // top
+            mvwaddstr(win, rows-1, x, h.c_str());    // bottom
+        }
+
+        // Draw left/right vertical lines
+        for (int y = 1; y < rows-1; ++y) {
+            mvwaddstr(win, y, 0, v.c_str());          // left
+            mvwaddstr(win, y, cols-1, v.c_str());    // right
+        }
+    }
+
     // Renders doc as HTML to ncurses screen
     // Note: HTML doc semantics may be tested at:
     // https://www.w3schools.com/html/tryit.asp?filename=tryhtml_intro
@@ -72,14 +121,14 @@ namespace TEA {
 
       // Create windows for the app screen sections
       WINDOW *top_win = newwin(section_height, screen_width, 0, 0);
-      box(top_win, 0, 0); // Draw border around the top section
+      encoding_aware_box(top_win, text::encoding::EncodingID::UTF8); // Draw border around the top section
 
       WINDOW *middle_win = newwin(section_height, screen_width, section_height, 0);
-      box(middle_win, 0, 0); // Draw border around the middle section
+      encoding_aware_box(middle_win, text::encoding::EncodingID::UTF8); // Draw border around the middle section
 
       WINDOW *bottom_win =
           newwin(section_height, screen_width, 2 * section_height, 0);
-      box(bottom_win, 0, 0); // Draw border around the bottom section
+      encoding_aware_box(bottom_win, text::encoding::EncodingID::UTF8); // Draw border around the bottom section
 
       // Parse the HTML-like structure
       pugi::xml_node html = doc.child("html");
@@ -115,22 +164,6 @@ namespace TEA {
         std::signal(sig, SIG_DFL); // Restore default handler
         std::raise(sig);           // Re-raise signal
     }
-
-    class Ncurses {
-    public:
-      Ncurses() {
-        // 20250616/KOH: Registring this signal handler disables any ASAN linked machinery
-        // std::signal(SIGSEGV, ncurses_cleanup_on_crash);
-        initscr();
-        cbreak();
-        noecho();
-        keypad(stdscr, TRUE);
-        refresh();
-      }
-      ~Ncurses() {
-        endwin(); // End ncurses mode
-      }
-    };
 
   } // render
 } // TEA
@@ -189,7 +222,7 @@ namespace TEA {
     //       Consider to revise if/when supported platfrom requires it.
     //       20250727 - For now macOS UTF-8 for ISO 8859-1 (Latin-1)
     //                  will work (maps to Unicode ASCII + extended 0x80..0xFF)
-    //                  for one byte copde points ok.
+    //                  for one byte code points ok.
     //                  Other character sets may or may not map to two byte code points
     //                  that will fit into an int.
     //                  Also, 'int' may be more than two bytes...
@@ -211,7 +244,7 @@ namespace TEA {
         } 
         
         switch (m_runtime_endoding.detected_encoding()) {
-          case text::encoding::DetectedEncoding::UTF8: {
+          case text::encoding::EncodingID::UTF8: {
             // buffer-transform utf-8 to unicode code point
             if (auto cp = m_utf8_to_unicode_buffer.push(nc_key)) {
               // UTF-8 Unicode Code point complete
@@ -244,7 +277,7 @@ namespace TEA {
 
     bool NCursesHead::setup_encoding_support() {
         switch (m_runtime_endoding.detected_encoding()) {
-            case text::encoding::DetectedEncoding::UTF8: {
+            case text::encoding::EncodingID::UTF8: {
                 // Try to set UTF-8 locale using setlocale approach
                 spdlog::info("NCursesHead: Setting up UTF-8 support using setlocale");
                 
@@ -276,8 +309,8 @@ namespace TEA {
                 return true;
             }
             
-            case text::encoding::DetectedEncoding::ISO_8859_1:
-            case text::encoding::DetectedEncoding::CP437: {
+            case text::encoding::EncodingID::ISO_8859_1:
+            case text::encoding::EncodingID::CP437: {
                 spdlog::warn("NCursesHead: Non-UTF8 encoding requested: {}, falling back to ASCII", 
                            m_runtime_endoding.get_encoding_display_name());
                 m_encoding_support = EncodingSupport::ASCII_FALLBACK;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "StateImpl.hpp"
-#include "fiscal/amount/TaggedAmountFramework.hpp"
+#include "fiscal/amount/TaggedAmount.hpp"
 #include "cargo/CargoBase.hpp"
 #include <format>
 

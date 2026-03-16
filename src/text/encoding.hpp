@@ -2,6 +2,7 @@
 
 #include "std_overload.hpp"
 #include "charset.hpp"
+#include "MetaDefacto.hpp"
 #include "functional/memory.hpp" // OwningMaybeRef,...
 #include <array>
 #include <iostream>
@@ -13,11 +14,14 @@
 #include <vector>
 #include <variant>
 #include <unicode/errorcode.h> // ICU library UErrorCode,...
+#include <span>
 
 namespace text {
   namespace encoding {
 
-    enum class DetectedEncoding {
+    using ByteBuffer = std::vector<std::byte>;
+
+    enum class EncodingID {
       Undefined,
       UTF8,
       UTF16BE,
@@ -31,11 +35,14 @@ namespace text {
       Unknown
     };
 
-    std::string enum_to_display_name(DetectedEncoding encoding);
+    std::string enum_to_display_name(EncodingID encoding);
 
     struct BOM {
       using value_type = std::array<unsigned char,3>; // Works for 3-byte BOM like UTF8
       value_type value;
+
+      BOM() = default;
+      explicit BOM(ByteBuffer::const_iterator begin,ByteBuffer::const_iterator end);
 
       // TODO: Refactor to handle BOM of length other than 3 *sigh*
       // NOTE: It seems no BOM is more than 4 bytes (So 4 bytes with checking the third and fourth only if the first two and three match?)
@@ -60,37 +67,9 @@ namespace text {
     std::istream& operator>>(std::istream& is,BOM& bom);
     std::ostream& operator<<(std::ostream& os,BOM const& bom);
 
-    class bom_istream {
-    public:
-        std::istream& raw_in;
-        std::optional<BOM> bom{};
-        bom_istream(std::istream& in);
-        operator bool();
-
-      // TODO: Move base class members from derived 8859_1 and UTF-8 istream classes to here
-    private:
-    };
+    MetaDefacto<std::optional<BOM>,ByteBuffer> to_bom_and_buffer(ByteBuffer buffer);
 
     namespace ISO_8859_1  {
-
-      class istream : public bom_istream {
-      public:
-        istream(std::istream& in);
-        // getline: Transcodes input from ISO8859-1 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
-        // Emtpy line is allowed (returns nullopt only on failure to read)
-        template <class F>
-        std::optional<typename F::value_type> getline(F const& f) {
-          typename std::optional<typename F::value_type> result{};
-          std::string raw_entry{};
-          if (std::getline(raw_in,raw_entry)) {
-            auto unicode_s = charset::ISO_8859_1::iso8859ToUnicode(raw_entry);
-            result = f(unicode_s);
-          }
-          // if (result.size() > 0) return result;
-          // else return std::nullopt;
-          return result;
-        }
-      };
 
     }
 
@@ -110,13 +89,10 @@ namespace text {
             return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
       }
 
+      constexpr const char* REPLACEMENT_CHARACTER = "\uFFFD";
+
       bool is_valid_unicode(char32_t cp);
 
-      struct ostream {
-        std::ostream& os;
-      };
-
-      text::encoding::UTF8::ostream& operator<<(text::encoding::UTF8::ostream& os,char32_t cp);
       std::string unicode_to_utf8(cratchit_unicode_string const& s);
 
       // UTF-8 to Unicode
@@ -131,115 +107,21 @@ namespace text {
 
       cratchit_unicode_string utf8ToUnicode(std::string const& s_utf8);
 
-      class istream : public bom_istream {
-      public:
-        istream(std::istream& in);
-        // getline: Transcodes input from UTF8 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
-        // Emtpy line is allowed (returns nullopt only on failure to read)
-        template <class F>
-        std::optional<typename F::value_type> getline(F const& f) {
-          typename std::optional<typename F::value_type> result{};
-          std::string raw_entry{};
-          if (std::getline(raw_in,raw_entry)) {
-            auto unicode_s = text::encoding::UTF8::utf8ToUnicode(raw_entry);
-            result = f(unicode_s);
-          }
-          // if (result.size() > 0) return result;
-          // else return std::nullopt;
-          return result;
-        }
-      };
 
     } // namespace UTF8
 
     namespace CP437 {
-      class istream : public bom_istream {
-      public:
-        istream(std::istream& in);
-        // getline: Transcodes input from CP437 encoding to Unicode and then applies F to decode it to target encoding (std::nullopt on failure)
-        // Emtpy line is allowed (returns nullopt only on failure to read)
-        template <class F>
-        std::optional<typename F::value_type> getline(F const& f) {
-          typename std::optional<typename F::value_type> result{};
-          std::string raw_entry{};
-          if (std::getline(raw_in,raw_entry)) {
-            auto unicode_s = charset::CP437::cp437ToUnicode(raw_entry);
-            result = f(unicode_s);
-          }
-          // if (result.size() > 0) return result;
-          // else return std::nullopt;
-          return result;
-        }
-      };    
     } // namespace CP437
     
     namespace unicode {
-
-      using CodePoint = 
-
+      
       struct to_utf8 {
         using value_type = std::string;
         value_type operator()(cratchit_unicode_string const& unicode_s) const;
 
       };
+
     } // namespace unicode
-
-    namespace icu {
-
-      // Readable string from ICU UErrorCode
-      std::string to_string(UErrorCode status);
-
-      // Encoding Detection Service using ICU
-
-      using CanonicalEncodingName = std::string;
-
-      // ICU encoding name -> cratchit DetectedEncoding
-      DetectedEncoding canonical_name_to_enum(CanonicalEncodingName const& canonical_name);
-
-      struct EncodingDetectionResult {
-        DetectedEncoding encoding;
-        CanonicalEncodingName canonical_name;    // ICU canonical name (e.g., "UTF-8")
-        std::string display_name;      // Human readable name
-        int32_t confidence;            // ICU confidence (0-100)
-        std::string language;          // Detected language (e.g., "sv" for Swedish)
-        std::string detection_method;  // "ICU", "BOM", "Extension", "Default"
-      };
-
-      const int32_t DEFAULT_CONFIDENCE_THERSHOLD = 90;
-
-      std::optional<EncodingDetectionResult> to_content_encoding(
-         char const* data
-        ,size_t length
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      std::vector<EncodingDetectionResult> to_encoding_options(
-         char const* data
-        ,size_t length
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      std::optional<EncodingDetectionResult> to_istream_encoding(
-        std::istream& is
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);
-      std::optional<EncodingDetectionResult> to_file_at_path_encoding(
-        std::filesystem::path const& file_path
-        ,int32_t confidence_threshold = DEFAULT_CONFIDENCE_THERSHOLD);      
-      EncodingDetectionResult to_bom_encoding(std::istream& is);
-      EncodingDetectionResult to_bom_encoding(std::filesystem::path const& file_path);
-      EncodingDetectionResult to_extension_heuristics_encoding(std::filesystem::path const& file_path);
-    } // icu
-
-    // TODO: Consider a design that does not lift the detected encoding on in stream to an actual unique type?
-    //       Maybe it is a good thing to lift to a type to be clear about what encoding we support in code?
-    //       Or maybe we only care about the end encoding so intermediate encodings to form files
-    //       is of now conscerns to us?
-    //       For now we have a varuant of decoding in streams that applies decoding to unicode.
-    using DecodingIn = std::variant<
-      text::encoding::UTF8::istream
-      ,text::encoding::ISO_8859_1::istream
-      ,text::encoding::CP437::istream
-    >;
-    using MaybeDecodingIn = cratchit::functional::memory::OwningMaybeRef<DecodingIn>;
-    MaybeDecodingIn to_decoding_in(
-       icu::EncodingDetectionResult const& detected_source_encoding
-      ,std::istream& is);
 
   } // namespace encoding
 } // text

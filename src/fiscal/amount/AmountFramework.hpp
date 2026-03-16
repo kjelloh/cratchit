@@ -6,6 +6,7 @@
 #include <optional> // std::optional
 #include <algorithm> // std::copy_if
 #include <iomanip> // std::setprecision,
+#include <cmath> // std::round
 #include <chrono> // std::chrono::year_month_day
 #include "FiscalPeriod.hpp" // fiscal Date and period classes 
 
@@ -131,29 +132,20 @@ namespace WrappedDoubleAmount {
     */
 
     // Amount += Amount
-    Amount operator+=(const Amount& other) { 
-      this->m_double_value += other.m_double_value;
-      return *this;
-    }
-
+    Amount& operator+=(const Amount& other);
     // Amount + Amount
-    Amount operator+(const Amount& other) const {
-      Amount result{*this};
-      result += other;
-      return result;
-    }
-
+    Amount operator+(const Amount& other) const;
     // Amount - Amount
-    Amount operator-(const Amount& other) const { return Amount(m_double_value - other.m_double_value); }
-    Amount operator-() const { return Amount(-m_double_value); }
+    Amount operator-(const Amount& other) const;
+    Amount operator-() const;
     // Amount * double
-    Amount operator*(double scalar) const { return Amount(m_double_value * scalar); }
-    double operator/(const Amount& other) const { return m_double_value / other.m_double_value; }
-
+    Amount operator*(double scalar) const;
+    // Amount / Amount
+    double operator/(const Amount& other) const;
     // Amount / double
-    Amount operator/(double divisor) const { return Amount(m_double_value / divisor); }
+    Amount operator/(double divisor) const;
 
-    bool operator==(Amount const& other) const {return this->m_double_value == other.m_double_value;}
+    bool operator==(Amount const& other) const;
     auto operator<=>(Amount const& other) const {
       return this->m_double_value <=> other.m_double_value;
     }

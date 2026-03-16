@@ -1,0 +1,48 @@
+#./run.zsh --nop
+# ./run.zsh --gtest_filter=AccountStatementDetectionTests*:CSVTable2TaggedAmountsTests*:CSVTable2AccountStatementTests*
+#./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountIDedTable
+#./run.zsh --gtest_filter=MonadicCompositionFixture.NORDEAStatementOk
+#./run.zsh --gtest_filter=MonadicCompositionFixture.PathToAccountStatementTaggedAmountsRefactoring*
+#./run.zsh --gtest_filter=AccountStatementTableTestsFixture.MappingBasedNordeaLikeOk
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric*
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_0
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_20251120_Ok_sub_0
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_20251120_BOM_ed_Ok
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_csv_older_Ok_sub_0
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_NORDEA_0_1_Ok_sub_0
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_Ok_sub_0
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_sz_SKV_0_0_BOM_ed_Ok
+#./run.zsh --gtest_filter=*TableMetaBasedGeneric_DetectColumnsFromHeader
+#./run.zsh --gtest_filter=*ExtractFromSKVCSVNewer
+#./run.zsh --gtest_filter=*CSVTable2AccountStatementTests.CsvTableToAccountStatementWithSKV
+#./run.zsh --gtest_filter=*AccountIdTests.ValidGenericStatementOk
+#./run.zsh --gtest_filter=*MDTableToAccountStatementTestFixture.NordeaMDTableToAccountStatement
+
+#./run.zsh --gtest_filter=*GenericAccountIdTests.HeaderSingleAmountTransOK
+#./run.zsh --gtest_filter=*GenericAccountIdTests.NoHeaderSingleAmountTransOK
+#./run.zsh --gtest_filter=*GenericAccountIdTests.HeaderTransSaldoAmountsOK
+#./run.zsh --gtest_filter=*GenericAccountIdTests.NoHeaderTransSaldoAmountsOK
+#./run.zsh --gtest_filter=GenericAccountIdTests.Header*
+#./run.zsh --gtest_filter=GenericAccountIdTests*
+
+
+#./run.zsh --gtest_filter=*CSVTable2AccountStatementTests.CsvTableToAccountStatementPreservesEntryData
+#./run.zsh --gtest_filter=*CSVTable2TaggedAmountsTests.IntegrationWithNordeaCsvData
+#./run.zsh --gtest_filter=*CSVTable2TaggedAmountsTests.IntegrationWithSkvCsvData
+
+#./run.zsh --gtest_filter=*StatementToTaggedAmountsTestFixture.ComposedCsvTableToTaggedAmounts
+
+#./run.zsh --gtest_filter=*MDTableToAccountStatementTestFixture.AccountIdPropagatedToStatementMeta
+#./run.zsh --gtest_filter=*FullPipelineTextTests.ImportEmptyTextReturnsEmpty
+#./run.zsh --gtest_filter=*FullPipelineTestFixture.MessagesPreservedThroughPipeline
+#./run.zsh --gtest_filter=*EncodingPipelineTestFixture.EmptyFileHandledGracefully
+#./run.zsh --gtest_filter=*EncodingPipelineTests.FileNotFoundHandledGracefully
+#./run.zsh --gtest_filter=*EncodingPipelineTestFixture.CompleteIntegrationAllSteps
+#./run.zsh --gtest_filter=*CSVPipelineCompositionTestFixture.MonadicCompositionWithAndThen
+#./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithValue
+#./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionReturnsAnnotatedOptionalWithMessageOnNullopt
+#./run.zsh --gtest_filter=*ToAnnotatedNulloptTests.LiftedFunctionComposesWithAndThen
+#./run.zsh --gtest_filter=*AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_0
+#./run.zsh --gtest_filter=*
+
+./run.zsh --test

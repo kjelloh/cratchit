@@ -6,66 +6,86 @@
 
 namespace CSV {
 
-  std::string encoding_caption(text::encoding::icu::EncodingDetectionResult const& detection_result) {
-    // Format display string with confidence and method
-    std::string result;
-    if (detection_result.confidence >= 70) {
-      result = std::format("{} ({}%)", detection_result.display_name, detection_result.confidence);
-    } else {
-      result = std::format("{} ({}%, {})", detection_result.display_name, detection_result.confidence, detection_result.detection_method);
-    }
-    
-    // Add language info if detected
-    if (detection_result.language.empty()) {
-      result += std::format(" [{}]", detection_result.language);
-    }    
-    return result;
-  }
+  namespace parse {
 
-  ParseCSVResult try_parse_csv(std::filesystem::path const& file_path) {
-    ParseCSVResult result{};
-    
-    try {
-            
-      // Use ICU detection to determine appropriate encoding stream
+    namespace maybe {
 
-      // result.icu_detection_result = text::encoding::icu::to_file_at_path_encoding(file_path);
-      if (auto maybe_detection_result = text::encoding::icu::to_file_at_path_encoding(file_path)) {
-        result.icu_detection_result = maybe_detection_result.value();
+      std::optional<CSV::Table> csv_to_table(std::string_view csv_text, char delim) {
+        logger::scope_logger log_raii{logger::development_trace, "CSV::parse::maybe::csv_to_table(string_view)"};
+        // Handle empty input
+        if (csv_text.empty()) {
+          return std::nullopt;
+        }
 
-          logger::development_trace("try_parse_csv: icu_detection_result:{}",result.icu_detection_result.display_name);
+        // Parse all rows
+        std::vector<std::vector<std::string>> all_rows;
+        size_t pos = 0;
 
-          logger::development_trace("try_parse_csv: BEGIN");
-          std::ifstream ifs{file_path};
-          if (!ifs.is_open()) {
-            spdlog::error("Failed to open file: {}", file_path.string());
-            return result;
+        while (pos < csv_text.size()) {
+          // Skip empty lines
+          while (pos < csv_text.size() && (csv_text[pos] == '\n' || csv_text[pos] == '\r')) {
+            pos++;
           }
 
-          CSV::OptionalFieldRows field_rows = text::encoding::to_decoding_in(result.icu_detection_result,ifs)
-            .and_then(decoding_in_to_field_rows)
-            .or_else([&result,&file_path] -> CSV::OptionalFieldRows {
-              spdlog::error(
-                "Unsupported encoding {} for CSV parsing: {}"
-                ,result.icu_detection_result.display_name, file_path.string());
-              return {};
-            });
-          
-          if (field_rows && !field_rows->empty()) {
-            logger::development_trace("try_parse_csv: field_rows->size() = {}",field_rows->size());
-            result.heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
-            auto heading_projection = CSV::project::make_heading_projection(result.heading_id);
-            result.maybe_table = CSV::to_table(field_rows,heading_projection);
-          }      
-          else {
-            logger::development_trace("try_parse_csv: NO field_rows -> nullopt table");
+          if (pos >= csv_text.size()) {
+            break;
           }
+
+          auto row = csv_row_to_fields(csv_text, pos, delim);
+
+          // Only add non-empty rows
+          if (!row.empty()) {
+            all_rows.push_back(std::move(row));
+          }
+        }
+
+        // Need at least one row (header)
+        if (all_rows.empty()) {
+          return std::nullopt;
+        }
+
+        // Create Table structure
+        CSV::Table table;
+
+        // First row is the heading
+        // Convert vector<string> to Key::Path (which is what FieldRow/Heading is)
+        table.heading = Key::Path{all_rows[0]};
+
+        // Convert remaining rows
+        for (size_t i = 0; i < all_rows.size(); ++i) {
+          table.rows.push_back(Key::Path{all_rows[i]});
+        }
+
+        logger::development_trace("Returns table with size:{}",table.rows.size());
+        return table;
+      } // csv_to_table
+
+      std::optional<CSV::Table> csv_text_to_table_step(std::string_view csv_text) {
+        return csv_to_table(csv_text,to_csv_delimiter(csv_text));
+      } // csv_text_to_table_step
+
+    } // maybe
+
+    namespace monadic {
+
+      AnnotatedMaybe<CSV::Table> csv_text_to_table_step(std::string_view csv_text) {
+
+        auto to_msg = [](CSV::Table const& result){
+          return std::format("{} rows",result.rows.size());
+        };
+
+        auto f =  cratchit::functional::to_annotated_maybe_f(
+          CSV::parse::maybe::csv_text_to_table_step
+          ,"csv table"
+          ,to_msg);
+
+        return f(csv_text);
+
       }
-    } 
-    catch (const std::exception& e) {
-      spdlog::error("Failed to parse CSV file {}: {}", file_path.string(), e.what());
-    }    
-    return result;
-  }
 
-}
+    }
+
+  } // parse
+
+
+} // CSV

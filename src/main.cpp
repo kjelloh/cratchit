@@ -34,14 +34,25 @@ int main(int argc, char *argv[]) {
     if (argc > 1 && std::string(argv[1]) == "--nop") {
         spdlog::info("Cratchit - Compiles and runs");
         std::print("Cratchit - Compiles and runs");
-      return 0;
+      result = 0;
     }
     else if (argc > 1 && std::string(argv[1]) == "--version") {
         spdlog::info("Cratchit version 0.1.0");
     }
+    else if (argc > 1 && std::string_view(argv[1]).starts_with("--gtest")) {
+        spdlog::info("Running Google Test...");
+        std::vector<char*> g_argv;
+        result = !tests::run_all(argc,argv);
+    }
     else if (argc > 1 && std::string(argv[1]) == "--test") {
         spdlog::info("Running tests...");
-        return tests::run_all();
+        std::vector<char*> g_argv{};
+        g_argv.push_back(argv[0]); // program name
+        for (int i=2;i<argc;++i) {
+          g_argv.push_back(argv[i]); // args after '--test'
+        }
+        int g_argc = static_cast<int>(g_argv.size());
+        result = !tests::run_all(g_argc,g_argv.data());
     }
     else while (true) {
         static int loop_count{0};
@@ -56,7 +67,7 @@ int main(int argc, char *argv[]) {
         if (result = first::main(argc,argv);result == 0) break;
     }
 
-    logger::business("Central main sais >> Bye << -----------------------------------");
+    logger::business("Central main sais >> Bye with result:{} << -----------------------------------",result);
 
     return result;
 }

@@ -1,5 +1,8 @@
 #include "zeroth/main.hpp"
 #include "HAD2JournalEntryFramework.hpp" // to_md_entry,...
+#include "text/encoding_pipeline.hpp"
+#include "csv/csv_to_statement_id_ed.hpp"
+#include "domain/account_statement_to_tagged_amounts.hpp"
 
 // Cpp file to isolate this 'zeroth' variant of cratchin until refactored to 'next' variant
 // (This whole file conatins the 'zeroth' version of cratchit)
@@ -2706,7 +2709,7 @@ Cmd Updater::operator()(Command const& command) {
 
                 // k10_csv_to_sru_template
                 std::istringstream k10_is{SKV::SRU::INK1::k10_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_K10_in{k10_is};
+                persistent::in::UTF8::istream utf8_K10_in{k10_is};
                 if (auto field_rows = CSV::to_field_rows(utf8_K10_in)) {
                   // LOG
                   for (auto const& field_row : *field_rows) {
@@ -2724,7 +2727,7 @@ Cmd Updater::operator()(Command const& command) {
 
                 // ink1_csv_to_sru_template
                 std::istringstream ink1_is{SKV::SRU::INK1::ink1_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_ink1_in{ink1_is};
+                persistent::in::UTF8::istream utf8_ink1_in{ink1_is};
                 if (auto field_rows = CSV::to_field_rows(utf8_ink1_in)) {
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) prompt << "\n";
@@ -2905,7 +2908,7 @@ Cmd Updater::operator()(Command const& command) {
               {
                 // INK2R_csv_to_sru_template
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2R_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_in{is};
+                persistent::in::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
                   logger::cout_proxy << "\nParsing INK2R_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
@@ -2977,7 +2980,7 @@ Cmd Updater::operator()(Command const& command) {
               {
                 // INK2S_csv_to_sru_template
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2S_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_in{is};
+                persistent::in::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
                   logger::cout_proxy << "\nParsing INK2S_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
@@ -3046,7 +3049,7 @@ Cmd Updater::operator()(Command const& command) {
               {
                 // ink2_csv_to_sru_template
                 std::istringstream is{SKV::SRU::INK2::Y_2024::INK2_csv_to_sru_template};
-                text::encoding::UTF8::istream utf8_in{is};
+                persistent::in::UTF8::istream utf8_in{is};
                 if (auto field_rows = CSV::to_field_rows(utf8_in)) {
                   logger::cout_proxy << "\nParsing INK2_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
@@ -3637,12 +3640,12 @@ Cmd Updater::operator()(Command const& command) {
           //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
           {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
-            auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+            auto update_posted_result = persistent::in::text::to_maybe_istream(*sie_file_path)
               .and_then([](auto& istream){
                 return sie_from_stream(istream);
               })
               .and_then([this,year_key](auto const& sie_env){
-                auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
                   .and_then([](auto& istream){
                     return sie_from_stream(istream);
                   })
@@ -3728,12 +3731,12 @@ Cmd Updater::operator()(Command const& command) {
           //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
           {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
-            auto update_posted_result = persistent::in::to_maybe_istream(*sie_file_path)
+            auto update_posted_result = persistent::in::text::to_maybe_istream(*sie_file_path)
               .and_then([](auto& istream){
                 return sie_from_stream(istream);
               })
               .and_then([this,year_key](auto const& sie_env){
-                auto staged_sie_env = persistent::in::to_maybe_istream(sie_env.staged_sie_file_path())
+                auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
                   .and_then([](auto& istream){
                     return sie_from_stream(istream);
                   })
@@ -3932,7 +3935,7 @@ Cmd Updater::operator()(Command const& command) {
           std::filesystem::path csv_file_path{ast[2]};
           if (std::filesystem::exists(csv_file_path)) {
             std::ifstream ifs{csv_file_path};
-            text::encoding::UTF8::istream utf8_in{ifs}; // Assume UTF8 encoded file (should work for all-digits csv.file as ASCII 0..7F overlaps with UTF8 encoing anyhow?)
+            persistent::in::UTF8::istream utf8_in{ifs}; // Assume UTF8 encoded file (should work for all-digits csv.file as ASCII 0..7F overlaps with UTF8 encoing anyhow?)
             if (auto const& field_rows = CSV::to_field_rows(utf8_in,';')) {
               for (auto const& field_row : *field_rows) {
                 if (field_row.size()==2) {
@@ -4072,7 +4075,7 @@ Cmd Updater::operator()(Command const& command) {
         std::filesystem::path csv_file_path{ast[2]};
         if (std::filesystem::exists(csv_file_path)) {
           std::ifstream ifs{csv_file_path};
-          text::encoding::UTF8::istream utf8_in{ifs};
+          persistent::in::UTF8::istream utf8_in{ifs};
           if (auto field_rows = CSV::to_field_rows(utf8_in)) {
             for (auto const& field_row : *field_rows) {
               if (field_row.size()>0) prompt << "\n";
@@ -5181,7 +5184,7 @@ void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_
 } // synchronize_tagged_amounts_with_sie
 
 DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
-  if (true) {
+  if (false) {
     std::cout << "\ndotas_from_sie_environment" << std::flush;
   }
   DateOrderedTaggedAmountsContainer result{};
@@ -5257,10 +5260,26 @@ std::pair<std::filesystem::path,bool> make_consumed(std::filesystem::path statem
 
 TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem::path statement_file_path) {
   TaggedAmounts result{};
-  if (auto maybe_tas = tas_from_statment_file(statement_file_path)) {
-    result = maybe_tas.value();
-    std::cout << "\n\tValid entries count:" << maybe_tas->size();
-    if (false) {
+  auto pipeline_result = persistent::in::text::monadic::path_to_istream_ptr_step(statement_file_path)
+    .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+    .and_then(text::encoding::monadic::to_with_threshold_step_f(100))
+    .and_then(text::encoding::monadic::to_with_inferred_encoding)
+    .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+    .and_then(CSV::parse::monadic::csv_text_to_table_step)
+    .and_then(account::statement::monadic::to_statement_id_ed_step)
+    .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step)
+    .and_then(tas::monadic::account_statement_to_tagged_amounts_step);
+
+  // Log pipeline messages
+  for (auto const& msg : pipeline_result.m_messages) {
+    std::cout << "\n\t[Pipeline] " << msg;
+  }
+
+  if (pipeline_result) {
+    result = pipeline_result.value();
+    std::cout << "\n\tValid entries count:" << result.size();
+    constexpr bool disable_consumed_mechanism{false};
+    if (!disable_consumed_mechanism) {
       auto make_consumed_result = make_consumed(statement_file_path);
       if (make_consumed_result.second == true) {
         std::cout << "\n\tConsumed account statement file moved to " << make_consumed_result.first;
@@ -5275,7 +5294,7 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_file(std::filesystem:
   }
   else {
     std::cout << "\n*Note* " << statement_file_path << " (produced zero entries)";
-  }  
+  }
   return result;
 }
 
@@ -5342,7 +5361,7 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
           std::cout << "\n\tBEGIN " <<  financial_year_member_path;
           if (std::filesystem::is_regular_file(financial_year_member_path) and (financial_year_member_path.extension() == ".csv")) {
             auto ifs = std::ifstream{financial_year_member_path};
-            text::encoding::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
+            persistent::in::UTF8::istream utf8_in{ifs}; // Assume the file is created in UTF8 character set encoding
             if (auto field_rows = CSV::to_field_rows(utf8_in,';')) {
               std::cout << "\n\tNo Operation implemented";
               // std::cout << "\n\t<Entries>";
@@ -5741,12 +5760,17 @@ namespace zeroth {
     logger::scope_logger log_raii{logger::development_trace,"environment_from_model"};
 
 		Environment result{};
+
+    // tas -> env helper lambda
 		auto tagged_amount_to_environment = [&result](TaggedAmount const& ta) {
       // TODO 240524 - Attend to this code when final implemenation of tagged amounts <--> SIE entries are in place
       //               Problem for now is that syncing between tagged amounts and SIE entries is flawed and insufficient (and also error prone)
       if (false) {
         if (ta.tag_value("BAS") or ta.tag_value("SIE")) {
           // std::cout << "\nDESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:" << ta;
+          logger::development_trace(
+             R"(DESIGN INSUFFICIENCY: No persistent storage yet for SIE or BAS TA:{})"
+            ,to_string(ta));
           return; // discard any tagged amounts relating to SIE entries (no persistent storage yet for these)
         }
       }
@@ -5770,11 +5794,14 @@ namespace zeroth {
 
     // static const bool disable_ta_persistent_storage = true;
     static const bool disable_ta_persistent_storage = true;
+    logger::development_trace(R"(disable_ta_persistent_storage:{})",disable_ta_persistent_storage);
     if (not disable_ta_persistent_storage) {
-  		// model->all_dotas.for_each(tagged_amount_to_environment);
       std::ranges::for_each(
          model->all_dotas.ordered_tagged_amounts()
         ,tagged_amount_to_environment);
+    }
+    else {
+      logger::development_trace(R"(BEWARE: NO tagged amounts saved to persistent environment (disable_ta_persistent_storage is false))");
     }
 
     // Log

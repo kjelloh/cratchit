@@ -40,7 +40,7 @@ namespace first {
     Date m_start;
     Date m_last;
     bool m_is_valid;
-  };
+  }; // DateRange
 
   std::ostream& operator<<(std::ostream& os, DateRange const& date_range);
 
@@ -123,6 +123,10 @@ QuarterIndex to_quarter_index(Month const& month);
 QuarterIndex to_quarter_index(Date const& a_period_date);
 Month to_quarter_begin(QuarterIndex const& quarter_ix);
 Month to_quarter_end(QuarterIndex const& quarter_ix);
+
+// TODO: Consider ways to put to_string overload in same namespace as type / 2026019
+std::string to_string(FiscalPeriod const& fiscal_period);
+std::string to_string(std::optional<FiscalPeriod> const& maybe_fiscal_period);
 
 // Use first::
 first::OptionalDateRange to_date_range(Date const& start,Date const& last);

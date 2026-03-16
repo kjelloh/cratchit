@@ -11,70 +11,9 @@
 #include <ranges> // std::ranges::subrange,ranges::find,
 #include <fstream> // std::ifstream
 
-// BEGIN class TaggedAmount
-
-// TaggedAmount::TaggedAmount(Date const& date, CentsAmount const& cents_amount, Tags&& tags)
-//     : m_date{date},m_cents_amount{cents_amount}, m_tags{tags} {}
-
-// lvalue/rvalue constructor
-// An lvalue will be copied + moved.
-// An rvalue will be 'perfactly' moved
-TaggedAmount::TaggedAmount(Date date, CentsAmount cents_amount,Tags tags)
-    : m_date{std::move(date)},m_cents_amount{std::move(cents_amount)}, m_tags{std::move(tags)} {}
-
-// Replaced with text::format::to_hex_string
-// std::string TaggedAmount::to_string(TaggedAmount::ValueId value_id) {
-//   // TODO: Consider a safe way to ensure ALL value ids gets converted to the same string
-//   //       to ernsure consistent environment value encoding / 20251021
-//   //       Also see to_cas_environment(indexed_environment)
-
-//   // std::ostringstream os{};
-//   // os << std::setw(sizeof(std::size_t) * 2) << std::setfill('0') << std::hex
-//   //    << value_id << std::dec;
-//   // return os.str();
-//   return std::format("{:x}",value_id);
-// }
-
-bool TaggedAmount::operator==(TaggedAmount const& other) const {
-  auto result =
-      this->date() == other.date()
-      and this->cents_amount() == other.cents_amount()
-  //  and std::all_of(m_tags.begin(), m_tags.end(),
-  //                 [&other](Tags::value_type const& entry) {
-  //                   return ((entry.first.starts_with("_")) or
-  //                           (other.tags().contains(entry.first) and
-  //                            other.tags().at(entry.first) == entry.second));
-  //                 });
-
-      // Changed 20251026 - Now equal is all-tags-equal (no meta '_xxx' tag excepion)
-      and this->m_tags == other.m_tags;
-
-  // std::cout << "\nTaggedAmountClass::operator== ";
-  // if (result) std::cout << "TRUE"; else std::cout << "FALSE";
-  return result;
-}
-
-bool TaggedAmount::operator<(TaggedAmount const& other) const {
-  // Tagged Amounts are implicitally ordered by date
-  // DateOrderedTaggedAmountsContainer orders samet date values by upper_bound (insertion order for same date)
-  return this->date() < other.date();
-}
-
-// END class TaggedAmount
-
 // TaggedAmount to Value Id
 TaggedAmount::ValueId to_value_id(TaggedAmount const& ta) {
   return std::hash<TaggedAmount>{}(ta);
-}
-
-std::ostream& operator<<(std::ostream &os, TaggedAmount const& ta) {
-  // os <<  text::format::to_hex_string(to_value_id(ta));
-  os << " " << ::to_string(ta.date());
-  os << " " << ::to_string(to_units_and_cents(ta.cents_amount()));
-  for (auto const& tag : ta.tags()) {
-    os << "\n\t|--> \"" << tag.first << "=" << tag.second << "\"";
-  }
-  return os;
 }
 
 // Hex listing string to Value Ids (for parsing tags that encodes references as valude Ids)
@@ -116,13 +55,6 @@ TaggedAmount::OptionalValueId to_maybe_value_id(std::string const& sid) {
               << ") failed. General Exception caught." << std::flush;
   }
   return result;
-}
-
-// String conversion
-std::string to_string(TaggedAmount const& ta) {
-  std::ostringstream oss;
-  oss << ta;
-  return oss.str();
 }
 
 // Environment conversions
@@ -858,25 +790,25 @@ namespace CSV {
   namespace project {
 
     ToTaggedAmountProjection make_tagged_amount_projection(
-       HeadingId const& csv_heading_id
+       deprecated::HeadingId const& csv_heading_id
       ,CSV::TableHeading const& table_heading) {
       switch (csv_heading_id) {
-        case HeadingId::Undefined: {
+        case deprecated::HeadingId::Undefined: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return std::nullopt;
           };
         } break;
-        case HeadingId::NORDEA: {
+        case deprecated::HeadingId::NORDEA: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return CSV::NORDEA::to_tagged_amount(field_row,table_heading);
           };
         } break;
-        case HeadingId::SKV: {
+        case deprecated::HeadingId::SKV: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return CSV::SKV::to_tagged_amount(field_row,table_heading);
           };
         } break;
-        case HeadingId::unknown: {
+        case deprecated::HeadingId::unknown: {
           return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
             return std::nullopt;
           };
@@ -885,7 +817,7 @@ namespace CSV {
     }
 
     OptionalTaggedAmounts to_tas(
-       CSV::project::HeadingId const& csv_heading_id
+       CSV::project::deprecated::HeadingId const& csv_heading_id
       ,CSV::Table const& csv_table) {
 
       OptionalTaggedAmounts result{};
@@ -907,116 +839,7 @@ namespace CSV {
   } // project
 } // CSV
 
-template <typename T>
-using CSVProcessResult = CSV::functional::CSVProcessResult<T>;
-
-CSVProcessResult<persistent::in::MaybeIStream> file_path_to_istream(std::filesystem::path const& statement_file_path) {
-  CSVProcessResult<persistent::in::MaybeIStream> result{};
-  result.m_value = persistent::in::to_maybe_istream(statement_file_path);
-  if (!result.m_value) result.push_message("file_path_to_istream: Failed to create istream");
-  return result;
-}
-
-CSVProcessResult<text::encoding::MaybeDecodingIn> istream_to_decoding_in(persistent::in::MaybeIStream const& maybe_istream) {
-  CSVProcessResult<text::encoding::MaybeDecodingIn> result{};
-
-  auto maybe_encoding = maybe_istream
-    .and_then([](std::istream& is) {
-      return text::encoding::icu::to_istream_encoding(is);
-    });
-
-  if (maybe_encoding) {
-    result.m_value = text::encoding::to_decoding_in(
-       maybe_encoding.value()
-      ,maybe_istream.value());
-  }
-
-  if (!result.m_value) result.push_message("istream_to_decoding_in: Failed to create a decoding in stream");
-  return result;
-}
-
-CSVProcessResult<CSV::FieldRows> decoding_in_to_field_rows(text::encoding::MaybeDecodingIn const& decoding_in) {
-  CSVProcessResult<CSV::FieldRows> result{};
-  result.push_message("decoding_in_to_field_rows: NOT YET IMPLEMENTED");
-  return result;
-}
-CSVProcessResult<CSV::Table> field_rows_to_table(CSV::FieldRows const& field_rows) {
-  CSVProcessResult<CSV::Table> result{};
-  result.push_message("field_rows_to_table: NOT YET IMPLEMENTED");
-  return result;
-}
-
 using AccountStatements = std::vector<AccountStatement>;
-CSVProcessResult<AccountStatements> table_to_account_statements(CSV::Table const& table) {
-  CSVProcessResult<AccountStatements> result{};
-  result.push_message("table_to_account_statements: NOT YET IMPLEMENTED");
-  return result;
-}
-
-CSVProcessResult<TaggedAmounts> account_statements_to_tas(AccountStatements const& account_statements) {
-  CSVProcessResult<TaggedAmounts> result{};
-  result.push_message("account_statements_to_tas: NOT YET IMPLEMENTED");
-  return result;
-}
-
-/**
-* Return a list of tagged amounts if provided statement_file_path is to a file with amount values (e.g., a bank account csv statements file)
-*/
-OptionalTaggedAmounts tas_from_statment_file(std::filesystem::path const& statement_file_path) {
-
-  if (true) {
-    std::cout << "\nto_tagged_amounts(" << statement_file_path << ")";
-  }
-
-  if (true) {
-    // Refactored to pipeline
-
-    auto result = file_path_to_istream(statement_file_path)
-      .and_then(istream_to_decoding_in)
-      .and_then(decoding_in_to_field_rows)
-      .and_then(field_rows_to_table)
-      .and_then(table_to_account_statements)
-      .and_then(account_statements_to_tas);
-
-    std::ranges::for_each(result.m_messages,[](auto const& message){
-      std::cout << std::format("\nTODO: {}",message);
-    });
-    return result.m_value;
-  }
-  else {
-    OptionalTaggedAmounts result{};
-    CSV::OptionalFieldRows field_rows{};
-    std::ifstream ifs{statement_file_path};
-    // NOTE: The mechanism implemented to apply correct decoding and parsing of different files is a mess!
-    //       For one, The runtime on Mac uses UTF-8 through the console by default (which Windows and Unix may or may not do).
-    //       Also, The NORDEA CSV-file as downloaded from NORDEA web bank through Safari browser is also UTF-8 encoded (although I am not sure it will be using another browser on another platform?).
-    //       Finally, The SKV-file from Swedish Tax Agency web interface gets encoded in ISO8859-1 on Mac using Safari.
-    //       For now the whole thing is a patch-work that may or may not continue to work on Mac and will very unlikelly work on Linux or Windows?
-    //       TODO 20240527 - Try to refactor this into something more stable and cross-platform at some point in time?!
-    if (statement_file_path.extension() == ".csv") {
-      text::encoding::UTF8::istream utf8_in{ifs};
-      field_rows = CSV::to_field_rows(utf8_in,';'); // Call to_field_rows overload for "UTF8" input (assuming a CSV-file is ISO8859-1 encoded, as NORDEA csv-file is)
-    }
-    else if (statement_file_path.extension() == ".skv") {
-      text::encoding::ISO_8859_1::istream iso8859_in{ifs};
-      field_rows = CSV::to_field_rows(iso8859_in,';'); // Call to_field_rows overload for "ISO8859-1" input (assuming a SKV-file is ISO8859-1 encoded)
-    }
-    if (field_rows) {
-      // The file is some form of 'comma separated value' file using ';' as separators
-      // NOTE: Both Nordea csv-files (with bank account transaction statements) and Swedish Tax Agency skv-files (with tax account transactions statements)
-      // uses ';' as value separators
-      if (field_rows->size() > 0) {
-        auto csv_heading_id = CSV::project::to_csv_heading_id(field_rows->at(0));
-        auto heading_projection = CSV::project::make_heading_projection(csv_heading_id);
-        result = CSV::to_table(field_rows,heading_projection)
-          .and_then([&csv_heading_id](auto const& table) {
-            return CSV::project::to_tas(csv_heading_id,table);
-          });
-      }
-    }
-    return result;
-  }
-}
 
 auto ev_to_maybe_ta = [](Environment::Value const& ev) -> OptionalTaggedAmount {
   return to_tagged_amount(ev);

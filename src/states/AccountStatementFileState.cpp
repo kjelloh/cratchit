@@ -1,21 +1,43 @@
 #include "AccountStatementFileState.hpp"
 #include "TaggedAmountsState.hpp"
 #include "AccountStatementState.hpp"
+#include "text/encoding_pipeline.hpp"
+#include "csv/projections.hpp" 
+#include "csv/csv_to_statement_id_ed.hpp" 
+#include "domain/csv_to_account_statement.hpp"
+#include "functional/maybe.hpp" 
 #include <format>
 #include <fstream>
 #include "logger/log.hpp"
+
+namespace {
+
+  AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
+
+    return persistent::in::text::monadic::path_to_istream_ptr_step(file_path)
+      .and_then(persistent::in::text::monadic::istream_ptr_to_byte_buffer_step)
+      .and_then(text::encoding::monadic::to_with_threshold_step_f(text::encoding::inferred::DEFAULT_CONFIDENCE_THERSHOLD))
+      .and_then(text::encoding::monadic::to_with_inferred_encoding) // #4
+      .and_then(text::encoding::monadic::to_platform_encoded_string_step)
+      .and_then(CSV::parse::monadic::csv_text_to_table_step);
+
+  } // path_to_table_shortcut
+
+} // namespace
 
 namespace first {
   
   AccountStatementFileState::AccountStatementFileState(PeriodPairedFilePath period_paired_file_path)
     :  StateImpl{}
-      ,m_parse_csv_result{CSV::try_parse_csv(period_paired_file_path.content())}
+      ,m_maybe_table_result{path_to_table_shortcut(period_paired_file_path.content())}
       ,m_period_paired_file_path{period_paired_file_path} {}
 
   std::string AccountStatementFileState::caption() const {
     if (not m_caption.has_value()) {
-      auto ec = CSV::encoding_caption(this->m_parse_csv_result.icu_detection_result);
-      m_caption = std::format("File: {} [{}]", m_period_paired_file_path.content().filename().string(), ec);
+      m_caption = std::format(
+         "File: {} [{}]"
+        ,m_period_paired_file_path.content().filename().string()
+        ,m_maybe_table_result.to_caption());
     }
     return m_caption.value();
   }
@@ -23,10 +45,10 @@ namespace first {
   StateImpl::UpdateOptions AccountStatementFileState::create_update_options() const {
     StateImpl::UpdateOptions result{};
     auto fiscal_period = this->m_period_paired_file_path.period();
-    if (this->m_parse_csv_result.maybe_table) result.add('t',{"To Tagged Amounts",[
+    if (this->m_maybe_table_result) result.add('t',{"To Tagged Amounts",[
        fiscal_period
-      ,csv_heading_id = this->m_parse_csv_result.heading_id
-      ,maybe_table = this->m_parse_csv_result.maybe_table]() -> StateUpdateResult {
+      ,csv_heading_id = CSV::project::deprecated::HeadingId{}
+      ,maybe_table = this->m_maybe_table_result.m_value]() -> StateUpdateResult {
 
       return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
         auto maybe_tas = maybe_table
@@ -48,18 +70,23 @@ namespace first {
       }};
     }});
 
-    if (this->m_parse_csv_result.maybe_table) result.add('s', {"Account Statement", [
+    if (this->m_maybe_table_result) result.add('s', {"Account Statement", [
        fiscal_period
-      ,csv_heading_id = this->m_parse_csv_result.heading_id
-      ,maybe_table = this->m_parse_csv_result.maybe_table
+      ,annotated_table = this->m_maybe_table_result  // AnnotatedMaybe<CSV::Table>
     ]() -> StateUpdateResult {
-      return {std::nullopt, [fiscal_period,csv_heading_id,maybe_table]() -> std::optional<Msg> {
-        auto expteced_acount_statement = CSV::project::to_account_statement(csv_heading_id,maybe_table);
-        AccountStatementState::PeriodPairedExpectedAccountStatement period_paired_expected_account_statement{
+      return {std::nullopt, [fiscal_period, annotated_table]() -> std::optional<Msg> {
+        using namespace cratchit::functional;
+
+        // Compose: AnnotatedMaybe<Table> → AnnotatedMaybe<MDTable<AccountID>> → AnnotatedMaybe<AccountStatement>
+        auto annotated_statement = annotated_table
+          .and_then(account::statement::monadic::to_statement_id_ed_step)
+          .and_then(account::statement::monadic::statement_id_ed_to_account_statement_step);
+
+        AccountStatementState::PeriodPairedAnnotatedAccountStatement period_paired{
            fiscal_period
-          ,expteced_acount_statement
+          ,annotated_statement
         };
-        State new_state = make_state<AccountStatementState>(period_paired_expected_account_statement);
+        State new_state = make_state<AccountStatementState>(period_paired);
         return std::make_shared<PushStateMsg>(new_state);
       }};
     }});
@@ -83,8 +110,8 @@ namespace first {
     result.push_back(this->caption());    
     result.push_back("");
     
-    if (m_parse_csv_result.maybe_table) {
-      auto const& csv_table = m_parse_csv_result.maybe_table.value();
+    if (m_maybe_table_result) {
+      auto const& csv_table = m_maybe_table_result.value();
       
       // Calculate column widths for fixed-width formatting
       std::vector<size_t> column_widths{};

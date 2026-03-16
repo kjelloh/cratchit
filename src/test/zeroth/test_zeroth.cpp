@@ -74,8 +74,8 @@ namespace tests::zeroth {
         : m_sie_content_map{
              { "TheITfiedAB20250812_145743.se", szPostedSIEContent}
             ,{"cratchit_2025-05-01_2026-04-30.se", szStagedSIEContent}} {} 
-      virtual persistent::in::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & final {
-        return persistent::in::from_string(
+      virtual persistent::in::text::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & final {
+        return persistent::in::text::from_string(
           m_sie_content_map[file_path.filename()]);
       }
     };
@@ -110,7 +110,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         ASSERT_TRUE(model->sie_env_map.contains("current")) << std::format("Expected 'current' SIE Environment to exist ok");
@@ -144,7 +144,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         auto const& sie_env = model->sie_env_map.at("current").value();
@@ -167,7 +167,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         auto const& sie_env = model->sie_env_map.at("current").value();
@@ -207,7 +207,7 @@ namespace tests::zeroth {
         };
 
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
-        std::println("prompt:{}",model->prompt);
+        std::println("\n\nprompt:{}",model->prompt);
 
         // ASSERT_TRUE(model->sie_env_map. ) << std::format("");
         auto const& sie_env = model->sie_env_map.at("current").value();
@@ -220,20 +220,7 @@ namespace tests::zeroth {
            "Expected a total of three now posted SIE entries but encountered:{}"
           ,journals_entry_count);
       }
-
-
     }
-
-    TEST(ModelTests, Model2EnvironmentTest) {
-      logger::scope_logger log_raii{logger::development_trace,"TEST(ModelTests, Model2EnvironmentTest)"};
-
-      ASSERT_FALSE(true) << "TODO: Implement this test";
-
-      auto model = std::make_unique<ConcreteModel>();
-
-
-    }
-
   }
 
 }
