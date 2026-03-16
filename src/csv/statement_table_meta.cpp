@@ -668,7 +668,7 @@ namespace account {
             if (     (column_headings_map == NORDEA_HEADING_MAP_1)
                   or (column_headings_map == NORDEA_HEADING_MAP_2)
                   or (column_headings_map == NORDEA_HEADING_MAP_3)) {
-              candidate = AccountID{"NORDEA","??"};
+              candidate = AccountID{"NORDEA","Anonymous"};
               return candidate; // SUCCESS
             }
 

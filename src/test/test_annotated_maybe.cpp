@@ -4676,7 +4676,7 @@ namespace tests {
     // Verify all entries have correct Account tag
     for (auto const& ta : *result) {
       ASSERT_TRUE(ta.tags().contains("Account"));
-      EXPECT_EQ(ta.tags().at("Account"), "NORDEA::??");
+      EXPECT_EQ(ta.tags().at("Account"), "NORDEA::Anonymous");
 
       ASSERT_TRUE(ta.tags().contains("Text"));
       EXPECT_FALSE(ta.tags().at("Text").empty()) << "Expected non-empty Text tag";
@@ -4744,7 +4744,7 @@ namespace tests {
     for (auto const& ta : *result) {
       ASSERT_TRUE(ta.tags().contains("Account"));
       ASSERT_TRUE(ta.tags().contains("Text"));
-      EXPECT_EQ(ta.tags().at("Account"), "NORDEA::??");
+      EXPECT_EQ(ta.tags().at("Account"), "NORDEA::Anonymous");
     }
   }
 
