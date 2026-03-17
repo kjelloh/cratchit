@@ -120,7 +120,145 @@ using CratchitMDFileSystem = MetaDefacto<CratchitFSMeta,CratchitFSDefactoPtr>;
 
 Anyhow, It seems I should first replace usage of IRL SIE-file with a specific test SIE-file.
 
+I now introduced a test fixture that generates the SIE-file required as 'current unposted SIE' and so does NOT use (assume) the 'sie_in/TheITfiedAB20250812_145743.se'.
 
+What is next?
+
+Well, I came back to ModelTestsFixture tests and wondered what is really going on?
+
+* Is the test using the generated SIE file at the configured 'path to posted SIE file'?
+* What the F* does model_from_environment_and_md_filesystem actually do?
+
+I think it is better to start with the latter.
+
+```c++
+	Model model_from_environment_and_md_filesystem(
+     Environment const& environment
+    ,CratchitMDFileSystem const& md_cfs) {
+
+    ...
+```
+
+We have:
+
+```c++
+    auto cratchit_environment_file_path = md_cfs.meta.m_root_path;
+```
+
+So it expects the environment 'root' to be defined by the provided md_cfs (MetaDefacto Cratchit File System). Then we initiate the model to return.
+
+```c++
+    Model model = model_from_environment(environment);
+```
+
+BUT: Importantly - No SIE file parsing happens here! The model_from_environment retrieves more basic config stuff:
+
+```c++
+		model->heading_amount_date_entries = hads_from_environment(environment);
+		model->organisation_contacts = contacts_from_environment(environment);
+		model->employee_birth_ids = employee_birth_ids_from_environment(environment);
+		model->sru = srus_from_environment(environment);
+
+    // With dotas_insert_auto_ordered_container we are safe
+    // to move the order we insert to all_dotas. Here we 'know'
+    // we are 'first' as we initiate model above, but future cut-and-paste
+    // may move this code some place else in soace and time ;)
+    model->all_dotas.dotas_insert_auto_ordered_container(
+      dotas_from_environment(environment));      
+
+```
+
+So now model has:
+
+* HADs
+* contacts
+* employee_birth_ids
+* SRUs
+* All 'Date Ordered Tagged Amounts' in all_dotas
+
+But NO SIE entries nor environments yet!
+
+Then we do:
+
+```c++
+      auto configured_posted_sie_file_paths = to_configured_posted_sie_file_paths(environment);
+
+      std::ranges::for_each(
+        configured_posted_sie_file_paths
+        ,[&](auto const& id_path_pair){
+          auto const& [year_id,sie_file_path] = id_path_pair;
+
+```
+
+Now to_configured_posted_sie_file_paths is the 'posted' SIE files configured in the environment listed old-to-new index wise.
+
+NOTE: The whole concept of 'posted' is CONFUISING!
+
+* The 'posted' SIE is defined when IMPORTING it!
+* The rationale is that an SIE file we import is at the same time a record of what the external app sees as 'posted'
+* BUT: We do this regardless of wether we actually imported our SIE 'truth' to it or not!
+
+Anyhow, 'posted' is what we regard as the common truth between cratchit and an external app.
+
+We now do:
+
+```c++
+  auto update_posted_result = md_cfs.defacto->to_maybe_istream(sie_file_path)
+    .and_then([](auto& istream){
+      return sie_from_stream(istream);
+    })
+    .and_then([&md_cfs,&model,year_id](auto const& sie_env){
+      auto staged_sie_env = md_cfs.defacto->to_maybe_istream(sie_env.staged_sie_file_path())
+        .and_then([](auto& istream){
+          return sie_from_stream(istream);
+        })
+        .value_or(SIEEnvironment{sie_env.fiscal_year()});
+
+      return model->sie_env_map.update_from_posted_and_staged_sie_env(
+        year_id
+        ,sie_env
+        ,staged_sie_env);
+
+    });
+
+```
+
+1. a 'maybe istream' from 'path to posted sie file' (to_maybe_istream)
+2. Parse it into SIE Environment (sie_from_stream)
+3. Parse corresponding 'staged SIE'
+  - The path to the 'staged SIE' is fully given from 'posted SIE environment' fiscal year (member staged_sie_file_path)
+4. Finally we call on 'SIE Environment Map' to merge 'posted' with 'staged' (update_from_posted_and_staged_sie_env)
+
+Phiew! That was a mouthfull!
+
+Ok, so we now know:
+
+* We DO parse the file at the path configured in environment (path to posted SIE file)
+* We DO parse the inferred 'staged SIE entries' file that must come with each 'posted'
+
+But what the F is the 'model->sie_env_map'?? At least the call does not look so bad?
+
+```c++
+    return model->sie_env_map.update_from_posted_and_staged_sie_env(
+      year_id
+      ,sie_env
+      ,staged_sie_env);
+
+```
+
+BUT - I am still confused. What is the role of 'CratchitMDFileSystem const& md_cfs'?
+
+* AHA! It is to handle the indirection to the correct root folder when '_cfs.defacto->to_maybe_istream(...)
+* Because the provide 'path' is actually NOT a path. It is created by:
+
+```c++
+std::filesystem::path SIEEnvironment::staged_sie_file_path() const {
+  return std::format(
+      "cratchit_{}_{}.se"
+    ,this->m_fiscal_year.start()
+    ,this->m_fiscal_year.last());
+};
+```
 
 ## 20260316
 

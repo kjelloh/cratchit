@@ -45,9 +45,9 @@
 #./run.zsh --gtest_filter=*AccountStatementTableTestsFixture.TableMetaBasedGeneric_sz_NORDEA_csv_20251120_Ok_sub_0
 #./run.zsh --gtest_filter=ModelTestsFixture.Environment2ModelTest
 #./run.zsh --gtest_filter=ModelTestsFixture.Environment2ModelSIEStageOverlapOKTest
-./run.zsh --gtest_filter=ModelTestsFixture.Environment2ModelSIEStageOverlapConflictTest
+#./run.zsh --gtest_filter=ModelTestsFixture.Environment2ModelSIEStageOverlapConflictTest
 
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
-#./run.zsh --test
+./run.zsh --test
