@@ -2,6 +2,126 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260317
+
+So what is next?
+
+You know what? Maybe the first thing to do is to clean up any potential remaining 'errors'?
+
+```text
+BEGIN REFACTORED posted SIE digest
+
+STAGE of cracthit entries FAILED when merging with posted (from external tool)
+Entries in sie-file:sie_in/TheITfiedAB20250812_145743.se overrides values in cratchit staged entries
+CONFLICTED! : No longer valid entry  A3 "Account:NORDEA Text:BG KONTOINS Message:5050-1030 SK5567828172" 20250516
+    1630 "" -1998.00
+    1920 "" 1998.00
+ year id:current - ALL POSTED OK
+END REFACTORED posted SIE digest
+```
+
+But I also have some items on my wish list.
+
+* Should I go for a total clean-up of console output at start?
+  - Do I dare to go for a totally silent start-up?
+  - Can I imagine an intermediate step to move console output to log output?
+* Should I go for a 'deep' log clean-up?
+  - Inactivate current scope logs?
+  - Keep only overall scope logs?
+* Can I prepare Cracthit to be used for my private finances?
+  - Should I make cratchit 'know' about 'subscriptions'?
+  - Should I be able to match known subscriptions to entries in account statements?
+  - What is a 'subscription' can generate 'expected' that then is confirmed in HAD and stement entries?
+* Can I make Cratchit operate on distributed projects?
+  - Consider Framework -> Workspace -> Project
+* Should I make account statement processing into a command instead of automatic at startup?
+  - Do I alreadu have a command?
+  - Should I consider an implementation in 'first' NCurses Ux?
+  - What use case can I imagine for account statement -> Accounting?
+
+I aksed chatGPT about the terminology for 'contracts' that ties to a recurring payment.
+
+```text
+Accounting / bookkeeping terminology you may want
+
+If you are designing domain language, here are excellent professional terms:
+
+* Recurring payment
+* Recurring invoice
+* Billing cycle
+* Contract term
+* Auto-renewing contract
+* Subscription period
+* Cancellation notice period
+
+Top concept name → Subscription
+Then properties like:
+billingInterval (monthly, yearly)
+startDate
+renewalType (auto / manual)
+cancellationDate
+noticePeriod
+status (active / paused / cancelled)
+```
+
+So this quickly got overwhelming! Lets eat the elephant?
+
+* Can I make cratchit open distributed 'projects'?
+* How can I make statement processing into a command?
+
+NO! I should consilidate the current state and adress any errors and inconsistencies before I continue with new features?
+
+* What IS the 'CONFLICTED! : No longer valid entry  A3...' about?
+* Can I spot any other unsatisfying results at startup?
+  - It processes 'BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store"'
+* Can I spot any especially unwanted console outputs?
+  - 'Opening Saldo Date:20240501...'
+  - 'BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed"'
+  - Invalid text output on the form 'Bye for now :)[?1049h[1;65r(B[m[4l[?7h[?1h=[H[2J┌────...'
+
+AHA! The '' is from TEST 'Environment2ModelSIEStageOverlapConflictTest'.
+
+* DARN! TEST 'Environment2ModelSIEStageOverlapConflictTest' uses 'sie_in/TheITfiedAB20250812_145743.se'!
+  - This is FRAGILE!
+  - I should generate a TEST specific SIE-file to base the test on?
+
+I wonder, how may TESTS uses IRL SIE-files?
+
+* Environment2ModelTest
+* Environment2ModelSIEStageOverlapOKTest
+* Environment2ModelSIEStageOverlapConflictTest
+
+And, what files are they using?
+
+* They ALL use {"current","sie_in/TheITfiedAB20250812_145743.se"}
+
+So, it seems we should generate a test SIE-file and use instead?
+
+* What is CratchitMDFileSystem?
+  - It seems to be part of some elaborate meta pairing design?
+
+```c++
+using ConfiguredSIEFilePath = std::pair<std::string,std::filesystem::path>;
+
+struct CratchitFSMeta {
+  std::filesystem::path m_root_path;
+  using ConfiguredSIEFilePaths = std::vector<ConfiguredSIEFilePath>;
+  // ConfiguredSIEFilePaths m_configured_sie_file_paths{};
+};
+struct CratchitFSDefacto {
+  virtual persistent::in::text::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & {
+    return persistent::in::text::to_maybe_istream(file_path);
+  }
+};
+using CratchitFSDefactoPtr = std::unique_ptr<CratchitFSDefacto>;
+using CratchitMDFileSystem = MetaDefacto<CratchitFSMeta,CratchitFSDefactoPtr>;
+
+```
+
+Anyhow, It seems I should first replace usage of IRL SIE-file with a specific test SIE-file.
+
+
+
 ## 20260316
 
 So am I now ready to close the claude-001-refactor-csv-import-pipeline branch?
