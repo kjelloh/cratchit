@@ -260,6 +260,36 @@ std::filesystem::path SIEEnvironment::staged_sie_file_path() const {
 };
 ```
 
+It seems I REALLY need to define a good naming scheme and an overhaul of the mechanism to process SIE files?
+
+It seems I have:
+
+* 'Old' posted
+* 'New'posted
+* 'Staged' by cratchit (accounting not yet in 'posted')?
+
+I have now thought about this some more. And I think there should be three files involved?
+
+* Current 'posted'
+* New 'posted'
+* Current 'staged for posting'
+
+And the process is to determine how to identify how current 'staged' can now be ticked off:
+
+* Now 'posted'
+* Now 'discarded'
+
+Based on the ground truth in the new 'posted'. But note that we still have the problem of comming up with a model with good names for these parts?
+
+* Can we somehow define 'posted' and 'staged' so we can understand it all when we come back the next time?
+* And what do we do with the operations 'stage'
+
+It seems the SIEEnvironmentsMap is also a MESS?!
+
+* It 'simply' maps 'year id' to an SIEEnvironment (nothing more complicated than that)
+* But it exposes a quite perplex API
+
+
 ## 20260316
 
 So am I now ready to close the claude-001-refactor-csv-import-pipeline branch?
