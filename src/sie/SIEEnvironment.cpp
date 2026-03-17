@@ -12,16 +12,56 @@ namespace logger {
   };
 }
 
+// SIEEnvironmentChangeResult
+
+SIEEnvironmentChangeResult::SIEEnvironmentChangeResult(BAS::MDJournalEntry const& mdje,Status status)
+  : m_md_entry{mdje},m_status{status} {}
+
+SIEEnvironmentChangeResult SIEEnvironmentChangeResult::with_status(Status status) const {
+  SIEEnvironmentChangeResult result{*this};
+  result.m_status = status;
+  return result;
+}
+
+bool SIEEnvironmentChangeResult::now_posted() const {return m_status == Status::NowPosted;}
+SIEEnvironmentChangeResult::operator bool() const {
+  // true if a meaningful status
+  return (m_status != Status::Unknown) 
+    and (m_status != Status::Undefined); 
+}
+BAS::MDJournalEntry const& SIEEnvironmentChangeResult::md_entry() const {return m_md_entry;}
+
+// END SIEEnvironmentChangeResult
+
+// SIEEnvironment
 
 // public:
 
 SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
-// Entry API
-SIEEnvironment::EnvironmentChangeResult SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
+MaybeBASJournalRef SIEEnvironment::at(BAS::Series series) {
+  auto iter = this->m_journals.find(series);
+  if (iter == this->m_journals.end()) return {};
+  return MaybeBASJournalRef::from(iter->second);
+}
 
-  EnvironmentChangeResult result{mdje};
+BAS::MaybeJournalEntryRef SIEEnvironment::at(DatedJournalEntryMeta key) {
+  if (this->fiscal_year().contains(key.m_date)) {
+    return this->at(key.m_jem.series)
+      .and_then([verno = key.m_jem.verno.value()](auto& journal) {
+        if (journal.contains(verno)) {
+          return BAS::MaybeJournalEntryRef::from(journal.at(verno));
+        }
+        return BAS::MaybeJournalEntryRef{};
+      });
+  }
+  return {};
+}
+
+SIEEnvironmentChangeResult SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
+
+  SIEEnvironmentChangeResult result{mdje};
 
   logger::scope_logger log_raii{
      logger::development_trace
@@ -34,13 +74,13 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::post(BAS::MDJournalEntry
     if (not m_journals[mdje.meta.series].contains(verno)) {
       m_journals[mdje.meta.series][verno] = mdje.defacto;
       verno_of_last_posted_to[mdje.meta.series] = verno;
-      result = result.with_status(EnvironmentChangeResult::Status::NowPosted);
+      result = result.with_status(SIEEnvironmentChangeResult::Status::NowPosted);
     }
     else {
       // series,verno already exists
       auto const& existing_defacto = m_journals[mdje.meta.series][verno];
       if (existing_defacto == mdje.defacto) {
-        result = result.with_status(EnvironmentChangeResult::Status::NowPosted);
+        result = result.with_status(SIEEnvironmentChangeResult::Status::NowPosted);
       }
       else {
         // Can't post an already pested series/verno entry with a new value
@@ -66,8 +106,8 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::post(BAS::MDJournalEntry
   return result;
 }
 
-SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje) {
-  EnvironmentChangeResult result{mdje};
+SIEEnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje) {
+  SIEEnvironmentChangeResult result{mdje};
 
   // scope Log
   logger::scope_logger log_raii{
@@ -90,7 +130,7 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
         // Is 'posted' to external tool
         // But update it in case transient data exists that needs to be mutated?
         if (auto update_result = this->update(mdje)) {
-          result = result.with_status(EnvironmentChangeResult::Status::NowPosted);
+          result = result.with_status(SIEEnvironmentChangeResult::Status::NowPosted);
         }
         else {
           logger::development_trace("update(mdje) FAILED");
@@ -118,10 +158,10 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntr
   return result;
 } // stage
 
-SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry mdje) {
+SIEEnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
-  EnvironmentChangeResult result{mdje};
+  SIEEnvironmentChangeResult result{mdje};
 
   auto candidate = mdje;
 
@@ -146,7 +186,7 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry 
 
   if (!m_journals[candidate.meta.series].contains(candidate.meta.verno.value())) {
     m_journals[candidate.meta.series][candidate.meta.verno.value()] = candidate.defacto;
-    result = {candidate,EnvironmentChangeResult::Status::StagedOk};
+    result = {candidate,SIEEnvironmentChangeResult::Status::StagedOk};
     logger::development_trace(
       "add(me): Added {}"
       ,to_string(candidate));
@@ -160,14 +200,14 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry 
   return result;
 } // add
 
-SIEEnvironment::EnvironmentChangeResult SIEEnvironment::update(BAS::MDJournalEntry const& mdje) {
+SIEEnvironmentChangeResult SIEEnvironment::update(BAS::MDJournalEntry const& mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
 
   logger::development_trace("update {}{}"
     ,mdje.meta.series
     ,mdje.meta.verno.value_or(-1));
 
-  SIEEnvironment::EnvironmentChangeResult result{mdje};
+  SIEEnvironmentChangeResult result{mdje};
 
   if (mdje.meta.verno and *mdje.meta.verno > 0) {
     auto journal_iter = m_journals.find(mdje.meta.series);
@@ -183,7 +223,7 @@ SIEEnvironment::EnvironmentChangeResult SIEEnvironment::update(BAS::MDJournalEnt
 
             result = {
                BAS::MDJournalEntry{mdje.meta,entry_iter->second}
-              ,EnvironmentChangeResult::Status::SameValueAssigned};
+              ,SIEEnvironmentChangeResult::Status::SameValueAssigned};
 
             logger::development_trace("Update: {}{} same_value (transient assigned) ok new: {}"
               ,journal_iter->first
@@ -242,14 +282,13 @@ bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& mdje) {
   return result;
 }
 
-// Entries API
-std::vector<SIEEnvironment::EnvironmentChangeResult> SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
+std::vector<SIEEnvironmentChangeResult> SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
 
   logger::scope_logger log_raii{
       logger::development_trace
     ,std::format("stage(SIEEnvironment size:{})",staged_sie_environment.journals_entry_count())};
 
-  std::vector<EnvironmentChangeResult> result{};
+  std::vector<SIEEnvironmentChangeResult> result{};
   for (auto const& [series,journal] : staged_sie_environment.journals()) {
     for (auto const& [verno,aje] : journal) {
       auto stage_result = this->stage({{.series=series,.verno=verno},aje});
@@ -259,8 +298,8 @@ std::vector<SIEEnvironment::EnvironmentChangeResult> SIEEnvironment::stage(SIEEn
   return result;
 }
 
-SIEEnvironment::DatedJournalEntryMetas SIEEnvironment::to_dated_journal_entry_metas() const {
-  SIEEnvironment::DatedJournalEntryMetas result{};
+DatedJournalEntryMetas SIEEnvironment::to_dated_journal_entry_metas() const {
+  DatedJournalEntryMetas result{};
   for (auto const& [series,journal] : this->journals()) {
     for (auto const& [verno,aje] : journal) {
       result.push_back(DatedJournalEntryMeta{
@@ -283,11 +322,8 @@ std::filesystem::path SIEEnvironment::staged_sie_file_path() const {
     ,this->m_fiscal_year.last());
 };
 
-// Journals API
 BASJournals& SIEEnvironment::journals() {return m_journals;}
 BASJournals const& SIEEnvironment::journals() const {return m_journals;}
-
-// The rest of the API
 
 bool SIEEnvironment::is_unposted(BAS::Series series, BAS::VerNo verno) const {
 
@@ -441,11 +477,9 @@ std::map<BAS::AccountNo,Amount> const& SIEEnvironment::opening_balances() const 
   return this->opening_balance;
 }
 
-// private:
-
 // free functions
 
-std::ostream& operator<<(std::ostream& os,SIEEnvironment::DatedJournalEntryMeta const& djem) {
+std::ostream& operator<<(std::ostream& os,DatedJournalEntryMeta const& djem) {
   os << djem.m_date << " " << djem.m_jem;
   return os;
 }

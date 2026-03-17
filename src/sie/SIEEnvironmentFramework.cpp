@@ -130,7 +130,7 @@ MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
 // ------------------------------------------
 // SIEEnvironmentsMap
 
-std::pair<bool,std::string> SIEEnvironmentsMap::remove(SIEEnvironment::DatedJournalEntryMeta const& key) {
+std::pair<bool,std::string> SIEEnvironmentsMap::remove(DatedJournalEntryMeta const& key) {
   std::pair<bool,std::string> result{false,std::format("Could not find entry to remove")};
 
   // TODO: Consider to refactor the whole SIE storage API to use a key:{series,verno}.
@@ -225,7 +225,7 @@ MybeSIEEnvironmentRef SIEEnvironmentsMap::at(Date date) {
   return MybeSIEEnvironmentRef::from(iter->second);
 }
 
-BAS::MaybeJournalEntryRef SIEEnvironmentsMap::at(SIEEnvironment::DatedJournalEntryMeta key) {
+BAS::MaybeJournalEntryRef SIEEnvironmentsMap::at(DatedJournalEntryMeta key) {
   return this->at(key.m_date)
     .and_then([&key](auto& sie_env){
       return sie_env.at(key);
@@ -246,8 +246,8 @@ SIEEnvironment& SIEEnvironmentsMap::operator[](sie::RelativeYearKey key) {
   return dummy;
 }
 
-SIEEnvironment::EnvironmentChangeResult SIEEnvironmentsMap::stage(BAS::MDJournalEntry const& mdje) {
-  SIEEnvironment::EnvironmentChangeResult result{mdje,SIEEnvironment::EnvironmentChangeResult::Status::Undefined};
+SIEEnvironmentChangeResult SIEEnvironmentsMap::stage(BAS::MDJournalEntry const& mdje) {
+  SIEEnvironmentChangeResult result{mdje,SIEEnvironmentChangeResult::Status::Undefined};
 
   // TODO: Refctor this 'mess' *sigh* (to many optionals...)
 

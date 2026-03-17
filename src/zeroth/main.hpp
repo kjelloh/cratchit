@@ -4306,10 +4306,10 @@ public:
 		return this->heading_amount_date_entries;
 	}
 
-  SIEEnvironment::DatedJournalEntryMetas m_selected_sie_keys{};
+  DatedJournalEntryMetas m_selected_sie_keys{};
   std::size_t sie_key_index;
 
-  std::optional<SIEEnvironment::DatedJournalEntryMeta> selected_sie_key() {
+  std::optional<DatedJournalEntryMeta> selected_sie_key() {
     if (sie_key_index < m_selected_sie_keys.size()) return m_selected_sie_keys.at(sie_key_index);
     return std::nullopt;
   }
@@ -4383,7 +4383,7 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,sie::RelativeYearKey year_id
-    ,SIEEnvironment::EnvironmentChangeResults const& change_results);
+    ,SIEEnvironmentChangeResults const& change_results);
 	Model model_from_environment(Environment const& environment);  
 	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem const& runtime);
 	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);

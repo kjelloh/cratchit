@@ -500,9 +500,9 @@ std::string to_had_listing_prompt(HeadingAmountDateTransEntries const& hads) {
 		return prompt.str();
 }
 
-using SIELookupFunction = std::function<BAS::MaybeJournalEntryRef(SIEEnvironment::DatedJournalEntryMeta)>;
+using SIELookupFunction = std::function<BAS::MaybeJournalEntryRef(DatedJournalEntryMeta)>;
 std::string to_sie_listing_prompt(
-   SIEEnvironment::DatedJournalEntryMetas const& djems
+   DatedJournalEntryMetas const& djems
   ,SIELookupFunction to_journal_entry) {
 		// Prepare to Expose hads (Heading Amount Date transaction entries) to the user
 		std::stringstream prompt{};
@@ -5467,7 +5467,7 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,sie::RelativeYearKey year_id
-    ,SIEEnvironment::EnvironmentChangeResults const& change_results) {
+    ,SIEEnvironmentChangeResults const& change_results) {
 
 		std::ostringstream prompt{};
 
@@ -5608,7 +5608,7 @@ namespace zeroth {
     prompt << NL << "BEGIN: model_from_environment_and_md_filesystem ";
 
     Model model = model_from_environment(environment);
-    
+
     prompt << model->prompt;
 
     {

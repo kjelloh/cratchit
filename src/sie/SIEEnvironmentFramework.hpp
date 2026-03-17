@@ -17,7 +17,7 @@ namespace sie {
 BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
 OptionalSIEEnvironment sie_from_stream(std::istream& is);
 
-using UpdateFromPostedResult = std::optional<SIEEnvironment::EnvironmentChangeResults>;
+using UpdateFromPostedResult = std::optional<SIEEnvironmentChangeResults>;
 using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEEnvironment>;
 // TODO: Consider to design a domain using an actual FiscalYear as key?
 //       SIE files are based on relative key 0,-1,-2.
@@ -30,7 +30,7 @@ public:
 
   SIEEnvironmentsMap() = default;
 
-  std::pair<bool,std::string> remove(SIEEnvironment::DatedJournalEntryMeta const& key);
+  std::pair<bool,std::string> remove(DatedJournalEntryMeta const& key);
   UpdateFromPostedResult update_from_posted_and_staged_sie_env(
      sie::RelativeYearKey year_id
     ,SIEEnvironment const& posted_sie_env
@@ -40,9 +40,9 @@ public:
   auto contains(sie::RelativeYearKey key) const {return m_sie_envs_map.contains(key);}  
   MybeSIEEnvironmentRef at(sie::RelativeYearKey key);
   MybeSIEEnvironmentRef at(Date date);
-  BAS::MaybeJournalEntryRef at(SIEEnvironment::DatedJournalEntryMeta key);
+  BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
   SIEEnvironment& operator[](sie::RelativeYearKey key);
-	SIEEnvironment::EnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
 private:
   std::expected<ActualYearKey, std::string> to_actual_year_key(
      sie::RelativeYearKey relative_year_key

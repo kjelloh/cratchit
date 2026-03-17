@@ -3,6 +3,36 @@
 #include "sie.hpp"
 #include "logger/log.hpp"
 
+struct DatedJournalEntryMeta {
+  Date m_date;
+  BAS::WeakJournalEntryMeta m_jem;
+};
+
+class SIEEnvironmentChangeResult {
+public:
+  enum class Status {
+     Unknown
+    ,NowPosted
+    ,StagedOk
+    ,SameValueAssigned
+    ,Undefined
+  };
+  SIEEnvironmentChangeResult() = delete;
+  SIEEnvironmentChangeResult(BAS::MDJournalEntry const& mdje,Status status = Status{});
+  SIEEnvironmentChangeResult with_status(Status status) const;
+  bool now_posted() const;
+  operator bool() const;
+  BAS::MDJournalEntry const& md_entry() const;
+private:
+  Status m_status{};
+  BAS::MDJournalEntry m_md_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
+                                  //       So we store a ref-safe clone to return as result
+                                  //       This may e.g., allow for returning a mutated entry.
+}; // SIEEnvironmentChangeResult
+
+using SIEEnvironmentChangeResults = std::vector<SIEEnvironmentChangeResult>;
+
+using DatedJournalEntryMetas = std::vector<DatedJournalEntryMeta>;
 
 class SIEEnvironment {
 
@@ -23,113 +53,43 @@ public:
 
   SIEEnvironment(FiscalYear const& fiscal_year);
   SIEEnvironment() = delete;
-
   SIEEnvironment& operator=(SIEEnvironment const& other) = default;
 
-  MaybeBASJournalRef at(BAS::Series series) {
-    auto iter = this->m_journals.find(series);
-    if (iter == this->m_journals.end()) return {};
-    return MaybeBASJournalRef::from(iter->second);
-  }
+  MaybeBASJournalRef at(BAS::Series series);
+  BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
+	BAS::MDJournalEntries unposted() const;
 
-  struct DatedJournalEntryMeta {
-    Date m_date;
-    BAS::WeakJournalEntryMeta m_jem;
-  };
-
-  BAS::MaybeJournalEntryRef at(SIEEnvironment::DatedJournalEntryMeta key) {
-    if (this->fiscal_year().contains(key.m_date)) {
-      return this->at(key.m_jem.series)
-        .and_then([verno = key.m_jem.verno.value()](auto& journal) {
-          if (journal.contains(verno)) {
-            return BAS::MaybeJournalEntryRef::from(journal.at(verno));
-          }
-          return BAS::MaybeJournalEntryRef{};
-        });
-    }
-    return {};
-  }
-
-  // Entry API
-
-  class EnvironmentChangeResult {
-  public:
-    enum class Status {
-       Unknown
-      ,NowPosted
-      ,StagedOk
-      ,SameValueAssigned
-      ,Undefined
-    };
-    EnvironmentChangeResult() = delete;
-    EnvironmentChangeResult(BAS::MDJournalEntry const& mdje,Status status = Status{})
-      : m_md_entry{mdje},m_status{status} {}
-    EnvironmentChangeResult with_status(Status status) const {
-      EnvironmentChangeResult result{*this};
-      result.m_status = status;
-      return result;
-    }
-    bool now_posted() const {return m_status == Status::NowPosted;}
-    operator bool() const {
-      // true if a meaningful status
-      return (m_status != Status::Unknown) 
-        and (m_status != Status::Undefined); }
-    BAS::MDJournalEntry const& md_entry() const {return m_md_entry;}
-  private:
-    Status m_status{};
-    BAS::MDJournalEntry m_md_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
-                            //       So we store a ref-safe clone to return as result
-                            //       This may e.g., allow for returning a mutated entry.
-  };
-
-	EnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
-	EnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
-
-	EnvironmentChangeResult add(BAS::MDJournalEntry mdje);
-	EnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
+	SIEEnvironmentChangeResult add(BAS::MDJournalEntry mdje);
+	SIEEnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
 
 	BAS::VerNo largest_verno(BAS::Series series);
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);
+	bool is_unposted(BAS::Series series, BAS::VerNo verno) const;
 
-  // Entries API
-  using EnvironmentChangeResults = std::vector<EnvironmentChangeResult>;
-	EnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
-
-  using DatedJournalEntryMetas = std::vector<DatedJournalEntryMeta>;
   DatedJournalEntryMetas to_dated_journal_entry_metas() const;
-
-  // file API
 	std::filesystem::path staged_sie_file_path() const;
-
-  // Now in SIEEnvironmentsMap::meta
-  // std::filesystem::path source_sie_file_path() const;
-  // void set_source_sie_file_path(std::filesystem::path const& source_sie_file_path);
-
-  // Meta data API
 	SIE::OrgNr organisation_no{};
 	SIE::FNamn organisation_name{};
 	SIE::Adress organisation_address{};
-
-  // Journals API
 	BASJournals& journals();
 	BASJournals const& journals() const;
-
-  // The rest of the API
-	bool is_unposted(BAS::Series series, BAS::VerNo verno) const;
-
 	SKV::SRU::OptionalAccountNo sru_code(BAS::AccountNo const& bas_account_no);
 	BAS::OptionalAccountNos to_bas_accounts(SKV::SRU::AccountNo const& sru_code) const;
   std::size_t journals_entry_count() const;
 	BAS::AccountMetas const&  account_metas() const;
+
 	void set_account_name(BAS::AccountNo bas_account_no ,std::string const& name);
 	void set_account_SRU(BAS::AccountNo bas_account_no, SKV::SRU::AccountNo sru_code);
 	void set_opening_balance(BAS::AccountNo bas_account_no,Amount opening_balance);
+
 	BalancesMap balances_at(Date date);
 	FiscalYear fiscal_year() const;
 	zeroth::OptionalDateRange financial_year_date_range() const;
   OptionalAmount opening_balance_of(BAS::AccountNo bas_account_no) const;
   std::map<BAS::AccountNo,Amount> const& opening_balances() const;
-	BAS::MDJournalEntries unposted() const;
 	
 private:
 	BASJournals m_journals{};
@@ -138,14 +98,9 @@ private:
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
   friend class SIEEnvironmentsMap;
-
-  // Now in SIEEnvironmentsMap::meta
-  // Path to the file from which this environment originated (external tool SIE export)
-	// std::filesystem::path sie_file_path{};
-
 }; // class SIEEnvironment
 
 using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
 
-std::ostream& operator<<(std::ostream& os,SIEEnvironment::DatedJournalEntryMeta const& djem);
+std::ostream& operator<<(std::ostream& os,DatedJournalEntryMeta const& djem);
 
