@@ -2,6 +2,135 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260319
+
+So I think I should bite the bullet and create a branch to clean up the SIE posted + staged MESS!
+
+How do I create and start working on a git branch clean-up-sie-posted-staged-update-mechanism?
+
+* git switch -c <branch name> // Create a branch and 'switch' to it
+* git push -u origin <brach name> // make 'push' operate on the branch
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % git switch -c clean-up-sie-posted-staged-update-mechanism
+Switched to a new branch 'clean-up-sie-posted-staged-update-mechanism'
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % git push -u origin clean-up-sie-posted-staged-update-mechanism
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: 
+remote: Create a pull request for 'clean-up-sie-posted-staged-update-mechanism' on GitHub by visiting:
+remote:      https://github.com/kjelloh/cratchit/pull/new/clean-up-sie-posted-staged-update-mechanism
+remote: 
+To github.com:kjelloh/cratchit.git
+ * [new branch]      clean-up-sie-posted-staged-update-mechanism -> clean-up-sie-posted-staged-update-mechanism
+branch 'clean-up-sie-posted-staged-update-mechanism' set up to track 'origin/clean-up-sie-posted-staged-update-mechanism'.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+So now I am setup to celan up the SIE posted and staged mechanism. In what order should I go about doing this?
+
+* Should I first consolodate #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK code (to have one truth about how this is done)?
+* Should I clarify that a new posted SIE just ignores the previous one (it is not involved in the 'merging' mechanism)
+
+So Where is the #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK code?
+
+* command ```text -sie <path to new posted SIE> ```
+* command ```text -sie <year id> <path to posted SIE> ```
+* In model_from_environment_and_md_filesystem
+
+So it seems I may be tempted to create a function that returns the update_posted_result.
+
+```c++
+            auto update_posted_result = md_cfs.defacto->to_maybe_istream(sie_file_path)
+              .and_then([](auto& istream){
+                return sie_from_stream(istream);
+              })
+              .and_then([&md_cfs,&model,year_id](auto const& sie_env){
+                auto staged_sie_env = md_cfs.defacto->to_maybe_istream(sie_env.staged_sie_file_path())
+                  .and_then([](auto& istream){
+                    return sie_from_stream(istream);
+                  })
+                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
+
+                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                  year_id
+                  ,sie_env
+                  ,staged_sie_env);
+
+              });
+
+```
+
+Follow-up questions:
+
+* What type is update_posted_result and what does the type 'do'?
+* What should my function be called?
+
+So I chatted with chatGPT and landed on some concepts and naming convention I liked.
+
+* I think I want to have the function take prev_posted_sie, new_posted_sie and staged_sie
+* The function would then become a 'rebase' and could be named rebase_staged_on_posted(old_base,new_base,current_staged)
+
+```text
+* there is an old base
+* there is a new upstream
+* staged must be replayed / reconsidered
+```
+
+* I like this model of what is going on.
+  - What I call 'posted' is in fact 'base' (immutable truth shared with an external app, e.g. Fortnox accouning app)
+  - What I call 'staged' is good as it reflects that these are not yet know by (shared) with external app.
+
+Now I also need to know the side effects of the current mechanism?
+
+## 20260318
+
+I have now slept on it and I think I realised that:
+
+* While the posted' sie file is unchanged we have two cases:
+  1. New entry extends posted (and goes into the staged sie file)
+  2. We make a change to an entry in posted (allowed?)
+  3. We delete an entry in posted (allowed?)
+* When we import a new 'posted'
+  1. Series and sequence number is unique entry
+  2. Unique entry with same content in staged and posted is cleared ok (now posted)
+  3. Unique entry with different content in staged and posted is a CONFLICT!
+    - The entry in posted takes preceedence
+    - The entry in staged is DISCARDED
+  4. Unique entry in staged NOT in posted is left as-is
+    - Issue a WARNING (Expected posted to contain all staged?)
+
+How well is this understanding of mine reflected in the code?
+
+It seems SIEEnvironment has a 'too open' public API?
+
+```c++
+	SIEEnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
+	SIEEnvironmentChangeResult add(BAS::MDJournalEntry mdje);
+	SIEEnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
+```
+
+We should expose only 'stage'?
+
+How is the API used when we adapt to a new 'posted' SIE file?
+
+I suspect it is SIEEnvironmentsMap::update_from_posted_and_staged_sie_env that 'does the job'?
+
+```c++
+UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_env(
+    sie::RelativeYearKey year_id
+  ,SIEEnvironment const& posted_sie_env
+  ,SIEEnvironment const& staged_sie_env) {
+
+```
+
+What happens with any current 'posted' SIE file when we import a new one?
+
+* We have command '-sie <path to sie file>'
+* AND YES - We simply read in the new SIE and provides it to update_from_posted_and_staged_sie_env to figure it out!
+
+
 ## 20260317
 
 So what is next?
