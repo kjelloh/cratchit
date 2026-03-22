@@ -2,6 +2,116 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260322
+
+When I think about the SIE file processing mechanism some more I also think I should make the 'post' or 'export' to external tool actually provide the whole fiscal year in the file?
+
+* In this way we can ensure the external tool gets the exact same SIE accouning state from Cratchit.
+* I imagine we can still have Cratchit keep a 'base' and 'staged' but extend to allow 'staged' also override entries in 'base'?
+* I imagine I can make Cratchit keep an 'exposed' SIE file always up to date.
+* I imagine I can add an '-sie -export' function that creates the full fiscal year SIE state for current or previous year?
+
+## 20260321
+
+I now think I should attend to the SIE file processing as properly as I can.
+
+* I think I will call the 'posted' SIE for 'base'
+* When a new base is imported:
+  1. Check that the new base is valid (Each entry balance and no gaps in sequence numbers)
+  2. Create a 'diff' new base compared to olde base (deleted,mutated,same,new)
+  3. Consider to save, analyse and report the diff in some way to the user?
+    - Report what entries in old base is (deleted,mutated,same,new)?
+  4. Consolidate 'staged' with new base
+    - Can I reuse the diff mechanism and get staged vs base (deleted,mutated,same,new)?
+    - 'deleted' means 
+
+Follow up questions:
+
+* Can I resue the 'diff' mechanism I already have?
+  - Where is the existing mechanism (mutated HADS? Mutated tagged amounts? Mutated SIE entries?)
+* Can I design a common 'diff' mechanism 'keyed entries' -> (deleted,mutated,same,new)
+
+At this stage I chatted with chatGPT about diffing two SIE files with accouning data and realised this topic is more complicated that I originally anticipated!
+
+* First I need to conceptually understand what kind of 'beast' accounting data is?
+  - It contains ID:ed aggregates (Each SIE entry is a series + sequence number identifying an aggregate of account transctions)
+  - Each entry may change in ID, date and content
+  - The content may change in what account transactions are involved.
+  - But the content may also change by one or more account transactions have changed
+  - The content change may be an 'accounting change' (change in amounts and what accounts are affected)
+  - BUT we also have 'notation change only' (accounts and amounts unchanged but description text has changed)
+
+I wonder if and how the SIE format can support changes to existing SIE entries?
+
+* It seems we are in fact NEVER allowed to remove or mutate historical entries?
+  - In accouning apps I have used I am allowed to remove the last entry in a series.
+  - BUT never any entry orevious to the last one.
+  - Although this opens up for me to keep removing the last one over and over (shortening the ledger)
+* So in fact I am allowed to shorten the ledger but never remove an entry inside a series?
+* But at a second glance - It seems I AM allowed to modify existing SIE entries
+  - I am allowed to introduce an RTRANS entry (new transaction) IFF I also duplicate it with a TRANS entry with the same content?
+  - And I am allowed to introduce a BTRANS entry (removed transactions) IFF I also add one or more TRANS to make the SIE balance?
+  - It is NOT clear what changes to the effect on the curent ledger state at the event date is allowed?
+* I can speculate that I am NOT allowed to touch any existing TRANS entries of an existing SIE?
+  - But I can mutate it with RTRANS and BTRANS?
+  - And I am always allowed to create a new SIE that mutates the effects of an existing older SIE?
+  - And this latter approach is ALWAYS allowed to keep the ledger true to reality?
+
+So what does this mean to my SIE file diff mechanism?
+
+* It should be able to confirm that ALL entries with the same ID in new base and old base are 'the same base'
+  - If the new base entry has NO RTRANS or BTRANS, then new base and old base entry mus be exactly the same?
+  - Or do we allow the ordering to have changed?
+  - It seems we can't sort the transactions before comparing (as this may make RTRANS and BTRANS to be in the wrong order)?
+  - What if I sort the trasnactions in account number order?
+  - Then I also need to sort 'RTRANS' and 'BTRANS' before TRANS (to ensure it complies with spec?)
+  - With this sorting I can diff on the trasnaction sequence old vs new entry?
+  - NO! That does not work.
+  - I need to identify the original transaction seqeunce.
+  - But how do I accomplish this?
+  - Maybe it is actually the case that the order as entered by the user must be repsected?
+  - But then - How can I accept that the user deleted and reentered the entry with the same transactions but in a different order?
+
+WHAT A MESS!!
+
+Some thought and design seeds spring to mind:
+
+* Define several hash keys for different aspects of the entries?
+* One hash for the 'whole shabang' (with or without the prev link id)?
+* One hash for the 'topological' or 'accounting effect' value (transactions with account and amount disregarding text)
+  - Do we need one hash for 'content accouning effect' without the date?
+  - And one hash including Date and accouning effect
+* Do we need to detect change to balance amount (larger)
+  - Is this even possible (and still be the same event)?
+  - It seems if we change the balance amount it is a new event (same ID NOT allowed)
+* Do we allow ID translation?
+  - The user may have shortened the ledger and then re-entered all events but one?
+  - Then the new base will contain all the events but with the IDs shifted?
+  - E.g., base: A1,A2,A3 (the use deletes A3 and A2 than re-enters A3 as A2) -> new base A1 A2 (A1 same, A2 == previous A3)
+
+In this way I can perform 'fuzzy' diff based on presence of entries based on these hash.
+
+* 'Whole shabang' hash in new and old is FULLY SAME
+* Same ID but different 'account effect hash' means 'MODIFIED'
+  - Detect how long 'same' initial sequence of transactions (potntially original entry transactions?)
+  - Detect if new base extends with allowed transactions?
+    * Cancel one account + same amount on new account (moved amount)
+    * Do we allow change to SIE balance amount (larger or smaller)?
+
+And with the 'fuzzy' diff we can detect precense and ignore both ID and Date.
+
+But then we still need to detect ledger 'state' changes at each event date
+
+* We are interested in account state at each event date (and track if it changes old vs new base)?
+* We are interested in global balance and result state change at each event date (and tranck old vs new base)?
+  - In this way we can detect a 'move' of an amount to another account (amlunt distribution)
+  - And we can detect amount 'move' that does NOT in fact change the global balance and result state at each event date?
+* It seems I would be tempted to be able to track SRU accouning state change over event dates?
+  - In this way we would be able to detect 'reporting' change vs 'accouning' change?
+  - That is, a change may affect a VAT returns report or annual tax report but NOT any global result or balance.
+
+WOW! There are so many views and dimensions involved in this seemingly simple diff task?!!
+
 ## 20260319
 
 So I think I should bite the bullet and create a branch to clean up the SIE posted + staged MESS!
