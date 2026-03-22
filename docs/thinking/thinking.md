@@ -11,6 +11,114 @@ When I think about the SIE file processing mechanism some more I also think I sh
 * I imagine I can make Cratchit keep an 'exposed' SIE file always up to date.
 * I imagine I can add an '-sie -export' function that creates the full fiscal year SIE state for current or previous year?
 
+So how does the SIEEnvironment represent entries and transactions?
+
+```c++
+using BASJournals = std::map<BASJournalId,BASJournal> // map series -> Journal
+using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>; // map VerNo -> anonymous entry
+using JournalEntry = JournalEntry_t<AccountTransactions>;
+
+struct JournalEntry_t {
+  std::string caption{};
+  Date date{};
+  T account_transactions{};
+  bool operator==(const JournalEntry_t& other) const {
+    return 
+          (date == other.date)
+      and (account_transactions == other.account_transactions)
+      and (caption == other.caption);
+  }
+  auto operator<=>(const JournalEntry_t& other) const {
+    if (auto cmp = date <=> other.date; cmp != 0) return cmp;
+    if (auto cmp = account_transactions <=> other.account_transactions; cmp != 0) return cmp;
+    return caption <=> other.caption;
+  }
+};
+
+using AccountTransactions = std::vector<AccountTransaction>;
+
+struct AccountTransaction {
+  BAS::AccountNo account_no;
+  std::optional<std::string> transtext{};
+  Amount amount;
+  auto operator<=>(AccountTransaction const& other) const = default;
+};
+
+```
+
+OK, a bit convoluted. But still:
+
+* A transaction is account no, transtext and amount
+* A journal entry is a caption, a date and vector of transactions
+* A BAS journal is a map VerNo -> journal entry
+* And BAS Journals is a map series -> BAS Journal
+
+I wonder what std::hash functions we already have?
+
+```c++ 
+  struct hash<BASAccountTopology> {... 
+```
+
+```c++ 
+  struct hash<AccountTransactionTypeTopology> {...
+```
+
+```c++ 
+  struct hash<WrappedCentsAmount::CentsAmount> {... 
+```
+
+```c++ 
+  template <> struct hash<TaggedAmount> {... 
+``` 
+
+
+```c++
+
+  class Environment {
+    using Value = std::map<std::string,std::string>; // vector of name-value pairs
+    class Hasher {
+       ValueId operator()(Value const& key_value_map) const {
+
+```
+
+So we actually don't have so many 'hashes' in the code as of now?
+
+* We use hash-based content IDs (Cids) for prev-linking
+  - Date ordrered tagged amounts
+  - tagged amounts in environment
+* I don't think I use 'topology' for anything as of now?
+  - Or at least not any hash-based functionality?
+  - And in any case we can ignore that for now?
+* I don't think hashing of WrappedCentsAmount comes into play anywhere as of yet?
+
+So we are in fact 'free' to invent our different hash-values?
+
+* A full Cid hash for an SIE entry (Journal ID, series, BAS::anonymous::JournalEntry)
+  - We have to assemble it ourselves as such a record does not exist
+  - Or can we use a meta-defacto?
+* A Hash for 'financial effect' AccountTransaction (BAS account no, amount)
+* A Has for the combination of 'financial effect' AccountTransactions
+  - Keep the order to detect change in order?
+  - Sort on account number to treat 'same amount distributions' as same?
+* A 'financial effect' SIE entry based only of 'financial effect' hashes of aggregated trasnactions?
+
+Some thoughts at this stage:
+
+* The 'same financial effect' hash will detect ALL recurring account and amount distribution.
+  - So a recurring payment will påop up with the same 'financial effect' hash but with different series and verno (and possibly date)
+* The same goes for 'same effect' transactions that will detect same amount and account wherever that occurs.
+
+Is this waht we want?
+
+* Maybe we need it to be able to detect 'shifted' entries (verno has shifted but the events remains the same)?
+
+Maybe I may in fact become interested in 'topology' also again?
+
+* I can use it to detect a VAT distribution aggregate (BAS account agnostic)
+* I can use it to detect invoice payments (debit/cancel debt and credit bank account)?
+* Could come in handy for accouning candidate search from HADs?
+
+
 ## 20260321
 
 I now think I should attend to the SIE file processing as properly as I can.
