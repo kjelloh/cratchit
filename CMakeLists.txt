@@ -37,6 +37,7 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
+        src/test/test_sie_diff.cpp
         src/sie/SIEEnvironmentframework.cpp
 
         src/test/test_annotated_maybe.cpp
