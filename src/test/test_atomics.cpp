@@ -1166,8 +1166,9 @@ R"(#GEN 20251026
 
               logger::scope_logger log_raii{logger::development_trace,"TEST SIEFileParseFixture::SetUp"};
 
-              std::istringstream iss{sz_sie_three_transactions_text};
-              auto maybe_sie = sie_from_cp437_stream(iss);
+              // std::istringstream iss{sz_sie_three_transactions_text};
+              // auto maybe_sie = sie_from_cp437_stream(iss);
+              auto maybe_sie = sie_from_utf8_sv(sz_sie_three_transactions_text);
 
               try {
                 fixture_three_entries_env = maybe_sie.value();
@@ -1185,24 +1186,30 @@ R"(#GEN 20251026
         TEST(SIEFileParseTests,ParseEmpty) {
           logger::scope_logger log_raii{logger::development_trace,"TEST(SIEFileParseTests,ParseEmpty)"};
 
-          std::istringstream iss{""};
-          auto maybe_sie = sie_from_cp437_stream(iss);
+          // std::istringstream iss{""};
+          // auto maybe_sie = sie_from_cp437_stream(iss);
+          auto maybe_sie = sie_from_utf8_sv("");
+
           ASSERT_FALSE(maybe_sie.has_value());
         }
 
         TEST(SIEFileParseTests,ParseMinimal) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
 
-          std::istringstream iss{sz_minimal_sie_text};
-          auto maybe_sie = sie_from_cp437_stream(iss);
+          // std::istringstream iss{sz_minimal_sie_text};
+          // auto maybe_sie = sie_from_cp437_stream(iss);
+          auto maybe_sie = sie_from_utf8_sv(sz_minimal_sie_text);
+
           ASSERT_TRUE(maybe_sie.has_value());
         }
 
         TEST(SIEFileParseTests,ParseTransactions) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
 
-          std::istringstream iss{sz_sie_three_transactions_text};
-          auto maybe_sie = sie_from_cp437_stream(iss);
+          // std::istringstream iss{sz_sie_three_transactions_text};
+          // auto maybe_sie = sie_from_cp437_stream(iss);
+          auto maybe_sie = sie_from_utf8_sv(sz_sie_three_transactions_text);
+          
           ASSERT_TRUE(maybe_sie.has_value());
           int trans_count = maybe_sie.transform([](auto const& sie_env){
             return sie_env.journals_entry_count();

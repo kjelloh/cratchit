@@ -37,6 +37,8 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
+        src/sie/SIEEnvironmentframework.cpp
+
         src/test/test_annotated_maybe.cpp
 
         src/csv/statement_table_meta.cpp
@@ -100,7 +102,6 @@ add_executable(
         src/states/AccountStatementState.cpp
         src/text/format.cpp
         src/sie/SIEEnvironment.cpp
-        src/sie/SIEEnvironmentframework.cpp
         src/persistent/in/maybe.cpp
         src/HAD2JournalEntryFramework.cpp
         src/text/functional.cpp

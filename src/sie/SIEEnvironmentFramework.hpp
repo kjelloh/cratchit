@@ -2,6 +2,7 @@
 
 #include "SIEEnvironment.hpp"
 #include "persistent/in/maybe.hpp"
+#include "persistent/in/encoding_aware_read.hpp" // persistent::in::CP437::istream
 #include "logger/log.hpp"
 #include <istream>
 #include <filesystem>
@@ -15,7 +16,8 @@ namespace sie {
 }
 
 BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
-OptionalSIEEnvironment sie_from_cp437_stream(std::istream& is);
+OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv);
+OptionalSIEEnvironment sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in);
 
 using UpdateFromPostedResult = std::optional<SIEEnvironmentChangeResults>;
 using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEEnvironment>;

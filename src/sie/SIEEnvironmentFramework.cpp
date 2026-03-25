@@ -1,5 +1,4 @@
 #include "SIEEnvironmentFramework.hpp"
-#include "persistent/in/encoding_aware_read.hpp"
 #include "logger/log.hpp"
 #include <fstream> // std::ifstream,...
 #include <vector>
@@ -26,27 +25,9 @@ BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
 	return result;
 }
 
-OptionalSIEEnvironment sie_from_cp437_stream(std::istream& cp437_is) {
-
-  // scope Log
-  logger::scope_logger log_raii{logger::development_trace,"sie_from_cp437_stream"};
-
+OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
   OptionalSIEEnvironment result{};
-
-  persistent::in::CP437::istream cp437_in{cp437_is};
-  if (!cp437_in) {
-    logger::cout_proxy << "\nFailed to open stream ";
-    return result;
-  }
-
-  // Phase 1: Read and transcode entire file to UTF-8
-  std::string s_utf8;
-  while (auto entry = cp437_in.getline(text::encoding::unicode::to_utf8{})) {
-    s_utf8 += *entry;
-    s_utf8 += "\n";
-  }
-
-  std::istringstream utf8_in{s_utf8};
+  std::istringstream utf8_in{std::string{utf8_sv}};
 
   // Phase 2: Parse all SIE entries into memory
   std::vector<SIE::io::SIEFileEntry> parsed_elements;
@@ -120,7 +101,31 @@ OptionalSIEEnvironment sie_from_cp437_stream(std::istream& cp437_is) {
   }
 
   result = std::move(sie_environment);
+
   return result;
+}
+
+OptionalSIEEnvironment sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in) {
+
+  // scope Log
+  logger::scope_logger log_raii{logger::development_trace,"sie_from_cp437_stream"};
+
+  OptionalSIEEnvironment result{};
+
+  if (!cp437_in) {
+    logger::cout_proxy << "\nFailed to open stream ";
+    return result;
+  }
+
+  // Phase 1: Read and transcode entire file to UTF-8
+  std::string s_utf8;
+  while (auto entry = cp437_in.getline(text::encoding::unicode::to_utf8{})) {
+    s_utf8 += *entry;
+    s_utf8 += "\n";
+  }
+
+  return sie_from_utf8_sv(s_utf8);
+
 }
 
 MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
