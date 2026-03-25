@@ -9,6 +9,36 @@ I have now decided to go ahead and work on the 'sie diff' mechanism and test as 
 * I have renamed SIE entries API to have a trailing '_' to easilly fidn all call sites.
 * I have renamed to sie_from_cp437_stream to clarify it expects a CP437 encoded character input stream.
 
+I have now intrdouced test_sie_diff and sie_test_sz_data units. I now imagine to begin with actually comparing financial events as they are represented by cratchit.
+
+* A financial event is a JournalEntry_t parameterized on type AccountTransactions in BASFramework unit
+* It is alias - WAIT! NO!
+
+We actually models a financial event as a meta-defacto (having the series and verno as the meta / key / ID)
+
+* A financial event is BAS::MDJournalEntry.
+* I can create one as:
+
+```c++
+BAS::MDJournalEntry base_lhs{
+  BAS::WeakJournalEntryMeta{
+    .series = 'A'
+    ,.verno = 1
+  }
+  ,{
+      .caption = "Event 1"
+      ,.date = 2025y / 01 / 01d
+      ,.account_transactions = {}
+  }};
+```
+
+But WAIT! WHere is the caption for the whole entry?
+
+* AHA, It is the '.caption' ok
+* For a short moment I expected caption to be a meta-thing?
+* But no, caption is part of thge content of the entry.
+* Meta is 'just' the key
+
 ## 20260324
 
 OK, time to struggle on making sense what to do with the existing SIE file processing and API.

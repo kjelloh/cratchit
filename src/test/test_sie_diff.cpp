@@ -1,9 +1,58 @@
+#include "fiscal/BASFramework.hpp" // BAS::anonymous::JournalEntry,...
 #include "test/data/sie_test_sz_data.hpp"
 #include "sie/SIEEnvironmentFramework.hpp" // sie_from_utf8_sv,...
 #include <gtest/gtest.h>
 
 namespace tests {
   namespace sie {
+
+    namespace sie_diff_test_suite {
+
+      class FinancialEventCompareFixture : public ::testing::Test {
+        public:
+        std::vector<BAS::MDJournalEntry> m_lhs;
+        std::vector<BAS::MDJournalEntry> m_rhs;
+        void SetUp() override {
+          using namespace std::chrono; // operator""y,d...
+
+          BAS::MDJournalEntry base_lhs{
+            BAS::WeakJournalEntryMeta{
+              .series = 'A'
+              ,.verno = 1
+            }
+            ,{
+                .caption = "Event 1"
+                ,.date = 2025y / 01 / 01d
+                ,.account_transactions = {}
+            }};
+
+          auto base_rhs = base_lhs;
+
+          m_lhs.push_back(base_lhs);
+          m_rhs.push_back(base_rhs);
+
+        }
+
+      }; // FinancialEventFixture
+
+
+      TEST_F(FinancialEventCompareFixture,FullyEqualOK) {
+        {
+          size_t lhs_ix = 0;
+          size_t rhs_ix = 0;
+
+          auto const& lhs = m_lhs[lhs_ix];
+          auto const& rhs = m_rhs[rhs_ix];
+
+          ASSERT_TRUE(lhs == rhs) << std::format(
+            "Expected base \n\trhs:{} \n\tlhs:{} \n\tto be fully equal"
+            ,to_string(lhs)
+            ,to_string(rhs)
+          );
+        }
+      }
+
+    } // sie_diff_test_suite
 
     namespace parse_sie_file_suite {
         // SIE file parsing test suite
@@ -17,8 +66,6 @@ namespace tests {
 
               logger::scope_logger log_raii{logger::development_trace,"TEST SIEFileParseFixture::SetUp"};
 
-              // std::istringstream iss{sz_sie_three_transactions_text};
-              // auto maybe_sie = sie_from_cp437_stream(iss);
               auto maybe_sie = sie_from_utf8_sv(sz_sie_three_transactions_text);
 
               try {
@@ -37,8 +84,6 @@ namespace tests {
         TEST(SIEFileParseTests,ParseEmpty) {
           logger::scope_logger log_raii{logger::development_trace,"TEST(SIEFileParseTests,ParseEmpty)"};
 
-          // std::istringstream iss{""};
-          // auto maybe_sie = sie_from_cp437_stream(iss);
           auto maybe_sie = sie_from_utf8_sv("");
 
           ASSERT_FALSE(maybe_sie.has_value());
@@ -47,8 +92,6 @@ namespace tests {
         TEST(SIEFileParseTests,ParseMinimal) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
 
-          // std::istringstream iss{sz_minimal_sie_text};
-          // auto maybe_sie = sie_from_cp437_stream(iss);
           auto maybe_sie = sie_from_utf8_sv(sz_minimal_sie_text);
 
           ASSERT_TRUE(maybe_sie.has_value());
@@ -57,8 +100,6 @@ namespace tests {
         TEST(SIEFileParseTests,ParseTransactions) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEFileParseFixture,ParseBasic)"};
 
-          // std::istringstream iss{sz_sie_three_transactions_text};
-          // auto maybe_sie = sie_from_cp437_stream(iss);
           auto maybe_sie = sie_from_utf8_sv(sz_sie_three_transactions_text);
           
           ASSERT_TRUE(maybe_sie.has_value());
@@ -75,7 +116,7 @@ namespace tests {
         std::vector<BAS::MDJournalEntry> to_sample_md_entries() {
           std::vector<BAS::MDJournalEntry> result{};
           {
-            using namespace std::chrono;
+            using namespace std::chrono; // operator""y,d...
 
             result.push_back(BAS::MDJournalEntry{
               BAS::WeakJournalEntryMeta{
