@@ -26,10 +26,10 @@ BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
 	return result;
 }
 
-OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
+OptionalSIEEnvironment sie_from_cp437_stream(std::istream& cp437_is) {
 
   // scope Log
-  logger::scope_logger log_raii{logger::development_trace,"sie_from_stream"};
+  logger::scope_logger log_raii{logger::development_trace,"sie_from_cp437_stream"};
 
   OptionalSIEEnvironment result{};
 
@@ -115,7 +115,7 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
       if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no, ib.opening_balance);
     }
     else if (std::holds_alternative<SIE::Ver>(entry)) {
-      sie_environment.post(to_md_entry(std::get<SIE::Ver>(entry)));
+      sie_environment.post_(to_md_entry(std::get<SIE::Ver>(entry)));
     }
   }
 
@@ -194,7 +194,7 @@ UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_env
 
   auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(posted_sie_env));
 
-  result = iter->second.stage(staged_sie_env); // insert_or_assign never fails (true=inserted, false = assigned)
+  result = iter->second.stage_sie_(staged_sie_env); // insert_or_assign never fails (true=inserted, false = assigned)
 
   if (was_inserted) {
     logger::development_trace(
@@ -254,7 +254,7 @@ SIEEnvironmentChangeResult SIEEnvironmentsMap::stage(BAS::MDJournalEntry const& 
   if (this->m_sie_envs_map.contains("current")) {
     if (auto financial_year = (*this)["current"].financial_year_date_range()) {
       if (financial_year->contains(mdje.defacto.date)) {
-        return (*this)["current"].stage(mdje);
+        return (*this)["current"].stage_entry_(mdje);
       }
     }
   }
@@ -262,7 +262,7 @@ SIEEnvironmentChangeResult SIEEnvironmentsMap::stage(BAS::MDJournalEntry const& 
   if (this->m_sie_envs_map.contains("-1")) {
     if (auto financial_year = (*this)["-1"].financial_year_date_range()) {
       if (financial_year->contains(mdje.defacto.date)) {
-        return (*this)["-1"].stage(mdje);
+        return (*this)["-1"].stage_entry_(mdje);
       }
     }
   }

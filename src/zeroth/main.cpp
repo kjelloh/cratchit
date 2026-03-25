@@ -3642,12 +3642,12 @@ Cmd Updater::operator()(Command const& command) {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
             auto update_posted_result = persistent::in::text::to_maybe_istream(*sie_file_path)
               .and_then([](auto& istream){
-                return sie_from_stream(istream);
+                return sie_from_cp437_stream(istream);
               })
               .and_then([this,year_key](auto const& sie_env){
                 auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
                   .and_then([](auto& istream){
-                    return sie_from_stream(istream);
+                    return sie_from_cp437_stream(istream);
                   })
                   .value_or(SIEEnvironment{sie_env.fiscal_year()});
 
@@ -3733,12 +3733,12 @@ Cmd Updater::operator()(Command const& command) {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
             auto update_posted_result = persistent::in::text::to_maybe_istream(*sie_file_path)
               .and_then([](auto& istream){
-                return sie_from_stream(istream);
+                return sie_from_cp437_stream(istream);
               })
               .and_then([this,year_key](auto const& sie_env){
                 auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
                   .and_then([](auto& istream){
-                    return sie_from_stream(istream);
+                    return sie_from_cp437_stream(istream);
                   })
                   .value_or(SIEEnvironment{sie_env.fiscal_year()});
 
@@ -5628,12 +5628,12 @@ namespace zeroth {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
             auto update_posted_result = md_cfs.defacto->to_maybe_istream(sie_file_path)
               .and_then([](auto& istream){
-                return sie_from_stream(istream);
+                return sie_from_cp437_stream(istream);
               })
               .and_then([&md_cfs,&model,year_id](auto const& sie_env){
                 auto staged_sie_env = md_cfs.defacto->to_maybe_istream(sie_env.staged_sie_file_path())
                   .and_then([](auto& istream){
-                    return sie_from_stream(istream);
+                    return sie_from_cp437_stream(istream);
                   })
                   .value_or(SIEEnvironment{sie_env.fiscal_year()});
 

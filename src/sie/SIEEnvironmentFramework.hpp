@@ -15,7 +15,7 @@ namespace sie {
 }
 
 BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
-OptionalSIEEnvironment sie_from_stream(std::istream& is);
+OptionalSIEEnvironment sie_from_cp437_stream(std::istream& is);
 
 using UpdateFromPostedResult = std::optional<SIEEnvironmentChangeResults>;
 using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEEnvironment>;

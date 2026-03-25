@@ -59,7 +59,7 @@ BAS::MaybeJournalEntryRef SIEEnvironment::at(DatedJournalEntryMeta key) {
   return {};
 }
 
-SIEEnvironmentChangeResult SIEEnvironment::post(BAS::MDJournalEntry const& mdje) {
+SIEEnvironmentChangeResult SIEEnvironment::post_(BAS::MDJournalEntry const& mdje) {
 
   SIEEnvironmentChangeResult result{mdje};
 
@@ -106,7 +106,7 @@ SIEEnvironmentChangeResult SIEEnvironment::post(BAS::MDJournalEntry const& mdje)
   return result;
 }
 
-SIEEnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje) {
+SIEEnvironmentChangeResult SIEEnvironment::stage_entry_(BAS::MDJournalEntry const& mdje) {
   SIEEnvironmentChangeResult result{mdje};
 
   // scope Log
@@ -123,13 +123,13 @@ SIEEnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje
         // Not yet posted (in sie-file from external tool)
         // So add it to make our internal sie-environment complete
         logger::development_trace("NOT already in posted -> add(mdje)");
-        result = this->add(mdje);
+        result = this->add_(mdje);
       }
       else {
         logger::development_trace("IS already in posted -> try update(mdje) for correct transient data");
         // Is 'posted' to external tool
         // But update it in case transient data exists that needs to be mutated?
-        if (auto update_result = this->update(mdje)) {
+        if (auto update_result = this->update_(mdje)) {
           result = result.with_status(SIEEnvironmentChangeResult::Status::NowPosted);
         }
         else {
@@ -158,7 +158,7 @@ SIEEnvironmentChangeResult SIEEnvironment::stage(BAS::MDJournalEntry const& mdje
   return result;
 } // stage
 
-SIEEnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry mdje) {
+SIEEnvironmentChangeResult SIEEnvironment::add_(BAS::MDJournalEntry mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
 
   SIEEnvironmentChangeResult result{mdje};
@@ -200,7 +200,7 @@ SIEEnvironmentChangeResult SIEEnvironment::add(BAS::MDJournalEntry mdje) {
   return result;
 } // add
 
-SIEEnvironmentChangeResult SIEEnvironment::update(BAS::MDJournalEntry const& mdje) {
+SIEEnvironmentChangeResult SIEEnvironment::update_(BAS::MDJournalEntry const& mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
 
   logger::development_trace("update {}{}"
@@ -282,7 +282,7 @@ bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& mdje) {
   return result;
 }
 
-std::vector<SIEEnvironmentChangeResult> SIEEnvironment::stage(SIEEnvironment const& staged_sie_environment) {
+std::vector<SIEEnvironmentChangeResult> SIEEnvironment::stage_sie_(SIEEnvironment const& staged_sie_environment) {
 
   logger::scope_logger log_raii{
       logger::development_trace
@@ -291,7 +291,7 @@ std::vector<SIEEnvironmentChangeResult> SIEEnvironment::stage(SIEEnvironment con
   std::vector<SIEEnvironmentChangeResult> result{};
   for (auto const& [series,journal] : staged_sie_environment.journals()) {
     for (auto const& [verno,aje] : journal) {
-      auto stage_result = this->stage({{.series=series,.verno=verno},aje});
+      auto stage_result = this->stage_entry_({{.series=series,.verno=verno},aje});
       result.push_back(stage_result);
     }
   }

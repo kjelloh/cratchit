@@ -59,11 +59,11 @@ public:
   BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
 	BAS::MDJournalEntries unposted() const;
 
-	SIEEnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
-	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
-	SIEEnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
-	SIEEnvironmentChangeResult add(BAS::MDJournalEntry mdje);
-	SIEEnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult post_(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult stage_entry_(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResults stage_sie_(SIEEnvironment const& staged_sie_environment);
+	SIEEnvironmentChangeResult add_(BAS::MDJournalEntry mdje);
+	SIEEnvironmentChangeResult update_(BAS::MDJournalEntry const& mdje);
 
 	BAS::VerNo largest_verno(BAS::Series series);
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);
