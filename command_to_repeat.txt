@@ -47,7 +47,7 @@
 #./run.zsh --gtest_filter=ModelTestsFixture.Environment2ModelSIEStageOverlapOKTest
 #./run.zsh --gtest_filter=ModelTestsFixture.Environment2ModelSIEStageOverlapConflictTest
 
-./run.zsh --gtest_filter=FinancialEventCompareFixture.FullyEqualOK
+#./run.zsh --gtest_filter=FinancialEventCompareFixture.FullyEqualOK
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
-#./run.zsh --test
+./run.zsh --test

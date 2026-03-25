@@ -39,6 +39,58 @@ But WAIT! WHere is the caption for the whole entry?
 * But no, caption is part of thge content of the entry.
 * Meta is 'just' the key
 
+DARN! The meta is 'weak' in that it carries an optional verno!
+
+```c++
+struct WeakJournalEntryMeta {
+    // 'Weak' because optional verno
+		Series series;
+		OptionalVerNo verno;
+		std::optional<bool> unposted_flag{};
+		bool operator==(WeakJournalEntryMeta const& other) const = default;
+	};
+
+	using MDJournalEntry = MetaDefacto<WeakJournalEntryMeta,BAS::anonymous::JournalEntry>;
+	
+```
+
+This fits our application for SIE entries BADLY!
+
+* In SIE all metas are 'strong' had has a unique series and verno!
+* We would like our diff to operate on fully comitted entries (not having to deal with optional verno)
+
+So now what do we do?
+
+* I don't want to introduce error handling for nullopt verno?
+* But SIEEnvironment uses 'weak' entry IDs (comitted series but optional verno)
+
+So there is actually several issues going an at the same time.
+
+* The name MDJournalEntry is super vauge
+  - It IS what cratchit currentlöy uses to model a registered voucher (swedish 'verifikat')
+  - But we are missing a model where we can talk about the registered 'verifikat' and our model of it in SIE?
+
+I suppose in SIE we DO have the naming done for us?
+
+* A '#VER' is the representation of a registered financial event backed up with a voucher?
+* I asked chatGPT and it sugested 'journal entry' is the digital representation of a financial event.
+
+But then in cratchit we now have the quirk that teh currently used MDJournalEntry is 'weak'?
+
+* It is used also for entries that are not yet 'fully baked' (they lack a verno)
+
+Does this mean we should go ahead and actually define a 'JournalEntry' where everything is comitted?
+
+* Then what is a better name for MDJournalEntry?
+* Maybe I shall call it 'DraftJournalEntry'
+* Then I can 'project' it to a journal entry when all properties are assigned?
+
+I asked chatGPT about 'TransientJournalEntry' but it thought it was a bit weak and unclear and not suited for accounting terminology.
+
+It is interesting that it seems accouning software can talk about Draft, Pending, or Unposted? This clashes with the current cratchit code where 'Posted' relates to what an external app may know and share with cratchit.
+
+OK, I have to think more about this!
+
 ## 20260324
 
 OK, time to struggle on making sense what to do with the existing SIE file processing and API.
@@ -124,7 +176,7 @@ if (entry_iter->second == mdje.defacto) {
 GOSH! This is NOT GOOD!
 
 * Uses operator== to determine if mutation is allowed
-* And operator== does NOT hanlde any allowed extension
+* And operator== does NOT handle any allowed extension
   - We are allowed to 'redistribute amounts on accounts'
   - As inferred by RTRANS 'cancel + new' account transaction
   - AS inferred by BTRANS '

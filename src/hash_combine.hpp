@@ -1,5 +1,8 @@
 #pragma once
 
+// NOTE: Client must define (include) the types that it applies to hash_combine.
+// Also: hash_cpmbine expects std::hash<T> to be defined for provided T
+
 template<class T>
 inline void hash_combine(std::size_t& seed, const T& value) noexcept
 {
