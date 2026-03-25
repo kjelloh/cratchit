@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TaggedAmount.hpp"
+#include "hash_combine.hpp"
 #include "fiscal/BASFramework.hpp" // BAS::AccountNo,
 #include "AmountFramework.hpp"
 #include "env/environment.hpp" // namespace cas,
@@ -20,6 +21,8 @@ namespace std {
   template <> struct hash<TaggedAmount> {
     std::size_t operator()(TaggedAmount const& ta) const noexcept {
 
+    // Replaced with hash_combine.hpp
+    /*
     // Hash combine for TaggedAmount
     // TODO: Consider to consolidate 'hashing' for 'Value Id' to somehow
     //       E.g., Also see hash_combine for Environment...
@@ -36,6 +39,7 @@ namespace std {
       seed ^= (hasher(v) & mask)
               << shift_left_count; // Simple shift left distribution and no addition
     };
+    */
 
       std::size_t result{};
       auto yyyymmdd = ta.date();
@@ -60,7 +64,7 @@ namespace std {
       return result;
     }
   };
-} // namespace std
+} // std
 
 TaggedAmount::ValueId to_value_id(TaggedAmount const& ta);
 TaggedAmount::OptionalValueId to_maybe_value_id(std::string const& sid);

@@ -2,8 +2,6 @@
 
 #include "FiscalPeriod.hpp"
 #include "cas/cas.hpp"
-// #include "Environment.hpp"
-// #include "CASEnvironment.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -18,33 +16,7 @@ public:
 
   class Hasher {
   public:
-
-    ValueId operator()(Value const& key_value_map) const {
-      std::size_t result{};
-
-      // Hash combine for Environment::Value
-      // TODO: Consider to consolidate 'hashing' for 'Value Id' to somehow
-      //       E.g., Also see hash_combine for TaggedAmount...
-      auto hash_combine = [](std::size_t &seed, auto const& v) {
-        constexpr auto shift_left_count = 1;
-        constexpr std::size_t max_size_t = std::numeric_limits<std::size_t>::max();
-        constexpr std::size_t mask = max_size_t >> shift_left_count;
-        using ValueType = std::remove_cvref_t<decltype(v)>;
-        std::hash<ValueType> hasher;
-        // Note: I decided to NOT use boost::hash_combine code as it will cause
-        // integer overflow and thus undefined behaviour.
-        // seed ^= hasher(v) + 0x9e3779b9 + ((seed & mask) <<6) + (seed>>2); //
-        // *magic* dustribution as defined by boost::hash_combine
-        seed ^= (hasher(v) & mask)
-                << shift_left_count; // Simple shift left distribution and no addition
-      };
-
-      for (auto const& [key, value] : key_value_map) {
-        hash_combine(result, key);
-        hash_combine(result, value);
-      }
-      return result;
-    }
+    ValueId operator()(Value const& key_value_map) const;
   };
 
   using Values_cas_repository = cas::repository<ValueId,Value,Hasher>;
