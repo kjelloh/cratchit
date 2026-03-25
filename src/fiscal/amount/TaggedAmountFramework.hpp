@@ -21,26 +21,6 @@ namespace std {
   template <> struct hash<TaggedAmount> {
     std::size_t operator()(TaggedAmount const& ta) const noexcept {
 
-    // Replaced with hash_combine.hpp
-    /*
-    // Hash combine for TaggedAmount
-    // TODO: Consider to consolidate 'hashing' for 'Value Id' to somehow
-    //       E.g., Also see hash_combine for Environment...
-    auto hash_combine = [](std::size_t &seed, auto const& v) {
-      constexpr auto shift_left_count = 1;
-      constexpr std::size_t max_size_t = std::numeric_limits<std::size_t>::max();
-      constexpr std::size_t mask = max_size_t >> shift_left_count;
-      using ValueType = std::remove_cvref_t<decltype(v)>;
-      std::hash<ValueType> hasher;
-      // Note: I decided to NOT use boost::hash_combine code as it will cause
-      // integer overflow and thus undefined behaviour.
-      // seed ^= hasher(v) + 0x9e3779b9 + ((seed & mask) <<6) + (seed>>2); //
-      // *magic* dustribution as defined by boost::hash_combine
-      seed ^= (hasher(v) & mask)
-              << shift_left_count; // Simple shift left distribution and no addition
-    };
-    */
-
       std::size_t result{};
       auto yyyymmdd = ta.date();
       hash_combine(result, static_cast<int>(yyyymmdd.year()));
