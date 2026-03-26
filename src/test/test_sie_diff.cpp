@@ -1,6 +1,7 @@
 #include "fiscal/BASFramework.hpp" // BAS::anonymous::JournalEntry,...
 #include "test/data/sie_test_sz_data.hpp"
 #include "sie/SIEEnvironmentFramework.hpp" // sie_from_utf8_sv,...
+#include "sie/sie_diff.hpp"
 #include <gtest/gtest.h>
 
 namespace tests {
@@ -35,7 +36,6 @@ namespace tests {
 
       }; // FinancialEventFixture
 
-
       TEST_F(FinancialEventCompareFixture,FullyEqualOK) {
         {
           size_t lhs_ix = 0;
@@ -44,8 +44,27 @@ namespace tests {
           auto const& lhs = m_lhs[lhs_ix];
           auto const& rhs = m_rhs[rhs_ix];
 
-          ASSERT_TRUE(lhs == rhs) << std::format(
+          ASSERT_TRUE(hash_of_id_and_all_content(lhs) == hash_of_id_and_all_content(rhs)) << std::format(
             "Expected base \n\trhs:{} \n\tlhs:{} \n\tto be fully equal"
+            ,to_string(lhs)
+            ,to_string(rhs)
+          );
+        }
+      }
+
+      TEST_F(FinancialEventCompareFixture,AnyDiffDetected) {
+        size_t lhs_ix = 0;
+        size_t rhs_ix = 0;
+
+        auto const& lhs = m_lhs[lhs_ix];
+        {
+          auto rhs = m_rhs[rhs_ix];
+          auto& [meta,defacto] = rhs;
+
+          meta.series = meta.series + 1;
+
+          ASSERT_TRUE(hash_of_id_and_all_content(lhs) != hash_of_id_and_all_content(rhs)) << std::format(
+            "Expected base \n\trhs:{} \n\tlhs:{} \n\tto be treated as different"
             ,to_string(lhs)
             ,to_string(rhs)
           );

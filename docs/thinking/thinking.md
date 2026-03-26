@@ -2,6 +2,24 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260326
+
+Now when I slept on it I have decided to go ahead and work with the existing BAS::MDJournalEntry.
+
+* Create hash functions that can process optional verno
+  - Include the value iof it is there.
+  - Skip the value if nullopt
+  - I still get a hash value that reflects the conent
+* Postpone any renaming to not-fully-baked 'draft' and adding fully-baked JournalEntry to later
+
+Here is a possible plan:
+
+* Implement a 'full' hash that projects the whole meta and the whole defactor content as a hash
+* Consider to make exisyting operator== use this hash as equality indicator (same full hash means 'equal')
+  - Though I need to study the existing implementation to see if this matches current behaviour?
+
+I should also remember that what I am now doing is implementing a base for a 'financial event sameness' mechanism.
+
 ## 20260325
 
 I have now decided to go ahead and work on the 'sie diff' mechanism and test as parallell to existing code and see where this leads me.
