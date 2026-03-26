@@ -50,32 +50,33 @@ namespace tests {
             ,to_string(rhs)
           );
         }
-      }
+      } // FullyEqualOK
 
       TEST_F(FinancialEventCompareFixture,AnyDiffDetected) {
         size_t lhs_ix = 0;
         size_t rhs_ix = 0;
 
         auto const& lhs = m_lhs[lhs_ix];
-        int state{};
-        bool more_to_do{true};
-        while (more_to_do) {
-          auto rhs = m_rhs[rhs_ix];
-          auto& [meta,defacto] = rhs;
-          switch (state) {
-            case 0: meta.series = meta.series + 1;
-            degault: more_to_do = false;
-          }
 
-          ASSERT_TRUE(hash_of_id_and_all_content(lhs) != hash_of_id_and_all_content(rhs)) << std::format(
-            "Expected base \n\trhs:{} \n\tlhs:{} \n\tto be treated as different"
+        using Mutator = std::function<void(BAS::MDJournalEntry&)>;
+
+        // in-place mutaions to apply
+        std::vector<Mutator> mutations{
+            [](BAS::MDJournalEntry& e){ e.meta.series += 1; }
+        };
+
+        for (auto const& mutate : mutations) {
+          auto rhs = m_rhs[rhs_ix];
+          mutate(rhs);
+
+          ASSERT_NE(hash_of_id_and_all_content(lhs),hash_of_id_and_all_content(rhs)) << std::format(
+            "Expected base \n\trhs:{} \n\tlhs:{} \n\tto NOT be 'same'"
             ,to_string(lhs)
             ,to_string(rhs)
           );
 
-          ++state;
         }
-      }
+      } // AnyDiffDetected
 
     } // sie_diff_test_suite
 
