@@ -147,23 +147,11 @@ namespace BAS {
 
       // C++ compiler will generate comparison
       // operators on members in declaration order.
-      // Which is ok for our purposes (date - then trans text - then amount)
+      // Which is ok for our purposes (account_no - then trans text - then amount)
       auto operator<=>(AccountTransaction const& other) const = default;
 
-      // Replaced by operator<=> / 20251030
-			// bool operator<(AccountTransaction const& other) const {
-			// 	bool result{false};
-			// 	if (account_no == other.account_no) {
-			// 		if (amount == other.amount) {
-			// 			result = (transtext < other.transtext);
-			// 		}
-			// 		else result = (amount < other.amount);
-			// 	}
-			// 	else result = (account_no < other.account_no);
-			// 	return result;
-			// }
+		}; // AccountTransaction
 
-		};
 		using OptionalAccountTransaction = std::optional<AccountTransaction>;
 		using AccountTransactions = std::vector<AccountTransaction>;
 

@@ -62,7 +62,31 @@ namespace tests {
 
         // in-place mutaions to apply
         std::vector<Mutator> mutations{
-            [](BAS::MDJournalEntry& e){ e.meta.series += 1; }
+          // meta
+           [](BAS::MDJournalEntry& e){ e.meta.series += 1; }
+          ,[](BAS::MDJournalEntry& e){ if (e.meta.verno) *e.meta.verno += 1; else e.meta.verno = 1;}
+          ,[](BAS::MDJournalEntry& e){ e.meta.unposted_flag = not e.meta.unposted_flag;}
+          // defacto
+          ,[](BAS::MDJournalEntry& e){ if (e.defacto.caption.size() > 0) e.defacto.caption[0] += 1; else e.defacto.caption = "new caption"; }
+          ,[](BAS::MDJournalEntry& e){ e.defacto.date = Date(std::chrono::sys_days(e.defacto.date) + std::chrono::days{1}); }
+          ,[](BAS::MDJournalEntry& e){ 
+            if (e.defacto.account_transactions.size()==0) {
+              // struct AccountTransaction {
+              //   BAS::AccountNo account_no;
+              //   std::optional<std::string> transtext{};
+              //   Amount amount;
+              e.defacto.account_transactions.push_back(
+                BAS::anonymous::AccountTransaction{
+                   .account_no = 1920
+                  ,.transtext = "test transtext"
+                  ,.amount = Amount(123.50)
+                }
+              );
+            }
+            else {
+              ++e.defacto.account_transactions[0].account_no;
+            }
+          }
         };
 
         for (auto const& mutate : mutations) {

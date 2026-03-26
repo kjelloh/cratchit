@@ -30,6 +30,8 @@ std::size_t hash_of_id_and_all_content(BAS::MDJournalEntry const& mdje) {
 			T account_transactions{};
 
   */
+  
+  //defacto
   hash_combine(result,defacto.caption);
   hash_combine(result,std::format("{}",defacto.date)); // Works in absence of std::hash<std::chrono::year_month_day>
   for (auto const& at : defacto.account_transactions) {
