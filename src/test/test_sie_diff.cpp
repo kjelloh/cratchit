@@ -57,17 +57,23 @@ namespace tests {
         size_t rhs_ix = 0;
 
         auto const& lhs = m_lhs[lhs_ix];
-        {
+        int state{};
+        bool more_to_do{true};
+        while (more_to_do) {
           auto rhs = m_rhs[rhs_ix];
           auto& [meta,defacto] = rhs;
-
-          meta.series = meta.series + 1;
+          switch (state) {
+            case 0: meta.series = meta.series + 1;
+            degault: more_to_do = false;
+          }
 
           ASSERT_TRUE(hash_of_id_and_all_content(lhs) != hash_of_id_and_all_content(rhs)) << std::format(
             "Expected base \n\trhs:{} \n\tlhs:{} \n\tto be treated as different"
             ,to_string(lhs)
             ,to_string(rhs)
           );
+
+          ++state;
         }
       }
 
