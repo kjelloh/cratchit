@@ -7,7 +7,7 @@
 namespace tests {
   namespace sie {
 
-    namespace sie_diff_test_suite {
+    namespace sie_entry_diff_test_suite {
 
       class FinancialEventCompareFixture : public ::testing::Test {
         public:
@@ -34,7 +34,7 @@ namespace tests {
 
         }
 
-      }; // FinancialEventFixture
+      }; // FinancialEventCompareFixture
 
       TEST_F(FinancialEventCompareFixture,FullyEqualOK) {
         {
@@ -102,6 +102,31 @@ namespace tests {
         }
       } // AnyDiffDetected
 
+    } // sie_entry_diff_test_suite
+
+    namespace sie_diff_test_suite {
+
+      class RebaseCompareFixture : public ::testing::Test {
+        public:
+
+        SIEEnvironment m_sie_base{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+        
+        void SetUp() override {
+          logger::scope_logger log_raii{logger::development_trace,"RebaseCompareFixture::SetUp"};
+          auto maybe_base = sie_from_utf8_sv(sz_sie_base_1);
+          if (maybe_base) m_sie_base = *maybe_base;
+          else throw std::runtime_error("Setup Failed - m_sie_base creation failed");
+        }
+
+      }; // RebaseCompareFixture
+
+      TEST_F(RebaseCompareFixture,NoChangeRebaseOK) {
+        auto same_base = m_sie_base;
+        ASSERT_TRUE(false) << std::format(
+          "TODO: Implement TEST of sie diff for same base"
+        );
+      }
+
     } // sie_diff_test_suite
 
     namespace parse_sie_file_suite {
@@ -113,8 +138,7 @@ namespace tests {
             SIEEnvironment fixture_three_entries_env{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
 
             void SetUp() override {
-
-              logger::scope_logger log_raii{logger::development_trace,"TEST SIEFileParseFixture::SetUp"};
+              logger::scope_logger log_raii{logger::development_trace,"SIEFileParseFixture::SetUp"};
 
               auto maybe_sie = sie_from_utf8_sv(sz_sie_three_transactions_text);
 

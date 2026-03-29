@@ -2,6 +2,18 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260329
+
+I have given the concept of 'financial event sameness' some more thought.
+
+Here is what I imagine we are allowed to do when registring financial events?
+
+* I am allowed to change any transaction text
+* I am allowed to at least edit the verification text?
+  - This is tricky?
+  - We must allow for two financial events on the same date with the same content (but differ in ID)?
+  - 
+
 ## 20260326
 
 Now when I slept on it I have decided to go ahead and work with the existing BAS::MDJournalEntry.

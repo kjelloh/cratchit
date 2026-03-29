@@ -26,6 +26,8 @@ BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
 }
 
 OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
+  // logger::scope_logger log_raii{logger::development_trace,"sie_from_utf8_sv",logger::LogToConsole::ON};
+
   OptionalSIEEnvironment result{};
   std::istringstream utf8_in{std::string{utf8_sv}};
 
