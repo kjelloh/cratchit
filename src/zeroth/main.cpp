@@ -3727,6 +3727,8 @@ Cmd Updater::operator()(Command const& command) {
           prompt << filtered_sie;
         }
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
+          // ast:        0       1           2
+          // commmand '-sie <year_key> <path to new base>'
           prompt << "\nImporting SIE to realtive year " << year_key << " from " << *sie_file_path;
 
           // TODO: Considert a way to refactor the following scope into a helper function

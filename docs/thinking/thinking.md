@@ -2,6 +2,65 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260331
+
+This SIE base + stated mechanism 'clean up' is HARD! The more I think about it the more I see it is several apsects.
+
+* Should I implement a proper separated SIE environment for base and staged?
+* Is 'staged' actually only the jpurnal entries whiel 'base' is the whole SIE with in saldos, meta data and account losting?
+* What API do I catually need to make the mechanisms in play clean and easy to discern?
+
+What are the call sites again?
+
+* Again, all call sites are marked '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
+* They all do the call:
+
+```c++
+model->sie_env_map.update_from_posted_and_staged_sie_env(
+                  year_key
+                  ,sie_env
+                  ,staged_sie_env);
+```
+  
+* The call sites are:
+
+  - command '-sie new-base-file-name' // process 'current'
+  - commmand '-sie year_key new-base-file-name
+  - in funnction:
+
+```c++
+  std::pair<Model,bool> model_with_posted_and_staged_env(
+     Model model
+    ,sie::RelativeYearKey year_id
+    ,SIEEnvironment const& posted_env
+    ,SIEEnvironment const& staged_env) {
+
+```
+
+AHA - there is a 'user feedback' mechanism also?
+
+```c++
+    auto update_posted_result = model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
+    if (update_posted_result) {
+      prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
+    }
+    else {
+      prompt << NL << "Sorry, Failed to update posted SIE for year id: " << year_id;
+    }
+
+```
+
+  - The function:
+
+```c++
+	Model model_from_environment_and_md_filesystem(
+     Environment const& environment
+    ,CratchitMDFileSystem const& md_cfs) {
+
+```
+
+NO. I still fail to see through the confusing design?!
+
 ## 20260329
 
 I have given the concept of 'financial event sameness' some more thought.
@@ -12,7 +71,7 @@ Here is what I imagine we are allowed to do when registring financial events?
 * I am allowed to at least edit the verification text?
   - This is tricky?
   - We must allow for two financial events on the same date with the same content (but differ in ID)?
-  - 
+  - ...
 
 ## 20260326
 
