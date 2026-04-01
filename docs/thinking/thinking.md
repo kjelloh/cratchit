@@ -397,8 +397,8 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
     // ...
     // Calls to mutate data on SIE Environment
     && ...
-    else if (std::holds_alternative<sie::Ver>(entry)) {
-      sie_environment.post(to_md_entry(std::get<sie::Ver>(entry)));
+    else if (std::holds_alternative<sie::io::Ver>(entry)) {
+      sie_environment.post(to_md_entry(std::get<sie::io::Ver>(entry)));
     }
 
 }

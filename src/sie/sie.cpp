@@ -96,7 +96,7 @@ namespace sie {
       // 	YYYYMMDD first_day_yyyymmdd;
       // 	YYYYMMDD last_day_yyyymmdd;
       // };
-      sie::Rar rar{};
+      sie::io::Rar rar{};
       auto pos = utf8_in.tellg();
       YYYYMMdd_parser first_day_parser{rar.first_day_yyyymmdd};
       YYYYMMdd_parser last_day_parser{rar.last_day_yyyymmdd};
@@ -119,7 +119,7 @@ namespace sie {
       // 	Amount opening_balance;
       // 	std::optional<float> quantity{};
       // };
-      sie::Ib ib{};
+      sie::io::Ib ib{};
       auto pos = utf8_in.tellg();
       if (utf8_in >> Tag{sie_field_tag} >> ib.year_no >> ib.account_no >> ib.opening_balance >> scraps) {
         result = ib;
@@ -139,7 +139,7 @@ namespace sie {
       // 	// acq_no 
       // 	// act_no
       // };
-      sie::OrgNr orgnr{};
+      sie::io::OrgNr orgnr{};
       auto pos = utf8_in.tellg();
       if (utf8_in >> Tag{sie_field_tag} >> orgnr.CIN) {
         result = orgnr;
@@ -158,7 +158,7 @@ namespace sie {
       // 	std::string tag;
       // 	std::string company_name;
       // };
-      sie::FNamn fnamn{};
+      sie::io::FNamn fnamn{};
       auto pos = utf8_in.tellg();
       if (utf8_in >> Tag{sie_field_tag} >> std::quoted(fnamn.company_name)) {
         result = fnamn;
@@ -179,7 +179,7 @@ namespace sie {
       // 	std::string postal_address;
       // 	std::string tel;
       // };
-      sie::Adress adress{};
+      sie::io::Adress adress{};
       auto pos = utf8_in.tellg();
       if (utf8_in >> Tag{sie_field_tag} >> std::quoted(adress.contact) >> std::quoted(adress.distribution_address) >> std::quoted(adress.postal_address) >> std::quoted(adress.tel)) {
         result = adress;
@@ -198,7 +198,7 @@ namespace sie {
     // 	std::string name;
     // };
       SIEParseResult result{};
-      sie::Konto konto{};
+      sie::io::Konto konto{};
       auto pos = utf8_in.tellg();
       if (utf8_in >> Tag{sie_field_tag} >> konto.account_no >> std::quoted(konto.name)) {
         result = konto;
@@ -211,7 +211,7 @@ namespace sie {
 
     SIEParseResult parse_SRU(std::istream& utf8_in,std::string const& sru_tag) {
       SIEParseResult result{};
-      sie::Sru sru{};
+      sie::io::Sru sru{};
       auto pos = utf8_in.tellg();
       if (utf8_in >> Tag{sru_tag} >> sru.bas_account_no >> sru.sru_account_no) {
         result = sru;
@@ -227,7 +227,7 @@ namespace sie {
       Scraps scraps{};
       auto pos = utf8_in.tellg();
       // #TRANS 2610 {} 25900 "" "" 0
-      sie::Trans trans{};
+      sie::io::Trans trans{};
       optional_YYYYMMdd_parser optional_transdate_parser{trans.transdate};
       optional_Text_parser optional_transtext_parser{trans.transtext};
       if (utf8_in >> Tag{trans_tag} >> trans.account_no >> trans.object_list >> trans.amount >> optional_transdate_parser >> optional_transtext_parser >> scraps) {
@@ -258,7 +258,7 @@ namespace sie {
       Scraps scraps{};
       auto pos = utf8_in.tellg();
       // #VER A 1 20210505 "M�nadsavgift PG" 20210817
-      sie::Ver ver{};
+      sie::io::Ver ver{};
       YYYYMMdd_parser verdate_parser{ver.verdate};
       if (utf8_in >> Tag{"#VER"} >> ver.series >> ver.verno >> verdate_parser >> std::quoted(ver.vertext) >> scraps >> scraps) {
         if (false) {
@@ -374,7 +374,7 @@ namespace sie {
       return sieos;
     }
 
-    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::Trans const& trans) {
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::io::Trans const& trans) {
       // #TRANS account no {object list} amount transdate transtext quantity sign
       //                                           o          o        o      o
       // #TRANS 1920 {} -890 "" "" 0
@@ -388,7 +388,7 @@ namespace sie {
       return sieos;
     }
     
-    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::Ver const& ver) {
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::io::Ver const& ver) {
       // #VER A 1 20210505 "M�nadsavgift PG" 20210817	
       sieos.os << "\n#VER" 
       << " " << ver.series 
@@ -406,8 +406,8 @@ namespace sie {
 
 } // namespace sie
 
-sie::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
-	sie::Trans result{
+sie::io::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
+	sie::io::Trans result{
 		.account_no = trans.account_no
 		,.amount = trans.amount
 		,.transtext = trans.transtext // 240706 - encoded in runtime character set (cp437 encoding handled by output stream)
@@ -415,7 +415,7 @@ sie::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
 	return result;
 }
 
-sie::Ver to_sie_t(BAS::MDJournalEntry const& mdje) {
+sie::io::Ver to_sie_t(BAS::MDJournalEntry const& mdje) {
 		/*
 		Series series;
 		BAS::VerNo verno;
@@ -423,7 +423,7 @@ sie::Ver to_sie_t(BAS::MDJournalEntry const& mdje) {
 		std::string vertext;
 		*/
 
-	sie::Ver result{
+	sie::io::Ver result{
 		.series = mdje.meta.series
 		,.verno = (mdje.meta.verno)?*mdje.meta.verno:0
 		,.verdate = mdje.defacto.date

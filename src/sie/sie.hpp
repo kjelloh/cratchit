@@ -8,96 +8,97 @@
 
 namespace sie {
 
-  struct Tag {
-    std::string const expected;
-  };
-
-  // #RAR 0 20210501 20220430
-  // #RAR -1 20200501 20210430	
-  struct Rar {
-    std::string tag;
-    int year_id;
-    Date first_day_yyyymmdd;
-    Date last_day_yyyymmdd;
-  };
-
-  // Opening balance for balance sheet
-  // #IB <year no> <account> <balance> <quantity>
-  // Year no is specified using 0 for the current year and -1 for the previous year
-  // Example:
-  // #IB 0 1930 23780.78
-  struct Ib {
-    std::string tag;
-    int year_no;
-    BAS::AccountNo account_no; 
-    Amount opening_balance;
-    std::optional<float> quantity{};
-  };
-
-  // #ORGNR CIN 
-  struct OrgNr {
-    std::string tag;
-    std::string CIN;
-    // acq_no 
-    // act_no
-  };
-
-  // #FNAMN company name
-  // #FNAMN "The ITfied AB"
-  struct FNamn {
-    std::string tag;
-    std::string company_name;
-  };
-
-  // #ADRESS contact distribution address postal address tel
-  // #ADRESS "Kjell-Olov H?gdal" "Aron Lindgrens v?g 6, lgh 1801" "17668 J?rf?lla" "070-6850408" 	
-  struct Adress {
-    std::string tag;
-    std::string contact;
-    std::string distribution_address;
-    std::string postal_address;
-    std::string tel;
-  };
-
-  // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
-  struct Konto {
-    std::string tag;
-    BAS::AccountNo account_no;
-    std::string name;
-  };
-
-  struct Sru {
-    std::string tag;
-    BAS::AccountNo bas_account_no;
-    SKV::SRU::AccountNo sru_account_no;
-  };
-
-  struct Trans {
-    // Spec: #TRANS account no {object list} amount transdate transtext quantity sign
-    // Ex:   #TRANS 1920 {} 802 "" "" 0
-    std::string tag;
-    BAS::AccountNo account_no;
-    std::string object_list{};
-    Amount amount;
-    std::optional<Date> transdate{};
-    std::optional<std::string> transtext{};
-    std::optional<float> quantity{};
-    std::optional<std::string> sign{};
-  };
-  struct Ver {
-    // Spec: #VER series verno verdate vertext regdate sign
-    // Ex:   #VER A 3 20210510 "Beanstalk" 20210817
-    std::string tag;
-    BAS::Series series;
-    BAS::VerNo verno;
-    Date verdate;
-    std::string vertext;
-    std::optional<Date> regdate{};
-    std::optional<std::string> sign{};
-    std::vector<Trans> transactions{};
-  };
-
   namespace io {
+
+    struct Tag {
+      std::string const expected;
+    };
+
+    // #RAR 0 20210501 20220430
+    // #RAR -1 20200501 20210430	
+    struct Rar {
+      std::string tag;
+      int year_id;
+      Date first_day_yyyymmdd;
+      Date last_day_yyyymmdd;
+    };
+
+    // Opening balance for balance sheet
+    // #IB <year no> <account> <balance> <quantity>
+    // Year no is specified using 0 for the current year and -1 for the previous year
+    // Example:
+    // #IB 0 1930 23780.78
+    struct Ib {
+      std::string tag;
+      int year_no;
+      BAS::AccountNo account_no; 
+      Amount opening_balance;
+      std::optional<float> quantity{};
+    };
+
+    // #ORGNR CIN 
+    struct OrgNr {
+      std::string tag;
+      std::string CIN;
+      // acq_no 
+      // act_no
+    };
+
+    // #FNAMN company name
+    // #FNAMN "The ITfied AB"
+    struct FNamn {
+      std::string tag;
+      std::string company_name;
+    };
+
+    // #ADRESS contact distribution address postal address tel
+    // #ADRESS "Kjell-Olov H?gdal" "Aron Lindgrens v?g 6, lgh 1801" "17668 J?rf?lla" "070-6850408" 	
+    struct Adress {
+      std::string tag;
+      std::string contact;
+      std::string distribution_address;
+      std::string postal_address;
+      std::string tel;
+    };
+
+    // #KONTO 8422 "Dr?jsm?lsr?ntor f?r leverant?rsskulder"
+    struct Konto {
+      std::string tag;
+      BAS::AccountNo account_no;
+      std::string name;
+    };
+
+    struct Sru {
+      std::string tag;
+      BAS::AccountNo bas_account_no;
+      SKV::SRU::AccountNo sru_account_no;
+    };
+
+    struct Trans {
+      // Spec: #TRANS account no {object list} amount transdate transtext quantity sign
+      // Ex:   #TRANS 1920 {} 802 "" "" 0
+      std::string tag;
+      BAS::AccountNo account_no;
+      std::string object_list{};
+      Amount amount;
+      std::optional<Date> transdate{};
+      std::optional<std::string> transtext{};
+      std::optional<float> quantity{};
+      std::optional<std::string> sign{};
+    };
+    struct Ver {
+      // Spec: #VER series verno verdate vertext regdate sign
+      // Ex:   #VER A 3 20210510 "Beanstalk" 20210817
+      std::string tag;
+      BAS::Series series;
+      BAS::VerNo verno;
+      Date verdate;
+      std::string vertext;
+      std::optional<Date> regdate{};
+      std::optional<std::string> sign{};
+      std::vector<Trans> transactions{};
+    };
+
     // Parses SIE entries assumed to be in UTF8 encoding.
     // But SIE files are specfied to be in CP437.
     // So cratchit applies a transformation pipeline CP437 -> UTF8 when reading SIE files
@@ -160,8 +161,8 @@ namespace sie {
 
     sie::io::OStream& operator<<(sie::io::OStream& sieos,char ch);
     sie::io::OStream& operator<<(sie::io::OStream& sieos,std::string s);
-    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::Trans const& trans);
-    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::Ver const& ver);
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::io::Trans const& trans);
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::io::Ver const& ver);
 
     // ===============================================================
     // END operator<< framework for sie::T stream to text stream in SIE file representation
@@ -170,5 +171,5 @@ namespace sie {
 
 } // namespace sie
 
-sie::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans);
-sie::Ver to_sie_t(BAS::MDJournalEntry const& mdje);
+sie::io::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans);
+sie::io::Ver to_sie_t(BAS::MDJournalEntry const& mdje);

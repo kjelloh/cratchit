@@ -327,7 +327,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 }
 
 // Nof in SIEEnvironmentFramework unit / 20251028
-// BAS::MetaEntry to_entry(sie::Ver const& ver) {
+// BAS::MetaEntry to_entry(sie::io::Ver const& ver) {
 
 // Now in SIEEnvirnmentFramework unit / 20251028
 // OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
@@ -998,7 +998,7 @@ namespace SKV {
       CreateVATReturnFilesToSKVResult create_vat_return_files_to_skv(
          FormBoxMap box_map
         ,zeroth::DateRange period_range
-        ,sie::OrgNr organisation_no
+        ,sie::io::OrgNr organisation_no
         ,std::vector<SKV::ContactPersonMeta> const& organisation_contacts) {
         CreateVATReturnFilesToSKVResult result{};
         result.prompt << "\nVAT Returns for " << period_range;
