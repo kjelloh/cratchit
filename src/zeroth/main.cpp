@@ -327,7 +327,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 }
 
 // Nof in SIEEnvironmentFramework unit / 20251028
-// BAS::MetaEntry to_entry(SIE::Ver const& ver) {
+// BAS::MetaEntry to_entry(sie::Ver const& ver) {
 
 // Now in SIEEnvirnmentFramework unit / 20251028
 // OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
@@ -335,7 +335,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
   logger::cout_proxy << "\nunposted_to_sie_file " << p;
 	std::ofstream os{p};
-	SIE::io::OStream sieos{os};
+	sie::io::OStream sieos{os};
 	auto now = std::chrono::system_clock::now();
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
@@ -998,7 +998,7 @@ namespace SKV {
       CreateVATReturnFilesToSKVResult create_vat_return_files_to_skv(
          FormBoxMap box_map
         ,zeroth::DateRange period_range
-        ,SIE::OrgNr organisation_no
+        ,sie::OrgNr organisation_no
         ,std::vector<SKV::ContactPersonMeta> const& organisation_contacts) {
         CreateVATReturnFilesToSKVResult result{};
         result.prompt << "\nVAT Returns for " << period_range;

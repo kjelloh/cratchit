@@ -71,9 +71,9 @@ public:
 
   DatedJournalEntryMetas to_dated_journal_entry_metas() const;
 	std::filesystem::path staged_sie_file_path() const;
-	SIE::OrgNr organisation_no{};
-	SIE::FNamn organisation_name{};
-	SIE::Adress organisation_address{};
+	sie::OrgNr organisation_no{};
+	sie::FNamn organisation_name{};
+	sie::Adress organisation_address{};
 	BASJournals& journals();
 	BASJournals const& journals() const;
 	SKV::SRU::OptionalAccountNo sru_code(BAS::AccountNo const& bas_account_no);

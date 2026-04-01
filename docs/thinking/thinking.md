@@ -2,6 +2,27 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260401
+
+I now have a new idea on how to approach this refctoring.
+
+* Build paralell (new) mechanisms and API
+* Back upp with tests
+* Then replace existing clinet call sites one-by-one.
+
+So how about starting off with the operation to 'rebase'?
+
+* This is commands '-sie new-base-sie-file-name' and '-sie year-id new-base-sie-file-name'
+* What could be a reasonable replacement?
+  - sie_rebase(current_base,new_base)?
+* What could be a reasonable algorithm?
+  - It seems we care ONLY about journal entries?
+  - So it should operate on current journal etry 'BAS::MDJournalEntry'?
+  - That is in fact MDJournalEntries?
+  - I am tempted to introduce a map sie::EntryID -> BAS::JournalEntries?
+
+Lets give it a go?
+
 ## 20260331
 
 This SIE base + stated mechanism 'clean up' is HARD! The more I think about it the more I see it is several apsects.
@@ -376,8 +397,8 @@ OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
     // ...
     // Calls to mutate data on SIE Environment
     && ...
-    else if (std::holds_alternative<SIE::Ver>(entry)) {
-      sie_environment.post(to_md_entry(std::get<SIE::Ver>(entry)));
+    else if (std::holds_alternative<sie::Ver>(entry)) {
+      sie_environment.post(to_md_entry(std::get<sie::Ver>(entry)));
     }
 
 }

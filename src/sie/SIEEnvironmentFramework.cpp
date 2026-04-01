@@ -3,7 +3,7 @@
 #include <fstream> // std::ifstream,...
 #include <vector>
 
-BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver) {
+BAS::MDJournalEntry to_md_entry(sie::Ver const& ver) {
   if (false) {
     logger::cout_proxy << "\nto_entry(ver:" << ver.series << std::dec << ver.verno << " " << ver.verdate << " member count:" << ver.transactions.size()  << ")";
   }
@@ -32,18 +32,18 @@ OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
   std::istringstream utf8_in{std::string{utf8_sv}};
 
   // Phase 2: Parse all SIE entries into memory
-  std::vector<SIE::io::SIEFileEntry> parsed_elements;
+  std::vector<sie::io::SIEFileEntry> parsed_elements;
 
   while (true) {
-    if (auto e = SIE::io::parse_ORGNR(utf8_in,"#ORGNR")) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_FNAMN(utf8_in,"#FNAMN")) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_ADRESS(utf8_in,"#ADRESS")) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_RAR(utf8_in,"#RAR")) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_KONTO(utf8_in,"#KONTO")) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_SRU(utf8_in,"#SRU")) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_IB(utf8_in,"#IB")) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_VER(utf8_in)) parsed_elements.push_back(*e);
-    else if (auto e = SIE::io::parse_any_line(utf8_in)) parsed_elements.push_back(*e);
+    if (auto e = sie::io::parse_ORGNR(utf8_in,"#ORGNR")) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_FNAMN(utf8_in,"#FNAMN")) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_ADRESS(utf8_in,"#ADRESS")) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_RAR(utf8_in,"#RAR")) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_KONTO(utf8_in,"#KONTO")) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_SRU(utf8_in,"#SRU")) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_IB(utf8_in,"#IB")) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_VER(utf8_in)) parsed_elements.push_back(*e);
+    else if (auto e = sie::io::parse_any_line(utf8_in)) parsed_elements.push_back(*e);
     else break;
   }
 
@@ -55,8 +55,8 @@ OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
   // Phase 3: Find RAR (year_no == 0)
   std::optional<FiscalYear> fiscal_year;
   for (auto& entry : parsed_elements) {
-    if (std::holds_alternative<SIE::Rar>(entry)) {
-      const auto& rar = std::get<SIE::Rar>(entry);
+    if (std::holds_alternative<sie::Rar>(entry)) {
+      const auto& rar = std::get<sie::Rar>(entry);
       if (rar.year_id == 0) {
         auto date_range = to_date_range(rar.first_day_yyyymmdd, rar.last_day_yyyymmdd);
         if (date_range.has_value()) {
@@ -79,26 +79,26 @@ OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
   SIEEnvironment sie_environment{*fiscal_year};
 
   for (auto& entry : parsed_elements) {
-    if (std::holds_alternative<SIE::OrgNr>(entry))
-      sie_environment.organisation_no = std::get<SIE::OrgNr>(entry);
-    else if (std::holds_alternative<SIE::FNamn>(entry))
-      sie_environment.organisation_name = std::get<SIE::FNamn>(entry);
-    else if (std::holds_alternative<SIE::Adress>(entry))
-      sie_environment.organisation_address = std::get<SIE::Adress>(entry);
-    else if (std::holds_alternative<SIE::Konto>(entry)) {
-      auto& konto = std::get<SIE::Konto>(entry);
+    if (std::holds_alternative<sie::OrgNr>(entry))
+      sie_environment.organisation_no = std::get<sie::OrgNr>(entry);
+    else if (std::holds_alternative<sie::FNamn>(entry))
+      sie_environment.organisation_name = std::get<sie::FNamn>(entry);
+    else if (std::holds_alternative<sie::Adress>(entry))
+      sie_environment.organisation_address = std::get<sie::Adress>(entry);
+    else if (std::holds_alternative<sie::Konto>(entry)) {
+      auto& konto = std::get<sie::Konto>(entry);
       sie_environment.set_account_name(konto.account_no, konto.name);
     }
-    else if (std::holds_alternative<SIE::Sru>(entry)) {
-      auto& sru = std::get<SIE::Sru>(entry);
+    else if (std::holds_alternative<sie::Sru>(entry)) {
+      auto& sru = std::get<sie::Sru>(entry);
       sie_environment.set_account_SRU(sru.bas_account_no, sru.sru_account_no);
     }
-    else if (std::holds_alternative<SIE::Ib>(entry)) {
-      auto& ib = std::get<SIE::Ib>(entry);
+    else if (std::holds_alternative<sie::Ib>(entry)) {
+      auto& ib = std::get<sie::Ib>(entry);
       if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no, ib.opening_balance);
     }
-    else if (std::holds_alternative<SIE::Ver>(entry)) {
-      sie_environment.post_(to_md_entry(std::get<SIE::Ver>(entry)));
+    else if (std::holds_alternative<sie::Ver>(entry)) {
+      sie_environment.post_(to_md_entry(std::get<sie::Ver>(entry)));
     }
   }
 

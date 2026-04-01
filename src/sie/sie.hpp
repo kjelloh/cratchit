@@ -6,7 +6,7 @@
 #include <string>
 #include <variant>
 
-namespace SIE {
+namespace sie {
 
   struct Tag {
     std::string const expected;
@@ -140,16 +140,16 @@ namespace SIE {
     SIEParseResult parse_any_line(std::istream& utf8_in);
 
     // ===============================================================
-    // BEGIN operator<< framework for SIE::T stream to text stream in SIE file representation
+    // BEGIN operator<< framework for sie::T stream to text stream in SIE file representation
     // ===============================================================
 
     /**
     * NOTE ABOUT UTF-8 TO Code Page 437 used as the character set of an SIE file
     * 
-    * The convertion is made in overloaded operator<<(SIE::io::OStream& sieos,char ch) called by operator<<(SIE::io::OStream& sieos,std::string s).
+    * The convertion is made in overloaded operator<<(sie::io::OStream& sieos,char ch) called by operator<<(sie::io::OStream& sieos,std::string s).
     * 
-    * But I have not yet overloaded operator<<(SIE::io::OStream& for things like Amount, account_no etc.
-    * SO - basically it is mainly transtext and vertext that is fed to the operator<<(SIE::io::OStream& sieos,std::string s).
+    * But I have not yet overloaded operator<<(sie::io::OStream& for things like Amount, account_no etc.
+    * SO - basically it is mainly transtext and vertext that is fed to the operator<<(sie::io::OStream& sieos,std::string s).
     * TAKE CARE to not mess this up or you will get UTF-8 encoded text into the SIE file that will mess things up quite a lot...
     */
 
@@ -158,17 +158,17 @@ namespace SIE {
       text::encoding::UTF8::ToUnicodeBuffer to_unicode_buffer{};
     };
 
-    SIE::io::OStream& operator<<(SIE::io::OStream& sieos,char ch);
-    SIE::io::OStream& operator<<(SIE::io::OStream& sieos,std::string s);
-    SIE::io::OStream& operator<<(SIE::io::OStream& sieos,SIE::Trans const& trans);
-    SIE::io::OStream& operator<<(SIE::io::OStream& sieos,SIE::Ver const& ver);
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,char ch);
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,std::string s);
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::Trans const& trans);
+    sie::io::OStream& operator<<(sie::io::OStream& sieos,sie::Ver const& ver);
 
     // ===============================================================
-    // END operator<< framework for SIE::T stream to text stream in SIE file representation
+    // END operator<< framework for sie::T stream to text stream in SIE file representation
     // ===============================================================
   } // io
 
-} // namespace SIE
+} // namespace sie
 
-SIE::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans);
-SIE::Ver to_sie_t(BAS::MDJournalEntry const& mdje);
+sie::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans);
+sie::Ver to_sie_t(BAS::MDJournalEntry const& mdje);

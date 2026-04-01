@@ -15,7 +15,7 @@ namespace sie {
   using RelativeYearKey = std::string;
 }
 
-BAS::MDJournalEntry to_md_entry(SIE::Ver const& ver);
+BAS::MDJournalEntry to_md_entry(sie::Ver const& ver);
 OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv);
 OptionalSIEEnvironment sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in);
 

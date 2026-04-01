@@ -1836,7 +1836,7 @@ namespace CSV {
 } // namespace CSV
 
 // Now in sie-unit
-// namespace SIE
+// namespace sie
 // to_sie_t(BAS::anonymous::AccountTransaction const& trans)
 // to_sie_t(BAS::MetaEntry const& me) {
 
