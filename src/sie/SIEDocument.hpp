@@ -25,7 +25,7 @@ public:
   BAS::MDJournalEntry const& md_entry() const;
 private:
   Status m_status{};
-  BAS::MDJournalEntry m_md_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
+  BAS::MDJournalEntry m_md_entry; // Note: SIEDocument does not store actual BAS::MetaEntry.
                                   //       So we store a ref-safe clone to return as result
                                   //       This may e.g., allow for returning a mutated entry.
 }; // SIEEnvironmentChangeResult
@@ -34,14 +34,14 @@ using SIEEnvironmentChangeResults = std::vector<SIEEnvironmentChangeResult>;
 
 using DatedJournalEntryMetas = std::vector<DatedJournalEntryMeta>;
 
-class SIEEnvironment {
+class SIEDocument {
 
   // MetaEntry Is a meta-defacto representation of a 'journal entry' in a DAG
 
   // WeakJournalEntryMeta: Record {Series:series, OptionalVerNo:verno}
   // MetaEntry: pair {WeakJournalEntryMeta:meta , JournalEntry:defacto}
 
-  // SIEEnvironment store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
+  // SIEDocument store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
 
   // AccountTransaction: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
   // AccountTransactions: vector AccountTransaction
@@ -51,9 +51,9 @@ class SIEEnvironment {
 
 public:
 
-  SIEEnvironment(FiscalYear const& fiscal_year);
-  SIEEnvironment() = delete;
-  SIEEnvironment& operator=(SIEEnvironment const& other) = default;
+  SIEDocument(FiscalYear const& fiscal_year);
+  SIEDocument() = delete;
+  SIEDocument& operator=(SIEDocument const& other) = default;
 
   MaybeBASJournalRef at(BAS::Series series);
   BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
@@ -61,7 +61,7 @@ public:
 
 	SIEEnvironmentChangeResult post_(BAS::MDJournalEntry const& mdje);
 	SIEEnvironmentChangeResult stage_entry_(BAS::MDJournalEntry const& mdje);
-	SIEEnvironmentChangeResults stage_sie_(SIEEnvironment const& staged_sie_environment);
+	SIEEnvironmentChangeResults stage_sie_(SIEDocument const& sie_doc);
 	SIEEnvironmentChangeResult add_(BAS::MDJournalEntry mdje);
 	SIEEnvironmentChangeResult update_(BAS::MDJournalEntry const& mdje);
 
@@ -98,9 +98,9 @@ private:
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
   friend class SIEEnvironmentsMap;
-}; // class SIEEnvironment
+}; // class SIEDocument
 
-using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
+using OptionalSIEEnvironment = std::optional<SIEDocument>;
 
 std::ostream& operator<<(std::ostream& os,DatedJournalEntryMeta const& djem);
 

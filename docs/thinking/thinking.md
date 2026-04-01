@@ -50,7 +50,7 @@ model->sie_env_map.update_from_posted_and_staged_sie_env(
   - in funnction:
 
 ```c++
-  std::pair<Model,bool> model_with_posted_and_staged_env(
+  std::pair<Model,bool> model_with_posted_and_staged_sie(
      Model model
     ,sie::RelativeYearKey year_id
     ,SIEEnvironment const& posted_env
@@ -1247,7 +1247,7 @@ GOOD RIDENCE!
 I now notice that cratchit seems to parse also the .DS_Store binary file when consuming account statement files?
 
 ```sh
-dotas_from_sie_environment
+dotas_from_sie
 Opening Saldo Date:20250501
 BEGIN: Processing files in "from_bank_or_skv"
 

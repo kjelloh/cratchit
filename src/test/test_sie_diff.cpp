@@ -109,7 +109,7 @@ namespace tests {
       class RebaseCompareFixture : public ::testing::Test {
         public:
 
-        SIEEnvironment m_sie_base{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+        SIEDocument m_sie_base{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
         
         void SetUp() override {
           logger::scope_logger log_raii{logger::development_trace,"RebaseCompareFixture::SetUp"};
@@ -135,7 +135,7 @@ namespace tests {
         class SIEFileParseFixture : public ::testing::Test {
         protected:
 
-            SIEEnvironment fixture_three_entries_env{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+            SIEDocument fixture_three_entries_doc{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
 
             void SetUp() override {
               logger::scope_logger log_raii{logger::development_trace,"SIEFileParseFixture::SetUp"};
@@ -143,7 +143,7 @@ namespace tests {
               auto maybe_sie = sie_from_utf8_sv(sz_sie_three_transactions_text);
 
               try {
-                fixture_three_entries_env = maybe_sie.value();
+                fixture_three_entries_doc = maybe_sie.value();
               }
               catch (std::exception const& e) {
                 std::print("SIEFileParseFixture::SetUp: Failed - Exception:{}",e.what());
@@ -177,8 +177,8 @@ namespace tests {
           auto maybe_sie = sie_from_utf8_sv(sz_sie_three_transactions_text);
           
           ASSERT_TRUE(maybe_sie.has_value());
-          int trans_count = maybe_sie.transform([](auto const& sie_env){
-            return sie_env.journals_entry_count();
+          int trans_count = maybe_sie.transform([](auto const& sie_doc){
+            return sie_doc.journals_entry_count();
           }).value_or(-1);
           ASSERT_TRUE(trans_count == 3) << std::format("Parsed {} transactions from sz_sie_three_transactions_text",trans_count);
         }
@@ -222,32 +222,32 @@ namespace tests {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryAddTest)"};
 
           auto entries = to_sample_md_entries();
-          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          SIEDocument sie_doc{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
 
           {
-            auto add_result = sie_env.add_(entries[0]);
+            auto add_result = sie_doc.add_(entries[0]);
             ASSERT_TRUE(add_result) << "Expected add to empty env to succeed";
           }
           {
-            auto add_result = sie_env.add_(entries[1]);
+            auto add_result = sie_doc.add_(entries[1]);
             ASSERT_TRUE(add_result) << "Expected add new valid entry to to succeed";
           }
           {
-            auto add_result = sie_env.add_(entries[0]);
+            auto add_result = sie_doc.add_(entries[0]);
             ASSERT_FALSE(add_result) << "Expected re-add same value previous entry to fail";
           }
           {
             auto no_series_entry_0 = entries[0];
             no_series_entry_0.meta.series = ' ';
             no_series_entry_0.meta.verno = std::nullopt;
-            auto add_result = sie_env.add_(no_series_entry_0);
+            auto add_result = sie_doc.add_(no_series_entry_0);
             ASSERT_TRUE(add_result) << "Expected add of anonymous series,verno entry to succeed";
             ASSERT_TRUE(add_result.md_entry().meta.series == 'A') << "Expected add of anonymous series,verno entry to be addes in series 'A'";
           }
           {
             auto mutated_entry_0 = entries[0];
             mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
-            auto add_result = sie_env.add_(mutated_entry_0);
+            auto add_result = sie_doc.add_(mutated_entry_0);
             ASSERT_FALSE(add_result) << "Expected re-add mutated previous entry to fail";
           }
         }
@@ -256,21 +256,21 @@ namespace tests {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryUpdateTest)"};
 
           auto entries = to_sample_md_entries();
-          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          SIEDocument sie_doc{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
 
           {
-            auto update_result = sie_env.update_(entries[0]);
+            auto update_result = sie_doc.update_(entries[0]);
             ASSERT_FALSE(update_result) << "Expected update to empty env to fail (no entry to update)";
           }
-          if (auto add_result = sie_env.add_(entries[0])) {
-            auto update_result = sie_env.update_(entries[0]);
+          if (auto add_result = sie_doc.add_(entries[0])) {
+            auto update_result = sie_doc.update_(entries[0]);
             ASSERT_TRUE(update_result) << "Expected update to existing same value to succeed";
 
             {
               auto mutated_entry_0 = entries[0];
               mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
               
-              auto update_result = sie_env.update_(mutated_entry_0);
+              auto update_result = sie_doc.update_(mutated_entry_0);
               ASSERT_FALSE(update_result) << "Expected update to existing entry with different caption to fail";
             }
             {
@@ -281,7 +281,7 @@ namespace tests {
                 ,.amount = to_amount("12,00").value_or(0)
               });
               
-              auto update_result = sie_env.update_(mutated_entry_0);
+              auto update_result = sie_doc.update_(mutated_entry_0);
               ASSERT_FALSE(update_result) << "Expected update to existing entry with different trasnactions to fail";
             }
           }
@@ -291,32 +291,32 @@ namespace tests {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryPostTest)"};
 
           auto entries = to_sample_md_entries();
-          SIEEnvironment sie_env{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
+          SIEDocument sie_doc{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
 
           {
-            auto post_result = sie_env.post_(entries[0]);
+            auto post_result = sie_doc.post_(entries[0]);
             ASSERT_TRUE(post_result) << "Expected post to empty env to succeed";
           }
           {
-            auto post_result = sie_env.post_(entries[1]);
+            auto post_result = sie_doc.post_(entries[1]);
             ASSERT_TRUE(post_result) << "Expected post valid entry to to succeed";
           }
           {
-            auto post_result = sie_env.post_(entries[0]);
+            auto post_result = sie_doc.post_(entries[0]);
             ASSERT_TRUE(post_result) << "Expected re-post previous entry to to succeed";
           }
           {
             auto mutated_entry_0 = entries[0];
             mutated_entry_0.defacto.caption = mutated_entry_0.defacto.caption + " *mutated caption*";
-            auto post_result = sie_env.post_(mutated_entry_0);
+            auto post_result = sie_doc.post_(mutated_entry_0);
             ASSERT_TRUE(!post_result) << "Expected re-post mutated previous entry to fail";
           }
         }
 
         TEST(SIEEnvironmentTests,EmptyStageEmptyTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvironmentTests,EmptyStageEmptyTest)"};
-          SIEEnvironment lhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
-          SIEEnvironment rhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+          SIEDocument lhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
+          SIEDocument rhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
           auto merged = lhs;
           auto stage_result = merged.stage_sie_(rhs);
           ASSERT_TRUE(stage_result.size() == 0);
@@ -325,10 +325,10 @@ namespace tests {
 
         TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest)"};
-          ASSERT_TRUE(fixture_three_entries_env.journals_entry_count() == 3);
-          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
+          ASSERT_TRUE(fixture_three_entries_doc.journals_entry_count() == 3);
+          SIEDocument merged{fixture_three_entries_doc.fiscal_year()};
 
-          for (auto const& [series,journal] : fixture_three_entries_env.journals()) {
+          for (auto const& [series,journal] : fixture_three_entries_doc.journals()) {
             for (auto const& [verno,aje] : journal) {
               merged.post_({{.series=series,.verno=verno},aje});
             }
@@ -339,8 +339,8 @@ namespace tests {
 
         TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest) {
           logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest)"};
-          SIEEnvironment merged{fixture_three_entries_env.fiscal_year()};
-          auto stage_result = merged.stage_sie_(fixture_three_entries_env);
+          SIEDocument merged{fixture_three_entries_doc.fiscal_year()};
+          auto stage_result = merged.stage_sie_(fixture_three_entries_doc);
           ASSERT_TRUE(merged.journals_entry_count() == 3)
             << std::format("Expected 3 journal entries but found  :{}",merged.journals_entry_count());
           ASSERT_TRUE(merged.unposted().size() == 3)
@@ -357,7 +357,7 @@ namespace tests {
           auto entries = to_sample_md_entries();
           auto entry_0 = entries[0];
           auto entry_date = entry_0.defacto.date;
-          SIEEnvironment posted{FiscalYear(entry_date.year(),std::chrono::month{1})};
+          SIEDocument posted{FiscalYear(entry_date.year(),std::chrono::month{1})};
           posted.post_(entry_0);
           auto stage_result = posted.stage_entry_(entry_0);
 

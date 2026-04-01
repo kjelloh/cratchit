@@ -103,7 +103,7 @@ add_executable(
         src/csv/parse_csv.cpp
         src/states/AccountStatementState.cpp
         src/text/format.cpp
-        src/sie/SIEEnvironment.cpp
+        src/sie/SIEDocument.cpp
         src/persistent/in/maybe.cpp
         src/HAD2JournalEntryFramework.cpp
         src/text/functional.cpp

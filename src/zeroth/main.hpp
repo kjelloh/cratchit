@@ -2065,17 +2065,17 @@ using SRUEnvironments = std::map<std::string,SRUEnvironment>;
 // using BalancesMap = std::map<Date,Balances>;
 // std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 
-// Now in SIEEnvironment unit / 20251028
-// class SIEEnvironment {
-// using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
+// Now in SIEDocument unit / 20251028
+// class SIEDocument {
+// using OptionalSIEEnvironment = std::optional<SIEDocument>;
 
 
 // Now in SIEEnvironmentFramework unit / 20251028
 // class SIEEnvironmentsMap {
 
-inline BAS::AccountMetas matches_bas_or_sru_account_no(BAS::AccountNo const& to_match_account_no,SIEEnvironment const& sie_env) {
+inline BAS::AccountMetas matches_bas_or_sru_account_no(BAS::AccountNo const& to_match_account_no,SIEDocument const& sie_doc) {
 	BAS::AccountMetas result{};
-	for (auto const& [account_no,am] : sie_env.account_metas()) {
+	for (auto const& [account_no,am] : sie_doc.account_metas()) {
 		if ((to_match_account_no == account_no) or (am.sru_code and (to_match_account_no == *am.sru_code))) {
 			result[account_no] = am;
 		}
@@ -2083,9 +2083,9 @@ inline BAS::AccountMetas matches_bas_or_sru_account_no(BAS::AccountNo const& to_
 	return result;
 }
 
-inline BAS::AccountMetas matches_bas_account_name(std::string const& s,SIEEnvironment const& sie_env) {
+inline BAS::AccountMetas matches_bas_account_name(std::string const& s,SIEDocument const& sie_doc) {
 	BAS::AccountMetas result{};
-	for (auto const& [account_no,am] : sie_env.account_metas()) {
+	for (auto const& [account_no,am] : sie_doc.account_metas()) {
 		if (text::functional::first_in_second_case_insensitive(s,am.name)) {
 			result[account_no] = am;
 		}
@@ -2093,8 +2093,8 @@ inline BAS::AccountMetas matches_bas_account_name(std::string const& s,SIEEnviro
 	return result;
 }
 
-inline void for_each_anonymous_journal_entry(SIEEnvironment const& sie_env,auto& f) {
-	for (auto const& [journal_id,journal] : sie_env.journals()) {
+inline void for_each_anonymous_journal_entry(SIEDocument const& sie_doc,auto& f) {
+	for (auto const& [journal_id,journal] : sie_doc.journals()) {
 		for (auto const& [verno,aje] : journal) {
 			f(aje);
 		}
@@ -2102,18 +2102,18 @@ inline void for_each_anonymous_journal_entry(SIEEnvironment const& sie_env,auto&
 }
 
 inline void for_each_anonymous_journal_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
-		for_each_anonymous_journal_entry(sie_env,f);
+	for (auto const& [financial_year_key,sie_doc] : sie_envs_map) {
+		for_each_anonymous_journal_entry(sie_doc,f);
 	}
 }
 
 // Now in SIEEnvironmentFramework unit
-// inline void for_each_md_journal_entry(SIEEnvironment const& sie_env,auto& f) {
+// inline void for_each_md_journal_entry(SIEDocument const& sie_doc,auto& f) {
 // inline void for_each_md_journal_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 
-inline void for_each_anonymous_account_transaction(SIEEnvironment const& sie_env,auto& f) {
+inline void for_each_anonymous_account_transaction(SIEDocument const& sie_doc,auto& f) {
 	auto f_caller = [&f](BAS::anonymous::JournalEntry const& aje){for_each_anonymous_account_transaction(aje,f);};
-	for_each_anonymous_journal_entry(sie_env,f_caller);
+	for_each_anonymous_journal_entry(sie_doc,f_caller);
 }
 
 inline void for_each_md_account_transaction(BAS::MDJournalEntry const& mdje,auto& f) {
@@ -2125,19 +2125,19 @@ inline void for_each_md_account_transaction(BAS::MDJournalEntry const& mdje,auto
 	}
 }
 
-inline void for_each_md_account_transaction(SIEEnvironment const& sie_env,auto& f) {
+inline void for_each_md_account_transaction(SIEDocument const& sie_doc,auto& f) {
 	auto f_caller = [&f](BAS::MDJournalEntry const& mdje){for_each_md_account_transaction(mdje,f);};
-	for_each_md_journal_entry(sie_env,f_caller);
+	for_each_md_journal_entry(sie_doc,f_caller);
 }
 
 inline void for_each_md_account_transaction(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
 	auto f_caller = [&f](BAS::MDJournalEntry const& mdje){for_each_md_account_transaction(mdje,f);};
-	for (auto const& [financial_year_key,sie_env] : sie_envs_map) {
-		for_each_md_journal_entry(sie_env,f_caller);
+	for (auto const& [financial_year_key,sie_doc] : sie_envs_map) {
+		for_each_md_journal_entry(sie_doc,f_caller);
 	}
 }
 
-inline OptionalAmount account_sum(SIEEnvironment const& sie_env,BAS::AccountNo account_no) {
+inline OptionalAmount account_sum(SIEDocument const& sie_doc,BAS::AccountNo account_no) {
 	OptionalAmount result{};
 	auto f = [&account_no,&result](BAS::anonymous::AccountTransaction const& at) {
 		if (at.account_no == account_no) {
@@ -2145,11 +2145,11 @@ inline OptionalAmount account_sum(SIEEnvironment const& sie_env,BAS::AccountNo a
 			else *result += at.amount;
 		}
 	};
-	for_each_anonymous_account_transaction(sie_env,f);
+	for_each_anonymous_account_transaction(sie_doc,f);
 	return result;
 }
 
-inline OptionalAmount to_ats_sum(SIEEnvironment const& sie_env,BAS::AccountNos const& bas_account_nos) {
+inline OptionalAmount to_ats_sum(SIEDocument const& sie_doc,BAS::AccountNos const& bas_account_nos) {
 	OptionalAmount result{};
 	try {
 		Amount amount{};
@@ -2158,7 +2158,7 @@ inline OptionalAmount to_ats_sum(SIEEnvironment const& sie_env,BAS::AccountNos c
 				amount += mdat.defacto.amount;
 			}
 		};
-		for_each_md_account_transaction(sie_env,f);
+		for_each_md_account_transaction(sie_doc,f);
 		result = amount;
 	}
 	catch (std::exception const& e) {
@@ -2185,9 +2185,9 @@ inline OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::Acc
 	return result;
 }
 
-inline std::optional<std::string> to_ats_sum_string(SIEEnvironment const& sie_env,BAS::AccountNos const& bas_account_nos) {
+inline std::optional<std::string> to_ats_sum_string(SIEDocument const& sie_doc,BAS::AccountNos const& bas_account_nos) {
 	std::optional<std::string> result{};
-	if (auto const& ats_sum = to_ats_sum(sie_env,bas_account_nos)) result = to_string(*ats_sum);
+	if (auto const& ats_sum = to_ats_sum(sie_doc,bas_account_nos)) result = to_string(*ats_sum);
 	return result;
 }
 
@@ -2351,7 +2351,7 @@ inline T2Entries t2_entries(SIEEnvironmentsMap const& sie_envs_map) {
 	return collect_t2s.result();
 }
 
-inline BAS::OptionalMDJournalEntry find_meta_entry(SIEEnvironment const& sie_env, std::vector<std::string> const& ast) {
+inline BAS::OptionalMDJournalEntry find_meta_entry(SIEDocument const& sie_doc, std::vector<std::string> const& ast) {
 	BAS::OptionalMDJournalEntry result{};
 	try {
 		if ((ast.size()==1) and (ast[0].size()>=2)) {
@@ -2362,7 +2362,7 @@ inline BAS::OptionalMDJournalEntry find_meta_entry(SIEEnvironment const& sie_env
 			auto f = [&series,&verno,&result](BAS::MDJournalEntry const& mdje) {
 				if (mdje.meta.series == series and mdje.meta.verno == verno) result = mdje;
 			};
-			for_each_md_journal_entry(sie_env,f);
+			for_each_md_journal_entry(sie_doc,f);
 		}
 	}
 	catch (std::exception const& e) {
@@ -3213,12 +3213,12 @@ namespace SKV { // SKV
 			// std::set<BAS::AccountNo> to_accounts(BoxNos const& box_nos) {
             // std::set<BAS::AccountNo> to_vat_accounts() {
 
-			inline BAS::MDAccountTransactions to_mats(SIEEnvironment const& sie_env,auto const& matches_mat) {
+			inline BAS::MDAccountTransactions to_mats(SIEDocument const& sie_doc,auto const& matches_mat) {
 				BAS::MDAccountTransactions result{};
 				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mdat){
 					if (matches_mat(mdat)) result.push_back(mdat);
 				};
-				for_each_md_account_transaction(sie_env,x);
+				for_each_md_account_transaction(sie_doc,x);
 				return result;
 			}
 
@@ -3796,9 +3796,9 @@ inline std::string to_skv_date_and_time(std::chrono::time_point<std::chrono::sys
 	return os.str();
 }
 
-inline std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie_env,	std::vector<SKV::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
+inline std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEDocument const& sie_doc,	std::vector<SKV::ContactPersonMeta> const& organisation_contacts, std::vector<std::string> const& employee_birth_ids) {
 // std::cout << "\ncratchit_to_skv" << std::flush;
-// std::cout << "\ncratchit_to_skv organisation_no.CIN=" << sie_env.organisation_no.CIN;
+// std::cout << "\ncratchit_to_skv organisation_no.CIN=" << sie_doc.organisation_no.CIN;
 	std::optional<SKV::XML::XMLMap> result{};
 	try {
 		SKV::OrganisationMeta sender_meta{};sender_meta.contact_persons.push_back({});
@@ -3809,7 +3809,7 @@ inline std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEEnvironment const& sie
 		declaration_meta.creation_date_and_time = to_skv_date_and_time(std::chrono::system_clock::now());
 		declaration_meta.declaration_period_id = "202101";
 		// employer_meta.org_no = "165560269986";
-		employer_meta.org_no = SKV::XML::to_12_digit_orgno(sie_env.organisation_no.CIN);
+		employer_meta.org_no = SKV::XML::to_12_digit_orgno(sie_doc.organisation_no.CIN);
 		// sender_meta.org_no = "190002039006";
 		sender_meta.org_no = employer_meta.org_no;
 		if (organisation_contacts.size()>0) {
@@ -3989,7 +3989,7 @@ inline void test_immutable_file_manager() {
 
 
 // Now in HAD2JournalEntryFramework unit / 20251111
-// inline OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ) {
+// inline OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEDocument const& sie_environ) {
 
 inline OptionalHeadingAmountDateTransEntry to_had(BAS::MDJournalEntry const& me) {
 	OptionalHeadingAmountDateTransEntry result{};
@@ -4207,7 +4207,7 @@ public:
 	size_t ta_index{};
   std::string selected_year_index{"0"};
 
-  // Now in SIEEnvironment
+  // Now in SIEDocument
 	// std::filesystem::path staged_sie_file_path{"cratchit.se"};
 
   // Removed/20251020 (Refactored to value semantics)
@@ -4351,8 +4351,8 @@ using Model = std::unique_ptr<ConcreteModel>; // "as if" immutable (pass around 
 std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment);
 std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment);
 SRUEnvironments srus_from_environment(Environment const& environment);
-void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment);
-DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env);
+void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEDocument const& sie_doc);
+DateOrderedTaggedAmountsContainer dotas_from_sie(SIEDocument const& sie_doc);
 
 namespace SKV {
   struct SpecsDummy {};

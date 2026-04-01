@@ -67,7 +67,7 @@ current_date_to_year_id_map(financial_year_start_month:5,index_count:7)
         index:-6 range:20190501...20200430
         index:0 range:20250501...20260430
 model_from_environment
-dotas_from_sie_environment
+dotas_from_sie
 Opening Saldo Date:20230501
         saldo_ta :  20230501 162495,27
         |--> "BAS=1221"
@@ -126,7 +126,7 @@ Opening Saldo Date:20230501
         saldo_ta :  20230501 -5000,00
         |--> "BAS=2898"
         |--> "IB=True"
-dotas_from_sie_environment
+dotas_from_sie
 Opening Saldo Date:20240501
         saldo_ta :  20240501 162495,27
         |--> "BAS=1221"

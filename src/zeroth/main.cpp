@@ -272,18 +272,18 @@ Cmd to_cmd(std::string const& user_input) {
 
 class FilteredSIEEnvironment {
 public:
-	FilteredSIEEnvironment(SIEEnvironment const& sie_environment,BAS::MatchesMetaEntry matches_meta_entry)
-		:  m_sie_environment{sie_environment}
+	FilteredSIEEnvironment(SIEDocument const& sie_doc,BAS::MatchesMetaEntry matches_meta_entry)
+		:  m_sie_doc{sie_doc}
 			,m_matches_meta_entry{matches_meta_entry} {}
 
 	void for_each(auto const& f) const {
 		auto f_if_match = [this,&f](BAS::MDJournalEntry const& mdje){
 			if (this->m_matches_meta_entry(mdje)) f(mdje);
 		};
-		for_each_md_journal_entry(m_sie_environment,f_if_match);
+		for_each_md_journal_entry(m_sie_doc,f_if_match);
 	}
 private:
-	SIEEnvironment const& m_sie_environment;
+	SIEDocument const& m_sie_doc;
 	BAS::MatchesMetaEntry m_matches_meta_entry{};
 };
 
@@ -300,23 +300,23 @@ std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment) {
+std::ostream& operator<<(std::ostream& os,SIEDocument const& sie_doc) {
   os << "\n" << "Financial Period:";
-  if (auto maybe_year_range = sie_environment.financial_year_date_range()) {
+  if (auto maybe_year_range = sie_doc.financial_year_date_range()) {
     os << maybe_year_range.value();
   }
   else {
     os << "*anonymous*";
   }
 
-	for (auto const& je : sie_environment.journals()) {
+	for (auto const& je : sie_doc.journals()) {
 		auto& [series,journal] = je;
 		for (auto const& [verno,entry] : journal) {
 			BAS::MDJournalEntry mdje {
 				.meta = {
 					 .series = series
 					,.verno = verno
-					,.unposted_flag = sie_environment.is_unposted(series,verno)
+					,.unposted_flag = sie_doc.is_unposted(series,verno)
 				}
 				,.defacto = entry
 			};
@@ -332,7 +332,7 @@ std::ostream& operator<<(std::ostream& os,SIEEnvironment const& sie_environment)
 // Now in SIEEnvirnmentFramework unit / 20251028
 // OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
 
-void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const& p) {
+void unposted_to_sie_file(SIEDocument const& sie_doc,std::filesystem::path const& p) {
   logger::cout_proxy << "\nunposted_to_sie_file " << p;
 	std::ofstream os{p};
 	sie::io::OStream sieos{os};
@@ -340,11 +340,11 @@ void unposted_to_sie_file(SIEEnvironment const& sie,std::filesystem::path const&
 	auto now_timet = std::chrono::system_clock::to_time_t(now);
 	auto now_local = localtime(&now_timet);
 	sieos.os << "#GEN " << std::put_time(now_local, "%Y%m%d");
-  if (auto maybe_year_range = sie.financial_year_date_range()) {
+  if (auto maybe_year_range = sie_doc.financial_year_date_range()) {
     auto const& year_range = maybe_year_range.value();
     sieos.os << "\n#RAR" << " 0 " << year_range.begin() << " " << year_range.end();
   }
-	for (auto const& entry : sie.unposted()) {
+	for (auto const& entry : sie_doc.unposted()) {
     logger::cout_proxy << "\nUnposted:" << entry;
 		sieos << to_sie_t(entry);
 	}
@@ -3645,17 +3645,17 @@ Cmd Updater::operator()(Command const& command) {
                 persistent::in::CP437::istream cp437_in{istream};
                 return sie_from_cp437_stream(cp437_in);
               })
-              .and_then([this,year_key](auto const& sie_env){
-                auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
+              .and_then([this,year_key](auto const&  sie_doc){
+                auto staged_sie_env = persistent::in::text::to_maybe_istream( sie_doc.staged_sie_file_path())
                   .and_then([](auto& istream){
                     persistent::in::CP437::istream cp437_in{istream};
                     return sie_from_cp437_stream(cp437_in);
                   })
-                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
+                  .value_or(SIEDocument{ sie_doc.fiscal_year()});
 
-                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                return model->sie_env_map.update_from_posted_and_staged_sie_docs(
                   year_key
-                  ,sie_env
+                  , sie_doc
                   ,staged_sie_env);
 
               });
@@ -3740,17 +3740,17 @@ Cmd Updater::operator()(Command const& command) {
                 persistent::in::CP437::istream cp437_in{istream};
                 return sie_from_cp437_stream(cp437_in);
               })
-              .and_then([this,year_key](auto const& sie_env){
-                auto staged_sie_env = persistent::in::text::to_maybe_istream(sie_env.staged_sie_file_path())
+              .and_then([this,year_key](auto const&  sie_doc){
+                auto staged_sie_env = persistent::in::text::to_maybe_istream( sie_doc.staged_sie_file_path())
                   .and_then([](auto& istream){
                     persistent::in::CP437::istream cp437_in{istream};
                     return sie_from_cp437_stream(cp437_in);
                   })
-                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
+                  .value_or(SIEDocument{ sie_doc.fiscal_year()});
 
-                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                return model->sie_env_map.update_from_posted_and_staged_sie_docs(
                   year_key
-                  ,sie_env
+                  , sie_doc
                   ,staged_sie_env);
 
               });
@@ -3763,26 +3763,6 @@ Cmd Updater::operator()(Command const& command) {
               prompt << NL << "Sorry, Failed to update posted SIE from " << *sie_file_path;
             }
           }
-
-
-          // if (auto sie_env = sie_from_sie_file(*sie_file_path)) {
-          //   model->sie_env_map[year_key] = std::move(*sie_env);
-          //   if (auto sse = sie_from_sie_file(model->sie_env_map[year_key].staged_sie_file_path())) {
-          //     auto staged = model->sie_env_map[year_key].stage(*sse);
-          //     auto unposted = model->sie_env_map[year_key].unposted();
-          //     if (unposted.size() > 0) {
-          //       prompt << "\n<UNPOSTED>";
-          //       prompt << unposted;
-          //     }
-          //     else {
-          //       prompt << "\nAll staged entries are now posted OK";
-          //     }
-          //   }
-          // }
-          // else {
-          //   // failed to parse sie-file into an SIE Environment
-          //   prompt << "\nERROR - Failed to import sie file " << *sie_file_path;
-          // }
         }
         else {
           // assume user search criteria on transaction heading and comments
@@ -4999,17 +4979,6 @@ private:
   PersistentFile<Environment> m_persistent_environment_file;
 	std::filesystem::path cratchit_environment_file_path{};
 
-  // Now free functions
-	// std::vector<SKV::ContactPersonMeta> contacts_from_environment(Environment const& environment) {
-	// DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
-  // SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
-  // TaggedAmounts tas_sequence_from_consumed_account_statement_files(Environment const& environment) {
-  // DateOrderedTaggedAmountsContainer dotas_from_environment_and_account_statement_files(Environment const& environment) {
-  // void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
-	// SRUEnvironments srus_from_environment(Environment const& environment) {
-	// std::vector<std::string> employee_birth_ids_from_environment(Environment const& environment) {
-  // HeadingAmountDateTransEntries hads_from_environment(Environment const& environment)
-
 	bool is_value_line(std::string const& line) {
 		// Now in environment unit
 		return in::is_value_line(line);
@@ -5170,13 +5139,13 @@ SRUEnvironments srus_from_environment(Environment const& environment) {
   return result;
 } // srus_from_environment
 
-void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEEnvironment const& sie_environment) {
+void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEDocument const& sie_doc) {
   // TODO: Base the implementation on DateOrderedTaggedAmountsContainer handling 'branching' on CAS based value-id ordering?
 
   logger::scope_logger scope_raii{logger::development_trace,"SYNHRONIZE TAGGED AMOUNTS WITH SIE"};
-  if (auto financial_year_date_range = sie_environment.financial_year_date_range()) {
+  if (auto financial_year_date_range = sie_doc.financial_year_date_range()) {
     std::cout << "\n\tSIE fiscal year:" << *financial_year_date_range;
-    auto environment_dotas = dotas_from_sie_environment(sie_environment);      
+    auto environment_dotas = dotas_from_sie(sie_doc);      
 
     // TODO: 'put' all tagged amounts in environment_dotas
     //       into 'all_dotas' and trust it to detect branching
@@ -5189,16 +5158,16 @@ void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_
   }
 } // synchronize_tagged_amounts_with_sie
 
-DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment const& sie_env) {
+DateOrderedTaggedAmountsContainer dotas_from_sie(SIEDocument const& sie_doc) {
   if (false) {
-    std::cout << "\ndotas_from_sie_environment" << std::flush;
+    std::cout << "\ndotas_from_sie" << std::flush;
   }
   DateOrderedTaggedAmountsContainer result{};
   // Create / add opening balances for BAS accounts as tagged amounts
-  auto financial_year_date_range = sie_env.financial_year_date_range();
+  auto financial_year_date_range =  sie_doc.financial_year_date_range();
   auto opening_saldo_date = financial_year_date_range->begin();
   std::cout << "\nOpening Saldo Date:" << opening_saldo_date;
-  for (auto const& [bas_account_no,saldo] : sie_env.opening_balances()) {
+  for (auto const& [bas_account_no,saldo] :  sie_doc.opening_balances()) {
     auto saldo_cents_amount = to_cents_amount(saldo);
     TaggedAmount saldo_ta{opening_saldo_date,saldo_cents_amount};
     saldo_ta.tags()["BAS"] = std::to_string(bas_account_no);
@@ -5216,9 +5185,9 @@ DateOrderedTaggedAmountsContainer dotas_from_sie_environment(SIEEnvironment cons
     // result += tagged_amounts;
     result.dotas_insert_auto_ordered_sequence(tagged_amounts);
   };
-  for_each_md_journal_entry(sie_env,create_and_merge_to_result);
+  for_each_md_journal_entry( sie_doc,create_and_merge_to_result);
   return result;
-} // dotas_from_sie_environment
+} // dotas_from_sie
 
 // Environment + cratchit_environment_file_path -> Model
 
@@ -5545,16 +5514,16 @@ namespace zeroth {
 		return model;
   }
 
-  std::pair<Model,bool> model_with_posted_and_staged_env(
+  std::pair<Model,bool> model_with_posted_and_staged_sie(
      Model model
     ,sie::RelativeYearKey year_id
-    ,SIEEnvironment const& posted_env
-    ,SIEEnvironment const& staged_env) {
+    ,SIEDocument const& posted_doc
+    ,SIEDocument const& staged_doc) {
 
-    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_and_staged_env"};
+    logger::scope_logger log_raii{logger::development_trace,"model_with_posted_and_staged_sie"};
 		std::ostringstream prompt{};
 
-    auto update_posted_result = model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
+    auto update_posted_result = model->sie_env_map.update_from_posted_and_staged_sie_docs(year_id,posted_doc,staged_doc);
     if (update_posted_result) {
       prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
     }
@@ -5574,7 +5543,7 @@ namespace zeroth {
     {
       for (auto const& sie_environments_entry : model->sie_env_map) {
         model->all_dotas.dotas_insert_auto_ordered_container(
-          dotas_from_sie_environment(sie_environments_entry.second));	
+          dotas_from_sie(sie_environments_entry.second));	
         prompt << std::format(
           "\nSIE year id:{} --> Tagged Amounts = size:{}"
           ,sie_environments_entry.first
@@ -5637,17 +5606,17 @@ namespace zeroth {
                 persistent::in::CP437::istream cp437_in{istream};
                 return sie_from_cp437_stream(cp437_in);
               })
-              .and_then([&md_cfs,&model,year_id](auto const& sie_env){
-                auto staged_sie_env = md_cfs.defacto->to_maybe_istream(sie_env.staged_sie_file_path())
+              .and_then([&md_cfs,&model,year_id](auto const&  sie_doc){
+                auto staged_sie_env = md_cfs.defacto->to_maybe_istream( sie_doc.staged_sie_file_path())
                   .and_then([](auto& istream){
                     persistent::in::CP437::istream cp437_in{istream};
                     return sie_from_cp437_stream(cp437_in);
                   })
-                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
+                  .value_or(SIEDocument{ sie_doc.fiscal_year()});
 
-                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                return model->sie_env_map.update_from_posted_and_staged_sie_docs(
                   year_id
-                  ,sie_env
+                  , sie_doc
                   ,staged_sie_env);
 
               });

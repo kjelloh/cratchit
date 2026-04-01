@@ -1,4 +1,4 @@
-#include "SIEEnvironment.hpp"
+#include "SIEDocument.hpp"
 #include "logger/log.hpp"
 
 #include <numeric> // std::accumulate,...
@@ -33,20 +33,20 @@ BAS::MDJournalEntry const& SIEEnvironmentChangeResult::md_entry() const {return 
 
 // END SIEEnvironmentChangeResult
 
-// SIEEnvironment
+// SIEDocument
 
 // public:
 
-SIEEnvironment::SIEEnvironment(FiscalYear const& fiscal_year)
+SIEDocument::SIEDocument(FiscalYear const& fiscal_year)
 	: m_fiscal_year{fiscal_year} {}
 
-MaybeBASJournalRef SIEEnvironment::at(BAS::Series series) {
+MaybeBASJournalRef SIEDocument::at(BAS::Series series) {
   auto iter = this->m_journals.find(series);
   if (iter == this->m_journals.end()) return {};
   return MaybeBASJournalRef::from(iter->second);
 }
 
-BAS::MaybeJournalEntryRef SIEEnvironment::at(DatedJournalEntryMeta key) {
+BAS::MaybeJournalEntryRef SIEDocument::at(DatedJournalEntryMeta key) {
   if (this->fiscal_year().contains(key.m_date)) {
     return this->at(key.m_jem.series)
       .and_then([verno = key.m_jem.verno.value()](auto& journal) {
@@ -59,13 +59,13 @@ BAS::MaybeJournalEntryRef SIEEnvironment::at(DatedJournalEntryMeta key) {
   return {};
 }
 
-SIEEnvironmentChangeResult SIEEnvironment::post_(BAS::MDJournalEntry const& mdje) {
+SIEEnvironmentChangeResult SIEDocument::post_(BAS::MDJournalEntry const& mdje) {
 
   SIEEnvironmentChangeResult result{mdje};
 
   logger::scope_logger log_raii{
      logger::development_trace
-    ,std::format("SIEEnvironment::post(BAS::MetaEntry '{}{}')"
+    ,std::format("SIEDocument::post(BAS::MetaEntry '{}{}')"
       ,mdje.meta.series
       ,logger::opt_to_string(mdje.meta.verno,"ver_no"))};
 
@@ -106,13 +106,13 @@ SIEEnvironmentChangeResult SIEEnvironment::post_(BAS::MDJournalEntry const& mdje
   return result;
 }
 
-SIEEnvironmentChangeResult SIEEnvironment::stage_entry_(BAS::MDJournalEntry const& mdje) {
+SIEEnvironmentChangeResult SIEDocument::stage_entry_(BAS::MDJournalEntry const& mdje) {
   SIEEnvironmentChangeResult result{mdje};
 
   // scope Log
   logger::scope_logger log_raii{
      logger::development_trace
-    ,std::format("SIEEnvironment::stage(BAS::MetaEntry '{}{}')"
+    ,std::format("SIEDocument::stage(BAS::MetaEntry '{}{}')"
       ,mdje.meta.series
       ,logger::opt_to_string(mdje.meta.verno,"ver_no"))};
 
@@ -158,8 +158,8 @@ SIEEnvironmentChangeResult SIEEnvironment::stage_entry_(BAS::MDJournalEntry cons
   return result;
 } // stage
 
-SIEEnvironmentChangeResult SIEEnvironment::add_(BAS::MDJournalEntry mdje) {
-  logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::add(BAS::MetaEntry)"};
+SIEEnvironmentChangeResult SIEDocument::add_(BAS::MDJournalEntry mdje) {
+  logger::scope_logger log_raii{logger::development_trace,"SIEDocument::add(BAS::MetaEntry)"};
 
   SIEEnvironmentChangeResult result{mdje};
 
@@ -200,8 +200,8 @@ SIEEnvironmentChangeResult SIEEnvironment::add_(BAS::MDJournalEntry mdje) {
   return result;
 } // add
 
-SIEEnvironmentChangeResult SIEEnvironment::update_(BAS::MDJournalEntry const& mdje) {
-  logger::scope_logger log_raii{logger::development_trace,"SIEEnvironment::update(BAS::MetaEntry)"};
+SIEEnvironmentChangeResult SIEDocument::update_(BAS::MDJournalEntry const& mdje) {
+  logger::scope_logger log_raii{logger::development_trace,"SIEDocument::update(BAS::MetaEntry)"};
 
   logger::development_trace("update {}{}"
     ,mdje.meta.series
@@ -251,7 +251,7 @@ SIEEnvironmentChangeResult SIEEnvironment::update_(BAS::MDJournalEntry const& md
 } // update
 
 
-BAS::VerNo SIEEnvironment::largest_verno(BAS::Series series) {
+BAS::VerNo SIEDocument::largest_verno(BAS::Series series) {
   logger::scope_logger log_raii{
      logger::development_trace
     ,std::format("largest_verno: series:{}",series)};
@@ -264,7 +264,7 @@ BAS::VerNo SIEEnvironment::largest_verno(BAS::Series series) {
 	});
 }
 
-bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& mdje) {
+bool SIEDocument::already_in_posted(BAS::MDJournalEntry const& mdje) {
 
   bool result{false};
 
@@ -282,14 +282,14 @@ bool SIEEnvironment::already_in_posted(BAS::MDJournalEntry const& mdje) {
   return result;
 }
 
-std::vector<SIEEnvironmentChangeResult> SIEEnvironment::stage_sie_(SIEEnvironment const& staged_sie_environment) {
+std::vector<SIEEnvironmentChangeResult> SIEDocument::stage_sie_(SIEDocument const& sie_doc) {
 
   logger::scope_logger log_raii{
       logger::development_trace
-    ,std::format("stage(SIEEnvironment size:{})",staged_sie_environment.journals_entry_count())};
+    ,std::format("stage(SIEDocument size:{})",sie_doc.journals_entry_count())};
 
   std::vector<SIEEnvironmentChangeResult> result{};
-  for (auto const& [series,journal] : staged_sie_environment.journals()) {
+  for (auto const& [series,journal] : sie_doc.journals()) {
     for (auto const& [verno,aje] : journal) {
       auto stage_result = this->stage_entry_({{.series=series,.verno=verno},aje});
       result.push_back(stage_result);
@@ -298,7 +298,7 @@ std::vector<SIEEnvironmentChangeResult> SIEEnvironment::stage_sie_(SIEEnvironmen
   return result;
 }
 
-DatedJournalEntryMetas SIEEnvironment::to_dated_journal_entry_metas() const {
+DatedJournalEntryMetas SIEDocument::to_dated_journal_entry_metas() const {
   DatedJournalEntryMetas result{};
   for (auto const& [series,journal] : this->journals()) {
     for (auto const& [verno,aje] : journal) {
@@ -315,17 +315,17 @@ DatedJournalEntryMetas SIEEnvironment::to_dated_journal_entry_metas() const {
 }
 
 
-std::filesystem::path SIEEnvironment::staged_sie_file_path() const {
+std::filesystem::path SIEDocument::staged_sie_file_path() const {
   return std::format(
       "cratchit_{}_{}.se"
     ,this->m_fiscal_year.start()
     ,this->m_fiscal_year.last());
 };
 
-BASJournals& SIEEnvironment::journals() {return m_journals;}
-BASJournals const& SIEEnvironment::journals() const {return m_journals;}
+BASJournals& SIEDocument::journals() {return m_journals;}
+BASJournals const& SIEDocument::journals() const {return m_journals;}
 
-bool SIEEnvironment::is_unposted(BAS::Series series, BAS::VerNo verno) const {
+bool SIEDocument::is_unposted(BAS::Series series, BAS::VerNo verno) const {
 
   bool result{true}; // deafult unposted
 
@@ -351,7 +351,7 @@ bool SIEEnvironment::is_unposted(BAS::Series series, BAS::VerNo verno) const {
   return result;
 }
 
-SKV::SRU::OptionalAccountNo SIEEnvironment::sru_code(BAS::AccountNo const& bas_account_no) {
+SKV::SRU::OptionalAccountNo SIEDocument::sru_code(BAS::AccountNo const& bas_account_no) {
   SKV::SRU::OptionalAccountNo result{};
   try {
     auto iter = std::find_if(account_metas().begin(),account_metas().end(),[&bas_account_no](auto const& entry){
@@ -365,7 +365,7 @@ SKV::SRU::OptionalAccountNo SIEEnvironment::sru_code(BAS::AccountNo const& bas_a
   return result;
 }
 
-BAS::OptionalAccountNos SIEEnvironment::to_bas_accounts(SKV::SRU::AccountNo const& sru_code) const {
+BAS::OptionalAccountNos SIEDocument::to_bas_accounts(SKV::SRU::AccountNo const& sru_code) const {
   BAS::OptionalAccountNos result{};
   try {
     BAS::AccountNos bas_account_nos{};
@@ -380,7 +380,7 @@ BAS::OptionalAccountNos SIEEnvironment::to_bas_accounts(SKV::SRU::AccountNo cons
   return result;
 }
 
-std::size_t SIEEnvironment::journals_entry_count() const {
+std::size_t SIEDocument::journals_entry_count() const {
   std::size_t result{};
   for (auto const& [series,journal] : this->m_journals) {
     result += journal.size();
@@ -388,11 +388,11 @@ std::size_t SIEEnvironment::journals_entry_count() const {
   return result;
 }
 
-BAS::MDJournalEntries SIEEnvironment::unposted() const {
+BAS::MDJournalEntries SIEDocument::unposted() const {
 
   logger::scope_logger log_raii{
      logger::development_trace
-    ,std::format("SIEEnvironment::unposted:")};
+    ,std::format("SIEDocument::unposted:")};
 
   BAS::MDJournalEntries result{};
   for (auto const& [series,journal] : this->m_journals) {
@@ -412,11 +412,11 @@ BAS::MDJournalEntries SIEEnvironment::unposted() const {
   return result;
 }
 
-BAS::AccountMetas const&  SIEEnvironment::account_metas() const {
+BAS::AccountMetas const&  SIEDocument::account_metas() const {
   return BAS::detail::global_account_metas;
 }
 
-void SIEEnvironment::set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
+void SIEDocument::set_account_name(BAS::AccountNo bas_account_no ,std::string const& name) {
   if (BAS::detail::global_account_metas.contains(bas_account_no)) {
     if (BAS::detail::global_account_metas[bas_account_no].name != name) {
       logger::cout_proxy << "\nWARNING: BAS Account " << bas_account_no << " name " << std::quoted(BAS::detail::global_account_metas[bas_account_no].name) << " changed to " << std::quoted(name);
@@ -425,7 +425,7 @@ void SIEEnvironment::set_account_name(BAS::AccountNo bas_account_no ,std::string
   BAS::detail::global_account_metas[bas_account_no].name = name; // Mutate global instance
 }
 
-void SIEEnvironment::set_account_SRU(BAS::AccountNo bas_account_no, SKV::SRU::AccountNo sru_code) {
+void SIEDocument::set_account_SRU(BAS::AccountNo bas_account_no, SKV::SRU::AccountNo sru_code) {
   if (BAS::detail::global_account_metas.contains(bas_account_no)) {
     if (BAS::detail::global_account_metas[bas_account_no].sru_code) {
       if (*BAS::detail::global_account_metas[bas_account_no].sru_code != sru_code) {
@@ -436,7 +436,7 @@ void SIEEnvironment::set_account_SRU(BAS::AccountNo bas_account_no, SKV::SRU::Ac
   BAS::detail::global_account_metas[bas_account_no].sru_code = sru_code; // Mutate global instance
 }
 
-void SIEEnvironment::set_opening_balance(BAS::AccountNo bas_account_no,Amount opening_balance) {
+void SIEDocument::set_opening_balance(BAS::AccountNo bas_account_no,Amount opening_balance) {
   if (this->opening_balance.contains(bas_account_no) == false) this->opening_balance[bas_account_no] = opening_balance;
   else {
     logger::cout_proxy << "\nDESIGN INSUFFICIENCY - set_opening_balance failed. Balance for bas_account_no:" << bas_account_no;
@@ -445,7 +445,7 @@ void SIEEnvironment::set_opening_balance(BAS::AccountNo bas_account_no,Amount op
   }
 }
 
-BalancesMap SIEEnvironment::balances_at(Date date) {
+BalancesMap SIEDocument::balances_at(Date date) {
   BalancesMap result{};
   for (auto const& ob : this->opening_balance) {
     result[date].push_back(Balance{
@@ -458,14 +458,14 @@ BalancesMap SIEEnvironment::balances_at(Date date) {
   return result;
 }
 
-FiscalYear SIEEnvironment::fiscal_year() const { return m_fiscal_year;}
+FiscalYear SIEDocument::fiscal_year() const { return m_fiscal_year;}
 
 // TODO: Remove optional / replace with fiscal_year() call  / 20251029
-zeroth::OptionalDateRange SIEEnvironment::financial_year_date_range() const {
+zeroth::OptionalDateRange SIEDocument::financial_year_date_range() const {
   return this->fiscal_year().period();
 }
 
-OptionalAmount SIEEnvironment::opening_balance_of(BAS::AccountNo bas_account_no) const {
+OptionalAmount SIEDocument::opening_balance_of(BAS::AccountNo bas_account_no) const {
   OptionalAmount result{};
   if (this->opening_balance.contains(bas_account_no)) {
     result = this->opening_balance.at(bas_account_no);
@@ -473,7 +473,7 @@ OptionalAmount SIEEnvironment::opening_balance_of(BAS::AccountNo bas_account_no)
   return result;
 }
 
-std::map<BAS::AccountNo,Amount> const& SIEEnvironment::opening_balances() const {
+std::map<BAS::AccountNo,Amount> const& SIEDocument::opening_balances() const {
   return this->opening_balance;
 }
 

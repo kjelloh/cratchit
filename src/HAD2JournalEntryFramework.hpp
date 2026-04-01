@@ -245,7 +245,7 @@ BAS::TypedMetaEntries all_years_template_candidates(
    SIEEnvironmentsMap const& sie_envs_map
   ,HADMatchesJEPredicate const& matches);
 
-OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ);
+OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEDocument const& sie_doc);
 
 // TYPED ENTRY operator<<
 

@@ -76,33 +76,33 @@ OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
   }
 
   // Phase 4: Construct environment and apply all parsed data
-  SIEEnvironment sie_environment{*fiscal_year};
+  SIEDocument sie_doc{*fiscal_year};
 
   for (auto& entry : parsed_elements) {
     if (std::holds_alternative<sie::io::OrgNr>(entry))
-      sie_environment.organisation_no = std::get<sie::io::OrgNr>(entry);
+      sie_doc.organisation_no = std::get<sie::io::OrgNr>(entry);
     else if (std::holds_alternative<sie::io::FNamn>(entry))
-      sie_environment.organisation_name = std::get<sie::io::FNamn>(entry);
+      sie_doc.organisation_name = std::get<sie::io::FNamn>(entry);
     else if (std::holds_alternative<sie::io::Adress>(entry))
-      sie_environment.organisation_address = std::get<sie::io::Adress>(entry);
+      sie_doc.organisation_address = std::get<sie::io::Adress>(entry);
     else if (std::holds_alternative<sie::io::Konto>(entry)) {
       auto& konto = std::get<sie::io::Konto>(entry);
-      sie_environment.set_account_name(konto.account_no, konto.name);
+      sie_doc.set_account_name(konto.account_no, konto.name);
     }
     else if (std::holds_alternative<sie::io::Sru>(entry)) {
       auto& sru = std::get<sie::io::Sru>(entry);
-      sie_environment.set_account_SRU(sru.bas_account_no, sru.sru_account_no);
+      sie_doc.set_account_SRU(sru.bas_account_no, sru.sru_account_no);
     }
     else if (std::holds_alternative<sie::io::Ib>(entry)) {
       auto& ib = std::get<sie::io::Ib>(entry);
-      if (ib.year_no == 0) sie_environment.set_opening_balance(ib.account_no, ib.opening_balance);
+      if (ib.year_no == 0) sie_doc.set_opening_balance(ib.account_no, ib.opening_balance);
     }
     else if (std::holds_alternative<sie::io::Ver>(entry)) {
-      sie_environment.post_(to_md_entry(std::get<sie::io::Ver>(entry)));
+      sie_doc.post_(to_md_entry(std::get<sie::io::Ver>(entry)));
     }
   }
 
-  result = std::move(sie_environment);
+  result = std::move(sie_doc);
 
   return result;
 }
@@ -183,35 +183,35 @@ std::pair<bool,std::string> SIEEnvironmentsMap::remove(DatedJournalEntryMeta con
   return result;
 }
 
-UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_env(
+UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_docs(
     sie::RelativeYearKey year_id
-  ,SIEEnvironment const& posted_sie_env
-  ,SIEEnvironment const& staged_sie_env) {
+  ,SIEDocument const& posted_doc
+  ,SIEDocument const& staged_doc) {
 
   logger::scope_logger log_raii{
       logger::development_trace
     ,std::format(
         "update_posted_from_sie_env: year_id:{}, posted sie year:{} staged sie year:{}"
       ,year_id
-      ,posted_sie_env.fiscal_year().to_string()
-      ,staged_sie_env.fiscal_year().to_string())
+      ,posted_doc.fiscal_year().to_string()
+      ,staged_doc.fiscal_year().to_string())
   };
 
   UpdateFromPostedResult result{};
 
-  auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(posted_sie_env));
+  auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(posted_doc));
 
-  result = iter->second.stage_sie_(staged_sie_env); // insert_or_assign never fails (true=inserted, false = assigned)
+  result = iter->second.stage_sie_(staged_doc); // insert_or_assign never fails (true=inserted, false = assigned)
 
   if (was_inserted) {
     logger::development_trace(
-      "update_from_posted_and_staged_sie_env: Update to *NEW* posted id: {}"
+      "update_from_posted_and_staged_sie_docs: Update to *NEW* posted id: {}"
       ,year_id);
   }
   else {
     // Was assigned
     logger::development_trace(
-      "update_from_posted_and_staged_sie_env: Update to EXISTING posted id: {}"
+      "update_from_posted_and_staged_sie_docs: Update to EXISTING posted id: {}"
       ,year_id);
   }
 
@@ -239,13 +239,13 @@ BAS::MaybeJournalEntryRef SIEEnvironmentsMap::at(DatedJournalEntryMeta key) {
     });
 }
 
-SIEEnvironment& SIEEnvironmentsMap::operator[](sie::RelativeYearKey key) {
+SIEDocument& SIEEnvironmentsMap::operator[](sie::RelativeYearKey key) {
   auto iter = m_sie_envs_map.find(key);
   if (iter != m_sie_envs_map.end()) {return iter->second;}
 
   // No environment in map for key!
-  static SIEEnvironment dummy{FiscalYear{Date{}.year(),Date{}.month()}};
-  // TODO: Consider a design to not default construct SIEEnvironment as
+  static SIEDocument dummy{FiscalYear{Date{}.year(),Date{}.month()}};
+  // TODO: Consider a design to not default construct SIEDocument as
   logger::design_insufficiency(
     "SIEEnvironmentsMap:operator['{}'] does not exist - Returns dummy / empty for fiscal year:{}"
     ,dummy.fiscal_year().to_string()

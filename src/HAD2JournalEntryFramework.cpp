@@ -396,11 +396,11 @@ BAS::TypedMetaEntries all_years_template_candidates(
   return result;
 }
 
-OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ) {
+OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEDocument const& sie_doc) {
 	OptionalJournalEntryTemplate result{};
 	if (had) {
 		BAS::MDJournalEntries candidates{};
-		for (auto const& je : sie_environ.journals()) {
+		for (auto const& je : sie_doc.journals()) {
 			auto const& [series,journal] = je;
 			for (auto const& [verno,aje] : journal) {
 				if (aje.caption.find(had->heading) != std::string::npos) {
