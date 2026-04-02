@@ -37,6 +37,10 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
+        src/sie/SIEArchive.cpp
+        src/sie/SIEDocument.cpp
+        src/sie/sie.cpp
+
         src/sie/sie_diff.cpp
         src/test/test_sie_diff.cpp
         src/sie/SIEDocumentFramework.cpp
@@ -92,7 +96,6 @@ add_executable(
         src/states/FiscalPeriodState.cpp
         src/text/charset.cpp
         src/text/encoding.cpp
-        src/sie/sie.cpp
         src/csv/csv.cpp
         src/states/TaggedAmountsState.cpp
         src/states/TaggedAmountState.cpp
@@ -103,7 +106,6 @@ add_executable(
         src/csv/parse_csv.cpp
         src/states/AccountStatementState.cpp
         src/text/format.cpp
-        src/sie/SIEDocument.cpp
         src/persistent/in/maybe.cpp
         src/HAD2JournalEntryFramework.cpp
         src/text/functional.cpp

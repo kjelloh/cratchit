@@ -8,6 +8,8 @@
 
 namespace sie {
 
+  using RelativeYearKey = std::string;
+
   namespace io {
 
     struct Tag {
