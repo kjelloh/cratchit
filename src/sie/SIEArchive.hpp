@@ -5,7 +5,7 @@
 
 using ActualYearKey = sie::RelativeYearKey;
 
-using UpdateFromPostedResult = std::optional<SIEDocumentChangeResults>;
+using UpdateFromPostedResult = std::optional<JournalEntryChangeResults>;
 using MaybeSIEDocumentRef = cratchit::functional::memory::MaybeRef<SIEDocument>;
 
 class SIEArchive {
@@ -26,7 +26,7 @@ public:
   MaybeSIEDocumentRef at(Date date);
   BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
   SIEDocument& operator[](sie::RelativeYearKey key);
-	SIEDocumentChangeResult stage(BAS::MDJournalEntry const& mdje);
+	JournalEntryChangeResult stage(BAS::MDJournalEntry const& mdje);
 private:
   std::expected<ActualYearKey, std::string> to_actual_year_key(
      sie::RelativeYearKey relative_year_key

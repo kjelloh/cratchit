@@ -4381,7 +4381,7 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,sie::RelativeYearKey year_id
-    ,SIEDocumentChangeResults const& change_results);
+    ,JournalEntryChangeResults const& change_results);
 	Model model_from_environment(Environment const& environment);  
 	Model model_from_environment_and_md_filesystem(Environment const& environment,CratchitMDFileSystem const& runtime);
 	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment);

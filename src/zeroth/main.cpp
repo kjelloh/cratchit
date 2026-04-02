@@ -5442,7 +5442,7 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,sie::RelativeYearKey year_id
-    ,SIEDocumentChangeResults const& change_results) {
+    ,JournalEntryChangeResults const& change_results) {
 
 		std::ostringstream prompt{};
 

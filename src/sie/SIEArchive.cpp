@@ -119,8 +119,8 @@ SIEDocument& SIEArchive::operator[](sie::RelativeYearKey key) {
   return dummy;
 }
 
-SIEDocumentChangeResult SIEArchive::stage(BAS::MDJournalEntry const& mdje) {
-  SIEDocumentChangeResult result{mdje,SIEDocumentChangeResult::Status::Undefined};
+JournalEntryChangeResult SIEArchive::stage(BAS::MDJournalEntry const& mdje) {
+  JournalEntryChangeResult result{mdje,JournalEntryChangeResult::Status::Undefined};
 
   // TODO: Refctor this 'mess' *sigh* (to many optionals...)
 
