@@ -2,6 +2,10 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260402
+
+I now decided to rename SIEEnvironmentsMap to SIEArchive.
+
 ## 20260401
 
 I now have a new idea on how to approach this refctoring.
@@ -22,6 +26,14 @@ So how about starting off with the operation to 'rebase'?
   - I am tempted to introduce a map sie::EntryID -> BAS::JournalEntries?
 
 Lets give it a go?
+
+OK. So instead I embarked on a renaming refactoring to make the code read better.
+
+* I now have SIEDocument for the content of an SIE file
+* I moved all 'document' element types to namespace sie::io.
+* I renamed identifiers to match.
+
+This feels GOOD! It seems I can get rid of the ground level confusion of SIE Document vs its content and the final goal of processing 'financial event' same-ness?
 
 ## 20260331
 

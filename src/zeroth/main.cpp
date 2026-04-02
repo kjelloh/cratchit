@@ -270,9 +270,9 @@ Cmd to_cmd(std::string const& user_input) {
 	return result;
 }
 
-class FilteredSIEEnvironment {
+class FilteredSIEDocument {
 public:
-	FilteredSIEEnvironment(SIEDocument const& sie_doc,BAS::MatchesMetaEntry matches_meta_entry)
+	FilteredSIEDocument(SIEDocument const& sie_doc,BAS::MatchesMetaEntry matches_meta_entry)
 		:  m_sie_doc{sie_doc}
 			,m_matches_meta_entry{matches_meta_entry} {}
 
@@ -287,7 +287,7 @@ private:
 	BAS::MatchesMetaEntry m_matches_meta_entry{};
 };
 
-std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered_sie_environment) {
+std::ostream& operator<<(std::ostream& os,FilteredSIEDocument const& filtered_sie_doc) {
 	struct stream_entry_to {
 		std::ostream& os;
 		void operator()(BAS::MDJournalEntry const& me) const {
@@ -295,7 +295,7 @@ std::ostream& operator<<(std::ostream& os,FilteredSIEEnvironment const& filtered
 		}
 	};
 	os << "\n*Filter BEGIN*";
-	filtered_sie_environment.for_each(stream_entry_to{os});
+	filtered_sie_doc.for_each(stream_entry_to{os});
 	os << "\n*Filter end*";
 	return os;
 }
@@ -326,11 +326,11 @@ std::ostream& operator<<(std::ostream& os,SIEDocument const& sie_doc) {
 	return os;
 }
 
-// Nof in SIEDocumentFramework unit / 20251028
+// Now in SIEDocumentFramework unit / 20251028
 // BAS::MetaEntry to_entry(sie::io::Ver const& ver) {
 
-// Now in SIEEnvirnmentFramework unit / 20251028
-// OptionalSIEEnvironment sie_from_sie_file(std::filesystem::path const& sie_file_path) {
+// Now in SIEDocumentFramework unit / 20251028
+// std::optional<SIEDocument> sie_from_sie_file(std::filesystem::path const& sie_file_path) {
 
 void unposted_to_sie_file(SIEDocument const& sie_doc,std::filesystem::path const& p) {
   logger::cout_proxy << "\nunposted_to_sie_file " << p;
@@ -3610,8 +3610,8 @@ Cmd Updater::operator()(Command const& command) {
       else if (ast.size()==2) {
         if (ast[1]=="*") {
           // List unposted (staged) sie entries
-          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::is_flagged_unposted{}};
-          prompt << filtered_sie;
+          FilteredSIEDocument filtered_sie_doc{model->m_sie_archive["current"],BAS::filter::is_flagged_unposted{}};
+          prompt << filtered_sie_doc;
         }
         else if (model->m_sie_archive.contains(ast[1])) {
           // List journal entries of a year index
@@ -3621,14 +3621,14 @@ Cmd Updater::operator()(Command const& command) {
           // List journal entries functional::text::filtered on an bas account number
           prompt << "\nFilter journal entries that has a transaction to account no " << *bas_account_no;
           prompt << "\nTIP: If you meant filter on amount please re-enter using '.00' to distinguish it from an account no.";
-          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
-          prompt << filtered_sie;
+          FilteredSIEDocument filtered_sie_doc{model->m_sie_archive["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
+          prompt << filtered_sie_doc;
         }
         else if (auto gross_amount = to_amount(ast[1])) {
           // List journal entries functional::text::filtered on given amount
           prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
-          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::HasGrossAmount{*gross_amount}};
-          prompt << filtered_sie;
+          FilteredSIEDocument filtered_sie_doc{model->m_sie_archive["current"],BAS::filter::HasGrossAmount{*gross_amount}};
+          prompt << filtered_sie_doc;
         }
         else if (auto sie_file_path = path_to_existing_file(ast[1])) {
           // #1 command '-sie file-name' -> register "current" SIE file as provided name
@@ -3713,18 +3713,18 @@ Cmd Updater::operator()(Command const& command) {
         }
         else {
           // assume user search criteria on transaction heading and comments
-          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
+          FilteredSIEDocument filtered_sie_doc{model->m_sie_archive["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
           prompt << "\nNot '*', existing year id or existing file: " << std::quoted(ast[1]);
           prompt << "\nFilter current sie for " << std::quoted(ast[1]);
-          prompt << filtered_sie;
+          prompt << filtered_sie_doc;
         }
       }
       else if (ast.size()==3) {
         auto year_key = ast[1];
         if (ast[2]=="*") {
           // List unposted (staged) sie entries
-          FilteredSIEEnvironment filtered_sie{model->m_sie_archive[year_key],BAS::filter::is_flagged_unposted{}};
-          prompt << filtered_sie;
+          FilteredSIEDocument filtered_sie_doc{model->m_sie_archive[year_key],BAS::filter::is_flagged_unposted{}};
+          prompt << filtered_sie_doc;
         }
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
           // ast:        0       1           2
@@ -3767,8 +3767,8 @@ Cmd Updater::operator()(Command const& command) {
         else {
           // assume user search criteria on transaction heading and comments
           if (model->m_sie_archive.contains(year_key)) {
-            FilteredSIEEnvironment filtered_sie{model->m_sie_archive[year_key],BAS::filter::matches_user_search_criteria{ast[2]}};
-            prompt << filtered_sie;
+            FilteredSIEDocument filtered_sie_doc{model->m_sie_archive[year_key],BAS::filter::matches_user_search_criteria{ast[2]}};
+            prompt << filtered_sie_doc;
           }
           else {
             prompt << "\nYear identifier " << year_key << " is not associated with any data";
@@ -5442,7 +5442,7 @@ namespace zeroth {
   std::string to_user_cli_feedback(
      Model const& model
     ,sie::RelativeYearKey year_id
-    ,SIEEnvironmentChangeResults const& change_results) {
+    ,SIEDocumentChangeResults const& change_results) {
 
 		std::ostringstream prompt{};
 

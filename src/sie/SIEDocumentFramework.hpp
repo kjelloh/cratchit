@@ -19,8 +19,8 @@ BAS::MDJournalEntry to_md_entry(sie::io::Ver const& ver);
 std::optional<SIEDocument> sie_from_utf8_sv(std::string_view utf8_sv);
 std::optional<SIEDocument> sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in);
 
-using UpdateFromPostedResult = std::optional<SIEEnvironmentChangeResults>;
-using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEDocument>;
+using UpdateFromPostedResult = std::optional<SIEDocumentChangeResults>;
+using MaybeSIEDocumentRef = cratchit::functional::memory::MaybeRef<SIEDocument>;
 // TODO: Consider to design a domain using an actual FiscalYear as key?
 //       SIE files are based on relative key 0,-1,-2.
 //       Cratchit may benefit from operating in FiscalYear defigned domain?
@@ -37,20 +37,20 @@ public:
      sie::RelativeYearKey year_id
     ,SIEDocument const& posted_doc
     ,SIEDocument const& staged_doc);
-  auto begin() const {return m_sie_envs_map.begin();}
-  auto end() const {return m_sie_envs_map.end();}
-  auto contains(sie::RelativeYearKey key) const {return m_sie_envs_map.contains(key);}  
-  MybeSIEEnvironmentRef at(sie::RelativeYearKey key);
-  MybeSIEEnvironmentRef at(Date date);
+  auto begin() const {return m_map.begin();}
+  auto end() const {return m_map.end();}
+  auto contains(sie::RelativeYearKey key) const {return m_map.contains(key);}  
+  MaybeSIEDocumentRef at(sie::RelativeYearKey key);
+  MaybeSIEDocumentRef at(Date date);
   BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
   SIEDocument& operator[](sie::RelativeYearKey key);
-	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
+	SIEDocumentChangeResult stage(BAS::MDJournalEntry const& mdje);
 private:
   std::expected<ActualYearKey, std::string> to_actual_year_key(
      sie::RelativeYearKey relative_year_key
     ,FiscalYear current_fiscal_year);
 
-  map_type m_sie_envs_map;
+  map_type m_map;
 
 };
 

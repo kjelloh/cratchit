@@ -146,7 +146,7 @@ std::pair<bool,std::string> SIEArchive::remove(DatedJournalEntryMeta const& key)
   //       using key vectors?
   //       For now, I suppose I have to live with the mess below (indirection hell...) 
 
-  for (auto& [year_id,sie_env] : this->m_sie_envs_map) {
+  for (auto& [year_id,sie_env] : this->m_map) {
     if (sie_env.fiscal_year().contains(key.m_date) == false) continue;
     for (auto& [series,journal] : sie_env.journals()) {
       if (series != key.m_jem.series) continue;
@@ -199,7 +199,7 @@ UpdateFromPostedResult SIEArchive::update_from_posted_and_staged_sie_docs(
 
   UpdateFromPostedResult result{};
 
-  auto const& [iter,was_inserted] = this->m_sie_envs_map.insert_or_assign(year_id,std::move(posted_doc));
+  auto const& [iter,was_inserted] = this->m_map.insert_or_assign(year_id,std::move(posted_doc));
 
   result = iter->second.stage_sie_(staged_doc); // insert_or_assign never fails (true=inserted, false = assigned)
 
@@ -218,18 +218,18 @@ UpdateFromPostedResult SIEArchive::update_from_posted_and_staged_sie_docs(
   return result;
 }
 
-MybeSIEEnvironmentRef SIEArchive::at(sie::RelativeYearKey key) {
-    auto it = m_sie_envs_map.find(key);
-    if (it == m_sie_envs_map.end()) return {};
-    return MybeSIEEnvironmentRef::from(it->second);
+MaybeSIEDocumentRef SIEArchive::at(sie::RelativeYearKey key) {
+    auto it =this->m_map.find(key);
+    if (it ==this->m_map.end()) return {};
+    return MaybeSIEDocumentRef::from(it->second);
 }
 
-MybeSIEEnvironmentRef SIEArchive::at(Date date) {
-  auto iter = std::ranges::find_if(this->m_sie_envs_map,[date](auto const& entry){
+MaybeSIEDocumentRef SIEArchive::at(Date date) {
+  auto iter = std::ranges::find_if(this->m_map,[date](auto const& entry){
     return entry.second.fiscal_year().contains(date);
   });
-  if (iter == this->m_sie_envs_map.end()) return {};
-  return MybeSIEEnvironmentRef::from(iter->second);
+  if (iter == this->m_map.end()) return {};
+  return MaybeSIEDocumentRef::from(iter->second);
 }
 
 BAS::MaybeJournalEntryRef SIEArchive::at(DatedJournalEntryMeta key) {
@@ -240,8 +240,8 @@ BAS::MaybeJournalEntryRef SIEArchive::at(DatedJournalEntryMeta key) {
 }
 
 SIEDocument& SIEArchive::operator[](sie::RelativeYearKey key) {
-  auto iter = m_sie_envs_map.find(key);
-  if (iter != m_sie_envs_map.end()) {return iter->second;}
+  auto iter =this->m_map.find(key);
+  if (iter !=this->m_map.end()) {return iter->second;}
 
   // No environment in map for key!
   static SIEDocument dummy{FiscalYear{Date{}.year(),Date{}.month()}};
@@ -253,12 +253,12 @@ SIEDocument& SIEArchive::operator[](sie::RelativeYearKey key) {
   return dummy;
 }
 
-SIEEnvironmentChangeResult SIEArchive::stage(BAS::MDJournalEntry const& mdje) {
-  SIEEnvironmentChangeResult result{mdje,SIEEnvironmentChangeResult::Status::Undefined};
+SIEDocumentChangeResult SIEArchive::stage(BAS::MDJournalEntry const& mdje) {
+  SIEDocumentChangeResult result{mdje,SIEDocumentChangeResult::Status::Undefined};
 
   // TODO: Refctor this 'mess' *sigh* (to many optionals...)
 
-  if (this->m_sie_envs_map.contains("current")) {
+  if (this->m_map.contains("current")) {
     if (auto financial_year = (*this)["current"].financial_year_date_range()) {
       if (financial_year->contains(mdje.defacto.date)) {
         return (*this)["current"].stage_entry_(mdje);
@@ -266,7 +266,7 @@ SIEEnvironmentChangeResult SIEArchive::stage(BAS::MDJournalEntry const& mdje) {
     }
   }
 
-  if (this->m_sie_envs_map.contains("-1")) {
+  if (this->m_map.contains("-1")) {
     if (auto financial_year = (*this)["-1"].financial_year_date_range()) {
       if (financial_year->contains(mdje.defacto.date)) {
         return (*this)["-1"].stage_entry_(mdje);

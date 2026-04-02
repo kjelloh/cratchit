@@ -8,7 +8,7 @@ struct DatedJournalEntryMeta {
   BAS::WeakJournalEntryMeta m_jem;
 };
 
-class SIEEnvironmentChangeResult {
+class SIEDocumentChangeResult {
 public:
   enum class Status {
      Unknown
@@ -17,9 +17,9 @@ public:
     ,SameValueAssigned
     ,Undefined
   };
-  SIEEnvironmentChangeResult() = delete;
-  SIEEnvironmentChangeResult(BAS::MDJournalEntry const& mdje,Status status = Status{});
-  SIEEnvironmentChangeResult with_status(Status status) const;
+  SIEDocumentChangeResult() = delete;
+  SIEDocumentChangeResult(BAS::MDJournalEntry const& mdje,Status status = Status{});
+  SIEDocumentChangeResult with_status(Status status) const;
   bool now_posted() const;
   operator bool() const;
   BAS::MDJournalEntry const& md_entry() const;
@@ -28,9 +28,9 @@ private:
   BAS::MDJournalEntry m_md_entry; // Note: SIEDocument does not store actual BAS::MetaEntry.
                                   //       So we store a ref-safe clone to return as result
                                   //       This may e.g., allow for returning a mutated entry.
-}; // SIEEnvironmentChangeResult
+}; // SIEDocumentChangeResult
 
-using SIEEnvironmentChangeResults = std::vector<SIEEnvironmentChangeResult>;
+using SIEDocumentChangeResults = std::vector<SIEDocumentChangeResult>;
 
 using DatedJournalEntryMetas = std::vector<DatedJournalEntryMeta>;
 
@@ -59,11 +59,11 @@ public:
   BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
 	BAS::MDJournalEntries unposted() const;
 
-	SIEEnvironmentChangeResult post_(BAS::MDJournalEntry const& mdje);
-	SIEEnvironmentChangeResult stage_entry_(BAS::MDJournalEntry const& mdje);
-	SIEEnvironmentChangeResults stage_sie_(SIEDocument const& sie_doc);
-	SIEEnvironmentChangeResult add_(BAS::MDJournalEntry mdje);
-	SIEEnvironmentChangeResult update_(BAS::MDJournalEntry const& mdje);
+	SIEDocumentChangeResult post_(BAS::MDJournalEntry const& mdje);
+	SIEDocumentChangeResult stage_entry_(BAS::MDJournalEntry const& mdje);
+	SIEDocumentChangeResults stage_sie_(SIEDocument const& sie_doc);
+	SIEDocumentChangeResult add_(BAS::MDJournalEntry mdje);
+	SIEDocumentChangeResult update_(BAS::MDJournalEntry const& mdje);
 
 	BAS::VerNo largest_verno(BAS::Series series);
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);
@@ -99,8 +99,6 @@ private:
 	std::map<BAS::AccountNo,Amount> opening_balance{};
   friend class SIEArchive;
 }; // class SIEDocument
-
-// using OptionalSIEEnvironment = std::optional<SIEDocument>;
 
 std::ostream& operator<<(std::ostream& os,DatedJournalEntryMeta const& djem);
 

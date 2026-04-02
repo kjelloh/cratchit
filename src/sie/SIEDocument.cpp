@@ -12,26 +12,26 @@ namespace logger {
   };
 }
 
-// SIEEnvironmentChangeResult
+// SIEDocumentChangeResult
 
-SIEEnvironmentChangeResult::SIEEnvironmentChangeResult(BAS::MDJournalEntry const& mdje,Status status)
+SIEDocumentChangeResult::SIEDocumentChangeResult(BAS::MDJournalEntry const& mdje,Status status)
   : m_md_entry{mdje},m_status{status} {}
 
-SIEEnvironmentChangeResult SIEEnvironmentChangeResult::with_status(Status status) const {
-  SIEEnvironmentChangeResult result{*this};
+SIEDocumentChangeResult SIEDocumentChangeResult::with_status(Status status) const {
+  SIEDocumentChangeResult result{*this};
   result.m_status = status;
   return result;
 }
 
-bool SIEEnvironmentChangeResult::now_posted() const {return m_status == Status::NowPosted;}
-SIEEnvironmentChangeResult::operator bool() const {
+bool SIEDocumentChangeResult::now_posted() const {return m_status == Status::NowPosted;}
+SIEDocumentChangeResult::operator bool() const {
   // true if a meaningful status
   return (m_status != Status::Unknown) 
     and (m_status != Status::Undefined); 
 }
-BAS::MDJournalEntry const& SIEEnvironmentChangeResult::md_entry() const {return m_md_entry;}
+BAS::MDJournalEntry const& SIEDocumentChangeResult::md_entry() const {return m_md_entry;}
 
-// END SIEEnvironmentChangeResult
+// END SIEDocumentChangeResult
 
 // SIEDocument
 
@@ -59,9 +59,9 @@ BAS::MaybeJournalEntryRef SIEDocument::at(DatedJournalEntryMeta key) {
   return {};
 }
 
-SIEEnvironmentChangeResult SIEDocument::post_(BAS::MDJournalEntry const& mdje) {
+SIEDocumentChangeResult SIEDocument::post_(BAS::MDJournalEntry const& mdje) {
 
-  SIEEnvironmentChangeResult result{mdje};
+  SIEDocumentChangeResult result{mdje};
 
   logger::scope_logger log_raii{
      logger::development_trace
@@ -74,13 +74,13 @@ SIEEnvironmentChangeResult SIEDocument::post_(BAS::MDJournalEntry const& mdje) {
     if (not m_journals[mdje.meta.series].contains(verno)) {
       m_journals[mdje.meta.series][verno] = mdje.defacto;
       verno_of_last_posted_to[mdje.meta.series] = verno;
-      result = result.with_status(SIEEnvironmentChangeResult::Status::NowPosted);
+      result = result.with_status(SIEDocumentChangeResult::Status::NowPosted);
     }
     else {
       // series,verno already exists
       auto const& existing_defacto = m_journals[mdje.meta.series][verno];
       if (existing_defacto == mdje.defacto) {
-        result = result.with_status(SIEEnvironmentChangeResult::Status::NowPosted);
+        result = result.with_status(SIEDocumentChangeResult::Status::NowPosted);
       }
       else {
         // Can't post an already pested series/verno entry with a new value
@@ -100,14 +100,14 @@ SIEEnvironmentChangeResult SIEDocument::post_(BAS::MDJournalEntry const& mdje) {
 
   }
   else {
-    logger::cout_proxy << "\nSIEEnvironment::post failed - can't post an entry with null verno";
+    logger::cout_proxy << "\nSIEDocument::post failed - can't post an entry with null verno";
   }
 
   return result;
 }
 
-SIEEnvironmentChangeResult SIEDocument::stage_entry_(BAS::MDJournalEntry const& mdje) {
-  SIEEnvironmentChangeResult result{mdje};
+SIEDocumentChangeResult SIEDocument::stage_entry_(BAS::MDJournalEntry const& mdje) {
+  SIEDocumentChangeResult result{mdje};
 
   // scope Log
   logger::scope_logger log_raii{
@@ -130,7 +130,7 @@ SIEEnvironmentChangeResult SIEDocument::stage_entry_(BAS::MDJournalEntry const& 
         // Is 'posted' to external tool
         // But update it in case transient data exists that needs to be mutated?
         if (auto update_result = this->update_(mdje)) {
-          result = result.with_status(SIEEnvironmentChangeResult::Status::NowPosted);
+          result = result.with_status(SIEDocumentChangeResult::Status::NowPosted);
         }
         else {
           logger::development_trace("update(mdje) FAILED");
@@ -158,10 +158,10 @@ SIEEnvironmentChangeResult SIEDocument::stage_entry_(BAS::MDJournalEntry const& 
   return result;
 } // stage
 
-SIEEnvironmentChangeResult SIEDocument::add_(BAS::MDJournalEntry mdje) {
+SIEDocumentChangeResult SIEDocument::add_(BAS::MDJournalEntry mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEDocument::add(BAS::MetaEntry)"};
 
-  SIEEnvironmentChangeResult result{mdje};
+  SIEDocumentChangeResult result{mdje};
 
   auto candidate = mdje;
 
@@ -186,7 +186,7 @@ SIEEnvironmentChangeResult SIEDocument::add_(BAS::MDJournalEntry mdje) {
 
   if (!m_journals[candidate.meta.series].contains(candidate.meta.verno.value())) {
     m_journals[candidate.meta.series][candidate.meta.verno.value()] = candidate.defacto;
-    result = {candidate,SIEEnvironmentChangeResult::Status::StagedOk};
+    result = {candidate,SIEDocumentChangeResult::Status::StagedOk};
     logger::development_trace(
       "add(me): Added {}"
       ,to_string(candidate));
@@ -200,14 +200,14 @@ SIEEnvironmentChangeResult SIEDocument::add_(BAS::MDJournalEntry mdje) {
   return result;
 } // add
 
-SIEEnvironmentChangeResult SIEDocument::update_(BAS::MDJournalEntry const& mdje) {
+SIEDocumentChangeResult SIEDocument::update_(BAS::MDJournalEntry const& mdje) {
   logger::scope_logger log_raii{logger::development_trace,"SIEDocument::update(BAS::MetaEntry)"};
 
   logger::development_trace("update {}{}"
     ,mdje.meta.series
     ,mdje.meta.verno.value_or(-1));
 
-  SIEEnvironmentChangeResult result{mdje};
+  SIEDocumentChangeResult result{mdje};
 
   if (mdje.meta.verno and *mdje.meta.verno > 0) {
     auto journal_iter = m_journals.find(mdje.meta.series);
@@ -223,7 +223,7 @@ SIEEnvironmentChangeResult SIEDocument::update_(BAS::MDJournalEntry const& mdje)
 
             result = {
                BAS::MDJournalEntry{mdje.meta,entry_iter->second}
-              ,SIEEnvironmentChangeResult::Status::SameValueAssigned};
+              ,SIEDocumentChangeResult::Status::SameValueAssigned};
 
             logger::development_trace("Update: {}{} same_value (transient assigned) ok new: {}"
               ,journal_iter->first
@@ -282,13 +282,13 @@ bool SIEDocument::already_in_posted(BAS::MDJournalEntry const& mdje) {
   return result;
 }
 
-std::vector<SIEEnvironmentChangeResult> SIEDocument::stage_sie_(SIEDocument const& sie_doc) {
+std::vector<SIEDocumentChangeResult> SIEDocument::stage_sie_(SIEDocument const& sie_doc) {
 
   logger::scope_logger log_raii{
       logger::development_trace
     ,std::format("stage(SIEDocument size:{})",sie_doc.journals_entry_count())};
 
-  std::vector<SIEEnvironmentChangeResult> result{};
+  std::vector<SIEDocumentChangeResult> result{};
   for (auto const& [series,journal] : sie_doc.journals()) {
     for (auto const& [verno,aje] : journal) {
       auto stage_result = this->stage_entry_({{.series=series,.verno=verno},aje});

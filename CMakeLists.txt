@@ -39,7 +39,7 @@ add_executable(
 
         src/sie/sie_diff.cpp
         src/test/test_sie_diff.cpp
-        src/sie/SIEEnvironmentframework.cpp
+        src/sie/SIEDocumentFramework.cpp
 
         src/test/test_annotated_maybe.cpp
 

@@ -216,10 +216,10 @@ namespace tests {
           return result;
         }
 
-        using SIEEnvironmentTestFixture = parse_sie_file_suite::SIEFileParseFixture;
+        using SIEDocumentTestFixture = parse_sie_file_suite::SIEFileParseFixture;
 
-        TEST(SIEEnvironmentTests,EntryAddTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryAddTest)"};
+        TEST(SIEDocumentTests,EntryAddTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEDocumentTests,EntryAddTest)"};
 
           auto entries = to_sample_md_entries();
           SIEDocument sie_doc{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
@@ -252,8 +252,8 @@ namespace tests {
           }
         }
 
-        TEST(SIEEnvironmentTests,EntryUpdateTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryUpdateTest)"};
+        TEST(SIEDocumentTests,EntryUpdateTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEDocumentTests,EntryUpdateTest)"};
 
           auto entries = to_sample_md_entries();
           SIEDocument sie_doc{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
@@ -287,8 +287,8 @@ namespace tests {
           }
         }
 
-        TEST(SIEEnvironmentTests,EntryPostTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTests,EntryPostTest)"};
+        TEST(SIEDocumentTests,EntryPostTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEDocumentTests,EntryPostTest)"};
 
           auto entries = to_sample_md_entries();
           SIEDocument sie_doc{FiscalYear::to_current_fiscal_year(std::chrono::month{1})};
@@ -313,8 +313,8 @@ namespace tests {
           }
         }
 
-        TEST(SIEEnvironmentTests,EmptyStageEmptyTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEEnvironmentTests,EmptyStageEmptyTest)"};
+        TEST(SIEDocumentTests,EmptyStageEmptyTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST(SIEDocumentTests,EmptyStageEmptyTest)"};
           SIEDocument lhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
           SIEDocument rhs{FiscalYear::to_current_fiscal_year(std::chrono::month{})};
           auto merged = lhs;
@@ -323,8 +323,8 @@ namespace tests {
           ASSERT_TRUE(merged.journals_entry_count() == 0);
         }
 
-        TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyPostThreeTest)"};
+        TEST_F(SIEDocumentTestFixture,EmptyPostThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEDocumentTestFixture,EmptyPostThreeTest)"};
           ASSERT_TRUE(fixture_three_entries_doc.journals_entry_count() == 3);
           SIEDocument merged{fixture_three_entries_doc.fiscal_year()};
 
@@ -337,8 +337,8 @@ namespace tests {
           ASSERT_TRUE(merged.journals_entry_count() == 3);
         }
 
-        TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,EmptyStageThreeTest)"};
+        TEST_F(SIEDocumentTestFixture,EmptyStageThreeTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEDocumentTestFixture,EmptyStageThreeTest)"};
           SIEDocument merged{fixture_three_entries_doc.fiscal_year()};
           auto stage_result = merged.stage_sie_(fixture_three_entries_doc);
           ASSERT_TRUE(merged.journals_entry_count() == 3)
@@ -351,8 +351,8 @@ namespace tests {
             ,[](auto const& e){return static_cast<bool>(e);})) << "Expetced all entries to be staged ok";
         }
 
-        TEST(SIEEnvironmentTests,StageToPostedOkTest) {
-          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEEnvironmentTestFixture,StageToPostedOkTest)"};
+        TEST(SIEDocumentTests,StageToPostedOkTest) {
+          logger::scope_logger log_raii{logger::development_trace,"TEST_F(SIEDocumentTestFixture,StageToPostedOkTest)"};
 
           auto entries = to_sample_md_entries();
           auto entry_0 = entries[0];
