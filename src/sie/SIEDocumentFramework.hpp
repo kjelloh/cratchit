@@ -4,9 +4,6 @@
 #include "SIEArchive.hpp"
 #include "persistent/in/maybe.hpp"
 #include "persistent/in/encoding_aware_read.hpp" // persistent::in::CP437::istream
-#include "logger/log.hpp"
-#include <istream>
-#include <filesystem>
 #include <expected>
 
 using MaybeSIEInStream = persistent::in::text::MaybeIStream;

@@ -6,6 +6,22 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 
 I now decided to rename SIEEnvironmentsMap to SIEArchive.
 
+And along these lines I now have cleaned upp naming to the better.
+
+* SIEDocument is now the model of a single SIE file.
+* SIEArchive is the model of several years of SIE Documents
+* The '#Ver' entry in SIE is a 'JournalEntry'
+  - I have JournalEntryChangeResult
+  - But NO actual 'JournalEntry' type as of yet
+  - There is an 'anonymous' one in the BAS namespace
+  - But I will leavet that be for now.
+
+I now also renamed to try and clarify cratchit file system meta-defatco and interface nature. It is still TOO COMPLICATED though?!
+
+* I allows the test to provide a mockup.
+* But surely there are better ways to do this?
+* Is the virtual 'to istream' member really trhe way to inject the mockup behaviour?
+
 ## 20260401
 
 I now have a new idea on how to approach this refctoring.

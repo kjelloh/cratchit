@@ -3646,7 +3646,7 @@ Cmd Updater::operator()(Command const& command) {
                 return sie_from_cp437_stream(cp437_in);
               })
               .and_then([this,year_key](auto const&  sie_doc){
-                auto staged_sie_env = persistent::in::text::to_maybe_istream( sie_doc.staged_sie_file_path())
+                auto staged_sie_doc = persistent::in::text::to_maybe_istream( sie_doc.staged_sie_file_path())
                   .and_then([](auto& istream){
                     persistent::in::CP437::istream cp437_in{istream};
                     return sie_from_cp437_stream(cp437_in);
@@ -3656,7 +3656,7 @@ Cmd Updater::operator()(Command const& command) {
                 return model->m_sie_archive.update_from_posted_and_staged_sie_docs(
                   year_key
                   , sie_doc
-                  ,staged_sie_env);
+                  ,staged_sie_doc);
 
               });
 
@@ -3741,7 +3741,7 @@ Cmd Updater::operator()(Command const& command) {
                 return sie_from_cp437_stream(cp437_in);
               })
               .and_then([this,year_key](auto const&  sie_doc){
-                auto staged_sie_env = persistent::in::text::to_maybe_istream( sie_doc.staged_sie_file_path())
+                auto staged_sie_doc = persistent::in::text::to_maybe_istream( sie_doc.staged_sie_file_path())
                   .and_then([](auto& istream){
                     persistent::in::CP437::istream cp437_in{istream};
                     return sie_from_cp437_stream(cp437_in);
@@ -3751,7 +3751,7 @@ Cmd Updater::operator()(Command const& command) {
                 return model->m_sie_archive.update_from_posted_and_staged_sie_docs(
                   year_key
                   , sie_doc
-                  ,staged_sie_env);
+                  ,staged_sie_doc);
 
               });
 
@@ -5374,9 +5374,9 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
 
 namespace zeroth {
 
-  CratchitFSMeta::ConfiguredSIEFilePaths to_configured_posted_sie_file_paths(
+  CratchitFileSystemMeta::ConfiguredSIEFilePaths to_configured_posted_sie_file_paths(
     Environment const& environment) {
-    CratchitFSMeta::ConfiguredSIEFilePaths result{};
+    CratchitFileSystemMeta::ConfiguredSIEFilePaths result{};
 
     if (environment.contains("sie_file")) {
       auto const id_ev_pairs = environment.at("sie_file");
@@ -5428,7 +5428,7 @@ namespace zeroth {
   };
   
   ConfiguredSIEInputFileStreams to_configured_sie_input_streams(
-    CratchitFSMeta::ConfiguredSIEFilePaths const& configured_sie_file_paths) {
+    CratchitFileSystemMeta::ConfiguredSIEFilePaths const& configured_sie_file_paths) {
 
     ConfiguredSIEInputFileStreams result{};
     std::ranges::for_each(configured_sie_file_paths,[&result](auto const& id_path_pair){
@@ -5570,17 +5570,17 @@ namespace zeroth {
     return model;
   }
 
-	Model model_from_environment_and_md_filesystem(
+	Model model_from_environment_and_filesystem_ifc(
      Environment const& environment
-    ,CratchitMDFileSystem const& md_cfs) {
+    ,MDCratchitFileSystemIfc const& md_filesystem_ifc) {
 
-    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_md_filesystem"};
+    logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_filesystem_ifc"};
 
 		std::ostringstream prompt{};
 
-    auto cratchit_environment_file_path = md_cfs.meta.m_root_path;
+    auto cratchit_environment_file_path = md_filesystem_ifc.meta.m_root_path;
 
-    prompt << NL << "BEGIN: model_from_environment_and_md_filesystem ";
+    prompt << NL << "BEGIN: model_from_environment_and_filesystem_ifc ";
 
     Model model = model_from_environment(environment);
 
@@ -5601,13 +5601,13 @@ namespace zeroth {
           //       and use it at all locations tagged '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
           {
             // See all other #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK
-            auto update_posted_result = md_cfs.defacto->to_maybe_istream(sie_file_path)
+            auto update_posted_result = md_filesystem_ifc.defacto->to_maybe_istream(sie_file_path)
               .and_then([](auto& istream){
                 persistent::in::CP437::istream cp437_in{istream};
                 return sie_from_cp437_stream(cp437_in);
               })
-              .and_then([&md_cfs,&model,year_id](auto const&  sie_doc){
-                auto staged_sie_env = md_cfs.defacto->to_maybe_istream( sie_doc.staged_sie_file_path())
+              .and_then([&md_filesystem_ifc,&model,year_id](auto const&  sie_doc){
+                auto staged_sie_doc = md_filesystem_ifc.defacto->to_maybe_istream( sie_doc.staged_sie_file_path())
                   .and_then([](auto& istream){
                     persistent::in::CP437::istream cp437_in{istream};
                     return sie_from_cp437_stream(cp437_in);
@@ -5617,7 +5617,7 @@ namespace zeroth {
                 return model->m_sie_archive.update_from_posted_and_staged_sie_docs(
                   year_id
                   , sie_doc
-                  ,staged_sie_env);
+                  ,staged_sie_doc);
 
               });
 
@@ -5653,13 +5653,13 @@ namespace zeroth {
 
 	Model model_from_environment_and_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
     logger::scope_logger log_raii{logger::development_trace,"model_from_environment_and_files"};
-    CratchitMDFileSystem md_cfs{
+    MDCratchitFileSystemIfc md_filesystem_ifc{
       .meta = {
         .m_root_path = cratchit_environment_file_path
       }
-      ,.defacto = std::make_unique<CratchitFSDefacto>()
+      ,.defacto = std::make_unique<CratchitFileSystemDefactoIfc>()
     };
-    return model_from_environment_and_md_filesystem(environment,md_cfs);
+    return model_from_environment_and_filesystem_ifc(environment,md_filesystem_ifc);
 	} // model_from_environment_and_files
 
   // indexed_env_entries_from now in HADFramework
