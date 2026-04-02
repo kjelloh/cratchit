@@ -16,8 +16,8 @@ namespace sie {
 }
 
 BAS::MDJournalEntry to_md_entry(sie::io::Ver const& ver);
-OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv);
-OptionalSIEEnvironment sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in);
+std::optional<SIEDocument> sie_from_utf8_sv(std::string_view utf8_sv);
+std::optional<SIEDocument> sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in);
 
 using UpdateFromPostedResult = std::optional<SIEEnvironmentChangeResults>;
 using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEDocument>;
@@ -26,11 +26,11 @@ using MybeSIEEnvironmentRef = cratchit::functional::memory::MaybeRef<SIEDocument
 //       Cratchit may benefit from operating in FiscalYear defigned domain?
 using ActualYearKey = sie::RelativeYearKey;
 
-class SIEEnvironmentsMap {
+class SIEArchive {
 public:
   using map_type = std::map<ActualYearKey,SIEDocument>;
 
-  SIEEnvironmentsMap() = default;
+  SIEArchive() = default;
 
   std::pair<bool,std::string> remove(DatedJournalEntryMeta const& key);
   UpdateFromPostedResult update_from_posted_and_staged_sie_docs(
@@ -62,8 +62,8 @@ inline void for_each_md_journal_entry(SIEDocument const& sie_doc,auto& f) {
 	}
 }
 
-inline void for_each_md_journal_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	for (auto const& [financial_year_key,sie_doc] : sie_envs_map) {
+inline void for_each_md_journal_entry(SIEArchive const& sie_archive,auto& f) {
+	for (auto const& [financial_year_key,sie_doc] : sie_archive) {
 		for_each_md_journal_entry(sie_doc,f);
 	}
 }

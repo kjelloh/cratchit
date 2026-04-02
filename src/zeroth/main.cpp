@@ -23,7 +23,7 @@ Amount get_K10_Dividend(Model const& model) {
 		std::istringstream is{*amount};
 		is >> result;
 	}
-	else if (auto amount = account_sum(model->sie_env_map["current"],2898)) {
+	else if (auto amount = account_sum(model->m_sie_archive["current"],2898)) {
 		// Use any amount accounted for in 2898
 		result = *amount;
 	}
@@ -40,10 +40,10 @@ using IBPeriodUBMap = std::map<BAS::AccountNo,IBPeriodUB>;
 
 IBPeriodUBMap to_ib_period_ub(Model const& model,std::string relative_year_key) {
   IBPeriodUBMap result{};
-  if (model->sie_env_map.contains(relative_year_key)) {
+  if (model->m_sie_archive.contains(relative_year_key)) {
     auto financial_year_date_range = model->to_financial_year_date_range(relative_year_key);
     if (financial_year_date_range) {
-      std::map<BAS::AccountNo,Amount> opening_balances = model->sie_env_map[relative_year_key].opening_balances();
+      std::map<BAS::AccountNo,Amount> opening_balances = model->m_sie_archive[relative_year_key].opening_balances();
       auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range);
       auto bas_account_accs = tas::to_bas_omslutning(financial_year_tagged_amounts);
       for (auto const& ta : bas_account_accs) {
@@ -83,7 +83,7 @@ namespace SKV {
 			OptionalSRUValueMap result{};
       std::map<SKV::SRU::AccountNo,int> sru_value_aggregate_sign{};
 			try {
-        if (!model->sie_env_map.contains(year_index)) {
+        if (!model->m_sie_archive.contains(year_index)) {
           logger::cout_proxy << "\nSorry, to_sru_value_map failed. No SIE environment found for year index:" << year_index;
           return result;
         }
@@ -114,7 +114,7 @@ namespace SKV {
                 //               A '*' seems to mean it does not take part in any expressions (so dont care)?
                 sru_value_aggregate_sign[*sru_code] = (field_row[4].find("-") != std::string::npos)?-1:1;
 
-                sru_to_bas_accounts[*sru_code] = model->sie_env_map[year_index].to_bas_accounts(*sru_code);
+                sru_to_bas_accounts[*sru_code] = model->m_sie_archive[year_index].to_bas_accounts(*sru_code);
                 logger::cout_proxy << "\nSRU:" << *sru_code << " BAS count: " << sru_to_bas_accounts[*sru_code]->size();
 
 							}
@@ -326,7 +326,7 @@ std::ostream& operator<<(std::ostream& os,SIEDocument const& sie_doc) {
 	return os;
 }
 
-// Nof in SIEEnvironmentFramework unit / 20251028
+// Nof in SIEDocumentFramework unit / 20251028
 // BAS::MetaEntry to_entry(sie::io::Ver const& ver) {
 
 // Now in SIEEnvirnmentFramework unit / 20251028
@@ -350,9 +350,9 @@ void unposted_to_sie_file(SIEDocument const& sie_doc,std::filesystem::path const
 	}
 }
 
-void unposted_to_sie_files(SIEEnvironmentsMap const& sie_env_map) {
+void unposted_to_sie_files(SIEArchive const& sie_archive) {
   logger::development_trace("unposted_to_sie_files");
-  for (auto const& [year_id,sie] : sie_env_map) {
+  for (auto const& [year_id,sie] : sie_archive) {
     unposted_to_sie_file(sie,sie.staged_sie_file_path());
   }
 }
@@ -743,46 +743,46 @@ namespace SKV {
 	namespace XML {
 		namespace VATReturns {
 
-			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
+			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEArchive const& sie_archive,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
         // Log
         if (true) {
           logger::development_trace("to_vat_returns_mats: box_no:{} account_nos::size:{}",box_no,account_nos.size());
         }
-				return to_mats(sie_envs_map,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mdat) {
+				return to_mats(sie_archive,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mdat) {
 					return (mat_predicate(mdat) and is_any_of_accounts(mdat,account_nos));
 				});
 			}
 
-			std::optional<FormBoxMap> to_form_box_map(SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate) {
+			std::optional<FormBoxMap> to_form_box_map(SIEArchive const& sie_archive,auto mat_predicate) {
         logger::scope_logger log_raii(logger::development_trace,"to_form_box_map");
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
 					// Amount		VAT Return Box			XML Tag
 					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5] = to_vat_returns_mats(5,sie_envs_map,mat_predicate);
+					box_map[5] = to_vat_returns_mats(5,sie_archive,mat_predicate);
 					// box_map[5].push_back(dummy_mat(333200));
 					// 83300		10									"MomsUtgHog"
-					box_map[10] = to_vat_returns_mats(10,sie_envs_map,mat_predicate);
+					box_map[10] = to_vat_returns_mats(10,sie_archive,mat_predicate);
 					// box_map[10].push_back(dummy_mat(83300));
 					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20] = to_vat_returns_mats(20,sie_envs_map,mat_predicate);
+					box_map[20] = to_vat_returns_mats(20,sie_archive,mat_predicate);
 					// box_map[20].push_back(dummy_mat(6616));
 					// 1654			30									"MomsInkopUtgHog"
-					box_map[30] = to_vat_returns_mats(30,sie_envs_map,mat_predicate);
+					box_map[30] = to_vat_returns_mats(30,sie_archive,mat_predicate);
 					// box_map[30].push_back(dummy_mat(1654));
 					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39] = to_vat_returns_mats(39,sie_envs_map,mat_predicate);
+					box_map[39] = to_vat_returns_mats(39,sie_archive,mat_predicate);
 					// box_map[39].push_back(dummy_mat(957));
 					// 2688			48									"MomsIngAvdr"
-					box_map[48] = to_vat_returns_mats(48,sie_envs_map,mat_predicate);
+					box_map[48] = to_vat_returns_mats(48,sie_archive,mat_predicate);
 					// box_map[48].push_back(dummy_mat(2688));
 					// 597			50									"MomsUlagImport"
-					box_map[50] = to_vat_returns_mats(50,sie_envs_map,mat_predicate);
+					box_map[50] = to_vat_returns_mats(50,sie_archive,mat_predicate);
 					// box_map[50].push_back(dummy_mat(597));
 					// 149			60									"MomsImportUtgHog"
-					box_map[60] = to_vat_returns_mats(60,sie_envs_map,mat_predicate);
+					box_map[60] = to_vat_returns_mats(60,sie_archive,mat_predicate);
 					// box_map[60].push_back(dummy_mat(149));
 
 					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
@@ -802,7 +802,7 @@ namespace SKV {
 				return result;
 			}
 
-			bool quarter_has_VAT_consilidation_entry(SIEEnvironmentsMap const& sie_envs_map,zeroth::DateRange const& period) {
+			bool quarter_has_VAT_consilidation_entry(SIEArchive const& sie_archive,zeroth::DateRange const& period) {
 				bool result{};
 				auto f = [&period,&result](BAS::MDTypedJournalEntry const& tme) {
 					auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
@@ -822,7 +822,7 @@ namespace SKV {
 						result = result or  (order_code == 0x56) or (order_code == 0x367) or (order_code == 0x567);
 					}
 				};
-				for_each_typed_md_entry(sie_envs_map,f);
+				for_each_typed_md_entry(sie_archive,f);
 				return result;
 			}
 
@@ -921,7 +921,7 @@ namespace SKV {
         return (abs(to_net_vat_amount(account_amounts)) >= 1.0);
       }
 
-			HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironmentsMap const& sie_envs_map) {
+			HeadingAmountDateTransEntries to_vat_returns_hads(SIEArchive const& sie_archive) {
 				HeadingAmountDateTransEntries result{};
 				try {
 
@@ -939,12 +939,12 @@ namespace SKV {
 					// Loop through quarter candidates
 					for (int i=0;i<3;++i) {
 						// Check three quartes back for missing VAT consilidation journal entry
-						if (quarter_has_VAT_consilidation_entry(sie_envs_map,current_quarter) == false) {
+						if (quarter_has_VAT_consilidation_entry(sie_archive,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
 							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountTransaction const& mdat){
 								return vat_returns_meta->period.contains(mdat.meta.date);
 							};
-							if (auto box_map = to_form_box_map(sie_envs_map,is_vat_returns_range)) {
+							if (auto box_map = to_form_box_map(sie_archive,is_vat_returns_range)) {
 
                 // TODO: Consider to introduce a way to identify VAT contribution per BAS account?
 								// For now, box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
@@ -1243,7 +1243,7 @@ Cmd Updater::operator()(Command const& command) {
         prompt << to_sie_listing_prompt(
           model->m_selected_sie_keys
           ,[this](auto const& mdjem) {
-            return this->model->sie_env_map.at(mdjem);
+            return this->model->m_sie_archive.at(mdjem);
           });
         prompt << options_list_of_prompt_state(model->prompt_state);
       } break;
@@ -1412,7 +1412,7 @@ Cmd Updater::operator()(Command const& command) {
                 auto previous_quarter = current_quarter.to_relative_fiscal_quarter(-1);
 
                 auto box_map = SKV::XML::VATReturns::to_form_box_map(
-                   model->sie_env_map
+                   model->m_sie_archive
                   ,[previous_quarter](BAS::MDAccountTransaction const& mdat) {
                     return previous_quarter.contains(mdat.meta.date);
                 });
@@ -1522,7 +1522,7 @@ Cmd Updater::operator()(Command const& command) {
                 // Selected HAD is "naked" (no candidate for book keeping assigned)
                 model->had_index = ix;
                 model->template_candidates = all_years_template_candidates(
-                   model->sie_env_map
+                   model->m_sie_archive
                   ,[had](BAS::anonymous::JournalEntry const& aje){
                   return had_matches_trans(had,aje);
                 });
@@ -1594,14 +1594,14 @@ Cmd Updater::operator()(Command const& command) {
             std::optional<std::string> new_heading = (ast.size() == 2 and not new_date) ? std::optional<std::string>(ast[1]) : std::nullopt;
 
             if (do_remove) {
-              auto remove_result = model->sie_env_map.remove(sie_key);
+              auto remove_result = model->m_sie_archive.remove(sie_key);
               if (remove_result.first) {
                 prompt << "\n*REMOVED* ok";
                 model->m_selected_sie_keys.erase(model->m_selected_sie_keys.begin() + ix);
                 prompt << to_sie_listing_prompt(
                    model->m_selected_sie_keys
                   ,[this](auto const& mdjem) {
-                    return this->model->sie_env_map.at(mdjem);
+                    return this->model->m_sie_archive.at(mdjem);
                   });
               }
               else {
@@ -1677,12 +1677,12 @@ Cmd Updater::operator()(Command const& command) {
                 auto is_quarter = [&state_data](BAS::MDAccountTransaction const& mdat){
                   return state_data.m_period_range.contains(mdat.meta.date);
                 };
-                auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie_env_map,is_quarter);
+                auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
                 if (box_map) {
                   auto create_skv_files_result = SKV::XML::VATReturns::create_vat_return_files_to_skv(
                      state_data.m_box_map
                     ,state_data.m_period_range
-                    ,model->sie_env_map["current"].organisation_no
+                    ,model->m_sie_archive["current"].organisation_no
                     ,model->organisation_contacts);
                   prompt << create_skv_files_result.prompt.str();
 
@@ -1747,7 +1747,7 @@ Cmd Updater::operator()(Command const& command) {
             case 1: {
               if (std::holds_alternative<zeroth::AcceptVATReportM>(model->m_current_state_data)) {
                 auto const& state_data = std::get<zeroth::AcceptVATReportM>(model->m_current_state_data);
-                if (auto stage_result = model->sie_env_map.stage(state_data.m_mdje)) {
+                if (auto stage_result = model->m_sie_archive.stage(state_data.m_mdje)) {
                   prompt << "\n" << stage_result.md_entry() << " STAGED";
 
                   model->prompt_state = PromptState::HADIndex;
@@ -2316,7 +2316,7 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   else {
                     // Stage as-is
-                    if (auto stage_result = model->sie_env_map.stage(*had.optional.current_candidate)) {
+                    if (auto stage_result = model->m_sie_archive.stage(*had.optional.current_candidate)) {
                       prompt << "\n" << stage_result.md_entry() << " STAGED";
                       model->heading_amount_date_entries.erase(*had_iter);
                       model->prompt_state = PromptState::HADIndex;
@@ -2371,7 +2371,7 @@ Cmd Updater::operator()(Command const& command) {
                 } break;
                 case 3: {
                   // Stage the candidate
-                  if (auto stage_result = model->sie_env_map.stage(*had.optional.current_candidate)) {
+                  if (auto stage_result = model->m_sie_archive.stage(*had.optional.current_candidate)) {
                     prompt << "\n" << stage_result.md_entry() << " STAGED";
                     model->heading_amount_date_entries.erase(*had_iter);
                     model->prompt_state = PromptState::HADIndex;
@@ -2556,12 +2556,12 @@ Cmd Updater::operator()(Command const& command) {
             auto is_quarter = [&period_range](BAS::MDAccountTransaction const& mdat){
               return period_range->contains(mdat.meta.date);
             };
-            auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie_env_map,is_quarter);
+            auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
             if (box_map) {
               auto create_skv_files_result = SKV::XML::VATReturns::create_vat_return_files_to_skv(
                  *box_map
                 ,*period_range
-                ,model->sie_env_map["current"].organisation_no
+                ,model->m_sie_archive["current"].organisation_no
                 ,model->organisation_contacts);
               prompt << create_skv_files_result.prompt.str();
             }
@@ -2572,7 +2572,7 @@ Cmd Updater::operator()(Command const& command) {
             // prompt << "\nVAT Returns for " << *period_range;
             // if (auto vat_returns_meta = SKV::XML::VATReturns::to_vat_returns_meta(*period_range)) {
             //   SKV::OrganisationMeta org_meta {
-            //     .org_no = model->sie_env_map["current"].organisation_no.CIN
+            //     .org_no = model->m_sie_archive["current"].organisation_no.CIN
             //     ,.contact_persons = model->organisation_contacts
             //   };
             //   SKV::XML::DeclarationMeta form_meta {
@@ -2581,7 +2581,7 @@ Cmd Updater::operator()(Command const& command) {
             //   auto is_quarter = [&vat_returns_meta](BAS::MDAccountTransaction const& mdat){
             //     return vat_returns_meta->period.contains(mdat.meta.date);
             //   };
-            //   auto box_map = SKV::XML::VATReturns::to_form_box_map(model->sie_env_map,is_quarter);
+            //   auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
             //   if (box_map) {
             //     prompt << *box_map;
             //     auto xml_map = SKV::XML::VATReturns::to_xml_map(*box_map,org_meta,form_meta);
@@ -2637,7 +2637,7 @@ Cmd Updater::operator()(Command const& command) {
               if (ast.size() == 2) {
                 // Assume Tax Returns form
                 // Assume second argument is period
-                if (auto xml_map = cratchit_to_skv(model->sie_env_map["current"],model->organisation_contacts,model->employee_birth_ids)) {
+                if (auto xml_map = cratchit_to_skv(model->m_sie_archive["current"],model->organisation_contacts,model->employee_birth_ids)) {
                   auto period_to_declare = ast[1];
                   // Brute force the period into the map (TODO: Inject this value in a better way into the production code above?)
                   (*xml_map)[R"(Skatteverket^agd:Blankett^agd:Arendeinformation^agd:Period)"] = period_to_declare;
@@ -2752,12 +2752,12 @@ Cmd Updater::operator()(Command const& command) {
                     // Assume we are to send in with sender being this company?
                     // 9. #ORGNR
                       // #ORGNR 191111111111
-                    info_sru_file_tag_map["#ORGNR"] = model->sie_env_map["current"].organisation_no.CIN;
+                    info_sru_file_tag_map["#ORGNR"] = model->m_sie_archive["current"].organisation_no.CIN;
                     // 10. #NAMN
                       // #NAMN Databokföraren
-                    info_sru_file_tag_map["#NAMN"] = model->sie_env_map["current"].organisation_name.company_name;
+                    info_sru_file_tag_map["#NAMN"] = model->m_sie_archive["current"].organisation_name.company_name;
 
-                    auto postal_address = model->sie_env_map["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
+                    auto postal_address = model->m_sie_archive["current"].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
                     auto postal_address_tokens = tokenize::splits(postal_address,' ');
 
                     // 12. #POSTNR
@@ -3090,11 +3090,11 @@ Cmd Updater::operator()(Command const& command) {
                   // 7. #DATABESKRIVNING_SLUT
                   // 8. #MEDIELEV_START
                   // 9. #ORGNR
-                  info_sru_file_tag_map["#ORGNR"] = model->sie_env_map[model->selected_year_index].organisation_no.CIN;
+                  info_sru_file_tag_map["#ORGNR"] = model->m_sie_archive[model->selected_year_index].organisation_no.CIN;
                   // 10. #NAMN
-                  info_sru_file_tag_map["#NAMN"] = model->sie_env_map[model->selected_year_index].organisation_name.company_name;
+                  info_sru_file_tag_map["#NAMN"] = model->m_sie_archive[model->selected_year_index].organisation_name.company_name;
 
-                  auto postal_address = model->sie_env_map[model->selected_year_index].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
+                  auto postal_address = model->m_sie_archive[model->selected_year_index].organisation_address.postal_address; // "17668 J?rf?lla" split in <space> to get ZIP and Town
                   auto postal_address_tokens = tokenize::splits(postal_address,' ');
 
                   // 11. #ADRESS (ej obligatorisk)
@@ -3135,14 +3135,14 @@ Cmd Updater::operator()(Command const& command) {
 
                   // #IDENTITET 165567828172 20240727 195839
                   std::ostringstream os{};
-                  os <<  " " << model->sie_env_map[model->selected_year_index].organisation_no.CIN;
+                  os <<  " " << model->m_sie_archive[model->selected_year_index].organisation_no.CIN;
                   auto today = to_today();
                   os << " " << today;
                   os << " " << "120000";
                   ink2r_sru_file_tag_map["#IDENTITET"] = os.str();
 
                   // #NAMN The ITfied AB
-                  ink2r_sru_file_tag_map["#NAMN"] = model->sie_env_map[model->selected_year_index].organisation_name.company_name;
+                  ink2r_sru_file_tag_map["#NAMN"] = model->m_sie_archive[model->selected_year_index].organisation_name.company_name;
 
                   // #SYSTEMINFO klarmarkerad u. a.
                   // #UPPGIFT 7011 20230501
@@ -3174,14 +3174,14 @@ Cmd Updater::operator()(Command const& command) {
                   ink2s_sru_file_tag_map["#BLANKETT"] = " INK2S-2025P1"; // See _Nyheter_from_beskattningsperiod_2024P4.pdf
                   // #IDENTITET 165567828172 20240727 195839
                   std::ostringstream os{};
-                  os <<  " " << model->sie_env_map[model->selected_year_index].organisation_no.CIN;
+                  os <<  " " << model->m_sie_archive[model->selected_year_index].organisation_no.CIN;
                   auto today = to_today();
                   os << " " << today;
                   os << " " << "120000";
                   ink2s_sru_file_tag_map["#IDENTITET"] = os.str();
 
                   // #NAMN The ITfied AB
-                  ink2s_sru_file_tag_map["#NAMN"] = model->sie_env_map[model->selected_year_index].organisation_name.company_name;
+                  ink2s_sru_file_tag_map["#NAMN"] = model->m_sie_archive[model->selected_year_index].organisation_name.company_name;
 
                   // #SYSTEMINFO klarmarkerad u. a.
                   // #UPPGIFT 7011 20230501
@@ -3212,14 +3212,14 @@ Cmd Updater::operator()(Command const& command) {
                   ink2_sru_file_tag_map["#BLANKETT"] = " INK2-2025P1"; // See _Nyheter_from_beskattningsperiod_2024P4.pdf
                   // #IDENTITET 165567828172 20240727 195839
                   std::ostringstream os{};
-                  os <<  " " << model->sie_env_map[model->selected_year_index].organisation_no.CIN;
+                  os <<  " " << model->m_sie_archive[model->selected_year_index].organisation_no.CIN;
                   auto today = to_today();
                   os << " " << today;
                   os << " " << "120000";
                   ink2_sru_file_tag_map["#IDENTITET"] = os.str();
 
                   // #NAMN The ITfied AB
-                  ink2_sru_file_tag_map["#NAMN"] = model->sie_env_map[model->selected_year_index].organisation_name.company_name;
+                  ink2_sru_file_tag_map["#NAMN"] = model->m_sie_archive[model->selected_year_index].organisation_name.company_name;
 
                   // #SYSTEMINFO klarmarkerad u. a.
                   // #UPPGIFT 7011 20230501
@@ -3598,36 +3598,36 @@ Cmd Updater::operator()(Command const& command) {
       // Import sie and add as base of our environment
       if (ast.size()==1) {
         // List current sie environment
-        model->m_selected_sie_keys = model->sie_env_map["current"].to_dated_journal_entry_metas();
+        model->m_selected_sie_keys = model->m_sie_archive["current"].to_dated_journal_entry_metas();
         prompt << to_sie_listing_prompt(
            model->m_selected_sie_keys
           ,[this](auto const& mdjem) {
-            return this->model->sie_env_map.at(mdjem);
+            return this->model->m_sie_archive.at(mdjem);
           });
         model->prompt_state = PromptState::SIEIndex;
-        // std::cout << model->sie_env_map["current"];
+        // std::cout << model->m_sie_archive["current"];
       }
       else if (ast.size()==2) {
         if (ast[1]=="*") {
           // List unposted (staged) sie entries
-          FilteredSIEEnvironment filtered_sie{model->sie_env_map["current"],BAS::filter::is_flagged_unposted{}};
+          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::is_flagged_unposted{}};
           prompt << filtered_sie;
         }
-        else if (model->sie_env_map.contains(ast[1])) {
+        else if (model->m_sie_archive.contains(ast[1])) {
           // List journal entries of a year index
-          prompt << model->sie_env_map[ast[1]];
+          prompt << model->m_sie_archive[ast[1]];
         }
         else if (auto bas_account_no = BAS::to_account_no(ast[1])) {
           // List journal entries functional::text::filtered on an bas account number
           prompt << "\nFilter journal entries that has a transaction to account no " << *bas_account_no;
           prompt << "\nTIP: If you meant filter on amount please re-enter using '.00' to distinguish it from an account no.";
-          FilteredSIEEnvironment filtered_sie{model->sie_env_map["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
+          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::HasTransactionToAccount{*bas_account_no}};
           prompt << filtered_sie;
         }
         else if (auto gross_amount = to_amount(ast[1])) {
           // List journal entries functional::text::filtered on given amount
           prompt << "\nFilter journal entries that match gross amount " << *gross_amount;
-          FilteredSIEEnvironment filtered_sie{model->sie_env_map["current"],BAS::filter::HasGrossAmount{*gross_amount}};
+          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::HasGrossAmount{*gross_amount}};
           prompt << filtered_sie;
         }
         else if (auto sie_file_path = path_to_existing_file(ast[1])) {
@@ -3653,7 +3653,7 @@ Cmd Updater::operator()(Command const& command) {
                   })
                   .value_or(SIEDocument{ sie_doc.fiscal_year()});
 
-                return model->sie_env_map.update_from_posted_and_staged_sie_docs(
+                return model->m_sie_archive.update_from_posted_and_staged_sie_docs(
                   year_key
                   , sie_doc
                   ,staged_sie_env);
@@ -3671,7 +3671,7 @@ Cmd Updater::operator()(Command const& command) {
         }
         else if (ast[1] == "-types") {
           // Group on Type Topology
-          auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie_env_map);
+          auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
           // Prepare to record journal entries we could not use as template for new entries
           std::vector<BAS::MDTypedJournalEntry> failed_tmes{};
           std::set<BAS::kind::AccountTransactionTypeTopology> detected_topologies{};
@@ -3691,7 +3691,7 @@ Cmd Updater::operator()(Command const& command) {
                     prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
                     prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
                     // TEST that we are able to operate on journal entries with this topology?
-                    auto test_result = test_typed_meta_entry(model->sie_env_map,tme);
+                    auto test_result = test_typed_meta_entry(model->m_sie_archive,tme);
                     prompt << "\n       TEST: " << test_result;
                     if (test_result.failed) failed_tmes.push_back(tme);
                   }
@@ -3713,7 +3713,7 @@ Cmd Updater::operator()(Command const& command) {
         }
         else {
           // assume user search criteria on transaction heading and comments
-          FilteredSIEEnvironment filtered_sie{model->sie_env_map["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
+          FilteredSIEEnvironment filtered_sie{model->m_sie_archive["current"],BAS::filter::matches_user_search_criteria{ast[1]}};
           prompt << "\nNot '*', existing year id or existing file: " << std::quoted(ast[1]);
           prompt << "\nFilter current sie for " << std::quoted(ast[1]);
           prompt << filtered_sie;
@@ -3723,7 +3723,7 @@ Cmd Updater::operator()(Command const& command) {
         auto year_key = ast[1];
         if (ast[2]=="*") {
           // List unposted (staged) sie entries
-          FilteredSIEEnvironment filtered_sie{model->sie_env_map[year_key],BAS::filter::is_flagged_unposted{}};
+          FilteredSIEEnvironment filtered_sie{model->m_sie_archive[year_key],BAS::filter::is_flagged_unposted{}};
           prompt << filtered_sie;
         }
         else if (auto sie_file_path = path_to_existing_file(ast[2])) {
@@ -3748,7 +3748,7 @@ Cmd Updater::operator()(Command const& command) {
                   })
                   .value_or(SIEDocument{ sie_doc.fiscal_year()});
 
-                return model->sie_env_map.update_from_posted_and_staged_sie_docs(
+                return model->m_sie_archive.update_from_posted_and_staged_sie_docs(
                   year_key
                   , sie_doc
                   ,staged_sie_env);
@@ -3766,8 +3766,8 @@ Cmd Updater::operator()(Command const& command) {
         }
         else {
           // assume user search criteria on transaction heading and comments
-          if (model->sie_env_map.contains(year_key)) {
-            FilteredSIEEnvironment filtered_sie{model->sie_env_map[year_key],BAS::filter::matches_user_search_criteria{ast[2]}};
+          if (model->m_sie_archive.contains(year_key)) {
+            FilteredSIEEnvironment filtered_sie{model->m_sie_archive[year_key],BAS::filter::matches_user_search_criteria{ast[2]}};
             prompt << filtered_sie;
           }
           else {
@@ -3844,7 +3844,7 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-balance") {
       // The user has requested to have us list account balances
-      prompt << model->sie_env_map["current"].balances_at(to_today());
+      prompt << model->m_sie_archive["current"].balances_at(to_today());
     }
     else if (ast[0] == "-hads") {
       auto hads = model->refreshed_hads();
@@ -3880,14 +3880,14 @@ Cmd Updater::operator()(Command const& command) {
       if (ast.size() > 1) {
         // Assume filter on provided text
         if (auto to_match_account_no = BAS::to_account_no(ast[1])) {
-          auto ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie_env_map["current"]);
+          auto ams = matches_bas_or_sru_account_no(*to_match_account_no,model->m_sie_archive["current"]);
           for (auto const& [account_no,am] : ams) {
             prompt << "\n  " << account_no << " " << std::quoted(am.name);
             if (am.sru_code) prompt << " SRU:" << *am.sru_code;
           }
         }
         else {
-          auto ams = matches_bas_account_name(ast[1],model->sie_env_map["current"]);
+          auto ams = matches_bas_account_name(ast[1],model->m_sie_archive["current"]);
           for (auto const& [account_no,am] : ams) {
             prompt << "\n  " << account_no << " " << std::quoted(am.name);
             if (am.sru_code) prompt << " SRU:" << *am.sru_code;
@@ -3896,7 +3896,7 @@ Cmd Updater::operator()(Command const& command) {
       }
       else {
         // list all metas
-        for (auto const& [account_no,am] : model->sie_env_map["current"].account_metas()) {
+        for (auto const& [account_no,am] : model->m_sie_archive["current"].account_metas()) {
           prompt << "\n  " << account_no << " " << std::quoted(am.name);
           if (am.sru_code) prompt << " SRU:" << *am.sru_code;
         }
@@ -3906,7 +3906,7 @@ Cmd Updater::operator()(Command const& command) {
       if (ast.size() > 1) {
         if (ast[1] == "-bas") {
           // List SRU Accounts mapped to BAS Accounts
-          auto const& account_metas = model->sie_env_map["current"].account_metas();
+          auto const& account_metas = model->m_sie_archive["current"].account_metas();
           auto sru_map = sru_to_bas_map(account_metas);
           for (auto const& [sru_account,bas_accounts] : sru_map) {
             prompt << "\nSRU:" << sru_account;
@@ -3951,29 +3951,29 @@ Cmd Updater::operator()(Command const& command) {
       }
     }
     else if (ast[0] == "-gross") {
-      auto ats = to_gross_account_transactions(model->sie_env_map);
+      auto ats = to_gross_account_transactions(model->m_sie_archive);
       for (auto const& at : ats) {
         prompt << "\n" << at;
       }
     }
     else if (ast[0] == "-net") {
-      auto ats = to_net_account_transactions(model->sie_env_map);
+      auto ats = to_net_account_transactions(model->m_sie_archive);
       for (auto const& at : ats) {
         prompt << "\n" << at;
       }
     }
     else if (ast[0] == "-vat") {
-      auto vats = to_vat_account_transactions(model->sie_env_map);
+      auto vats = to_vat_account_transactions(model->m_sie_archive);
       for (auto const& vat : vats) {
         prompt << "\n" << vat;
       }
     }
     else if (ast[0] == "-t2") {
-      auto t2s = t2_entries(model->sie_env_map);
+      auto t2s = t2_entries(model->m_sie_archive);
       prompt << t2s;
     }
     else if (ast[0] == "-skv") {
-      if (ast.size() == 2 and model->sie_env_map.contains(ast[1])) {
+      if (ast.size() == 2 and model->m_sie_archive.contains(ast[1])) {
         model->selected_year_index = ast[1];
         prompt << "\nTill Skatteverket för år " << ast[1];
         // List skv options
@@ -4049,7 +4049,7 @@ Cmd Updater::operator()(Command const& command) {
               return result;
             });
           };
-          for_each_md_journal_entry(model->sie_env_map["current"],sie_hads_reducer);
+          for_each_md_journal_entry(model->m_sie_archive["current"],sie_hads_reducer);
           std::copy(hads.begin(),hads.end(),std::back_inserter(model->heading_amount_date_entries));
         }
         else {
@@ -4098,7 +4098,7 @@ Cmd Updater::operator()(Command const& command) {
       // Report yearly change for each BAS account
       std::string relative_year_key = "current"; // default
       if (ast.size()>1) {
-        if (model->sie_env_map.contains(ast[1])) {
+        if (model->m_sie_archive.contains(ast[1])) {
           relative_year_key = ast[1];
         }
         else {
@@ -4170,7 +4170,7 @@ Cmd Updater::operator()(Command const& command) {
       // and the aggregates BAS accounts to accumulate for this AR Field Saldo - members=id;id;id;...
 
       auto ar_entries = BAS::K2::AR::parse(BAS::K2::AR::ar_online::bas_2024_mapping_to_k2_ar_text);
-      auto financial_year_date_range = model->sie_env_map["-1"].financial_year_date_range();
+      auto financial_year_date_range = model->m_sie_archive["-1"].financial_year_date_range();
 
       if (false and financial_year_date_range) {
         auto financial_year_tagged_amounts = model->all_dotas.date_range_tagged_amounts(*financial_year_date_range);
@@ -4183,7 +4183,7 @@ Cmd Updater::operator()(Command const& command) {
             auto omslutning = to_units_and_cents(ta.cents_amount());
             std::string bas_account_string = ta.tags().at("BAS");
             std::cout << "\n\tkonto:" << bas_account_string;
-            auto ib = model->sie_env_map["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
+            auto ib = model->m_sie_archive["-1"].opening_balance_of(*BAS::to_account_no(bas_account_string));
             if (ib) {
               auto ib_units_and_cents = to_units_and_cents(to_cents_amount(*ib));
               std::cout << " IB:" << to_string(ib_units_and_cents);
@@ -4445,7 +4445,7 @@ The ITfied AB
       else if ((model->prompt_state == PromptState::NetVATAccountInput) or (model->prompt_state == PromptState::GrossAccountInput))  {
         // Assume the user has enterd text to search for suitable accounts
         // Assume match to account name
-        for (auto const& [account_no,am] : model->sie_env_map["current"].account_metas()) {
+        for (auto const& [account_no,am] : model->m_sie_archive["current"].account_metas()) {
           if (text::functional::first_in_second_case_insensitive(ast[1],am.name)) {
             prompt << "\n  " << account_no << " " << std::quoted(am.name);
             if (am.sru_code) prompt << " SRU:" << *am.sru_code;
@@ -4522,7 +4522,7 @@ The ITfied AB
             prompt << "\ndiff:" << gross_amounts_diff;
             if (gross_amounts_diff == 0) {
               // Stage the journal entry
-              auto stage_result = model->sie_env_map.stage(*had.optional.current_candidate);
+              auto stage_result = model->m_sie_archive.stage(*had.optional.current_candidate);
               if (stage_result) {
                 prompt << "\n" << stage_result.md_entry() << " STAGED";
                 model->heading_amount_date_entries.erase(*had_iter);
@@ -4558,11 +4558,11 @@ The ITfied AB
 
                 if (auto to_match_account_no = BAS::to_account_no(ast[0])) {
                   // The user entered <target> = a BAS Account or SRU account
-                  ams = matches_bas_or_sru_account_no(*to_match_account_no,model->sie_env_map["current"]);
+                  ams = matches_bas_or_sru_account_no(*to_match_account_no,model->m_sie_archive["current"]);
                 }
                 else {
                   // The user entered a search criteria for a BAS account name
-                  ams = matches_bas_account_name(ast[0],model->sie_env_map["current"]);
+                  ams = matches_bas_account_name(ast[0],model->m_sie_archive["current"]);
                 }
                 if (ams.size() == 0) {
                   prompt << "\nSorry, failed to match your input to any BAS or SRU account";
@@ -4634,7 +4634,7 @@ The ITfied AB
         else {
           // Assume the user has entered a new search criteria for template candidates
           model->template_candidates = all_years_template_candidates(
-             model->sie_env_map
+             model->m_sie_archive
             ,[&command](BAS::anonymous::JournalEntry const& aje){
             return text::functional::strings_share_tokens(command,aje.caption);
           });
@@ -4643,13 +4643,13 @@ The ITfied AB
             prompt << "\n    " << ix++ << " " << model->template_candidates[i];
           }
           // Consider the user may have entered the name of a gross account to journal the transaction amount
-          auto gats = to_gross_account_transactions(model->sie_env_map);
+          auto gats = to_gross_account_transactions(model->m_sie_archive);
           model->at_candidates.clear();
           std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
             bool result{false};
             if (at.transtext) result |= text::functional::strings_share_tokens(command,*at.transtext);
-            if (model->sie_env_map["current"].account_metas().contains(at.account_no)) {
-              auto const& meta = model->sie_env_map["current"].account_metas().at(at.account_no);
+            if (model->m_sie_archive["current"].account_metas().contains(at.account_no)) {
+              auto const& meta = model->m_sie_archive["current"].account_metas().at(at.account_no);
               result |= text::functional::strings_share_tokens(command,meta.name);
             }
             return result;
@@ -4786,7 +4786,7 @@ The ITfied AB
           prompt << "\nPlease enter a valid amount";
         }
       }
-      else if (auto mdje = find_meta_entry(model->sie_env_map["current"],ast)) {
+      else if (auto mdje = find_meta_entry(model->m_sie_archive["current"],ast)) {
         // The user has entered a search term for a specific journal entry (to edit)
         // Allow the user to edit individual account transactions
         if (auto had = to_had(*mdje)) {
@@ -4846,7 +4846,7 @@ Cmd Updater::operator()(Nop const& nop) {
 // Updater::all_years_template_candidates now a free function / 20251111
 // BAS::TypedMetaEntries Updater::all_years_template_candidates(auto const& matches) {
 //   BAS::TypedMetaEntries result{};
-//   auto meta_entry_topology_map = to_meta_entry_topology_map(model->sie_env_map);
+//   auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
 //   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
 //     for (auto const& [topology,tmes] : tme_map) {
 //       auto accounts_topology_map = to_accounts_topology_map(tmes);
@@ -4961,9 +4961,9 @@ public:
             auto cratchit_environment = this->add_cratchit_environment(model_environment);
             this->m_persistent_environment_file.update(cratchit_environment);
             // #3 unposted_to_sie_files save unstaged entries per environment (unique file names)
-            unposted_to_sie_files(model->sie_env_map);
+            unposted_to_sie_files(model->m_sie_archive);
             // Update/create the skv xml-file (employer monthly tax declaration)
-            // std::cout << R"(\nmodel->sie_env_map["current"].organisation_no.CIN=)" << model->sie_env_map["current"].organisation_no.CIN;
+            // std::cout << R"(\nmodel->m_sie_archive["current"].organisation_no.CIN=)" << model->m_sie_archive["current"].organisation_no.CIN;
           }
           // std::cout << "\nCratchit::update before prompt update" << std::flush;
           // std::cout << "\nCratchit::update before return" << std::flush;
@@ -5154,7 +5154,7 @@ void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_
 
   }
   else {
-    std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Environment has no fiscal year set";
+    std::cout << "\n\tERROR, synchronize_tagged_amounts_with_sie failed -  Provided SIE Document has no fiscal year set";
   }
 } // synchronize_tagged_amounts_with_sie
 
@@ -5454,7 +5454,7 @@ namespace zeroth {
       if (model->posted_sie_files.contains(year_id)) {
         prompt << std::format(
           "\nEntries in sie-file:{} overrides values in cratchit staged entries"
-          // ,model->sie_env_map[year_id].source_sie_file_path().string());
+          // ,model->m_sie_archive[year_id].source_sie_file_path().string());
           ,model->posted_sie_files.at(year_id).string());
       }
       else {
@@ -5480,7 +5480,7 @@ namespace zeroth {
         }
     );
 
-    auto unposted = model->sie_env_map[year_id].unposted();
+    auto unposted = model->m_sie_archive[year_id].unposted();
     if (unposted.size() > 0) {
       prompt << "\n year id:" << year_id << " - STAGED for posting";
       prompt << "\n" << unposted;
@@ -5523,7 +5523,7 @@ namespace zeroth {
     logger::scope_logger log_raii{logger::development_trace,"model_with_posted_and_staged_sie"};
 		std::ostringstream prompt{};
 
-    auto update_posted_result = model->sie_env_map.update_from_posted_and_staged_sie_docs(year_id,posted_doc,staged_doc);
+    auto update_posted_result = model->m_sie_archive.update_from_posted_and_staged_sie_docs(year_id,posted_doc,staged_doc);
     if (update_posted_result) {
       prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
     }
@@ -5541,7 +5541,7 @@ namespace zeroth {
 		std::ostringstream prompt{};
 
     {
-      for (auto const& sie_environments_entry : model->sie_env_map) {
+      for (auto const& sie_environments_entry : model->m_sie_archive) {
         model->all_dotas.dotas_insert_auto_ordered_container(
           dotas_from_sie(sie_environments_entry.second));	
         prompt << std::format(
@@ -5614,7 +5614,7 @@ namespace zeroth {
                   })
                   .value_or(SIEDocument{ sie_doc.fiscal_year()});
 
-                return model->sie_env_map.update_from_posted_and_staged_sie_docs(
+                return model->m_sie_archive.update_from_posted_and_staged_sie_docs(
                   year_id
                   , sie_doc
                   ,staged_sie_env);

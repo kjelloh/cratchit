@@ -213,9 +213,9 @@ namespace tests::zeroth {
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
         std::println("\n\nprompt:{}",model->prompt);
 
-        ASSERT_TRUE(model->sie_env_map.contains("current")) << std::format("Expected 'current' SIE Environment to exist ok");
-        ASSERT_TRUE(model->sie_env_map.at("current").value().unposted().size() == 1 ) << std::format("Expected one staged SIE entry");
-        ASSERT_TRUE(model->sie_env_map.at("current").value().journals_entry_count() == 4 ) << std::format("Expected a total of four SIE entries");
+        ASSERT_TRUE(model->m_sie_archive.contains("current")) << std::format("Expected 'current' SIE Document to exist ok");
+        ASSERT_TRUE(model->m_sie_archive.at("current").value().unposted().size() == 1 ) << std::format("Expected one staged SIE entry");
+        ASSERT_TRUE(model->m_sie_archive.at("current").value().journals_entry_count() == 4 ) << std::format("Expected a total of four SIE entries");
       }
 
     }
@@ -242,7 +242,7 @@ namespace tests::zeroth {
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
         std::println("\n\nprompt:{}",model->prompt);
 
-        auto const& sie_env = model->sie_env_map.at("current").value();
+        auto const& sie_env = model->m_sie_archive.at("current").value();
         auto const&  unposted = sie_env.unposted();
         auto journals_entry_count = sie_env.journals_entry_count();
         ASSERT_TRUE(unposted.size() == 0 ) << std::format(
@@ -264,7 +264,7 @@ namespace tests::zeroth {
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
         std::println("\n\nprompt:{}",model->prompt);
 
-        auto const& sie_env = model->sie_env_map.at("current").value();
+        auto const& sie_env = model->m_sie_archive.at("current").value();
         auto const&  unposted = sie_env.unposted();
         auto journals_entry_count = sie_env.journals_entry_count();
         ASSERT_TRUE(unposted.size() == 0 ) << std::format(
@@ -299,7 +299,7 @@ namespace tests::zeroth {
         auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
         std::println("\n\nprompt:{}",model->prompt);
 
-        auto const& sie_env = model->sie_env_map.at("current").value();
+        auto const& sie_env = model->m_sie_archive.at("current").value();
         auto const&  unposted = sie_env.unposted();
         auto journals_entry_count = sie_env.journals_entry_count();
         ASSERT_TRUE(unposted.size() == 0 ) << std::format(

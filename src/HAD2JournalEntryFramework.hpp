@@ -1,7 +1,7 @@
 #pragma once
 #include "fiscal/BASFramework.hpp" // BAS::anonymous::JournalEntry,...
 #include "fiscal/amount/HADFramework.hpp" // HeadingAmountDateTransEntry,...
-#include "sie/SIEEnvironmentFramework.hpp" // SIEEnvironmentsMap,...
+#include "sie/SIEDocumentFramework.hpp" // SIEArchive,...
 
 namespace BAS {
 	// TYPED Journal Entries (to identify patterns of interest in how the individual account transactions of an entry is dispositioned in amount and on semantics of the account)
@@ -122,7 +122,7 @@ std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type);
 JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme);
 
 using TypedMDJournalEntryVisitorF = std::function<void(BAS::MDTypedJournalEntry const&)>;
-void for_each_typed_md_entry(SIEEnvironmentsMap const& sie_envs_map,TypedMDJournalEntryVisitorF const& f);
+void for_each_typed_md_entry(SIEArchive const& sie_archive,TypedMDJournalEntryVisitorF const& f);
 
 // ==================================================================================
 // Had -> journal_entry -> Template
@@ -237,12 +237,12 @@ using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEn
 // TODO: Consider to make Kind2MDTypedJournalEntriesCAS an unordered_map (as it is already a map from hash -> TypedMetaEntry)
 //       All we should have to do is to define std::hash for this type to make std::unordered_map find it?
 
-Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_envs_map);
+Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive);
 
 using HADMatchesJEPredicate = std::function<bool(BAS::anonymous::JournalEntry)>;
 
 BAS::TypedMetaEntries all_years_template_candidates(
-   SIEEnvironmentsMap const& sie_envs_map
+   SIEArchive const& sie_archive
   ,HADMatchesJEPredicate const& matches);
 
 OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEDocument const& sie_doc);
@@ -267,7 +267,7 @@ std::ostream& operator<<(std::ostream& os,BAS::MDTypedJournalEntry const& tme);
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
 // that are all of the same "type" and that all sums to zero (do balance)
 std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJournalEntry const& tme);
-BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEEnvironmentsMap const& sie_envs_map,BAS::anonymous::TypedAccountTransaction const& tat);
+BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountTransaction const& tat);
 bool operator==(BAS::MDTypedJournalEntry const& tme1,BAS::MDTypedJournalEntry const& tme2);
 BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat);
 BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry const& tme,Amount const& gross_amount);
@@ -278,5 +278,5 @@ struct TestResult {
 };
 
 std::ostream& operator<<(std::ostream& os,TestResult const& tr);
-TestResult test_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,BAS::MDTypedJournalEntry const& tme);
+TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDTypedJournalEntry const& tme);
 

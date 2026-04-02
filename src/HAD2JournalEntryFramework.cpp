@@ -304,12 +304,12 @@ JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
 	return result;
 }
 
-void for_each_typed_md_entry(SIEEnvironmentsMap const& sie_envs_map,TypedMDJournalEntryVisitorF const& f) {
+void for_each_typed_md_entry(SIEArchive const& sie_archive,TypedMDJournalEntryVisitorF const& f) {
 	auto f_caller = [&f](BAS::MDJournalEntry const& mdje) {
 		auto tme = to_typed_md_entry(mdje);
 		f(tme);
 	};
-	for_each_md_journal_entry(sie_envs_map,f_caller);
+	for_each_md_journal_entry(sie_archive,f_caller);
 }
 
 // TYPED -> TEMPLATE
@@ -362,7 +362,7 @@ AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) 
 	return result;
 }
 
-Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_envs_map) {
+Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive) {
 	Kind2MDTypedJournalEntriesCAS result{};
 	// Group on Type Topology
 	Kind2MDTypedJournalEntriesCAS meta_entry_topology_map{};
@@ -371,15 +371,15 @@ Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEEnvironmentsMap cons
 		auto signature = BAS::kind::to_signature(types_topology);
 		result[signature][types_topology].push_back(tme);
 	};
-	for_each_typed_md_entry(sie_envs_map,h);
+	for_each_typed_md_entry(sie_archive,h);
 	return result;
 }
 
 BAS::TypedMetaEntries all_years_template_candidates(
-   SIEEnvironmentsMap const& sie_envs_map
+   SIEArchive const& sie_archive
   ,HADMatchesJEPredicate const& matches) {
   BAS::TypedMetaEntries result{};
-  auto meta_entry_topology_map = to_meta_entry_topology_map(sie_envs_map);
+  auto meta_entry_topology_map = to_meta_entry_topology_map(sie_archive);
   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
     for (auto const& [topology,tmes] : tme_map) {
       auto accounts_topology_map = to_accounts_topology_map(tmes);
@@ -478,7 +478,7 @@ std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJour
 	return result;
 }
 
-BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEEnvironmentsMap const& sie_envs_map,BAS::anonymous::TypedAccountTransaction const& tat) {
+BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountTransaction const& tat) {
 	BAS::anonymous::TypedAccountTransactions result{};
 	result.insert(tat); // For now, return ourself as the only alternative
 	return result;
@@ -649,13 +649,13 @@ std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
 	return os;
 }
 
-TestResult test_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,BAS::MDTypedJournalEntry const& tme) {
+TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDTypedJournalEntry const& tme) {
 	TestResult result{};
 	result.prompt << "test_typed_meta_entry=";
 	auto sub_tmes = to_typed_sub_meta_entries(tme);
 	for (auto const& sub_tme : sub_tmes) {
 		for (auto const& tat : sub_tme.defacto.account_transactions) {
-			auto alt_tats = to_alternative_tats(sie_envs_map,tat);
+			auto alt_tats = to_alternative_tats(sie_archive,tat);
 			for (auto const& alt_tat : alt_tats) {
 				auto alt_tme = to_tats_swapped_tme(tme,tat,alt_tat);
 				result.prompt << "\n\t\t" <<  "Swapped " << tat << " with " << alt_tat;

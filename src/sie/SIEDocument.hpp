@@ -97,10 +97,10 @@ private:
 	FiscalYear m_fiscal_year;
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
-  friend class SIEEnvironmentsMap;
+  friend class SIEArchive;
 }; // class SIEDocument
 
-using OptionalSIEEnvironment = std::optional<SIEDocument>;
+// using OptionalSIEEnvironment = std::optional<SIEDocument>;
 
 std::ostream& operator<<(std::ostream& os,DatedJournalEntryMeta const& djem);
 

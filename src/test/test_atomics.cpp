@@ -4,7 +4,7 @@
 #include "functional/memory.hpp" // MaybeRef,...
 #include "functional/ranges.hpp" // adjacent_value_pairs,...
 #include "fiscal/amount/functional.hpp"
-#include "sie/SIEEnvironmentFramework.hpp" // sie_from_cp437_stream,...
+#include "sie/SIEDocumentFramework.hpp" // sie_from_cp437_stream,...
 #include "FiscalPeriod.hpp" // DateRange,FiscalYear,FiscalQuarter
 #include "HAD2JournalEntryFramework.hpp" // all_years_template_candidates,...
 #include "fiscal/amount/TaggedAmountFramework.hpp" // to_value_id,...
@@ -1121,10 +1121,10 @@ namespace tests {
     namespace had_to_template_test_suite {
 
       TEST(HAD2TemplateTests,DummyTest) {
-        SIEEnvironmentsMap sie_envs_map{};
+        SIEArchive sie_archive{};
         HeadingAmountDateTransEntry had{};
         auto template_candidates = all_years_template_candidates(
-           sie_envs_map
+           sie_archive
           ,[had](BAS::anonymous::JournalEntry const& aje){
             return had_matches_trans(had,aje);
           });

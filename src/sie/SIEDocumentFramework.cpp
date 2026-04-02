@@ -1,4 +1,4 @@
-#include "SIEEnvironmentFramework.hpp"
+#include "SIEDocumentFramework.hpp"
 #include "logger/log.hpp"
 #include <fstream> // std::ifstream,...
 #include <vector>
@@ -25,10 +25,10 @@ BAS::MDJournalEntry to_md_entry(sie::io::Ver const& ver) {
 	return result;
 }
 
-OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
+std::optional<SIEDocument> sie_from_utf8_sv(std::string_view utf8_sv) {
   // logger::scope_logger log_raii{logger::development_trace,"sie_from_utf8_sv",logger::LogToConsole::ON};
 
-  OptionalSIEEnvironment result{};
+  std::optional<SIEDocument> result{};
   std::istringstream utf8_in{std::string{utf8_sv}};
 
   // Phase 2: Parse all SIE entries into memory
@@ -71,7 +71,7 @@ OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
   }
 
   if (!fiscal_year) {
-    logger::cout_proxy << "\nNo valid #RAR entry found (returns nullopt SIE Environment)";
+    logger::cout_proxy << "\nNo valid #RAR entry found (returns nullopt SIE Archive)";
     return result;
   }
 
@@ -107,12 +107,12 @@ OptionalSIEEnvironment sie_from_utf8_sv(std::string_view utf8_sv) {
   return result;
 }
 
-OptionalSIEEnvironment sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in) {
+std::optional<SIEDocument> sie_from_cp437_stream(persistent::in::CP437::istream& cp437_in) {
 
   // scope Log
   logger::scope_logger log_raii{logger::development_trace,"sie_from_cp437_stream"};
 
-  OptionalSIEEnvironment result{};
+  std::optional<SIEDocument> result{};
 
   if (!cp437_in) {
     logger::cout_proxy << "\nFailed to open stream ";
@@ -135,9 +135,9 @@ MaybeSIEInStream to_maybe_sie_istream(std::filesystem::path sie_file_path) {
 }
 
 // ------------------------------------------
-// SIEEnvironmentsMap
+// SIEArchive
 
-std::pair<bool,std::string> SIEEnvironmentsMap::remove(DatedJournalEntryMeta const& key) {
+std::pair<bool,std::string> SIEArchive::remove(DatedJournalEntryMeta const& key) {
   std::pair<bool,std::string> result{false,std::format("Could not find entry to remove")};
 
   // TODO: Consider to refactor the whole SIE storage API to use a key:{series,verno}.
@@ -183,7 +183,7 @@ std::pair<bool,std::string> SIEEnvironmentsMap::remove(DatedJournalEntryMeta con
   return result;
 }
 
-UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_docs(
+UpdateFromPostedResult SIEArchive::update_from_posted_and_staged_sie_docs(
     sie::RelativeYearKey year_id
   ,SIEDocument const& posted_doc
   ,SIEDocument const& staged_doc) {
@@ -218,13 +218,13 @@ UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_doc
   return result;
 }
 
-MybeSIEEnvironmentRef SIEEnvironmentsMap::at(sie::RelativeYearKey key) {
+MybeSIEEnvironmentRef SIEArchive::at(sie::RelativeYearKey key) {
     auto it = m_sie_envs_map.find(key);
     if (it == m_sie_envs_map.end()) return {};
     return MybeSIEEnvironmentRef::from(it->second);
 }
 
-MybeSIEEnvironmentRef SIEEnvironmentsMap::at(Date date) {
+MybeSIEEnvironmentRef SIEArchive::at(Date date) {
   auto iter = std::ranges::find_if(this->m_sie_envs_map,[date](auto const& entry){
     return entry.second.fiscal_year().contains(date);
   });
@@ -232,14 +232,14 @@ MybeSIEEnvironmentRef SIEEnvironmentsMap::at(Date date) {
   return MybeSIEEnvironmentRef::from(iter->second);
 }
 
-BAS::MaybeJournalEntryRef SIEEnvironmentsMap::at(DatedJournalEntryMeta key) {
+BAS::MaybeJournalEntryRef SIEArchive::at(DatedJournalEntryMeta key) {
   return this->at(key.m_date)
     .and_then([&key](auto& sie_env){
       return sie_env.at(key);
     });
 }
 
-SIEDocument& SIEEnvironmentsMap::operator[](sie::RelativeYearKey key) {
+SIEDocument& SIEArchive::operator[](sie::RelativeYearKey key) {
   auto iter = m_sie_envs_map.find(key);
   if (iter != m_sie_envs_map.end()) {return iter->second;}
 
@@ -247,13 +247,13 @@ SIEDocument& SIEEnvironmentsMap::operator[](sie::RelativeYearKey key) {
   static SIEDocument dummy{FiscalYear{Date{}.year(),Date{}.month()}};
   // TODO: Consider a design to not default construct SIEDocument as
   logger::design_insufficiency(
-    "SIEEnvironmentsMap:operator['{}'] does not exist - Returns dummy / empty for fiscal year:{}"
+    "SIEArchive:operator['{}'] does not exist - Returns dummy / empty for fiscal year:{}"
     ,dummy.fiscal_year().to_string()
     ,key);
   return dummy;
 }
 
-SIEEnvironmentChangeResult SIEEnvironmentsMap::stage(BAS::MDJournalEntry const& mdje) {
+SIEEnvironmentChangeResult SIEArchive::stage(BAS::MDJournalEntry const& mdje) {
   SIEEnvironmentChangeResult result{mdje,SIEEnvironmentChangeResult::Status::Undefined};
 
   // TODO: Refctor this 'mess' *sigh* (to many optionals...)
@@ -278,7 +278,7 @@ SIEEnvironmentChangeResult SIEEnvironmentsMap::stage(BAS::MDJournalEntry const& 
 
 // private
 
-std::expected<ActualYearKey, std::string> SIEEnvironmentsMap::to_actual_year_key(
+std::expected<ActualYearKey, std::string> SIEArchive::to_actual_year_key(
     sie::RelativeYearKey relative_year_key
   ,FiscalYear current_fiscal_year) {
 
@@ -305,5 +305,5 @@ std::expected<ActualYearKey, std::string> SIEEnvironmentsMap::to_actual_year_key
 
 
 
-// SIEEnvironmentsMap
+// SIEArchive
 // ------------------------------------------

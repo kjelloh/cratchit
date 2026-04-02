@@ -1,6 +1,6 @@
 #include "fiscal/BASFramework.hpp" // BAS::anonymous::JournalEntry,...
 #include "test/data/sie_test_sz_data.hpp"
-#include "sie/SIEEnvironmentFramework.hpp" // sie_from_utf8_sv,...
+#include "sie/SIEDocumentFramework.hpp" // sie_from_utf8_sv,...
 #include "sie/sie_diff.hpp"
 #include <gtest/gtest.h>
 
@@ -184,8 +184,8 @@ namespace tests {
         }
     } // parse_sie_file_suite
 
-    namespace sie_envs_merge_suite {
-      // SIE Environments merge test suite
+    namespace sie_docs_merge_suite {
+      // SIE Documents merge test suite
 
         std::vector<BAS::MDJournalEntry> to_sample_md_entries() {
           std::vector<BAS::MDJournalEntry> result{};
@@ -365,7 +365,7 @@ namespace tests {
             << std::format("Expected 'stage' to detect 'now posted'");
         }
 
-    } // sie_envs_merge_suite
+    } // sie_docs_merge_suite
   } // sie
 } // tests
 

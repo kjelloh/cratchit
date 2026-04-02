@@ -13,7 +13,7 @@ float const VERSION = 0.5;
 #include "fiscal/amount/HADFramework.hpp"
 #include "fiscal/BASFramework.hpp"
 #include "fiscal/SKVFramework.hpp"
-#include "sie/SIEEnvironmentFramework.hpp"
+#include "sie/SIEDocumentFramework.hpp"
 #include "HAD2JournalEntryFramework.hpp" // BAS::TypedMetaEntries,...
 
 #include "PersistentFile.hpp"
@@ -2070,8 +2070,8 @@ using SRUEnvironments = std::map<std::string,SRUEnvironment>;
 // using OptionalSIEEnvironment = std::optional<SIEDocument>;
 
 
-// Now in SIEEnvironmentFramework unit / 20251028
-// class SIEEnvironmentsMap {
+// Now in SIEDocumentFramework unit / 20251028
+// class SIEArchive {
 
 inline BAS::AccountMetas matches_bas_or_sru_account_no(BAS::AccountNo const& to_match_account_no,SIEDocument const& sie_doc) {
 	BAS::AccountMetas result{};
@@ -2101,15 +2101,15 @@ inline void for_each_anonymous_journal_entry(SIEDocument const& sie_doc,auto& f)
 	}
 }
 
-inline void for_each_anonymous_journal_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
-	for (auto const& [financial_year_key,sie_doc] : sie_envs_map) {
+inline void for_each_anonymous_journal_entry(SIEArchive const& sie_archive,auto& f) {
+	for (auto const& [financial_year_key,sie_doc] : sie_archive) {
 		for_each_anonymous_journal_entry(sie_doc,f);
 	}
 }
 
-// Now in SIEEnvironmentFramework unit
+// Now in SIEDocumentFramework unit
 // inline void for_each_md_journal_entry(SIEDocument const& sie_doc,auto& f) {
-// inline void for_each_md_journal_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
+// inline void for_each_md_journal_entry(SIEArchive const& sie_archive,auto& f) {
 
 inline void for_each_anonymous_account_transaction(SIEDocument const& sie_doc,auto& f) {
 	auto f_caller = [&f](BAS::anonymous::JournalEntry const& aje){for_each_anonymous_account_transaction(aje,f);};
@@ -2130,9 +2130,9 @@ inline void for_each_md_account_transaction(SIEDocument const& sie_doc,auto& f) 
 	for_each_md_journal_entry(sie_doc,f_caller);
 }
 
-inline void for_each_md_account_transaction(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
+inline void for_each_md_account_transaction(SIEArchive const& sie_archive,auto& f) {
 	auto f_caller = [&f](BAS::MDJournalEntry const& mdje){for_each_md_account_transaction(mdje,f);};
-	for (auto const& [financial_year_key,sie_doc] : sie_envs_map) {
+	for (auto const& [financial_year_key,sie_doc] : sie_archive) {
 		for_each_md_journal_entry(sie_doc,f_caller);
 	}
 }
@@ -2167,7 +2167,7 @@ inline OptionalAmount to_ats_sum(SIEDocument const& sie_doc,BAS::AccountNos cons
 	return result;
 }
 
-inline OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos const& bas_account_nos) {
+inline OptionalAmount to_ats_sum(SIEArchive const& sie_archive,BAS::AccountNos const& bas_account_nos) {
 	OptionalAmount result{};
 	try {
 		Amount amount{};
@@ -2176,7 +2176,7 @@ inline OptionalAmount to_ats_sum(SIEEnvironmentsMap const& sie_envs_map,BAS::Acc
 				amount += mdat.defacto.amount;
 			}
 		};
-		for_each_md_account_transaction(sie_envs_map,f);
+		for_each_md_account_transaction(sie_archive,f);
 		result = amount;
 	}
 	catch (std::exception const& e) {
@@ -2191,9 +2191,9 @@ inline std::optional<std::string> to_ats_sum_string(SIEDocument const& sie_doc,B
 	return result;
 }
 
-inline std::optional<std::string> to_ats_sum_string(SIEEnvironmentsMap const& sie_envs_map,BAS::AccountNos const& bas_account_nos) {
+inline std::optional<std::string> to_ats_sum_string(SIEArchive const& sie_archive,BAS::AccountNos const& bas_account_nos) {
 	std::optional<std::string> result{};
-	if (auto const& ats_sum = to_ats_sum(sie_envs_map,bas_account_nos)) result = to_string(*ats_sum);
+	if (auto const& ats_sum = to_ats_sum(sie_archive,bas_account_nos)) result = to_string(*ats_sum);
 	return result;
 }
 
@@ -2204,18 +2204,18 @@ inline std::optional<std::string> to_ats_sum_string(SIEEnvironmentsMap const& si
 // Now in HAD2JournalEntryFramework unit / 20251111
 // inline std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
 // inline JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
-// inline void for_each_typed_md_entry(SIEEnvironmentsMap const& sie_envs_map,auto& f) {
+// inline void for_each_typed_md_entry(SIEArchive const& sie_archive,auto& f) {
 
 
 // Now in HAD2JournalEntryFramework unit / 20251111
 // using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::MDTypedJournalEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
 // using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEntriesMap>; // hash -> TypeMetaEntry
-// inline Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_envs_map) {
+// inline Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive) {
 // struct TestResult {
 // inline std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
 // inline std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJournalEntry const& tme) {
 // inline bool operator==(BAS::MDTypedJournalEntry const& tme1,BAS::MDTypedJournalEntry const& tme2) {
-// inline BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEEnvironmentsMap const& sie_envs_map,BAS::anonymous::TypedAccountTransaction const& tat) {
+// inline BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountTransaction const& tat) {
 // inline BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
 // inline BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry const& tme,Amount const& gross_amount) {
 
@@ -2225,7 +2225,7 @@ inline std::optional<std::string> to_ats_sum_string(SIEEnvironmentsMap const& si
 // inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me1, BAS::MDJournalEntry const& me2) {
 
 // Now in HAD2JournalEntryFramework unit / 20251111
-// inline TestResult test_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,BAS::MDTypedJournalEntry const& tme) {
+// inline TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDTypedJournalEntry const& tme) {
 // using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,BAS::TypedMetaEntries>>;
 // inline AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) {
 
@@ -2262,21 +2262,21 @@ inline BAS::anonymous::AccountTransactions to_gross_account_transactions(BAS::an
 	return ats.result;
 }
 
-inline BAS::anonymous::AccountTransactions to_gross_account_transactions(SIEEnvironmentsMap const& sie_envs_map) {
+inline BAS::anonymous::AccountTransactions to_gross_account_transactions(SIEArchive const& sie_archive) {
 	GrossAccountTransactions ats{};
-	for_each_anonymous_journal_entry(sie_envs_map,ats);
+	for_each_anonymous_journal_entry(sie_archive,ats);
 	return ats.result;
 }
 
-inline BAS::anonymous::AccountTransactions to_net_account_transactions(SIEEnvironmentsMap const& sie_envs_map) {
+inline BAS::anonymous::AccountTransactions to_net_account_transactions(SIEArchive const& sie_archive) {
 	NetAccountTransactions ats{};
-	for_each_anonymous_journal_entry(sie_envs_map,ats);
+	for_each_anonymous_journal_entry(sie_archive,ats);
 	return ats.result;
 }
 
-inline BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEEnvironmentsMap const& sie_envs_map) {
+inline BAS::anonymous::AccountTransactions to_vat_account_transactions(SIEArchive const& sie_archive) {
 	VatAccountTransactions ats{};
-	for_each_anonymous_journal_entry(sie_envs_map,ats);
+	for_each_anonymous_journal_entry(sie_archive,ats);
 	return ats.result;
 }
 
@@ -2345,9 +2345,9 @@ struct CollectT2s {
 	}
 };
 
-inline T2Entries t2_entries(SIEEnvironmentsMap const& sie_envs_map) {
+inline T2Entries t2_entries(SIEArchive const& sie_archive) {
 	CollectT2s collect_t2s{};
-	for_each_md_journal_entry(sie_envs_map,collect_t2s);
+	for_each_md_journal_entry(sie_archive,collect_t2s);
 	return collect_t2s.result();
 }
 
@@ -3222,12 +3222,12 @@ namespace SKV { // SKV
 				return result;
 			}
 
-			inline BAS::MDAccountTransactions to_mats(SIEEnvironmentsMap const& sie_envs_map,auto const& matches_mat) {
+			inline BAS::MDAccountTransactions to_mats(SIEArchive const& sie_archive,auto const& matches_mat) {
 				BAS::MDAccountTransactions result{};
 				auto x = [&matches_mat,&result](BAS::MDAccountTransaction const& mdat){
 					if (matches_mat(mdat)) result.push_back(mdat);
 				};
-				for_each_md_account_transaction(sie_envs_map,x);
+				for_each_md_account_transaction(sie_archive,x);
         if (true) {
           logger::design_insufficiency("to_mats: result::size:{}",result.size());
         }
@@ -3296,10 +3296,10 @@ namespace SKV { // SKV
 				};
 			}
 
-			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate);
+			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEArchive const& sie_archive,auto mat_predicate);
       // to_box_49_amount now in SKVFramework unit
-			std::optional<FormBoxMap> to_form_box_map(SIEEnvironmentsMap const& sie_envs_map,auto mat_predicate);
-			bool quarter_has_VAT_consilidation_entry(SIEEnvironmentsMap const& sie_envs_map,zeroth::DateRange const& period);
+			std::optional<FormBoxMap> to_form_box_map(SIEArchive const& sie_archive,auto mat_predicate);
+			bool quarter_has_VAT_consilidation_entry(SIEArchive const& sie_archive,zeroth::DateRange const& period);
 
       struct ToAccountAmountsResult {
         using  AccountAmounts = std::map<BAS::AccountNo,Amount>;
@@ -3307,7 +3307,7 @@ namespace SKV { // SKV
         std::vector<std::string> m_summary{};  
       };
       ToAccountAmountsResult to_account_amounts(FormBoxMap const& box_map);
-			HeadingAmountDateTransEntries to_vat_returns_hads(SIEEnvironmentsMap const& sie_envs_map);
+			HeadingAmountDateTransEntries to_vat_returns_hads(SIEArchive const& sie_archive);
 
 		} // namespace VATReturns
 	} // namespace XML
@@ -3832,7 +3832,7 @@ inline std::optional<SKV::XML::XMLMap> cratchit_to_skv(SIEDocument const& sie_do
 		result = to_skv_xml_map(sender_meta,declaration_meta,employer_meta,tax_declarations);
 	}
 	catch (std::exception const& e) {
-		std::cout << "\nERROR: Failed to create SKV data from SIE Environment, expection=" << e.what();
+		std::cout << "\nERROR: Failed to create SKV data from SIE Document, expection=" << e.what();
 	}
 	return result;
 }
@@ -4196,7 +4196,7 @@ public:
   std::string prompt{};
 	bool quit{};
 
-	SIEEnvironmentsMap sie_env_map{}; // 'Older' SIE envrionemtns map
+	SIEArchive m_sie_archive{};
   FiscalYear current_fiscal_year{FiscalYear::to_current_fiscal_year(std::chrono::month{5})}; // month hard coded for now
 
 	SRUEnvironments sru{};
@@ -4284,7 +4284,7 @@ public:
 	}
 
 	HeadingAmountDateTransEntries const& refreshed_hads(void) {
-		auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(this->sie_env_map);
+		auto vat_returns_hads = SKV::XML::VATReturns::to_vat_returns_hads(this->m_sie_archive);
 		for (auto const& vat_returns_had : vat_returns_hads) {
 			if (auto o_iter = this->find_had(vat_returns_had)) {
 				auto iter = *o_iter;
@@ -4316,8 +4316,8 @@ public:
 
   zeroth::OptionalDateRange to_financial_year_date_range(std::string const& relative_year_key) {
     zeroth::OptionalDateRange result{};
-		if (this->sie_env_map.contains(relative_year_key)) {
-      result = this->sie_env_map[relative_year_key].financial_year_date_range();
+		if (this->m_sie_archive.contains(relative_year_key)) {
+      result = this->m_sie_archive[relative_year_key].financial_year_date_range();
     }
     return result;
   }
