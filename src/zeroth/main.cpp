@@ -633,7 +633,7 @@ namespace lua_faced_ifc {
               series = nil,  -- Assuming char can be represented as a single character string
               gross_account_no = nil,  -- Assuming AccountNo can be represented as a string or number
               current_candidate = nil,  -- Assuming OptionalMetaEntry can be represented as a string or number
-              counter_ats_producer = nil,  -- Assuming ToNetVatAccountTransactions can be represented as a string or number
+              counter_ats_producer = nil,  -- Assuming ToNetVatAccountPostings can be represented as a string or number
               vat_returns_form_box_map_candidate = nil  -- Assuming FormBoxMap can be represented as a string or number
           }
       }
@@ -743,13 +743,13 @@ namespace SKV {
 	namespace XML {
 		namespace VATReturns {
 
-			BAS::MDAccountTransactions to_vat_returns_mats(BoxNo box_no,SIEArchive const& sie_archive,auto mat_predicate) {
+			BAS::MDAccountPostings to_vat_returns_mats(BoxNo box_no,SIEArchive const& sie_archive,auto mat_predicate) {
 				auto account_nos = to_accounts(box_no);
         // Log
         if (true) {
           logger::development_trace("to_vat_returns_mats: box_no:{} account_nos::size:{}",box_no,account_nos.size());
         }
-				return to_mats(sie_archive,[&mat_predicate,&account_nos](BAS::MDAccountTransaction const& mdat) {
+				return to_mats(sie_archive,[&mat_predicate,&account_nos](BAS::MDAccountPosting const& mdat) {
 					return (mat_predicate(mdat) and is_any_of_accounts(mdat,account_nos));
 				});
 			}
@@ -941,17 +941,17 @@ namespace SKV {
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_archive,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
-							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountTransaction const& mdat){
+							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountPosting const& mdat){
 								return vat_returns_meta->period.contains(mdat.meta.date);
 							};
 							if (auto box_map = to_form_box_map(sie_archive,is_vat_returns_range)) {
 
                 // TODO: Consider to introduce a way to identify VAT contribution per BAS account?
-								// For now, box_map is an std::map<BoxNo,BAS::MetaAccountTransactions>
+								// For now, box_map is an std::map<BoxNo,BAS::MetaAccountPostings>
 								// We need a per-account amount to counter (consolidate) into 1650 (VAT to get back) or 2650 (VAT to pay)
 								// 2650 "Redovisningskonto för moms" SRU:7369
 								// 1650 "Momsfordran" SRU:7261
-                // Maybe add indirection map<BAS::AccountNo,BAS::MetaAccountTransactions> per BoxNo?
+                // Maybe add indirection map<BAS::AccountNo,BAS::MetaAccountPostings> per BoxNo?
 
   							std::cout << "\nPeriod:" << to_string(vat_returns_range.begin()) << "..." << to_string(vat_returns_range.end());
 								// std::map<BAS::AccountNo,Amount> account_amounts{};
@@ -1413,7 +1413,7 @@ Cmd Updater::operator()(Command const& command) {
 
                 auto box_map = SKV::XML::VATReturns::to_form_box_map(
                    model->m_sie_archive
-                  ,[previous_quarter](BAS::MDAccountTransaction const& mdat) {
+                  ,[previous_quarter](BAS::MDAccountPosting const& mdat) {
                     return previous_quarter.contains(mdat.meta.date);
                 });
                 if (box_map) {
@@ -1537,7 +1537,7 @@ Cmd Updater::operator()(Command const& command) {
                   // struct JournalEntry {
                   // 	std::string caption{};
                   // 	Date date{};
-                  // 	AccountTransactions account_transactions;
+                  // 	AccountPostings account_transactions;
                   // };
 
                   Amount amount{1000};
@@ -1550,15 +1550,15 @@ Cmd Updater::operator()(Command const& command) {
                       ,.date = had.date
                     }
                   };
-                  BAS::anonymous::AccountTransaction gross_at{
+                  BAS::anonymous::AccountPosting gross_at{
                     .account_no = 2440
                     ,.amount = -amount
                   };
-                  BAS::anonymous::AccountTransaction net_at{
+                  BAS::anonymous::AccountPosting net_at{
                     .account_no = 1221
                     ,.amount = static_cast<Amount>(amount*0.8f)
                   };
-                  BAS::anonymous::AccountTransaction vat_at{
+                  BAS::anonymous::AccountPosting vat_at{
                     .account_no = 2641
                     ,.amount = static_cast<Amount>(amount*0.2f)
                   };
@@ -1674,7 +1674,7 @@ Cmd Updater::operator()(Command const& command) {
               if (std::holds_alternative<zeroth::AcceptVATReportSummary>(model->m_current_state_data)) {
                 auto const& state_data = std::get<zeroth::AcceptVATReportSummary>(model->m_current_state_data);
 
-                auto is_quarter = [&state_data](BAS::MDAccountTransaction const& mdat){
+                auto is_quarter = [&state_data](BAS::MDAccountPosting const& mdat){
                   return state_data.m_period_range.contains(mdat.meta.date);
                 };
                 auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
@@ -1852,7 +1852,7 @@ Cmd Updater::operator()(Command const& command) {
                   ,.date = had.date
                 }
               };
-              mdje.defacto.account_transactions.emplace_back(BAS::anonymous::AccountTransaction{.account_no=*account_no,.amount=had.amount});
+              mdje.defacto.account_transactions.emplace_back(BAS::anonymous::AccountPosting{.account_no=*account_no,.amount=had.amount});
               had.optional.current_candidate = mdje;
               prompt << "\ncandidate:" << mdje;
               model->prompt_state = PromptState::GrossDebitorCreditOption;
@@ -1917,7 +1917,7 @@ Cmd Updater::operator()(Command const& command) {
                     for (auto const& [at,props] : tme_iter->defacto.account_transactions) {
                       if (props.contains("gross") or props.contains("eu_purchase")) {
                         int sign = (at.amount < 0)?-1:1; // 0 treated as +
-                        BAS::anonymous::AccountTransaction new_at{
+                        BAS::anonymous::AccountPosting new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount)
@@ -1926,7 +1926,7 @@ Cmd Updater::operator()(Command const& command) {
                       }
                       else if (props.contains("vat")) {
                         int sign = (at.amount < 0)?-1:1; // 0 treated as +
-                        BAS::anonymous::AccountTransaction new_at{
+                        BAS::anonymous::AccountPosting new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount*0.2f)
@@ -2148,7 +2148,7 @@ Cmd Updater::operator()(Command const& command) {
                   auto gross_counter_account_no = BAS::to_account_no(ast[0]);
                   if (gross_counter_account_no) {
                     Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
-                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
                       .account_no = *gross_counter_account_no
                       ,.amount = -1.0f * gross_transaction_amount
                     }
@@ -2187,12 +2187,12 @@ Cmd Updater::operator()(Command const& command) {
                   auto vat_counter_account_no = BAS::to_account_no(ast[1]);
                   if (net_counter_account_no and vat_counter_account_no) {
                     Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
-                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
                       .account_no = *net_counter_account_no
                       ,.amount = -0.8f * gross_transaction_amount
                     }
                     );
-                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
                       .account_no = *vat_counter_account_no
                       ,.amount = -0.2f * gross_transaction_amount
                     }
@@ -2296,7 +2296,7 @@ Cmd Updater::operator()(Command const& command) {
                     // list at candidates from found entries with account transaction that counter the gross account
                     std::cout << "\nCurrent candidate does not balance";
                   }
-                  else if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountTransaction const& at){
+                  else if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountPosting const& at){
                     return abs(at.amount) < 1.0;
                   })) {
                     // Assume the user need to specify rounding by editing proposed account transactions
@@ -2329,8 +2329,8 @@ Cmd Updater::operator()(Command const& command) {
                 } break;
                 case 1: {
                   // net + vat counter aggregate
-                  BAS::anonymous::OptionalAccountTransaction net_at;
-                  BAS::anonymous::OptionalAccountTransaction vat_at;
+                  BAS::anonymous::OptionalAccountPosting net_at;
+                  BAS::anonymous::OptionalAccountPosting vat_at;
                   for (auto const& [at,props] : tme.defacto.account_transactions) {
                     if (props.contains("net")) net_at = at;
                     if (props.contains("vat")) vat_at = at;
@@ -2338,9 +2338,9 @@ Cmd Updater::operator()(Command const& command) {
                   if (!net_at) std::cout << "\nNo net_at";
                   if (!vat_at) std::cout << "\nNo vat_at";
                   if (net_at and vat_at) {
-                    had.optional.counter_ats_producer = ToNetVatAccountTransactions{*net_at,*vat_at};
+                    had.optional.counter_ats_producer = ToNetVatAccountPostings{*net_at,*vat_at};
 
-                    BAS::anonymous::AccountTransactions ats_to_keep{};
+                    BAS::anonymous::AccountPostings ats_to_keep{};
                     std::remove_copy_if(
                       had.optional.current_candidate->defacto.account_transactions.begin()
                       ,had.optional.current_candidate->defacto.account_transactions.end()
@@ -2404,7 +2404,7 @@ Cmd Updater::operator()(Command const& command) {
               auto amount = to_amount(ast[1]);
               if (bas_account_no and amount) {
                 // push back a new account transaction with detected BAS account and amount
-                BAS::anonymous::AccountTransaction at {
+                BAS::anonymous::AccountPosting at {
                   .account_no = *bas_account_no
                   ,.amount = *amount
                 };
@@ -2553,7 +2553,7 @@ Cmd Updater::operator()(Command const& command) {
           if (period_range) {
             // Create VAT Returns form for selected period
 
-            auto is_quarter = [&period_range](BAS::MDAccountTransaction const& mdat){
+            auto is_quarter = [&period_range](BAS::MDAccountPosting const& mdat){
               return period_range->contains(mdat.meta.date);
             };
             auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
@@ -2578,7 +2578,7 @@ Cmd Updater::operator()(Command const& command) {
             //   SKV::XML::DeclarationMeta form_meta {
             //     .declaration_period_id = vat_returns_meta->period_to_declare
             //   };
-            //   auto is_quarter = [&vat_returns_meta](BAS::MDAccountTransaction const& mdat){
+            //   auto is_quarter = [&vat_returns_meta](BAS::MDAccountPosting const& mdat){
             //     return vat_returns_meta->period.contains(mdat.meta.date);
             //   };
             //   auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
@@ -3674,7 +3674,7 @@ Cmd Updater::operator()(Command const& command) {
           auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
           // Prepare to record journal entries we could not use as template for new entries
           std::vector<BAS::MDTypedJournalEntry> failed_tmes{};
-          std::set<BAS::kind::AccountTransactionTypeTopology> detected_topologies{};
+          std::set<BAS::kind::AccountPostingTypeTopology> detected_topologies{};
           // List grouped on type topology
           for (auto const& [signature,tme_map] : meta_entry_topology_map) {
             for (auto const& [type_topology,tmes] : tme_map) {
@@ -4501,7 +4501,7 @@ The ITfied AB
                   else if (abs(gross_amounts_diff) < 1.0) {
                     // Consider a cents rounding account transaction
                     prompt << "\nAdded cents rounding to account 3740";
-                    auto cents_rounding_at = BAS::anonymous::AccountTransaction{
+                    auto cents_rounding_at = BAS::anonymous::AccountPosting{
                       .account_no = 3740
                       ,.amount = -gross_amounts_diff
                     };
@@ -4571,7 +4571,7 @@ The ITfied AB
                   // Go ahead and use this account for an account transaction
                   if (had.optional.current_candidate) {
                     // extend current candidate
-                    BAS::anonymous::AccountTransaction new_at{
+                    BAS::anonymous::AccountPosting new_at{
                       .account_no = ams.begin()->first
                       ,.amount = transaction_amount
                     };
@@ -4593,7 +4593,7 @@ The ITfied AB
                           ,.date = had.date
                         }
                       };
-                      BAS::anonymous::AccountTransaction new_at{
+                      BAS::anonymous::AccountPosting new_at{
                         .account_no = ams.begin()->first
                         ,.transtext = transtext
                         ,.amount = transaction_amount
@@ -4645,7 +4645,7 @@ The ITfied AB
           // Consider the user may have entered the name of a gross account to journal the transaction amount
           auto gats = to_gross_account_transactions(model->m_sie_archive);
           model->at_candidates.clear();
-          std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountTransaction const& at){
+          std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountPosting const& at){
             bool result{false};
             if (at.transtext) result |= text::functional::strings_share_tokens(command,*at.transtext);
             if (model->m_sie_archive["current"].account_metas().contains(at.account_no)) {

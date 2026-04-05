@@ -16,7 +16,7 @@ BAS::MDJournalEntry to_md_entry(sie::io::Ver const& ver) {
 	result.defacto.caption = ver.vertext;
 	result.defacto.date = ver.verdate;
 	for (auto const& trans : ver.transactions) {
-		result.defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+		result.defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
 			.account_no = trans.account_no
 			,.transtext = trans.transtext
 			,.amount = trans.amount

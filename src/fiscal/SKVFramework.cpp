@@ -83,7 +83,7 @@ std::set<BAS::AccountNo> const& to_vat_accounts() {
 	return vat_accounts;
 }
 
-bool is_vat_returns_form_at(std::vector<SKV::XML::VATReturns::BoxNo> const& box_nos,BAS::anonymous::AccountTransaction const& at) {
+bool is_vat_returns_form_at(std::vector<SKV::XML::VATReturns::BoxNo> const& box_nos,BAS::anonymous::AccountPosting const& at) {
 	auto const& bas_account_nos = to_vat_returns_form_bas_accounts(box_nos);
 	return bas_account_nos.contains(at.account_no);
 }
@@ -93,7 +93,7 @@ bool is_vat_account(BAS::AccountNo account_no) {
 	return vat_accounts.contains(account_no);
 }
 
-bool is_vat_account_at(BAS::anonymous::AccountTransaction const& at) {
+bool is_vat_account_at(BAS::anonymous::AccountPosting const& at) {
 	return is_vat_account(at.account_no);
 };
 

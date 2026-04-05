@@ -25,7 +25,7 @@ namespace BAS {
 			return result;
 		}
 
-    std::size_t to_at_types_order(BAS::kind::AccountTransactionTypeTopology const& topology) {
+    std::size_t to_at_types_order(BAS::kind::AccountPostingTypeTopology const& topology) {
 			std::size_t result{};
 			std::vector<ATType> at_types{};
 			for (auto const& prop : topology) at_types.push_back(to_at_type(prop));
@@ -38,7 +38,7 @@ namespace BAS {
 			return result;
 		}
 
-		 std::vector<std::string> sorted(AccountTransactionTypeTopology const& topology) {
+		 std::vector<std::string> sorted(AccountPostingTypeTopology const& topology) {
 			std::vector<std::string> result{topology.begin(),topology.end()};
 			std::sort(result.begin(),result.end(),[](auto const& s1,auto const& s2){
 				return (to_at_type(s1) < to_at_type(s2));
@@ -48,7 +48,7 @@ namespace BAS {
 
 		BASAccountTopology to_accounts_topology(MDJournalEntry const& mdje) {
 			BASAccountTopology result{};
-			auto f = [&result](BAS::anonymous::AccountTransaction const& at) {
+			auto f = [&result](BAS::anonymous::AccountPosting const& at) {
 				result.insert(at.account_no);
 			};
 			for_each_anonymous_account_transaction(mdje.defacto,f);
@@ -57,7 +57,7 @@ namespace BAS {
 
 		BASAccountTopology to_accounts_topology(MDTypedJournalEntry const& tme) {
 			BASAccountTopology result{};
-			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+			auto f = [&result](BAS::anonymous::TypedAccountPosting const& tat) {
 				auto const& [at,props] = tat;
 				result.insert(at.account_no);
 			};
@@ -65,9 +65,9 @@ namespace BAS {
 			return result;
 		}
 
-		AccountTransactionTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
-			AccountTransactionTypeTopology result{};
-			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+		AccountPostingTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
+			AccountPostingTypeTopology result{};
+			auto f = [&result](BAS::anonymous::TypedAccountPosting const& tat) {
 				auto const& [at,props] = tat;
 				for (auto const& prop : props) result.insert(prop);
 			};
@@ -79,8 +79,8 @@ namespace BAS {
 			return detail::hash<BASAccountTopology>{}(bat);
 		}
 
-		std::size_t to_signature(AccountTransactionTypeTopology const& met) {
-			return detail::hash<AccountTransactionTypeTopology>{}(met);
+		std::size_t to_signature(AccountPostingTypeTopology const& met) {
+			return detail::hash<AccountPostingTypeTopology>{}(met);
 		}
 
   } // kind
@@ -105,7 +105,7 @@ BAS::MDJournalEntry to_md_entry(BAS::MDTypedJournalEntry const& tme) {
 
 BAS::MDTypedJournalEntry to_typed_md_entry(BAS::MDJournalEntry const& mdje) {
 	// std::cout << "\nto_typed_meta_entry: " << me;
-	BAS::anonymous::TypedAccountTransactions typed_ats{};
+	BAS::anonymous::TypedAccountPostings typed_ats{};
 
   /*
   use the following tagging
@@ -334,14 +334,14 @@ BAS::MDJournalEntry to_md_journal_entry(HeadingAmountDateTransEntry const& had,J
 	return result;
 }
 
-std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att) {
+std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att) {
 	os << "\n\t" << att.m_at.account_no << " " << att.m_percent;
 	return os;
 }
 
 std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	os << "template: series " << entry.series();
-	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& att){
+	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountPostingTemplate const& att){
 		os << "\n\t" << att;
 	});
 	return os;
@@ -431,7 +431,7 @@ std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountTopology const& a
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopology const& props) {
+std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingTypeTopology const& props) {
 	auto sorted_props = BAS::kind::sorted(props); // props is a std::set, sorted_props is a vector
 	if (sorted_props.size()==0) os << " ?";
 	else for (auto const& prop : sorted_props) {
@@ -441,13 +441,13 @@ std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopol
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat) {
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountPosting const& tat) {
 	auto const& [at,props] = tat;
 	os << props << " : " << at;
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountTransactions> const& indented) {
+std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountPostings> const& indented) {
 	for (auto const& at : indented.val) {
 		os << "\n";
 		for (int x = 0; x < indented.count; ++x) os << ' ';
@@ -478,8 +478,8 @@ std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJour
 	return result;
 }
 
-BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountTransaction const& tat) {
-	BAS::anonymous::TypedAccountTransactions result{};
+BAS::anonymous::TypedAccountPostings to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountPosting const& tat) {
+	BAS::anonymous::TypedAccountPostings result{};
 	result.insert(tat); // For now, return ourself as the only alternative
 	return result;
 }
@@ -488,7 +488,7 @@ BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& s
 	return (BAS::kind::to_types_topology(tme1) == BAS::kind::to_types_topology(tme2));
 }
 
-BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
+BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountPosting const& target_tat,BAS::anonymous::TypedAccountPosting const& new_tat) {
 	BAS::MDTypedJournalEntry result{tme};
 	// TODO: Implement actual swap of tats
 	return result;

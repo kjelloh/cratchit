@@ -406,7 +406,7 @@ namespace sie {
 
 } // namespace sie
 
-sie::io::Trans to_sie_t(BAS::anonymous::AccountTransaction const& trans) {
+sie::io::Trans to_sie_t(BAS::anonymous::AccountPosting const& trans) {
 	sie::io::Trans result{
 		.account_no = trans.account_no
 		,.amount = trans.amount

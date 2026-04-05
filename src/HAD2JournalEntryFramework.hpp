@@ -6,10 +6,10 @@
 namespace BAS {
 	// TYPED Journal Entries (to identify patterns of interest in how the individual account transactions of an entry is dispositioned in amount and on semantics of the account)
 	namespace anonymous {
-		using AccountTransactionType = std::set<std::string>;
-		using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,AccountTransactionType>;
-		using TypedAccountTransaction = TypedAccountTransactions::value_type;
-		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
+		using AccountPostingType = std::set<std::string>;
+		using TypedAccountPostings = std::map<BAS::anonymous::AccountPosting,AccountPostingType>;
+		using TypedAccountPosting = TypedAccountPostings::value_type;
+		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountPostings>;
 	} // anonymous
 
 	using MDTypedJournalEntry = MetaDefacto<BAS::WeakJournalEntryMeta,anonymous::TypedJournalEntry>;
@@ -24,7 +24,7 @@ namespace BAS {
 	namespace kind {
 
 		using BASAccountTopology = std::set<BAS::AccountNo>;
-		using AccountTransactionTypeTopology = std::set<std::string>;
+		using AccountPostingTypeTopology = std::set<std::string>;
 
 		enum class ATType {
 			// NOTE: Restrict to 16 values (Or to_at_types_order stops being reliable)
@@ -40,8 +40,8 @@ namespace BAS {
 		};
 
     ATType to_at_type(std::string const& prop);
-    std::size_t to_at_types_order(BAS::kind::AccountTransactionTypeTopology const& topology);
-		std::vector<std::string> sorted(AccountTransactionTypeTopology const& topology);
+    std::size_t to_at_types_order(BAS::kind::AccountPostingTypeTopology const& topology);
+		std::vector<std::string> sorted(AccountPostingTypeTopology const& topology);
 
 		namespace detail {
 			template <typename T>
@@ -60,8 +60,8 @@ namespace BAS {
 			};
 
 			template <>
-			struct hash<AccountTransactionTypeTopology> {
-				std::size_t operator()(AccountTransactionTypeTopology const& props) {
+			struct hash<AccountPostingTypeTopology> {
+				std::size_t operator()(AccountPostingTypeTopology const& props) {
 					std::size_t result{};
 					for (auto const& prop : props) {
 						auto h = std::hash<std::string>{}(prop);
@@ -74,9 +74,9 @@ namespace BAS {
 
 		BASAccountTopology to_accounts_topology(MDJournalEntry const& mdje);
 		BASAccountTopology to_accounts_topology(MDTypedJournalEntry const& tme);
-		AccountTransactionTypeTopology to_types_topology(MDTypedJournalEntry const& tme);
+		AccountPostingTypeTopology to_types_topology(MDTypedJournalEntry const& tme);
 		std::size_t to_signature(BASAccountTopology const& bat);
-		std::size_t to_signature(AccountTransactionTypeTopology const& met);
+		std::size_t to_signature(AccountPostingTypeTopology const& met);
 
 	} // namespace kind
 
@@ -129,14 +129,14 @@ void for_each_typed_md_entry(SIEArchive const& sie_archive,TypedMDJournalEntryVi
 
 BAS::MDJournalEntry to_md_entry(BAS::MDTypedJournalEntry const& tme);
 
-class AccountTransactionTemplate {
+class AccountPostingTemplate {
 public:
-	AccountTransactionTemplate(Amount gross_amount,BAS::anonymous::AccountTransaction const& at)
+	AccountPostingTemplate(Amount gross_amount,BAS::anonymous::AccountPosting const& at)
 		:  m_at{at}
 			,m_percent{static_cast<int>(round(at.amount*100 / gross_amount))}  {}
-	BAS::anonymous::AccountTransaction operator()(Amount amount) const {
-		// BAS::anonymous::AccountTransaction result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
-		BAS::anonymous::AccountTransaction result{
+	BAS::anonymous::AccountPosting operator()(Amount amount) const {
+		// BAS::anonymous::AccountPosting result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
+		BAS::anonymous::AccountPosting result{
 			 .account_no = m_at.account_no
 			,.transtext = m_at.transtext
 			,.amount=static_cast<Amount>(round(amount*m_percent)/100.0)};
@@ -144,11 +144,11 @@ public:
 	}
 	int percent() const {return m_percent;}
 private:
-	BAS::anonymous::AccountTransaction m_at;
+	BAS::anonymous::AccountPosting m_at;
 	int m_percent;
-	friend std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att);
+	friend std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att);
 };
-using AccountTransactionTemplates = std::vector<AccountTransactionTemplate>;
+using AccountPostingTemplates = std::vector<AccountPostingTemplate>;
 
 class JournalEntryTemplate {
 public:
@@ -157,8 +157,8 @@ public:
 		if (auto optional_gross_amount = to_gross_transaction_amount(mdje.defacto)) {
 			auto gross_amount = *optional_gross_amount;
 			if (gross_amount >= 0.01) {
-				std::transform(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountTransaction const& at){
-					AccountTransactionTemplate result{gross_amount,at};
+				std::transform(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountPosting const& at){
+					AccountPostingTemplate result{gross_amount,at};
 					return result;
 				});
 				std::sort(this->templates.begin(),this->templates.end(),[](auto const& e1,auto const& e2){
@@ -173,9 +173,9 @@ public:
 
 	BAS::Series series() const {return m_series;}
 
-	BAS::anonymous::AccountTransactions operator()(Amount amount) const {
-		BAS::anonymous::AccountTransactions result{};
-		std::transform(templates.begin(),templates.end(),std::back_inserter(result),[amount](AccountTransactionTemplate const& att){
+	BAS::anonymous::AccountPostings operator()(Amount amount) const {
+		BAS::anonymous::AccountPostings result{};
+		std::transform(templates.begin(),templates.end(),std::back_inserter(result),[amount](AccountPostingTemplate const& att){
 			return att(amount);
 		});
 		return result;
@@ -183,7 +183,7 @@ public:
 	friend std::ostream& operator<<(std::ostream&, JournalEntryTemplate const&);
 private:
 	BAS::Series m_series;
-	AccountTransactionTemplates templates{};
+	AccountPostingTemplates templates{};
 }; // class JournalEntryTemplate
 
 using JournalEntryTemplateList = std::vector<JournalEntryTemplate>;
@@ -212,8 +212,8 @@ BAS::MDJournalEntry to_md_journal_entry(HeadingAmountDateTransEntry const& had,J
 // 	return result;
 // }
 
-std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att);
-// std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att) {
+std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att);
+// std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att) {
 // 	os << "\n\t" << att.m_at.account_no << " " << att.m_percent;
 // 	return os;
 // }
@@ -221,7 +221,7 @@ std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att)
 std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry);
 // std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 // 	os << "template: series " << entry.series();
-// 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& att){
+// 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountPostingTemplate const& att){
 // 		os << "\n\t" << att;
 // 	});
 // 	return os;
@@ -232,7 +232,7 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,BAS::TypedMetaEntries>>;
 AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes);
 
-using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountTransactionTypeTopology,std::vector<BAS::MDTypedJournalEntry>>; // AccountTransactionTypeTopology -> TypedMetaEntry
+using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountPostingTypeTopology,std::vector<BAS::MDTypedJournalEntry>>; // AccountPostingTypeTopology -> TypedMetaEntry
 using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEntriesMap>; // hash -> TypeMetaEntry
 // TODO: Consider to make Kind2MDTypedJournalEntriesCAS an unordered_map (as it is already a map from hash -> TypedMetaEntry)
 //       All we should have to do is to define std::hash for this type to make std::unordered_map find it?
@@ -250,8 +250,8 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 // TYPED ENTRY operator<<
 
 std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountTopology const& accounts);
-std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopology const& props);
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat);
+std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingTypeTopology const& props);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountPosting const& tat);
 
 template <typename T>
 struct IndentedOnNewLine{
@@ -260,16 +260,16 @@ struct IndentedOnNewLine{
 	int count;
 };
 
-std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountTransactions> const& indented);
+std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountPostings> const& indented);
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedJournalEntry const& tje);
 std::ostream& operator<<(std::ostream& os,BAS::MDTypedJournalEntry const& tme);
 
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
 // that are all of the same "type" and that all sums to zero (do balance)
 std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJournalEntry const& tme);
-BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountTransaction const& tat);
+BAS::anonymous::TypedAccountPostings to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountPosting const& tat);
 bool operator==(BAS::MDTypedJournalEntry const& tme1,BAS::MDTypedJournalEntry const& tme2);
-BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat);
+BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountPosting const& target_tat,BAS::anonymous::TypedAccountPosting const& new_tat);
 BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry const& tme,Amount const& gross_amount);
 
 struct TestResult {

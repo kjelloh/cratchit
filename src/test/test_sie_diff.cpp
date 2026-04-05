@@ -71,12 +71,12 @@ namespace tests {
           ,[](BAS::MDJournalEntry& e){ e.defacto.date = Date(std::chrono::sys_days(e.defacto.date) + std::chrono::days{1}); }
           ,[](BAS::MDJournalEntry& e){ 
             if (e.defacto.account_transactions.size()==0) {
-              // struct AccountTransaction {
+              // struct AccountPosting {
               //   BAS::AccountNo account_no;
               //   std::optional<std::string> transtext{};
               //   Amount amount;
               e.defacto.account_transactions.push_back(
-                BAS::anonymous::AccountTransaction{
+                BAS::anonymous::AccountPosting{
                    .account_no = 1920
                   ,.transtext = "test transtext"
                   ,.amount = Amount(123.50)
@@ -275,7 +275,7 @@ namespace tests {
             }
             {
               auto mutated_entry_0 = entries[0];
-              mutated_entry_0.defacto.account_transactions.push_back(BAS::anonymous::AccountTransaction{
+              mutated_entry_0.defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
                  .account_no = 1920
                 ,.transtext = std::string{"*New transaction*"}
                 ,.amount = to_amount("12,00").value_or(0)

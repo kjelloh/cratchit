@@ -27,16 +27,16 @@ std::ostream& operator<<(std::ostream& os,BalancesMap const& balances_map) {
 
 namespace BAS {
 
-	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje) {
-		return AccountTransactionMeta{
+	AccountPostingMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje) {
+		return AccountPostingMeta{
 			.date = mdje.defacto.date
 		 ,.jem = mdje.meta
 		 ,.caption = mdje.defacto.caption
 		};
 	}
 
-	Amount to_mdats_sum(BAS::MDAccountTransactions const& mdats) {
-		return std::accumulate(mdats.begin(),mdats.end(),Amount{},[](Amount acc,BAS::MDAccountTransaction const& mat){
+	Amount to_mdats_sum(BAS::MDAccountPostings const& mdats) {
+		return std::accumulate(mdats.begin(),mdats.end(),Amount{},[](Amount acc,BAS::MDAccountPosting const& mat){
 			acc += mat.defacto.amount;
 			return acc;
 		});
@@ -129,7 +129,7 @@ namespace BAS {
 // BEGIN Accounting
 
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
+	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
 		acc += (account_transaction.amount>0)?account_transaction.amount:0;
 		return acc;
 	});
@@ -137,7 +137,7 @@ Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& 
 }
 
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& account_transaction){
+	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
 		acc += (account_transaction.amount<0)?account_transaction.amount:0;
 		return acc;
 	});
@@ -174,8 +174,8 @@ OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& a
 	return result;
 }
 
-BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
-	BAS::anonymous::OptionalAccountTransaction result{};
+BAS::anonymous::OptionalAccountPosting gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
+	BAS::anonymous::OptionalAccountPosting result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
 		return abs(at.amount) == trans_amount;
@@ -184,8 +184,8 @@ BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonym
 	return result;
 }
 
-Amount to_account_transactions_sum(BAS::anonymous::AccountTransactions const& ats) {
-	Amount result = std::accumulate(ats.begin(),ats.end(),Amount{},[](Amount acc,BAS::anonymous::AccountTransaction const& at){
+Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats) {
+	Amount result = std::accumulate(ats.begin(),ats.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& at){
 		acc += at.amount;
 		return acc;
 	});
@@ -198,7 +198,7 @@ Amount to_account_transactions_sum(BAS::anonymous::AccountTransactions const& at
 // -----------------------------
 // BGIN Accounting IO
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at) {
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& at) {
 	if (BAS::global_account_metas().contains(at.account_no)) os << std::quoted(BAS::global_account_metas().at(at.account_no).name) << ":";
 	os << at.account_no;
 	os << " " << at.transtext;
@@ -206,13 +206,13 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction con
 	return os;
 };
 
-std::string to_string(BAS::anonymous::AccountTransaction const& at) {
+std::string to_string(BAS::anonymous::AccountPosting const& at) {
 	std::ostringstream os{};
 	os << at;
 	return os.str();
 };
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats) {
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& ats) {
 	for (auto const& at : ats) {
 		// os << "\n\t" << at; 
 		os << "\n    " << at; 
@@ -243,12 +243,12 @@ std::ostream& operator<<(std::ostream& os,BAS::WeakJournalEntryMeta const& jem) 
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm) {
+std::ostream& operator<<(std::ostream& os,BAS::AccountPostingMeta const& atm) {
 	os << atm.date << " " << atm.jem /* << atm.caption */;
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mdat) {
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountPosting const& mdat) {
 	os << mdat.meta << " " << mdat.defacto;
 	return os;
 };

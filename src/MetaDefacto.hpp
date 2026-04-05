@@ -2,7 +2,7 @@
 #include <memory> // std::unique_ptr
 
 // TODO: Refactor away at some future time? /KoH
-// 250610: Used by BAS::MetaEntry, BAS::MetaAccountTransaction and BAS::TypedMetaEntry
+// 250610: Used by BAS::MetaEntry, BAS::MetaAccountPosting and BAS::TypedMetaEntry
 
 namespace detail {
   template <typename T>

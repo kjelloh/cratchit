@@ -43,9 +43,9 @@ class SIEDocument {
 
   // SIEDocument store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
 
-  // AccountTransaction: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
-  // AccountTransactions: vector AccountTransaction
-  // JournalEntry: Record {string:caption, Date:date, AccountTransactions:account_transactions}
+  // AccountPosting: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
+  // AccountPostings: vector AccountPosting
+  // JournalEntry: Record {string:caption, Date:date, AccountPostings:account_transactions}
   // BASJournal: Map BAS::VerNo -> BAS::anonymous::JournalEntry (E.g., 7 -> JournalEntry) 
   // BASJournals: Map BASJournalId -> BASJournal E.g., 'A' -> BASJournal
 

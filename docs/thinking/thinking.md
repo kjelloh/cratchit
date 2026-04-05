@@ -2,6 +2,81 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260405
+
+I have now decided to just brute force rename AccountTransaction to AccountPosting.
+
+* Rename every type identifier location including when part of names
+* Rename every instance and function identifier realtes to renamed types
+
+Let's see how this goes if we just plunge in?
+
+AHA! If I use 'replace in files' in VSCode I can open the search result in the editor!
+
+```C++
+250 results - 16 files
+
+src/HAD2JournalEntryFramework.cpp:
+   28:     std::size_t to_at_types_order(BAS::kind::AccountTransactionTypeTopology const& topology) {
+   41: 		 std::vector<std::string> sorted(AccountTransactionTypeTopology const& topology) {
+   51: 			auto f = [&result](BAS::anonymous::AccountTransaction const& at) {
+   60: 			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+   68: 		AccountTransactionTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
+   69: 			AccountTransactionTypeTopology result{};
+   70: 			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+   82: 		std::size_t to_signature(AccountTransactionTypeTopology const& met) {
+   83: 			return detail::hash<AccountTransactionTypeTopology>{}(met);
+  108: 	BAS::anonymous::TypedAccountTransactions typed_ats{};
+  337: std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att) {
+  344: 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& att){
+  434: std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopology const& props) {
+  444: std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat) {
+  450: std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountTransactions> const& indented) {
+  481: BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountTransaction const& tat) {
+  482: 	BAS::anonymous::TypedAccountTransactions result{};
+  491: BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
+
+src/HAD2JournalEntryFramework.hpp:
+    9: 		using AccountTransactionType = std::set<std::string>;
+   10: 		using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,AccountTransactionType>;
+   11: 		using TypedAccountTransaction = TypedAccountTransactions::value_type;
+   12: 		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
+   27: 		using AccountTransactionTypeTopology = std::set<std::string>;
+   ...
+```
+
+I went ahead and applied all the replacement and searched the modified code for 'AccountPosting'.
+
+```c++
+250 results - 16 files
+
+src/HAD2JournalEntryFramework.cpp:
+   28:     std::size_t to_at_types_order(BAS::kind::AccountPostingTypeTopology const& topology) {
+   41: 		 std::vector<std::string> sorted(AccountPostingTypeTopology const& topology) {
+   51: 			auto f = [&result](BAS::anonymous::AccountPosting const& at) {
+   60: 			auto f = [&result](BAS::anonymous::TypedAccountPosting const& tat) {
+   68: 		AccountPostingTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
+   69: 			AccountPostingTypeTopology result{};
+   70: 			auto f = [&result](BAS::anonymous::TypedAccountPosting const& tat) {
+   82: 		std::size_t to_signature(AccountPostingTypeTopology const& met) {
+   83: 			return detail::hash<AccountPostingTypeTopology>{}(met);
+  108: 	BAS::anonymous::TypedAccountPostings typed_ats{};
+  337: std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att) {
+  344: 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountPostingTemplate const& att){
+  434: std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingTypeTopology const& props) {
+  444: std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountPosting const& tat) {
+  450: std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountPostings> const& indented) {
+  481: BAS::anonymous::TypedAccountPostings to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountPosting const& tat) {
+  482: 	BAS::anonymous::TypedAccountPostings result{};
+  491: BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountPosting const& target_tat,BAS::anonymous::TypedAccountPosting const& new_tat) {
+
+src/HAD2JournalEntryFramework.hpp:
+    9: 		using AccountPostingType = std::set<std::string>;
+   10: 		using TypedAccountPostings = std::map<BAS::anonymous::AccountPosting,AccountPostingType>;
+   11: 		using TypedAccountPosting = TypedAccountPostings::value_type;
+  ...
+```
+
 ## 20260403
 
 I wonder, can I and should I make Cratchit 'staged' SIE document instead be the whole fiscal year as edited using the app?
