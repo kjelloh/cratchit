@@ -2,6 +2,98 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260403
+
+I wonder, can I and should I make Cratchit 'staged' SIE document instead be the whole fiscal year as edited using the app?
+
+* Then what is the name of the operation to put an edited or new journal entry into the document?
+  - Is it 'put'?
+  - Is it 'dispatch'?
+  - Is it 'post'?
+  - Is it 'stage'?
+* How does the existing mechanisms change?
+  - Importing a new SIE document becomes 'rebase' with a listing of what changed vs external base?
+  - Is 'posted' vs 'staged' nomenclatur still meaningfull?
+
+Well, easiest way to figure out is to try it?
+
+Hm...This is easier said than done?
+
+* We have tests on model_from_environment_and_filesystem_ifc
+  - It is hard coded to test merging of 'posted' and 'staged' SIE documents
+* Maybe we can imagine a semantic change so that 'posted' continues to refernce the actual SIE Document file that was imported?
+  - Then 'staged' becomes 'current base' or 'current something'?
+  - And the 'merging' is now a 'diff' about what edits to the SIE document that has been done using cratchit?
+* So maybe the path to an imported SIE Document is 'shared base'?
+  - And 'staged_sie_file_path' is now current_base_sie_file_path?
+
+At this stage I chatted with my AI friends and got some insights.
+
+* Accounting CARES about being able to audit changes!
+* So a shared base vs a current base may not be enough?
+  - We need a way to track any changes we make to old journal entries?
+  - And if so I may need to make cratchit process 'change operations'?
+* With this understanding an SIE DOcument is in fact a 'snapshot' NOT suitable for change auditing?
+  - On the other hand, SIE allows for marking 'removed' and 'added' #TRANS within a #VER.
+  - Is this enough?
+  - Still, Cratchit does not yet support even this level of change tracking.
+
+I feel a strong reluctance to implement journal entry change operations, tracking and handling.
+
+* I would need some new storage of 'accounting changes' in the environment?
+* I would need to know how to apply them?
+  - Or can I assume I only track them and they are applied in 'current base'?
+
+Lets assume the audit support in SIE by 'added' and 'removed' #TRANS is enough?
+
+* Then I can make cratchit restrict changes to only the ones covered by 'remove' and 'add' #TRANS?
+* And given that SIE allows the 'add' and 'remove' #TRANS to NOT be used:
+  - I can detect 'add' or 'remove' by analysing any added 'tail' to the #TRANS sequence in a #VER?
+  - It is 'remove' if a tail #TRANS in shared is not present at the same position in 'current'?
+  - It is 'add' if a tail #TRANS in 'current' extends the tail in 'shared'?
+
+Now when this simmered in my mind for a while I have decided to:
+
+* Implement 'trans-diff' between two BAS::anonymous::JournalEntry
+  - Detect allowed removed #TRANS
+  - Detect allowed added #TRANS
+  - Detect invalid mutation
+
+This could be the base for detecting change between the journal entries of 'shared' and 'current' SIE Document.
+
+based on this I can easier decide if and how I need to implement some tracking of user changes to the accounted financial events.
+
+* We allow new financial events
+* We allow change to how a financial event is registered
+* Do We allow remove of faulty registered financial events
+  - Duplicates?
+  - Event is not valid for organisation
+  - It is part of another registration (merge 'signals' to same financial event)?
+
+AHA! I should begin with diffing between 'BAS::anonymous::AccountTransactions'!
+
+But is does not stop here. I have in fact used the type AccountTransaction for what is in fact a 'posting'.
+
+* I may have to rename AccountTransaction(s) to AccountPosting(s)?
+* A 'posting' is sending something to a recipient.
+* We can use 'Account Posting' as the aggregate that defines the account, the text and the amount that goes into an account.
+
+So I have now decided to rename 'account transaction' to 'account posting'. But this is a BIG job!!
+
+* The label 'AccountTransaction' is part of identifiers at 250 locations!
+  - AccountTransactionTypeTopology, TypedAccountTransaction, AccountTransactionTemplate
+    ,AccountTransactionTemplate, ...
+* Identifers now also needs to be renamed
+  - Transaction const& at
+  - TypedAccountTransaction const& tat
+  - ...
+* The HeadingAmountDateTransEntry (HAD) is now actually also more referring to a 'post'!
+  - HeadingAmountDatePost?
+  - HeadingAmountDatePostSeed?
+  - HeadingAmountDateEventSignal?
+
+But OK - I feel this needs to be done to get to grips with this aspect of cratchit modelling of accounting!
+
 ## 20260402
 
 I now decided to rename SIEEnvironmentsMap to SIEArchive.
