@@ -129,7 +129,7 @@ namespace BAS {
 // BEGIN Accounting
 
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
+	Amount result = std::accumulate(aje.account_postings.begin(),aje.account_postings.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
 		acc += (account_transaction.amount>0)?account_transaction.amount:0;
 		return acc;
 	});
@@ -137,7 +137,7 @@ Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& 
 }
 
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_transactions.begin(),aje.account_transactions.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
+	Amount result = std::accumulate(aje.account_postings.begin(),aje.account_postings.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
 		acc += (account_transaction.amount<0)?account_transaction.amount:0;
 		return acc;
 	});
@@ -159,16 +159,16 @@ OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& a
 	if (does_balance(aje)) {
 		result = to_positive_gross_transaction_amount(aje); // Pick the positive alternative
 	}
-	else if (aje.account_transactions.size() == 1) {
-		result = abs(aje.account_transactions.front().amount);
+	else if (aje.account_postings.size() == 1) {
+		result = abs(aje.account_postings.front().amount);
 	}
 	else {
 		// Does NOT balance, and more than one account transaction.
 		// Define the gross amount as the largest account absolute transaction amount
-		auto max_at_iter = std::max_element(aje.account_transactions.begin(),aje.account_transactions.end(),[](auto const& at1,auto const& at2) {
+		auto max_at_iter = std::max_element(aje.account_postings.begin(),aje.account_postings.end(),[](auto const& at1,auto const& at2) {
 			return abs(at1.amount) < abs(at2.amount);
 		});
-		if (max_at_iter != aje.account_transactions.end()) result = abs(max_at_iter->amount);
+		if (max_at_iter != aje.account_postings.end()) result = abs(max_at_iter->amount);
 	}
 	// if (result) std::cout << "\n\t==> " << *result;
 	return result;
@@ -177,10 +177,10 @@ OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& a
 BAS::anonymous::OptionalAccountPosting gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountPosting result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
-	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
+	auto iter = std::find_if(aje.account_postings.begin(),aje.account_postings.end(),[&trans_amount](auto const& at){
 		return abs(at.amount) == trans_amount;
 	});
-	if (iter != aje.account_transactions.end()) result = *iter;
+	if (iter != aje.account_postings.end()) result = *iter;
 	return result;
 }
 
@@ -222,7 +222,7 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const&
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje) {
 	os << std::quoted(aje.caption) << " " << aje.date;
-	os << aje.account_transactions;
+	os << aje.account_postings;
 	return os;
 };
 

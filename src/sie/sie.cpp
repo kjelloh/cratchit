@@ -428,7 +428,7 @@ sie::io::Ver to_sie_t(BAS::MDJournalEntry const& mdje) {
 		,.verno = (mdje.meta.verno)?*mdje.meta.verno:0
 		,.verdate = mdje.defacto.date
 		,.vertext = mdje.defacto.caption};
-	for (auto const& trans : mdje.defacto.account_transactions) {
+	for (auto const& trans : mdje.defacto.account_postings) {
 		result.transactions.push_back(to_sie_t(trans));
 	}
 	return result;

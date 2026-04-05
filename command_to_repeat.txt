@@ -50,7 +50,7 @@
 #./run.zsh --gtest_filter=FinancialEventCompareFixture.FullyEqualOK
 #./run.zsh --gtest_filter=FinancialEventCompareFixture.AnyDiffDetected
 
-./run.zsh --gtest_filter=RebaseCompareFixture.NoChangeRebaseOK
+#./run.zsh --gtest_filter=RebaseCompareFixture.NoChangeRebaseOK
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
@@ -58,4 +58,4 @@
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
 #./run.zsh --gtest_filter=*
-#./run.zsh --test
+./run.zsh --test

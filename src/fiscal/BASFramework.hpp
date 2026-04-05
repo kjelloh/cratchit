@@ -159,7 +159,7 @@ namespace BAS {
 		struct JournalEntry_t {
 			std::string caption{};
 			Date date{};
-			T account_transactions{};
+			T account_postings{};
 
       // C++ 'don't pay for what the compiler generates'
       // means that my manual operator<=> below is NOT used
@@ -170,7 +170,7 @@ namespace BAS {
       bool operator==(const JournalEntry_t& other) const {
         return 
               (date == other.date)
-          and (account_transactions == other.account_transactions)
+          and (account_postings == other.account_postings)
           and (caption == other.caption);
       }
 
@@ -185,7 +185,7 @@ namespace BAS {
         // 1 -> *this > other
         // compare based on date, then transactions, finally caption
         if (auto cmp = date <=> other.date; cmp != 0) return cmp;
-        if (auto cmp = account_transactions <=> other.account_transactions; cmp != 0) return cmp;
+        if (auto cmp = account_postings <=> other.account_postings; cmp != 0) return cmp;
         return caption <=> other.caption;
       }
 		};
@@ -322,13 +322,13 @@ inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me
 	return (     	(me1.meta == me2.meta)
 						and (me1.defacto.caption == me2.defacto.caption)
 						and (me1.defacto.date == me2.defacto.date)
-						and (are_same_and_less_than_100_cents_apart(me1.defacto.account_transactions,me2.defacto.account_transactions)));
+						and (are_same_and_less_than_100_cents_apart(me1.defacto.account_postings,me2.defacto.account_postings)));
 }
 
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
-	for (auto const& at : aje.account_transactions) {
+	for (auto const& at : aje.account_postings) {
 		f(at);
 	}
 }

@@ -77,6 +77,30 @@ src/HAD2JournalEntryFramework.hpp:
   ...
 ```
 
+Ok, this refactoring needs some strategy!
+
+* Finding all direct instances is easy enough.
+
+```c++
+  BAS::anonymous::AccountPosting const& at
+```
+
+* But downstream affected identifiers also needs new names
+
+```c++
+    std::size_t to_at_types_order(BAS::kind::AccountPostingTypeTopology const& topology) {
+			std::size_t result{};
+			std::vector<ATType> at_types{};
+			for (auto const& prop : topology) at_types.push_back(to_at_type(prop));
+
+```
+
+  - is 'prop' still ok?
+
+Ok, so we actually have a problem with AccountPostingType vs ATType and the whole 'posting topology' mechanism. What is going on here?
+
+
+
 ## 20260403
 
 I wonder, can I and should I make Cratchit 'staged' SIE document instead be the whole fiscal year as edited using the app?

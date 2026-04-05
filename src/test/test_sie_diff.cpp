@@ -24,7 +24,7 @@ namespace tests {
             ,{
                 .caption = "Event 1"
                 ,.date = 2025y / 01 / 01d
-                ,.account_transactions = {}
+                ,.account_postings = {}
             }};
 
           auto base_rhs = base_lhs;
@@ -70,12 +70,12 @@ namespace tests {
           ,[](BAS::MDJournalEntry& e){ if (e.defacto.caption.size() > 0) e.defacto.caption[0] += 1; else e.defacto.caption = "new caption"; }
           ,[](BAS::MDJournalEntry& e){ e.defacto.date = Date(std::chrono::sys_days(e.defacto.date) + std::chrono::days{1}); }
           ,[](BAS::MDJournalEntry& e){ 
-            if (e.defacto.account_transactions.size()==0) {
+            if (e.defacto.account_postings.size()==0) {
               // struct AccountPosting {
               //   BAS::AccountNo account_no;
               //   std::optional<std::string> transtext{};
               //   Amount amount;
-              e.defacto.account_transactions.push_back(
+              e.defacto.account_postings.push_back(
                 BAS::anonymous::AccountPosting{
                    .account_no = 1920
                   ,.transtext = "test transtext"
@@ -84,7 +84,7 @@ namespace tests {
               );
             }
             else {
-              ++e.defacto.account_transactions[0].account_no;
+              ++e.defacto.account_postings[0].account_no;
             }
           }
         };
@@ -200,7 +200,7 @@ namespace tests {
               ,{
                   .caption = "Event 1"
                   ,.date = 2025y / 01 / 01d
-                  ,.account_transactions = {}
+                  ,.account_postings = {}
               }});
             result.push_back(BAS::MDJournalEntry{
               BAS::WeakJournalEntryMeta{
@@ -210,7 +210,7 @@ namespace tests {
               ,{
 			            .caption = "Event 2"
 			            ,.date = 2025y / 01 / 01d
-			            ,.account_transactions = {}
+			            ,.account_postings = {}
               }});
           }
           return result;
@@ -275,7 +275,7 @@ namespace tests {
             }
             {
               auto mutated_entry_0 = entries[0];
-              mutated_entry_0.defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
+              mutated_entry_0.defacto.account_postings.push_back(BAS::anonymous::AccountPosting{
                  .account_no = 1920
                 ,.transtext = std::string{"*New transaction*"}
                 ,.amount = to_amount("12,00").value_or(0)

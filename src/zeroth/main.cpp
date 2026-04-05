@@ -804,8 +804,8 @@ namespace SKV {
 
 			bool quarter_has_VAT_consilidation_entry(SIEArchive const& sie_archive,zeroth::DateRange const& period) {
 				bool result{};
-				auto f = [&period,&result](BAS::MDTypedJournalEntry const& tme) {
-					auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
+				auto f = [&period,&result](BAS::MDPostingTagsJournalEntry const& tme) {
+					auto order_code = BAS::kind::to_posting_kind_tags_rank(BAS::kind::to_posting_kind_tags(tme));
 					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2020-04-01 - 2020-06-30 20200630
 					// gross vat cents = sort_code: 0x367  M2 Momsrapport 2020-07-01 - 2020-09-30 20200930
 					// gross vat cents = sort_code: 0x367  M3 Momsrapport 2020-10-01 - 2020-12-31 20201231
@@ -822,7 +822,7 @@ namespace SKV {
 						result = result or  (order_code == 0x56) or (order_code == 0x367) or (order_code == 0x567);
 					}
 				};
-				for_each_typed_md_entry(sie_archive,f);
+				for_each_template_candidate_entry(sie_archive,f);
 				return result;
 			}
 
@@ -857,18 +857,18 @@ namespace SKV {
             // amount to tax + rounding cents = VAT Amount (+ -> to receive, - to pay )
             auto vat_tax_amount = SKV::to_tax(amount);
             auto rounding_amount = amount - vat_tax_amount;
-            mdje.defacto.account_transactions.push_back({
+            mdje.defacto.account_postings.push_back({
               .account_no = 1650 // VAT to receive
               ,.amount = vat_tax_amount
             });
-            mdje.defacto.account_transactions.push_back({
+            mdje.defacto.account_postings.push_back({
               .account_no = 3740 // rounding cents
               ,.amount = rounding_amount
             });
           }
           else {
             // Book a 'zeroing' of the account (trust it is accumulated correct into 'dummy' net account)
-            mdje.defacto.account_transactions.push_back({
+            mdje.defacto.account_postings.push_back({
               .account_no = account_no
               ,.amount = -amount
             });
@@ -876,7 +876,7 @@ namespace SKV {
 
           // Hard code reversal of VAT Returns report of EU Purchase (to have it not turn up on next report)
           if (account_no == 9021) {
-            mdje.defacto.account_transactions.push_back({
+            mdje.defacto.account_postings.push_back({
               .account_no = 9099
               ,.transtext = "Avbokning (20) 9021"
               ,.amount = BAS::to_cents_amount(amount)
@@ -884,7 +884,7 @@ namespace SKV {
           }
           // Hard code reversal of VAT Returns report of EU sales of services (to have it not turn up on next report)
           if (account_no == 3308) {
-            mdje.defacto.account_transactions.push_back({
+            mdje.defacto.account_postings.push_back({
               .account_no = 9099
               ,.transtext = "Avbokning (39) 3308"
               ,.amount = BAS::to_cents_amount(amount)
@@ -1537,7 +1537,7 @@ Cmd Updater::operator()(Command const& command) {
                   // struct JournalEntry {
                   // 	std::string caption{};
                   // 	Date date{};
-                  // 	AccountPostings account_transactions;
+                  // 	AccountPostings account_postings;
                   // };
 
                   Amount amount{1000};
@@ -1562,10 +1562,10 @@ Cmd Updater::operator()(Command const& command) {
                     .account_no = 2641
                     ,.amount = static_cast<Amount>(amount*0.2f)
                   };
-                  mdje.defacto.account_transactions.push_back(gross_at);
-                  mdje.defacto.account_transactions.push_back(net_at);
-                  mdje.defacto.account_transactions.push_back(vat_at);
-                  model->template_candidates.push_back(to_typed_md_entry(mdje));
+                  mdje.defacto.account_postings.push_back(gross_at);
+                  mdje.defacto.account_postings.push_back(net_at);
+                  mdje.defacto.account_postings.push_back(vat_at);
+                  model->template_candidates.push_back(to_template_candidate_entry(mdje));
                 }
 
                 // List options for how the HAD may be registered into the books based on available candidates
@@ -1852,7 +1852,7 @@ Cmd Updater::operator()(Command const& command) {
                   ,.date = had.date
                 }
               };
-              mdje.defacto.account_transactions.emplace_back(BAS::anonymous::AccountPosting{.account_no=*account_no,.amount=had.amount});
+              mdje.defacto.account_postings.emplace_back(BAS::anonymous::AccountPosting{.account_no=*account_no,.amount=had.amount});
               had.optional.current_candidate = mdje;
               prompt << "\ncandidate:" << mdje;
               model->prompt_state = PromptState::GrossDebitorCreditOption;
@@ -1914,24 +1914,24 @@ Cmd Updater::operator()(Command const& command) {
                         ,.date = had.date
                       }
                     };
-                    for (auto const& [at,props] : tme_iter->defacto.account_transactions) {
-                      if (props.contains("gross") or props.contains("eu_purchase")) {
+                    for (auto const& [at,kind_tags] : tme_iter->defacto.account_postings) {
+                      if (kind_tags.contains("gross") or kind_tags.contains("eu_purchase")) {
                         int sign = (at.amount < 0)?-1:1; // 0 treated as +
                         BAS::anonymous::AccountPosting new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount)
                         };
-                        mdje.defacto.account_transactions.push_back(new_at);
+                        mdje.defacto.account_postings.push_back(new_at);
                       }
-                      else if (props.contains("vat")) {
+                      else if (kind_tags.contains("vat")) {
                         int sign = (at.amount < 0)?-1:1; // 0 treated as +
                         BAS::anonymous::AccountPosting new_at{
                           .account_no = at.account_no
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount*0.2f)
                         };
-                        mdje.defacto.account_transactions.push_back(new_at);
+                        mdje.defacto.account_postings.push_back(new_at);
                         prompt << "\nNOTE: Assumed 25% VAT for " << new_at;
                       }
                     }
@@ -1956,32 +1956,32 @@ Cmd Updater::operator()(Command const& command) {
                         ,.date = had.date
                       }
                     };
-                    mdje.defacto.account_transactions.push_back({
+                    mdje.defacto.account_postings.push_back({
                       .account_no = 2610 // "Utgående moms, 25 %"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    mdje.defacto.account_transactions.push_back({
+                    mdje.defacto.account_postings.push_back({
                       .account_no = 2614 // "Utgående moms omvänd skattskyldighet, 25 %"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    mdje.defacto.account_transactions.push_back({
+                    mdje.defacto.account_postings.push_back({
                       .account_no = 2640 // "Ingående moms"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    mdje.defacto.account_transactions.push_back({
+                    mdje.defacto.account_postings.push_back({
                       .account_no = 2641 // "Debiterad ingående moms"
                       ,.transtext = std::nullopt
                       ,.amount = 0
                     });
-                    mdje.defacto.account_transactions.push_back({
+                    mdje.defacto.account_postings.push_back({
                       .account_no = 2650 // "Redovisningskonto för moms"
                       ,.transtext = std::nullopt
                       ,.amount = had.amount
                     });
-                    mdje.defacto.account_transactions.push_back({
+                    mdje.defacto.account_postings.push_back({
                       .account_no = 3740 // "Öres- och kronutjämning"
                       ,.transtext = std::nullopt
                       ,.amount = 0
@@ -2022,10 +2022,10 @@ Cmd Updater::operator()(Command const& command) {
                     // transfer = sort_code: 0x1 : "Avräkning för skatter och avgifter (skattekonto)":1630 "Momsbeslut" 802
                     // transfer vat = sort_code: 0x16 : "Momsfordran":1650 "" -802
                     // transfer = sort_code: 0x1 : "PlusGiro":1920 "" 802
-                    if (tme.defacto.account_transactions.size()>0) {
+                    if (tme.defacto.account_postings.size()>0) {
                       bool first{true};
                       Amount amount{};
-                      if (std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[&amount,&first](auto const& entry){
+                      if (std::all_of(tme.defacto.account_postings.begin(),tme.defacto.account_postings.end(),[&amount,&first](auto const& entry){
                         // Lambda that returns true as long as all entries have the same absolute amount as the first entry
                         if (first) {
                           amount = abs(entry.first.amount);
@@ -2040,9 +2040,9 @@ Cmd Updater::operator()(Command const& command) {
                             ,.date = had.date
                           }
                         };
-                        for (auto const& tat : tme.defacto.account_transactions) {
+                        for (auto const& tat : tme.defacto.account_postings) {
                           auto sign = (tat.first.amount < 0)?-1:+1;
-                          mdje.defacto.account_transactions.push_back({
+                          mdje.defacto.account_postings.push_back({
                             .account_no = tat.first.account_no
                             ,.transtext = std::nullopt
                             ,.amount = sign*abs(had.amount)
@@ -2072,7 +2072,7 @@ Cmd Updater::operator()(Command const& command) {
           if (auto had_iter = model->selected_had()) {
             auto& had = *(*had_iter);
             if (had.optional.current_candidate) {
-              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+              if (had.optional.current_candidate->defacto.account_postings.size()==1) {
                 switch (ix) {
                   case 0: {
                     // As is
@@ -2080,12 +2080,12 @@ Cmd Updater::operator()(Command const& command) {
                   } break;
                   case 1: {
                     // Force debit
-                    had.optional.current_candidate->defacto.account_transactions[0].amount = abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
+                    had.optional.current_candidate->defacto.account_postings[0].amount = abs(had.optional.current_candidate->defacto.account_postings[0].amount);
                     model->prompt_state = PromptState::CounterTransactionsAggregateOption;
                   } break;
                   case 2: {
                       // Force credit
-                    had.optional.current_candidate->defacto.account_transactions[0].amount = -1.0f * abs(had.optional.current_candidate->defacto.account_transactions[0].amount);
+                    had.optional.current_candidate->defacto.account_postings[0].amount = -1.0f * abs(had.optional.current_candidate->defacto.account_postings[0].amount);
                     model->prompt_state = PromptState::CounterTransactionsAggregateOption;
                   } break;
                   default: {
@@ -2110,7 +2110,7 @@ Cmd Updater::operator()(Command const& command) {
           if (auto had_iter = model->selected_had()) {
             auto& had = *(*had_iter);
             if (had.optional.current_candidate) {
-              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+              if (had.optional.current_candidate->defacto.account_postings.size()==1) {
                 switch (ix) {
                   case 0: {
                     // Gross counter transaction aggregate
@@ -2143,12 +2143,12 @@ Cmd Updater::operator()(Command const& command) {
           if (auto had_iter = model->selected_had()) {
             auto& had = *(*had_iter);
             if (had.optional.current_candidate) {
-              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+              if (had.optional.current_candidate->defacto.account_postings.size()==1) {
                 if (ast.size() == 1) {
                   auto gross_counter_account_no = BAS::to_account_no(ast[0]);
                   if (gross_counter_account_no) {
-                    Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
-                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
+                    Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_postings[0].amount;
+                    had.optional.current_candidate->defacto.account_postings.push_back(BAS::anonymous::AccountPosting{
                       .account_no = *gross_counter_account_no
                       ,.amount = -1.0f * gross_transaction_amount
                     }
@@ -2181,18 +2181,18 @@ Cmd Updater::operator()(Command const& command) {
           if (auto had_iter = model->selected_had()) {
             auto& had = *(*had_iter);
             if (had.optional.current_candidate) {
-              if (had.optional.current_candidate->defacto.account_transactions.size()==1) {
+              if (had.optional.current_candidate->defacto.account_postings.size()==1) {
                 if (ast.size() == 2) {
                   auto net_counter_account_no = BAS::to_account_no(ast[0]);
                   auto vat_counter_account_no = BAS::to_account_no(ast[1]);
                   if (net_counter_account_no and vat_counter_account_no) {
-                    Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_transactions[0].amount;
-                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
+                    Amount gross_transaction_amount = had.optional.current_candidate->defacto.account_postings[0].amount;
+                    had.optional.current_candidate->defacto.account_postings.push_back(BAS::anonymous::AccountPosting{
                       .account_no = *net_counter_account_no
                       ,.amount = -0.8f * gross_transaction_amount
                     }
                     );
-                    had.optional.current_candidate->defacto.account_transactions.push_back(BAS::anonymous::AccountPosting{
+                    had.optional.current_candidate->defacto.account_postings.push_back(BAS::anonymous::AccountPosting{
                       .account_no = *vat_counter_account_no
                       ,.amount = -0.2f * gross_transaction_amount
                     }
@@ -2227,7 +2227,7 @@ Cmd Updater::operator()(Command const& command) {
             auto& had = *(*had_iter);
             if (had.optional.current_candidate) {
               // We need a typed entry to do some clever decisions
-              auto tme = to_typed_md_entry(*had.optional.current_candidate);
+              auto tme = to_template_candidate_entry(*had.optional.current_candidate);
               prompt << "\n" << tme;
               auto vat_type = to_vat_type(tme);
               switch (vat_type) {
@@ -2256,11 +2256,11 @@ Cmd Updater::operator()(Command const& command) {
                 default: {std::cout << "\nDESIGN INSUFFICIENCY - Unknown JournalEntryVATType " << vat_type;}
               }
               // std::map<std::string,unsigned int> props_counter{};
-              // for (auto const& [at,props] : tme.defacto.account_transactions) {
-              // 	for (auto const& prop : props) props_counter[prop]++;
+              // for (auto const& [at,kind_tags] : tme.defacto.account_postings) {
+              // 	for (auto const& kind_tag : kind_tags) props_counter[kind_tag]++;
               // }
-              // for (auto const& [prop,count] : props_counter) {
-              // 	prompt << "\n" << std::quoted(prop) << " count:" << count;
+              // for (auto const& [kind_tag,count] : props_counter) {
+              // 	prompt << "\n" << std::quoted(kind_tag) << " count:" << count;
               // }
               // auto props_sum = std::accumulate(props_counter.begin(),props_counter.end(),unsigned{0},[](auto acc,auto const& entry){
               // 	acc += entry.second;
@@ -2296,7 +2296,7 @@ Cmd Updater::operator()(Command const& command) {
                     // list at candidates from found entries with account transaction that counter the gross account
                     std::cout << "\nCurrent candidate does not balance";
                   }
-                  else if (std::any_of(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[](BAS::anonymous::AccountPosting const& at){
+                  else if (std::any_of(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[](BAS::anonymous::AccountPosting const& at){
                     return abs(at.amount) < 1.0;
                   })) {
                     // Assume the user need to specify rounding by editing proposed account transactions
@@ -2308,7 +2308,7 @@ Cmd Updater::operator()(Command const& command) {
                     }
                     else {
                       unsigned int i{};
-                      std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+                      std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
                         prompt << "\n  " << i++ << " " << at;
                       });
                       model->prompt_state = PromptState::ATIndex;
@@ -2331,9 +2331,9 @@ Cmd Updater::operator()(Command const& command) {
                   // net + vat counter aggregate
                   BAS::anonymous::OptionalAccountPosting net_at;
                   BAS::anonymous::OptionalAccountPosting vat_at;
-                  for (auto const& [at,props] : tme.defacto.account_transactions) {
-                    if (props.contains("net")) net_at = at;
-                    if (props.contains("vat")) vat_at = at;
+                  for (auto const& [at,kind_tags] : tme.defacto.account_postings) {
+                    if (kind_tags.contains("net")) net_at = at;
+                    if (kind_tags.contains("vat")) vat_at = at;
                   }
                   if (!net_at) std::cout << "\nNo net_at";
                   if (!vat_at) std::cout << "\nNo vat_at";
@@ -2342,13 +2342,13 @@ Cmd Updater::operator()(Command const& command) {
 
                     BAS::anonymous::AccountPostings ats_to_keep{};
                     std::remove_copy_if(
-                      had.optional.current_candidate->defacto.account_transactions.begin()
-                      ,had.optional.current_candidate->defacto.account_transactions.end()
+                      had.optional.current_candidate->defacto.account_postings.begin()
+                      ,had.optional.current_candidate->defacto.account_postings.end()
                       ,std::back_inserter(ats_to_keep)
                       ,[&net_at,&vat_at](auto const& at){
                         return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
                     });
-                    had.optional.current_candidate->defacto.account_transactions = ats_to_keep;
+                    had.optional.current_candidate->defacto.account_postings = ats_to_keep;
                   }
                   prompt << "\ncadidate: " << *had.optional.current_candidate;
                   model->prompt_state = PromptState::EnterHA;
@@ -2363,7 +2363,7 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   else {
                     unsigned int i{};
-                    std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+                    std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
                       prompt << "\n  " << i++ << " " << at;
                     });
                     model->prompt_state = PromptState::ATIndex;
@@ -2408,9 +2408,9 @@ Cmd Updater::operator()(Command const& command) {
                   .account_no = *bas_account_no
                   ,.amount = *amount
                 };
-                had.optional.current_candidate->defacto.account_transactions.push_back(at);
+                had.optional.current_candidate->defacto.account_postings.push_back(at);
                 unsigned int i{};
-                std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+                std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
                   prompt << "\n  " << i++ << " " << at;
                 });
               }
@@ -2422,7 +2422,7 @@ Cmd Updater::operator()(Command const& command) {
               model->at_index = ix;
               prompt << "\nAccount Transaction:" << **at_iter;
               if (do_remove) {
-                had.optional.current_candidate->defacto.account_transactions.erase(*at_iter);
+                had.optional.current_candidate->defacto.account_postings.erase(*at_iter);
               }
               model->prompt_state = PromptState::EditAT;
             }
@@ -3673,24 +3673,24 @@ Cmd Updater::operator()(Command const& command) {
           // Group on Type Topology
           auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
           // Prepare to record journal entries we could not use as template for new entries
-          std::vector<BAS::MDTypedJournalEntry> failed_tmes{};
-          std::set<BAS::kind::AccountPostingTypeTopology> detected_topologies{};
-          // List grouped on type topology
+          std::vector<BAS::MDPostingTagsJournalEntry> failed_tmes{};
+          std::set<BAS::kind::AccountPostingKindTags> detected_topologies{};
+          // List grouped on type kind_tags
           for (auto const& [signature,tme_map] : meta_entry_topology_map) {
             for (auto const& [type_topology,tmes] : tme_map) {
               prompt << "\n[" << type_topology << "] ";
               detected_topologies.insert(type_topology);
-              // Group tmes on BAS Accounts topology
+              // Group tmes on BAS Accounts kind_tags
               auto accounts_topology_map = to_accounts_topology_map(tmes);
-              // List grouped BAS Accounts topology
+              // List grouped BAS Accounts kind_tags
               for (auto const& [signature,bat_map] : accounts_topology_map) {
                 for (auto const& [type_topology,tmes] : bat_map) {
                   prompt << "\n    [" << type_topology << "] ";
                   for (auto const& tme : tmes) {
                     prompt << "\n       VAT Type:" << to_vat_type(tme);
                     prompt << "\n      " << tme.meta << " " << std::quoted(tme.defacto.caption) << " " << tme.defacto.date;
-                    prompt << IndentedOnNewLine{tme.defacto.account_transactions,10};
-                    // TEST that we are able to operate on journal entries with this topology?
+                    prompt << IndentedOnNewLine{tme.defacto.account_postings,10};
+                    // TEST that we are able to operate on journal entries with this kind_tags?
                     auto test_result = test_typed_meta_entry(model->m_sie_archive,tme);
                     prompt << "\n       TEST: " << test_result;
                     if (test_result.failed) failed_tmes.push_back(tme);
@@ -3701,13 +3701,13 @@ Cmd Updater::operator()(Command const& command) {
           }
           // LOG detected journal entry type topologies
           prompt << "\n<DETECTED TOPOLOGIES>";
-          for (auto const& topology : detected_topologies) {
-            prompt << "\n\t" << topology;
+          for (auto const& kind_tags : detected_topologies) {
+            prompt << "\n\t" << kind_tags;
           }
           // LOG the 'tmes' (template meta entries) we failed to identify as templates for new journal entries
           prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
           for (auto const& tme : failed_tmes) {
-            auto types_topology = BAS::kind::to_types_topology(tme);
+            auto types_topology = BAS::kind::to_posting_kind_tags(tme);
             prompt << "\n" << types_topology << " " << tme.meta << " " << tme.defacto.caption << " " << tme.defacto.date;
           }
         }
@@ -4477,7 +4477,7 @@ The ITfied AB
                 else {
                   prompt << "\nHEADER " << ast[0];
                   auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0]);
-                  std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
+                  std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                   prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
                 }
               } break;
@@ -4489,13 +4489,13 @@ The ITfied AB
                   if (gross_amounts_diff > 0) {
                     // We need to balance up with negative account transaction aggregates
                     auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
-                    std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
+                    std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                     prompt << "\nAdded negative transactions aggregate" << ats;
                   }
                   else if (gross_amounts_diff < 0) {
                     // We need to balance up with positive account transaction aggregates
                     auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
-                    std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_transactions));
+                    std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                     prompt << "\nAdded positive transaction aggregate";
                   }
                   else if (abs(gross_amounts_diff) < 1.0) {
@@ -4505,7 +4505,7 @@ The ITfied AB
                       .account_no = 3740
                       ,.amount = -gross_amounts_diff
                     };
-                    had.optional.current_candidate->defacto.account_transactions.push_back(cents_rounding_at);
+                    had.optional.current_candidate->defacto.account_postings.push_back(cents_rounding_at);
                   }
                   else {
                     // The journal entry candidate balances. Consider to stage it
@@ -4575,7 +4575,7 @@ The ITfied AB
                       .account_no = ams.begin()->first
                       ,.amount = transaction_amount
                     };
-                    had.optional.current_candidate->defacto.account_transactions.push_back(new_at);
+                    had.optional.current_candidate->defacto.account_postings.push_back(new_at);
                     prompt << "\n" << *had.optional.current_candidate;
                   }
                   else {
@@ -4598,8 +4598,8 @@ The ITfied AB
                         ,.transtext = transtext
                         ,.amount = transaction_amount
                       };
-                      mdje.defacto.account_transactions.push_back(new_at);
-                      template_candidates.push_back(to_typed_md_entry(mdje));
+                      mdje.defacto.account_postings.push_back(new_at);
+                      template_candidates.push_back(to_template_candidate_entry(mdje));
                     }
                     model->template_candidates.clear();
                     std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
@@ -4674,7 +4674,7 @@ The ITfied AB
           if ((*had_iter)->optional.current_candidate) {
             unsigned int i{};
             prompt << "\n" << (*had_iter)->optional.current_candidate->defacto.caption << " " << (*had_iter)->optional.current_candidate->defacto.date;
-            for (auto const& at : (*had_iter)->optional.current_candidate->defacto.account_transactions) {
+            for (auto const& at : (*had_iter)->optional.current_candidate->defacto.account_postings) {
               prompt << "\n  " << i++ << " " << at;
             }
           }
@@ -4711,7 +4711,7 @@ The ITfied AB
               at.transtext = command;
             }
             unsigned int i{};
-            std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&prompt](auto const& at){
+            std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
               prompt << "\n  " << i++ << " " << at;
             });
             model->prompt_state = PromptState::ATIndex;
@@ -4794,8 +4794,8 @@ The ITfied AB
           model->had_index = 0; // index zero is the "last" (newest) one
           unsigned int i{};
           std::for_each(
-             had->optional.current_candidate->defacto.account_transactions.begin()
-            ,had->optional.current_candidate->defacto.account_transactions.end()
+             had->optional.current_candidate->defacto.account_postings.begin()
+            ,had->optional.current_candidate->defacto.account_postings.end()
             ,[&i,&prompt](auto const& at) {
               prompt << "\n  " << i++ << " " << at;
           });
@@ -4848,10 +4848,10 @@ Cmd Updater::operator()(Nop const& nop) {
 //   BAS::TypedMetaEntries result{};
 //   auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
 //   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-//     for (auto const& [topology,tmes] : tme_map) {
+//     for (auto const& [kind_tags,tmes] : tme_map) {
 //       auto accounts_topology_map = to_accounts_topology_map(tmes);
 //       for (auto const& [signature,bat_map] : accounts_topology_map) {
-//         for (auto const& [topology,tmes] : bat_map) {
+//         for (auto const& [kind_tags,tmes] : bat_map) {
 //           for (auto const& tme : tmes) {
 //             auto mdje = to_md_entry(tme);
 //             if (matches(mdje.defacto)) result.push_back(tme);

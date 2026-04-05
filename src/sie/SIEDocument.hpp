@@ -45,7 +45,7 @@ class SIEDocument {
 
   // AccountPosting: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
   // AccountPostings: vector AccountPosting
-  // JournalEntry: Record {string:caption, Date:date, AccountPostings:account_transactions}
+  // JournalEntry: Record {string:caption, Date:date, AccountPostings:account_postings}
   // BASJournal: Map BAS::VerNo -> BAS::anonymous::JournalEntry (E.g., 7 -> JournalEntry) 
   // BASJournals: Map BASJournalId -> BASJournal E.g., 'A' -> BASJournal
 

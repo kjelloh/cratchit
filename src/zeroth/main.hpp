@@ -1342,7 +1342,7 @@ namespace BAS {
 	};
 
 	BAS::MDJournalEntry& sort(BAS::MDJournalEntry& mdje,auto& comp) {
-		std::sort(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),comp);
+		std::sort(mdje.defacto.account_postings.begin(),mdje.defacto.account_postings.end(),comp);
 		return mdje;
 	}
 
@@ -1373,7 +1373,7 @@ namespace BAS {
 		public:
 			HasTransactionToAccount(BAS::AccountNo bas_account_no) : m_bas_account_no(bas_account_no) {}
 			bool operator()(BAS::MDJournalEntry const& mdje) {
-				return std::any_of(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),[this](BAS::anonymous::AccountPosting const& at){
+				return std::any_of(mdje.defacto.account_postings.begin(),mdje.defacto.account_postings.end(),[this](BAS::anonymous::AccountPosting const& at){
 					return (at.account_no == this->m_bas_account_no);
 				});
 			}
@@ -1390,7 +1390,7 @@ namespace BAS {
 		struct contains_account {
 			BAS::AccountNo account_no;
 			bool operator()(MDJournalEntry const& mdje) {
-				return std::any_of(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),[this](auto const& at){
+				return std::any_of(mdje.defacto.account_postings.begin(),mdje.defacto.account_postings.end(),[this](auto const& at){
 					return (this->account_no == at.account_no);
 				});
 			}
@@ -1406,7 +1406,7 @@ namespace BAS {
 		struct matches_amount {
 			Amount amount;
 			bool operator()(MDJournalEntry const& mdje) {
-				return std::any_of(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),[this](auto const& at){
+				return std::any_of(mdje.defacto.account_postings.begin(),mdje.defacto.account_postings.end(),[this](auto const& at){
 					return (this->amount == at.amount);
 				});
 			}
@@ -1418,7 +1418,7 @@ namespace BAS {
 				bool result{false};
 				result = text::functional::strings_share_tokens(user_search_string,mdje.defacto.caption);
 				if (!result) {
-					result = std::any_of(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),[this](auto const& at){
+					result = std::any_of(mdje.defacto.account_postings.begin(),mdje.defacto.account_postings.end(),[this](auto const& at){
 						if (at.transtext) return text::functional::strings_share_tokens(user_search_string,*at.transtext);
 						return false;
 					});
@@ -1601,7 +1601,7 @@ inline BAS::anonymous::OptionalAccountPosting to_bas_account_transaction(std::ve
 
 // std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje) {
 // 	os << std::quoted(aje.caption) << " " << aje.date;
-// 	os << aje.account_transactions;
+// 	os << aje.account_postings;
 // 	return os;
 // };
 
@@ -1826,7 +1826,7 @@ namespace CSV {
 					.account_no = *gross_bas_account_no
 					,.amount = had->amount
 				};
-				mdje.defacto.account_transactions.push_back(gross_at);
+				mdje.defacto.account_postings.push_back(gross_at);
 				had->optional.current_candidate = mdje;
 			}
 			result.push_back(*had);
@@ -1857,7 +1857,7 @@ namespace CSV {
 inline BAS::anonymous::AccountPostings counter_account_transactions(BAS::anonymous::JournalEntry const& aje,BAS::anonymous::AccountPosting const& gross_at) {
 	BAS::anonymous::AccountPostings result{};
 	// Gather all ats with opposite sign and that sums upp to gross_at amount
-	std::copy_if(aje.account_transactions.begin(),aje.account_transactions.end(),std::back_inserter(result),[&gross_at](auto const& at){
+	std::copy_if(aje.account_postings.begin(),aje.account_postings.end(),std::back_inserter(result),[&gross_at](auto const& at){
 		return (have_opposite_signs(at.amount,gross_at.amount));
 	});
 	if (to_account_transactions_sum(result) != -gross_at.amount) result.clear();
@@ -1867,22 +1867,22 @@ inline BAS::anonymous::AccountPostings counter_account_transactions(BAS::anonymo
 inline BAS::anonymous::OptionalAccountPosting net_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountPosting result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
-	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
+	auto iter = std::find_if(aje.account_postings.begin(),aje.account_postings.end(),[&trans_amount](auto const& at){
 		return (abs(at.amount) < trans_amount and not is_vat_account_at(at));
 		// return abs(at.amount) == 0.8*trans_amount;
 	});
-	if (iter != aje.account_transactions.end()) result = *iter;
+	if (iter != aje.account_postings.end()) result = *iter;
 	return result;
 }
 
 inline BAS::anonymous::OptionalAccountPosting vat_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountPosting result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
-	auto iter = std::find_if(aje.account_transactions.begin(),aje.account_transactions.end(),[&trans_amount](auto const& at){
+	auto iter = std::find_if(aje.account_postings.begin(),aje.account_postings.end(),[&trans_amount](auto const& at){
 		return is_vat_account_at(at);
 		// return abs(at.amount) == 0.2*trans_amount;
 	});
-	if (iter != aje.account_transactions.end()) result = *iter;
+	if (iter != aje.account_postings.end()) result = *iter;
 	return result;
 }
 
@@ -1898,12 +1898,12 @@ inline BAS::anonymous::OptionalAccountPosting vat_account_transaction(BAS::anony
 
 inline BAS::MDJournalEntry to_swapped_ats_md_entry(BAS::MDJournalEntry const& mdje,BAS::anonymous::AccountPosting const& target_at,BAS::anonymous::AccountPosting const& new_at) {
 	BAS::MDJournalEntry result{mdje};
-	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&target_at](auto const& entry){
+	auto iter = std::find_if(result.defacto.account_postings.begin(),result.defacto.account_postings.end(),[&target_at](auto const& entry){
 		return (entry.account_no == target_at.account_no);
 	});
-	if (iter != result.defacto.account_transactions.end()) {
-		result.defacto.account_transactions.erase(iter);
-		result.defacto.account_transactions.push_back(new_at);
+	if (iter != result.defacto.account_postings.end()) {
+		result.defacto.account_postings.erase(iter);
+		result.defacto.account_postings.push_back(new_at);
 	}
 	else {
 		std::cout << "\nswapped_ats_entry failed. Could not match target " << target_at << " with new_at " << new_at;
@@ -1922,22 +1922,22 @@ inline BAS::MDJournalEntry to_updated_amounts_md_entry(BAS::MDJournalEntry const
 	BAS::sort(result,BAS::has_greater_abs_amount);
 // std::cout << "\npre-result:" << result;
 
-	auto iter = std::find_if(result.defacto.account_transactions.begin(),result.defacto.account_transactions.end(),[&at](auto const& entry){
+	auto iter = std::find_if(result.defacto.account_postings.begin(),result.defacto.account_postings.end(),[&at](auto const& entry){
 		return (entry.account_no == at.account_no);
 	});
-	auto at_index = std::distance(result.defacto.account_transactions.begin(),iter);
+	auto at_index = std::distance(result.defacto.account_postings.begin(),iter);
 // std::cout << "\nat_index = " << at_index;
-	if (iter == result.defacto.account_transactions.end()) {
-		result.defacto.account_transactions.push_back(at);
+	if (iter == result.defacto.account_postings.end()) {
+		result.defacto.account_postings.push_back(at);
 		result = to_updated_amounts_md_entry(result,at); // recurse with added entry
 	}
-	else if (mdje.defacto.account_transactions.size()==4) {
+	else if (mdje.defacto.account_postings.size()==4) {
 // std::cout << "\n4 OK";
 		// Assume 0: Transaction Amount, 1: Amount no VAT, 3: VAT, 4: rounding amount
-		auto& trans_amount = result.defacto.account_transactions[0].amount;
-		auto& ex_vat_amount = result.defacto.account_transactions[1].amount;
-		auto& vat_amount = result.defacto.account_transactions[2].amount;
-		auto& round_amount = result.defacto.account_transactions[3].amount;
+		auto& trans_amount = result.defacto.account_postings[0].amount;
+		auto& ex_vat_amount = result.defacto.account_postings[1].amount;
+		auto& vat_amount = result.defacto.account_postings[2].amount;
+		auto& round_amount = result.defacto.account_postings[3].amount;
 
 		auto abs_trans_amount = abs(trans_amount);
 		auto abs_ex_vat_amount = abs(ex_vat_amount);
@@ -2115,7 +2115,7 @@ inline void for_each_anonymous_account_transaction(SIEDocument const& sie_doc,au
 }
 
 inline void for_each_md_account_transaction(BAS::MDJournalEntry const& mdje,auto& f) {
-	for (auto const& at : mdje.defacto.account_transactions) {
+	for (auto const& at : mdje.defacto.account_postings) {
 		f(BAS::MDAccountPosting{
 			.meta = BAS::to_account_transaction_meta(mdje)
 			,.defacto = at
@@ -2196,26 +2196,26 @@ inline std::optional<std::string> to_ats_sum_string(SIEArchive const& sie_archiv
 }
 
 // Now in HAD2JournalEntryFramework unit / 20251111
-// auto to_typed_md_entry = [](BAS::MDJournalEntry const& mdje) -> BAS::MDTypedJournalEntry {
+// auto to_template_candidate_entry = [](BAS::MDJournalEntry const& mdje) -> BAS::MDPostingTagsJournalEntry {
 // enum class JournalEntryVATType {
 
 // Now in HAD2JournalEntryFramework unit / 20251111
 // inline std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
-// inline JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
-// inline void for_each_typed_md_entry(SIEArchive const& sie_archive,auto& f) {
+// inline JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme) {
+// inline void for_each_template_candidate_entry(SIEArchive const& sie_archive,auto& f) {
 
 
 // Now in HAD2JournalEntryFramework unit / 20251111
-// using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountPostingTypeTopology,std::vector<BAS::MDTypedJournalEntry>>; // AccountPostingTypeTopology -> TypedMetaEntry
+// using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountPostingKindTags,std::vector<BAS::MDPostingTagsJournalEntry>>; // AccountPostingKindTags -> TypedMetaEntry
 // using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEntriesMap>; // hash -> TypeMetaEntry
 // inline Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive) {
 // struct TestResult {
 // inline std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
-// inline std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJournalEntry const& tme) {
-// inline bool operator==(BAS::MDTypedJournalEntry const& tme1,BAS::MDTypedJournalEntry const& tme2) {
-// inline BAS::anonymous::TypedAccountPostings to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountPosting const& tat) {
-// inline BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountPosting const& target_tat,BAS::anonymous::TypedAccountPosting const& new_tat) {
-// inline BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry const& tme,Amount const& gross_amount) {
+// inline std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPostingTagsJournalEntry const& tme) {
+// inline bool operator==(BAS::MDPostingTagsJournalEntry const& tme1,BAS::MDPostingTagsJournalEntry const& tme2) {
+// inline BAS::anonymous::AccountPostingsTags to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& tat) {
+// inline BAS::MDPostingTagsJournalEntry to_tats_swapped_tme(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_tat,BAS::anonymous::AccountPostingsTagsEntry const& new_tat) {
+// inline BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEntry const& tme,Amount const& gross_amount) {
 
 // Now in BASFramework unit / 20251111
 // inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPosting const& at1, BAS::anonymous::AccountPosting const& at2) {
@@ -2223,8 +2223,8 @@ inline std::optional<std::string> to_ats_sum_string(SIEArchive const& sie_archiv
 // inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me1, BAS::MDJournalEntry const& me2) {
 
 // Now in HAD2JournalEntryFramework unit / 20251111
-// inline TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDTypedJournalEntry const& tme) {
-// using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountTopology,BAS::TypedMetaEntries>>;
+// inline TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDPostingTagsJournalEntry const& tme) {
+// using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountsTopology,BAS::TypedMetaEntries>>;
 // inline AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) {
 
 struct GrossAccountPostings {
@@ -2323,13 +2323,13 @@ struct CollectT2s {
 		for (;t2_iter != t2s.end();++t2_iter) {
 			if (!t2_iter->counter_trans) {
 				// No counter trans found yet
-				auto at_iter1 = std::find_if(mdje.defacto.account_transactions.begin(),mdje.defacto.account_transactions.end(),[&t2_iter](BAS::anonymous::AccountPosting const& at1){
-					auto  at_iter2 = std::find_if(t2_iter->mdje.defacto.account_transactions.begin(),t2_iter->mdje.defacto.account_transactions.end(),[&at1](BAS::anonymous::AccountPosting const& at2){
+				auto at_iter1 = std::find_if(mdje.defacto.account_postings.begin(),mdje.defacto.account_postings.end(),[&t2_iter](BAS::anonymous::AccountPosting const& at1){
+					auto  at_iter2 = std::find_if(t2_iter->mdje.defacto.account_postings.begin(),t2_iter->mdje.defacto.account_postings.end(),[&at1](BAS::anonymous::AccountPosting const& at2){
 						return (at1.account_no == at2.account_no) and (at1.amount == -at2.amount);
 					});
-					return (at_iter2 != t2_iter->mdje.defacto.account_transactions.end());
+					return (at_iter2 != t2_iter->mdje.defacto.account_postings.end());
 				});
-				if (at_iter1 != mdje.defacto.account_transactions.end()) {
+				if (at_iter1 != mdje.defacto.account_postings.end()) {
 					// iter refers to an account transaction in mdje to the same account but a counter amount as in t2.je
 					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.mdje = mdje};
 					t2_iter->counter_trans = counter_trans;
@@ -4239,8 +4239,8 @@ public:
       std::cout << ",had_iter ok";
 			if ((*had_iter)->optional.current_candidate) {
         std::cout << ",optional ok";
-				auto at_iter = (*had_iter)->optional.current_candidate->defacto.account_transactions.begin();
-				auto end = (*had_iter)->optional.current_candidate->defacto.account_transactions.end();
+				auto at_iter = (*had_iter)->optional.current_candidate->defacto.account_postings.begin();
+				auto end = (*had_iter)->optional.current_candidate->defacto.account_postings.end();
 				if (ix < std::distance(at_iter,end)) {
           std::cout << ",ix ok";
           std::advance(at_iter,ix);
@@ -4329,7 +4329,7 @@ public:
     if (had_iter and new_state == PromptState::ATIndex) {
       auto& had = *(*had_iter);
       unsigned int i{};
-      std::for_each(had.optional.current_candidate->defacto.account_transactions.begin(),had.optional.current_candidate->defacto.account_transactions.end(),[&i,&result](auto const& at){
+      std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&result](auto const& at){
         result << "\n  " << i++ << " " << at;
       });
     }
