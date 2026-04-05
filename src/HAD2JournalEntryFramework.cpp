@@ -6,7 +6,7 @@ namespace BAS {
   namespace kind {
     AccountPostingKind to_posting_kind(AccountPostingKindTag const& kind_tag) {
 			AccountPostingKind result{AccountPostingKind::undefined};
-			static const std::map<std::string,AccountPostingKind> AT_TYPE_TO_ID_MAP{
+			static const std::map<std::string,AccountPostingKind> KIND_TAG_2_POSTING_KIND{
 				 {"",AccountPostingKind::undefined}
 				,{"transfer",AccountPostingKind::transfer}
 				,{"eu_purchase",AccountPostingKind::eu_purchase}
@@ -16,8 +16,8 @@ namespace BAS {
 				,{"vat",AccountPostingKind::vat}
 				,{"cents",AccountPostingKind::cents}
 			};
-			if (AT_TYPE_TO_ID_MAP.contains(kind_tag)) {
-				result = AT_TYPE_TO_ID_MAP.at(kind_tag);
+			if (KIND_TAG_2_POSTING_KIND.contains(kind_tag)) {
+				result = KIND_TAG_2_POSTING_KIND.at(kind_tag);
 			}
 			else {
 				result = AccountPostingKind::unknown;
@@ -27,14 +27,14 @@ namespace BAS {
 
     std::size_t to_posting_kind_tags_rank(BAS::kind::AccountPostingKindTags const& kind_tags) {
 			std::size_t result{};
-			std::vector<AccountPostingKind> at_types{};
-			for (auto const& kind_tag : kind_tags) at_types.push_back(to_posting_kind(kind_tag));
-			std::sort(at_types.begin(),at_types.end(),[](AccountPostingKind t1,AccountPostingKind t2){
+			std::vector<AccountPostingKind> posting_kinds{};
+			for (auto const& kind_tag : kind_tags) posting_kinds.push_back(to_posting_kind(kind_tag));
+			std::sort(posting_kinds.begin(),posting_kinds.end(),[](AccountPostingKind t1,AccountPostingKind t2){
 				return (t1<t2);
 			});
 			// Assemble a "number" of "digits" each having value 0..15 (i.e, 
-      // in effect a hexadecimal number with each digit indicating an at_type enum value)
-			for (auto at_type : at_types) result = result*0x10 + static_cast<std::size_t>(at_type);
+      // in effect a hexadecimal number with each digit indicating an posting_kind enum value)
+			for (auto posting_kind : posting_kinds) result = result*0x10 + static_cast<std::size_t>(posting_kind);
 			return result;
 		}
 

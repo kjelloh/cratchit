@@ -90,8 +90,8 @@ Ok, this refactoring needs some strategy!
 ```c++
     std::size_t to_at_types_order(BAS::kind::AccountPostingTypeTopology const& topology) {
 			std::size_t result{};
-			std::vector<ATType> at_types{};
-			for (auto const& prop : topology) at_types.push_back(to_at_type(prop));
+			std::vector<ATType> posting_kinds{};
+			for (auto const& prop : topology) posting_kinds.push_back(to_at_type(prop));
 
 ```
 
