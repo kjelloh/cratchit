@@ -2311,9 +2311,12 @@ Cmd Updater::operator()(Command const& command) {
                     }
                     else {
                       unsigned int i{};
-                      std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
-                        prompt << "\n  " << i++ << " " << at;
-                      });
+                      std::for_each(
+                         had.optional.current_candidate->defacto.account_postings.begin()
+                        ,had.optional.current_candidate->defacto.account_postings.end()
+                        ,[&i,&prompt](auto const& ap){
+                          prompt << "\n  " << i++ << " " << ap;
+                        });
                       model->prompt_state = PromptState::ATIndex;
                     }
                   }
@@ -2348,8 +2351,8 @@ Cmd Updater::operator()(Command const& command) {
                       had.optional.current_candidate->defacto.account_postings.begin()
                       ,had.optional.current_candidate->defacto.account_postings.end()
                       ,std::back_inserter(ats_to_keep)
-                      ,[&net_at,&vat_at](auto const& at){
-                        return ((at.account_no == net_at->account_no) or (at.account_no == vat_at->account_no));
+                      ,[&net_at,&vat_at](auto const& ap){
+                        return ((ap.account_no == net_at->account_no) or (ap.account_no == vat_at->account_no));
                     });
                     had.optional.current_candidate->defacto.account_postings = ats_to_keep;
                   }
@@ -2366,8 +2369,11 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   else {
                     unsigned int i{};
-                    std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
-                      prompt << "\n  " << i++ << " " << at;
+                    std::for_each(
+                       had.optional.current_candidate->defacto.account_postings.begin()
+                      ,had.optional.current_candidate->defacto.account_postings.end()
+                      ,[&i,&prompt](auto const& ap){
+                        prompt << "\n  " << i++ << " " << ap;
                     });
                     model->prompt_state = PromptState::ATIndex;
                   }
@@ -2413,8 +2419,11 @@ Cmd Updater::operator()(Command const& command) {
                 };
                 had.optional.current_candidate->defacto.account_postings.push_back(at);
                 unsigned int i{};
-                std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
-                  prompt << "\n  " << i++ << " " << at;
+                std::for_each(
+                   had.optional.current_candidate->defacto.account_postings.begin()
+                  ,had.optional.current_candidate->defacto.account_postings.end()
+                  ,[&i,&prompt](auto const& ap){
+                    prompt << "\n  " << i++ << " " << ap;
                 });
               }
               else {
@@ -3955,14 +3964,14 @@ Cmd Updater::operator()(Command const& command) {
     }
     else if (ast[0] == "-gross") {
       auto ats = to_gross_account_transactions(model->m_sie_archive);
-      for (auto const& at : ats) {
-        prompt << "\n" << at;
+      for (auto const& ap : ats) {
+        prompt << "\n" << ap;
       }
     }
     else if (ast[0] == "-net") {
       auto ats = to_net_account_transactions(model->m_sie_archive);
-      for (auto const& at : ats) {
-        prompt << "\n" << at;
+      for (auto const& ap : ats) {
+        prompt << "\n" << ap;
       }
     }
     else if (ast[0] == "-vat") {
@@ -4676,9 +4685,13 @@ The ITfied AB
         if (auto had_iter = model->selected_had()) {
           if ((*had_iter)->optional.current_candidate) {
             unsigned int i{};
-            prompt << "\n" << (*had_iter)->optional.current_candidate->defacto.caption << " " << (*had_iter)->optional.current_candidate->defacto.date;
-            for (auto const& at : (*had_iter)->optional.current_candidate->defacto.account_postings) {
-              prompt << "\n  " << i++ << " " << at;
+            prompt 
+              << "\n" 
+              << (*had_iter)->optional.current_candidate->defacto.caption 
+              << " " 
+              << (*had_iter)->optional.current_candidate->defacto.date;
+            for (auto const& ap : (*had_iter)->optional.current_candidate->defacto.account_postings) {
+              prompt << "\n  " << i++ << " " << ap;
             }
           }
           else {
@@ -4714,8 +4727,11 @@ The ITfied AB
               at.transtext = command;
             }
             unsigned int i{};
-            std::for_each(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[&i,&prompt](auto const& at){
-              prompt << "\n  " << i++ << " " << at;
+            std::for_each(
+               had.optional.current_candidate->defacto.account_postings.begin()
+              ,had.optional.current_candidate->defacto.account_postings.end()
+              ,[&i,&prompt](auto const& ap){
+                prompt << "\n  " << i++ << " " << ap;
             });
             model->prompt_state = PromptState::ATIndex;
           }
@@ -4799,8 +4815,8 @@ The ITfied AB
           std::for_each(
              had->optional.current_candidate->defacto.account_postings.begin()
             ,had->optional.current_candidate->defacto.account_postings.end()
-            ,[&i,&prompt](auto const& at) {
-              prompt << "\n  " << i++ << " " << at;
+            ,[&i,&prompt](auto const& ap) {
+              prompt << "\n  " << i++ << " " << ap;
           });
           model->prompt_state = PromptState::ATIndex;
         }

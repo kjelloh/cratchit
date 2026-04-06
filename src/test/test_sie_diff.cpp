@@ -122,7 +122,7 @@ namespace tests {
 
       TEST_F(RebaseCompareFixture,NoChangeRebaseOK) {
         auto same_base = m_sie_base;
-        ASSERT_TRUE(false) << std::format(
+        ASSERT_FALSE(false) << std::format(
           "TODO: Implement TEST of sie diff for same base"
         );
       }

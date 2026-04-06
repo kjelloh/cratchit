@@ -165,8 +165,11 @@ OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& a
 	else {
 		// Does NOT balance, and more than one account transaction.
 		// Define the gross amount as the largest account absolute transaction amount
-		auto max_at_iter = std::max_element(aje.account_postings.begin(),aje.account_postings.end(),[](auto const& at1,auto const& at2) {
-			return abs(at1.amount) < abs(at2.amount);
+		auto max_at_iter = std::max_element(
+       aje.account_postings.begin()
+      ,aje.account_postings.end()
+      ,[](auto const& ap1,auto const& ap2) {
+			  return abs(ap1.amount) < abs(ap2.amount);
 		});
 		if (max_at_iter != aje.account_postings.end()) result = abs(max_at_iter->amount);
 	}

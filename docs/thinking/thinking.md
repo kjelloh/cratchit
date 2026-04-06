@@ -50,6 +50,31 @@ In this way I renamed only the actual instances (not any other matched 'at')
   - Maybe in this way I could have renamed also all 'at' that are also implicitally of AccountPosting type?
   - Lets move on and see how we can later come back to implicit 'at' of this type and rename them also?
 
+I now searched for 'auto const& at'
+
+* Should I actually declare them of actual type 'BAS::anonymous::AccountPosting'?
+  - Yes, lets try this and see what happens!
+  - Surely I will never need an auto argument passed here?
+  - I always know it to be a proper AccountPosting?
+  - Well, I will find out, will I not?
+* NO! Most of 'auto const& at' are in for loops!
+  - There it is conveniant to use the auto I feel?
+* Interesting false positive on member function 'at'!
+
+```c++
+  auto const& at(ValueName const& section) const {
+    return m_container.at(section);
+  }
+```
+
+* Interesting - the F2 rename symbol fails on:
+
+```c++
+      for (auto const& at : ats) {
+        prompt << "\n" << at;
+      }
+```
+
 ## 20260405
 
 I have now decided to just brute force rename AccountTransaction to AccountPosting.

@@ -120,31 +120,31 @@ BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry c
 	if (auto optional_gross_amount = to_gross_transaction_amount(mdje.defacto)) {
 		auto gross_amount = *optional_gross_amount;
 		// Direct type detection based on gross_amount and account meta data
-		for (auto const& at : mdje.defacto.account_postings) {
-			if (round(abs(at.amount)) == round(gross_amount)) typed_ats[at].insert("gross");
-			if (is_vat_account_at(at)) typed_ats[at].insert("vat");
-			if (abs(at.amount) < 1) typed_ats[at].insert("cents");
-			if (round(abs(at.amount)) == round(gross_amount / 2)) typed_ats[at].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
+		for (auto const& ap : mdje.defacto.account_postings) {
+			if (round(abs(ap.amount)) == round(gross_amount)) typed_ats[ap].insert("gross");
+			if (is_vat_account_at(ap)) typed_ats[ap].insert("vat");
+			if (abs(ap.amount) < 1) typed_ats[ap].insert("cents");
+			if (round(abs(ap.amount)) == round(gross_amount / 2)) typed_ats[ap].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
 		}
 
 		// Ex vat amount Detection
 		Amount ex_vat_amount{},vat_amount{};
-		for (auto const& at : mdje.defacto.account_postings) {
-			if (!typed_ats.contains(at)) {
+		for (auto const& ap : mdje.defacto.account_postings) {
+			if (!typed_ats.contains(ap)) {
 				// Not gross, Not VAT (above) => candidate for ex VAT
-				ex_vat_amount += at.amount;
+				ex_vat_amount += ap.amount;
 			}
-			else if (typed_ats.at(at).contains("vat")) {
-				vat_amount += at.amount;
+			else if (typed_ats.at(ap).contains("vat")) {
+				vat_amount += ap.amount;
 			}
 		}
     std::string net_or_counter_tag = (vat_amount != 0)?std::string{"net"}:std::string{"counter"};
 		if (abs(round(abs(ex_vat_amount)) + round(abs(vat_amount)) - gross_amount) <= 1) {
 			// ex_vat + vat within cents of gross
 			// tag non typed ats as ex-vat
-			for (auto const& at : mdje.defacto.account_postings) {
-				if (!typed_ats.contains(at)) {
-					typed_ats[at].insert(net_or_counter_tag);
+			for (auto const& ap : mdje.defacto.account_postings) {
+				if (!typed_ats.contains(ap)) {
+					typed_ats[ap].insert(net_or_counter_tag);
 				}
 			}
 		}
@@ -162,33 +162,33 @@ BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry c
 	// 	 eu_purchase : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
 	// 	 gross : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
 	Amount eu_vat_amount{},eu_purchase_amount{};
-	for (auto const& at : mdje.defacto.account_postings) {
+	for (auto const& ap : mdje.defacto.account_postings) {
 		// Identify transactions to EU VAT and EU Purchase tagged accounts
-		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,at)) {
-			typed_ats[at].insert("eu_vat");
-			eu_vat_amount = at.amount;
+		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,ap)) {
+			typed_ats[ap].insert("eu_vat");
+			eu_vat_amount = ap.amount;
 		}
-		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,at)) {
-			typed_ats[at].insert("eu_purchase");
-			eu_purchase_amount = at.amount;
+		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,ap)) {
+			typed_ats[ap].insert("eu_purchase");
+			eu_purchase_amount = ap.amount;
 		}
 	}
-	for (auto const& at : mdje.defacto.account_postings) {
+	for (auto const& ap : mdje.defacto.account_postings) {
 		// Identify counter transactions to EU VAT and EU Purchase tagged accounts
-		if (at.amount == -eu_vat_amount) typed_ats[at].insert("eu_vat"); // The counter trans for EU VAT
-		if ((first_digit(at.account_no) == 4 or first_digit(at.account_no) == 9) and (at.amount == -eu_purchase_amount)) typed_ats[at].insert("eu_purchase"); // The counter trans for EU Purchase
+		if (ap.amount == -eu_vat_amount) typed_ats[ap].insert("eu_vat"); // The counter trans for EU VAT
+		if ((first_digit(ap.account_no) == 4 or first_digit(ap.account_no) == 9) and (ap.amount == -eu_purchase_amount)) typed_ats[ap].insert("eu_purchase"); // The counter trans for EU Purchase
 	}
 	// Mark gross accounts for EU VAT transaction journal entry
-	for (auto const& at : mdje.defacto.account_postings) {
+	for (auto const& ap : mdje.defacto.account_postings) {
 		// We expect two accounts left unmarked and they are the gross accounts
-		if (!typed_ats.contains(at) and (abs(at.amount) == abs(eu_purchase_amount))) {
-			typed_ats[at].insert("gross");
+		if (!typed_ats.contains(ap) and (abs(ap.amount) == abs(eu_purchase_amount))) {
+			typed_ats[ap].insert("gross");
 		}
 	}
 
 	// Finally add any still untyped at with empty property set
-	for (auto const& at : mdje.defacto.account_postings) {
-		if (!typed_ats.contains(at)) typed_ats.insert({at,{}});
+	for (auto const& ap : mdje.defacto.account_postings) {
+		if (!typed_ats.contains(ap)) typed_ats.insert({ap,{}});
 	}
 
 	BAS::MDPostingTagsJournalEntry result{
@@ -448,10 +448,10 @@ std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingsTagsEnt
 }
 
 std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::AccountPostingsTags> const& indented) {
-	for (auto const& at : indented.val) {
+	for (auto const& ap : indented.val) {
 		os << "\n";
 		for (int x = 0; x < indented.count; ++x) os << ' ';
-		os << at;
+		os << ap;
 	}
 	return os;
 }
