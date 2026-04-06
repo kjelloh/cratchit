@@ -2,6 +2,54 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260406
+
+OK, so my strategy so far is not working.
+
+* I fail to serach-and-replace and only change the actual code in the correct way
+  - Too many false positives and the code ends upp a mess that does also does not compile
+
+So how should I go about renaiming identiers that need new names to reflect their new type names?
+
+Maybe I should go type-by-type and take the low hanging fruits first?
+
+Lets start with the most glaring one of the type AccountPosting?
+
+* E.g.: ```text auto f = [&result](BAS::anonymous::AccountPosting const& at)? ```
+
+How can I find all those 'at' identifiers?
+
+* I have tried search-and-replace with some clever pattern or regex even.
+  - But I alwasy ended up with incomplete or wrong modifications to the code
+* What are the alternatives?
+  - Maybe first find all 'AccountPosting const& at'?
+  - And then do VSCode 'F2' rename symbol?
+  - Where do I end up and how much work is this?
+
+Surprise!
+
+* When I pick the first 'AccountPosting const& at' and do F2 rename
+  - The editor actually fidns a long list of replacements?
+  - And after replacement the code still compiles.
+  - So this is good - But surprised me!
+  - What does the renaming actually do?
+* I decided to rename 'at' to 'ap' after all
+  - 'posting' is to vauge when I think about it
+  - And 'ap' matches the naming scheme that 'at' is based on
+  - Also, 'ap' is at least more unique than 'at' that clashes with 'at' memmber functions!
+
+I found a process that worked.
+
+* I searched for 'AccountPosting const& at' in files
+* I picked off each match and used F2 'rename symbol' of the found 'at'
+* I did NOT check the extra matches found (disabled matches and hover text was 'NOT A REFERENCE')
+
+In this way I renamed only the actual instances (not any other matched 'at')
+
+* I am not sure though if a should have forced all matches to be replaces?
+  - Maybe in this way I could have renamed also all 'at' that are also implicitally of AccountPosting type?
+  - Lets move on and see how we can later come back to implicit 'at' of this type and rename them also?
+
 ## 20260405
 
 I have now decided to just brute force rename AccountTransaction to AccountPosting.

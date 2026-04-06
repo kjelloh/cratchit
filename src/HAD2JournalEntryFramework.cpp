@@ -48,8 +48,8 @@ namespace BAS {
 
 		BASAccountsTopology to_accounts_topology(MDJournalEntry const& mdje) {
 			BASAccountsTopology result{};
-			auto f = [&result](BAS::anonymous::AccountPosting const& at) {
-				result.insert(at.account_no);
+			auto f = [&result](BAS::anonymous::AccountPosting const& ap) {
+				result.insert(ap.account_no);
 			};
 			for_each_anonymous_account_transaction(mdje.defacto,f);
 			return result;

@@ -177,16 +177,16 @@ OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& a
 BAS::anonymous::OptionalAccountPosting gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountPosting result{};
 	auto trans_amount = to_positive_gross_transaction_amount(aje);
-	auto iter = std::find_if(aje.account_postings.begin(),aje.account_postings.end(),[&trans_amount](auto const& at){
-		return abs(at.amount) == trans_amount;
+	auto iter = std::find_if(aje.account_postings.begin(),aje.account_postings.end(),[&trans_amount](auto const& ap){
+		return abs(ap.amount) == trans_amount;
 	});
 	if (iter != aje.account_postings.end()) result = *iter;
 	return result;
 }
 
 Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats) {
-	Amount result = std::accumulate(ats.begin(),ats.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& at){
-		acc += at.amount;
+	Amount result = std::accumulate(ats.begin(),ats.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& ap){
+		acc += ap.amount;
 		return acc;
 	});
 	return result;
@@ -198,24 +198,24 @@ Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats) {
 // -----------------------------
 // BGIN Accounting IO
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& at) {
-	if (BAS::global_account_metas().contains(at.account_no)) os << std::quoted(BAS::global_account_metas().at(at.account_no).name) << ":";
-	os << at.account_no;
-	os << " " << at.transtext;
-	os << " " << to_string(at.amount); // When amount is double there will be no formatting of the amount to ensure two decimal cents digits
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap) {
+	if (BAS::global_account_metas().contains(ap.account_no)) os << std::quoted(BAS::global_account_metas().at(ap.account_no).name) << ":";
+	os << ap.account_no;
+	os << " " << ap.transtext;
+	os << " " << to_string(ap.amount); // When amount is double there will be no formatting of the amount to ensure two decimal cents digits
 	return os;
 };
 
-std::string to_string(BAS::anonymous::AccountPosting const& at) {
+std::string to_string(BAS::anonymous::AccountPosting const& ap) {
 	std::ostringstream os{};
-	os << at;
+	os << ap;
 	return os.str();
 };
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& ats) {
-	for (auto const& at : ats) {
-		// os << "\n\t" << at; 
-		os << "\n    " << at; 
+	for (auto const& ap : ats) {
+		// os << "\n\t" << ap; 
+		os << "\n    " << ap; 
 	}
 	return os;
 }

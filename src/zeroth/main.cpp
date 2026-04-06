@@ -2296,8 +2296,11 @@ Cmd Updater::operator()(Command const& command) {
                     // list at candidates from found entries with account transaction that counter the gross account
                     std::cout << "\nCurrent candidate does not balance";
                   }
-                  else if (std::any_of(had.optional.current_candidate->defacto.account_postings.begin(),had.optional.current_candidate->defacto.account_postings.end(),[](BAS::anonymous::AccountPosting const& at){
-                    return abs(at.amount) < 1.0;
+                  else if (std::any_of(
+                     had.optional.current_candidate->defacto.account_postings.begin()
+                    ,had.optional.current_candidate->defacto.account_postings.end()
+                    ,[](BAS::anonymous::AccountPosting const& ap){
+                    return abs(ap.amount) < 1.0;
                   })) {
                     // Assume the user need to specify rounding by editing proposed account transactions
                     if (false) {
@@ -4645,11 +4648,11 @@ The ITfied AB
           // Consider the user may have entered the name of a gross account to journal the transaction amount
           auto gats = to_gross_account_transactions(model->m_sie_archive);
           model->at_candidates.clear();
-          std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountPosting const& at){
+          std::copy_if(gats.begin(),gats.end(),std::back_inserter(model->at_candidates),[&command,this](BAS::anonymous::AccountPosting const& ap){
             bool result{false};
-            if (at.transtext) result |= text::functional::strings_share_tokens(command,*at.transtext);
-            if (model->m_sie_archive["current"].account_metas().contains(at.account_no)) {
-              auto const& meta = model->m_sie_archive["current"].account_metas().at(at.account_no);
+            if (ap.transtext) result |= text::functional::strings_share_tokens(command,*ap.transtext);
+            if (model->m_sie_archive["current"].account_metas().contains(ap.account_no)) {
+              auto const& meta = model->m_sie_archive["current"].account_metas().at(ap.account_no);
               result |= text::functional::strings_share_tokens(command,meta.name);
             }
             return result;

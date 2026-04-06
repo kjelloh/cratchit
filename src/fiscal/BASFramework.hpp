@@ -294,10 +294,10 @@ private:
 //       that define cratching accounting operations 
 //       based on BAS <- SIE <- 'Accounting'? / 20251028
 
-inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPosting const& at1, BAS::anonymous::AccountPosting const& at2) {
-	return (     (at1.account_no == at2.account_no)
-	         and (at1.transtext == at2.transtext)
-					 and (are_same_and_less_than_100_cents_apart(at1.amount,at2.amount)));
+inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPosting const& ap1, BAS::anonymous::AccountPosting const& ap2) {
+	return (     (ap1.account_no == ap2.account_no)
+	         and (ap1.transtext == ap2.transtext)
+					 and (are_same_and_less_than_100_cents_apart(ap1.amount,ap2.amount)));
 }
 
 inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& ats1, BAS::anonymous::AccountPostings const& ats2) {
@@ -328,8 +328,8 @@ inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
-	for (auto const& at : aje.account_postings) {
-		f(at);
+	for (auto const& ap : aje.account_postings) {
+		f(ap);
 	}
 }
 bool does_balance(BAS::anonymous::JournalEntry const& aje);
@@ -345,8 +345,8 @@ Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats);
 // -----------------------------
 // BGIN Accounting IO
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& at);
-std::string to_string(BAS::anonymous::AccountPosting const& at);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap);
+std::string to_string(BAS::anonymous::AccountPosting const& ap);
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& ats);
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje);
 std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
