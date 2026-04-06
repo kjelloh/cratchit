@@ -75,6 +75,11 @@ I now searched for 'auto const& at'
       }
 ```
 
+What is next?
+
+* Search for remaining ' at' or regex '( at)(?=[.;)}])'
+* I whent with regex '(^|\[)(at)' to find structured captures ```text [at,] ```
+
 ## 20260405
 
 I have now decided to just brute force rename AccountTransaction to AccountPosting.

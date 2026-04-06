@@ -58,8 +58,8 @@ namespace BAS {
 		BASAccountsTopology to_accounts_topology(MDPostingTagsJournalEntry const& tme) {
 			BASAccountsTopology result{};
 			auto f = [&result](BAS::anonymous::AccountPostingsTagsEntry const& tat) {
-				auto const& [at,kind_tags] = tat;
-				result.insert(at.account_no);
+				auto const& [ap,kind_tags] = tat;
+				result.insert(ap.account_no);
 			};
 			for_each_posting_entry(tme,f);
 			return result;
@@ -68,7 +68,7 @@ namespace BAS {
 		AccountPostingKindTags to_posting_kind_tags(MDPostingTagsJournalEntry const& tme) {
 			AccountPostingKindTags result{};
 			auto f = [&result](BAS::anonymous::AccountPostingsTagsEntry const& tat) {
-				auto const& [at,kind_tags] = tat;
+				auto const& [ap,kind_tags] = tat;
 				for (auto const& kind_tag : kind_tags) result.insert(kind_tag);
 			};
 			for_each_posting_entry(tme,f);
@@ -94,8 +94,8 @@ BAS::MDJournalEntry to_md_entry(BAS::MDPostingTagsJournalEntry const& tme) {
 			,.date = tme.defacto.date
 		}
 	};
-	for (auto const& [at,kind_tags] : tme.defacto.account_postings) {
-		result.defacto.account_postings.push_back(at);
+	for (auto const& [ap,kind_tags] : tme.defacto.account_postings) {
+		result.defacto.account_postings.push_back(ap);
 	}
 	return result;
 }
@@ -229,7 +229,7 @@ JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme) {
 	static bool const log{true};
 	// Count each type of property (NOTE: Can be less than transaction count as they may overlap, e.g., two or more gross account transactions)
 	std::map<std::string,unsigned int> props_counter{};
-	for (auto const& [at,kind_tags] : tme.defacto.account_postings) {
+	for (auto const& [ap,kind_tags] : tme.defacto.account_postings) {
 		for (auto const& kind_tag : kind_tags) props_counter[kind_tag]++;
 	}
 	// LOG
@@ -275,8 +275,8 @@ JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme) {
 		result = JournalEntryVATType::VATReturns; // All VATS (probably a VAT report)
 	}
   else if (tme.defacto.account_postings.size() == 2 and std::all_of(tme.defacto.account_postings.begin(),tme.defacto.account_postings.end(),[](auto const& tat){
-      auto const& [at,kind_tags] = tat;
-      return (at.account_no == 1630 or at.account_no == 2650 or at.account_no == 1650); // SKV account updated with VAT, i.e., cleared
+      auto const& [ap,kind_tags] = tat;
+      return (ap.account_no == 1630 or ap.account_no == 2650 or ap.account_no == 1650); // SKV account updated with VAT, i.e., cleared
 	  // 1630 = SKV tax account, 1650 = SKV tax receivable, 2650 = SKV tax payable
     })) {
 		result = JournalEntryVATType::VATClearing; // SKV account cleared against 2650
@@ -285,8 +285,8 @@ JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme) {
 		result = JournalEntryVATType::VATTransfer; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
 	}
   else if (tme.defacto.account_postings.size() == 2 and std::all_of(tme.defacto.account_postings.begin(),tme.defacto.account_postings.end(),[](auto const& tat){
-      auto const& [at,kind_tags] = tat;
-      return (at.account_no == 8314 or at.account_no == 1630);
+      auto const& [ap,kind_tags] = tat;
+      return (ap.account_no == 8314 or ap.account_no == 1630);
     })) {
     // One account 1630 (SKV tax account) and one account 8314 (tax free interest gain)
 		result = JournalEntryVATType::SKVInterest; // SKV gained interest
@@ -442,8 +442,8 @@ std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingKindTags cons
 }
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingsTagsEntry const& tat) {
-	auto const& [at,kind_tags] = tat;
-	os << kind_tags << " : " << at;
+	auto const& [ap,kind_tags] = tat;
+	os << kind_tags << " : " << ap;
 	return os;
 }
 

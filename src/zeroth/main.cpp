@@ -1914,20 +1914,20 @@ Cmd Updater::operator()(Command const& command) {
                         ,.date = had.date
                       }
                     };
-                    for (auto const& [at,kind_tags] : tme_iter->defacto.account_postings) {
+                    for (auto const& [ap,kind_tags] : tme_iter->defacto.account_postings) {
                       if (kind_tags.contains("gross") or kind_tags.contains("eu_purchase")) {
-                        int sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        int sign = (ap.amount < 0)?-1:1; // 0 treated as +
                         BAS::anonymous::AccountPosting new_at{
-                          .account_no = at.account_no
+                          .account_no = ap.account_no
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount)
                         };
                         mdje.defacto.account_postings.push_back(new_at);
                       }
                       else if (kind_tags.contains("vat")) {
-                        int sign = (at.amount < 0)?-1:1; // 0 treated as +
+                        int sign = (ap.amount < 0)?-1:1; // 0 treated as +
                         BAS::anonymous::AccountPosting new_at{
-                          .account_no = at.account_no
+                          .account_no = ap.account_no
                           ,.transtext = std::nullopt
                           ,.amount = sign*abs(had.amount*0.2f)
                         };
@@ -2337,9 +2337,9 @@ Cmd Updater::operator()(Command const& command) {
                   // net + vat counter aggregate
                   BAS::anonymous::OptionalAccountPosting net_at;
                   BAS::anonymous::OptionalAccountPosting vat_at;
-                  for (auto const& [at,kind_tags] : tme.defacto.account_postings) {
-                    if (kind_tags.contains("net")) net_at = at;
-                    if (kind_tags.contains("vat")) vat_at = at;
+                  for (auto const& [ap,kind_tags] : tme.defacto.account_postings) {
+                    if (kind_tags.contains("net")) net_at = ap;
+                    if (kind_tags.contains("vat")) vat_at = ap;
                   }
                   if (!net_at) std::cout << "\nNo net_at";
                   if (!vat_at) std::cout << "\nNo vat_at";
@@ -2348,7 +2348,7 @@ Cmd Updater::operator()(Command const& command) {
 
                     BAS::anonymous::AccountPostings ats_to_keep{};
                     std::remove_copy_if(
-                      had.optional.current_candidate->defacto.account_postings.begin()
+                       had.optional.current_candidate->defacto.account_postings.begin()
                       ,had.optional.current_candidate->defacto.account_postings.end()
                       ,std::back_inserter(ats_to_keep)
                       ,[&net_at,&vat_at](auto const& ap){
