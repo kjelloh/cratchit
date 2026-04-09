@@ -82,8 +82,8 @@ namespace BAS {
 			return detail::hash<BASAccountsTopology>{}(bat);
 		}
 
-		std::size_t to_signature(AccountPostingKindTags const& met) {
-			return detail::hash<AccountPostingKindTags>{}(met);
+		std::size_t to_signature(AccountPostingKindTags const& kind_tags) {
+			return detail::hash<AccountPostingKindTags>{}(kind_tags);
 		}
 
   } // kind
@@ -108,7 +108,7 @@ BAS::MDJournalEntry to_md_entry(BAS::MDPostingTagsJournalEntry const& tme) {
 
 BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry const& mdje) {
 	// std::cout << "\nto_typed_meta_entry: " << me;
-	BAS::anonymous::AccountPostingsTags typed_ats{};
+	BAS::anonymous::AccountPostingsTags posting_tags{};
 
   /*
   use the following tagging
@@ -124,20 +124,20 @@ BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry c
 		auto gross_amount = *optional_gross_amount;
 		// Direct type detection based on gross_amount and account meta data
 		for (auto const& ap : mdje.defacto.account_postings) {
-			if (round(abs(ap.amount)) == round(gross_amount)) typed_ats[ap].insert("gross");
-			if (is_vat_account_at(ap)) typed_ats[ap].insert("vat");
-			if (abs(ap.amount) < 1) typed_ats[ap].insert("cents");
-			if (round(abs(ap.amount)) == round(gross_amount / 2)) typed_ats[ap].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
+			if (round(abs(ap.amount)) == round(gross_amount)) posting_tags[ap].insert("gross");
+			if (is_vat_account_at(ap)) posting_tags[ap].insert("vat");
+			if (abs(ap.amount) < 1) posting_tags[ap].insert("cents");
+			if (round(abs(ap.amount)) == round(gross_amount / 2)) posting_tags[ap].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
 		}
 
 		// Ex vat amount Detection
 		Amount ex_vat_amount{},vat_amount{};
 		for (auto const& ap : mdje.defacto.account_postings) {
-			if (!typed_ats.contains(ap)) {
+			if (!posting_tags.contains(ap)) {
 				// Not gross, Not VAT (above) => candidate for ex VAT
 				ex_vat_amount += ap.amount;
 			}
-			else if (typed_ats.at(ap).contains("vat")) {
+			else if (posting_tags.at(ap).contains("vat")) {
 				vat_amount += ap.amount;
 			}
 		}
@@ -146,8 +146,8 @@ BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry c
 			// ex_vat + vat within cents of gross
 			// tag non typed ats as ex-vat
 			for (auto const& ap : mdje.defacto.account_postings) {
-				if (!typed_ats.contains(ap)) {
-					typed_ats[ap].insert(net_or_counter_tag);
+				if (!posting_tags.contains(ap)) {
+					posting_tags[ap].insert(net_or_counter_tag);
 				}
 			}
 		}
@@ -168,30 +168,30 @@ BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry c
 	for (auto const& ap : mdje.defacto.account_postings) {
 		// Identify transactions to EU VAT and EU Purchase tagged accounts
 		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,ap)) {
-			typed_ats[ap].insert("eu_vat");
+			posting_tags[ap].insert("eu_vat");
 			eu_vat_amount = ap.amount;
 		}
 		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,ap)) {
-			typed_ats[ap].insert("eu_purchase");
+			posting_tags[ap].insert("eu_purchase");
 			eu_purchase_amount = ap.amount;
 		}
 	}
 	for (auto const& ap : mdje.defacto.account_postings) {
 		// Identify counter transactions to EU VAT and EU Purchase tagged accounts
-		if (ap.amount == -eu_vat_amount) typed_ats[ap].insert("eu_vat"); // The counter trans for EU VAT
-		if ((first_digit(ap.account_no) == 4 or first_digit(ap.account_no) == 9) and (ap.amount == -eu_purchase_amount)) typed_ats[ap].insert("eu_purchase"); // The counter trans for EU Purchase
+		if (ap.amount == -eu_vat_amount) posting_tags[ap].insert("eu_vat"); // The counter trans for EU VAT
+		if ((first_digit(ap.account_no) == 4 or first_digit(ap.account_no) == 9) and (ap.amount == -eu_purchase_amount)) posting_tags[ap].insert("eu_purchase"); // The counter trans for EU Purchase
 	}
 	// Mark gross accounts for EU VAT transaction journal entry
 	for (auto const& ap : mdje.defacto.account_postings) {
 		// We expect two accounts left unmarked and they are the gross accounts
-		if (!typed_ats.contains(ap) and (abs(ap.amount) == abs(eu_purchase_amount))) {
-			typed_ats[ap].insert("gross");
+		if (!posting_tags.contains(ap) and (abs(ap.amount) == abs(eu_purchase_amount))) {
+			posting_tags[ap].insert("gross");
 		}
 	}
 
 	// Finally add any still untyped at with empty property set
 	for (auto const& ap : mdje.defacto.account_postings) {
-		if (!typed_ats.contains(ap)) typed_ats.insert({ap,{}});
+		if (!posting_tags.contains(ap)) posting_tags.insert({ap,{}});
 	}
 
 	BAS::MDPostingTagsJournalEntry result{
@@ -199,7 +199,7 @@ BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry c
 		,.defacto = {
 			.caption = mdje.defacto.caption
 			,.date = mdje.defacto.date
-			,.account_postings = typed_ats
+			,.account_postings = posting_tags
 		}
 	};
 	return result;
@@ -481,7 +481,7 @@ std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPos
 	return result;
 }
 
-BAS::anonymous::AccountPostingsTags to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& apte) {
+BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& apte) {
 	BAS::anonymous::AccountPostingsTags result{};
 	result.insert(apte); // For now, return ourself as the only alternative
 	return result;
@@ -658,7 +658,7 @@ TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDPostingTag
 	auto sub_tmes = to_typed_sub_meta_entries(tme);
 	for (auto const& sub_tme : sub_tmes) {
 		for (auto const& apte : sub_tme.defacto.account_postings) {
-			auto alt_tats = to_alternative_tats(sie_archive,apte);
+			auto alt_tats = to_alternative_posting_tags(sie_archive,apte);
 			for (auto const& alt_tat : alt_tats) {
 				auto alt_tme = to_tats_swapped_tme(tme,apte,alt_tat);
 				result.prompt << "\n\t\t" <<  "Swapped " << apte << " with " << alt_tat;
