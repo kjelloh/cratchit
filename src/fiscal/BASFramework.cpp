@@ -195,8 +195,8 @@ BAS::anonymous::OptionalAccountPosting gross_account_transaction(BAS::anonymous:
 	return result;
 }
 
-Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats) {
-	Amount result = std::accumulate(ats.begin(),ats.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& ap){
+Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& aps) {
+	Amount result = std::accumulate(aps.begin(),aps.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& ap){
 		acc += ap.amount;
 		return acc;
 	});
@@ -223,8 +223,8 @@ std::string to_string(BAS::anonymous::AccountPosting const& ap) {
 	return os.str();
 };
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& ats) {
-	for (auto const& ap : ats) {
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& aps) {
+	for (auto const& ap : aps) {
 		// os << "\n\t" << ap; 
 		os << "\n    " << ap; 
 	}

@@ -1861,8 +1861,8 @@ Cmd Updater::operator()(Command const& command) {
               // Assume user selected an entry index as base for a template
               auto tme_iter = model->template_candidates.begin();
               auto tme_end = model->template_candidates.end();
-              auto at_iter = model->at_candidates.begin();
-              auto at_end = model->at_candidates.end();
+              auto at_iter = model->ap_candidates.begin();
+              auto at_end = model->ap_candidates.end();
               if (ix < std::distance(tme_iter,tme_end)) {
                 std::advance(tme_iter,ix);
                 auto tme = *tme_iter;
@@ -2057,7 +2057,7 @@ Cmd Updater::operator()(Command const& command) {
                 }
               }
               else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
-                prompt << "\nTODO: Implement acting on selected gross account transaction " << model->at_candidates[at_ix];
+                prompt << "\nTODO: Implement acting on selected gross account transaction " << model->ap_candidates[at_ix];
               }
               else {
                 prompt << "\nPlease enter a valid index";
@@ -2346,15 +2346,15 @@ Cmd Updater::operator()(Command const& command) {
                   if (net_at and vat_at) {
                     had.optional.counter_ats_producer = ToNetVatAccountPostings{*net_at,*vat_at};
 
-                    BAS::anonymous::AccountPostings ats_to_keep{};
+                    BAS::anonymous::AccountPostings aps_to_keep{};
                     std::remove_copy_if(
                        had.optional.current_candidate->defacto.account_postings.begin()
                       ,had.optional.current_candidate->defacto.account_postings.end()
-                      ,std::back_inserter(ats_to_keep)
+                      ,std::back_inserter(aps_to_keep)
                       ,[&net_at,&vat_at](auto const& ap){
                         return ((ap.account_no == net_at->account_no) or (ap.account_no == vat_at->account_no));
                     });
-                    had.optional.current_candidate->defacto.account_postings = ats_to_keep;
+                    had.optional.current_candidate->defacto.account_postings = aps_to_keep;
                   }
                   prompt << "\ncadidate: " << *had.optional.current_candidate;
                   model->prompt_state = PromptState::EnterHA;
@@ -2430,7 +2430,7 @@ Cmd Updater::operator()(Command const& command) {
                 prompt << "\nSorry, I failed to understand your entry. Press <Enter> to get help" << std::quoted(command);
               }
             }
-            else if (auto at_iter = model->to_at_iter(model->selected_had(),ix)) {
+            else if (auto at_iter = model->to_ap_iter(model->selected_had(),ix)) {
               model->at_index = ix;
               prompt << "\nAccount Transaction:" << **at_iter;
               if (do_remove) {
@@ -3963,19 +3963,19 @@ Cmd Updater::operator()(Command const& command) {
       }
     }
     else if (ast[0] == "-gross") {
-      auto ats = to_gross_account_transactions(model->m_sie_archive);
+      auto ats = to_gross_account_postings(model->m_sie_archive);
       for (auto const& ap : ats) {
         prompt << "\n" << ap;
       }
     }
     else if (ast[0] == "-net") {
-      auto ats = to_net_account_transactions(model->m_sie_archive);
+      auto ats = to_net_account_postings(model->m_sie_archive);
       for (auto const& ap : ats) {
         prompt << "\n" << ap;
       }
     }
     else if (ast[0] == "-vat") {
-      auto vats = to_vat_account_transactions(model->m_sie_archive);
+      auto vats = to_vat_account_postings(model->m_sie_archive);
       for (auto const& vat : vats) {
         prompt << "\n" << vat;
       }
@@ -4655,12 +4655,12 @@ The ITfied AB
             prompt << "\n    " << ix++ << " " << model->template_candidates[i];
           }
           // Consider the user may have entered the name of a gross account to journal the transaction amount
-          auto gats = to_gross_account_transactions(model->m_sie_archive);
-          model->at_candidates.clear();
+          auto gats = to_gross_account_postings(model->m_sie_archive);
+          model->ap_candidates.clear();
           std::copy_if(
              gats.begin()
             ,gats.end()
-            ,std::back_inserter(model->at_candidates)
+            ,std::back_inserter(model->ap_candidates)
             ,[&command,this](BAS::anonymous::AccountPosting const& ap){
               bool result{false};
               if (ap.transtext) result |= text::functional::strings_share_tokens(command,*ap.transtext);
@@ -4670,8 +4670,8 @@ The ITfied AB
               }
               return result;
           });
-          for (int i=0;i < model->at_candidates.size();++i) {
-            prompt << "\n    " << ix++<< " " << model->at_candidates[i];
+          for (int i=0;i < model->ap_candidates.size();++i) {
+            prompt << "\n    " << ix++<< " " << model->ap_candidates[i];
           }
         }
       }
@@ -4711,7 +4711,7 @@ The ITfied AB
 // std::cout << "\nPromptState::EditAT " << std::quoted(command);
         if (auto had_iter = model->selected_had()) {
           auto const& had = **had_iter;
-      		if (auto at_iter = model->to_at_iter(had_iter,model->at_index)) {
+      		if (auto at_iter = model->to_ap_iter(had_iter,model->at_index)) {
             auto& at = **at_iter;
             prompt << "\n\tbefore:" << at;
             if (auto account_no = BAS::to_account_no(command)) {

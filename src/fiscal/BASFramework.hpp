@@ -300,20 +300,20 @@ inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostin
 					 and (are_same_and_less_than_100_cents_apart(ap1.amount,ap2.amount)));
 }
 
-inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& ats1, BAS::anonymous::AccountPostings const& ats2) {
+inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& aps1, BAS::anonymous::AccountPostings const& aps2) {
 	bool result{true};
-	if (ats1.size() >= ats2.size()) {
-		for (int i=0;i<ats1.size() and result;++i) {
-			if (i<ats2.size()) {
-				result = are_same_and_less_than_100_cents_apart(ats1[i],ats2[i]);
+	if (aps1.size() >= aps2.size()) {
+		for (int i=0;i<aps1.size() and result;++i) {
+			if (i<aps2.size()) {
+				result = are_same_and_less_than_100_cents_apart(aps1[i],aps2[i]);
 			}
 			else {
-				result = abs(ats1[i].amount) < 1.0; // Do not care about cents
+				result = abs(aps1[i].amount) < 1.0; // Do not care about cents
 			}
 		}
 	}
 	else {
-		return are_same_and_less_than_100_cents_apart(ats2,ats1); // Recurse with swapped arguments
+		return are_same_and_less_than_100_cents_apart(aps2,aps1); // Recurse with swapped arguments
 	}
 	return result;
 }
@@ -337,7 +337,7 @@ bool does_balance(BAS::anonymous::JournalEntry const& aje);
 // Pick the negative or positive gross amount and return it without sign
 OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 BAS::anonymous::OptionalAccountPosting gross_account_transaction(BAS::anonymous::JournalEntry const& aje);
-Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats);
+Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& aps);
 
 // END Accounting
 // -----------------------------
@@ -347,7 +347,7 @@ Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats);
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap);
 std::string to_string(BAS::anonymous::AccountPosting const& ap);
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& ats);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& aps);
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje);
 std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
 std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);

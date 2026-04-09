@@ -1591,7 +1591,7 @@ inline BAS::anonymous::OptionalAccountPosting to_bas_account_transaction(std::ve
 // Now in BASFramework
 // std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap) {
 // std::string to_string(BAS::anonymous::AccountPosting const& ap) {
-// std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& ats) {
+// std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& aps) {
 // std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje) {
 // std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno) {
 // std::ostream& operator<<(std::ostream& os,std::optional<bool> flag) {
@@ -1799,14 +1799,14 @@ namespace CSV {
 // bool does_balance(BAS::anonymous::JournalEntry const& aje) {
 // inline OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
 // inline BAS::anonymous::OptionalAccountPosting gross_account_transaction(BAS::anonymous::JournalEntry const& aje) {
-// inline Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& ats) {
+// inline Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& aps) {
 
 // Now in AmountFramework
 // inline bool have_opposite_signs(Amount a1,Amount a2) {
 
-inline BAS::anonymous::AccountPostings counter_account_transactions(BAS::anonymous::JournalEntry const& aje,BAS::anonymous::AccountPosting const& gross_ap) {
+inline BAS::anonymous::AccountPostings counter_account_postings(BAS::anonymous::JournalEntry const& aje,BAS::anonymous::AccountPosting const& gross_ap) {
 	BAS::anonymous::AccountPostings result{};
-	// Gather all ats with opposite sign and that sums upp to gross_at amount
+	// Gather all aps with opposite sign and that sums upp to gross_at amount
 	std::copy_if(
      aje.account_postings.begin()
     ,aje.account_postings.end(),std::back_inserter(result)
@@ -2177,7 +2177,7 @@ inline std::optional<std::string> to_ats_sum_string(SIEArchive const& sie_archiv
 
 // Now in BASFramework unit / 20251111
 // inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPosting const& ap1, BAS::anonymous::AccountPosting const& ap2) {
-// inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& ats1, BAS::anonymous::AccountPostings const& ats2) {
+// inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& aps1, BAS::anonymous::AccountPostings const& aps2) {
 // inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me1, BAS::MDJournalEntry const& me2) {
 
 // Now in HAD2JournalEntryFramework unit / 20251111
@@ -2212,25 +2212,25 @@ struct VatAccountPostings {
 	}
 };
 
-inline BAS::anonymous::AccountPostings to_gross_account_transactions(BAS::anonymous::JournalEntry const& aje) {
+inline BAS::anonymous::AccountPostings to_gross_account_postings(BAS::anonymous::JournalEntry const& aje) {
 	GrossAccountPostings ats{};
 	ats(aje);
 	return ats.result;
 }
 
-inline BAS::anonymous::AccountPostings to_gross_account_transactions(SIEArchive const& sie_archive) {
+inline BAS::anonymous::AccountPostings to_gross_account_postings(SIEArchive const& sie_archive) {
 	GrossAccountPostings ats{};
 	for_each_anonymous_journal_entry(sie_archive,ats);
 	return ats.result;
 }
 
-inline BAS::anonymous::AccountPostings to_net_account_transactions(SIEArchive const& sie_archive) {
+inline BAS::anonymous::AccountPostings to_net_account_postings(SIEArchive const& sie_archive) {
 	NetAccountPostings ats{};
 	for_each_anonymous_journal_entry(sie_archive,ats);
 	return ats.result;
 }
 
-inline BAS::anonymous::AccountPostings to_vat_account_transactions(SIEArchive const& sie_archive) {
+inline BAS::anonymous::AccountPostings to_vat_account_postings(SIEArchive const& sie_archive) {
 	VatAccountPostings ats{};
 	for_each_anonymous_journal_entry(sie_archive,ats);
 	return ats.result;
@@ -4153,7 +4153,7 @@ public:
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
 	BAS::TypedMetaEntries template_candidates{};
-	BAS::anonymous::AccountPostings at_candidates{};
+	BAS::anonymous::AccountPostings ap_candidates{};
   std::size_t at_index{};
   std::string prompt{};
 	bool quit{};
@@ -4196,7 +4196,7 @@ public:
 		return result;
 	}
 
-  std::optional<BAS::anonymous::AccountPostings::iterator> to_at_iter(std::optional<HeadingAmountDateTransEntries::iterator> had_iter,std::size_t ix) {
+  std::optional<BAS::anonymous::AccountPostings::iterator> to_ap_iter(std::optional<HeadingAmountDateTransEntries::iterator> had_iter,std::size_t ix) {
     std::cout << "\nto_at_iter(" << ix << ")";
     std::optional<BAS::anonymous::AccountPostings::iterator> result{};
     if (had_iter) {
