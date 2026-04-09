@@ -1860,7 +1860,7 @@ inline BAS::anonymous::OptionalAccountPosting vat_account_transaction(BAS::anony
 // Now in AmountsFramework
 // inline bool are_same_and_less_than_100_cents_apart(Amount const& a1,Amount const& a2) {
 
-inline BAS::MDJournalEntry to_swapped_ats_md_entry(BAS::MDJournalEntry const& mdje,BAS::anonymous::AccountPosting const& target_ap,BAS::anonymous::AccountPosting const& new_ap) {
+inline BAS::MDJournalEntry to_swapped_ap_md_entry(BAS::MDJournalEntry const& mdje,BAS::anonymous::AccountPosting const& target_ap,BAS::anonymous::AccountPosting const& new_ap) {
 	BAS::MDJournalEntry result{mdje};
 	auto iter = std::find_if(result.defacto.account_postings.begin(),result.defacto.account_postings.end(),[&target_ap](auto const& entry){
 		return (entry.account_no == target_ap.account_no);
@@ -1870,7 +1870,7 @@ inline BAS::MDJournalEntry to_swapped_ats_md_entry(BAS::MDJournalEntry const& md
 		result.defacto.account_postings.push_back(new_ap);
 	}
 	else {
-		std::cout << "\nswapped_ats_entry failed. Could not match target " << target_ap << " with new_at " << new_ap;
+		std::cout << "\to_swapped_ap_md_entry failed. Could not match target_ap " << target_ap << " with new_ap " << new_ap;
 	}
 	BAS::sort(result,BAS::has_greater_abs_amount);
 	return result;
@@ -2111,7 +2111,7 @@ inline OptionalAmount account_sum(SIEDocument const& sie_doc,BAS::AccountNo acco
 	return result;
 }
 
-inline OptionalAmount to_ats_sum(SIEDocument const& sie_doc,BAS::AccountNos const& bas_account_nos) {
+inline OptionalAmount to_accounts_postings_sum(SIEDocument const& sie_doc,BAS::AccountNos const& bas_account_nos) {
 	OptionalAmount result{};
 	try {
 		Amount amount{};
@@ -2124,12 +2124,12 @@ inline OptionalAmount to_ats_sum(SIEDocument const& sie_doc,BAS::AccountNos cons
 		result = amount;
 	}
 	catch (std::exception const& e) {
-		std::cout << "\nto_ats_sum failed. Excpetion=" << std::quoted(e.what());
+		std::cout << "\nto_accounts_postings_sum failed. Excpetion=" << std::quoted(e.what());
 	}
 	return result;
 }
 
-inline OptionalAmount to_ats_sum(SIEArchive const& sie_archive,BAS::AccountNos const& bas_account_nos) {
+inline OptionalAmount to_accounts_postings_sum(SIEArchive const& sie_archive,BAS::AccountNos const& bas_account_nos) {
 	OptionalAmount result{};
 	try {
 		Amount amount{};
@@ -2142,20 +2142,20 @@ inline OptionalAmount to_ats_sum(SIEArchive const& sie_archive,BAS::AccountNos c
 		result = amount;
 	}
 	catch (std::exception const& e) {
-		std::cout << "\nto_ats_sum failed. Excpetion=" << std::quoted(e.what());
+		std::cout << "\nto_accounts_postings_sum failed. Excpetion=" << std::quoted(e.what());
 	}
 	return result;
 }
 
-inline std::optional<std::string> to_ats_sum_string(SIEDocument const& sie_doc,BAS::AccountNos const& bas_account_nos) {
+inline std::optional<std::string> to_accounts_postings_sum_string(SIEDocument const& sie_doc,BAS::AccountNos const& bas_account_nos) {
 	std::optional<std::string> result{};
-	if (auto const& ats_sum = to_ats_sum(sie_doc,bas_account_nos)) result = to_string(*ats_sum);
+	if (auto const& maybe_sum = to_accounts_postings_sum(sie_doc,bas_account_nos)) result = to_string(*maybe_sum);
 	return result;
 }
 
-inline std::optional<std::string> to_ats_sum_string(SIEArchive const& sie_archive,BAS::AccountNos const& bas_account_nos) {
+inline std::optional<std::string> to_accounts_postings_sum_string(SIEArchive const& sie_archive,BAS::AccountNos const& bas_account_nos) {
 	std::optional<std::string> result{};
-	if (auto const& ats_sum = to_ats_sum(sie_archive,bas_account_nos)) result = to_string(*ats_sum);
+	if (auto const& maybe_sum = to_accounts_postings_sum(sie_archive,bas_account_nos)) result = to_string(*maybe_sum);
 	return result;
 }
 
@@ -2178,7 +2178,7 @@ inline std::optional<std::string> to_ats_sum_string(SIEArchive const& sie_archiv
 // inline std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPostingTagsJournalEntry const& tme) {
 // inline bool operator==(BAS::MDPostingTagsJournalEntry const& tme1,BAS::MDPostingTagsJournalEntry const& tme2) {
 // inline BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& apte) {
-// inline BAS::MDPostingTagsJournalEntry to_tats_swapped_tme(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte) {
+// inline BAS::MDPostingTagsJournalEntry to_swapped_apte_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte) {
 // inline BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEntry const& tme,Amount const& gross_amount) {
 
 // Now in BASFramework unit / 20251111

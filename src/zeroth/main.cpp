@@ -633,7 +633,7 @@ namespace lua_faced_ifc {
               series = nil,  -- Assuming char can be represented as a single character string
               gross_account_no = nil,  -- Assuming AccountNo can be represented as a string or number
               current_candidate = nil,  -- Assuming OptionalMetaEntry can be represented as a string or number
-              counter_ats_producer = nil,  -- Assuming ToNetVatAccountPostings can be represented as a string or number
+              counter_aps_producer = nil,  -- Assuming ToNetVatAccountPostings can be represented as a string or number
               vat_returns_form_box_map_candidate = nil  -- Assuming FormBoxMap can be represented as a string or number
           }
       }
@@ -697,7 +697,7 @@ namespace lua_faced_ifc {
           lua_settable(L, -3);
 
           // Push the key
-          lua_pushstring(L, "counter_ats_producer");
+          lua_pushstring(L, "counter_aps_producer");
           // Push the value
           lua_pushnil(L);
           // Set the table value
@@ -1507,7 +1507,7 @@ Cmd Updater::operator()(Command const& command) {
               }
               else if (had.optional.current_candidate) {
                 prompt << "\n\t" << *had.optional.current_candidate;
-                if (had.optional.counter_ats_producer) {
+                if (had.optional.counter_aps_producer) {
                   // We alreade have a "counter transactions" producer.
                   // Go directly to state for user to apply it to complete the candidate
                   model->prompt_state = PromptState::EnterHA;
@@ -2347,7 +2347,7 @@ Cmd Updater::operator()(Command const& command) {
                   if (!net_at) std::cout << "\nNo net_at";
                   if (!vat_at) std::cout << "\nNo vat_at";
                   if (net_at and vat_at) {
-                    had.optional.counter_ats_producer = ToNetVatAccountPostings{*net_at,*vat_at};
+                    had.optional.counter_aps_producer = ToNetVatAccountPostings{*net_at,*vat_at};
 
                     BAS::anonymous::AccountPostings aps_to_keep{};
                     std::remove_copy_if(
@@ -4471,8 +4471,8 @@ The ITfied AB
         if (auto had_iter = model->selected_had()) {
           auto& had = *(*had_iter);
           if (!had.optional.current_candidate) std::cout << "\nNo had.optional.current_candidate";
-          if (!had.optional.counter_ats_producer) std::cout << "\nNo had.optional.counter_ats_producer";
-          if (had.optional.current_candidate and had.optional.counter_ats_producer) {
+          if (!had.optional.counter_aps_producer) std::cout << "\nNo had.optional.counter_aps_producer";
+          if (had.optional.current_candidate and had.optional.counter_aps_producer) {
             auto gross_positive_amount = to_positive_gross_transaction_amount(had.optional.current_candidate->defacto);
             auto gross_negative_amount = to_negative_gross_transaction_amount(had.optional.current_candidate->defacto);
             auto gross_amounts_diff = gross_positive_amount + gross_negative_amount;
@@ -4491,7 +4491,7 @@ The ITfied AB
                 }
                 else {
                   prompt << "\nHEADER " << ast[0];
-                  auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0]);
+                  auto ats = (*had.optional.counter_aps_producer)(abs(gross_amounts_diff),ast[0]);
                   std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                   prompt << "\nAdded transaction aggregate for REMAINING NET AMOUNT" << ats;;
                 }
@@ -4503,13 +4503,13 @@ The ITfied AB
                   prompt << "\nWe will create a {net,vat} using this this header and amount";
                   if (gross_amounts_diff > 0) {
                     // We need to balance up with negative account transaction aggregates
-                    auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
+                    auto ats = (*had.optional.counter_aps_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                     prompt << "\nAdded negative transactions aggregate" << ats;
                   }
                   else if (gross_amounts_diff < 0) {
                     // We need to balance up with positive account transaction aggregates
-                    auto ats = (*had.optional.counter_ats_producer)(abs(gross_amounts_diff),ast[0],amount);
+                    auto ats = (*had.optional.counter_aps_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                     prompt << "\nAdded positive transaction aggregate";
                   }

@@ -491,7 +491,7 @@ BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const
 	return (BAS::kind::to_posting_kind_tags(tme1) == BAS::kind::to_posting_kind_tags(tme2));
 }
 
-BAS::MDPostingTagsJournalEntry to_tats_swapped_tme(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte) {
+BAS::MDPostingTagsJournalEntry to_swapped_apte_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte) {
 	BAS::MDPostingTagsJournalEntry result{tme};
 	// TODO: Implement actual swap of tats
 	return result;
@@ -660,7 +660,7 @@ TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDPostingTag
 		for (auto const& apte : sub_tme.defacto.account_postings) {
 			auto alt_tats = to_alternative_posting_tags(sie_archive,apte);
 			for (auto const& alt_tat : alt_tats) {
-				auto alt_tme = to_tats_swapped_tme(tme,apte,alt_tat);
+				auto alt_tme = to_swapped_apte_md_entry(tme,apte,alt_tat);
 				result.prompt << "\n\t\t" <<  "Swapped " << apte << " with " << alt_tat;
 				// Test that we can do a roundtrip and get the alt_tme back
 				auto gross_amount = std::accumulate(alt_tme.defacto.account_postings.begin(),alt_tme.defacto.account_postings.end(),Amount{0},[](auto acc, auto const& apte){
