@@ -15,8 +15,8 @@ namespace BAS {
 	using TypedMetaEntries = std::vector<MDPostingTagsJournalEntry>;
 
   void for_each_posting_entry(BAS::MDPostingTagsJournalEntry const& mdtje,auto& f) {
-    for (auto const& tat : mdtje.defacto.account_postings) {
-      f(tat);
+    for (auto const& apte : mdtje.defacto.account_postings) {
+      f(apte);
     }
 	}
 
@@ -255,7 +255,7 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 
 std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountsTopology const& accounts);
 std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingKindTags const& kind_tags);
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingsTagsEntry const& tat);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingsTagsEntry const& apte);
 
 template <typename T>
 struct IndentedOnNewLine{
@@ -271,9 +271,9 @@ std::ostream& operator<<(std::ostream& os,BAS::MDPostingTagsJournalEntry const& 
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
 // that are all of the same "type" and that all sums to zero (do balance)
 std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPostingTagsJournalEntry const& tme);
-BAS::anonymous::AccountPostingsTags to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& tat);
+BAS::anonymous::AccountPostingsTags to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& apte);
 bool operator==(BAS::MDPostingTagsJournalEntry const& tme1,BAS::MDPostingTagsJournalEntry const& tme2);
-BAS::MDPostingTagsJournalEntry to_tats_swapped_tme(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_tat,BAS::anonymous::AccountPostingsTagsEntry const& new_tat);
+BAS::MDPostingTagsJournalEntry to_tats_swapped_tme(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte);
 BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEntry const& tme,Amount const& gross_amount);
 
 struct TestResult {

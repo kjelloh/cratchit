@@ -29,8 +29,11 @@ namespace BAS {
 			std::size_t result{};
 			std::vector<AccountPostingKind> posting_kinds{};
 			for (auto const& kind_tag : kind_tags) posting_kinds.push_back(to_posting_kind(kind_tag));
-			std::sort(posting_kinds.begin(),posting_kinds.end(),[](AccountPostingKind t1,AccountPostingKind t2){
-				return (t1<t2);
+			std::sort(
+         posting_kinds.begin()
+        ,posting_kinds.end()
+        ,[](AccountPostingKind lhs,AccountPostingKind rhs){
+				  return (lhs<rhs);
 			});
 			// Assemble a "number" of "digits" each having value 0..15 (i.e, 
       // in effect a hexadecimal number with each digit indicating an posting_kind enum value)
@@ -57,8 +60,8 @@ namespace BAS {
 
 		BASAccountsTopology to_accounts_topology(MDPostingTagsJournalEntry const& tme) {
 			BASAccountsTopology result{};
-			auto f = [&result](BAS::anonymous::AccountPostingsTagsEntry const& tat) {
-				auto const& [ap,kind_tags] = tat;
+			auto f = [&result](BAS::anonymous::AccountPostingsTagsEntry const& apte) {
+				auto const& [ap,kind_tags] = apte;
 				result.insert(ap.account_no);
 			};
 			for_each_posting_entry(tme,f);
@@ -67,8 +70,8 @@ namespace BAS {
 
 		AccountPostingKindTags to_posting_kind_tags(MDPostingTagsJournalEntry const& tme) {
 			AccountPostingKindTags result{};
-			auto f = [&result](BAS::anonymous::AccountPostingsTagsEntry const& tat) {
-				auto const& [ap,kind_tags] = tat;
+			auto f = [&result](BAS::anonymous::AccountPostingsTagsEntry const& apte) {
+				auto const& [ap,kind_tags] = apte;
 				for (auto const& kind_tag : kind_tags) result.insert(kind_tag);
 			};
 			for_each_posting_entry(tme,f);
@@ -274,8 +277,8 @@ JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "vat") or (entry.first == "eu_vat") or  (entry.first == "cents");})) {
 		result = JournalEntryVATType::VATReturns; // All VATS (probably a VAT report)
 	}
-  else if (tme.defacto.account_postings.size() == 2 and std::all_of(tme.defacto.account_postings.begin(),tme.defacto.account_postings.end(),[](auto const& tat){
-      auto const& [ap,kind_tags] = tat;
+  else if (tme.defacto.account_postings.size() == 2 and std::all_of(tme.defacto.account_postings.begin(),tme.defacto.account_postings.end(),[](auto const& apte){
+      auto const& [ap,kind_tags] = apte;
       return (ap.account_no == 1630 or ap.account_no == 2650 or ap.account_no == 1650); // SKV account updated with VAT, i.e., cleared
 	  // 1630 = SKV tax account, 1650 = SKV tax receivable, 2650 = SKV tax payable
     })) {
@@ -284,8 +287,8 @@ JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "transfer") or (entry.first == "vat");})) {
 		result = JournalEntryVATType::VATTransfer; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
 	}
-  else if (tme.defacto.account_postings.size() == 2 and std::all_of(tme.defacto.account_postings.begin(),tme.defacto.account_postings.end(),[](auto const& tat){
-      auto const& [ap,kind_tags] = tat;
+  else if (tme.defacto.account_postings.size() == 2 and std::all_of(tme.defacto.account_postings.begin(),tme.defacto.account_postings.end(),[](auto const& apte){
+      auto const& [ap,kind_tags] = apte;
       return (ap.account_no == 8314 or ap.account_no == 1630);
     })) {
     // One account 1630 (SKV tax account) and one account 8314 (tax free interest gain)
@@ -441,8 +444,8 @@ std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingKindTags cons
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingsTagsEntry const& tat) {
-	auto const& [ap,kind_tags] = tat;
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingsTagsEntry const& apte) {
+	auto const& [ap,kind_tags] = apte;
 	os << kind_tags << " : " << ap;
 	return os;
 }
@@ -458,8 +461,8 @@ std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::Acco
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::PostingTagsJournalEntry const& tje) {
 	os << std::quoted(tje.caption) << " " << tje.date;
-	for (auto const& tat : tje.account_postings) {
-		os << "\n\t" << tat;
+	for (auto const& apte : tje.account_postings) {
+		os << "\n\t" << apte;
 	}
 	return os;
 }
@@ -478,9 +481,9 @@ std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPos
 	return result;
 }
 
-BAS::anonymous::AccountPostingsTags to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& tat) {
+BAS::anonymous::AccountPostingsTags to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& apte) {
 	BAS::anonymous::AccountPostingsTags result{};
-	result.insert(tat); // For now, return ourself as the only alternative
+	result.insert(apte); // For now, return ourself as the only alternative
 	return result;
 }
 
@@ -488,7 +491,7 @@ BAS::anonymous::AccountPostingsTags to_alternative_tats(SIEArchive const& sie_ar
 	return (BAS::kind::to_posting_kind_tags(tme1) == BAS::kind::to_posting_kind_tags(tme2));
 }
 
-BAS::MDPostingTagsJournalEntry to_tats_swapped_tme(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_tat,BAS::anonymous::AccountPostingsTagsEntry const& new_tat) {
+BAS::MDPostingTagsJournalEntry to_tats_swapped_tme(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte) {
 	BAS::MDPostingTagsJournalEntry result{tme};
 	// TODO: Implement actual swap of tats
 	return result;
@@ -517,37 +520,37 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEnt
 			// With Swedish VAT (with rounding)
 			if (tme.defacto.account_postings.size() == 3 or tme.defacto.account_postings.size() == 4) {
 				// One gross account + single counter {net,vat} and single rounding trans
-				for (auto const& tat : tme.defacto.account_postings) {
-					switch (BAS::kind::to_posting_kind_tags_rank(tat.second)) {
+				for (auto const& apte : tme.defacto.account_postings) {
+					switch (BAS::kind::to_posting_kind_tags_rank(apte.second)) {
 						case 0x3: {
 							// gross
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
 								,.amount = gross_amount
 							});
 						}; break;
 						case 0x4: {
 							// net
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
 								,.amount = static_cast<Amount>(gross_amount*0.8) // NOTE: Hard coded 25% VAT
 							});
 						}; break;
 						case 0x6: {
 							// VAT
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
 								,.amount = static_cast<Amount>(gross_amount*0.2) // NOTE: Hard coded 25% VAT
 							});
 						}; break;
 						case 0x7: {
 							// Cents
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
 								,.amount = static_cast<Amount>(0.0) // NOTE: No rounding here
 								// NOTE: Applying a rounding scheme has to "guess" what to aim for.
 								//       It seems some sellers aim at making the gross amount without cents.
@@ -576,30 +579,30 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEnt
 				// But to populate the VAT Returns form we need four more "fake" transactions
 				// One "fake" EU VAT + a counter "fake" VAT transactions (zero VAT to pay for the buyer)
 				// One "fake" EU Purchase + a counter EU Purchase (to not duble book the purchase in the buyers journal)
-				for (auto const& tat : tme.defacto.account_postings) {
-					switch (BAS::kind::to_posting_kind_tags_rank(tat.second)) {
+				for (auto const& apte : tme.defacto.account_postings) {
+					switch (BAS::kind::to_posting_kind_tags_rank(apte.second)) {
 						case 0x2: {
 							// eu_purchase +/-
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
+								,.amount = (apte.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x3: {
 							// gross +/-
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
+								,.amount = (apte.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x5: {
 							// eu_vat +/-
-							auto vat_amount = static_cast<Amount>(((tat.first.amount<0)?-1.0:1.0) * 0.2 * abs(gross_amount));
+							auto vat_amount = static_cast<Amount>(((apte.first.amount<0)?-1.0:1.0) * 0.2 * abs(gross_amount));
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
 								,.amount = vat_amount
 							});
 						} break;
@@ -615,14 +618,14 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEnt
 		case 0x3: {
 			// With gross, counter gross
 			if (tme.defacto.account_postings.size() == 2) {
-				for (auto const& tat : tme.defacto.account_postings) {
-					switch (BAS::kind::to_posting_kind_tags_rank(tat.second)) {
+				for (auto const& apte : tme.defacto.account_postings) {
+					switch (BAS::kind::to_posting_kind_tags_rank(apte.second)) {
 						case 0x3: {
 							// gross +/-
 							mdje_candidate.defacto.account_postings.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
+								.account_no = apte.first.account_no
+								,.transtext = apte.first.transtext
+								,.amount = (apte.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						}; break;
 					} // switch
@@ -654,14 +657,14 @@ TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDPostingTag
 	result.prompt << "test_typed_meta_entry=";
 	auto sub_tmes = to_typed_sub_meta_entries(tme);
 	for (auto const& sub_tme : sub_tmes) {
-		for (auto const& tat : sub_tme.defacto.account_postings) {
-			auto alt_tats = to_alternative_tats(sie_archive,tat);
+		for (auto const& apte : sub_tme.defacto.account_postings) {
+			auto alt_tats = to_alternative_tats(sie_archive,apte);
 			for (auto const& alt_tat : alt_tats) {
-				auto alt_tme = to_tats_swapped_tme(tme,tat,alt_tat);
-				result.prompt << "\n\t\t" <<  "Swapped " << tat << " with " << alt_tat;
+				auto alt_tme = to_tats_swapped_tme(tme,apte,alt_tat);
+				result.prompt << "\n\t\t" <<  "Swapped " << apte << " with " << alt_tat;
 				// Test that we can do a roundtrip and get the alt_tme back
-				auto gross_amount = std::accumulate(alt_tme.defacto.account_postings.begin(),alt_tme.defacto.account_postings.end(),Amount{0},[](auto acc, auto const& tat){
-					if (tat.first.amount > 0) acc += tat.first.amount;
+				auto gross_amount = std::accumulate(alt_tme.defacto.account_postings.begin(),alt_tme.defacto.account_postings.end(),Amount{0},[](auto acc, auto const& apte){
+					if (apte.first.amount > 0) acc += apte.first.amount;
 					return acc;
 				});
 				auto raw_alt_candidate = to_md_entry(alt_tme); // Raw conversion
