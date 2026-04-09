@@ -1852,7 +1852,10 @@ Cmd Updater::operator()(Command const& command) {
                   ,.date = had.date
                 }
               };
-              mdje.defacto.account_postings.emplace_back(BAS::anonymous::AccountPosting{.account_no=*account_no,.amount=had.amount});
+              mdje.defacto.account_postings.emplace_back(BAS::anonymous::AccountPosting{
+                 .account_no=*account_no
+                ,.amount=had.amount
+              });
               had.optional.current_candidate = mdje;
               prompt << "\ncandidate:" << mdje;
               model->prompt_state = PromptState::GrossDebitorCreditOption;

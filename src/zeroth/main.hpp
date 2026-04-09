@@ -1332,13 +1332,13 @@ namespace BAS {
 		return result;
 	}
 
-	auto has_greater_amount = [](BAS::anonymous::AccountPosting const& ap1,BAS::anonymous::AccountPosting const& ap2) {
-		return (ap1.amount > ap2.amount);
+	auto has_greater_amount = [](BAS::anonymous::AccountPosting const& lhs,BAS::anonymous::AccountPosting const& rhs) {
+		return (lhs.amount > rhs.amount);
 	};
 
-	auto has_greater_abs_amount = [](BAS::anonymous::AccountPosting const& ap1,BAS::anonymous::AccountPosting const& ap2) {
+	auto has_greater_abs_amount = [](BAS::anonymous::AccountPosting const& lhs,BAS::anonymous::AccountPosting const& rhs) {
     // Note: Prefix '::' means 'global namespace', NOT 'namespace above this one'.
-		return (abs(ap1.amount) > abs(ap2.amount));
+		return (abs(lhs.amount) > abs(rhs.amount));
 	};
 
 	BAS::MDJournalEntry& sort(BAS::MDJournalEntry& mdje,auto& comp) {
@@ -1573,12 +1573,18 @@ inline BAS::anonymous::OptionalAccountPosting to_bas_account_transaction(std::ve
 				switch (ast.size()) {
 					case 2: {
 						if (auto amount = to_amount(ast[1])) {
-							result = BAS::anonymous::AccountPosting{.account_no=*account_no,.transtext=std::nullopt,.amount=*amount};
+							result = BAS::anonymous::AccountPosting{
+                 .account_no=*account_no
+                ,.transtext=std::nullopt
+                ,.amount=*amount};
 						}
 					} break;
 					case 3: {
 						if (auto amount = to_amount(ast[2])) {
-							result = BAS::anonymous::AccountPosting{.account_no=*account_no,.transtext=ast[1],.amount=*amount};
+							result = BAS::anonymous::AccountPosting{
+                 .account_no=*account_no
+                ,.transtext=ast[1]
+                ,.amount=*amount};
 						}
 					} break;
 					default:;
@@ -1787,7 +1793,7 @@ namespace CSV {
 
 // Now in sie-unit
 // namespace sie
-// to_sie_t(BAS::anonymous::AccountPosting const& trans)
+// to_sie_t(BAS::anonymous::AccountPosting const& ap)
 // to_sie_t(BAS::MetaEntry const& me) {
 
 // Now in SKVFramework
@@ -2280,7 +2286,7 @@ struct CollectT2s {
 		auto t2_iter = t2s.begin();
 		for (;t2_iter != t2s.end();++t2_iter) {
 			if (!t2_iter->counter_trans) {
-				// No counter trans found yet
+				// No counter posting found yet
 				auto at_iter1 = std::find_if(
            mdje.defacto.account_postings.begin()
           ,mdje.defacto.account_postings.end()

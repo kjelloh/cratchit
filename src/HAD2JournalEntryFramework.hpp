@@ -135,7 +135,6 @@ public:
 		:  m_ap{ap}
 			,m_percent{static_cast<int>(round(ap.amount*100 / gross_amount))}  {}
 	BAS::anonymous::AccountPosting operator()(Amount amount) const {
-		// BAS::anonymous::AccountPosting result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
 		BAS::anonymous::AccountPosting result{
 			 .account_no = m_ap.account_no
 			,.transtext = m_ap.transtext
