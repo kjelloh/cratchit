@@ -132,19 +132,19 @@ BAS::MDJournalEntry to_md_entry(BAS::MDPostingTagsJournalEntry const& tme);
 class AccountPostingTemplate {
 public:
 	AccountPostingTemplate(Amount gross_amount,BAS::anonymous::AccountPosting const& ap)
-		:  m_at{ap}
+		:  m_ap{ap}
 			,m_percent{static_cast<int>(round(ap.amount*100 / gross_amount))}  {}
 	BAS::anonymous::AccountPosting operator()(Amount amount) const {
 		// BAS::anonymous::AccountPosting result{.account_no = m_account_no,.transtext="",.amount=amount*m_factor};
 		BAS::anonymous::AccountPosting result{
-			 .account_no = m_at.account_no
-			,.transtext = m_at.transtext
+			 .account_no = m_ap.account_no
+			,.transtext = m_ap.transtext
 			,.amount=static_cast<Amount>(round(amount*m_percent)/100.0)};
 		return result;
 	}
 	int percent() const {return m_percent;}
 private:
-	BAS::anonymous::AccountPosting m_at;
+	BAS::anonymous::AccountPosting m_ap;
 	int m_percent;
 	friend std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att);
 };
@@ -157,9 +157,13 @@ public:
 		if (auto optional_gross_amount = to_gross_transaction_amount(mdje.defacto)) {
 			auto gross_amount = *optional_gross_amount;
 			if (gross_amount >= 0.01) {
-				std::transform(mdje.defacto.account_postings.begin(),mdje.defacto.account_postings.end(),std::back_inserter(templates),[gross_amount](BAS::anonymous::AccountPosting const& ap){
-					AccountPostingTemplate result{gross_amount,ap};
-					return result;
+				std::transform(
+           mdje.defacto.account_postings.begin()
+          ,mdje.defacto.account_postings.end()
+          ,std::back_inserter(templates)
+          ,[gross_amount](BAS::anonymous::AccountPosting const& ap){
+            AccountPostingTemplate result{gross_amount,ap};
+            return result;
 				});
 				std::sort(this->templates.begin(),this->templates.end(),[](auto const& e1,auto const& e2){
 					return (abs(e1.percent()) > abs(e2.percent())); // greater to lesser

@@ -257,32 +257,32 @@ namespace BAS {
 class ToNetVatAccountPostings {
 public:
 
-	ToNetVatAccountPostings(BAS::anonymous::AccountPosting const& net_at, BAS::anonymous::AccountPosting const& vat_at)
-		:  m_net_at{net_at}
-		  ,m_vat_at{vat_at}
-			,m_gross_vat_rate{static_cast<float>((net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0)}
-			,m_sign{(net_at.amount<0)?-1:1} /* 0 gets sign + */ {}
+	ToNetVatAccountPostings(BAS::anonymous::AccountPosting const& net_ap, BAS::anonymous::AccountPosting const& vat_ap)
+		:  m_net_ap{net_ap}
+		  ,m_vat_ap{vat_ap}
+			,m_gross_vat_rate{static_cast<float>((net_ap.amount != 0)?vat_ap.amount/(net_ap.amount + vat_ap.amount):1.0)}
+			,m_sign{(net_ap.amount<0)?-1:1} /* 0 gets sign + */ {}
 
 	BAS::anonymous::AccountPostings operator()(Amount remaining_counter_amount,std::string const& transtext,OptionalAmount const& inc_vat_amount = std::nullopt) {
 		BAS::anonymous::AccountPostings result{};
 		Amount gross_amount = (inc_vat_amount)?*inc_vat_amount:remaining_counter_amount;
-		BAS::anonymous::AccountPosting net_at{
-			.account_no = m_net_at.account_no
+		BAS::anonymous::AccountPosting net_ap{
+			.account_no = m_net_ap.account_no
 			,.transtext = transtext
 			,.amount = BAS::to_cents_amount(static_cast<Amount>(m_sign * gross_amount * (1.0-m_gross_vat_rate)))
 		};
-		BAS::anonymous::AccountPosting vat_at{
-			.account_no = m_vat_at.account_no
+		BAS::anonymous::AccountPosting vat_ap{
+			.account_no = m_vat_ap.account_no
 			,.transtext = transtext
 			,.amount = BAS::to_cents_amount(static_cast<Amount>(m_sign * gross_amount * m_gross_vat_rate))
 		};
-		result.push_back(net_at);
-		result.push_back(vat_at);
+		result.push_back(net_ap);
+		result.push_back(vat_ap);
 		return result;
 	}
 private:
-	BAS::anonymous::AccountPosting m_net_at;
-	BAS::anonymous::AccountPosting m_vat_at;
+	BAS::anonymous::AccountPosting m_net_ap;
+	BAS::anonymous::AccountPosting m_vat_ap;
 	float m_gross_vat_rate;
 	int m_sign;
 };

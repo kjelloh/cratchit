@@ -335,7 +335,7 @@ BAS::MDJournalEntry to_md_journal_entry(HeadingAmountDateTransEntry const& had,J
 }
 
 std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att) {
-	os << "\n\t" << att.m_at.account_no << " " << att.m_percent;
+	os << "\n\t" << att.m_ap.account_no << " " << att.m_percent;
 	return os;
 }
 

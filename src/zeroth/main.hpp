@@ -1772,11 +1772,11 @@ namespace CSV {
 						,.date = had->date
 					}
 				};
-				BAS::anonymous::AccountPosting gross_at{
+				BAS::anonymous::AccountPosting gross_ap{
 					.account_no = *gross_bas_account_no
 					,.amount = had->amount
 				};
-				mdje.defacto.account_postings.push_back(gross_at);
+				mdje.defacto.account_postings.push_back(gross_ap);
 				had->optional.current_candidate = mdje;
 			}
 			result.push_back(*had);
@@ -1804,16 +1804,16 @@ namespace CSV {
 // Now in AmountFramework
 // inline bool have_opposite_signs(Amount a1,Amount a2) {
 
-inline BAS::anonymous::AccountPostings counter_account_transactions(BAS::anonymous::JournalEntry const& aje,BAS::anonymous::AccountPosting const& gross_at) {
+inline BAS::anonymous::AccountPostings counter_account_transactions(BAS::anonymous::JournalEntry const& aje,BAS::anonymous::AccountPosting const& gross_ap) {
 	BAS::anonymous::AccountPostings result{};
 	// Gather all ats with opposite sign and that sums upp to gross_at amount
 	std::copy_if(
      aje.account_postings.begin()
     ,aje.account_postings.end(),std::back_inserter(result)
-    ,[&gross_at](auto const& ap){
-		  return (have_opposite_signs(ap.amount,gross_at.amount));
+    ,[&gross_ap](auto const& ap){
+		  return (have_opposite_signs(ap.amount,gross_ap.amount));
 	});
-	if (to_account_transactions_sum(result) != -gross_at.amount) result.clear();
+	if (to_account_transactions_sum(result) != -gross_ap.amount) result.clear();
 	return result;
 }
 
@@ -1854,17 +1854,17 @@ inline BAS::anonymous::OptionalAccountPosting vat_account_transaction(BAS::anony
 // Now in AmountsFramework
 // inline bool are_same_and_less_than_100_cents_apart(Amount const& a1,Amount const& a2) {
 
-inline BAS::MDJournalEntry to_swapped_ats_md_entry(BAS::MDJournalEntry const& mdje,BAS::anonymous::AccountPosting const& target_at,BAS::anonymous::AccountPosting const& new_at) {
+inline BAS::MDJournalEntry to_swapped_ats_md_entry(BAS::MDJournalEntry const& mdje,BAS::anonymous::AccountPosting const& target_ap,BAS::anonymous::AccountPosting const& new_ap) {
 	BAS::MDJournalEntry result{mdje};
-	auto iter = std::find_if(result.defacto.account_postings.begin(),result.defacto.account_postings.end(),[&target_at](auto const& entry){
-		return (entry.account_no == target_at.account_no);
+	auto iter = std::find_if(result.defacto.account_postings.begin(),result.defacto.account_postings.end(),[&target_ap](auto const& entry){
+		return (entry.account_no == target_ap.account_no);
 	});
 	if (iter != result.defacto.account_postings.end()) {
 		result.defacto.account_postings.erase(iter);
-		result.defacto.account_postings.push_back(new_at);
+		result.defacto.account_postings.push_back(new_ap);
 	}
 	else {
-		std::cout << "\nswapped_ats_entry failed. Could not match target " << target_at << " with new_at " << new_at;
+		std::cout << "\nswapped_ats_entry failed. Could not match target " << target_ap << " with new_at " << new_ap;
 	}
 	BAS::sort(result,BAS::has_greater_abs_amount);
 	return result;

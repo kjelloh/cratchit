@@ -2,6 +2,16 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260409
+
+So I have now let this simmer a while and I have decided:
+
+* Make cratchit constine to hold imported SUEArchive as the 'shared base'
+* Make cratchit hold a complete SIEArchive reflecting all modifications as the 'working base'
+* Make crathcit be able to report the diff between the shared base and working base
+
+The bottom line is to make what is now called 'staged' into the complete 'working base'
+
 ## 20260406
 
 OK, so my strategy so far is not working.
@@ -79,6 +89,12 @@ What is next?
 
 * Search for remaining ' at' or regex '( at)(?=[.;)}])'
 * I whent with regex '(^|\[)(at)' to find structured captures ```text [at,] ```
+
+That seems to work well enough. What is next?
+
+* I wen with going through all 'AccountPosting '
+  - In this way I had to skip a lot.
+  - But at least I was able to find more variables (like members) of this type o rename
 
 ## 20260405
 

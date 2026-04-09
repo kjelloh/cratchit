@@ -129,17 +129,25 @@ namespace BAS {
 // BEGIN Accounting
 
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_postings.begin(),aje.account_postings.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
-		acc += (account_transaction.amount>0)?account_transaction.amount:0;
-		return acc;
+	Amount result = std::accumulate(
+     aje.account_postings.begin()
+    ,aje.account_postings.end()
+    ,Amount{}
+    ,[](Amount acc,BAS::anonymous::AccountPosting const& ap){
+      acc += (ap.amount>0)?ap.amount:0;
+      return acc;
 	});
 	return result;
 }
 
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje) {
-	Amount result = std::accumulate(aje.account_postings.begin(),aje.account_postings.end(),Amount{},[](Amount acc,BAS::anonymous::AccountPosting const& account_transaction){
-		acc += (account_transaction.amount<0)?account_transaction.amount:0;
-		return acc;
+	Amount result = std::accumulate(
+     aje.account_postings.begin()
+    ,aje.account_postings.end()
+    ,Amount{}
+    ,[](Amount acc,BAS::anonymous::AccountPosting const& ap){
+      acc += (ap.amount<0)?ap.amount:0;
+      return acc;
 	});
 	return result;
 }
