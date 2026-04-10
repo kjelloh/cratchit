@@ -743,50 +743,50 @@ namespace SKV {
 	namespace XML {
 		namespace VATReturns {
 
-			BAS::MDAccountPostings to_vat_returns_mats(BoxNo box_no,SIEArchive const& sie_archive,auto mat_predicate) {
+			BAS::MDAccountPostings to_vat_returns_md_aps(BoxNo box_no,SIEArchive const& sie_archive,auto md_ap_predicate) {
 				auto account_nos = to_accounts(box_no);
         // Log
         if (true) {
-          logger::development_trace("to_vat_returns_mats: box_no:{} account_nos::size:{}",box_no,account_nos.size());
+          logger::development_trace("to_vat_returns_md_aps: box_no:{} account_nos::size:{}",box_no,account_nos.size());
         }
-				return to_mats(sie_archive,[&mat_predicate,&account_nos](BAS::MDAccountPosting const& mdat) {
-					return (mat_predicate(mdat) and is_any_of_accounts(mdat,account_nos));
+				return to_md_aps(sie_archive,[&md_ap_predicate,&account_nos](BAS::MDAccountPosting const& md_ap) {
+					return (md_ap_predicate(md_ap) and is_any_of_accounts(md_ap,account_nos));
 				});
 			}
 
-			std::optional<FormBoxMap> to_form_box_map(SIEArchive const& sie_archive,auto mat_predicate) {
+			std::optional<FormBoxMap> to_form_box_map(SIEArchive const& sie_archive,auto md_ap_predicate) {
         logger::scope_logger log_raii(logger::development_trace,"to_form_box_map");
 				std::optional<FormBoxMap> result{};
 				try {
 					FormBoxMap box_map{};
 					// Amount		VAT Return Box			XML Tag
 					// 333200		05									"ForsMomsEjAnnan"
-					box_map[5] = to_vat_returns_mats(5,sie_archive,mat_predicate);
+					box_map[5] = to_vat_returns_md_aps(5,sie_archive,md_ap_predicate);
 					// box_map[5].push_back(dummy_mat(333200));
 					// 83300		10									"MomsUtgHog"
-					box_map[10] = to_vat_returns_mats(10,sie_archive,mat_predicate);
+					box_map[10] = to_vat_returns_md_aps(10,sie_archive,md_ap_predicate);
 					// box_map[10].push_back(dummy_mat(83300));
 					// 6616			20									"InkopVaruAnnatEg"
-					box_map[20] = to_vat_returns_mats(20,sie_archive,mat_predicate);
+					box_map[20] = to_vat_returns_md_aps(20,sie_archive,md_ap_predicate);
 					// box_map[20].push_back(dummy_mat(6616));
 					// 1654			30									"MomsInkopUtgHog"
-					box_map[30] = to_vat_returns_mats(30,sie_archive,mat_predicate);
+					box_map[30] = to_vat_returns_md_aps(30,sie_archive,md_ap_predicate);
 					// box_map[30].push_back(dummy_mat(1654));
 					// 957			39									"ForsTjSkskAnnatEg"
-					box_map[39] = to_vat_returns_mats(39,sie_archive,mat_predicate);
+					box_map[39] = to_vat_returns_md_aps(39,sie_archive,md_ap_predicate);
 					// box_map[39].push_back(dummy_mat(957));
 					// 2688			48									"MomsIngAvdr"
-					box_map[48] = to_vat_returns_mats(48,sie_archive,mat_predicate);
+					box_map[48] = to_vat_returns_md_aps(48,sie_archive,md_ap_predicate);
 					// box_map[48].push_back(dummy_mat(2688));
 					// 597			50									"MomsUlagImport"
-					box_map[50] = to_vat_returns_mats(50,sie_archive,mat_predicate);
+					box_map[50] = to_vat_returns_md_aps(50,sie_archive,md_ap_predicate);
 					// box_map[50].push_back(dummy_mat(597));
 					// 149			60									"MomsImportUtgHog"
-					box_map[60] = to_vat_returns_mats(60,sie_archive,mat_predicate);
+					box_map[60] = to_vat_returns_md_aps(60,sie_archive,md_ap_predicate);
 					// box_map[60].push_back(dummy_mat(149));
 
 					// NOTE: Box 49, vat designation id R1, R2 is a  t a r g e t  account, NOT a source.
-					box_map[49].push_back(dummy_md_at(to_box_49_amount(box_map)));
+					box_map[49].push_back(dummy_md_ap(to_box_49_amount(box_map)));
 
           if (true) {
             std::ranges::for_each(box_map,[](auto const& entry){
@@ -941,8 +941,8 @@ namespace SKV {
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_archive,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
-							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountPosting const& mdat){
-								return vat_returns_meta->period.contains(mdat.meta.date);
+							auto is_vat_returns_range = [&vat_returns_meta](BAS::MDAccountPosting const& md_ap){
+								return vat_returns_meta->period.contains(md_ap.meta.date);
 							};
 							if (auto box_map = to_form_box_map(sie_archive,is_vat_returns_range)) {
 
@@ -1413,8 +1413,8 @@ Cmd Updater::operator()(Command const& command) {
 
                 auto box_map = SKV::XML::VATReturns::to_form_box_map(
                    model->m_sie_archive
-                  ,[previous_quarter](BAS::MDAccountPosting const& mdat) {
-                    return previous_quarter.contains(mdat.meta.date);
+                  ,[previous_quarter](BAS::MDAccountPosting const& md_ap) {
+                    return previous_quarter.contains(md_ap.meta.date);
                 });
                 if (box_map) {
                   auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(*box_map);
@@ -1479,13 +1479,13 @@ Cmd Updater::operator()(Command const& command) {
                   // Adjust the sum in box 49
                   had.optional.vat_returns_form_box_map_candidate->at(49).clear();
                   had.optional.vat_returns_form_box_map_candidate->at(49).push_back(
-                    SKV::XML::VATReturns::dummy_md_at(
+                    SKV::XML::VATReturns::dummy_md_ap(
                       -SKV::XML::VATReturns::to_box_49_amount(
                         *had.optional.vat_returns_form_box_map_candidate)));
 
                   // Prompt
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_mdats_sum(mats);
+                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_md_aps_sum(mats);
                   }
 
                   auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
@@ -1674,8 +1674,8 @@ Cmd Updater::operator()(Command const& command) {
               if (std::holds_alternative<zeroth::AcceptVATReportSummary>(model->m_current_state_data)) {
                 auto const& state_data = std::get<zeroth::AcceptVATReportSummary>(model->m_current_state_data);
 
-                auto is_quarter = [&state_data](BAS::MDAccountPosting const& mdat){
-                  return state_data.m_period_range.contains(mdat.meta.date);
+                auto is_quarter = [&state_data](BAS::MDAccountPosting const& md_ap){
+                  return state_data.m_period_range.contains(md_ap.meta.date);
                 };
                 auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
                 if (box_map) {
@@ -1779,7 +1779,7 @@ Cmd Updater::operator()(Command const& command) {
                   auto box_no = ix;
                   auto& mats = had.optional.vat_returns_form_box_map_candidate->at(box_no);
                   if (auto amount = to_amount(ast[1]);amount and mats.size()>0) {
-                    auto mats_sum = BAS::to_mdats_sum(mats);
+                    auto mats_sum = BAS::to_md_aps_sum(mats);
                     auto sign = (mats_sum<0)?-1:1;
                     // mats_sum + diff = amount
                     auto diff = sign*(abs(*amount)) - mats_sum;
@@ -1808,9 +1808,9 @@ Cmd Updater::operator()(Command const& command) {
                 {
                   // Adjust the sum in box 49
                   had.optional.vat_returns_form_box_map_candidate->at(49).clear();
-                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_md_at(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
+                  had.optional.vat_returns_form_box_map_candidate->at(49).push_back(SKV::XML::VATReturns::dummy_md_ap(-SKV::XML::VATReturns::to_box_49_amount(*had.optional.vat_returns_form_box_map_candidate)));
                   for (auto const& [box_no,mats] : *had.optional.vat_returns_form_box_map_candidate)  {
-                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_mdats_sum(mats);
+                    prompt << "\n" << box_no << ": [" << box_no << "] = " << BAS::to_md_aps_sum(mats);
                   }
 
                   auto const& [account_amounts,summary] = SKV::XML::VATReturns::to_account_amounts(
@@ -2568,8 +2568,8 @@ Cmd Updater::operator()(Command const& command) {
           if (period_range) {
             // Create VAT Returns form for selected period
 
-            auto is_quarter = [&period_range](BAS::MDAccountPosting const& mdat){
-              return period_range->contains(mdat.meta.date);
+            auto is_quarter = [&period_range](BAS::MDAccountPosting const& md_ap){
+              return period_range->contains(md_ap.meta.date);
             };
             auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
             if (box_map) {
@@ -2593,8 +2593,8 @@ Cmd Updater::operator()(Command const& command) {
             //   SKV::XML::DeclarationMeta form_meta {
             //     .declaration_period_id = vat_returns_meta->period_to_declare
             //   };
-            //   auto is_quarter = [&vat_returns_meta](BAS::MDAccountPosting const& mdat){
-            //     return vat_returns_meta->period.contains(mdat.meta.date);
+            //   auto is_quarter = [&vat_returns_meta](BAS::MDAccountPosting const& md_ap){
+            //     return vat_returns_meta->period.contains(md_ap.meta.date);
             //   };
             //   auto box_map = SKV::XML::VATReturns::to_form_box_map(model->m_sie_archive,is_quarter);
             //   if (box_map) {

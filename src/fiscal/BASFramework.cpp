@@ -35,9 +35,9 @@ namespace BAS {
 		};
 	}
 
-	Amount to_mdats_sum(BAS::MDAccountPostings const& mdats) {
-		return std::accumulate(mdats.begin(),mdats.end(),Amount{},[](Amount acc,BAS::MDAccountPosting const& mat){
-			acc += mat.defacto.amount;
+	Amount to_md_aps_sum(BAS::MDAccountPostings const& md_aps) {
+		return std::accumulate(md_aps.begin(),md_aps.end(),Amount{},[](Amount acc,BAS::MDAccountPosting const& md_ap){
+			acc += md_ap.defacto.amount;
 			return acc;
 		});
 	}
@@ -259,8 +259,8 @@ std::ostream& operator<<(std::ostream& os,BAS::AccountPostingMeta const& atm) {
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MDAccountPosting const& mdat) {
-	os << mdat.meta << " " << mdat.defacto;
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountPosting const& md_ap) {
+	os << md_ap.meta << " " << md_ap.defacto;
 	return os;
 };
 

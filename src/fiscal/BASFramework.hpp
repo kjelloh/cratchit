@@ -249,7 +249,7 @@ using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals n
 using MaybeBASJournalRef = cratchit::functional::memory::MaybeRef<BASJournal>;
 
 namespace BAS {
-	Amount to_mdats_sum(BAS::MDAccountPostings const& mdats);
+	Amount to_md_aps_sum(BAS::MDAccountPostings const& md_aps);
 } // namespace BAS
 
 
@@ -353,7 +353,7 @@ std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
 std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);
 std::ostream& operator<<(std::ostream& os,BAS::WeakJournalEntryMeta const& jem);
 std::ostream& operator<<(std::ostream& os,BAS::AccountPostingMeta const& atm);
-std::ostream& operator<<(std::ostream& os,BAS::MDAccountPosting const& mdat);
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountPosting const& md_ap);
 std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& mdje);
 std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mdjes);
 std::string to_string(BAS::anonymous::JournalEntry const& aje);
