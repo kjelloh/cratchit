@@ -233,7 +233,7 @@ std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry);
 bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& aje);
 
 using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountsTopology,BAS::TaggedPostingsMDJournalEntries>>;
-AccountsTopologyMap to_accounts_topology_map(BAS::TaggedPostingsMDJournalEntries const& tmes);
+AccountsTopologyMap to_accounts_topology_map(BAS::TaggedPostingsMDJournalEntries const& tp_md_jes);
 
 using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountPostingKindTags,std::vector<BAS::MDTaggedPostingsJournalEntry>>; // AccountPostingKindTags -> TypedMetaEntry
 using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEntriesMap>; // hash -> TypeMetaEntry

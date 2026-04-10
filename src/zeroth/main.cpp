@@ -1213,8 +1213,6 @@ public:
 	Cmd operator()(Quit const& quit);
   Cmd operator()(Nop const& nop);
 private:
-  // Now a free function / 20251111
-	// BAS::TaggedPostingsMDJournalEntries all_years_template_candidates(auto const& matches);
   std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state);
 };
 
@@ -4869,25 +4867,6 @@ Cmd Updater::operator()(Nop const& nop) {
   return {};
 }
 
-// Updater::all_years_template_candidates now a free function / 20251111
-// BAS::TaggedPostingsMDJournalEntries Updater::all_years_template_candidates(auto const& matches) {
-//   BAS::TaggedPostingsMDJournalEntries result{};
-//   auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
-//   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-//     for (auto const& [kind_tags,tmes] : tme_map) {
-//       auto accounts_topology_map = to_accounts_topology_map(tmes);
-//       for (auto const& [signature,bat_map] : accounts_topology_map) {
-//         for (auto const& [kind_tags,tmes] : bat_map) {
-//           for (auto const& tme : tmes) {
-//             auto mdje = to_md_entry(tme);
-//             if (matches(mdje.defacto)) result.push_back(tme);
-//           }
-//         }
-//       }
-//     }
-//   }
-//   return result;
-// }
 std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
   std::ostringstream prompt{};
   switch (to_state) {

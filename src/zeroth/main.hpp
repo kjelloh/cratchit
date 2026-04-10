@@ -14,7 +14,7 @@ float const VERSION = 0.5;
 #include "fiscal/BASFramework.hpp"
 #include "fiscal/SKVFramework.hpp"
 #include "sie/SIEDocumentFramework.hpp"
-#include "HAD2JournalEntryFramework.hpp" // BAS::TaggedPostingsMDJournalEntries,...
+#include "HAD2JournalEntryFramework.hpp"
 
 #include "PersistentFile.hpp"
 #include "text/charset.hpp"

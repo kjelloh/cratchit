@@ -354,14 +354,14 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 	return text::functional::strings_share_tokens(had.heading,aje.caption);
 }
 
-AccountsTopologyMap to_accounts_topology_map(BAS::TaggedPostingsMDJournalEntries const& tmes) {
+AccountsTopologyMap to_accounts_topology_map(BAS::TaggedPostingsMDJournalEntries const& tp_md_jes) {
 	AccountsTopologyMap result{};
 	auto g = [&result](BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
 		auto accounts_topology = BAS::kind::to_accounts_topology(md_tpje);
 		auto signature = BAS::kind::to_signature(accounts_topology);
 		result[signature][accounts_topology].push_back(md_tpje);
 	};
-	std::for_each(tmes.begin(),tmes.end(),g);
+	std::for_each(tp_md_jes.begin(),tp_md_jes.end(),g);
 	return result;
 }
 
@@ -384,11 +384,11 @@ BAS::TaggedPostingsMDJournalEntries all_years_template_candidates(
   BAS::TaggedPostingsMDJournalEntries result{};
   auto meta_entry_topology_map = to_meta_entry_topology_map(sie_archive);
   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-    for (auto const& [kind_tags,tmes] : tme_map) {
-      auto accounts_topology_map = to_accounts_topology_map(tmes);
+    for (auto const& [kind_tags,tp_md_jes] : tme_map) {
+      auto accounts_topology_map = to_accounts_topology_map(tp_md_jes);
       for (auto const& [signature,bat_map] : accounts_topology_map) {
-        for (auto const& [kind_tags,tmes] : bat_map) {
-          for (auto const& md_tpje : tmes) {
+        for (auto const& [kind_tags,tp_md_jes] : bat_map) {
+          for (auto const& md_tpje : tp_md_jes) {
             auto mdje = to_md_entry(md_tpje);
             if (matches(mdje.defacto)) result.push_back(md_tpje);
           }
