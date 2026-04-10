@@ -2177,8 +2177,8 @@ inline std::optional<std::string> to_accounts_postings_sum_string(SIEArchive con
 // inline std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
 // inline std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPostingTagsJournalEntry const& tme) {
 // inline bool operator==(BAS::MDPostingTagsJournalEntry const& tme1,BAS::MDPostingTagsJournalEntry const& tme2) {
-// inline BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& apte) {
-// inline BAS::MDPostingTagsJournalEntry to_swapped_apte_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte) {
+// inline BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
+// inline BAS::MDPostingTagsJournalEntry to_swapped_ap_tags_pair_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair,BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair) {
 // inline BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEntry const& tme,Amount const& gross_amount) {
 
 // Now in BASFramework unit / 20251111

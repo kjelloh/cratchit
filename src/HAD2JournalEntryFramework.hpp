@@ -5,18 +5,18 @@
 
 namespace BAS {
 	namespace anonymous {
-		using AccountPostingTags = std::set<std::string>;
-		using AccountPostingsTags = std::map<BAS::anonymous::AccountPosting,AccountPostingTags>;
-		using AccountPostingsTagsEntry = AccountPostingsTags::value_type;
-		using PostingTagsJournalEntry = BAS::anonymous::JournalEntry_t<AccountPostingsTags>;
+		using AccountPostingTags = std::set<std::string>; // sorted posting tags
+		using AccountPostingsTags = std::map<BAS::anonymous::AccountPosting,AccountPostingTags>; // account posting -> posting tags
+		using AccountPostingTagsPair = AccountPostingsTags::value_type; // single (posting, posting tags) pair
+		using PostingTagsJournalEntry = BAS::anonymous::JournalEntry_t<AccountPostingsTags>; // Entry with (posting,tags) pairs
 	} // anonymous
 
 	using MDPostingTagsJournalEntry = MetaDefacto<BAS::WeakJournalEntryMeta,anonymous::PostingTagsJournalEntry>;
 	using TypedMetaEntries = std::vector<MDPostingTagsJournalEntry>;
 
   void for_each_posting_entry(BAS::MDPostingTagsJournalEntry const& mdtje,auto& f) {
-    for (auto const& apte : mdtje.defacto.account_postings) {
-      f(apte);
+    for (auto const& ap_tags_pair : mdtje.defacto.account_postings) {
+      f(ap_tags_pair);
     }
 	}
 
@@ -254,7 +254,7 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 
 std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountsTopology const& accounts);
 std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingKindTags const& kind_tags);
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingsTagsEntry const& apte);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair);
 
 template <typename T>
 struct IndentedOnNewLine{
@@ -270,9 +270,9 @@ std::ostream& operator<<(std::ostream& os,BAS::MDPostingTagsJournalEntry const& 
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
 // that are all of the same "type" and that all sums to zero (do balance)
 std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPostingTagsJournalEntry const& tme);
-BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingsTagsEntry const& apte);
+BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair);
 bool operator==(BAS::MDPostingTagsJournalEntry const& tme1,BAS::MDPostingTagsJournalEntry const& tme2);
-BAS::MDPostingTagsJournalEntry to_swapped_apte_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingsTagsEntry const& target_apte,BAS::anonymous::AccountPostingsTagsEntry const& new_apte);
+BAS::MDPostingTagsJournalEntry to_swapped_ap_tags_pair_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair,BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair);
 BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEntry const& tme,Amount const& gross_amount);
 
 struct TestResult {
