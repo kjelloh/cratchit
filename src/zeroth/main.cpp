@@ -804,8 +804,8 @@ namespace SKV {
 
 			bool quarter_has_VAT_consilidation_entry(SIEArchive const& sie_archive,zeroth::DateRange const& period) {
 				bool result{};
-				auto f = [&period,&result](BAS::MDPostingTagsJournalEntry const& tme) {
-					auto order_code = BAS::kind::to_posting_kind_tags_rank(BAS::kind::to_posting_kind_tags(tme));
+				auto f = [&period,&result](BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
+					auto order_code = BAS::kind::to_posting_kind_tags_rank(BAS::kind::to_posting_kind_tags(md_tpje));
 					// gross vat cents = sort_code: 0x367  M1 Momsrapport 2020-04-01 - 2020-06-30 20200630
 					// gross vat cents = sort_code: 0x367  M2 Momsrapport 2020-07-01 - 2020-09-30 20200930
 					// gross vat cents = sort_code: 0x367  M3 Momsrapport 2020-10-01 - 2020-12-31 20201231
@@ -815,7 +815,7 @@ namespace SKV {
 					// [ eu_vat vat = sort_code: 0x56] M3 "Momsrapport 20211001...20211230" 20211230
 
 					// NOTE: A VAT consolidation entry will have a detectable gross VAT entry if we have no income to declare.
-					if (period.contains(tme.defacto.date)) {
+					if (period.contains(md_tpje.defacto.date)) {
             // std::cout << "\nquarter_has_VAT_consilidation_entry, scanning " << tme.meta.series;
             // if (tme.meta.verno) std::cout << *tme.meta.verno;
             // std::cout << " order_code:" << std::hex << order_code << std::dec;
@@ -1214,7 +1214,7 @@ public:
   Cmd operator()(Nop const& nop);
 private:
   // Now a free function / 20251111
-	// BAS::TypedMetaEntries all_years_template_candidates(auto const& matches);
+	// BAS::TaggedPostingsMDJournalEntries all_years_template_candidates(auto const& matches);
   std::pair<std::string,PromptState> transition_prompt_state(PromptState const& from_state,PromptState const& to_state);
 };
 
@@ -3688,7 +3688,7 @@ Cmd Updater::operator()(Command const& command) {
           // Group on Type Topology
           auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
           // Prepare to record journal entries we could not use as template for new entries
-          std::vector<BAS::MDPostingTagsJournalEntry> failed_tmes{};
+          std::vector<BAS::MDTaggedPostingsJournalEntry> failed_md_tpjes{};
           std::set<BAS::kind::AccountPostingKindTags> detected_topologies{};
           // List grouped on type kind_tags
           for (auto const& [signature,tme_map] : meta_entry_topology_map) {
@@ -3708,7 +3708,7 @@ Cmd Updater::operator()(Command const& command) {
                     // TEST that we are able to operate on journal entries with this kind_tags?
                     auto test_result = test_typed_meta_entry(model->m_sie_archive,tme);
                     prompt << "\n       TEST: " << test_result;
-                    if (test_result.failed) failed_tmes.push_back(tme);
+                    if (test_result.failed) failed_md_tpjes.push_back(tme);
                   }
                 }
               }
@@ -3721,7 +3721,7 @@ Cmd Updater::operator()(Command const& command) {
           }
           // LOG the 'tmes' (template meta entries) we failed to identify as templates for new journal entries
           prompt << "\n<DESIGN INSUFFICIENCY: FAILED TO IDENTIFY AND USE THESE ENTRIES AS TEMPLATE>";
-          for (auto const& tme : failed_tmes) {
+          for (auto const& tme : failed_md_tpjes) {
             auto types_topology = BAS::kind::to_posting_kind_tags(tme);
             prompt << "\n" << types_topology << " " << tme.meta << " " << tme.defacto.caption << " " << tme.defacto.date;
           }
@@ -4596,7 +4596,7 @@ The ITfied AB
                   else {
                     // Create options from scratch
                     had.optional.gross_account_no = ams.begin()->first;
-                    BAS::TypedMetaEntries template_candidates{};
+                    BAS::TaggedPostingsMDJournalEntries template_candidates{};
                     std::string transtext = (ast.size() == 4)?ast[3]:"";
                     for (auto series : std::string{"ABCDEIM"}) {
                       BAS::MDJournalEntry mdje{
@@ -4870,8 +4870,8 @@ Cmd Updater::operator()(Nop const& nop) {
 }
 
 // Updater::all_years_template_candidates now a free function / 20251111
-// BAS::TypedMetaEntries Updater::all_years_template_candidates(auto const& matches) {
-//   BAS::TypedMetaEntries result{};
+// BAS::TaggedPostingsMDJournalEntries Updater::all_years_template_candidates(auto const& matches) {
+//   BAS::TaggedPostingsMDJournalEntries result{};
 //   auto meta_entry_topology_map = to_meta_entry_topology_map(model->m_sie_archive);
 //   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
 //     for (auto const& [kind_tags,tmes] : tme_map) {

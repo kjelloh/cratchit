@@ -14,7 +14,7 @@ float const VERSION = 0.5;
 #include "fiscal/BASFramework.hpp"
 #include "fiscal/SKVFramework.hpp"
 #include "sie/SIEDocumentFramework.hpp"
-#include "HAD2JournalEntryFramework.hpp" // BAS::TypedMetaEntries,...
+#include "HAD2JournalEntryFramework.hpp" // BAS::TaggedPostingsMDJournalEntries,...
 
 #include "PersistentFile.hpp"
 #include "text/charset.hpp"
@@ -2159,38 +2159,6 @@ inline std::optional<std::string> to_accounts_postings_sum_string(SIEArchive con
 	return result;
 }
 
-// Now in HAD2JournalEntryFramework unit / 20251111
-// auto to_template_candidate_entry = [](BAS::MDJournalEntry const& mdje) -> BAS::MDPostingTagsJournalEntry {
-// enum class JournalEntryVATType {
-
-// Now in HAD2JournalEntryFramework unit / 20251111
-// inline std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
-// inline JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme) {
-// inline void for_each_template_candidate_entry(SIEArchive const& sie_archive,auto& f) {
-
-
-// Now in HAD2JournalEntryFramework unit / 20251111
-// using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountPostingKindTags,std::vector<BAS::MDPostingTagsJournalEntry>>; // AccountPostingKindTags -> TypedMetaEntry
-// using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEntriesMap>; // hash -> TypeMetaEntry
-// inline Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive) {
-// struct TestResult {
-// inline std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
-// inline std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPostingTagsJournalEntry const& tme) {
-// inline bool operator==(BAS::MDPostingTagsJournalEntry const& tme1,BAS::MDPostingTagsJournalEntry const& tme2) {
-// inline BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
-// inline BAS::MDPostingTagsJournalEntry to_swapped_ap_tags_pair_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair,BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair) {
-// inline BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEntry const& tme,Amount const& gross_amount) {
-
-// Now in BASFramework unit / 20251111
-// inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPosting const& ap1, BAS::anonymous::AccountPosting const& ap2) {
-// inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& aps1, BAS::anonymous::AccountPostings const& aps2) {
-// inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me1, BAS::MDJournalEntry const& me2) {
-
-// Now in HAD2JournalEntryFramework unit / 20251111
-// inline TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDPostingTagsJournalEntry const& tme) {
-// using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountsTopology,BAS::TypedMetaEntries>>;
-// inline AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) {
-
 struct GrossAccountPostings {
 	BAS::anonymous::AccountPostings result;
 	void operator()(BAS::anonymous::JournalEntry const& aje) {
@@ -4158,7 +4126,7 @@ public:
 	std::string user_input{};
 	PromptState prompt_state{PromptState::Root};
 	size_t had_index{};
-	BAS::TypedMetaEntries template_candidates{};
+	BAS::TaggedPostingsMDJournalEntries template_candidates{};
 	BAS::anonymous::AccountPostings ap_candidates{};
   std::size_t at_index{};
   std::string prompt{};

@@ -8,14 +8,14 @@ namespace BAS {
 		using AccountPostingTags = std::set<std::string>; // sorted posting tags
 		using AccountPostingsTags = std::map<BAS::anonymous::AccountPosting,AccountPostingTags>; // account posting -> posting tags
 		using AccountPostingTagsPair = AccountPostingsTags::value_type; // single (posting, posting tags) pair
-		using PostingTagsJournalEntry = BAS::anonymous::JournalEntry_t<AccountPostingsTags>; // Entry with (posting,tags) pairs
+		using TaggedPostingsJournalEntry = BAS::anonymous::JournalEntry_t<AccountPostingsTags>; // Entry with (posting,tags) pairs
 	} // anonymous
 
-	using MDPostingTagsJournalEntry = MetaDefacto<BAS::WeakJournalEntryMeta,anonymous::PostingTagsJournalEntry>;
-	using TypedMetaEntries = std::vector<MDPostingTagsJournalEntry>;
+	using MDTaggedPostingsJournalEntry = MetaDefacto<BAS::WeakJournalEntryMeta,anonymous::TaggedPostingsJournalEntry>;
+	using TaggedPostingsMDJournalEntries = std::vector<MDTaggedPostingsJournalEntry>;
 
-  void for_each_posting_entry(BAS::MDPostingTagsJournalEntry const& mdtje,auto& f) {
-    for (auto const& ap_tags_pair : mdtje.defacto.account_postings) {
+  void for_each_posting_entry(BAS::MDTaggedPostingsJournalEntry const& md_tpje,auto& f) {
+    for (auto const& ap_tags_pair : md_tpje.defacto.account_postings) {
       f(ap_tags_pair);
     }
 	}
@@ -73,8 +73,8 @@ namespace BAS {
 		} // namespace detail
 
 		BASAccountsTopology to_accounts_topology(MDJournalEntry const& mdje);
-		BASAccountsTopology to_accounts_topology(MDPostingTagsJournalEntry const& tme);
-		AccountPostingKindTags to_posting_kind_tags(MDPostingTagsJournalEntry const& tme);
+		BASAccountsTopology to_accounts_topology(MDTaggedPostingsJournalEntry const& md_tpje);
+		AccountPostingKindTags to_posting_kind_tags(MDTaggedPostingsJournalEntry const& md_tpje);
 		std::size_t to_signature(BASAccountsTopology const& bat);
 		std::size_t to_signature(AccountPostingKindTags const& met);
 
@@ -82,7 +82,7 @@ namespace BAS {
 
 } // BAS
 
-BAS::MDPostingTagsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry const& mdje);
+BAS::MDTaggedPostingsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry const& mdje);
 
 // Journal Entry VAT Type
 enum class JournalEntryVATType {
@@ -119,15 +119,15 @@ enum class JournalEntryVATType {
 };
 
 std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type);
-JournalEntryVATType to_vat_type(BAS::MDPostingTagsJournalEntry const& tme);
+JournalEntryVATType to_vat_type(BAS::MDTaggedPostingsJournalEntry const& md_tpje);
 
-using TypedMDJournalEntryVisitorF = std::function<void(BAS::MDPostingTagsJournalEntry const&)>;
+using TypedMDJournalEntryVisitorF = std::function<void(BAS::MDTaggedPostingsJournalEntry const&)>;
 void for_each_template_candidate_entry(SIEArchive const& sie_archive,TypedMDJournalEntryVisitorF const& f);
 
 // ==================================================================================
 // Had -> journal_entry -> Template
 
-BAS::MDJournalEntry to_md_entry(BAS::MDPostingTagsJournalEntry const& tme);
+BAS::MDJournalEntry to_md_entry(BAS::MDTaggedPostingsJournalEntry const& md_tpje);
 
 class AccountPostingTemplate {
 public:
@@ -198,9 +198,9 @@ OptionalJournalEntryTemplate to_template(BAS::MDJournalEntry const& mdje);
 // 	return result;
 // }
 
-OptionalJournalEntryTemplate to_template(BAS::MDPostingTagsJournalEntry const& tme);
-// OptionalJournalEntryTemplate to_template(BAS::MDPostingTagsJournalEntry const& tme) {
-// 	return to_template(to_md_entry(tme));
+OptionalJournalEntryTemplate to_template(BAS::MDTaggedPostingsJournalEntry const& md_tpje);
+// OptionalJournalEntryTemplate to_template(BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
+// 	return to_template(to_md_entry(md_tpje));
 // }
 
 BAS::MDJournalEntry to_md_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet);
@@ -232,10 +232,10 @@ std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry);
 
 bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::JournalEntry const& aje);
 
-using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountsTopology,BAS::TypedMetaEntries>>;
-AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes);
+using AccountsTopologyMap = std::map<std::size_t,std::map<BAS::kind::BASAccountsTopology,BAS::TaggedPostingsMDJournalEntries>>;
+AccountsTopologyMap to_accounts_topology_map(BAS::TaggedPostingsMDJournalEntries const& tmes);
 
-using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountPostingKindTags,std::vector<BAS::MDPostingTagsJournalEntry>>; // AccountPostingKindTags -> TypedMetaEntry
+using Kind2MDTypedJournalEntriesMap = std::map<BAS::kind::AccountPostingKindTags,std::vector<BAS::MDTaggedPostingsJournalEntry>>; // AccountPostingKindTags -> TypedMetaEntry
 using Kind2MDTypedJournalEntriesCAS = std::map<std::size_t,Kind2MDTypedJournalEntriesMap>; // hash -> TypeMetaEntry
 // TODO: Consider to make Kind2MDTypedJournalEntriesCAS an unordered_map (as it is already a map from hash -> TypedMetaEntry)
 //       All we should have to do is to define std::hash for this type to make std::unordered_map find it?
@@ -244,7 +244,7 @@ Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_a
 
 using HADMatchesJEPredicate = std::function<bool(BAS::anonymous::JournalEntry)>;
 
-BAS::TypedMetaEntries all_years_template_candidates(
+BAS::TaggedPostingsMDJournalEntries all_years_template_candidates(
    SIEArchive const& sie_archive
   ,HADMatchesJEPredicate const& matches);
 
@@ -264,16 +264,16 @@ struct IndentedOnNewLine{
 };
 
 std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::AccountPostingsTags> const& indented);
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::PostingTagsJournalEntry const& tje);
-std::ostream& operator<<(std::ostream& os,BAS::MDPostingTagsJournalEntry const& tme);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::TaggedPostingsJournalEntry const& tpje);
+std::ostream& operator<<(std::ostream& os,BAS::MDTaggedPostingsJournalEntry const& md_tpje);
 
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
 // that are all of the same "type" and that all sums to zero (do balance)
-std::vector<BAS::MDPostingTagsJournalEntry> to_typed_sub_meta_entries(BAS::MDPostingTagsJournalEntry const& tme);
+std::vector<BAS::MDTaggedPostingsJournalEntry> to_typed_sub_meta_entries(BAS::MDTaggedPostingsJournalEntry const& md_tpje);
 BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair);
-bool operator==(BAS::MDPostingTagsJournalEntry const& tme1,BAS::MDPostingTagsJournalEntry const& tme2);
-BAS::MDPostingTagsJournalEntry to_swapped_ap_tags_pair_md_entry(BAS::MDPostingTagsJournalEntry const& tme,BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair,BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair);
-BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDPostingTagsJournalEntry const& tme,Amount const& gross_amount);
+bool operator==(BAS::MDTaggedPostingsJournalEntry const& lhs,BAS::MDTaggedPostingsJournalEntry const& rhs);
+BAS::MDTaggedPostingsJournalEntry to_swapped_ap_tags_pair_md_tpje(BAS::MDTaggedPostingsJournalEntry const& md_tpje,BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair,BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair);
+BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTaggedPostingsJournalEntry const& md_tpje,Amount const& gross_amount);
 
 struct TestResult {
 	std::ostringstream prompt{"null"};
@@ -281,5 +281,5 @@ struct TestResult {
 };
 
 std::ostream& operator<<(std::ostream& os,TestResult const& tr);
-TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDPostingTagsJournalEntry const& tme);
+TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDTaggedPostingsJournalEntry const& md_tpje);
 
