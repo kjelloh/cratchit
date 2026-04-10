@@ -76,7 +76,7 @@ namespace BAS {
 		BASAccountsTopology to_accounts_topology(MDTaggedPostingsJournalEntry const& md_tpje);
 		AccountPostingKindTags to_posting_kind_tags(MDTaggedPostingsJournalEntry const& md_tpje);
 		std::size_t to_signature(BASAccountsTopology const& bat);
-		std::size_t to_signature(AccountPostingKindTags const& met);
+		std::size_t to_signature(AccountPostingKindTags const& kind_tags);
 
 	} // namespace kind
 
