@@ -1,5 +1,7 @@
 # cratchit developers manual
 
+* [notes](../../note/index.md)
+* [todos](../../todo/index.md)
 * Also see AI assistance [ai/README.md](ai/README.md)
 
 ## Cmake quirk to trigger a clean rebuild

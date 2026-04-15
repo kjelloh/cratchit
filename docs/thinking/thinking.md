@@ -2,6 +2,145 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260415
+
+I give up for now! I am STUCK! Right now I find no chain of refactorings that I can apply and get Cratchit to a 'better' state'. All my attempts so far has only shown my how entangled all the 'not so good' design decisions comnspires against change in a congtrolled and stable way.
+
+So I decide to:
+
+* Close the 'clean-up-sie-posted-staged-update-mechanism' branch and merge back to master
+* Use Cratchit to do the VAT Returns report due at 12 May.
+
+Then at least I have three more months to adress thes Issues in a controlled and more relaxed manner.
+
+I still BELEIVE though that:
+
+* I shall NOT rewrite from scratch!
+  - History has teached me and others that rewriting from scratch is almost always a BAD choice.
+* I MAY refactor by introdicuing paralell mechanisms until 'new' can replace 'existing'
+  - In this way I can 'operate on a living patient'?
+
+Before I merged back to master I did some admin enhancements:
+
+* I added script 'init_new' that takes an argument defining the 'thing' to create (e.g., 'todo', 'note')
+  - It creates in subfolder named as the 'thing' and organised in folders namjed by hash(header)
+* I added script 'update_index' that take the 'thing' to update the index of
+  - It update the index.md in the folder of the 'thing'
+
+I created:
+
+* [notes](../../note/index.md)
+* [todos](../../todo/index.md)
+
+## 20260412
+
+So ltes face it. I AM STUCK!
+
+* I fail to find a way to refactor the SIE processing to something 'better' and a clear design
+* I also fail to even understand the 'typed' or 'posting kind' mechanism
+
+I is still a MESS.
+
+Suppose I want to make Cratchit hold the current modified state as an SIE Archive?
+
+* What is the API of this acrhive?
+  - New etnries can still be 'staged'
+  - But what are we to call any mutated entries?
+
+So chatGPT tells me 'You’re essentially moving from a two-phase model (imported + staged deltas) to a single mutable ledger state with provenance.'
+
+* Where 'provenance' means 'its history of changes'
+
+Further we can think of some aspects of 'new' vs 'edit'.
+
+* An existing entry has a full unique ID (series + verno)
+* A new entry needs to be assigned a series and get the next free verno.
+
+I have now decided to use the upcoming VAT Reports to study and understand the HAD to Template mechanism
+
+I first imported account statements
+
+* SKV 3 postings
+* PG 15 postings
+* SAvings account 1 posting
+
+A total of 19 postings. We expect this to be imported into 19 tagged amounts.
+
+* And YES: Cratchit created 19 tagged amounts ok.
+* ONLY: I ended up with 36 HADs after command '-to_hads'
+  - I already had existing HADs of many of the postings!
+
+I have now reset the hads and doen the omkport again and have 19 HADs ok. Now lets see how we can log the HAD to template mechanism? Where is the entry point?
+
+* '-hads' gets us to state PromptState::HADIndex.
+* And when we enter an index we end up at the code:
+
+```c++
+                // Selected HAD is "naked" (no candidate for book keeping assigned)
+                model->had_index = ix;
+                model->template_candidates = all_years_template_candidates(
+                   model->m_sie_archive
+                  ,[had](BAS::anonymous::JournalEntry const& aje){
+                  return had_matches_trans(had,aje);
+                });
+
+```
+* Which in turn is the following BEAST:
+
+```c++
+BAS::TaggedPostingsMDJournalEntries all_years_template_candidates(
+   SIEArchive const& sie_archive
+  ,HADMatchesJEPredicate const& matches) {
+  BAS::TaggedPostingsMDJournalEntries result{};
+  auto meta_entry_topology_map = to_meta_entry_topology_map(sie_archive);
+  for (auto const& [signature,tme_map] : meta_entry_topology_map) {
+    for (auto const& [kind_tags,tp_md_jes] : tme_map) {
+      auto accounts_topology_map = to_accounts_topology_map(tp_md_jes);
+      for (auto const& [signature,bat_map] : accounts_topology_map) {
+        for (auto const& [kind_tags,tp_md_jes] : bat_map) {
+          for (auto const& md_tpje : tp_md_jes) {
+            auto mdje = to_md_entry(md_tpje);
+            if (matches(mdje.defacto)) result.push_back(md_tpje);
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
+```
+
+GOSH! That is NOT pritty...
+
+What does 'to_meta_entry_topology_map' do?
+
+```c++
+Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive) {
+	Kind2MDTypedJournalEntriesCAS result{};
+	// Group on Type Topology
+	Kind2MDTypedJournalEntriesCAS meta_entry_topology_map{};
+	auto h = [&result](BAS::MDTaggedPostingsJournalEntry const& md_tpje){
+		auto types_topology = BAS::kind::to_posting_kind_tags(md_tpje);
+		auto signature = BAS::kind::to_signature(types_topology);
+		result[signature][types_topology].push_back(md_tpje);
+	};
+	for_each_template_candidate_entry(sie_archive,h);
+	return result;
+}
+```
+
+It seems:
+
+* We store unique 'kind topologies' in hash-keyed CAS?
+* And the 'kind topology' is basically an std::set of 'posting kind tags' (which are strings)?
+  - So the std::set means the tags are sorted (in effect making a topology this sorted set of kind tags)
+
+
+WOW! This is super-complicated!!
+
+I have to sleep on this?
+
 ## 20260409
 
 So I have now let this simmer a while and I have decided:
