@@ -4,98 +4,101 @@
 
 namespace BAS {
   namespace kind {
-    ATType to_at_type(std::string const& prop) {
-			ATType result{ATType::undefined};
-			static const std::map<std::string,ATType> AT_TYPE_TO_ID_MAP{
-				 {"",ATType::undefined}
-				,{"transfer",ATType::transfer}
-				,{"eu_purchase",ATType::eu_purchase}
-				,{"gross",ATType::gross}
-				,{"net",ATType::net}
-				,{"eu_vat",ATType::eu_vat}
-				,{"vat",ATType::vat}
-				,{"cents",ATType::cents}
+    AccountPostingKind to_posting_kind(AccountPostingKindTag const& kind_tag) {
+			AccountPostingKind result{AccountPostingKind::undefined};
+			static const std::map<std::string,AccountPostingKind> KIND_TAG_2_POSTING_KIND{
+				 {"",AccountPostingKind::undefined}
+				,{"transfer",AccountPostingKind::transfer}
+				,{"eu_purchase",AccountPostingKind::eu_purchase}
+				,{"gross",AccountPostingKind::gross}
+				,{"net",AccountPostingKind::net}
+				,{"eu_vat",AccountPostingKind::eu_vat}
+				,{"vat",AccountPostingKind::vat}
+				,{"cents",AccountPostingKind::cents}
 			};
-			if (AT_TYPE_TO_ID_MAP.contains(prop)) {
-				result = AT_TYPE_TO_ID_MAP.at(prop);
+			if (KIND_TAG_2_POSTING_KIND.contains(kind_tag)) {
+				result = KIND_TAG_2_POSTING_KIND.at(kind_tag);
 			}
 			else {
-				result = ATType::unknown;
+				result = AccountPostingKind::unknown;
 			}
 			return result;
 		}
 
-    std::size_t to_at_types_order(BAS::kind::AccountTransactionTypeTopology const& topology) {
+    std::size_t to_posting_kind_tags_rank(BAS::kind::AccountPostingKindTags const& kind_tags) {
 			std::size_t result{};
-			std::vector<ATType> at_types{};
-			for (auto const& prop : topology) at_types.push_back(to_at_type(prop));
-			std::sort(at_types.begin(),at_types.end(),[](ATType t1,ATType t2){
-				return (t1<t2);
+			std::vector<AccountPostingKind> posting_kinds{};
+			for (auto const& kind_tag : kind_tags) posting_kinds.push_back(to_posting_kind(kind_tag));
+			std::sort(
+         posting_kinds.begin()
+        ,posting_kinds.end()
+        ,[](AccountPostingKind lhs,AccountPostingKind rhs){
+				  return (lhs<rhs);
 			});
 			// Assemble a "number" of "digits" each having value 0..15 (i.e, 
-      // in effect a hexadecimal number with each digit indicating an at_type enum value)
-			for (auto at_type : at_types) result = result*0x10 + static_cast<std::size_t>(at_type);
+      // in effect a hexadecimal number with each digit indicating an posting_kind enum value)
+			for (auto posting_kind : posting_kinds) result = result*0x10 + static_cast<std::size_t>(posting_kind);
 			return result;
 		}
 
-		 std::vector<std::string> sorted(AccountTransactionTypeTopology const& topology) {
-			std::vector<std::string> result{topology.begin(),topology.end()};
+		 std::vector<std::string> sorted(AccountPostingKindTags const& kind_tags) {
+			std::vector<std::string> result{kind_tags.begin(),kind_tags.end()};
 			std::sort(result.begin(),result.end(),[](auto const& s1,auto const& s2){
-				return (to_at_type(s1) < to_at_type(s2));
+				return (to_posting_kind(s1) < to_posting_kind(s2));
 			});
 			return result;
 		}
 
-		BASAccountTopology to_accounts_topology(MDJournalEntry const& mdje) {
-			BASAccountTopology result{};
-			auto f = [&result](BAS::anonymous::AccountTransaction const& at) {
-				result.insert(at.account_no);
+		BASAccountsTopology to_accounts_topology(MDJournalEntry const& mdje) {
+			BASAccountsTopology result{};
+			auto f = [&result](BAS::anonymous::AccountPosting const& ap) {
+				result.insert(ap.account_no);
 			};
 			for_each_anonymous_account_transaction(mdje.defacto,f);
 			return result;
 		}
 
-		BASAccountTopology to_accounts_topology(MDTypedJournalEntry const& tme) {
-			BASAccountTopology result{};
-			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
-				auto const& [at,props] = tat;
-				result.insert(at.account_no);
+		BASAccountsTopology to_accounts_topology(MDTaggedPostingsJournalEntry const& md_tpje) {
+			BASAccountsTopology result{};
+			auto f = [&result](BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
+				auto const& [ap,kind_tags] = ap_tags_pair;
+				result.insert(ap.account_no);
 			};
-			for_each_typed_account_transaction(tme,f);
+			for_each_posting_entry(md_tpje,f);
 			return result;
 		}
 
-		AccountTransactionTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
-			AccountTransactionTypeTopology result{};
-			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
-				auto const& [at,props] = tat;
-				for (auto const& prop : props) result.insert(prop);
+		AccountPostingKindTags to_posting_kind_tags(MDTaggedPostingsJournalEntry const& md_tpje) {
+			AccountPostingKindTags result{};
+			auto f = [&result](BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
+				auto const& [ap,kind_tags] = ap_tags_pair;
+				for (auto const& kind_tag : kind_tags) result.insert(kind_tag);
 			};
-			for_each_typed_account_transaction(tme,f);
+			for_each_posting_entry(md_tpje,f);
 			return result;
 		}
 
-		std::size_t to_signature(BASAccountTopology const& bat) {
-			return detail::hash<BASAccountTopology>{}(bat);
+		std::size_t to_signature(BASAccountsTopology const& bat) {
+			return detail::hash<BASAccountsTopology>{}(bat);
 		}
 
-		std::size_t to_signature(AccountTransactionTypeTopology const& met) {
-			return detail::hash<AccountTransactionTypeTopology>{}(met);
+		std::size_t to_signature(AccountPostingKindTags const& kind_tags) {
+			return detail::hash<AccountPostingKindTags>{}(kind_tags);
 		}
 
   } // kind
 } // BAS
 
-BAS::MDJournalEntry to_md_entry(BAS::MDTypedJournalEntry const& tme) {
+BAS::MDJournalEntry to_md_entry(BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
 	BAS::MDJournalEntry result {
-		.meta = tme.meta
+		.meta = md_tpje.meta
 		,.defacto = {
-			.caption = tme.defacto.caption
-			,.date = tme.defacto.date
+			.caption = md_tpje.defacto.caption
+			,.date = md_tpje.defacto.date
 		}
 	};
-	for (auto const& [at,props] : tme.defacto.account_transactions) {
-		result.defacto.account_transactions.push_back(at);
+	for (auto const& [ap,kind_tags] : md_tpje.defacto.account_postings) {
+		result.defacto.account_postings.push_back(ap);
 	}
 	return result;
 }
@@ -103,9 +106,9 @@ BAS::MDJournalEntry to_md_entry(BAS::MDTypedJournalEntry const& tme) {
 // ----------------------------------------
 // MDJournalEntry -> TYPED MDJournalEntry
 
-BAS::MDTypedJournalEntry to_typed_md_entry(BAS::MDJournalEntry const& mdje) {
+BAS::MDTaggedPostingsJournalEntry to_template_candidate_entry(BAS::MDJournalEntry const& mdje) {
 	// std::cout << "\nto_typed_meta_entry: " << me;
-	BAS::anonymous::TypedAccountTransactions typed_ats{};
+	BAS::anonymous::AccountPostingsTags posting_tags{};
 
   /*
   use the following tagging
@@ -120,31 +123,31 @@ BAS::MDTypedJournalEntry to_typed_md_entry(BAS::MDJournalEntry const& mdje) {
 	if (auto optional_gross_amount = to_gross_transaction_amount(mdje.defacto)) {
 		auto gross_amount = *optional_gross_amount;
 		// Direct type detection based on gross_amount and account meta data
-		for (auto const& at : mdje.defacto.account_transactions) {
-			if (round(abs(at.amount)) == round(gross_amount)) typed_ats[at].insert("gross");
-			if (is_vat_account_at(at)) typed_ats[at].insert("vat");
-			if (abs(at.amount) < 1) typed_ats[at].insert("cents");
-			if (round(abs(at.amount)) == round(gross_amount / 2)) typed_ats[at].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
+		for (auto const& ap : mdje.defacto.account_postings) {
+			if (round(abs(ap.amount)) == round(gross_amount)) posting_tags[ap].insert("gross");
+			if (is_vat_account_at(ap)) posting_tags[ap].insert("vat");
+			if (abs(ap.amount) < 1) posting_tags[ap].insert("cents");
+			if (round(abs(ap.amount)) == round(gross_amount / 2)) posting_tags[ap].insert("transfer"); // 20240519 I no longer understand this? A transfer if half the gross? Strange?
 		}
 
 		// Ex vat amount Detection
 		Amount ex_vat_amount{},vat_amount{};
-		for (auto const& at : mdje.defacto.account_transactions) {
-			if (!typed_ats.contains(at)) {
+		for (auto const& ap : mdje.defacto.account_postings) {
+			if (!posting_tags.contains(ap)) {
 				// Not gross, Not VAT (above) => candidate for ex VAT
-				ex_vat_amount += at.amount;
+				ex_vat_amount += ap.amount;
 			}
-			else if (typed_ats.at(at).contains("vat")) {
-				vat_amount += at.amount;
+			else if (posting_tags.at(ap).contains("vat")) {
+				vat_amount += ap.amount;
 			}
 		}
     std::string net_or_counter_tag = (vat_amount != 0)?std::string{"net"}:std::string{"counter"};
 		if (abs(round(abs(ex_vat_amount)) + round(abs(vat_amount)) - gross_amount) <= 1) {
 			// ex_vat + vat within cents of gross
 			// tag non typed ats as ex-vat
-			for (auto const& at : mdje.defacto.account_transactions) {
-				if (!typed_ats.contains(at)) {
-					typed_ats[at].insert(net_or_counter_tag);
+			for (auto const& ap : mdje.defacto.account_postings) {
+				if (!posting_tags.contains(ap)) {
+					posting_tags[ap].insert(net_or_counter_tag);
 				}
 			}
 		}
@@ -162,41 +165,41 @@ BAS::MDTypedJournalEntry to_typed_md_entry(BAS::MDJournalEntry const& mdje) {
 	// 	 eu_purchase : "Motkonto Varuvärde Inköp EU/Import":9099 "Motkonto Varuvärde Inköp EU/Import" -6616.93
 	// 	 gross : "Elektroniklabb - Verktyg och maskiner":1226 "Favero Assioma DUO-Shi" 6616.93
 	Amount eu_vat_amount{},eu_purchase_amount{};
-	for (auto const& at : mdje.defacto.account_transactions) {
+	for (auto const& ap : mdje.defacto.account_postings) {
 		// Identify transactions to EU VAT and EU Purchase tagged accounts
-		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,at)) {
-			typed_ats[at].insert("eu_vat");
-			eu_vat_amount = at.amount;
+		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_VAT_BOX_NOS,ap)) {
+			posting_tags[ap].insert("eu_vat");
+			eu_vat_amount = ap.amount;
 		}
-		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,at)) {
-			typed_ats[at].insert("eu_purchase");
-			eu_purchase_amount = at.amount;
+		if (is_vat_returns_form_at(SKV::XML::VATReturns::EU_PURCHASE_BOX_NOS,ap)) {
+			posting_tags[ap].insert("eu_purchase");
+			eu_purchase_amount = ap.amount;
 		}
 	}
-	for (auto const& at : mdje.defacto.account_transactions) {
+	for (auto const& ap : mdje.defacto.account_postings) {
 		// Identify counter transactions to EU VAT and EU Purchase tagged accounts
-		if (at.amount == -eu_vat_amount) typed_ats[at].insert("eu_vat"); // The counter trans for EU VAT
-		if ((first_digit(at.account_no) == 4 or first_digit(at.account_no) == 9) and (at.amount == -eu_purchase_amount)) typed_ats[at].insert("eu_purchase"); // The counter trans for EU Purchase
+		if (ap.amount == -eu_vat_amount) posting_tags[ap].insert("eu_vat"); // The counter trans for EU VAT
+		if ((first_digit(ap.account_no) == 4 or first_digit(ap.account_no) == 9) and (ap.amount == -eu_purchase_amount)) posting_tags[ap].insert("eu_purchase"); // The counter trans for EU Purchase
 	}
 	// Mark gross accounts for EU VAT transaction journal entry
-	for (auto const& at : mdje.defacto.account_transactions) {
+	for (auto const& ap : mdje.defacto.account_postings) {
 		// We expect two accounts left unmarked and they are the gross accounts
-		if (!typed_ats.contains(at) and (abs(at.amount) == abs(eu_purchase_amount))) {
-			typed_ats[at].insert("gross");
+		if (!posting_tags.contains(ap) and (abs(ap.amount) == abs(eu_purchase_amount))) {
+			posting_tags[ap].insert("gross");
 		}
 	}
 
 	// Finally add any still untyped at with empty property set
-	for (auto const& at : mdje.defacto.account_transactions) {
-		if (!typed_ats.contains(at)) typed_ats.insert({at,{}});
+	for (auto const& ap : mdje.defacto.account_postings) {
+		if (!posting_tags.contains(ap)) posting_tags.insert({ap,{}});
 	}
 
-	BAS::MDTypedJournalEntry result{
+	BAS::MDTaggedPostingsJournalEntry result{
 		.meta = mdje.meta
 		,.defacto = {
 			.caption = mdje.defacto.caption
 			,.date = mdje.defacto.date
-			,.account_transactions = typed_ats
+			,.account_postings = posting_tags
 		}
 	};
 	return result;
@@ -224,18 +227,18 @@ std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
 	return os;
 }
 
-JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
+JournalEntryVATType to_vat_type(BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
 	JournalEntryVATType result{JournalEntryVATType::Undefined};
 	static bool const log{true};
 	// Count each type of property (NOTE: Can be less than transaction count as they may overlap, e.g., two or more gross account transactions)
 	std::map<std::string,unsigned int> props_counter{};
-	for (auto const& [at,props] : tme.defacto.account_transactions) {
-		for (auto const& prop : props) props_counter[prop]++;
+	for (auto const& [ap,kind_tags] : md_tpje.defacto.account_postings) {
+		for (auto const& kind_tag : kind_tags) props_counter[kind_tag]++;
 	}
 	// LOG
 	if (log) {
-		for (auto const& [prop,count] : props_counter) {
-			std::cout << "\n" << std::quoted(prop) << " count:" << count;
+		for (auto const& [kind_tag,count] : props_counter) {
+			std::cout << "\n" << std::quoted(kind_tag) << " count:" << count;
 		}
 	}
 	// Calculate total number of properties (NOTE: Can be more that the transactions as e.g., vat and eu_vat overlaps)
@@ -274,9 +277,9 @@ JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "vat") or (entry.first == "eu_vat") or  (entry.first == "cents");})) {
 		result = JournalEntryVATType::VATReturns; // All VATS (probably a VAT report)
 	}
-  else if (tme.defacto.account_transactions.size() == 2 and std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[](auto const& tat){
-      auto const& [at,props] = tat;
-      return (at.account_no == 1630 or at.account_no == 2650 or at.account_no == 1650); // SKV account updated with VAT, i.e., cleared
+  else if (md_tpje.defacto.account_postings.size() == 2 and std::all_of(md_tpje.defacto.account_postings.begin(),md_tpje.defacto.account_postings.end(),[](auto const& ap_tags_pair){
+      auto const& [ap,kind_tags] = ap_tags_pair;
+      return (ap.account_no == 1630 or ap.account_no == 2650 or ap.account_no == 1650); // SKV account updated with VAT, i.e., cleared
 	  // 1630 = SKV tax account, 1650 = SKV tax receivable, 2650 = SKV tax payable
     })) {
 		result = JournalEntryVATType::VATClearing; // SKV account cleared against 2650
@@ -284,9 +287,9 @@ JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
 	else if (std::all_of(props_counter.begin(),props_counter.end(),[](std::map<std::string,unsigned int>::value_type const& entry){ return (entry.first == "transfer") or (entry.first == "vat");})) {
 		result = JournalEntryVATType::VATTransfer; // All transfer of vat (probably a VAT settlement with Swedish Tax Agency)
 	}
-  else if (tme.defacto.account_transactions.size() == 2 and std::all_of(tme.defacto.account_transactions.begin(),tme.defacto.account_transactions.end(),[](auto const& tat){
-      auto const& [at,props] = tat;
-      return (at.account_no == 8314 or at.account_no == 1630);
+  else if (md_tpje.defacto.account_postings.size() == 2 and std::all_of(md_tpje.defacto.account_postings.begin(),md_tpje.defacto.account_postings.end(),[](auto const& ap_tags_pair){
+      auto const& [ap,kind_tags] = ap_tags_pair;
+      return (ap.account_no == 8314 or ap.account_no == 1630);
     })) {
     // One account 1630 (SKV tax account) and one account 8314 (tax free interest gain)
 		result = JournalEntryVATType::SKVInterest; // SKV gained interest
@@ -304,12 +307,12 @@ JournalEntryVATType to_vat_type(BAS::MDTypedJournalEntry const& tme) {
 	return result;
 }
 
-void for_each_typed_md_entry(SIEEnvironmentsMap const& sie_envs_map,TypedMDJournalEntryVisitorF const& f) {
+void for_each_template_candidate_entry(SIEArchive const& sie_archive,TypedMDJournalEntryVisitorF const& f) {
 	auto f_caller = [&f](BAS::MDJournalEntry const& mdje) {
-		auto tme = to_typed_md_entry(mdje);
-		f(tme);
+		auto md_tpje = to_template_candidate_entry(mdje);
+		f(md_tpje);
 	};
-	for_each_md_journal_entry(sie_envs_map,f_caller);
+	for_each_md_journal_entry(sie_archive,f_caller);
 }
 
 // TYPED -> TEMPLATE
@@ -319,8 +322,8 @@ OptionalJournalEntryTemplate to_template(BAS::MDJournalEntry const& mdje) {
 	return result;
 }
 
-OptionalJournalEntryTemplate to_template(BAS::MDTypedJournalEntry const& tme) {
-	return to_template(to_md_entry(tme));
+OptionalJournalEntryTemplate to_template(BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
+	return to_template(to_md_entry(md_tpje));
 }
 
 BAS::MDJournalEntry to_md_journal_entry(HeadingAmountDateTransEntry const& had,JournalEntryTemplate const& jet) {
@@ -330,18 +333,18 @@ BAS::MDJournalEntry to_md_journal_entry(HeadingAmountDateTransEntry const& had,J
 	};
 	result.defacto.caption = had.heading;
 	result.defacto.date = had.date;
-	result.defacto.account_transactions = jet(abs(had.amount)); // Ignore sign to have template apply its sign
+	result.defacto.account_postings = jet(abs(had.amount)); // Ignore sign to have template apply its sign
 	return result;
 }
 
-std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att) {
-	os << "\n\t" << att.m_at.account_no << " " << att.m_percent;
+std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att) {
+	os << "\n\t" << att.m_ap.account_no << " " << att.m_percent;
 	return os;
 }
 
 std::ostream& operator<<(std::ostream& os,JournalEntryTemplate const& entry) {
 	os << "template: series " << entry.series();
-	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& att){
+	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountPostingTemplate const& att){
 		os << "\n\t" << att;
 	});
 	return os;
@@ -351,43 +354,43 @@ bool had_matches_trans(HeadingAmountDateTransEntry const& had,BAS::anonymous::Jo
 	return text::functional::strings_share_tokens(had.heading,aje.caption);
 }
 
-AccountsTopologyMap to_accounts_topology_map(BAS::TypedMetaEntries const& tmes) {
+AccountsTopologyMap to_accounts_topology_map(BAS::TaggedPostingsMDJournalEntries const& tp_md_jes) {
 	AccountsTopologyMap result{};
-	auto g = [&result](BAS::MDTypedJournalEntry const& tme) {
-		auto accounts_topology = BAS::kind::to_accounts_topology(tme);
+	auto g = [&result](BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
+		auto accounts_topology = BAS::kind::to_accounts_topology(md_tpje);
 		auto signature = BAS::kind::to_signature(accounts_topology);
-		result[signature][accounts_topology].push_back(tme);
+		result[signature][accounts_topology].push_back(md_tpje);
 	};
-	std::for_each(tmes.begin(),tmes.end(),g);
+	std::for_each(tp_md_jes.begin(),tp_md_jes.end(),g);
 	return result;
 }
 
-Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEEnvironmentsMap const& sie_envs_map) {
+Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive) {
 	Kind2MDTypedJournalEntriesCAS result{};
 	// Group on Type Topology
 	Kind2MDTypedJournalEntriesCAS meta_entry_topology_map{};
-	auto h = [&result](BAS::MDTypedJournalEntry const& tme){
-		auto types_topology = BAS::kind::to_types_topology(tme);
+	auto h = [&result](BAS::MDTaggedPostingsJournalEntry const& md_tpje){
+		auto types_topology = BAS::kind::to_posting_kind_tags(md_tpje);
 		auto signature = BAS::kind::to_signature(types_topology);
-		result[signature][types_topology].push_back(tme);
+		result[signature][types_topology].push_back(md_tpje);
 	};
-	for_each_typed_md_entry(sie_envs_map,h);
+	for_each_template_candidate_entry(sie_archive,h);
 	return result;
 }
 
-BAS::TypedMetaEntries all_years_template_candidates(
-   SIEEnvironmentsMap const& sie_envs_map
+BAS::TaggedPostingsMDJournalEntries all_years_template_candidates(
+   SIEArchive const& sie_archive
   ,HADMatchesJEPredicate const& matches) {
-  BAS::TypedMetaEntries result{};
-  auto meta_entry_topology_map = to_meta_entry_topology_map(sie_envs_map);
+  BAS::TaggedPostingsMDJournalEntries result{};
+  auto meta_entry_topology_map = to_meta_entry_topology_map(sie_archive);
   for (auto const& [signature,tme_map] : meta_entry_topology_map) {
-    for (auto const& [topology,tmes] : tme_map) {
-      auto accounts_topology_map = to_accounts_topology_map(tmes);
+    for (auto const& [kind_tags,tp_md_jes] : tme_map) {
+      auto accounts_topology_map = to_accounts_topology_map(tp_md_jes);
       for (auto const& [signature,bat_map] : accounts_topology_map) {
-        for (auto const& [topology,tmes] : bat_map) {
-          for (auto const& tme : tmes) {
-            auto mdje = to_md_entry(tme);
-            if (matches(mdje.defacto)) result.push_back(tme);
+        for (auto const& [kind_tags,tp_md_jes] : bat_map) {
+          for (auto const& md_tpje : tp_md_jes) {
+            auto mdje = to_md_entry(md_tpje);
+            if (matches(mdje.defacto)) result.push_back(md_tpje);
           }
         }
       }
@@ -396,11 +399,11 @@ BAS::TypedMetaEntries all_years_template_candidates(
   return result;
 }
 
-OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEEnvironment const& sie_environ) {
+OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry const& had,SIEDocument const& sie_doc) {
 	OptionalJournalEntryTemplate result{};
 	if (had) {
 		BAS::MDJournalEntries candidates{};
-		for (auto const& je : sie_environ.journals()) {
+		for (auto const& je : sie_doc.journals()) {
 			auto const& [series,journal] = je;
 			for (auto const& [verno,aje] : journal) {
 				if (aje.caption.find(had->heading) != std::string::npos) {
@@ -423,7 +426,7 @@ OptionalJournalEntryTemplate template_of(OptionalHeadingAmountDateTransEntry con
 
 // TYPED ENTRY operator<<
 
-std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountTopology const& accounts) {
+std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountsTopology const& accounts) {
 	if (accounts.size()==0) os << " ?";
 	else for (auto const& account : accounts) {
 		os << " " << account;
@@ -431,79 +434,79 @@ std::ostream& operator<<(std::ostream& os,BAS::kind::BASAccountTopology const& a
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopology const& props) {
-	auto sorted_props = BAS::kind::sorted(props); // props is a std::set, sorted_props is a vector
+std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingKindTags const& kind_tags) {
+	auto sorted_props = BAS::kind::sorted(kind_tags); // kind_tags is a std::set, sorted_props is a vector
 	if (sorted_props.size()==0) os << " ?";
-	else for (auto const& prop : sorted_props) {
-		os << " " << prop;
+	else for (auto const& kind_tag : sorted_props) {
+		os << " " << kind_tag;
 	}
-	os << " = sort_code: 0x" << std::hex << BAS::kind::to_at_types_order(props) << std::dec;
+	os << " = sort_code: 0x" << std::hex << BAS::kind::to_posting_kind_tags_rank(kind_tags) << std::dec;
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat) {
-	auto const& [at,props] = tat;
-	os << props << " : " << at;
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
+	auto const& [ap,kind_tags] = ap_tags_pair;
+	os << kind_tags << " : " << ap;
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountTransactions> const& indented) {
-	for (auto const& at : indented.val) {
+std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::AccountPostingsTags> const& indented) {
+	for (auto const& ap : indented.val) {
 		os << "\n";
 		for (int x = 0; x < indented.count; ++x) os << ' ';
-		os << at;
+		os << ap;
 	}
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedJournalEntry const& tje) {
-	os << std::quoted(tje.caption) << " " << tje.date;
-	for (auto const& tat : tje.account_transactions) {
-		os << "\n\t" << tat;
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::TaggedPostingsJournalEntry const& tpje) {
+	os << std::quoted(tpje.caption) << " " << tpje.date;
+	for (auto const& ap_tags_pair : tpje.account_postings) {
+		os << "\n\t" << ap_tags_pair;
 	}
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os,BAS::MDTypedJournalEntry const& tme) {
-	os << tme.meta << " " << tme.defacto;
+std::ostream& operator<<(std::ostream& os,BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
+	os << md_tpje.meta << " " << md_tpje.defacto;
 	return os;
 }
 
 // A typed sub-meta-entry is a subset of transactions of provided typed meta entry
 // that are all of the same "type" and that all sums to zero (do balance)
-std::vector<BAS::MDTypedJournalEntry> to_typed_sub_meta_entries(BAS::MDTypedJournalEntry const& tme) {
-	std::vector<BAS::MDTypedJournalEntry> result{};
+std::vector<BAS::MDTaggedPostingsJournalEntry> to_typed_sub_meta_entries(BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
+	std::vector<BAS::MDTaggedPostingsJournalEntry> result{};
 	// TODO: When needed, identify sub-entries of typed account transactions that balance (sums to zero)
-	result.push_back(tme); // For now, return input as the single sub-entry
+	result.push_back(md_tpje); // For now, return input as the single sub-entry
 	return result;
 }
 
-BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEEnvironmentsMap const& sie_envs_map,BAS::anonymous::TypedAccountTransaction const& tat) {
-	BAS::anonymous::TypedAccountTransactions result{};
-	result.insert(tat); // For now, return ourself as the only alternative
+BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
+	BAS::anonymous::AccountPostingsTags result{};
+	result.insert(ap_tags_pair); // For now, return ourself as the only alternative
 	return result;
 }
 
- bool operator==(BAS::MDTypedJournalEntry const& tme1,BAS::MDTypedJournalEntry const& tme2) {
-	return (BAS::kind::to_types_topology(tme1) == BAS::kind::to_types_topology(tme2));
+ bool operator==(BAS::MDTaggedPostingsJournalEntry const& lhs,BAS::MDTaggedPostingsJournalEntry const& rhs) {
+	return (BAS::kind::to_posting_kind_tags(lhs) == BAS::kind::to_posting_kind_tags(rhs));
 }
 
-BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
-	BAS::MDTypedJournalEntry result{tme};
-	// TODO: Implement actual swap of tats
+BAS::MDTaggedPostingsJournalEntry to_swapped_ap_tags_pair_md_tpje(BAS::MDTaggedPostingsJournalEntry const& md_tpje,BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair,BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair) {
+	BAS::MDTaggedPostingsJournalEntry result{md_tpje};
+	// TODO: Implement actual swap of posting tags pairs
 	return result;
 }
 
-BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry const& tme,Amount const& gross_amount) {
+BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTaggedPostingsJournalEntry const& md_tpje,Amount const& gross_amount) {
 	BAS::OptionalMDJournalEntry result{};
 	// TODO: Implement actual generation of a candidate using the provided typed meta entry and the gross amount
-	auto order_code = BAS::kind::to_at_types_order(BAS::kind::to_types_topology(tme));
+	auto order_code = BAS::kind::to_posting_kind_tags_rank(BAS::kind::to_posting_kind_tags(md_tpje));
 	BAS::MDJournalEntry mdje_candidate{
-		.meta = tme.meta
+		.meta = md_tpje.meta
 		,.defacto = {
-			.caption = tme.defacto.caption
-			,.date = tme.defacto.date
-			,.account_transactions = {}
+			.caption = md_tpje.defacto.caption
+			,.date = md_tpje.defacto.date
+			,.account_postings = {}
 		}
 	};
 	switch (order_code) {
@@ -515,39 +518,39 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 		// 	 gross net vat cents = sort_code: 0x3467
 		case 0x3467: {
 			// With Swedish VAT (with rounding)
-			if (tme.defacto.account_transactions.size() == 3 or tme.defacto.account_transactions.size() == 4) {
+			if (md_tpje.defacto.account_postings.size() == 3 or md_tpje.defacto.account_postings.size() == 4) {
 				// One gross account + single counter {net,vat} and single rounding trans
-				for (auto const& tat : tme.defacto.account_transactions) {
-					switch (BAS::kind::to_at_types_order(tat.second)) {
+				for (auto const& ap_tags_pair : md_tpje.defacto.account_postings) {
+					switch (BAS::kind::to_posting_kind_tags_rank(ap_tags_pair.second)) {
 						case 0x3: {
 							// gross
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
 								,.amount = gross_amount
 							});
 						}; break;
 						case 0x4: {
 							// net
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
 								,.amount = static_cast<Amount>(gross_amount*0.8) // NOTE: Hard coded 25% VAT
 							});
 						}; break;
 						case 0x6: {
 							// VAT
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
 								,.amount = static_cast<Amount>(gross_amount*0.2) // NOTE: Hard coded 25% VAT
 							});
 						}; break;
 						case 0x7: {
 							// Cents
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
 								,.amount = static_cast<Amount>(0.0) // NOTE: No rounding here
 								// NOTE: Applying a rounding scheme has to "guess" what to aim for.
 								//       It seems some sellers aim at making the gross amount without cents.
@@ -571,35 +574,35 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 		// 	 eu_purchase gross eu_vat vat = sort_code: 0x2356
 		case 0x2356: {
 			// With EU VAT
-			if (tme.defacto.account_transactions.size() == 6) {
+			if (md_tpje.defacto.account_postings.size() == 6) {
 				// One gross + one counter gross trasnaction (EU Transactions between countries happens without charging the buyer with VAT)
 				// But to populate the VAT Returns form we need four more "fake" transactions
 				// One "fake" EU VAT + a counter "fake" VAT transactions (zero VAT to pay for the buyer)
 				// One "fake" EU Purchase + a counter EU Purchase (to not duble book the purchase in the buyers journal)
-				for (auto const& tat : tme.defacto.account_transactions) {
-					switch (BAS::kind::to_at_types_order(tat.second)) {
+				for (auto const& ap_tags_pair : md_tpje.defacto.account_postings) {
+					switch (BAS::kind::to_posting_kind_tags_rank(ap_tags_pair.second)) {
 						case 0x2: {
 							// eu_purchase +/-
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
+								,.amount = (ap_tags_pair.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x3: {
 							// gross +/-
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
+								,.amount = (ap_tags_pair.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						} break;
 						case 0x5: {
 							// eu_vat +/-
-							auto vat_amount = static_cast<Amount>(((tat.first.amount<0)?-1.0:1.0) * 0.2 * abs(gross_amount));
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
+							auto vat_amount = static_cast<Amount>(((ap_tags_pair.first.amount<0)?-1.0:1.0) * 0.2 * abs(gross_amount));
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
 								,.amount = vat_amount
 							});
 						} break;
@@ -614,15 +617,15 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 		// 	 gross = sort_code: 0x3
 		case 0x3: {
 			// With gross, counter gross
-			if (tme.defacto.account_transactions.size() == 2) {
-				for (auto const& tat : tme.defacto.account_transactions) {
-					switch (BAS::kind::to_at_types_order(tat.second)) {
+			if (md_tpje.defacto.account_postings.size() == 2) {
+				for (auto const& ap_tags_pair : md_tpje.defacto.account_postings) {
+					switch (BAS::kind::to_posting_kind_tags_rank(ap_tags_pair.second)) {
 						case 0x3: {
 							// gross +/-
-							mdje_candidate.defacto.account_transactions.push_back({
-								.account_no = tat.first.account_no
-								,.transtext = tat.first.transtext
-								,.amount = (tat.first.amount<0)?-abs(gross_amount):abs(gross_amount)
+							mdje_candidate.defacto.account_postings.push_back({
+								.account_no = ap_tags_pair.first.account_no
+								,.transtext = ap_tags_pair.first.transtext
+								,.amount = (ap_tags_pair.first.amount<0)?-abs(gross_amount):abs(gross_amount)
 							});
 						}; break;
 					} // switch
@@ -640,7 +643,7 @@ BAS::OptionalMDJournalEntry to_meta_entry_candidate(BAS::MDTypedJournalEntry con
 		// 	 transfer = sort_code: 0x1
 		// 	 transfer vat = sort_code: 0x16
 	} // switch
-	// result = to_meta_entry(tme); // Return with unmodified amounts!
+	// result = to_meta_entry(md_tpje); // Return with unmodified amounts!
 	return result;
 }
 
@@ -649,19 +652,19 @@ std::ostream& operator<<(std::ostream& os,TestResult const& tr) {
 	return os;
 }
 
-TestResult test_typed_meta_entry(SIEEnvironmentsMap const& sie_envs_map,BAS::MDTypedJournalEntry const& tme) {
+TestResult test_typed_meta_entry(SIEArchive const& sie_archive,BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
 	TestResult result{};
 	result.prompt << "test_typed_meta_entry=";
-	auto sub_tmes = to_typed_sub_meta_entries(tme);
+	auto sub_tmes = to_typed_sub_meta_entries(md_tpje);
 	for (auto const& sub_tme : sub_tmes) {
-		for (auto const& tat : sub_tme.defacto.account_transactions) {
-			auto alt_tats = to_alternative_tats(sie_envs_map,tat);
+		for (auto const& ap_tags_pair : sub_tme.defacto.account_postings) {
+			auto alt_tats = to_alternative_posting_tags(sie_archive,ap_tags_pair);
 			for (auto const& alt_tat : alt_tats) {
-				auto alt_tme = to_tats_swapped_tme(tme,tat,alt_tat);
-				result.prompt << "\n\t\t" <<  "Swapped " << tat << " with " << alt_tat;
+				auto alt_tme = to_swapped_ap_tags_pair_md_tpje(md_tpje,ap_tags_pair,alt_tat);
+				result.prompt << "\n\t\t" <<  "Swapped " << ap_tags_pair << " with " << alt_tat;
 				// Test that we can do a roundtrip and get the alt_tme back
-				auto gross_amount = std::accumulate(alt_tme.defacto.account_transactions.begin(),alt_tme.defacto.account_transactions.end(),Amount{0},[](auto acc, auto const& tat){
-					if (tat.first.amount > 0) acc += tat.first.amount;
+				auto gross_amount = std::accumulate(alt_tme.defacto.account_postings.begin(),alt_tme.defacto.account_postings.end(),Amount{0},[](auto acc, auto const& ap_tags_pair){
+					if (ap_tags_pair.first.amount > 0) acc += ap_tags_pair.first.amount;
 					return acc;
 				});
 				auto raw_alt_candidate = to_md_entry(alt_tme); // Raw conversion

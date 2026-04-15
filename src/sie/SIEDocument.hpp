@@ -8,7 +8,7 @@ struct DatedJournalEntryMeta {
   BAS::WeakJournalEntryMeta m_jem;
 };
 
-class SIEEnvironmentChangeResult {
+class JournalEntryChangeResult {
 public:
   enum class Status {
      Unknown
@@ -17,53 +17,53 @@ public:
     ,SameValueAssigned
     ,Undefined
   };
-  SIEEnvironmentChangeResult() = delete;
-  SIEEnvironmentChangeResult(BAS::MDJournalEntry const& mdje,Status status = Status{});
-  SIEEnvironmentChangeResult with_status(Status status) const;
+  JournalEntryChangeResult() = delete;
+  JournalEntryChangeResult(BAS::MDJournalEntry const& mdje,Status status = Status{});
+  JournalEntryChangeResult with_status(Status status) const;
   bool now_posted() const;
   operator bool() const;
   BAS::MDJournalEntry const& md_entry() const;
 private:
   Status m_status{};
-  BAS::MDJournalEntry m_md_entry; // Note: SIEEnvironment does not store actual BAS::MetaEntry.
+  BAS::MDJournalEntry m_md_entry; // Note: SIEDocument does not store actual BAS::MetaEntry.
                                   //       So we store a ref-safe clone to return as result
                                   //       This may e.g., allow for returning a mutated entry.
-}; // SIEEnvironmentChangeResult
+}; // JournalEntryChangeResult
 
-using SIEEnvironmentChangeResults = std::vector<SIEEnvironmentChangeResult>;
+using JournalEntryChangeResults = std::vector<JournalEntryChangeResult>;
 
 using DatedJournalEntryMetas = std::vector<DatedJournalEntryMeta>;
 
-class SIEEnvironment {
+class SIEDocument {
 
   // MetaEntry Is a meta-defacto representation of a 'journal entry' in a DAG
 
   // WeakJournalEntryMeta: Record {Series:series, OptionalVerNo:verno}
   // MetaEntry: pair {WeakJournalEntryMeta:meta , JournalEntry:defacto}
 
-  // SIEEnvironment store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
+  // SIEDocument store 'defacto' entries in a DAG <series> -> <verno> -> JournalEntry
 
-  // AccountTransaction: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
-  // AccountTransactions: vector AccountTransaction
-  // JournalEntry: Record {string:caption, Date:date, AccountTransactions:account_transactions}
+  // AccountPosting: Record {AccountNo:account_no, optional::string:transtext{}, Amount:amount}
+  // AccountPostings: vector AccountPosting
+  // JournalEntry: Record {string:caption, Date:date, AccountPostings:account_postings}
   // BASJournal: Map BAS::VerNo -> BAS::anonymous::JournalEntry (E.g., 7 -> JournalEntry) 
   // BASJournals: Map BASJournalId -> BASJournal E.g., 'A' -> BASJournal
 
 public:
 
-  SIEEnvironment(FiscalYear const& fiscal_year);
-  SIEEnvironment() = delete;
-  SIEEnvironment& operator=(SIEEnvironment const& other) = default;
+  SIEDocument(FiscalYear const& fiscal_year);
+  SIEDocument() = delete;
+  SIEDocument& operator=(SIEDocument const& other) = default;
 
   MaybeBASJournalRef at(BAS::Series series);
   BAS::MaybeJournalEntryRef at(DatedJournalEntryMeta key);
 	BAS::MDJournalEntries unposted() const;
 
-	SIEEnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
-	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
-	SIEEnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
-	SIEEnvironmentChangeResult add(BAS::MDJournalEntry mdje);
-	SIEEnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
+	JournalEntryChangeResult post_(BAS::MDJournalEntry const& mdje);
+	JournalEntryChangeResult stage_entry_(BAS::MDJournalEntry const& mdje);
+	JournalEntryChangeResults stage_sie_(SIEDocument const& sie_doc);
+	JournalEntryChangeResult add_(BAS::MDJournalEntry mdje);
+	JournalEntryChangeResult update_(BAS::MDJournalEntry const& mdje);
 
 	BAS::VerNo largest_verno(BAS::Series series);
 	bool already_in_posted(BAS::MDJournalEntry const& mdje);
@@ -71,9 +71,9 @@ public:
 
   DatedJournalEntryMetas to_dated_journal_entry_metas() const;
 	std::filesystem::path staged_sie_file_path() const;
-	SIE::OrgNr organisation_no{};
-	SIE::FNamn organisation_name{};
-	SIE::Adress organisation_address{};
+	sie::io::OrgNr organisation_no{};
+	sie::io::FNamn organisation_name{};
+	sie::io::Adress organisation_address{};
 	BASJournals& journals();
 	BASJournals const& journals() const;
 	SKV::SRU::OptionalAccountNo sru_code(BAS::AccountNo const& bas_account_no);
@@ -97,10 +97,8 @@ private:
 	FiscalYear m_fiscal_year;
 	std::map<char,BAS::VerNo> verno_of_last_posted_to{};
 	std::map<BAS::AccountNo,Amount> opening_balance{};
-  friend class SIEEnvironmentsMap;
-}; // class SIEEnvironment
-
-using OptionalSIEEnvironment = std::optional<SIEEnvironment>;
+  friend class SIEArchive;
+}; // class SIEDocument
 
 std::ostream& operator<<(std::ostream& os,DatedJournalEntryMeta const& djem);
 

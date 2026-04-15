@@ -1,4 +1,5 @@
 #include "env/environment.hpp"
+#include "hash_combine.hpp"
 #include "fiscal/amount/TaggedAmountFramework.hpp"
 #include "tokenize.hpp"
 #include "logger/log.hpp"
@@ -7,6 +8,17 @@
 #include <sstream>
 #include <algorithm>
 #include <ranges>
+
+std::size_t Environment::Hasher::operator()(Value const& key_value_map) const {
+  std::size_t result{};
+
+  for (auto const& [key, value] : key_value_map) {
+    hash_combine(result, key);
+    hash_combine(result, value);
+  }
+
+  return result;
+}
 
 namespace in {
 

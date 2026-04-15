@@ -2,6 +2,1220 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+## 20260415
+
+I give up for now! I am STUCK! Right now I find no chain of refactorings that I can apply and get Cratchit to a 'better' state'. All my attempts so far has only shown my how entangled all the 'not so good' design decisions comnspires against change in a congtrolled and stable way.
+
+So I decide to:
+
+* Close the 'clean-up-sie-posted-staged-update-mechanism' branch and merge back to master
+* Use Cratchit to do the VAT Returns report due at 12 May.
+
+Then at least I have three more months to adress thes Issues in a controlled and more relaxed manner.
+
+I still BELEIVE though that:
+
+* I shall NOT rewrite from scratch!
+  - History has teached me and others that rewriting from scratch is almost always a BAD choice.
+* I MAY refactor by introdicuing paralell mechanisms until 'new' can replace 'existing'
+  - In this way I can 'operate on a living patient'?
+
+Before I merged back to master I did some admin enhancements:
+
+* I added script 'init_new' that takes an argument defining the 'thing' to create (e.g., 'todo', 'note')
+  - It creates in subfolder named as the 'thing' and organised in folders namjed by hash(header)
+* I added script 'update_index' that take the 'thing' to update the index of
+  - It update the index.md in the folder of the 'thing'
+
+I created:
+
+* [notes](../../note/index.md)
+* [todos](../../todo/index.md)
+
+## 20260412
+
+So ltes face it. I AM STUCK!
+
+* I fail to find a way to refactor the SIE processing to something 'better' and a clear design
+* I also fail to even understand the 'typed' or 'posting kind' mechanism
+
+I is still a MESS.
+
+Suppose I want to make Cratchit hold the current modified state as an SIE Archive?
+
+* What is the API of this acrhive?
+  - New etnries can still be 'staged'
+  - But what are we to call any mutated entries?
+
+So chatGPT tells me 'You’re essentially moving from a two-phase model (imported + staged deltas) to a single mutable ledger state with provenance.'
+
+* Where 'provenance' means 'its history of changes'
+
+Further we can think of some aspects of 'new' vs 'edit'.
+
+* An existing entry has a full unique ID (series + verno)
+* A new entry needs to be assigned a series and get the next free verno.
+
+I have now decided to use the upcoming VAT Reports to study and understand the HAD to Template mechanism
+
+I first imported account statements
+
+* SKV 3 postings
+* PG 15 postings
+* SAvings account 1 posting
+
+A total of 19 postings. We expect this to be imported into 19 tagged amounts.
+
+* And YES: Cratchit created 19 tagged amounts ok.
+* ONLY: I ended up with 36 HADs after command '-to_hads'
+  - I already had existing HADs of many of the postings!
+
+I have now reset the hads and doen the omkport again and have 19 HADs ok. Now lets see how we can log the HAD to template mechanism? Where is the entry point?
+
+* '-hads' gets us to state PromptState::HADIndex.
+* And when we enter an index we end up at the code:
+
+```c++
+                // Selected HAD is "naked" (no candidate for book keeping assigned)
+                model->had_index = ix;
+                model->template_candidates = all_years_template_candidates(
+                   model->m_sie_archive
+                  ,[had](BAS::anonymous::JournalEntry const& aje){
+                  return had_matches_trans(had,aje);
+                });
+
+```
+* Which in turn is the following BEAST:
+
+```c++
+BAS::TaggedPostingsMDJournalEntries all_years_template_candidates(
+   SIEArchive const& sie_archive
+  ,HADMatchesJEPredicate const& matches) {
+  BAS::TaggedPostingsMDJournalEntries result{};
+  auto meta_entry_topology_map = to_meta_entry_topology_map(sie_archive);
+  for (auto const& [signature,tme_map] : meta_entry_topology_map) {
+    for (auto const& [kind_tags,tp_md_jes] : tme_map) {
+      auto accounts_topology_map = to_accounts_topology_map(tp_md_jes);
+      for (auto const& [signature,bat_map] : accounts_topology_map) {
+        for (auto const& [kind_tags,tp_md_jes] : bat_map) {
+          for (auto const& md_tpje : tp_md_jes) {
+            auto mdje = to_md_entry(md_tpje);
+            if (matches(mdje.defacto)) result.push_back(md_tpje);
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
+```
+
+GOSH! That is NOT pritty...
+
+What does 'to_meta_entry_topology_map' do?
+
+```c++
+Kind2MDTypedJournalEntriesCAS to_meta_entry_topology_map(SIEArchive const& sie_archive) {
+	Kind2MDTypedJournalEntriesCAS result{};
+	// Group on Type Topology
+	Kind2MDTypedJournalEntriesCAS meta_entry_topology_map{};
+	auto h = [&result](BAS::MDTaggedPostingsJournalEntry const& md_tpje){
+		auto types_topology = BAS::kind::to_posting_kind_tags(md_tpje);
+		auto signature = BAS::kind::to_signature(types_topology);
+		result[signature][types_topology].push_back(md_tpje);
+	};
+	for_each_template_candidate_entry(sie_archive,h);
+	return result;
+}
+```
+
+It seems:
+
+* We store unique 'kind topologies' in hash-keyed CAS?
+* And the 'kind topology' is basically an std::set of 'posting kind tags' (which are strings)?
+  - So the std::set means the tags are sorted (in effect making a topology this sorted set of kind tags)
+
+
+WOW! This is super-complicated!!
+
+I have to sleep on this?
+
+## 20260409
+
+So I have now let this simmer a while and I have decided:
+
+* Make cratchit constine to hold imported SUEArchive as the 'shared base'
+* Make cratchit hold a complete SIEArchive reflecting all modifications as the 'working base'
+* Make crathcit be able to report the diff between the shared base and working base
+
+The bottom line is to make what is now called 'staged' into the complete 'working base'
+
+## 20260406
+
+OK, so my strategy so far is not working.
+
+* I fail to serach-and-replace and only change the actual code in the correct way
+  - Too many false positives and the code ends upp a mess that does also does not compile
+
+So how should I go about renaiming identiers that need new names to reflect their new type names?
+
+Maybe I should go type-by-type and take the low hanging fruits first?
+
+Lets start with the most glaring one of the type AccountPosting?
+
+* E.g.: ```text auto f = [&result](BAS::anonymous::AccountPosting const& at)? ```
+
+How can I find all those 'at' identifiers?
+
+* I have tried search-and-replace with some clever pattern or regex even.
+  - But I alwasy ended up with incomplete or wrong modifications to the code
+* What are the alternatives?
+  - Maybe first find all 'AccountPosting const& at'?
+  - And then do VSCode 'F2' rename symbol?
+  - Where do I end up and how much work is this?
+
+Surprise!
+
+* When I pick the first 'AccountPosting const& at' and do F2 rename
+  - The editor actually fidns a long list of replacements?
+  - And after replacement the code still compiles.
+  - So this is good - But surprised me!
+  - What does the renaming actually do?
+* I decided to rename 'at' to 'ap' after all
+  - 'posting' is to vauge when I think about it
+  - And 'ap' matches the naming scheme that 'at' is based on
+  - Also, 'ap' is at least more unique than 'at' that clashes with 'at' memmber functions!
+
+I found a process that worked.
+
+* I searched for 'AccountPosting const& at' in files
+* I picked off each match and used F2 'rename symbol' of the found 'at'
+* I did NOT check the extra matches found (disabled matches and hover text was 'NOT A REFERENCE')
+
+In this way I renamed only the actual instances (not any other matched 'at')
+
+* I am not sure though if a should have forced all matches to be replaces?
+  - Maybe in this way I could have renamed also all 'at' that are also implicitally of AccountPosting type?
+  - Lets move on and see how we can later come back to implicit 'at' of this type and rename them also?
+
+I now searched for 'auto const& at'
+
+* Should I actually declare them of actual type 'BAS::anonymous::AccountPosting'?
+  - Yes, lets try this and see what happens!
+  - Surely I will never need an auto argument passed here?
+  - I always know it to be a proper AccountPosting?
+  - Well, I will find out, will I not?
+* NO! Most of 'auto const& at' are in for loops!
+  - There it is conveniant to use the auto I feel?
+* Interesting false positive on member function 'at'!
+
+```c++
+  auto const& at(ValueName const& section) const {
+    return m_container.at(section);
+  }
+```
+
+* Interesting - the F2 rename symbol fails on:
+
+```c++
+      for (auto const& at : ats) {
+        prompt << "\n" << at;
+      }
+```
+
+What is next?
+
+* Search for remaining ' at' or regex '( at)(?=[.;)}])'
+* I whent with regex '(^|\[)(at)' to find structured captures ```text [at,] ```
+
+That seems to work well enough. What is next?
+
+* I wen with going through all 'AccountPosting '
+  - In this way I had to skip a lot.
+  - But at least I was able to find more variables (like members) of this type o rename
+
+## 20260405
+
+I have now decided to just brute force rename AccountTransaction to AccountPosting.
+
+* Rename every type identifier location including when part of names
+* Rename every instance and function identifier realtes to renamed types
+
+Let's see how this goes if we just plunge in?
+
+AHA! If I use 'replace in files' in VSCode I can open the search result in the editor!
+
+```C++
+250 results - 16 files
+
+src/HAD2JournalEntryFramework.cpp:
+   28:     std::size_t to_at_types_order(BAS::kind::AccountTransactionTypeTopology const& topology) {
+   41: 		 std::vector<std::string> sorted(AccountTransactionTypeTopology const& topology) {
+   51: 			auto f = [&result](BAS::anonymous::AccountTransaction const& at) {
+   60: 			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+   68: 		AccountTransactionTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
+   69: 			AccountTransactionTypeTopology result{};
+   70: 			auto f = [&result](BAS::anonymous::TypedAccountTransaction const& tat) {
+   82: 		std::size_t to_signature(AccountTransactionTypeTopology const& met) {
+   83: 			return detail::hash<AccountTransactionTypeTopology>{}(met);
+  108: 	BAS::anonymous::TypedAccountTransactions typed_ats{};
+  337: std::ostream& operator<<(std::ostream& os,AccountTransactionTemplate const& att) {
+  344: 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountTransactionTemplate const& att){
+  434: std::ostream& operator<<(std::ostream& os,BAS::kind::AccountTransactionTypeTopology const& props) {
+  444: std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountTransaction const& tat) {
+  450: std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountTransactions> const& indented) {
+  481: BAS::anonymous::TypedAccountTransactions to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountTransaction const& tat) {
+  482: 	BAS::anonymous::TypedAccountTransactions result{};
+  491: BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountTransaction const& target_tat,BAS::anonymous::TypedAccountTransaction const& new_tat) {
+
+src/HAD2JournalEntryFramework.hpp:
+    9: 		using AccountTransactionType = std::set<std::string>;
+   10: 		using TypedAccountTransactions = std::map<BAS::anonymous::AccountTransaction,AccountTransactionType>;
+   11: 		using TypedAccountTransaction = TypedAccountTransactions::value_type;
+   12: 		using TypedJournalEntry = BAS::anonymous::JournalEntry_t<TypedAccountTransactions>;
+   27: 		using AccountTransactionTypeTopology = std::set<std::string>;
+   ...
+```
+
+I went ahead and applied all the replacement and searched the modified code for 'AccountPosting'.
+
+```c++
+250 results - 16 files
+
+src/HAD2JournalEntryFramework.cpp:
+   28:     std::size_t to_at_types_order(BAS::kind::AccountPostingTypeTopology const& topology) {
+   41: 		 std::vector<std::string> sorted(AccountPostingTypeTopology const& topology) {
+   51: 			auto f = [&result](BAS::anonymous::AccountPosting const& at) {
+   60: 			auto f = [&result](BAS::anonymous::TypedAccountPosting const& tat) {
+   68: 		AccountPostingTypeTopology to_types_topology(MDTypedJournalEntry const& tme) {
+   69: 			AccountPostingTypeTopology result{};
+   70: 			auto f = [&result](BAS::anonymous::TypedAccountPosting const& tat) {
+   82: 		std::size_t to_signature(AccountPostingTypeTopology const& met) {
+   83: 			return detail::hash<AccountPostingTypeTopology>{}(met);
+  108: 	BAS::anonymous::TypedAccountPostings typed_ats{};
+  337: std::ostream& operator<<(std::ostream& os,AccountPostingTemplate const& att) {
+  344: 	std::for_each(entry.templates.begin(),entry.templates.end(),[&os](AccountPostingTemplate const& att){
+  434: std::ostream& operator<<(std::ostream& os,BAS::kind::AccountPostingTypeTopology const& props) {
+  444: std::ostream& operator<<(std::ostream& os,BAS::anonymous::TypedAccountPosting const& tat) {
+  450: std::ostream& operator<<(std::ostream& os,IndentedOnNewLine<BAS::anonymous::TypedAccountPostings> const& indented) {
+  481: BAS::anonymous::TypedAccountPostings to_alternative_tats(SIEArchive const& sie_archive,BAS::anonymous::TypedAccountPosting const& tat) {
+  482: 	BAS::anonymous::TypedAccountPostings result{};
+  491: BAS::MDTypedJournalEntry to_tats_swapped_tme(BAS::MDTypedJournalEntry const& tme,BAS::anonymous::TypedAccountPosting const& target_tat,BAS::anonymous::TypedAccountPosting const& new_tat) {
+
+src/HAD2JournalEntryFramework.hpp:
+    9: 		using AccountPostingType = std::set<std::string>;
+   10: 		using TypedAccountPostings = std::map<BAS::anonymous::AccountPosting,AccountPostingType>;
+   11: 		using TypedAccountPosting = TypedAccountPostings::value_type;
+  ...
+```
+
+Ok, this refactoring needs some strategy!
+
+* Finding all direct instances is easy enough.
+
+```c++
+  BAS::anonymous::AccountPosting const& at
+```
+
+* But downstream affected identifiers also needs new names
+
+```c++
+    std::size_t to_at_types_order(BAS::kind::AccountPostingTypeTopology const& topology) {
+			std::size_t result{};
+			std::vector<ATType> posting_kinds{};
+			for (auto const& prop : topology) posting_kinds.push_back(to_at_type(prop));
+
+```
+
+  - is 'prop' still ok?
+
+Ok, so we actually have a problem with AccountPostingType vs ATType and the whole 'posting topology' mechanism. What is going on here?
+
+
+
+## 20260403
+
+I wonder, can I and should I make Cratchit 'staged' SIE document instead be the whole fiscal year as edited using the app?
+
+* Then what is the name of the operation to put an edited or new journal entry into the document?
+  - Is it 'put'?
+  - Is it 'dispatch'?
+  - Is it 'post'?
+  - Is it 'stage'?
+* How does the existing mechanisms change?
+  - Importing a new SIE document becomes 'rebase' with a listing of what changed vs external base?
+  - Is 'posted' vs 'staged' nomenclatur still meaningfull?
+
+Well, easiest way to figure out is to try it?
+
+Hm...This is easier said than done?
+
+* We have tests on model_from_environment_and_filesystem_ifc
+  - It is hard coded to test merging of 'posted' and 'staged' SIE documents
+* Maybe we can imagine a semantic change so that 'posted' continues to refernce the actual SIE Document file that was imported?
+  - Then 'staged' becomes 'current base' or 'current something'?
+  - And the 'merging' is now a 'diff' about what edits to the SIE document that has been done using cratchit?
+* So maybe the path to an imported SIE Document is 'shared base'?
+  - And 'staged_sie_file_path' is now current_base_sie_file_path?
+
+At this stage I chatted with my AI friends and got some insights.
+
+* Accounting CARES about being able to audit changes!
+* So a shared base vs a current base may not be enough?
+  - We need a way to track any changes we make to old journal entries?
+  - And if so I may need to make cratchit process 'change operations'?
+* With this understanding an SIE DOcument is in fact a 'snapshot' NOT suitable for change auditing?
+  - On the other hand, SIE allows for marking 'removed' and 'added' #TRANS within a #VER.
+  - Is this enough?
+  - Still, Cratchit does not yet support even this level of change tracking.
+
+I feel a strong reluctance to implement journal entry change operations, tracking and handling.
+
+* I would need some new storage of 'accounting changes' in the environment?
+* I would need to know how to apply them?
+  - Or can I assume I only track them and they are applied in 'current base'?
+
+Lets assume the audit support in SIE by 'added' and 'removed' #TRANS is enough?
+
+* Then I can make cratchit restrict changes to only the ones covered by 'remove' and 'add' #TRANS?
+* And given that SIE allows the 'add' and 'remove' #TRANS to NOT be used:
+  - I can detect 'add' or 'remove' by analysing any added 'tail' to the #TRANS sequence in a #VER?
+  - It is 'remove' if a tail #TRANS in shared is not present at the same position in 'current'?
+  - It is 'add' if a tail #TRANS in 'current' extends the tail in 'shared'?
+
+Now when this simmered in my mind for a while I have decided to:
+
+* Implement 'trans-diff' between two BAS::anonymous::JournalEntry
+  - Detect allowed removed #TRANS
+  - Detect allowed added #TRANS
+  - Detect invalid mutation
+
+This could be the base for detecting change between the journal entries of 'shared' and 'current' SIE Document.
+
+based on this I can easier decide if and how I need to implement some tracking of user changes to the accounted financial events.
+
+* We allow new financial events
+* We allow change to how a financial event is registered
+* Do We allow remove of faulty registered financial events
+  - Duplicates?
+  - Event is not valid for organisation
+  - It is part of another registration (merge 'signals' to same financial event)?
+
+AHA! I should begin with diffing between 'BAS::anonymous::AccountTransactions'!
+
+But is does not stop here. I have in fact used the type AccountTransaction for what is in fact a 'posting'.
+
+* I may have to rename AccountTransaction(s) to AccountPosting(s)?
+* A 'posting' is sending something to a recipient.
+* We can use 'Account Posting' as the aggregate that defines the account, the text and the amount that goes into an account.
+
+So I have now decided to rename 'account transaction' to 'account posting'. But this is a BIG job!!
+
+* The label 'AccountTransaction' is part of identifiers at 250 locations!
+  - AccountTransactionTypeTopology, TypedAccountTransaction, AccountTransactionTemplate
+    ,AccountTransactionTemplate, ...
+* Identifers now also needs to be renamed
+  - Transaction const& at
+  - TypedAccountTransaction const& tat
+  - ...
+* The HeadingAmountDateTransEntry (HAD) is now actually also more referring to a 'post'!
+  - HeadingAmountDatePost?
+  - HeadingAmountDatePostSeed?
+  - HeadingAmountDateEventSignal?
+
+But OK - I feel this needs to be done to get to grips with this aspect of cratchit modelling of accounting!
+
+## 20260402
+
+I now decided to rename SIEEnvironmentsMap to SIEArchive.
+
+And along these lines I now have cleaned upp naming to the better.
+
+* SIEDocument is now the model of a single SIE file.
+* SIEArchive is the model of several years of SIE Documents
+* The '#Ver' entry in SIE is a 'JournalEntry'
+  - I have JournalEntryChangeResult
+  - But NO actual 'JournalEntry' type as of yet
+  - There is an 'anonymous' one in the BAS namespace
+  - But I will leavet that be for now.
+
+I now also renamed to try and clarify cratchit file system meta-defatco and interface nature. It is still TOO COMPLICATED though?!
+
+* I allows the test to provide a mockup.
+* But surely there are better ways to do this?
+* Is the virtual 'to istream' member really trhe way to inject the mockup behaviour?
+
+## 20260401
+
+I now have a new idea on how to approach this refctoring.
+
+* Build paralell (new) mechanisms and API
+* Back upp with tests
+* Then replace existing clinet call sites one-by-one.
+
+So how about starting off with the operation to 'rebase'?
+
+* This is commands '-sie new-base-sie-file-name' and '-sie year-id new-base-sie-file-name'
+* What could be a reasonable replacement?
+  - sie_rebase(current_base,new_base)?
+* What could be a reasonable algorithm?
+  - It seems we care ONLY about journal entries?
+  - So it should operate on current journal etry 'BAS::MDJournalEntry'?
+  - That is in fact MDJournalEntries?
+  - I am tempted to introduce a map sie::EntryID -> BAS::JournalEntries?
+
+Lets give it a go?
+
+OK. So instead I embarked on a renaming refactoring to make the code read better.
+
+* I now have SIEDocument for the content of an SIE file
+* I moved all 'document' element types to namespace sie::io.
+* I renamed identifiers to match.
+
+This feels GOOD! It seems I can get rid of the ground level confusion of SIE Document vs its content and the final goal of processing 'financial event' same-ness?
+
+## 20260331
+
+This SIE base + stated mechanism 'clean up' is HARD! The more I think about it the more I see it is several apsects.
+
+* Should I implement a proper separated SIE environment for base and staged?
+* Is 'staged' actually only the jpurnal entries whiel 'base' is the whole SIE with in saldos, meta data and account losting?
+* What API do I catually need to make the mechanisms in play clean and easy to discern?
+
+What are the call sites again?
+
+* Again, all call sites are marked '#POST_THEN_STAGE_THEN_PROMPT_FEEDBACK'
+* They all do the call:
+
+```c++
+model->sie_env_map.update_from_posted_and_staged_sie_env(
+                  year_key
+                  ,sie_env
+                  ,staged_sie_env);
+```
+  
+* The call sites are:
+
+  - command '-sie new-base-file-name' // process 'current'
+  - commmand '-sie year_key new-base-file-name
+  - in funnction:
+
+```c++
+  std::pair<Model,bool> model_with_posted_and_staged_sie(
+     Model model
+    ,sie::RelativeYearKey year_id
+    ,SIEEnvironment const& posted_env
+    ,SIEEnvironment const& staged_env) {
+
+```
+
+AHA - there is a 'user feedback' mechanism also?
+
+```c++
+    auto update_posted_result = model->sie_env_map.update_from_posted_and_staged_sie_env(year_id,posted_env,staged_env);
+    if (update_posted_result) {
+      prompt << zeroth::to_user_cli_feedback(model,year_id,update_posted_result.value());
+    }
+    else {
+      prompt << NL << "Sorry, Failed to update posted SIE for year id: " << year_id;
+    }
+
+```
+
+  - The function:
+
+```c++
+	Model model_from_environment_and_md_filesystem(
+     Environment const& environment
+    ,CratchitMDFileSystem const& md_cfs) {
+
+```
+
+NO. I still fail to see through the confusing design?!
+
+## 20260329
+
+I have given the concept of 'financial event sameness' some more thought.
+
+Here is what I imagine we are allowed to do when registring financial events?
+
+* I am allowed to change any transaction text
+* I am allowed to at least edit the verification text?
+  - This is tricky?
+  - We must allow for two financial events on the same date with the same content (but differ in ID)?
+  - ...
+
+## 20260326
+
+Now when I slept on it I have decided to go ahead and work with the existing BAS::MDJournalEntry.
+
+* Create hash functions that can process optional verno
+  - Include the value iof it is there.
+  - Skip the value if nullopt
+  - I still get a hash value that reflects the conent
+* Postpone any renaming to not-fully-baked 'draft' and adding fully-baked JournalEntry to later
+
+Here is a possible plan:
+
+* Implement a 'full' hash that projects the whole meta and the whole defactor content as a hash
+* Consider to make exisyting operator== use this hash as equality indicator (same full hash means 'equal')
+  - Though I need to study the existing implementation to see if this matches current behaviour?
+
+I should also remember that what I am now doing is implementing a base for a 'financial event sameness' mechanism.
+
+## 20260325
+
+I have now decided to go ahead and work on the 'sie diff' mechanism and test as parallell to existing code and see where this leads me.
+
+* I have renamed SIE entries API to have a trailing '_' to easilly fidn all call sites.
+* I have renamed to sie_from_cp437_stream to clarify it expects a CP437 encoded character input stream.
+
+I have now intrdouced test_sie_diff and sie_test_sz_data units. I now imagine to begin with actually comparing financial events as they are represented by cratchit.
+
+* A financial event is a JournalEntry_t parameterized on type AccountTransactions in BASFramework unit
+* It is alias - WAIT! NO!
+
+We actually models a financial event as a meta-defacto (having the series and verno as the meta / key / ID)
+
+* A financial event is BAS::MDJournalEntry.
+* I can create one as:
+
+```c++
+BAS::MDJournalEntry base_lhs{
+  BAS::WeakJournalEntryMeta{
+    .series = 'A'
+    ,.verno = 1
+  }
+  ,{
+      .caption = "Event 1"
+      ,.date = 2025y / 01 / 01d
+      ,.account_transactions = {}
+  }};
+```
+
+But WAIT! WHere is the caption for the whole entry?
+
+* AHA, It is the '.caption' ok
+* For a short moment I expected caption to be a meta-thing?
+* But no, caption is part of thge content of the entry.
+* Meta is 'just' the key
+
+DARN! The meta is 'weak' in that it carries an optional verno!
+
+```c++
+struct WeakJournalEntryMeta {
+    // 'Weak' because optional verno
+		Series series;
+		OptionalVerNo verno;
+		std::optional<bool> unposted_flag{};
+		bool operator==(WeakJournalEntryMeta const& other) const = default;
+	};
+
+	using MDJournalEntry = MetaDefacto<WeakJournalEntryMeta,BAS::anonymous::JournalEntry>;
+	
+```
+
+This fits our application for SIE entries BADLY!
+
+* In SIE all metas are 'strong' had has a unique series and verno!
+* We would like our diff to operate on fully comitted entries (not having to deal with optional verno)
+
+So now what do we do?
+
+* I don't want to introduce error handling for nullopt verno?
+* But SIEEnvironment uses 'weak' entry IDs (comitted series but optional verno)
+
+So there is actually several issues going an at the same time.
+
+* The name MDJournalEntry is super vauge
+  - It IS what cratchit currentlöy uses to model a registered voucher (swedish 'verifikat')
+  - But we are missing a model where we can talk about the registered 'verifikat' and our model of it in SIE?
+
+I suppose in SIE we DO have the naming done for us?
+
+* A '#VER' is the representation of a registered financial event backed up with a voucher?
+* I asked chatGPT and it sugested 'journal entry' is the digital representation of a financial event.
+
+But then in cratchit we now have the quirk that teh currently used MDJournalEntry is 'weak'?
+
+* It is used also for entries that are not yet 'fully baked' (they lack a verno)
+
+Does this mean we should go ahead and actually define a 'JournalEntry' where everything is comitted?
+
+* Then what is a better name for MDJournalEntry?
+* Maybe I shall call it 'DraftJournalEntry'
+* Then I can 'project' it to a journal entry when all properties are assigned?
+
+I asked chatGPT about 'TransientJournalEntry' but it thought it was a bit weak and unclear and not suited for accounting terminology.
+
+It is interesting that it seems accouning software can talk about Draft, Pending, or Unposted? This clashes with the current cratchit code where 'Posted' relates to what an external app may know and share with cratchit.
+
+OK, I have to think more about this!
+
+## 20260324
+
+OK, time to struggle on making sense what to do with the existing SIE file processing and API.
+
+What do I learn if I rename post, stage, add and update of the API and use the ocmpiler to find all call sites (usage)?
+
+* 'post_' is used ONLY by 'OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is)'.
+  - This is the parser of an SIE file
+  - TEST EntryPostTest
+  - TEST EmptyPostThreeTest
+  - TEST StageToPostedOkTest
+* 'stage_entry'
+  - ```text std::vector<SIEEnvironmentChangeResult> SIEEnvironment::stage_sie_(SIEEnvironment const& staged_sie_environment) ```
+  - ```text SIEEnvironmentChangeResult SIEEnvironmentsMap::stage(BAS::MDJournalEntry const& mdje) ```
+  - ```text UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_env(sie::RelativeYearKey year_id,SIEEnvironment const& posted_sie_env,SIEEnvironment const& staged_sie_env) ```
+  - TEST EmptyStageEmptyTest
+  - TEST EmptyStageThreeTest
+* 'add_'
+  - ```text SIEEnvironmentChangeResult SIEEnvironment::stage_entry(BAS::MDJournalEntry const& mdje) { ```
+  - TEST EntryAddTest
+  - TEST EntryUpdateTest
+* 'update_'
+  - ```text SIEEnvironmentChangeResult SIEEnvironment::stage_entry(BAS::MDJournalEntry const& mdje) { ```
+  - TEST EntryUpdateTest
+  - 
+
+So this is still a MESS!
+
+* But 'update_' is called by 'stage_'
+* And 'add_' is also called by 'stage_'
+* So 'stage_' results in:
+  - 'add_' when new (not in base / posted)
+  - 'update_' when in base / posted
+  - NOTE: 'update_' fails if operator== on journal entry returns false
+
+```c++
+if (entry_iter->second == mdje.defacto) {
+  // Same value = no effect on immutability (allow for transient data?)
+  entry_iter->second = mdje.defacto; // update (if future transient data to mutate?)
+  // ...
+
+
+// BAS::anonymous::JournalEntry is JournalEntry_t
+
+		template <typename T>
+		struct JournalEntry_t {
+			std::string caption{};
+			Date date{};
+			T account_transactions{};
+
+      // C++ 'don't pay for what the compiler generates'
+      // means that my manual operator<=> below is NOT used
+      // by the compiler to generate operator==?
+      // For some reason the compiler can't trust my manual <=>
+      // to be effective for equality comparison?
+      // Anyhow, I need to provide the operator== also.
+      bool operator==(const JournalEntry_t& other) const {
+        return 
+              (date == other.date)
+          and (account_transactions == other.account_transactions)
+          and (caption == other.caption);
+      }
+
+    // Also other comp operators
+
+    // Manual operator<-> to define the comparison order
+    // different from the declaration order.
+    // That is, the compiler would compare members in declaration order
+    // if I asked for the defailt one. And I like the declaration order
+    // to match my mental model of an entry
+    auto operator<=>(const JournalEntry_t& other) const {
+      // -1 -> *this < other
+      // 0 -> *this == other (But operator== NOT generated by compiler)
+      // 1 -> *this > other
+      // compare based on date, then transactions, finally caption
+      if (auto cmp = date <=> other.date; cmp != 0) return cmp;
+      if (auto cmp = account_transactions <=> other.account_transactions; cmp != 0) return cmp;
+      return caption <=> other.caption;
+    }
+
+``` 
+
+GOSH! This is NOT GOOD!
+
+* Uses operator== to determine if mutation is allowed
+* And operator== does NOT handle any allowed extension
+  - We are allowed to 'redistribute amounts on accounts'
+  - As inferred by RTRANS 'cancel + new' account transaction
+  - AS inferred by BTRANS '
+
+So can we actually understyand how SIE requires us to use (encode) RTRANS and BTRANS?
+
+* BTRANS is 'borttagen trans' (removed transaction)
+  - It seems it replaces the TRANS that is removed?
+  - And tools are not required to supporst BTRANS?
+  - This seems to inferr that I am always allowed to just remove a TRANS whoutout a BTRANS 'tombstone'?
+* RTRANS is 'tillagd transaktion' (added / appended transaction)
+  - It seems an RTRANS must always be followed by the standard TRANS defining the transaction
+  - So RTRANS and TRANS must define the exact same transaction
+
+You know what? It seems RTRANS and BTRANS are just meta-data?
+
+* RTRANS is a signal that a trasnaction has been added (was not there otiginally)?
+* BTRANS is a 'tomb stone' (it replaces a TRANS that was there originally but is now removed)
+
+From this it seems we can inferr:
+
+* We ARE allowed to add transactions to a previous 'event' (SIE Verification / Entry)
+  - Just append with the TRANS we added.
+  - Optionally also add meta-data RTRANS prepending the TRANS we added.
+* We are allowed to remove transactions from the original 'event' (SIE Verification / Entry)
+  - Just simply remove it from the list of transactions
+  - Optionally replace it with a BTRANS with the same value as the removed one
+
+So SIE is itself a MESS?
+
+* We ARE allowed to delete last entered verification (event, entry)
+  - This opens up to actually delete any historic event!
+  - Shorten ledger, re-insert all events but the one removed
+  - The events ends up 'shifted' in verno within a series
+  - In worst case re-inserted events are also moved to an alternate series?
+  - Is this something we like our diff-mechanism to be able to detect?
+
+It seems now we arrive at the bottom line: HOW DO WE RECOGNISE THE 'SAME' Financial EVENT?
+
+* All is same (ID + date + content)
+  - series
+  - verno
+  - date
+  - transaction list including text
+* All same but Text in transactions has changed
+  - series
+  - verno
+  - date
+  - transaction list DISREGARDING text
+* All is same but The transaction list is longer
+  - series
+  - verno
+  - date
+  - A common transaction list
+  - An added transaction list
+  - If the common list balance (then extended list is cancel + new = also balance)
+  - If the common list does NOT balance (then extended list is removed + new = compensates)
+* All is the same but the transaction list is shorter
+  - ALWAYS INVALID?
+  - A shorter transaction list means the balance amount is no longer the same?
+  - NO! We can imagine to remove two pairs of debit/credit transactionm pairs that balance in themselves
+  - STILL: I now lean towards the requirement to NEVER shorten the transaction list of a previoys entry.
+* Same date and content but different ID
+  - (ignore series)
+  - (ignore verno)
+  - date
+  - transaction list including text
+  - NO: This may actually be different events?!
+  - We can imagine different customer invoicing for the same service?
+  - If we don't account the customer id we can not see they are different events?
+  - OR: Should we make cratchit require at least something in the text to change to register as different events?
+  - THEN: New SIE defines the same event with new series and/or verno?
+
+I tried to chat with chatGPT and got some things to think more about:
+
+* A user may modify a voucher without VAT to now define VAT?
+  - But then the balanced amount remains unchanged?
+  - Well no. Not if the user corrects the gross amount to include VAT (originally entered ex VAT)
+  - *sigh*
+
+## 20260323
+
+So where do I start?
+
+* First define the API in terms of 'base', 'rebase' and what SIE operations do I currently have?
+
+DARN! The current API is a MESS!
+
+* Given we have an immutable 'posted' (base) part the API should NOT expose only the stage operation?
+* Instead we have the API:
+
+```c++
+	SIEEnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
+	SIEEnvironmentChangeResult add(BAS::MDJournalEntry mdje);
+	SIEEnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
+```
+
+What is going on here? And how do I untangle this into something that makes more sense?
+
+* I can rename the post operation to 'post_' and have the compiler tell me all the call sites?
+  - We have the tests of course
+  - Then we have:
+
+```c++
+OptionalSIEEnvironment sie_from_stream(std::istream& cp437_is) {
+    // ...
+    // Calls to mutate data on SIE Environment
+    && ...
+    else if (std::holds_alternative<sie::io::Ver>(entry)) {
+      sie_environment.post(to_md_entry(std::get<sie::io::Ver>(entry)));
+    }
+
+}
+```
+
+I wonder, maybe I should provide an inheriting 'TransitiveSIEEnvironment' that exposes the mutate API for this purpose?
+
+## 20260322
+
+When I think about the SIE file processing mechanism some more I also think I should make the 'post' or 'export' to external tool actually provide the whole fiscal year in the file?
+
+* In this way we can ensure the external tool gets the exact same SIE accouning state from Cratchit.
+* I imagine we can still have Cratchit keep a 'base' and 'staged' but extend to allow 'staged' also override entries in 'base'?
+* I imagine I can make Cratchit keep an 'exposed' SIE file always up to date.
+* I imagine I can add an '-sie -export' function that creates the full fiscal year SIE state for current or previous year?
+
+So how does the SIEEnvironment represent entries and transactions?
+
+```c++
+using BASJournals = std::map<BASJournalId,BASJournal> // map series -> Journal
+using BASJournal = std::map<BAS::VerNo,BAS::anonymous::JournalEntry>; // map VerNo -> anonymous entry
+using JournalEntry = JournalEntry_t<AccountTransactions>;
+
+struct JournalEntry_t {
+  std::string caption{};
+  Date date{};
+  T account_transactions{};
+  bool operator==(const JournalEntry_t& other) const {
+    return 
+          (date == other.date)
+      and (account_transactions == other.account_transactions)
+      and (caption == other.caption);
+  }
+  auto operator<=>(const JournalEntry_t& other) const {
+    if (auto cmp = date <=> other.date; cmp != 0) return cmp;
+    if (auto cmp = account_transactions <=> other.account_transactions; cmp != 0) return cmp;
+    return caption <=> other.caption;
+  }
+};
+
+using AccountTransactions = std::vector<AccountTransaction>;
+
+struct AccountTransaction {
+  BAS::AccountNo account_no;
+  std::optional<std::string> transtext{};
+  Amount amount;
+  auto operator<=>(AccountTransaction const& other) const = default;
+};
+
+```
+
+OK, a bit convoluted. But still:
+
+* A transaction is account no, transtext and amount
+* A journal entry is a caption, a date and vector of transactions
+* A BAS journal is a map VerNo -> journal entry
+* And BAS Journals is a map series -> BAS Journal
+
+I wonder what std::hash functions we already have?
+
+```c++ 
+  struct hash<BASAccountTopology> {... 
+```
+
+```c++ 
+  struct hash<AccountTransactionTypeTopology> {...
+```
+
+```c++ 
+  struct hash<WrappedCentsAmount::CentsAmount> {... 
+```
+
+```c++ 
+  template <> struct hash<TaggedAmount> {... 
+``` 
+
+
+```c++
+
+  class Environment {
+    using Value = std::map<std::string,std::string>; // vector of name-value pairs
+    class Hasher {
+       ValueId operator()(Value const& key_value_map) const {
+
+```
+
+So we actually don't have so many 'hashes' in the code as of now?
+
+* We use hash-based content IDs (Cids) for prev-linking
+  - Date ordrered tagged amounts
+  - tagged amounts in environment
+* I don't think I use 'topology' for anything as of now?
+  - Or at least not any hash-based functionality?
+  - And in any case we can ignore that for now?
+* I don't think hashing of WrappedCentsAmount comes into play anywhere as of yet?
+
+So we are in fact 'free' to invent our different hash-values?
+
+* A full Cid hash for an SIE entry (Journal ID, series, BAS::anonymous::JournalEntry)
+  - We have to assemble it ourselves as such a record does not exist
+  - Or can we use a meta-defacto?
+* A Hash for 'financial effect' AccountTransaction (BAS account no, amount)
+* A Has for the combination of 'financial effect' AccountTransactions
+  - Keep the order to detect change in order?
+  - Sort on account number to treat 'same amount distributions' as same?
+* A 'financial effect' SIE entry based only of 'financial effect' hashes of aggregated trasnactions?
+
+Some thoughts at this stage:
+
+* The 'same financial effect' hash will detect ALL recurring account and amount distribution.
+  - So a recurring payment will påop up with the same 'financial effect' hash but with different series and verno (and possibly date)
+* The same goes for 'same effect' transactions that will detect same amount and account wherever that occurs.
+
+Is this what we want?
+
+* Maybe we need it to be able to detect 'shifted' entries (verno has shifted but the events remains the same)?
+
+Maybe I may in fact become interested in 'topology' also again?
+
+* I can use it to detect a VAT distribution aggregate (BAS account agnostic)
+* I can use it to detect invoice payments (debit/cancel debt and credit bank account)?
+* Could come in handy for accouning candidate search from HADs?
+
+I wonder if I should start thinking about SIE entries as 'financial events'?
+
+* We are in fact interested in identfying same vs new such events.
+* We want to be able to recognise the same financial event even if:
+  - It has another series and/or verno (but same date)
+  - It is always a different event if it is another date?
+* How can we detect the same financial event if/when it has removed or added transactions?
+  - It is the same event of the amount transfers are the 'same'?
+  - We allow an amount to be diverged from one account and instead go to another one (added cancel + new account for an amount)
+  - Do I need to somehow model RTRANS (new) and BTRANS (removed)?
+  - It seems I do not need to (they both require 'old style' TRANS to perform the change?)
+
+## 20260321
+
+I now think I should attend to the SIE file processing as properly as I can.
+
+* I think I will call the 'posted' SIE for 'base'
+* When a new base is imported:
+  1. Check that the new base is valid (Each entry balance and no gaps in sequence numbers)
+  2. Create a 'diff' new base compared to olde base (deleted,mutated,same,new)
+  3. Consider to save, analyse and report the diff in some way to the user?
+    - Report what entries in old base is (deleted,mutated,same,new)?
+  4. Consolidate 'staged' with new base
+    - Can I reuse the diff mechanism and get staged vs base (deleted,mutated,same,new)?
+    - 'deleted' means 
+
+Follow up questions:
+
+* Can I resue the 'diff' mechanism I already have?
+  - Where is the existing mechanism (mutated HADS? Mutated tagged amounts? Mutated SIE entries?)
+* Can I design a common 'diff' mechanism 'keyed entries' -> (deleted,mutated,same,new)
+
+At this stage I chatted with chatGPT about diffing two SIE files with accouning data and realised this topic is more complicated that I originally anticipated!
+
+* First I need to conceptually understand what kind of 'beast' accounting data is?
+  - It contains ID:ed aggregates (Each SIE entry is a series + sequence number identifying an aggregate of account transctions)
+  - Each entry may change in ID, date and content
+  - The content may change in what account transactions are involved.
+  - But the content may also change by one or more account transactions have changed
+  - The content change may be an 'accounting change' (change in amounts and what accounts are affected)
+  - BUT we also have 'notation change only' (accounts and amounts unchanged but description text has changed)
+
+I wonder if and how the SIE format can support changes to existing SIE entries?
+
+* It seems we are in fact NEVER allowed to remove or mutate historical entries?
+  - In accouning apps I have used I am allowed to remove the last entry in a series.
+  - BUT never any entry orevious to the last one.
+  - Although this opens up for me to keep removing the last one over and over (shortening the ledger)
+* So in fact I am allowed to shorten the ledger but never remove an entry inside a series?
+* But at a second glance - It seems I AM allowed to modify existing SIE entries
+  - I am allowed to introduce an RTRANS entry (new transaction) IFF I also duplicate it with a TRANS entry with the same content?
+  - And I am allowed to introduce a BTRANS entry (removed transactions) IFF I also add one or more TRANS to make the SIE balance?
+  - It is NOT clear what changes to the effect on the curent ledger state at the event date is allowed?
+* I can speculate that I am NOT allowed to touch any existing TRANS entries of an existing SIE?
+  - But I can mutate it with RTRANS and BTRANS?
+  - And I am always allowed to create a new SIE that mutates the effects of an existing older SIE?
+  - And this latter approach is ALWAYS allowed to keep the ledger true to reality?
+
+So what does this mean to my SIE file diff mechanism?
+
+* It should be able to confirm that ALL entries with the same ID in new base and old base are 'the same base'
+  - If the new base entry has NO RTRANS or BTRANS, then new base and old base entry mus be exactly the same?
+  - Or do we allow the ordering to have changed?
+  - It seems we can't sort the transactions before comparing (as this may make RTRANS and BTRANS to be in the wrong order)?
+  - What if I sort the trasnactions in account number order?
+  - Then I also need to sort 'RTRANS' and 'BTRANS' before TRANS (to ensure it complies with spec?)
+  - With this sorting I can diff on the trasnaction sequence old vs new entry?
+  - NO! That does not work.
+  - I need to identify the original transaction seqeunce.
+  - But how do I accomplish this?
+  - Maybe it is actually the case that the order as entered by the user must be repsected?
+  - But then - How can I accept that the user deleted and reentered the entry with the same transactions but in a different order?
+
+WHAT A MESS!!
+
+Some thought and design seeds spring to mind:
+
+* Define several hash keys for different aspects of the entries?
+* One hash for the 'whole shabang' (with or without the prev link id)?
+* One hash for the 'topological' or 'accounting effect' value (transactions with account and amount disregarding text)
+  - Do we need one hash for 'content accouning effect' without the date?
+  - And one hash including Date and accouning effect
+* Do we need to detect change to balance amount (larger)
+  - Is this even possible (and still be the same event)?
+  - It seems if we change the balance amount it is a new event (same ID NOT allowed)
+* Do we allow ID translation?
+  - The user may have shortened the ledger and then re-entered all events but one?
+  - Then the new base will contain all the events but with the IDs shifted?
+  - E.g., base: A1,A2,A3 (the use deletes A3 and A2 than re-enters A3 as A2) -> new base A1 A2 (A1 same, A2 == previous A3)
+
+In this way I can perform 'fuzzy' diff based on presence of entries based on these hash.
+
+* 'Whole shabang' hash in new and old is FULLY SAME
+* Same ID but different 'account effect hash' means 'MODIFIED'
+  - Detect how long 'same' initial sequence of transactions (potntially original entry transactions?)
+  - Detect if new base extends with allowed transactions?
+    * Cancel one account + same amount on new account (moved amount)
+    * Do we allow change to SIE balance amount (larger or smaller)?
+
+And with the 'fuzzy' diff we can detect precense and ignore both ID and Date.
+
+But then we still need to detect ledger 'state' changes at each event date
+
+* We are interested in account state at each event date (and track if it changes old vs new base)?
+* We are interested in global balance and result state change at each event date (and tranck old vs new base)?
+  - In this way we can detect a 'move' of an amount to another account (amlunt distribution)
+  - And we can detect amount 'move' that does NOT in fact change the global balance and result state at each event date?
+* It seems I would be tempted to be able to track SRU accouning state change over event dates?
+  - In this way we would be able to detect 'reporting' change vs 'accouning' change?
+  - That is, a change may affect a VAT returns report or annual tax report but NOT any global result or balance.
+
+WOW! There are so many views and dimensions involved in this seemingly simple diff task?!!
+
+## 20260319
+
+So I think I should bite the bullet and create a branch to clean up the SIE posted + staged MESS!
+
+How do I create and start working on a git branch clean-up-sie-posted-staged-update-mechanism?
+
+* git switch -c <branch name> // Create a branch and 'switch' to it
+* git push -u origin <brach name> // make 'push' operate on the branch
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % git switch -c clean-up-sie-posted-staged-update-mechanism
+Switched to a new branch 'clean-up-sie-posted-staged-update-mechanism'
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % git push -u origin clean-up-sie-posted-staged-update-mechanism
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: 
+remote: Create a pull request for 'clean-up-sie-posted-staged-update-mechanism' on GitHub by visiting:
+remote:      https://github.com/kjelloh/cratchit/pull/new/clean-up-sie-posted-staged-update-mechanism
+remote: 
+To github.com:kjelloh/cratchit.git
+ * [new branch]      clean-up-sie-posted-staged-update-mechanism -> clean-up-sie-posted-staged-update-mechanism
+branch 'clean-up-sie-posted-staged-update-mechanism' set up to track 'origin/clean-up-sie-posted-staged-update-mechanism'.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+So now I am setup to celan up the SIE posted and staged mechanism. In what order should I go about doing this?
+
+* Should I first consolodate #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK code (to have one truth about how this is done)?
+* Should I clarify that a new posted SIE just ignores the previous one (it is not involved in the 'merging' mechanism)
+
+So Where is the #POST_THEN_STAGE_THEN_PROMPT_FEEDBACK code?
+
+* command ```text -sie <path to new posted SIE> ```
+* command ```text -sie <year id> <path to posted SIE> ```
+* In model_from_environment_and_md_filesystem
+
+So it seems I may be tempted to create a function that returns the update_posted_result.
+
+```c++
+            auto update_posted_result = md_cfs.defacto->to_maybe_istream(sie_file_path)
+              .and_then([](auto& istream){
+                return sie_from_stream(istream);
+              })
+              .and_then([&md_cfs,&model,year_id](auto const& sie_env){
+                auto staged_sie_env = md_cfs.defacto->to_maybe_istream(sie_env.staged_sie_file_path())
+                  .and_then([](auto& istream){
+                    return sie_from_stream(istream);
+                  })
+                  .value_or(SIEEnvironment{sie_env.fiscal_year()});
+
+                return model->sie_env_map.update_from_posted_and_staged_sie_env(
+                  year_id
+                  ,sie_env
+                  ,staged_sie_env);
+
+              });
+
+```
+
+Follow-up questions:
+
+* What type is update_posted_result and what does the type 'do'?
+* What should my function be called?
+
+So I chatted with chatGPT and landed on some concepts and naming convention I liked.
+
+* I think I want to have the function take prev_posted_sie, new_posted_sie and staged_sie
+* The function would then become a 'rebase' and could be named rebase_staged_on_posted(old_base,new_base,current_staged)
+
+```text
+* there is an old base
+* there is a new upstream
+* staged must be replayed / reconsidered
+```
+
+* I like this model of what is going on.
+  - What I call 'posted' is in fact 'base' (immutable truth shared with an external app, e.g. Fortnox accouning app)
+  - What I call 'staged' is good as it reflects that these are not yet know by (shared) with external app.
+
+Now I also need to know the side effects of the current mechanism?
+
+## 20260318
+
+I have now slept on it and I think I realised that:
+
+* While the posted' sie file is unchanged we have two cases:
+  1. New entry extends posted (and goes into the staged sie file)
+  2. We make a change to an entry in posted (allowed?)
+  3. We delete an entry in posted (allowed?)
+* When we import a new 'posted'
+  1. Series and sequence number is unique entry
+  2. Unique entry with same content in staged and posted is cleared ok (now posted)
+  3. Unique entry with different content in staged and posted is a CONFLICT!
+    - The entry in posted takes preceedence
+    - The entry in staged is DISCARDED
+  4. Unique entry in staged NOT in posted is left as-is
+    - Issue a WARNING (Expected posted to contain all staged?)
+
+How well is this understanding of mine reflected in the code?
+
+It seems SIEEnvironment has a 'too open' public API?
+
+```c++
+	SIEEnvironmentChangeResult post(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResult stage(BAS::MDJournalEntry const& mdje);
+	SIEEnvironmentChangeResults stage(SIEEnvironment const& staged_sie_environment);
+	SIEEnvironmentChangeResult add(BAS::MDJournalEntry mdje);
+	SIEEnvironmentChangeResult update(BAS::MDJournalEntry const& mdje);
+```
+
+We should expose only 'stage'?
+
+How is the API used when we adapt to a new 'posted' SIE file?
+
+I suspect it is SIEEnvironmentsMap::update_from_posted_and_staged_sie_env that 'does the job'?
+
+```c++
+UpdateFromPostedResult SIEEnvironmentsMap::update_from_posted_and_staged_sie_env(
+    sie::RelativeYearKey year_id
+  ,SIEEnvironment const& posted_sie_env
+  ,SIEEnvironment const& staged_sie_env) {
+
+```
+
+What happens with any current 'posted' SIE file when we import a new one?
+
+* We have command '-sie <path to sie file>'
+* AND YES - We simply read in the new SIE and provides it to update_from_posted_and_staged_sie_env to figure it out!
+
+
 ## 20260317
 
 So what is next?
@@ -485,7 +1699,7 @@ GOOD RIDENCE!
 I now notice that cratchit seems to parse also the .DS_Store binary file when consuming account statement files?
 
 ```sh
-dotas_from_sie_environment
+dotas_from_sie
 Opening Saldo Date:20250501
 BEGIN: Processing files in "from_bank_or_skv"
 

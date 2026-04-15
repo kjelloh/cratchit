@@ -8,6 +8,8 @@ cratchit © 2025 by Kjell-Olov Högdal is licensed under Creative Commons Attrib
 * [thinking/thinking.md](thinking/thinking.md)
 * [Developers manual](developers_manual/README.md)
 * [Users Manual](users_manual/README.md)
+* [todos](../todo/index.md)
+* [notes](../note/index.md)
 
 # Claude Code AI support (to and from)
 

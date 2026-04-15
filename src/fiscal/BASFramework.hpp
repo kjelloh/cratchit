@@ -140,38 +140,26 @@ namespace BAS {
 
 	namespace anonymous {
 
-		struct AccountTransaction {
+		struct AccountPosting {
 			BAS::AccountNo account_no;
 			std::optional<std::string> transtext{};
 			Amount amount;
 
       // C++ compiler will generate comparison
       // operators on members in declaration order.
-      // Which is ok for our purposes (date - then trans text - then amount)
-      auto operator<=>(AccountTransaction const& other) const = default;
+      // Which is ok for our purposes (account_no - then trans text - then amount)
+      auto operator<=>(AccountPosting const& other) const = default;
 
-      // Replaced by operator<=> / 20251030
-			// bool operator<(AccountTransaction const& other) const {
-			// 	bool result{false};
-			// 	if (account_no == other.account_no) {
-			// 		if (amount == other.amount) {
-			// 			result = (transtext < other.transtext);
-			// 		}
-			// 		else result = (amount < other.amount);
-			// 	}
-			// 	else result = (account_no < other.account_no);
-			// 	return result;
-			// }
+		}; // AccountPosting
 
-		};
-		using OptionalAccountTransaction = std::optional<AccountTransaction>;
-		using AccountTransactions = std::vector<AccountTransaction>;
+		using OptionalAccountPosting = std::optional<AccountPosting>;
+		using AccountPostings = std::vector<AccountPosting>;
 
 		template <typename T>
 		struct JournalEntry_t {
 			std::string caption{};
 			Date date{};
-			T account_transactions{};
+			T account_postings{};
 
       // C++ 'don't pay for what the compiler generates'
       // means that my manual operator<=> below is NOT used
@@ -182,7 +170,7 @@ namespace BAS {
       bool operator==(const JournalEntry_t& other) const {
         return 
               (date == other.date)
-          and (account_transactions == other.account_transactions)
+          and (account_postings == other.account_postings)
           and (caption == other.caption);
       }
 
@@ -197,11 +185,11 @@ namespace BAS {
         // 1 -> *this > other
         // compare based on date, then transactions, finally caption
         if (auto cmp = date <=> other.date; cmp != 0) return cmp;
-        if (auto cmp = account_transactions <=> other.account_transactions; cmp != 0) return cmp;
+        if (auto cmp = account_postings <=> other.account_postings; cmp != 0) return cmp;
         return caption <=> other.caption;
       }
 		};
-		using JournalEntry = JournalEntry_t<AccountTransactions>;
+		using JournalEntry = JournalEntry_t<AccountPostings>;
 		using OptionalJournalEntry = std::optional<JournalEntry>;
 		using JournalEntries = std::vector<JournalEntry>;
 	} // namespace anonymous
@@ -229,13 +217,13 @@ namespace BAS {
 	using OptionalMDJournalEntry = std::optional<MDJournalEntry>;
 	using MDJournalEntries = std::vector<MDJournalEntry>;
 
-	// MMD -> meta: MDJournalEntry D -> defacto: AccountTransaction
+	// MMD -> meta: MDJournalEntry D -> defacto: AccountPosting
 	// MMDD = Meta-MetaDefacto-Defacto Account Transaction
 
-	// Replaced with MDAccountTransaction /20251030
-  // using MMDDAccountTransaction = MetaDefacto<BAS::MDJournalEntry,BAS::anonymous::AccountTransaction>;
+	// Replaced with MDAccountPosting /20251030
+  // using MMDDAccountPosting = MetaDefacto<BAS::MDJournalEntry,BAS::anonymous::AccountPosting>;
 
-	struct AccountTransactionMeta {
+	struct AccountPostingMeta {
 		// <date> <jem> caption
 		//          |
 		//          <series> <verno>
@@ -243,13 +231,13 @@ namespace BAS {
 		WeakJournalEntryMeta jem; // Aggregate journal entry meta for convenience
 		std::string caption;
 	};
-	AccountTransactionMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje);
+	AccountPostingMeta to_account_transaction_meta(BAS::MDJournalEntry const& mdje);
 
-	// meta: {date, jem:{series,verno}} defacto:AccountTransaction
-	using MDAccountTransaction = MetaDefacto<BAS::AccountTransactionMeta,BAS::anonymous::AccountTransaction>;
+	// meta: {date, jem:{series,verno}} defacto:AccountPosting
+	using MDAccountPosting = MetaDefacto<BAS::AccountPostingMeta,BAS::anonymous::AccountPosting>;
 
-	using OptionalMDAccountTransaction = std::optional<MDAccountTransaction>;
-	using MDAccountTransactions = std::vector<MDAccountTransaction>;
+	using OptionalMDAccountPosting = std::optional<MDAccountPosting>;
+	using MDAccountPostings = std::vector<MDAccountPosting>;
 } // namespace BAS
 
 // Journal 'DAG' storage <journal id / series> -> <verno> -> record:entry {heading,date,transactions}
@@ -261,40 +249,40 @@ using BASJournals = std::map<BASJournalId,BASJournal>; // Swedish BAS Journals n
 using MaybeBASJournalRef = cratchit::functional::memory::MaybeRef<BASJournal>;
 
 namespace BAS {
-	Amount to_mdats_sum(BAS::MDAccountTransactions const& mdats);
+	Amount to_md_aps_sum(BAS::MDAccountPostings const& md_aps);
 } // namespace BAS
 
 
-// A function object able to create Net+Vat BAS::anonymous::AccountTransactions
-class ToNetVatAccountTransactions {
+// A function object able to create Net+Vat BAS::anonymous::AccountPostings
+class ToNetVatAccountPostings {
 public:
 
-	ToNetVatAccountTransactions(BAS::anonymous::AccountTransaction const& net_at, BAS::anonymous::AccountTransaction const& vat_at)
-		:  m_net_at{net_at}
-		  ,m_vat_at{vat_at}
-			,m_gross_vat_rate{static_cast<float>((net_at.amount != 0)?vat_at.amount/(net_at.amount + vat_at.amount):1.0)}
-			,m_sign{(net_at.amount<0)?-1:1} /* 0 gets sign + */ {}
+	ToNetVatAccountPostings(BAS::anonymous::AccountPosting const& net_ap, BAS::anonymous::AccountPosting const& vat_ap)
+		:  m_net_ap{net_ap}
+		  ,m_vat_ap{vat_ap}
+			,m_gross_vat_rate{static_cast<float>((net_ap.amount != 0)?vat_ap.amount/(net_ap.amount + vat_ap.amount):1.0)}
+			,m_sign{(net_ap.amount<0)?-1:1} /* 0 gets sign + */ {}
 
-	BAS::anonymous::AccountTransactions operator()(Amount remaining_counter_amount,std::string const& transtext,OptionalAmount const& inc_vat_amount = std::nullopt) {
-		BAS::anonymous::AccountTransactions result{};
+	BAS::anonymous::AccountPostings operator()(Amount remaining_counter_amount,std::string const& transtext,OptionalAmount const& inc_vat_amount = std::nullopt) {
+		BAS::anonymous::AccountPostings result{};
 		Amount gross_amount = (inc_vat_amount)?*inc_vat_amount:remaining_counter_amount;
-		BAS::anonymous::AccountTransaction net_at{
-			.account_no = m_net_at.account_no
+		BAS::anonymous::AccountPosting net_ap{
+			.account_no = m_net_ap.account_no
 			,.transtext = transtext
 			,.amount = BAS::to_cents_amount(static_cast<Amount>(m_sign * gross_amount * (1.0-m_gross_vat_rate)))
 		};
-		BAS::anonymous::AccountTransaction vat_at{
-			.account_no = m_vat_at.account_no
+		BAS::anonymous::AccountPosting vat_ap{
+			.account_no = m_vat_ap.account_no
 			,.transtext = transtext
 			,.amount = BAS::to_cents_amount(static_cast<Amount>(m_sign * gross_amount * m_gross_vat_rate))
 		};
-		result.push_back(net_at);
-		result.push_back(vat_at);
+		result.push_back(net_ap);
+		result.push_back(vat_ap);
 		return result;
 	}
 private:
-	BAS::anonymous::AccountTransaction m_net_at;
-	BAS::anonymous::AccountTransaction m_vat_at;
+	BAS::anonymous::AccountPosting m_net_ap;
+	BAS::anonymous::AccountPosting m_vat_ap;
 	float m_gross_vat_rate;
 	int m_sign;
 };
@@ -306,26 +294,26 @@ private:
 //       that define cratching accounting operations 
 //       based on BAS <- SIE <- 'Accounting'? / 20251028
 
-inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransaction const& at1, BAS::anonymous::AccountTransaction const& at2) {
-	return (     (at1.account_no == at2.account_no)
-	         and (at1.transtext == at2.transtext)
-					 and (are_same_and_less_than_100_cents_apart(at1.amount,at2.amount)));
+inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPosting const& ap1, BAS::anonymous::AccountPosting const& ap2) {
+	return (     (ap1.account_no == ap2.account_no)
+	         and (ap1.transtext == ap2.transtext)
+					 and (are_same_and_less_than_100_cents_apart(ap1.amount,ap2.amount)));
 }
 
-inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountTransactions const& ats1, BAS::anonymous::AccountTransactions const& ats2) {
+inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& aps1, BAS::anonymous::AccountPostings const& aps2) {
 	bool result{true};
-	if (ats1.size() >= ats2.size()) {
-		for (int i=0;i<ats1.size() and result;++i) {
-			if (i<ats2.size()) {
-				result = are_same_and_less_than_100_cents_apart(ats1[i],ats2[i]);
+	if (aps1.size() >= aps2.size()) {
+		for (int i=0;i<aps1.size() and result;++i) {
+			if (i<aps2.size()) {
+				result = are_same_and_less_than_100_cents_apart(aps1[i],aps2[i]);
 			}
 			else {
-				result = abs(ats1[i].amount) < 1.0; // Do not care about cents
+				result = abs(aps1[i].amount) < 1.0; // Do not care about cents
 			}
 		}
 	}
 	else {
-		return are_same_and_less_than_100_cents_apart(ats2,ats1); // Recurse with swapped arguments
+		return are_same_and_less_than_100_cents_apart(aps2,aps1); // Recurse with swapped arguments
 	}
 	return result;
 }
@@ -334,22 +322,22 @@ inline bool are_same_and_less_than_100_cents_apart(BAS::MDJournalEntry const& me
 	return (     	(me1.meta == me2.meta)
 						and (me1.defacto.caption == me2.defacto.caption)
 						and (me1.defacto.date == me2.defacto.date)
-						and (are_same_and_less_than_100_cents_apart(me1.defacto.account_transactions,me2.defacto.account_transactions)));
+						and (are_same_and_less_than_100_cents_apart(me1.defacto.account_postings,me2.defacto.account_postings)));
 }
 
 Amount to_positive_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 Amount to_negative_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
 void for_each_anonymous_account_transaction(BAS::anonymous::JournalEntry const& aje,auto& f) {
-	for (auto const& at : aje.account_transactions) {
-		f(at);
+	for (auto const& ap : aje.account_postings) {
+		f(ap);
 	}
 }
 bool does_balance(BAS::anonymous::JournalEntry const& aje);
 
 // Pick the negative or positive gross amount and return it without sign
 OptionalAmount to_gross_transaction_amount(BAS::anonymous::JournalEntry const& aje);
-BAS::anonymous::OptionalAccountTransaction gross_account_transaction(BAS::anonymous::JournalEntry const& aje);
-Amount to_account_transactions_sum(BAS::anonymous::AccountTransactions const& ats);
+BAS::anonymous::OptionalAccountPosting gross_account_transaction(BAS::anonymous::JournalEntry const& aje);
+Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& aps);
 
 // END Accounting
 // -----------------------------
@@ -357,15 +345,15 @@ Amount to_account_transactions_sum(BAS::anonymous::AccountTransactions const& at
 // -----------------------------
 // BGIN Accounting IO
 
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransaction const& at);
-std::string to_string(BAS::anonymous::AccountTransaction const& at);
-std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountTransactions const& ats);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap);
+std::string to_string(BAS::anonymous::AccountPosting const& ap);
+std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPostings const& aps);
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::JournalEntry const& aje);
 std::ostream& operator<<(std::ostream& os,BAS::OptionalVerNo const& verno);
 std::ostream& operator<<(std::ostream& os,std::optional<bool> flag);
 std::ostream& operator<<(std::ostream& os,BAS::WeakJournalEntryMeta const& jem);
-std::ostream& operator<<(std::ostream& os,BAS::AccountTransactionMeta const& atm);
-std::ostream& operator<<(std::ostream& os,BAS::MDAccountTransaction const& mdat);
+std::ostream& operator<<(std::ostream& os,BAS::AccountPostingMeta const& atm);
+std::ostream& operator<<(std::ostream& os,BAS::MDAccountPosting const& md_ap);
 std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntry const& mdje);
 std::ostream& operator<<(std::ostream& os,BAS::MDJournalEntries const& mdjes);
 std::string to_string(BAS::anonymous::JournalEntry const& aje);

@@ -20,7 +20,7 @@ namespace SKV {
 				BoxNos vat_box_nos{10,11,12,30,31,32,60,61,62,48};
 				auto box_49_amount = std::accumulate(vat_box_nos.begin(),vat_box_nos.end(),Amount{},[&box_map](Amount acc,BoxNo box_no){
 					if (box_map.contains(box_no)) {
-						auto mats_sum = BAS::to_mdats_sum(box_map.at(box_no));
+						auto mats_sum = BAS::to_md_aps_sum(box_map.at(box_no));
 						acc += mats_sum;
 						std::cout << "\n\tto_box_49_amount += [" << box_no << "]:" << mats_sum << " = " << acc;
 					}
@@ -83,9 +83,9 @@ std::set<BAS::AccountNo> const& to_vat_accounts() {
 	return vat_accounts;
 }
 
-bool is_vat_returns_form_at(std::vector<SKV::XML::VATReturns::BoxNo> const& box_nos,BAS::anonymous::AccountTransaction const& at) {
+bool is_vat_returns_form_at(std::vector<SKV::XML::VATReturns::BoxNo> const& box_nos,BAS::anonymous::AccountPosting const& ap) {
 	auto const& bas_account_nos = to_vat_returns_form_bas_accounts(box_nos);
-	return bas_account_nos.contains(at.account_no);
+	return bas_account_nos.contains(ap.account_no);
 }
 
 bool is_vat_account(BAS::AccountNo account_no) {
@@ -93,8 +93,8 @@ bool is_vat_account(BAS::AccountNo account_no) {
 	return vat_accounts.contains(account_no);
 }
 
-bool is_vat_account_at(BAS::anonymous::AccountTransaction const& at) {
-	return is_vat_account(at.account_no);
+bool is_vat_account_at(BAS::anonymous::AccountPosting const& ap) {
+	return is_vat_account(ap.account_no);
 };
 
 

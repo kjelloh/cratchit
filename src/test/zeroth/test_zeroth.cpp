@@ -171,24 +171,26 @@ namespace tests::zeroth {
         } // TearDown
     };  
 
-    struct TestCratchitMDFileSystemDefacto : public CratchitMDFileSystem::defacto_value_type {
+    struct TestCratchitFileSystemDefacto : public MDCratchitFileSystemIfc::defacto_value_type {
       std::map<std::string,std::string> m_sie_content_map{};
-      TestCratchitMDFileSystemDefacto(
+
+      TestCratchitFileSystemDefacto(
          char const* szPostedSIEContent
         ,char const* szStagedSIEContent)
         : m_sie_content_map{
              { "TheITfiedAB20250812_145743.se", szPostedSIEContent}
             ,{"cratchit_2025-05-01_2026-04-30.se", szStagedSIEContent}} {} 
-      virtual persistent::in::text::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & final {
+
+      persistent::in::text::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & override final {
         return persistent::in::text::from_string(
           m_sie_content_map[file_path.filename()]);
       }
     };
 
-    CratchitMDFileSystem::Defacto to_test_cfs_defacto(
+    MDCratchitFileSystemIfc::Defacto to_test_filesystem_defacto_ifc(
       char const* szPostedSIEContent
       ,char const* szStagedSIEContent) {
-      return std::make_unique<TestCratchitMDFileSystemDefacto>(szPostedSIEContent,szStagedSIEContent);
+      return std::make_unique<TestCratchitFileSystemDefacto>(szPostedSIEContent,szStagedSIEContent);
     }
 
     TEST_F(ModelTestsFixture, Environment2ModelTest) {
@@ -203,19 +205,19 @@ namespace tests::zeroth {
       });
 
       {
-        CratchitMDFileSystem md_cfs{
+        MDCratchitFileSystemIfc md_filesystem_ifc{
           .meta = {.m_root_path = "*test dummy path*"}
-          ,.defacto = to_test_cfs_defacto(
+          ,.defacto = to_test_filesystem_defacto_ifc(
              szThreePostedSIE
             ,szOneNewStagedSIE)
         };
 
-        auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
+        auto model = ::zeroth::model_from_environment_and_filesystem_ifc(environment,md_filesystem_ifc);
         std::println("\n\nprompt:{}",model->prompt);
 
-        ASSERT_TRUE(model->sie_env_map.contains("current")) << std::format("Expected 'current' SIE Environment to exist ok");
-        ASSERT_TRUE(model->sie_env_map.at("current").value().unposted().size() == 1 ) << std::format("Expected one staged SIE entry");
-        ASSERT_TRUE(model->sie_env_map.at("current").value().journals_entry_count() == 4 ) << std::format("Expected a total of four SIE entries");
+        ASSERT_TRUE(model->m_sie_archive.contains("current")) << std::format("Expected 'current' SIE Document to exist ok");
+        ASSERT_TRUE(model->m_sie_archive.at("current").value().unposted().size() == 1 ) << std::format("Expected one staged SIE entry");
+        ASSERT_TRUE(model->m_sie_archive.at("current").value().journals_entry_count() == 4 ) << std::format("Expected a total of four SIE entries");
       }
 
     }
@@ -232,17 +234,17 @@ namespace tests::zeroth {
       });
 
       {
-        CratchitMDFileSystem md_cfs{
+        MDCratchitFileSystemIfc md_filesystem_ifc{
           .meta = {.m_root_path = "*test dummy path*"}
-          ,.defacto = to_test_cfs_defacto(
+          ,.defacto = to_test_filesystem_defacto_ifc(
              szThreePostedSIE
             ,szOneNowPostedStagedSIE)
         };
 
-        auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
+        auto model = ::zeroth::model_from_environment_and_filesystem_ifc(environment,md_filesystem_ifc);
         std::println("\n\nprompt:{}",model->prompt);
 
-        auto const& sie_env = model->sie_env_map.at("current").value();
+        auto const& sie_env = model->m_sie_archive.at("current").value();
         auto const&  unposted = sie_env.unposted();
         auto journals_entry_count = sie_env.journals_entry_count();
         ASSERT_TRUE(unposted.size() == 0 ) << std::format(
@@ -254,17 +256,17 @@ namespace tests::zeroth {
       }
 
       {
-        CratchitMDFileSystem md_cfs{
+        MDCratchitFileSystemIfc md_filesystem_ifc{
           .meta = {.m_root_path = "*test dummy path*"}
-          ,.defacto = to_test_cfs_defacto(
+          ,.defacto = to_test_filesystem_defacto_ifc(
              szThreePostedSIE
             ,szThreePostedSIE) // staged = posted (all should cancel out)
         };
 
-        auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
+        auto model = ::zeroth::model_from_environment_and_filesystem_ifc(environment,md_filesystem_ifc);
         std::println("\n\nprompt:{}",model->prompt);
 
-        auto const& sie_env = model->sie_env_map.at("current").value();
+        auto const& sie_env = model->m_sie_archive.at("current").value();
         auto const&  unposted = sie_env.unposted();
         auto journals_entry_count = sie_env.journals_entry_count();
         ASSERT_TRUE(unposted.size() == 0 ) << std::format(
@@ -289,17 +291,17 @@ namespace tests::zeroth {
       });
 
       {
-        CratchitMDFileSystem md_cfs{
+        MDCratchitFileSystemIfc md_filesystem_ifc{
           .meta = {.m_root_path = "*test dummy path*"}
-          ,.defacto = to_test_cfs_defacto(
+          ,.defacto = to_test_filesystem_defacto_ifc(
              szThreePostedSIE
             ,szOneConflictingStagedSIE)
         };
 
-        auto model = ::zeroth::model_from_environment_and_md_filesystem(environment,md_cfs);
+        auto model = ::zeroth::model_from_environment_and_filesystem_ifc(environment,md_filesystem_ifc);
         std::println("\n\nprompt:{}",model->prompt);
 
-        auto const& sie_env = model->sie_env_map.at("current").value();
+        auto const& sie_env = model->m_sie_archive.at("current").value();
         auto const&  unposted = sie_env.unposted();
         auto journals_entry_count = sie_env.journals_entry_count();
         ASSERT_TRUE(unposted.size() == 0 ) << std::format(

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "raw_text_read.hpp"
 #include "text/charset.hpp"
 #include "text/encoding.hpp"
