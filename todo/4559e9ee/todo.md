@@ -103,6 +103,71 @@ cratchit:had:vat:m_entry:ok?>1
 cratchit:had>
 ```
 * Box 30 should have contained '20260331   BAS[2645] += 31.00      saldo:31.00 '
+* There is also something wrong with box 49 on the form?
+  - The SKV web service seems to want to adjust the net VAT to 2020 SEK?
+  - And that seems logical as the EU-VAT actually cancels out as can be seen in A48 for an EU purchase.
+  - 2650 and 2645 cancels out (as it should as no VAT is actually tranfered in the EU purchase)
+
+```text
+*A48 "Account:NORDEA::Anonymous Text:Kortköp 260330 SP LAMYSHOP | SEK" 20260331
+    "PlusGiro":1920 "" -157.00
+    "Kontorsmateriel":6110 "" 157.00
+    "Redovisningskonto för moms":2650 "" -31.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" 124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "" -124.00
+```
+
+* So where is the actual error?
+  - AHA! M4 is also wrong!
+  - M4 should NOT reverse 2656
+  - OR: M4 should reverse both 2656 AND 2650?
+  - ANd Box 49 should contain ONLY the real Swedish VAT (in this case )
+
+I manually edited M4 to cancel out also 2650
+
+* I dont think I can leave the VAT in 2645 and 2650?
+  - If I do I have not fully transferred all VATs to 1650
+  - Even though 2646 and 2650 canels eachother oiuyt for EU-VAT
+  - All VAT Accounts should be empty after a VAT Returns report?
+
+```text
+M4 "Momsrapport 2026-01-01...2026-03-31" 20260331
+    "Momsfordran":1650 "" 2020.00
+    "Öres- och kronutjämning":3740 "" 0.00
+    "Debiterad ingående moms":2641 "" -2020.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" -31.00
+    "Redovisningskonto för moms":2650 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" -124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "Avbokning (20) 9021" 124.00
+```
+
+I manually edited the eskd-file
+
+* Added: ```text <MomsInkopUtgHog>31</MomsInkopUtgHog> ````
+* Adjusted: ```text <MomsBetala>-2020</MomsBetala>```
+
+```text
+<!DOCTYPE eSKDUpload PUBLIC "-//Skatteverket, Sweden//DTD Skatteverket eSKDUpload-DTD Version 6.0//SV" "https://www1.skatteverket.se/demoeskd/eSKDUpload_6p0.dtd">
+<eSKDUpload Version="6.0">
+  <OrgNr>556782-8172</OrgNr>
+  <Moms>
+   <Period>202603</Period>
+   <ForsMomsEjAnnan>0</ForsMomsEjAnnan>
+   <InkopVaruAnnatEg>124</InkopVaruAnnatEg>
+   <MomsUlagImport>0</MomsUlagImport>
+   <ForsTjSkskAnnatEg>0</ForsTjSkskAnnatEg>
+   <MomsUtgHog>0</MomsUtgHog>
+   <MomsInkopUtgHog>31</MomsInkopUtgHog>
+   <MomsImportUtgHog>0</MomsImportUtgHog>
+   <MomsIngAvdr>2051</MomsIngAvdr>
+   <MomsBetala>-2020</MomsBetala>
+  </Moms>
+</eSKDUpload>
+```
+
+So where is the code?
+
 * It seems to be:
 
 ```c++
