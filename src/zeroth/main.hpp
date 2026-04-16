@@ -1540,7 +1540,7 @@ inline std::optional<std::filesystem::path> path_to_existing_file(std::string co
 	return result;
 }
 
-// Name, Heading + Amount account transaction
+// Name, Heading + Amount account posting
 struct NameHeadingAmountAT {
 	std::string account_name;
 	std::optional<std::string> trans_text{};
@@ -2268,7 +2268,7 @@ struct CollectT2s {
 					  return (at_iter2 != t2_iter->mdje.defacto.account_postings.end());
 				});
 				if (at_iter1 != mdje.defacto.account_postings.end()) {
-					// iter refers to an account transaction in mdje to the same account but a counter amount as in t2.je
+					// iter refers to an account posting in mdje to the same account but a counter amount as in t2.je
 					T2::CounterTrans counter_trans{.linking_account = at_iter1->account_no,.mdje = mdje};
 					t2_iter->counter_trans = counter_trans;
 					break;

@@ -2058,7 +2058,7 @@ Cmd Updater::operator()(Command const& command) {
                 }
               }
               else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
-                prompt << "\nTODO: Implement acting on selected gross account transaction " << model->ap_candidates[at_ix];
+                prompt << "\nTODO: Implement acting on selected gross account posting " << model->ap_candidates[at_ix];
               }
               else {
                 prompt << "\nPlease enter a valid index";
@@ -2294,7 +2294,7 @@ Cmd Updater::operator()(Command const& command) {
                 case 0: {
                   // Try to stage gross + single counter transactions aggregate
                   if (does_balance(had.optional.current_candidate->defacto) == false) {
-                    // list at candidates from found entries with account transaction that counter the gross account
+                    // list at candidates from found entries with account posting that counter the gross account
                     std::cout << "\nCurrent candidate does not balance";
                   }
                   else if (std::any_of(
@@ -2413,7 +2413,7 @@ Cmd Updater::operator()(Command const& command) {
               auto bas_account_no = BAS::to_account_no(ast[0]);
               auto amount = to_amount(ast[1]);
               if (bas_account_no and amount) {
-                // push back a new account transaction with detected BAS account and amount
+                // push back a new account posting with detected BAS account and amount
                 BAS::anonymous::AccountPosting ap {
                   .account_no = *bas_account_no
                   ,.amount = *amount
@@ -4502,19 +4502,19 @@ The ITfied AB
                   prompt << "\nAMOUNT " << *amount;
                   prompt << "\nWe will create a {net,vat} using this this header and amount";
                   if (gross_amounts_diff > 0) {
-                    // We need to balance up with negative account transaction aggregates
+                    // We need to balance up with negative account posting aggregates
                     auto ats = (*had.optional.counter_aps_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                     prompt << "\nAdded negative transactions aggregate" << ats;
                   }
                   else if (gross_amounts_diff < 0) {
-                    // We need to balance up with positive account transaction aggregates
+                    // We need to balance up with positive account posting aggregates
                     auto ats = (*had.optional.counter_aps_producer)(abs(gross_amounts_diff),ast[0],amount);
                     std::copy(ats.begin(),ats.end(),std::back_inserter(had.optional.current_candidate->defacto.account_postings));
                     prompt << "\nAdded positive transaction aggregate";
                   }
                   else if (abs(gross_amounts_diff) < 1.0) {
-                    // Consider a cents rounding account transaction
+                    // Consider a cents rounding account posting
                     prompt << "\nAdded cents rounding to account 3740";
                     auto cents_rounding_at = BAS::anonymous::AccountPosting{
                       .account_no = 3740
@@ -4583,7 +4583,7 @@ The ITfied AB
                   prompt << "\nSorry, failed to match your input to any BAS or SRU account";
                 }
                 else if (ams.size() == 1) {
-                  // Go ahead and use this account for an account transaction
+                  // Go ahead and use this account for an account posting
                   if (had.optional.current_candidate) {
                     // extend current candidate
                     BAS::anonymous::AccountPosting new_ap{
@@ -4710,7 +4710,7 @@ The ITfied AB
         }
       }
       else if (model->prompt_state == PromptState::EditAT) {
-        // Handle user Edit of currently selected account transaction (at)
+        // Handle user Edit of currently selected account posting (at)
 // std::cout << "\nPromptState::EditAT " << std::quoted(command);
         if (auto had_iter = model->selected_had()) {
           auto const& had = **had_iter;
@@ -4743,7 +4743,7 @@ The ITfied AB
             model->prompt_state = PromptState::ATIndex;
           }
           else {
-            prompt << "\nSORRY, I seems to have forgotten what account transaction you selected. Please try over again";
+            prompt << "\nSORRY, I seems to have forgotten what account posting you selected. Please try over again";
             model->prompt_state = PromptState::HADIndex;
           }
         }
