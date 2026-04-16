@@ -2,6 +2,18 @@
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
 
+* [notes](../../note/index.md)
+* [todos](../../todo/index.md)
+
+## 20260416
+
+Today I am using Cratchit to do the VAT Returns report due 12 May.
+
+I discovered that Cratchit does not provide a way to update the 'known' BAS account listing.
+
+* Created [Consider a mechanism to administrate current BAS accounts (plan)?](../../todo/03bf6e28/todo.md)
+* Made std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap) show unkown account name
+
 ## 20260415
 
 I give up for now! I am STUCK! Right now I find no chain of refactorings that I can apply and get Cratchit to a 'better' state'. All my attempts so far has only shown my how entangled all the 'not so good' design decisions comnspires against change in a congtrolled and stable way.
@@ -32,9 +44,14 @@ I created:
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+So now we are back in the master branch.
+
+
+
+
 ## 20260412
 
-So ltes face it. I AM STUCK!
+So let's face it. I AM STUCK!
 
 * I fail to find a way to refactor the SIE processing to something 'better' and a clear design
 * I also fail to even understand the 'typed' or 'posting kind' mechanism

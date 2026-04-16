@@ -211,9 +211,10 @@ Amount to_account_transactions_sum(BAS::anonymous::AccountPostings const& aps) {
 
 std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap) {
 	if (BAS::global_account_metas().contains(ap.account_no)) os << std::quoted(BAS::global_account_metas().at(ap.account_no).name) << ":";
+  else os << std::quoted("??namn??") << ":";
 	os << ap.account_no;
 	os << " " << ap.transtext;
-	os << " " << to_string(ap.amount); // When amount is double there will be no formatting of the amount to ensure two decimal cents digits
+	os << " " << to_string(ap.amount);
 	return os;
 };
 
