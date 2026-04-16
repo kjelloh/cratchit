@@ -749,8 +749,10 @@ namespace SKV {
         if (true) {
           logger::development_trace("to_vat_returns_md_aps: box_no:{} account_nos::size:{}",box_no,account_nos.size());
         }
-				return to_md_aps(sie_archive,[&md_ap_predicate,&account_nos](BAS::MDAccountPosting const& md_ap) {
-					return (md_ap_predicate(md_ap) and is_any_of_accounts(md_ap,account_nos));
+				return to_md_aps(
+           sie_archive
+          ,[&md_ap_predicate,&account_nos](BAS::MDAccountPosting const& md_ap) {
+					  return (md_ap_predicate(md_ap) and is_any_of_accounts(md_ap,account_nos));
 				});
 			}
 
