@@ -1082,7 +1082,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 			result.push_back("-sie : lists transactions in input sie-file");
 			result.push_back("-tas <first date> <last date> : Selects tagged amounts in the period first date .. last date");
 			result.push_back("-tas : Selects last selected tagged amounts");
-			result.push_back("-csv <csv file path> : Imports Comma Seperated Value file of Web bank account transactions");
+			result.push_back("-csv <csv file path> : Imports Comma Seperated Value file of Web bank account postings");
 			result.push_back("                       Stores them as Heading Amount Date (HAD) entries.");
 			result.push_back("'q' or 'Quit'");
 		} break;
@@ -1178,7 +1178,7 @@ PromptOptionsList options_list_of_prompt_state(PromptState const& prompt_state) 
 		case PromptState::JEAggregateOptionIndex: {
 			result.push_back("0 1 x counter transactions aggregate");
 			result.push_back("1 n x counter transactions aggregate");
-			result.push_back("2 Edit account transactions");
+			result.push_back("2 Edit account postings");
 			result.push_back("3 STAGE as-is");
 		} break;
 		case PromptState::EnterHA: {result.push_back("PromptState::EnterHA");} break;
@@ -1879,7 +1879,7 @@ Cmd Updater::operator()(Command const& command) {
                   case JournalEntryVATType::NoVAT: {
                     // No VAT in candidate.
                     // Continue with
-                    // 1) Some proposed gross account transactions
+                    // 1) Some proposed gross account postings
                     // 2) a n x gross Counter aggregate
 
                     // NOTE 20240516 - A transfer to or from the SKV account is for now treated as a "No VAT" or "plain" transfer
@@ -2235,7 +2235,7 @@ Cmd Updater::operator()(Command const& command) {
                 case JournalEntryVATType::NoVAT: {
                   // No VAT in candidate.
                   // Continue with
-                  // 1) Some propose gross account transactions
+                  // 1) Some propose gross account postings
                   // 2) a n x gross Counter aggregate
                 } break;
                 case JournalEntryVATType::SwedishVAT: {
@@ -2303,7 +2303,7 @@ Cmd Updater::operator()(Command const& command) {
                     ,[](BAS::anonymous::AccountPosting const& ap){
                       return abs(ap.amount) < 1.0;
                   })) {
-                    // Assume the user need to specify rounding by editing proposed account transactions
+                    // Assume the user need to specify rounding by editing proposed account postings
                     if (false) {
                       // 20240526 - new 'enter state' prompt mechanism
                       auto new_state = PromptState::ATIndex;
@@ -2361,7 +2361,7 @@ Cmd Updater::operator()(Command const& command) {
                   model->prompt_state = PromptState::EnterHA;
                 } break;
                 case 2: {
-                  // Allow the user to edit individual account transactions
+                  // Allow the user to edit individual account postings
                   if (true) {
                     // 20240526 - new 'enter state' prompt mechanism
                     auto new_state = PromptState::ATIndex;
@@ -4814,7 +4814,7 @@ The ITfied AB
       }
       else if (auto mdje = find_meta_entry(model->m_sie_archive["current"],ast)) {
         // The user has entered a search term for a specific journal entry (to edit)
-        // Allow the user to edit individual account transactions
+        // Allow the user to edit individual account postings
         if (auto had = to_had(*mdje)) {
           model->heading_amount_date_entries.push_back(*had);
           model->had_index = 0; // index zero is the "last" (newest) one

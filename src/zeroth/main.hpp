@@ -1464,7 +1464,7 @@ namespace BAS {
 	} // namespace filter
 
   // Now in HAD2JournalEntryFramework unit / 20251111
-	// TYPED Journal Entries (to identify patterns of interest in how the individual account transactions of an entry is dispositioned in amount and on semantics of the account)
+	// TYPED Journal Entries (to identify patterns of interest in how the individual account postings of an entry is dispositioned in amount and on semantics of the account)
 
 } // namespace BAS
 

@@ -230,7 +230,7 @@ std::ostream& operator<<(std::ostream& os,JournalEntryVATType const& vat_type) {
 JournalEntryVATType to_vat_type(BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
 	JournalEntryVATType result{JournalEntryVATType::Undefined};
 	static bool const log{true};
-	// Count each type of property (NOTE: Can be less than transaction count as they may overlap, e.g., two or more gross account transactions)
+	// Count each type of property (NOTE: Can be less than transaction count as they may overlap, e.g., two or more gross account postings)
 	std::map<std::string,unsigned int> props_counter{};
 	for (auto const& [ap,kind_tags] : md_tpje.defacto.account_postings) {
 		for (auto const& kind_tag : kind_tags) props_counter[kind_tag]++;
@@ -476,7 +476,7 @@ std::ostream& operator<<(std::ostream& os,BAS::MDTaggedPostingsJournalEntry cons
 // that are all of the same "type" and that all sums to zero (do balance)
 std::vector<BAS::MDTaggedPostingsJournalEntry> to_typed_sub_meta_entries(BAS::MDTaggedPostingsJournalEntry const& md_tpje) {
 	std::vector<BAS::MDTaggedPostingsJournalEntry> result{};
-	// TODO: When needed, identify sub-entries of typed account transactions that balance (sums to zero)
+	// TODO: When needed, identify sub-entries of typed account postings that balance (sums to zero)
 	result.push_back(md_tpje); // For now, return input as the single sub-entry
 	return result;
 }

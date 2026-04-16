@@ -218,7 +218,7 @@ namespace tas {
       if (ta.tags().contains("BAS") and
           !(BAS::to_account_no(ta.tags().at("BAS")))) {
         // Whine about invalid tagging of 'BAS' tag!
-        // It is vital we do NOT have any badly tagged BAS account transactions
+        // It is vital we do NOT have any badly tagged BAS account postings
         // as this will screw up the saldo calculation!
         logger::cout_proxy << "\nDESIGN_INSUFFICIENCY: tas::to_bas_omslutning failed to "
                      "create a valid BAS account no from tag 'BAS' with value "
