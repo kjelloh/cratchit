@@ -45,6 +45,32 @@ VÄNTA! Dom borde ju sitta i pärmen från förra momsperioden?
 * NEJ! Fel igen (Förra perioden var Okt-Dec)
 * Hjärndimma!
 
+## Note: Bokföra EU-moms
+
+Vad jag förstår skall EU-inöp bokföras så att momsen ändå sysns utan att den faktiskt transfereras?
+
+* Säljaren debiterar EJ moms
+* Jag bokför kostnad + betalning utan moms
+* MEN: Jag bokför 'låtsasmoms' för statistik:
+  - Kredit: 2615 - Utgående moms import av varor 25%
+  - Debit: 2645 - Beräknad ingående moms på förvärv från utlandet
+* Jag bokför dessutom köpebeloppet så momsrapporten 'stämmer'
+  - Det måste finnas ett belopp som är EU-momsen/25%
+  - Jag använder ett eget konto utanför kontoplanen för detta
+  - #KONTO 9021 "Varuv�rde Inl�p annat EG-land (Momsrapport ruta 20)"
+  - #KONTO 9099 "Motkonto Varuv�rde Ink�p EU/Import"
+
+Jag gjorde följande bokföring
+
+```text
+A48 "Account:NORDEA::Anonymous Text:Kortköp 260330 SP LAMYSHOP | SEK" 20260331
+    "PlusGiro":1920  -157.00
+    "Kontorsmateriel":6110  157.00
+    "Redovisningskonto för moms":2650  -31.00
+    "Beräknad ingående moms på förvärv från utlandet":2645  31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021  124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099  -124.00 STAGED
+```
 
 ## 20260415
 
