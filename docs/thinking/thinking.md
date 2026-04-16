@@ -14,6 +14,38 @@ I discovered that Cratchit does not provide a way to update the 'known' BAS acco
 * Created [Consider a mechanism to administrate current BAS accounts (plan)?](../../todo/03bf6e28/todo.md)
 * Made std::ostream& operator<<(std::ostream& os,BAS::anonymous::AccountPosting const& ap) show unkown account name
 
+DARN! I needed to edit my staged SIE file manually (or decided to) BUT I no longer have an editor that can do this!
+
+* Apple TextEdit refuses to open the file (not a text file)
+* VSCode opens it but then corrupts it!
+  - If I just edit it seems to write it 'as-is'? (No corruption?)
+  - But if I 'reopen with encoding' it CORRUPTS the file (seems to transform CP437 -> UTF-8 but show as CP437?)
+  - VERY STRANGE... 
+
+It seems I can use vim
+
+* open file with vim
+* Then do ':e ++enc=cp437'
+
+I now decided I want to be able to have Cratchit operate on files in a git repo for my company.
+
+* I need a mechanism so that Cratchit can run from one location but then have its workspace in the directory structure of my git repo
+* Then I can use git to ceep track of edits made by Cratchit + make 'note','todo' etc. related to my company accounting
+
+Todo: Put the note below into this git repo if and when it is ready.
+
+## Note: Lärdomar från Momsrapport 
+
+Jag missade att skriva ut alla verifikationer innan jag började bokföra.
+
+* Jag hade i princip inga fakturor utskrivna efter 2 feb?
+
+VÄNTA! Dom borde ju sitta i pärmen från förra momsperioden?
+
+* NEJ! Fel igen (Förra perioden var Okt-Dec)
+* Hjärndimma!
+
+
 ## 20260415
 
 I give up for now! I am STUCK! Right now I find no chain of refactorings that I can apply and get Cratchit to a 'better' state'. All my attempts so far has only shown my how entangled all the 'not so good' design decisions comnspires against change in a congtrolled and stable way.
