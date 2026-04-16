@@ -3838,7 +3838,9 @@ Cmd Updater::operator()(Command const& command) {
         for (auto const& [bas_account_no,tas] : huvudbok) {
           CentsAmount acc{0};
           prompt << "\n" << bas_account_no;
-          prompt << ":" << std::quoted(BAS::global_account_metas().at(bas_account_no).name);
+          if (BAS::global_account_metas().contains(bas_account_no))
+            prompt << ":" << std::quoted(BAS::global_account_metas().at(bas_account_no).name);
+            else prompt << ":" << std::quoted("?namn?");
           if (opening_balance.contains(bas_account_no)) {
             acc = opening_balance[bas_account_no];
             prompt << "\n\topening balance\t" << to_units_and_cents(acc);
