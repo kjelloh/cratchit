@@ -2333,7 +2333,9 @@ Cmd Updater::operator()(Command const& command) {
                       model->prompt_state = PromptState::Root;
                     }
                   }
-                } break;
+                } // case 0 
+                break;
+
                 case 1: {
                   // net + vat counter aggregate
                   BAS::anonymous::OptionalAccountPosting net_at;
@@ -2359,7 +2361,9 @@ Cmd Updater::operator()(Command const& command) {
                   }
                   prompt << "\ncadidate: " << *had.optional.current_candidate;
                   model->prompt_state = PromptState::EnterHA;
-                } break;
+                } // case 1
+                break;
+
                 case 2: {
                   // Allow the user to edit individual account postings
                   if (true) {
@@ -2378,7 +2382,9 @@ Cmd Updater::operator()(Command const& command) {
                     });
                     model->prompt_state = PromptState::ATIndex;
                   }
-                } break;
+                } // case 2
+                break;
+
                 case 3: {
                   // Stage the candidate
                   if (auto stage_result = model->m_sie_archive.stage(*had.optional.current_candidate)) {
@@ -2390,10 +2396,14 @@ Cmd Updater::operator()(Command const& command) {
                     prompt << "\nSORRY - Failed to stage entry";
                     model->prompt_state = PromptState::Root;
                   }
-                }
+                } // case 3
+                break;
+
                 default: {
                   prompt << "\nPlease enter a valid had index";
-                } break;
+                } // default
+                break;
+
               }
             }
             else {
