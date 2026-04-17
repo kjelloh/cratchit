@@ -1,0 +1,110 @@
+cratchit:>-sie sie_in/TheITfiedAB20260417_115940.se
+
+Importing SIE to current year from "sie_in/TheITfiedAB20260417_115940.se"
+
+STAGE of cracthit entries FAILED when merging with posted (from external tool)
+Entries in sie-file:sie_in/TheITfiedAB20260417_115940.se overrides values in cratchit staged entries
+OK - valid entry  A37 "Kvitto 20250830 kopiering ÅR" 20260101
+    "Skulder till närstående personer, kortfristig del":2893 "" -20.00
+    "Trycksaker":6150 "" 20.00
+OK - valid entry  A38 "Account:SKV::5567828172 Text:Intäktsräntanta" 20260103
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+CONFLICTED! : No longer valid entry  A39 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260107
+    "PlusGiro":1920 "" -1303.70
+    "Bankkostnader":6570 "" 1303.70
+CONFLICTED! : No longer valid entry  A40 "Account:NORDEA::Anonymous Text:Kortköp 260118 CLAUDE.AI SUBSCRIPTI | SEK" 20260119
+    "PlusGiro":1920 "" -196.53
+    "Datakommunikation":6230 "" 196.53
+CONFLICTED! : No longer valid entry  A41 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260204
+    "PlusGiro":1920 "" -1.85
+    "Bankkostnader":6570 "" 1.85
+OK - valid entry  A42 "Account:SKV::5567828172 Text:Moms okt 2025 - dec 2025" 20260214
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 826.00
+    "Momsfordran":1650 "" -826.00
+CONFLICTED! : No longer valid entry  A43 "Account:NORDEA::Anonymous Text:Kortköp 260216 BOLAGSVERKET | SEK" 20260217
+    "PlusGiro":1920 "" -1000.00
+    "Övriga externa kostnader, avdragsgilla":6991 "" 1000.00
+CONFLICTED! : No longer valid entry  A44 "Account:NORDEA::Anonymous Text:Skatt | SEK" 20260219
+    "PlusGiro":1920 "" 826.00
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" -826.00
+CONFLICTED! : No longer valid entry  A45 "Account:NORDEA::Anonymous Text:FRÅN SPAR 518687-9 | FRÅN SPAR | SEK" 20260221
+    "PlusGiro":1920 "" 8000.00
+    "Företagskonto/checkkonto/affärskonto":1930 "" -8000.00
+OK - valid entry  A46 "Account:SKV::5567828172 Text:Intäktsränta" 20260301
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+CONFLICTED! : No longer valid entry  A47 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260304
+    "PlusGiro":1920 "" -3.70
+    "Bankkostnader":6570 "" 3.70
+CONFLICTED! : No longer valid entry  A48 "Account:NORDEA::Anonymous Text:Kortköp 260330 SP LAMYSHOP | SEK" 20260331
+    "PlusGiro":1920 "" -157.00
+    "Kontorsmateriel":6110 "" 157.00
+    "Redovisningskonto för moms":2650 "" -31.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" 124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "" -124.00
+OK - valid entry  D15 "Faktura Websupport itfied-domäner" 20260111
+    "Leverantörsskulder":2440 "" -1058.75
+    "Telekommunikation":6210 "" 847.00
+    "Debiterad ingående moms":2641 "" 211.75
+OK - valid entry  D16 "Faktura Postnord - postbox jan-jun" 20260112
+    "Leverantörsskulder":2440 "" -4037.50
+    "Postbefordran":6250 "Postbox 1/2-år" 3230.00
+    "Debiterad ingående moms":2641 "" 807.50
+OK - valid entry  D17 "Faktura webbsupport domän itfied.eu" 20260116
+    "Leverantörsskulder":2440 "" -236.25
+    "Telekommunikation":6210 "" 189.00
+    "Debiterad ingående moms":2641 "" 47.25
+OK - valid entry  D18 "Faktura Websupport domän darwinet.org" 20260207
+    "PlusGiro":1920 "" -323.75
+    "Leverantörsskulder":2440 "" 323.75
+OK - valid entry  D19 "Faktura Websupport - webbhotell" 20260227
+    "Leverantörsskulder":2440 "" -1233.75
+    "Telekommunikation":6210 "" 987.00
+    "Debiterad ingående moms":2641 "" 246.75
+OK - valid entry  D20 "Faktura (påminnelse) Fortnox 3 mån" 20260302
+    "Leverantörsskulder":2440 "" -814.00
+    "Programvaror":5420 "" 651.00
+    "Debiterad ingående moms":2641 "" 162.75
+    "Öres- och kronutjämning":3740 "" 0.25
+OK - valid entry  D21 "Telia Faktura 3 mån" 20260216
+    "Leverantörsskulder":2440 "" -2359.00
+    "Mobiltelefon":6212 "" 1887.00
+    "Debiterad ingående moms":2641 "" 471.75
+    "Öres- och kronutjämning":3740 "" 0.25
+OK - valid entry  D22 "Faktura Websupport domän sharedplanet.se" 20260319
+    "Leverantörsskulder":2440 "" -361.25
+    "Telekommunikation":6210 "" 289.00
+    "Debiterad ingående moms":2641 "" 72.25
+CONFLICTED! : No longer valid entry  E15 "Account:NORDEA::Anonymous Text:PostNord Sverige AB | SEK" 20260122
+    "PlusGiro":1920 "" -4037.50
+    "Leverantörsskulder":2440 "" 4037.50
+CONFLICTED! : No longer valid entry  E16 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260210
+    "PlusGiro":1920 "" -1058.75
+    "Leverantörsskulder":2440 "" 1058.75
+CONFLICTED! : No longer valid entry  E17 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260216
+    "PlusGiro":1920 "" -236.25
+    "Leverantörsskulder":2440 "" 236.25
+CONFLICTED! : No longer valid entry  E18 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260309
+    "PlusGiro":1920 "" -323.75
+    "Leverantörsskulder":2440 "" 323.75
+CONFLICTED! : No longer valid entry  E19 "Account:NORDEA::Anonymous Text:Fortnox Finans AB | SEK" 20260313
+    "PlusGiro":1920 "" -814.00
+    "Leverantörsskulder":2440 "" 814.00
+CONFLICTED! : No longer valid entry  E20 "Account:NORDEA::Anonymous Text:TELIA SVERIGE AB | SEK" 20260318
+    "PlusGiro":1920 "" -2359.00
+    "Leverantörsskulder":2440 "" 2359.00
+CONFLICTED! : No longer valid entry  E21 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260330
+    "PlusGiro":1920 "" -1233.75
+    "Leverantörsskulder":2440 "" 1233.75
+OK - valid entry  M4 "Momsrapport 2026-01-01...2026-03-31" 20260331
+    "Momsfordran":1650 "" 2020.00
+    "Öres- och kronutjämning":3740 "" 0.00
+    "Debiterad ingående moms":2641 "" -2020.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" -31.00
+    "Redovisningskonto för moms":2650 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" -124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "Avbokning (20) 9021" 124.00
+ year id:current - ALL POSTED OK
+cratchit:>

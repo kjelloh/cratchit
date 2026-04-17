@@ -1,0 +1,486 @@
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ./run.zsh                                                                              
+run.zsh: Using preset from cmake_preset.txt: conan-debug
+run.zsh: Running Debug build with preset conan-debug...
+run.zsh: Creating workspace directory...
+run.zsh: Configuring with error limit...
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="Debug"
+  CMAKE_EXPORT_COMPILE_COMMANDS="ON"
+  CMAKE_POLICY_DEFAULT_CMP0091="NEW"
+  CMAKE_TOOLCHAIN_FILE:FILEPATH="generators/conan_toolchain.cmake"
+
+Preset environment variables:
+
+  ICU_DATA="/Users/kjell-olovhogdahl/.conan2/p/b/icu6e5030f500ebb/p/res/icudt76l.dat:"
+  TERMINFO="/Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/res/terminfo"
+
+-- Using Conan toolchain: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/generators/conan_toolchain.cmake
+-- Conan toolchain: Defining libcxx as C++ flags: -stdlib=libc++
+-- Conan toolchain: C++ Standard 23 with extensions OFF
+-- C++ Compiler ID: AppleClang
+-- C++ Compiler Version: 16.0.0.16000026
+-- Compile error limit set to: 3
+-- Conan: Target declared 'sol2::sol2'
+-- Conan: Target declared 'lua::lua'
+-- Conan: Component target declared 'ncurses::tinfo'
+-- Conan: Component target declared 'ncurses::libcurses++'
+-- Conan: Component target declared 'ncurses::libcurses'
+-- Conan: Component target declared 'ncurses::panel'
+-- Conan: Component target declared 'ncurses::menu'
+-- Conan: Component target declared 'ncurses::form'
+-- Conan: Component target declared 'ncurses::ticlib'
+-- Conan: Component target declared 'ncurses::curses++'
+-- Conan: Target declared 'Curses::Curses'
+-- Conan: Including build module from '/Users/kjell-olovhogdahl/.conan2/p/b/ncurse6ccddd9cf526/p/lib/cmake/conan-official-ncurses-targets.cmake'
+-- Conan: Target declared 'pugixml::pugixml'
+-- Conan: Component target declared 'ICU::data'
+-- Conan: Component target declared 'ICU::dt'
+-- Conan: Component target declared 'ICU::uc'
+-- Conan: Component target declared 'ICU::i18n'
+-- Conan: Component target declared 'ICU::in'
+-- Conan: Component target declared 'ICU::io'
+-- Conan: Component target declared 'ICU::tu'
+-- Conan: Component target declared 'ICU::test'
+-- Conan: Target declared 'icu::icu'
+-- Conan: Target declared 'immer::immer'
+-- Conan: Component target declared 'spdlog::spdlog'
+-- Conan: Component target declared 'fmt::fmt'
+-- Conan: Component target declared 'GTest::gtest'
+-- Conan: Component target declared 'GTest::gtest_main'
+-- Conan: Component target declared 'GTest::gmock'
+-- Conan: Component target declared 'GTest::gmock_main'
+-- Conan: Target declared 'gtest::gtest'
+-- Compile options for target cratchit: -ferror-limit=3
+-- Compile features for target cratchit: cxx_features-NOTFOUND
+-- CMake C++ Standard: 23
+-- Configuring done (0.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug
+run.zsh: Building the project with cmake...
+run.zsh: Using sequential build (SEQUENTIAL_BUILD=true)
+[100%] Built target cratchit
+run.zsh: Copying the 'cratchit' binary to the workspace directory...
+Argument 0: ./cratchit
+build properties:: Hello World Debug!
+  build properties:: __aarch64__ defined
+  build properties:: __cplusplus202302
+  build properties:: __GNUC__4
+  build properties:: __GNUC_MINOR__2
+  build properties:: __clang_major__16
+  build properties:: __apple_build_version__16000026
+build properties: test_package
+
+current_date_to_year_id_map(financial_year_start_month:5,index_count:7)
+        index:-1 range:2025-05-01...2026-04-30
+        index:-2 range:2024-05-01...2025-04-30
+        index:-3 range:2023-05-01...2024-04-30
+        index:-4 range:2022-05-01...2023-04-30
+        index:-5 range:2021-05-01...2022-04-30
+        index:-6 range:2020-05-01...2021-04-30
+        index:0 range:2026-05-01...2027-04-30
+Opening Saldo Date:20240501
+        saldo_ta :  20240501 162495,27
+        |--> "BAS=1221"
+        |--> "IB=True"
+        saldo_ta :  20240501 114976,20
+        |--> "BAS=1226"
+        |--> "IB=True"
+        saldo_ta :  20240501 38223,49
+        |--> "BAS=1227"
+        |--> "IB=True"
+        saldo_ta :  20240501 -15408,44
+        |--> "BAS=1228"
+        |--> "IB=True"
+        saldo_ta :  20240501 -257552,58
+        |--> "BAS=1229"
+        |--> "IB=True"
+        saldo_ta :  20240501 375,09
+        |--> "BAS=1610"
+        |--> "IB=True"
+        saldo_ta :  20240501 645,00
+        |--> "BAS=1630"
+        |--> "IB=True"
+        saldo_ta :  20240501 1026,00
+        |--> "BAS=1650"
+        |--> "IB=True"
+        saldo_ta :  20240501 8129,56
+        |--> "BAS=1920"
+        |--> "IB=True"
+        saldo_ta :  20240501 111124,72
+        |--> "BAS=1930"
+        |--> "IB=True"
+        saldo_ta :  20240501 0,00
+        |--> "BAS=1999"
+        |--> "IB=True"
+        saldo_ta :  20240501 -100800,00
+        |--> "BAS=2081"
+        |--> "IB=True"
+        saldo_ta :  20240501 -69652,73
+        |--> "BAS=2091"
+        |--> "IB=True"
+        saldo_ta :  20240501 0,00
+        |--> "BAS=2093"
+        |--> "IB=True"
+        saldo_ta :  20240501 0,00
+        |--> "BAS=2098"
+        |--> "IB=True"
+        saldo_ta :  20240501 30547,01
+        |--> "BAS=2099"
+        |--> "IB=True"
+        saldo_ta :  20240501 896,25
+        |--> "BAS=2440"
+        |--> "IB=True"
+        saldo_ta :  20240501 156,75
+        |--> "BAS=2641"
+        |--> "IB=True"
+        saldo_ta :  20240501 -181,59
+        |--> "BAS=2893"
+        |--> "IB=True"
+        saldo_ta :  20240501 -25000,00
+        |--> "BAS=2898"
+        |--> "IB=True"
+Opening Saldo Date:20230501
+        saldo_ta :  20230501 162495,27
+        |--> "BAS=1221"
+        |--> "IB=True"
+        saldo_ta :  20230501 105496,03
+        |--> "BAS=1226"
+        |--> "IB=True"
+        saldo_ta :  20230501 36605,97
+        |--> "BAS=1227"
+        |--> "IB=True"
+        saldo_ta :  20230501 -15408,44
+        |--> "BAS=1228"
+        |--> "IB=True"
+        saldo_ta :  20230501 -236867,71
+        |--> "BAS=1229"
+        |--> "IB=True"
+        saldo_ta :  20230501 375,09
+        |--> "BAS=1610"
+        |--> "IB=True"
+        saldo_ta :  20230501 630,00
+        |--> "BAS=1630"
+        |--> "IB=True"
+        saldo_ta :  20230501 0,00
+        |--> "BAS=1650"
+        |--> "IB=True"
+        saldo_ta :  20230501 36147,89
+        |--> "BAS=1920"
+        |--> "IB=True"
+        saldo_ta :  20230501 217551,83
+        |--> "BAS=1930"
+        |--> "IB=True"
+        saldo_ta :  20230501 156,75
+        |--> "BAS=1999"
+        |--> "IB=True"
+        saldo_ta :  20230501 -100800,00
+        |--> "BAS=2081"
+        |--> "IB=True"
+        saldo_ta :  20230501 -278845,23
+        |--> "BAS=2091"
+        |--> "IB=True"
+        saldo_ta :  20230501 84192,50
+        |--> "BAS=2099"
+        |--> "IB=True"
+        saldo_ta :  20230501 -5459,55
+        |--> "BAS=2440"
+        |--> "IB=True"
+        saldo_ta :  20230501 1331,46
+        |--> "BAS=2641"
+        |--> "IB=True"
+        saldo_ta :  20230501 -2601,86
+        |--> "BAS=2893"
+        |--> "IB=True"
+        saldo_ta :  20230501 -5000,00
+        |--> "BAS=2898"
+        |--> "IB=True"
+Opening Saldo Date:20250501
+        saldo_ta :  20250501 195687,27
+        |--> "BAS=1221"
+        |--> "IB=True"
+        saldo_ta :  20250501 125266,20
+        |--> "BAS=1226"
+        |--> "IB=True"
+        saldo_ta :  20250501 38493,89
+        |--> "BAS=1227"
+        |--> "IB=True"
+        saldo_ta :  20250501 -15408,44
+        |--> "BAS=1228"
+        |--> "IB=True"
+        saldo_ta :  20250501 -278114,96
+        |--> "BAS=1229"
+        |--> "IB=True"
+        saldo_ta :  20250501 657,00
+        |--> "BAS=1630"
+        |--> "IB=True"
+        saldo_ta :  20250501 1997,00
+        |--> "BAS=1650"
+        |--> "IB=True"
+        saldo_ta :  20250501 6567,59
+        |--> "BAS=1920"
+        |--> "IB=True"
+        saldo_ta :  20250501 117992,79
+        |--> "BAS=1930"
+        |--> "IB=True"
+        saldo_ta :  20250501 336,00
+        |--> "BAS=1999"
+        |--> "IB=True"
+        saldo_ta :  20250501 -100800,00
+        |--> "BAS=2081"
+        |--> "IB=True"
+        saldo_ta :  20250501 -39105,72
+        |--> "BAS=2091"
+        |--> "IB=True"
+        saldo_ta :  20250501 -100000,00
+        |--> "BAS=2093"
+        |--> "IB=True"
+        saldo_ta :  20250501 0,00
+        |--> "BAS=2098"
+        |--> "IB=True"
+        saldo_ta :  20250501 46701,78
+        |--> "BAS=2099"
+        |--> "IB=True"
+        saldo_ta :  20250501 67,60
+        |--> "BAS=2641"
+        |--> "IB=True"
+        saldo_ta :  20250501 -338,00
+        |--> "BAS=2893"
+        |--> "IB=True"
+BEGIN: Processing files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv"
+
+BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store"
+        [Pipeline] .DS_Store -> stream : ok
+        [Pipeline] byte buffer : 8196 bytes
+        [Pipeline] with confidence_threshold:100 : ok
+        [Pipeline] with encoding : Detected: Windows-1252
+        [Pipeline] platform encoded : 8348 bytes
+        [Pipeline] csv table : 19 rows
+        [Pipeline] statement id:ed table : failed
+*Note* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store" (produced zero entries)
+*Ignored* "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store" (File empty or failed to understand file content)
+END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/.DS_Store"
+
+BEGIN File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed"
+END File: "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv/consumed"
+END: Processed Files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/from_bank_or_skv"
+tas_sequence_from_consumed_account_statement_files RETURNS 0 entries
+BEGIN: Processing files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/skv_specs"
+END: Processing files in "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/skv_specs"
+BEGIN: model_from_environment_and_filesystem_ifc 
+BEGIN REFACTORED posted SIE digest
+ year id:-2 - ALL POSTED OK
+ year id:-1 - ALL POSTED OK
+OK - valid entry  A37 "Kvitto 20250830 kopiering ÅR" 20260101
+    "Skulder till närstående personer, kortfristig del":2893 "" -20.00
+    "??namn??":6150 "" 20.00
+OK - valid entry  A38 "Account:SKV::5567828172 Text:Intäktsräntanta" 20260103
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+OK - valid entry  A39 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260107
+    "PlusGiro":1920 "" -1303.70
+    "Bankkostnader":6570 "" 1303.70
+OK - valid entry  A40 "Account:NORDEA::Anonymous Text:Kortköp 260118 CLAUDE.AI SUBSCRIPTI | SEK" 20260119
+    "PlusGiro":1920 "" -196.53
+    "Datakommunikation":6230 "" 196.53
+OK - valid entry  A41 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260204
+    "PlusGiro":1920 "" -1.85
+    "Bankkostnader":6570 "" 1.85
+OK - valid entry  A42 "Account:SKV::5567828172 Text:Moms okt 2025 - dec 2025" 20260214
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 826.00
+    "Momsfordran":1650 "" -826.00
+OK - valid entry  A43 "Account:NORDEA::Anonymous Text:Kortköp 260216 BOLAGSVERKET | SEK" 20260217
+    "PlusGiro":1920 "" -1000.00
+    "Övriga externa kostnader, avdragsgilla":6991 "" 1000.00
+OK - valid entry  A44 "Account:NORDEA::Anonymous Text:Skatt | SEK" 20260219
+    "PlusGiro":1920 "" 826.00
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" -826.00
+OK - valid entry  A45 "Account:NORDEA::Anonymous Text:FRÅN SPAR 518687-9 | FRÅN SPAR | SEK" 20260221
+    "PlusGiro":1920 "" 8000.00
+    "Företagskonto/checkkonto/affärskonto":1930 "" -8000.00
+OK - valid entry  A46 "Account:SKV::5567828172 Text:Intäktsränta" 20260301
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+OK - valid entry  A47 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260304
+    "PlusGiro":1920 "" -3.70
+    "Bankkostnader":6570 "" 3.70
+OK - valid entry  A48 "Account:NORDEA::Anonymous Text:Kortköp 260330 SP LAMYSHOP | SEK" 20260331
+    "PlusGiro":1920 "" -157.00
+    "Kontorsmateriel":6110 "" 157.00
+    "Redovisningskonto för moms":2650 "" -31.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" 124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "" -124.00
+OK - valid entry  D15 "Faktura Websupport itfied-domäner" 20260111
+    "Leverantörsskulder":2440 "" -1058.75
+    "Telekommunikation":6210 "" 847.00
+    "Debiterad ingående moms":2641 "" 211.75
+OK - valid entry  D16 "Faktura Postnord - postbox jan-jun" 20260112
+    "Leverantörsskulder":2440 "" -4037.50
+    "Postbefordran":6250 "Postbox 1/2-år" 3230.00
+    "Debiterad ingående moms":2641 "" 807.50
+OK - valid entry  D17 "Faktura webbsupport domän itfied.eu" 20260116
+    "Leverantörsskulder":2440 "" -236.25
+    "Telekommunikation":6210 "" 189.00
+    "Debiterad ingående moms":2641 "" 47.25
+OK - valid entry  D18 "Faktura Websupport domän darwinet.org" 20260207
+    "PlusGiro":1920 "" -323.75
+    "Leverantörsskulder":2440 "" 323.75
+OK - valid entry  D19 "Faktura Websupport - webbhotell" 20260227
+    "Leverantörsskulder":2440 "" -1233.75
+    "Telekommunikation":6210 "" 987.00
+    "Debiterad ingående moms":2641 "" 246.75
+OK - valid entry  D20 "Faktura (påminnelse) Fortnox 3 mån" 20260302
+    "Leverantörsskulder":2440 "" -814.00
+    "Programvaror":5420 "" 651.00
+    "Debiterad ingående moms":2641 "" 162.75
+    "Öres- och kronutjämning":3740 "" 0.25
+OK - valid entry  D21 "Telia Faktura 3 mån" 20260216
+    "Leverantörsskulder":2440 "" -2359.00
+    "Mobiltelefon":6212 "" 1887.00
+    "Debiterad ingående moms":2641 "" 471.75
+    "Öres- och kronutjämning":3740 "" 0.25
+OK - valid entry  D22 "Faktura Websupport domän sharedplanet.se" 20260319
+    "Leverantörsskulder":2440 "" -361.25
+    "Telekommunikation":6210 "" 289.00
+    "Debiterad ingående moms":2641 "" 72.25
+OK - valid entry  E15 "Account:NORDEA::Anonymous Text:PostNord Sverige AB | SEK" 20260122
+    "PlusGiro":1920 "" -4037.50
+    "Leverantörsskulder":2440 "" 4037.50
+OK - valid entry  E16 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260210
+    "PlusGiro":1920 "" -1058.75
+    "Leverantörsskulder":2440 "" 1058.75
+OK - valid entry  E17 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260216
+    "PlusGiro":1920 "" -236.25
+    "Leverantörsskulder":2440 "" 236.25
+OK - valid entry  E18 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260309
+    "PlusGiro":1920 "" -323.75
+    "Leverantörsskulder":2440 "" 323.75
+OK - valid entry  E19 "Account:NORDEA::Anonymous Text:Fortnox Finans AB | SEK" 20260313
+    "PlusGiro":1920 "" -814.00
+    "Leverantörsskulder":2440 "" 814.00
+OK - valid entry  E20 "Account:NORDEA::Anonymous Text:TELIA SVERIGE AB | SEK" 20260318
+    "PlusGiro":1920 "" -2359.00
+    "Leverantörsskulder":2440 "" 2359.00
+OK - valid entry  E21 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260330
+    "PlusGiro":1920 "" -1233.75
+    "Leverantörsskulder":2440 "" 1233.75
+OK - valid entry  M4 "Momsrapport 2026-01-01...2026-03-31" 20260331
+    "Momsfordran":1650 "" 2020.00
+    "Öres- och kronutjämning":3740 "" 0.00
+    "Debiterad ingående moms":2641 "" -2020.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" -31.00
+    "Redovisningskonto för moms":2650 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" -124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "Avbokning (20) 9021" 124.00
+ year id:current - STAGED for posting
+
+ A37 "Kvitto 20250830 kopiering ÅR" 20260101
+    "Skulder till närstående personer, kortfristig del":2893 "" -20.00
+    "??namn??":6150 "" 20.00
+ A38 "Account:SKV::5567828172 Text:Intäktsräntanta" 20260103
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+ A39 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260107
+    "PlusGiro":1920 "" -1303.70
+    "Bankkostnader":6570 "" 1303.70
+ A40 "Account:NORDEA::Anonymous Text:Kortköp 260118 CLAUDE.AI SUBSCRIPTI | SEK" 20260119
+    "PlusGiro":1920 "" -196.53
+    "Datakommunikation":6230 "" 196.53
+ A41 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260204
+    "PlusGiro":1920 "" -1.85
+    "Bankkostnader":6570 "" 1.85
+ A42 "Account:SKV::5567828172 Text:Moms okt 2025 - dec 2025" 20260214
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 826.00
+    "Momsfordran":1650 "" -826.00
+ A43 "Account:NORDEA::Anonymous Text:Kortköp 260216 BOLAGSVERKET | SEK" 20260217
+    "PlusGiro":1920 "" -1000.00
+    "Övriga externa kostnader, avdragsgilla":6991 "" 1000.00
+ A44 "Account:NORDEA::Anonymous Text:Skatt | SEK" 20260219
+    "PlusGiro":1920 "" 826.00
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" -826.00
+ A45 "Account:NORDEA::Anonymous Text:FRÅN SPAR 518687-9 | FRÅN SPAR | SEK" 20260221
+    "PlusGiro":1920 "" 8000.00
+    "Företagskonto/checkkonto/affärskonto":1930 "" -8000.00
+ A46 "Account:SKV::5567828172 Text:Intäktsränta" 20260301
+    "Avräkning för skatter och avgifter (skattekonto)":1630 "" 1.00
+    "Skattefria ränteintäkter":8314 "" -1.00
+ A47 "Account:NORDEA::Anonymous Text:AVGIFTER NORDEA | SEK" 20260304
+    "PlusGiro":1920 "" -3.70
+    "Bankkostnader":6570 "" 3.70
+ A48 "Account:NORDEA::Anonymous Text:Kortköp 260330 SP LAMYSHOP | SEK" 20260331
+    "PlusGiro":1920 "" -157.00
+    "Kontorsmateriel":6110 "" 157.00
+    "Redovisningskonto för moms":2650 "" -31.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" 124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "" -124.00
+ D15 "Faktura Websupport itfied-domäner" 20260111
+    "Leverantörsskulder":2440 "" -1058.75
+    "Telekommunikation":6210 "" 847.00
+    "Debiterad ingående moms":2641 "" 211.75
+ D16 "Faktura Postnord - postbox jan-jun" 20260112
+    "Leverantörsskulder":2440 "" -4037.50
+    "Postbefordran":6250 "Postbox 1/2-år" 3230.00
+    "Debiterad ingående moms":2641 "" 807.50
+ D17 "Faktura webbsupport domän itfied.eu" 20260116
+    "Leverantörsskulder":2440 "" -236.25
+    "Telekommunikation":6210 "" 189.00
+    "Debiterad ingående moms":2641 "" 47.25
+ D18 "Faktura Websupport domän darwinet.org" 20260207
+    "PlusGiro":1920 "" -323.75
+    "Leverantörsskulder":2440 "" 323.75
+ D19 "Faktura Websupport - webbhotell" 20260227
+    "Leverantörsskulder":2440 "" -1233.75
+    "Telekommunikation":6210 "" 987.00
+    "Debiterad ingående moms":2641 "" 246.75
+ D20 "Faktura (påminnelse) Fortnox 3 mån" 20260302
+    "Leverantörsskulder":2440 "" -814.00
+    "Programvaror":5420 "" 651.00
+    "Debiterad ingående moms":2641 "" 162.75
+    "Öres- och kronutjämning":3740 "" 0.25
+ D21 "Telia Faktura 3 mån" 20260216
+    "Leverantörsskulder":2440 "" -2359.00
+    "Mobiltelefon":6212 "" 1887.00
+    "Debiterad ingående moms":2641 "" 471.75
+    "Öres- och kronutjämning":3740 "" 0.25
+ D22 "Faktura Websupport domän sharedplanet.se" 20260319
+    "Leverantörsskulder":2440 "" -361.25
+    "Telekommunikation":6210 "" 289.00
+    "Debiterad ingående moms":2641 "" 72.25
+ E15 "Account:NORDEA::Anonymous Text:PostNord Sverige AB | SEK" 20260122
+    "PlusGiro":1920 "" -4037.50
+    "Leverantörsskulder":2440 "" 4037.50
+ E16 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260210
+    "PlusGiro":1920 "" -1058.75
+    "Leverantörsskulder":2440 "" 1058.75
+ E17 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260216
+    "PlusGiro":1920 "" -236.25
+    "Leverantörsskulder":2440 "" 236.25
+ E18 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260309
+    "PlusGiro":1920 "" -323.75
+    "Leverantörsskulder":2440 "" 323.75
+ E19 "Account:NORDEA::Anonymous Text:Fortnox Finans AB | SEK" 20260313
+    "PlusGiro":1920 "" -814.00
+    "Leverantörsskulder":2440 "" 814.00
+ E20 "Account:NORDEA::Anonymous Text:TELIA SVERIGE AB | SEK" 20260318
+    "PlusGiro":1920 "" -2359.00
+    "Leverantörsskulder":2440 "" 2359.00
+ E21 "Account:NORDEA::Anonymous Text:LOOPIA AB (WEBSUPPORT) | SEK" 20260330
+    "PlusGiro":1920 "" -1233.75
+    "Leverantörsskulder":2440 "" 1233.75
+ M4 "Momsrapport 2026-01-01...2026-03-31" 20260331
+    "Momsfordran":1650 "" 2020.00
+    "Öres- och kronutjämning":3740 "" 0.00
+    "Debiterad ingående moms":2641 "" -2020.00
+    "Beräknad ingående moms på förvärv från utlandet":2645 "" -31.00
+    "Redovisningskonto för moms":2650 "" 31.00
+    "Varuvärde Inlöp annat EG-land (Momsrapport ruta 20)":9021 "" -124.00
+    "Motkonto Varuvärde Inköp EU/Import":9099 "Avbokning (20) 9021" 124.00
+END REFACTORED posted SIE digest
+SIE year id:-1 --> Tagged Amounts = size:440
+SIE year id:-2 --> Tagged Amounts = size:889
+SIE year id:current --> Tagged Amounts = size:1237
+Account Statement Files --> Tagged Amounts = size:1237
+Init from "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/workspace/cratchit.env"
+cratchit:>

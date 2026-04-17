@@ -5,6 +5,13 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260417
+
+I have now made a round-trip with the staged SIE to Fortnox and back again.
+
+* I get a lot of CONFLICTED that seems to be false positives?
+* [False negative SIE Import Conflicts?](../../todo/79d96613/todo.md)
+
 ## 20260416
 
 Today I am using Cratchit to do the VAT Returns report due 12 May.

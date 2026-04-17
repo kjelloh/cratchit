@@ -4,4 +4,5 @@
 [Consider a way to generate (print) a nice looking M journal entry?](4d6830cc/todo.md)
 [Consider to show help with cents rounding by showing diff-to-balance in journal entry edit?](6a69a870/todo.md)
 [Consider to fix Unknown JournalEntryVATType blocking journal entry stage?](7154ef31/todo.md)
+[Consider to fix SIE import 'CONFLICTED! : No longer valid entry' for what seems identical entries?](79d96613/todo.md)
 [clean up the SIE posted + staged MESS](cf7d0c31/todo.md)
