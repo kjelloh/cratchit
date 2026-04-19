@@ -2,6 +2,7 @@
 [Consider HAD+HAD multi-post aggregation Ux, mechanism and template candidate inference?](04292213/todo.md)
 [Fix so that Box 30 for EU-VAT in VAT Returns form is correctly generated](4559e9ee/todo.md)
 [Consider a way to generate (print) a nice looking M journal entry?](4d6830cc/todo.md)
+[Attend to Github Pages build error 20260417](4ec103e9/todo.md)
 [Consider to show help with cents rounding by showing diff-to-balance in journal entry edit?](6a69a870/todo.md)
 [Consider to fix Unknown JournalEntryVATType blocking journal entry stage?](7154ef31/todo.md)
 [Consider to fix SIE import 'CONFLICTED! : No longer valid entry' for what seems identical entries?](79d96613/todo.md)

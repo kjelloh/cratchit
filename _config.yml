@@ -1,1 +1,6 @@
-theme: jekyll-theme-cayman  # Replace with your preferred theme
+theme: jekyll-theme-cayman
+title: Cratchit
+description: A Swedish C++ accounting SIE file based application
+url: https://kjelloh.github.io
+baseurl: /cratchit
+repository: kjelloh/cratchit
