@@ -1676,6 +1676,7 @@ start_color();
 
 NO. Something has probably happen to environment variable 'TERMINFO' and the acsc setting?
 
+{% raw %}
 ```sh
 kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % infocmp -I $TERMINFO xterm-256color | grep acsc
         acsc=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
@@ -1683,6 +1684,7 @@ kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % infocmp xterm-256col
         acsc=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
 kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit %
 ```
+{% endraw %}
 
 * So what is the acsc setting?
 * And what is the TERMINFO environment variable?
