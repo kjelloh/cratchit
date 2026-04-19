@@ -5,6 +5,14 @@ url: https://kjelloh.github.io
 baseurl: /cratchit
 repository: kjelloh/cratchit
 
+collections:
+  issues:
+    output: true
+    render_with_liquid: false
+  thinking:
+    output: true
+    render_with_liquid: false
+
 defaults:
   - scope:
       path: ""
