@@ -1,3 +1,6 @@
+---
+render_with_liquid: false
+---
 # Thinking out loud on cracthit development
 
 I find thinking out loud by writing to be a valuable tool to stay focused and arrive faster at viable solutions.
