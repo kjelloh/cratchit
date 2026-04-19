@@ -1017,11 +1017,13 @@ I now have a complete picture. Let me present a plan for your approval.
   New signature:
   inline std::optional<CSV::MDTable<AccountID>> to_account_id(CSV::Table const& table)
 
+{% raw %}
   Logic changes:
   - NORDEA detected → return MDTable<AccountID>{{"NORDEA", account_number}, table}
   - SKV detected → return MDTable<AccountID>{{"SKV", org_number}, table}
   - Unknown format (neither NORDEA nor SKV) → return std::nullopt (was: AccountID{"",""})
   - Empty table → return std::nullopt (unchanged behavior)
+{% endraw %}
 
   ---
   Step 2: Update import_pipeline.hpp
