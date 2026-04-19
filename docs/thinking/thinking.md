@@ -8,6 +8,87 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260419
+
+Today I discovered that I could no longer do Option+4 to get a '$' on my Swedish Keyboard.
+
+* None of my AI friends could give me an answer what was going on
+  - At least NOT so that I could understand it.
+  - Although, to be fair, some may have talked about the 'Use Option ans Meta-key'
+  - But I failed to pick up on that (Why would my system have enabled that feature?)
+* It turns out that YES - My sysrem now had enabled 'Use Option key as Meta-key'
+
+This is a setting OF THE TERMINAL!
+
+* It is NOT in the Systems setting for the keyboard
+  - SUPER CONFUSING (to me)
+* It IS in the 'Terminal' / 'Settings' / 'Profiles' tab / 'Keyboard' tab
+  - At the bottom: 'Use Option as Meta key'
+
+**sigh**
+
+I have now tried to see how Cratchit behaves if I start it at some empty location?
+
+* It shows an error 'Sorry, Failed to load environment from "/Users/kjell-olovhogdahl/Downloads/ITfied/itfied_git_repo/cratchit/cratchit.env"'
+  - And YES - I started Cratchit from '/Users/kjell-olovhogdahl/Downloads/ITfied/itfied_git_repo/cratchit' ok.
+* It does not go to a prompt input.
+  - I have to press 'Enter' to get to a prompt.
+
+After exit I now have the following file structure created at the location I started it from.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Downloads/ITfied/itfied_git_repo/cratchit % tree
+.
+├── cratchit.env
+├── from_bank_or_skv
+├── logs
+│   └── rotating_log.txt
+└── skv_specs
+
+4 directories, 2 files
+kjell-olovhogdahl@MacBook-Pro ~/Downloads/ITfied/itfied_git_repo/cratchit % 
+```
+
+I have now used grep to find all commands I have implemented so far in 'zeroth' (original) variant:
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % grep -nF 'ast[0] == "-' src/zeroth/main.cpp
+3326:    else if (ast[0] == "-lua") {
+3347:    else if (ast[0] == "-version" or ast[0] == "-v") {
+3350:    else if (ast[0] == "-tas") {
+3389:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_tag") {
+3407:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-has_not_tag") {
+3426:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_tagged") {
+3452:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-is_not_tagged") {
+3478:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_bas_account") {
+3515:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-amount_trails") {
+3535:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-aggregates") {
+3567:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-to_hads") {
+3588:    else if (model->prompt_state == PromptState::TAIndex and ast[0] == "-todo") {
+3592:    else if (ast[0] == "-bas") {
+3622:    else if (ast[0] == "-sie") {
+3811:    else if (ast[0] == "-huvudbok") {
+3872:    else if (ast[0] == "-balance") {
+3876:    else if (ast[0] == "-hads") {
+3906:    else if (ast[0] == "-meta") {
+3932:    else if (ast[0] == "-sru") {
+3980:    else if (ast[0] == "-gross") {
+3986:    else if (ast[0] == "-net") {
+3992:    else if (ast[0] == "-vat") {
+3998:    else if (ast[0] == "-t2") {
+4002:    else if (ast[0] == "-skv") {
+4018:    else if (ast[0] == "-csv") {
+4118:    else if (ast[0] == "-") {
+4124:    else if (ast[0] == "-omslutning") {
+4177:    else if (ast[0] == "-ar_vs_bas") {
+4187:    else if (ast[0] == "-plain_ar") {
+4270:    else if (ast[0] == "-plain_ink2") {
+4284:    else if (ast[0] == "-doc_ar") {
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+There is a LOT if unfinished experimental 'seeds' here. 
+
 ## 20260417
 
 I have now made a round-trip with the staged SIE to Fortnox and back again.

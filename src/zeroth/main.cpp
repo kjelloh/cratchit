@@ -4957,8 +4957,9 @@ public:
           } else {
             prompt << "\nSorry, Failed to load environment from " << cratchit_environment_file_path;
             auto model = std::make_unique<ConcreteModel>();
-            model->prompt = prompt.str();
             model->prompt_state = PromptState::Root;
+            prompt << "\n" << prompt_line(model->prompt_state);
+            model->prompt = prompt.str();
             return model;
           }
         }
