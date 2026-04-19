@@ -4,3 +4,8 @@ description: A Swedish C++ accounting SIE file based application
 url: https://kjelloh.github.io
 baseurl: /cratchit
 repository: kjelloh/cratchit
+
+collections:
+  issues:
+    output: true
+    render_with_liquid: false
