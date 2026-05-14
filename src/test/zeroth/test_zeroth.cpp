@@ -134,25 +134,27 @@ namespace tests::zeroth {
     class ModelTestsFixture : public ::testing::Test {
     protected:
 
-        fs::path m_fixture_tempt_dir;
+        fs::path m_fixture_temp_dir;
         fs::path m_fixture_sie_file_path;
 
         void SetUp() override {
             // unique folder per test run
-            m_fixture_tempt_dir = fs::temp_directory_path() /
+            m_fixture_temp_dir = fs::temp_directory_path() /
                       fs::path("modeltests_" + std::to_string(::getpid()) +
                                 "_" + std::to_string(::testing::UnitTest::GetInstance()->random_seed()));
 
-            fs::create_directories(m_fixture_tempt_dir);
+            fs::create_directories(m_fixture_temp_dir);
 
             // create sie_in subfolder to match production relative path semantics
-            fs::create_directories(m_fixture_tempt_dir / "sie_in");
+            fs::create_directories(m_fixture_temp_dir / "sie_in");
 
-            m_fixture_sie_file_path = m_fixture_tempt_dir / "sie_in" / "TheITfiedAB20250812_145743.se";
+            // 'Base' (or also called 'posted' SIE file = shared with external tool)
+            m_fixture_sie_file_path = m_fixture_temp_dir / "sie_in" / "TheITfiedAB20250812_145743.se";
 
             std::ofstream ofs(m_fixture_sie_file_path, std::ios::binary);
             ASSERT_TRUE(ofs.is_open()) << "Failed to create test SIE file";
 
+            // Create the SIE file to use as 'base' as an actual SIE file in the test environment files folder
             ofs << sz_TheITfiedAB20250812_145743_se;
             ofs.close();
 
@@ -161,12 +163,12 @@ namespace tests::zeroth {
 
         void TearDown() override {
             std::error_code ec;
-            fs::remove_all(m_fixture_tempt_dir, ec);
+            fs::remove_all(m_fixture_temp_dir, ec);
 
             if (ec)
             {
                 std::cerr << "Warning: failed to cleanup test dir: "
-                          << m_fixture_tempt_dir << " : " << ec.message() << "\n";
+                          << m_fixture_temp_dir << " : " << ec.message() << "\n";
             }
         } // TearDown
     };  

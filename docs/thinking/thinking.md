@@ -8,6 +8,14 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260514
+
+I made a todo [Consider to clean upp the confusing test fixture for SIE file handling at startup and shutdown?](c7ee683b/todo.md).
+
+
+* First I thought I could clean out generation of an actual test SIE file on disk (as this file is never used)? 
+* But then I realised I am still confused what final mechanis to go for?
+
 ## 20260419
 
 Today I discovered that I could no longer do Option+4 to get a '$' on my Swedish Keyboard.
@@ -178,7 +186,7 @@ I still BELEIVE though that:
 
 * I shall NOT rewrite from scratch!
   - History has teached me and others that rewriting from scratch is almost always a BAD choice.
-* I MAY refactor by introdicuing paralell mechanisms until 'new' can replace 'existing'
+* I MAY refactor by introducing paralell mechanisms until 'new' can replace 'existing'
   - In this way I can 'operate on a living patient'?
 
 Before I merged back to master I did some admin enhancements:
@@ -194,9 +202,6 @@ I created:
 * [todos](../../todo/index.md)
 
 So now we are back in the master branch.
-
-
-
 
 ## 20260412
 
@@ -311,7 +316,7 @@ I have to sleep on this?
 
 So I have now let this simmer a while and I have decided:
 
-* Make cratchit constine to hold imported SUEArchive as the 'shared base'
+* Make cratchit constine to hold imported SIEArchive as the 'shared base'
 * Make cratchit hold a complete SIEArchive reflecting all modifications as the 'working base'
 * Make crathcit be able to report the diff between the shared base and working base
 
@@ -344,7 +349,7 @@ How can I find all those 'at' identifiers?
 Surprise!
 
 * When I pick the first 'AccountPosting const& at' and do F2 rename
-  - The editor actually fidns a long list of replacements?
+  - The editor actually finds a long list of replacements?
   - And after replacement the code still compiles.
   - So this is good - But surprised me!
   - What does the renaming actually do?
@@ -610,7 +615,7 @@ I now also renamed to try and clarify cratchit file system meta-defatco and inte
 
 * I allows the test to provide a mockup.
 * But surely there are better ways to do this?
-* Is the virtual 'to istream' member really trhe way to inject the mockup behaviour?
+* Is the virtual 'to istream' member really the way to inject the mockup behaviour?
 
 ## 20260401
 
