@@ -5072,7 +5072,7 @@ private:
 			}
 		}
     std::queue<Msg> in{};
-}; // Cratchit
+}; // REPL
 
 // Environment -> Model
 
@@ -5798,30 +5798,36 @@ namespace zeroth {
 
     logger::business("zeroth::main sais << Hello >> --------------------------------- ");
 
-	if (true) {
-		auto map = sie::current_date_to_year_id_map(std::chrono::month{5},7);
-	}
-	if (false) {
-		test_immutable_file_manager();
-	}
-	if (false) {
-		// test_directory_iterator();
-		// exit(0);
-	}
+    if (true) {
+      auto map = sie::current_date_to_year_id_map(std::chrono::month{5},7);
+    }
+    if (false) {
+      test_immutable_file_manager();
+    }
+    if (false) {
+      // test_directory_iterator();
+      // exit(0);
+    }
 		if (false) {
 			// Log current locale and test charachter encoding.
 			// TODO: Activate to adjust for cross platform handling 
-				std::cout << "\nDeafult (current) locale setting is " << std::locale().name().c_str();
-				std::string sHello{"Hallå Åland! Ömsom ödmjuk. Ärligt äkta."}; // This source file expected to be in UTF-8
-		std::cout << "\nUTF-8 sHello:" << std::quoted(sHello);
-				// std::string sPATH{std::getenv("PATH")};
-		// std::cout << "\nPATH=" << sPATH;
+      std::cout << "\nDeafult (current) locale setting is " << std::locale().name().c_str();
+      std::string sHello{"Hallå Åland! Ömsom ödmjuk. Ärligt äkta."}; // This source file expected to be in UTF-8
+  		std::cout << "\nUTF-8 sHello:" << std::quoted(sHello);
+			// std::string sPATH{std::getenv("PATH")};
+	  	// std::cout << "\nPATH=" << sPATH;
 		}
 	
   	std::signal(SIGWINCH, handle_winch); // We need a signal handler to not confuse std::cin on console window resize
 		std::string command{};
 		for (int i=1;i < argc;i++) command+= std::string{argv[i]} + " ";
 		auto current_path = std::filesystem::current_path();
+
+    // We expect the current path to contain a framework.csv
+    Framework framework{current_path / "framework.csv"};
+
+    logger::development_trace("Framework framework.is_valid() = {}",framework.is_valid());
+
 		auto environment_file_path = current_path / "cratchit.env";
 		REPL repl{environment_file_path};
 		repl.run(command);

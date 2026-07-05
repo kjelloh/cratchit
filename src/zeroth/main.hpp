@@ -6,6 +6,7 @@
 
 float const VERSION = 0.5;
 
+#include "Framework.hpp"
 #include "tokenize.hpp"
 #include "env/environment.hpp"
 #include "fiscal/amount/TaggedAmountFramework.hpp"
