@@ -3,20 +3,19 @@
 #include "persistent/in/raw_text_read.hpp" // path_to_istream_ptr_step,istream_ptr_to_byte_buffer_step
 #include "text/encoding_pipeline.hpp" // to_with_threshold_step_f, to_with_inferred_encoding, to_platform_encoded_string_step
 #include "Key.hpp" // Key::Path as vector of csv fields in a line
-#include "KeyValueMap.hpp"
 #include <exception>
 #include <sstream> // std::istringstream
 
 // public:
 
 Framework::Framework(std::filesystem::path persistent_file_path)
-  : m_persistent_file_path{persistent_file_path} 
-    ,m_valid{digest_persistent_file()} {}
+  : m_persistent_file_path{persistent_file_path} {
+    digest_persistent_file();
+  }
 
 bool Framework::is_valid() {
-  return this->m_valid;
+  return this->m_maybe_map.has_value();
 }
-
 
 // private:
 
@@ -43,13 +42,7 @@ bool Framework::digest_persistent_file() {
       );
     }
 
-    // auto maybe_key_values = persistent::in::text::maybe::path_to_istream_ptr_step(m_persistent_file_path)
-    //   .and_then(persistent::in::text::maybe::istream_ptr_to_byte_buffer_step)
-    //   .and_then(text::encoding::maybe::to_with_threshold_step_f(100))
-    //   .and_then(text::encoding::maybe::to_with_inferred_encoding)
-    //   .and_then(text::encoding::maybe::to_platform_encoded_string_step)
-
-    auto maybe_key_values  = maybe_string.m_value
+    this->m_maybe_map  = maybe_string.m_value
       .and_then([this](std::string const& csv_string) -> std::optional<KeyValueMap> {
         logger::development_trace(
            "Parsing file {}"
@@ -77,15 +70,12 @@ bool Framework::digest_persistent_file() {
         }
 
         if (key_values.size() > 0) return key_values;
+        else {
+          logger::business("digest_persistent_file failed to digest any valid key-value-pairs");
+        }
 
         return std::nullopt;
-      });
-
-      if (maybe_key_values) {
-      }
-      else {
-        logger::business("digest_persistent_file failed to digest any valid key-value-pairs");
-      }
+      }); // and_then
 
   }
   catch (std::exception& e) {
