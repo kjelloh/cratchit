@@ -37,6 +37,7 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
+        src/second/log.cpp
         src/second/main.cpp
 
         src/KeyValueMap.cpp

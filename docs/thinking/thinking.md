@@ -24,6 +24,11 @@ DONE!
 
 * cratchit expects argument '--zeroth','--first' or '--second' to know what variant to spin up
 
+I now tried to figure out if I can use spdlog to get my business,development_trace and design_insufficiency logs?
+
+* I FAILED to get to grips with how to mold spdlog built-in trace,warn,critical,error etc for this purpose?!
+
+Decision: Hand-roll my own plain and simple file based logger!
 
 ## 20260514
 
