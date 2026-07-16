@@ -2,6 +2,7 @@
 #include <print>
 #include <fstream>
 #include <exception>
+#include <chrono>
 
 const std::string log_file_name("cratchit.log");
 
@@ -19,7 +20,12 @@ bool log_file_ok() {
 namespace detail {
   void log_to_file(std::string_view sv) {
     if (log_file_ok()) {
-      auto log_entry = std::format("SOME_TIME_STAMP:{}",sv);
+      auto now = std::chrono::system_clock::now();
+      auto log_entry = std::format(
+         "{:%F %T}: {}"
+        ,floor<std::chrono::milliseconds>(now)
+        ,sv
+      );
       log_file_instance() << "\n" << log_entry;
     }
     else throw std::runtime_error(std::format(
