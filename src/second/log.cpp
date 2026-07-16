@@ -4,20 +4,26 @@
 #include <exception>
 
 const std::string log_file_name("cratchit.log");
-static std::ofstream log_file(log_file_name);
+
+std::ofstream& log_file_instance()
+{
+    // create static instance on first call
+    static std::ofstream file("cratchit.log"); // Open fresh empty log file
+    return file;
+}
 
 bool log_file_ok() {
-  return static_cast<bool>(log_file);
+  return static_cast<bool>(log_file_instance());
 }
 
 namespace detail {
   void log_to_file(std::string_view sv) {
     if (log_file_ok()) {
       auto log_entry = std::format("SOME_TIME_STAMP:{}",sv);
-      log_file << "\n" << log_entry;
+      log_file_instance() << "\n" << log_entry;
     }
     else throw std::runtime_error(std::format(
-      "FAILED to create log file '{}'"
+      "FAILED to use not-ok log file '{}'"
       ,log_file_name));
   }
 } // detail
