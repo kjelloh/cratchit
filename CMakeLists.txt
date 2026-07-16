@@ -37,6 +37,8 @@ find_package(GTest REQUIRED)
 add_executable(
         cratchit
 
+        src/second/main.cpp
+
         src/KeyValueMap.cpp
         src/Framework.cpp
         src/sie/SIEArchive.cpp

@@ -8,6 +8,23 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260716
+
+So I have decided to give up on zeroth and first and create a second variant from scratch.
+
+The zeroth and first varaints is just a mess now. I feel it is almost impossible to make any progress or refactor anything forwardf with these code bases. So maybe it is time to start from scratch and see if I can hone in on the jems I have found in my attempts so far?
+
+The plan to get going is:
+
+* Make cratchit act on a new argument that specifies what variant to run
+  * No ping-pong between variants anymore
+* Put all variant 'second' in its own sub directory.
+
+DONE!
+
+* cratchit expects argument '--zeroth','--first' or '--second' to know what variant to spin up
+
+
 ## 20260514
 
 I made a todo [Consider to clean upp the confusing test fixture for SIE file handling at startup and shutdown?](c7ee683b/todo.md).

@@ -1,11 +1,12 @@
-#include "cratchit.h"
+#include "cratchit.h" // first::main(...) = the cratchit variant after zeroth
 #include "test/test_runner.hpp"
 #include <vector>
 #include <string>
 #include <print>
 #include "logger/log.hpp"
 #include <spdlog/sinks/rotating_file_sink.h>
-#include "zeroth/main.cpp" // zeroth variant while refactoring into 'this' variant
+#include "zeroth/main.cpp" // zeroth::main(...) = the initial cratchit
+#include "second/main.hpp" // second::main(..) = the cratchit variant after first
 
 int main(int argc, char *argv[]) {
 
@@ -17,17 +18,38 @@ int main(int argc, char *argv[]) {
 
     logger::business("Central main sais << Hello >> --------------------------------- ");
 
-    for (int i = 0; i < argc; ++i) {
-        spdlog::info("Argument {}: {}", i, argv[i]);
-        std::print("Argument {}: {}\n", i, argv[i]);
-    }
-
     // shoe horned in conan package manager test code (just to keep it for now)
     if (true) {
         conan_gen_print_build_properties();
         std::vector<std::string> vec;
         vec.push_back("test_package");
         cratchit_print_vector(vec);
+    }
+
+    enum class CratchitVariant {
+        Undefined
+      ,Zeroth
+      ,First
+      ,Second
+      ,Unknown
+    }; // CratchitVariant
+
+    CratchitVariant cratchit_variant{};
+    // parse arguments
+    for (int i=0;i<argc;++i) {
+
+      spdlog::info("Argument {}: '{}'", i, argv[i]);
+      std::print("Argument {}: '{}'\n", i, argv[i]);
+
+      if (std::string(argv[i]) == "--zeroth") {
+        cratchit_variant = CratchitVariant::Zeroth;
+      }
+      else if (std::string(argv[i]) == "--first") {
+        cratchit_variant = CratchitVariant::First;
+      }
+      else if (std::string(argv[i]) == "--second") {
+        cratchit_variant = CratchitVariant::Second;
+      }
     }
 
     int result{0};
@@ -54,18 +76,29 @@ int main(int argc, char *argv[]) {
         int g_argc = static_cast<int>(g_argv.size());
         result = !tests::run_all(g_argc,g_argv.data());
     }
-    else while (true) {
-        static int loop_count{0};
-        logger::business("Central main: ping-pong-count:{}",++loop_count);
+    else {
 
-        logger::design_insufficiency("Central main test of design_insufficiency log");
-        logger::development_trace("Central main test of development_trace log");
-        
-        // Toggle between zeroth (older) and first (this variant) of cratching
-        if (result = zeroth::main(argc, argv);result > 0) break;
-        // std::cout << "\nCentral main sais Hello :)" << std::flush;
-        if (result = first::main(argc,argv);result == 0) break;
-    }
+      switch (cratchit_variant) {
+        case CratchitVariant::Zeroth: {
+          result = result = zeroth::main(argc, argv);
+        } break;
+        case CratchitVariant::First: {
+          result = result = first::main(argc, argv);
+        } break;
+        case CratchitVariant::Second: {
+          result = result = second::main(argc, argv);
+        } break;
+        default: {
+          const auto err_msg = std::format(
+             "Failed to know how to start cratchit variant with enum value:{}"
+            ,static_cast<int>(cratchit_variant)
+          );
+          std::cout << "\n" << err_msg;
+          logger::design_insufficiency("{}",err_msg);
+        } // default
+      } // switch
+
+    } // else
 
     logger::business("Central main sais >> Bye with result:{} << -----------------------------------",result);
 
