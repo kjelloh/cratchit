@@ -36,7 +36,8 @@ find_package(GTest REQUIRED)
 
 add_executable(
         cratchit
-
+        
+        src/second/RawTerminal.cpp
         src/second/log.cpp
         src/second/main.cpp
 
