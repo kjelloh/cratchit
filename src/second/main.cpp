@@ -46,6 +46,8 @@ namespace second {
     /* raylib */ SetTargetFPS(75);
     /* our */    init_imgui();
 
+    /* our */ JUI::Jui ui{};
+
     // Main ImGui Loop
     bool should_run{true};
 
@@ -59,6 +61,8 @@ namespace second {
       /* rlImGui */ rlImGuiBegin();
 
       /* raylib */ ClearBackground(JUI::to_ray_color(Jcolor::Crust));
+
+      ui.draw();
 
       /* rlImGui */ rlImGuiEnd();
       /* raylib */ EndDrawing();

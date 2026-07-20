@@ -323,6 +323,16 @@ I also deleted previous approach with the raw console API attempt.
 
 I checked this in as a 'ratchet' milestone.
 
+I now implemented the Jui class and draw method to render the grid that the youtube video code generates.
+
+At this time I skipped the rest of the graphics in draw() as I am not interested in this for cratchit.
+
+So what is next to read keyboard input from the user and output it as imgui ux through raylib viewport?
+
+I jump to video at around 23:00 to implement the update() method to read keys.
+
+First I checked in the draw() code for now.
+
 ## 20260719
 
 I seems I actually CAN init a Raylib + ImGUI app in the current console.
