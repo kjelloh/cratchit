@@ -52,7 +52,7 @@ namespace second {
     // Main ImGui Loop
     bool should_run{true};
 
-    while (should_run) {
+    while (should_run and ! /* raylib*/ WindowShouldClose()) {
 
       if (/* raylib */ IsKeyPressed(KEY_CAPS_LOCK)) {
         should_run = false;
@@ -81,6 +81,10 @@ namespace second {
       }
 
       ImGui::Text("Buffer byte values: %s", message.data());
+
+      if (strlen(name) == 1 and name[0] == 'q') {
+        should_run = false;
+      }
 
       ImGui::End();
 
