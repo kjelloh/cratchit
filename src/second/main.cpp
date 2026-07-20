@@ -54,10 +54,6 @@ namespace second {
 
     while (should_run and ! /* raylib*/ WindowShouldClose()) {
 
-      if (/* raylib */ IsKeyPressed(KEY_CAPS_LOCK)) {
-        should_run = false;
-      }
-
       /* raylib */ BeginDrawing();
       /* rlImGui */ rlImGuiBegin();
 
@@ -67,22 +63,24 @@ namespace second {
 
       ImGui::Begin("Input Test");
 
-      static char name[128] = "";
+      const size_t INPUT_BUF_SIZE = 128;
+      static char input_buf[INPUT_BUF_SIZE] = "";
 
-      if (ImGui::InputText("Name", name, sizeof(name)))
+      ImGui::SetKeyboardFocusHere(); // hard code focus to the following InputText
+      if (ImGui::InputText("(single q to exit)>", input_buf, sizeof(input_buf)))
       {
           // called when text changed
       }
 
       std::string message{};
-      for (size_t i=0;i<128;++i) {
-        if (name[i] == 0) break;
-        message += std::format("<{:x}>",name[i]);
+      for (size_t i=0;i<INPUT_BUF_SIZE;++i) {
+        if (input_buf[i] == 0) break;
+        message += std::format("<{:x}>",input_buf[i]);
       }
 
       ImGui::Text("Buffer byte values: %s", message.data());
 
-      if (strlen(name) == 1 and name[0] == 'q') {
+      if (strlen(input_buf) == 1 and input_buf[0] == 'q') {
         should_run = false;
       }
 
