@@ -33,11 +33,18 @@ find_package(icu REQUIRED)
 find_package(immer REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(GTest REQUIRED)
+find_package(raylib)
 
 add_executable(
         cratchit
-        
-        src/second/RawTerminal.cpp
+
+        src/second/ui/jui.cpp
+        src/second/vendored/imgui/imgui.cpp
+        src/second/vendored/imgui/imgui_draw.cpp
+        src/second/vendored/imgui/imgui_tables.cpp
+        src/second/vendored/imgui/imgui_widgets.cpp
+        src/second/vendored/imgui/rlImGui.cpp
+
         src/second/log.cpp
         src/second/main.cpp
 
@@ -139,6 +146,7 @@ target_link_libraries(cratchit PRIVATE ICU::i18n ICU::uc)
 target_link_libraries(cratchit PRIVATE immer::immer)
 target_link_libraries(cratchit PRIVATE spdlog::spdlog)
 target_link_libraries(cratchit PRIVATE gtest::gtest)
+target_link_libraries(cratchit PRIVATE raylib)
 
 install(TARGETS cratchit DESTINATION "."
         RUNTIME DESTINATION bin

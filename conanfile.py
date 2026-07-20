@@ -38,6 +38,8 @@ class cratchitRecipe(ConanFile):
         self.requires("immer/0.8.1")
         self.requires("spdlog/1.15.0")
         self.requires("gtest/1.15.0")
+
+        self.requires("raylib/6.0")
         
     def layout(self):
         cmake_layout(self)

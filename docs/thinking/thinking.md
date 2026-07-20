@@ -8,6 +8,344 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+
+## 20260720
+
+Time to experiment with imgui and raylib as proposed by [Procedurally Generate A Universe with Raylib, C++, ImGui](https://youtu.be/el7p-HC77g8)
+
+I cloned imgui to my Github reps folder.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub % git clone https://github.com/ocornut/imgui.git
+Cloning into 'imgui'...
+remote: Enumerating objects: 70071, done.
+remote: Counting objects: 100% (127/127), done.
+remote: Compressing objects: 100% (52/52), done.
+remote: Total 70071 (delta 96), reused 75 (delta 75), pack-reused 69944 (from 3)
+Receiving objects: 100% (70071/70071), 124.61 MiB | 11.93 MiB/s, done.
+Resolving deltas: 100% (54965/54965), done.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub % cd imgui 
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/imgui % ls
+LICENSE.txt		docs			imconfig.h		imgui.h			imgui_draw.cpp		imgui_tables.cpp	imstb_rectpack.h	imstb_truetype.h
+backends		examples		imgui.cpp		imgui_demo.cpp		imgui_internal.h	imgui_widgets.cpp	imstb_textedit.h	misc
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/imgui % tree .
+```
+
+Then I copied imgui cpp- and h-files to cratchit sub-folder for the second variant to use.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % mkdir src/second/vendored
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % mkdir src/second/vendored/imgui
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/imgui/*.cpp src/second/vendored/imgui 
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ls src/second/vendored/imgui 
+imgui.cpp		imgui_demo.cpp		imgui_draw.cpp		imgui_tables.cpp	imgui_widgets.cpp
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/imgui/*.h src/second/vendored/imgui
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ls src/second/vendored/imgui                                                    
+imconfig.h		imgui.h			imgui_draw.cpp		imgui_tables.cpp	imstb_rectpack.h	imstb_truetype.h
+imgui.cpp		imgui_demo.cpp		imgui_internal.h	imgui_widgets.cpp	imstb_textedit.h
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % tree src/second/vendored 
+src/second/vendored
+└── imgui
+    ├── imconfig.h
+    ├── imgui.cpp
+    ├── imgui.h
+    ├── imgui_demo.cpp
+    ├── imgui_draw.cpp
+    ├── imgui_internal.h
+    ├── imgui_tables.cpp
+    ├── imgui_widgets.cpp
+    ├── imstb_rectpack.h
+    ├── imstb_textedit.h
+    └── imstb_truetype.h
+
+2 directories, 11 files
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+I now see I don't yet have the rlImgui* files that the presenter in the youtube video have. I suspect they are in the raylib repo so I clone that to.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub % git clone https://github.com/raysan5/raylib.git
+Cloning into 'raylib'...
+remote: Enumerating objects: 60374, done.
+remote: Counting objects: 100% (253/253), done.
+remote: Compressing objects: 100% (127/127), done.
+remote: Total 60374 (delta 191), reused 126 (delta 126), pack-reused 60121 (from 5)
+Receiving objects: 100% (60374/60374), 410.54 MiB | 7.38 MiB/s, done.
+Resolving deltas: 100% (44523/44523), done.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub % 
+```
+
+I fail to find the files imgui_impl_raylib.h, rlImGui.cpp/h, rlImGuiColors.h? Maybe they are the presenters own files?
+
+Anyhow, I go ahead and copy the prosed files from raylib to cratchit as sugested in the video.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % mkdir src/second/vendored/raylib
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/raylib/src/raylib.h src/second/vendored/raylib 
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/raylib/src/raymath.h src/second/vendored/raylib 
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/raylib/src/rlgl.h src/second/vendored/raylib
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+I now brute forced ahead and updated cratchit Cmake with the new cpp-units to build and also created the missing cpp-units.
+
+I added to CMakeLists.txt
+
+```c++
+add_executable(
+        cratchit
+
+        src/second/ui/jui.cpp
+        src/second/vendored/imgui/imgui.cpp
+        src/second/vendored/imgui/imgui_draw.cpp
+        src/second/vendored/imgui/imgui_demo.cpp
+        src/second/vendored/imgui/imgui_tables.cpp
+        src/second/vendored/imgui/imgui_widgets.cpp
+        src/second/vendored/imgui/rlImGui.cpp
+
+```
+
+And created required missing files
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % mkdir src/second/ui
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % touch src/second/ui/jui.cpp
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % touch src/second/vendored/imgui/rlImGui.cpp
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+ALL build fine for now.
+
+I started to write the code.
+
+```cpp
+// ...
+#include "vendored/raylib/raylib.h"
+// ...
+
+namespace second {
+  int main(int argc, char *argv[]) {
+    // ...
+    InitWindow(900,800,"cratchit second demo");
+    // ...
+
+```
+
+But now I get linker error for InitWindow.
+
+Now cratchit consumes libraries from conan package manager and raylib is available from conan. So I added it.
+
+In conanfile.py:
+
+```python
+    # ...
+    def requirements(self):
+        # ...
+        self.requires("raylib/6.0")
+
+```
+
+And I then ran the init_tool_chain.zsh to initialise tghe cmake tool chain with the updated conan dependancies.
+
+The conan package manager runtime (or whatever we shall call it) now tells me to also update CMakeLists.txt to find and link the raylib library. SO I did.
+
+In CMakeLists.txt:
+
+```sh
+# ...
+find_package(raylib)
+# ...
+target_link_libraries(cratchit PRIVATE raylib)
+# ...
+
+```
+
+And now cratchit compoiles and links ok.
+
+I continued adding code and realised that is from https://github.com/raylib-extras/rlImGui?
+
+So I cloned it and added the missing files I identified above.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub % git clone https://github.com/raylib-extras/rlImGui
+Cloning into 'rlImGui'...
+remote: Enumerating objects: 580, done.
+remote: Counting objects: 100% (285/285), done.
+remote: Compressing objects: 100% (32/32), done.
+remote: Total 580 (delta 268), reused 253 (delta 253), pack-reused 295 (from 1)
+Receiving objects: 100% (580/580), 5.97 MiB | 4.66 MiB/s, done.
+Resolving deltas: 100% (349/349), done.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub % 
+```
+
+And I copied the missing cpp- and h-files from the rlImGui repo ok.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/rlImGui/*.h src/second/vendored/imgui 
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/rlImGui/*.cpp src/second/vendored/imgui
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % tree src/second/vendored/imgui 
+src/second/vendored/imgui
+├── imconfig.h
+├── imgui.cpp
+├── imgui.h
+├── imgui_demo.cpp
+├── imgui_draw.cpp
+├── imgui_impl_raylib.h
+├── imgui_internal.h
+├── imgui_tables.cpp
+├── imgui_widgets.cpp
+├── imstb_rectpack.h
+├── imstb_textedit.h
+├── imstb_truetype.h
+├── rlImGui.cpp
+├── rlImGui.h
+└── rlImGuiColors.h
+
+1 directory, 15 files
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+I now also needed to copy some files from the rlImGui extras folder to make my code compile.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/rlImGui/extras/IconsFontAwesome6.h src/second/vendored/imgui/extras/
+cp: directory src/second/vendored/imgui/extras does not exist
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % mkdir src/second/vendored/imgui/extras
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/rlImGui/extras/IconsFontAwesome6.h src/second/vendored/imgui/extras/
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/rlImGui/extras/FA6FreeSolidFontData.h  src/second/vendored/imgui/extras/ 
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+I could now add the shut-down code
+
+```cpp
+
+// ...
+#include "vendored/imgui/rlImGui.h"
+// ...
+
+namespace second {
+  int main(int argc, char *argv[]) {
+
+    // ...
+
+    // Main Imgui Loop 
+
+    /* rlImGui */ rlImGuiShutdown();
+    /* raylib */ CloseWindow();
+
+```
+
+I went on and realised I could copy code from https://github.com/jonkero9/universe_generation_demo/tree/main that contains the code in the video.
+
+I cloned the repo.
+
+Then I added the jui unit.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cp /Users/kjell-olovhogdahl/Documents/GitHub/universe_generation_demo/src/ui/*.*  src/second/ui        
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % tree src/second/ui 
+src/second/ui
+├── jui.cpp
+└── jui.hpp
+
+1 directory, 2 files
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+I actually tweaked the code I added to only be what I use for now. I pressed on and got a main that actually created a window and could be closed with pressing caps lock.
+
+```cpp
+
+    // Main ImGui Loop
+    bool should_run{true};
+
+    while (should_run) {
+
+      if (/* raylib */ IsKeyPressed(KEY_CAPS_LOCK)) {
+        should_run = false;
+      }
+
+      /* raylib */ BeginDrawing();
+      /* rlImGui */ rlImGuiBegin();
+
+      /* raylib */ ClearBackground(JUI::to_ray_color(Jcolor::Crust));
+
+      /* rlImGui */ rlImGuiEnd();
+      /* raulib */ EndDrawing();
+
+    } // while
+
+    /* rlImGui */ rlImGuiShutdown();
+    /* raylib */ CloseWindow();
+```
+
+At this stage I had files cloned frm imgui,rlImGui, raylib and selected code from presenter in the youtube video.
+
+```sh
+  # from youtube video code
+  new file:   src/second/color.hpp
+	new file:   src/second/ui/jui.cpp
+	new file:   src/second/ui/jui.hpp
+	
+  # from imgui git repo
+  new file:   src/second/vendored/imgui/extras/FA6FreeSolidFontData.h
+	new file:   src/second/vendored/imgui/extras/IconsFontAwesome6.h
+	new file:   src/second/vendored/imgui/imconfig.h
+	new file:   src/second/vendored/imgui/imgui.cpp
+	new file:   src/second/vendored/imgui/imgui.h
+	new file:   src/second/vendored/imgui/imgui_demo.cpp
+	new file:   src/second/vendored/imgui/imgui_draw.cpp
+	new file:   src/second/vendored/imgui/imgui_impl_raylib.h
+	new file:   src/second/vendored/imgui/imgui_internal.h
+	new file:   src/second/vendored/imgui/imgui_tables.cpp
+	new file:   src/second/vendored/imgui/imgui_widgets.cpp
+	new file:   src/second/vendored/imgui/imstb_rectpack.h
+	new file:   src/second/vendored/imgui/imstb_textedit.h
+	new file:   src/second/vendored/imgui/imstb_truetype.h
+	new file:   src/second/vendored/imgui/rlImGui.cpp
+	new file:   src/second/vendored/imgui/rlImGui.h
+	new file:   src/second/vendored/imgui/rlImGuiColors.h
+
+  # from raylib git repo
+	new file:   src/second/vendored/raylib/raylib.h
+	new file:   src/second/vendored/raylib/raymath.h
+	new file:   src/second/vendored/raylib/rlgl.h
+```
+
+I also deleted previous approach with the raw console API attempt.
+
+```sh
+  deleted:    src/second/RawTerminal.cpp
+	deleted:    src/second/RawTerminal.hpp
+```
+
+I checked this in as a 'ratchet' milestone.
+
+## 20260719
+
+I seems I actually CAN init a Raylib + ImGUI app in the current console.
+
+* See [Procedurally Generate A Universe with Raylib, C++, ImGui](https://youtu.be/el7p-HC77g8)
+
+  * Consider to try out the project setup to see if I can make 'second' be based on ImGUI and Raylib?
+
+And I decide to adress the cross platform issues later. I do macOS for now and fingers crossed ImGUI and RayLib is as 'cross platform' as they promise!
+
+Note: My worry is still that Raylib seems to be Open GL based (in some not fully clear way), and macOS does in fact not supporting Open GL anymore (Open GL 4.0 in practice as long as support is still in the OS).
+
+## 20260718
+
+I am still unsatisfied with what cross platform GUI framework to use.
+
+* It seems the crux is to find a cross platform renderer.
+* Once I have one I can use e.g., Dear ImGUI or simmilar to 'draw' the GUI in the graphics windo of the renderer.
+
+So what are the 'raw' graphicas pipeline for Linux, macOS and Windows?
+
+
+
 ## 20260716
 
 So I have decided to give up on zeroth and first and create a second variant from scratch.

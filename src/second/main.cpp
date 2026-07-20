@@ -1,10 +1,35 @@
 #include "main.hpp"
 #include "log.hpp"
-#include "RawTerminal.hpp"
+
+#include "vendored/raylib/raylib.h"
+#include "vendored/imgui/rlImGui.h"
+#include "vendored/imgui/imgui.h"
+#include "ui/jui.hpp"
+
 #include <print>
 #include <iostream>
 
+// Followed example in Youtube video https://youtu.be/el7p-HC77g8
+// Code from https://github.com/jonkero9/universe_generation_demo/blob/main/src/main.cpp
+void init_imgui() {
+  rlImGuiSetup(true);
+
+  ImGuiStyle& style = ImGui::GetStyle();
+  style.Colors[ImGuiCol_WindowBg] = JUI::to_imvec4(Jcolor::Crust);
+
+  style.Colors[ImGuiCol_Text] = JUI::to_imvec4(Jcolor::Cornsilk);
+  style.Colors[ImGuiCol_FrameBg] = JUI::to_imvec4(Jcolor::Greenyell);
+  style.WindowRounding = 8.0f;
+  style.FrameRounding = 4.0f;
+  style.WindowPadding = {12, 12};
+  style.FramePadding = {6, 6};
+  style.CellPadding = {4, 4};
+
+  style.FontSizeBase = 28.f;  
+}
+
 namespace second {
+
   int main(int argc, char *argv[]) {
     log_business("second::cratchit START");
     log_development_trace("Hello from second::main");
@@ -14,43 +39,35 @@ namespace second {
     log_development_trace("Test with formatting int value {}",3);
     log_design_insufficiency("Test with formatting int value {}",4);
 
-    size_t console_window_line_height = 10;
-    size_t consolde_window_column_width = 40;
-    std::vector<std::string> console_grid(console_window_line_height,std::string(consolde_window_column_width,' '));
-    bool loop_again(true);
-    std::string in_buffer{};
-    RawTerminal raw_terminal{};
-    while (loop_again) {
-      // Clear the console grid
-      for (size_t r=0;r<console_grid.size();++r) console_grid[r].assign(consolde_window_column_width, ' ');
-      // Read console key press
-      auto ch = raw_terminal.wait_for_char(); // Blocking read
-      unsigned char byte = static_cast<unsigned char>(ch);
-      in_buffer += std::format("[{:X}]",byte);
+    // Followed example in Youtube video https://youtu.be/el7p-HC77g8
+    // Code from https://github.com/jonkero9/universe_generation_demo/blob/main/src/main.cpp
 
-      // Render the console window
-      std::print("\033[H"); // move to 'home'
-      for (size_t r=0;r<console_grid.size();++r) {
-        for (size_t c=0;c<console_grid[0].size();++c) {
-          if (r==0 or r==console_grid.size()-1) console_grid[r][c] = static_cast<char>('0' + c%10);
-          else if (c==0 or c==console_grid[0].size()-1) console_grid[r][c] = static_cast<char>('0' + r%10);
+    /* raylib */ InitWindow(900,800,"cratchit second demo");
+    /* raylib */ SetTargetFPS(75);
+    /* our */    init_imgui();
 
-          // render the input buffer
-          if (r==1 and c>0 and c<console_grid[0].size()-1 and (c-1) < in_buffer.size()) {
-            if (c>console_grid[0].size()-5) {
-              for (size_t j=0;j<3;++j) console_grid[r][c+j] = '.'; // mark truncagtion with '.'s
-            }
-            else console_grid[r][c] = in_buffer[c-1];
-          }
-        }
-      }
-      
-      // render the console
-      for (size_t r=0;r<console_window_line_height;++r) {
-        std::print("{}\n",console_grid[r]);
+    // Main ImGui Loop
+    bool should_run{true};
+
+    while (should_run) {
+
+      if (/* raylib */ IsKeyPressed(KEY_CAPS_LOCK)) {
+        should_run = false;
       }
 
-    }
+      /* raylib */ BeginDrawing();
+      /* rlImGui */ rlImGuiBegin();
+
+      /* raylib */ ClearBackground(JUI::to_ray_color(Jcolor::Crust));
+
+      /* rlImGui */ rlImGuiEnd();
+      /* raylib */ EndDrawing();
+
+    } // while
+
+    /* rlImGui */ rlImGuiShutdown();
+    /* raylib */ CloseWindow();
+
     return 0;
   }
 } // second
