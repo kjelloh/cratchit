@@ -8,6 +8,7 @@
 
 #include <print>
 #include <iostream>
+#include <format>
 
 // Followed example in Youtube video https://youtu.be/el7p-HC77g8
 // Code from https://github.com/jonkero9/universe_generation_demo/blob/main/src/main.cpp
@@ -63,6 +64,25 @@ namespace second {
       /* raylib */ ClearBackground(JUI::to_ray_color(Jcolor::Crust));
 
       ui.draw();
+
+      ImGui::Begin("Input Test");
+
+      static char name[128] = "";
+
+      if (ImGui::InputText("Name", name, sizeof(name)))
+      {
+          // called when text changed
+      }
+
+      std::string message{};
+      for (size_t i=0;i<128;++i) {
+        if (name[i] == 0) break;
+        message += std::format("<{:x}>",name[i]);
+      }
+
+      ImGui::Text("Buffer byte values: %s", message.data());
+
+      ImGui::End();
 
       /* rlImGui */ rlImGuiEnd();
       /* raylib */ EndDrawing();

@@ -333,6 +333,12 @@ I jump to video at around 23:00 to implement the update() method to read keys.
 
 First I checked in the draw() code for now.
 
+OK, so here is where the example code in the video gives me nothing. The code triggers on hard coded key downs and moves the 'camera' based on this. But I want to parse key presses into text and control keys so I need something else.
+
+I found an example for a text box (https://www.raylib.com/examples/text/loader.html?name=text_input_box). Seems legit?!
+
+
+
 ## 20260719
 
 I seems I actually CAN init a Raylib + ImGUI app in the current console.
