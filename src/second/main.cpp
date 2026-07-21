@@ -42,7 +42,7 @@ namespace second {
 
     // Set custom logger
     SetTraceLogCallback(CustomTraceLog);
-    
+
     const int screenWidth = 800;
     const int screenHeight = 450;
 
@@ -50,25 +50,105 @@ namespace second {
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
+    // BEGIN Text input mechanism
+    //--------------------------------------------------------------------------------------
+    const size_t MAX_INPUT_CHARS = 9;
+    char name[MAX_INPUT_CHARS + 1] = "\0";      // NOTE: One extra space required for null terminator char '\0'
+    int letterCount = 0;
 
-    // Main game loop
+    Rectangle textBox = { screenWidth/2.0f - 100, 180, 225, 50 };
+    bool mouseOnText = false;
+
+    int framesCounter = 0;    
+    //--------------------------------------------------------------------------------------
+    // END Text input mechanism
+    //--------------------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------------------
+    // Main render window loop
+    //--------------------------------------------------------------------------------------
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
         //----------------------------------------------------------------------------------
-        // TODO: Update your variables here
+        // BEGIN Update
+        //----------------------------------------------------------------------------------
+        if (CheckCollisionPointRec(GetMousePosition(), textBox)) mouseOnText = true;
+        else mouseOnText = false;
+
+        if (mouseOnText) {
+            // Set the window's cursor to the I-Beam
+            SetMouseCursor(MOUSE_CURSOR_IBEAM);
+
+            // Get char pressed (unicode character) on the queue
+            int key = GetCharPressed();
+
+            // Check if more characters have been pressed on the same frame
+            while (key > 0)
+            {
+                // NOTE: Only allow keys in range [32..125]
+                if ((key >= 32) && (key <= 125) && (letterCount < MAX_INPUT_CHARS))
+                {
+                    name[letterCount] = (char)key;
+                    name[letterCount+1] = '\0'; // Add null terminator at the end of the string
+                    letterCount++;
+                }
+
+                key = GetCharPressed();  // Check next character in the queue
+            }
+
+            if (IsKeyPressed(KEY_BACKSPACE))
+            {
+                letterCount--;
+                if (letterCount < 0) letterCount = 0;
+                name[letterCount] = '\0';
+            }
+        }
+        else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+
+        if (mouseOnText) framesCounter++;
+        else framesCounter = 0;
+        //----------------------------------------------------------------------------------
+        // END Update
         //----------------------------------------------------------------------------------
 
-        // Draw
+        //----------------------------------------------------------------------------------
+        // BEGIN Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
 
-            ClearBackground(RAYWHITE);
+          ClearBackground(RAYWHITE);
 
-            DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
+          DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
 
-        EndDrawing();
+          //----------------------------------------------------------------------------------
+          // BEGIN key input processing and rendering
+          //----------------------------------------------------------------------------------
+
+          DrawText("PLACE MOUSE OVER INPUT BOX!", 240, 140, 20, GRAY);
+
+          DrawRectangleRec(textBox, LIGHTGRAY);
+          if (mouseOnText) DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, RED);
+          else DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, DARKGRAY);
+
+          DrawText(name, (int)textBox.x + 5, (int)textBox.y + 8, 40, MAROON);
+
+          DrawText(TextFormat("INPUT CHARS: %i/%i", letterCount, MAX_INPUT_CHARS), 315, 250, 20, DARKGRAY);
+
+          if (mouseOnText) {
+            if (letterCount < MAX_INPUT_CHARS) {
+                // Draw blinking underscore char
+                if (((framesCounter/20)%2) == 0) DrawText("_", (int)textBox.x + 8 + MeasureText(name, 40), (int)textBox.y + 12, 40, MAROON);
+            }
+            else DrawText("Press BACKSPACE to delete chars...", 230, 300, 20, GRAY);
+          }
+          //----------------------------------------------------------------------------------
+          // END key input processing and rendering
+          //----------------------------------------------------------------------------------
+
         //----------------------------------------------------------------------------------
+        // END Draw
+        //----------------------------------------------------------------------------------
+        EndDrawing();
     }
 
     // De-Initialization
