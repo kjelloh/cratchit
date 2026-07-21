@@ -51,9 +51,7 @@ namespace second {
     // MUST be done a f t e r InitWindow.
     // Also see: https://github.com/raysan5/raylib/blob/master/examples/text/text_unicode_ranges.c
 
-    std::vector<int> codepoints;
-
-
+    std::vector<int> codepoints{};
 
     // ASCII 0x0020, 0x007E
     for (int cp = 0x0020; cp <= 0x007E; ++cp)
@@ -62,6 +60,21 @@ namespace second {
     // Latin Extended 0x00C0, 0x017F
     for (int cp = 0x00C0; cp <= 0x017F; ++cp)
         codepoints.push_back(cp);
+
+    // Does NotoSans-Regular.ttf cover more code points?
+    // According to chatGPT it does
+
+    // chatGPT: For broad European support, you may want:
+    // U+0180–U+024F	Latin Extended-B	ƒ, Ǎ, Ȟ, Ș, Ț
+    // U+1E00–U+1EFF	Latin Extended Additional	Vietnamese and additional accented Latin
+    // U+2000–U+206F	General Punctuation	quotes, dashes, ellipsis (See https://en.wikipedia.org/wiki/General_Punctuation)
+
+    // U+20A0–U+20CF	Currency Symbols	€, £, ¥
+    for (int cp = 0x20A0; cp <= 0x20CF; ++cp)
+        codepoints.push_back(cp);
+
+    // U+2190–U+21FF	Arrows	← ↑ → ↓
+    // U+2200–U+22FF	Mathematical Operators	± ≤ ≥ ≠        
 
     Font font = LoadFontEx(
          "resources/NotoSans-Regular.ttf"       // path to true type font file
@@ -181,7 +194,7 @@ namespace second {
           // void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
           DrawTextEx(
              font
-            ,"Unicode test: Hallå Världen" // UTF-8 text
+            ,R"(Unicode test: Hallå Världen. €'"`)" // UTF-8 text
             ,(Vector2){ 5, screenHeight-80 } // x/column , y/row
             ,32         // font size (pixels)
             ,5          // Spacing (pixels)
