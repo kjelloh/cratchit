@@ -50,8 +50,28 @@ namespace second {
 
     // MUST be done a f t e r InitWindow.
     // Also see: https://github.com/raysan5/raylib/blob/master/examples/text/text_unicode_ranges.c
-    //           to see if we need to do more to have raylib know the covered unicode code points?
-    Font font = LoadFont("resources/NotoSans-Regular.ttf");
+
+    std::vector<int> codepoints;
+
+
+
+    // ASCII 0x0020, 0x007E
+    for (int cp = 0x0020; cp <= 0x007E; ++cp)
+        codepoints.push_back(cp);
+
+    // Latin Extended 0x00C0, 0x017F
+    for (int cp = 0x00C0; cp <= 0x017F; ++cp)
+        codepoints.push_back(cp);
+
+    Font font = LoadFontEx(
+         "resources/NotoSans-Regular.ttf"       // path to true type font file
+        ,32                                     // font size height
+        ,codepoints.data()                      // array*
+        ,static_cast<int>(codepoints.size())    // array element count
+    );
+    // NOTE: According to AI raylib renders bitmaps for fonts and then scales them when required for rendering in other sizes.
+    //       Scaling down should look fine. So if we load to 32 pixel bitmaps we should get good output for sizes < 32?
+
     if (font.texture.id == 0) {
         TraceLog(LOG_ERROR, "Failed to load font");
         // Handle failure here
@@ -62,8 +82,6 @@ namespace second {
         TraceLog(LOG_INFO, "Font loaded successfully");
         SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
     }    
-
-    // SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
@@ -163,11 +181,11 @@ namespace second {
           // void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
           DrawTextEx(
              font
-            ,"Unicode test: Hallå Världen"
+            ,"Unicode test: Hallå Världen" // UTF-8 text
             ,(Vector2){ 5, screenHeight-80 } // x/column , y/row
-            ,32
-            ,1
-            ,DARKGRAY
+            ,32         // font size (pixels)
+            ,5          // Spacing (pixels)
+            ,DARKGRAY   // tint
           );
 
           std::string message{};
