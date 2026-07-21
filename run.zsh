@@ -56,9 +56,14 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
-# Copy the built binary to the workspace directory
+# Copy the built binary to the workspace directory (mirror)
 echo "run.zsh: Copying the '$EXECUTABLE' binary to the workspace directory..."
 cp "build/$BUILD_TYPE/$EXECUTABLE" "$WORKSPACE_DIR/"
+# Copy the built resources subfolder to the workspace subfolder (mirror)
+echo "run.zsh: Copying resources..."
+mkdir -p "$WORKSPACE_DIR/resources"
+cp -R "build/$BUILD_TYPE/resources/" \
+      "$WORKSPACE_DIR/resources/"
 
 # Change to the workspace directory
 cd "$WORKSPACE_DIR"

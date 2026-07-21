@@ -22,7 +22,23 @@ First. Can I use ImGui for this purpose?
 
 You know what? I think I can juust simply use RayLib? 
 
+So I got so far to start trying to read and render swedish characters.
 
+* I found out I now need true font style files for the non ASCII characters (e.g. Swedish 'åäö')
+* I downloaded them from Google provided free fonts at https://fonts.google.com/noto/specimen/Noto+Sans.
+  * This page has a download button
+* I got a zip file.
+
+I now populated my repo with selected font file.
+
+* repo: resources/NotoSans/static/NotoSans-Regular.ttf (described as containing all europe required code point fonts?)
+* cmake copies to build location subfolder 'resources'
+* run.zsh-script mirrors the resources content to workspace subfolder
+* The code does
+
+```cpp
+
+```
 
 ## 20260720
 

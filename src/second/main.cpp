@@ -1,7 +1,7 @@
 #include "main.hpp"
 #include "log.hpp"
 
-#include "raylib.h" // See https://www.raylib.com/cheatsheet/cheatsheet.html
+#include "raylib.h" // See https://www.raylib.com/cheatsheet/cheatsheet.html, https://github.com/raysan5/raylib
 
 #include <print>
 #include <iostream>
@@ -47,6 +47,23 @@ namespace second {
     const int screenHeight = 450;
 
     InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
+
+    // MUST be doen a f t e r InitWindow.
+    // Note: See https://www.raylib.com/examples.html at 'raylib [text] example - unicode ranges'
+    //       for more info if we also must do e.g., 'AddCodepointRange(&font, "resources/NotoSansTC-Regular.ttf", 0xc0, 0x17f);'?
+    Font font = LoadFont("resources/NotoSans-Regular.ttf");
+    if (font.texture.id == 0) {
+        TraceLog(LOG_ERROR, "Failed to load font");
+        // Handle failure here
+        // NOTE: raylib logging sugests we may chose to carry on (deafult ASCII font still available?)
+        TraceLog(LOG_ERROR, "Exits - Bye for now");
+        exit(-1);
+    } else {
+        TraceLog(LOG_INFO, "Font loaded successfully");
+        SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+    }    
+
+    // SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------

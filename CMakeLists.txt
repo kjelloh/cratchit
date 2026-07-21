@@ -126,6 +126,15 @@ add_executable(
 
       )
 
+# Populate runtime with font resources (See relevant raylib calls where it is accessed)
+add_custom_command(TARGET cratchit POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            $<TARGET_FILE_DIR:cratchit>/resources
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_SOURCE_DIR}/resources/Noto_Sans/static/NotoSans-Regular.ttf
+            $<TARGET_FILE_DIR:cratchit>/resources/NotoSans-Regular.ttf
+)      
+
 # TODO: Understand how to make a conan profile or cmake preset for ASAN Debug build?
 # target_compile_options(cratchit PRIVATE -fsanitize=address)
 # target_link_options(cratchit PRIVATE -fsanitize=address)
