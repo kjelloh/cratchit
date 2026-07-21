@@ -48,9 +48,9 @@ namespace second {
 
     InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
 
-    // MUST be doen a f t e r InitWindow.
-    // Note: See https://www.raylib.com/examples.html at 'raylib [text] example - unicode ranges'
-    //       for more info if we also must do e.g., 'AddCodepointRange(&font, "resources/NotoSansTC-Regular.ttf", 0xc0, 0x17f);'?
+    // MUST be done a f t e r InitWindow.
+    // Also see: https://github.com/raysan5/raylib/blob/master/examples/text/text_unicode_ranges.c
+    //           to see if we need to do more to have raylib know the covered unicode code points?
     Font font = LoadFont("resources/NotoSans-Regular.ttf");
     if (font.texture.id == 0) {
         TraceLog(LOG_ERROR, "Failed to load font");
@@ -151,13 +151,6 @@ namespace second {
 
           DrawText(TextFormat("INPUT CHARS: %i/%i", letterCount, MAX_INPUT_CHARS), 315, 250, 20, DARKGRAY);
 
-          std::string message{};
-          for (size_t ix=0;ix<MAX_INPUT_CHARS;++ix) {
-            if (name[ix]==0) break;
-            message += std::format("<{:x}>",name[ix]);
-          }
-          DrawText(message.data(),5,screenHeight-40,40,MAROON);
-
           if (mouseOnText) {
             if (letterCount < MAX_INPUT_CHARS) {
                 // Draw blinking underscore char
@@ -165,6 +158,25 @@ namespace second {
             }
             else DrawText("Press BACKSPACE to delete chars...", 230, 300, 20, GRAY);
           }
+
+          // Test Swedish UTF-8
+          // void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
+          DrawTextEx(
+             font
+            ,"Unicode test: Hallå Världen"
+            ,(Vector2){ 5, screenHeight-80 } // x/column , y/row
+            ,32
+            ,1
+            ,DARKGRAY
+          );
+
+          std::string message{};
+          for (size_t ix=0;ix<MAX_INPUT_CHARS;++ix) {
+            if (name[ix]==0) break;
+            message += std::format("<{:x}>",name[ix]);
+          }
+          DrawText(message.data(),5,screenHeight-40,40,MAROON);
+
           //----------------------------------------------------------------------------------
           // END key input processing and rendering
           //----------------------------------------------------------------------------------
