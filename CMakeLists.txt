@@ -38,13 +38,6 @@ find_package(raylib)
 add_executable(
         cratchit
 
-        src/second/ui/jui.cpp
-        src/second/vendored/imgui/imgui.cpp
-        src/second/vendored/imgui/imgui_draw.cpp
-        src/second/vendored/imgui/imgui_tables.cpp
-        src/second/vendored/imgui/imgui_widgets.cpp
-        src/second/vendored/imgui/rlImGui.cpp
-
         src/second/log.cpp
         src/second/main.cpp
 

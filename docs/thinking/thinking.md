@@ -9,6 +9,21 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [todos](../../todo/index.md)
 
 
+## 20260721
+
+I now realise that the key-to-action UI I have designed for cratchit so far makes using ImGui impractical to use. It is at its core mouse-less! So all 2D surface accessible UI components are of no use to cratchit! It is totally operated by key-by-key input. Adn the user navigates forward or backwards from the current position on the 'map'.
+
+So what does this lead me to? Should I still go for rendering the Ux in a graphics wiewport? And if so, what options to render text (and possibly graphical components) in a structured way do I have?
+
+First. Can I use ImGui for this purpose?
+
+1. Can ImGui be used to adapt content to a fixed window estate?
+1. Can ImGui be used to provide single key-by-key eventsd to cratchit for state propagation?
+
+You know what? I think I can juust simply use RayLib? 
+
+
+
 ## 20260720
 
 Time to experiment with imgui and raylib as proposed by [Procedurally Generate A Universe with Raylib, C++, ImGui](https://youtu.be/el7p-HC77g8)
@@ -336,8 +351,6 @@ First I checked in the draw() code for now.
 OK, so here is where the example code in the video gives me nothing. The code triggers on hard coded key downs and moves the 'camera' based on this. But I want to parse key presses into text and control keys so I need something else.
 
 I found an example for a text box (https://www.raylib.com/examples/text/loader.html?name=text_input_box). Seems legit?!
-
-
 
 ## 20260719
 

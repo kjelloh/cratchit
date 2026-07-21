@@ -1,33 +1,9 @@
 #include "main.hpp"
 #include "log.hpp"
 
-#include "vendored/raylib/raylib.h"
-#include "vendored/imgui/rlImGui.h"
-#include "vendored/imgui/imgui.h"
-#include "ui/jui.hpp"
-
 #include <print>
 #include <iostream>
 #include <format>
-
-// Followed example in Youtube video https://youtu.be/el7p-HC77g8
-// Code from https://github.com/jonkero9/universe_generation_demo/blob/main/src/main.cpp
-void init_imgui() {
-  rlImGuiSetup(true);
-
-  ImGuiStyle& style = ImGui::GetStyle();
-  style.Colors[ImGuiCol_WindowBg] = JUI::to_imvec4(Jcolor::Crust);
-
-  style.Colors[ImGuiCol_Text] = JUI::to_imvec4(Jcolor::Cornsilk);
-  style.Colors[ImGuiCol_FrameBg] = JUI::to_imvec4(Jcolor::Greenyell);
-  style.WindowRounding = 8.0f;
-  style.FrameRounding = 4.0f;
-  style.WindowPadding = {12, 12};
-  style.FramePadding = {6, 6};
-  style.CellPadding = {4, 4};
-
-  style.FontSizeBase = 28.f;  
-}
 
 namespace second {
 
@@ -40,60 +16,6 @@ namespace second {
     log_development_trace("Test with formatting int value {}",3);
     log_design_insufficiency("Test with formatting int value {}",4);
 
-    // Followed example in Youtube video https://youtu.be/el7p-HC77g8
-    // Code from https://github.com/jonkero9/universe_generation_demo/blob/main/src/main.cpp
-
-    /* raylib */ InitWindow(900,800,"cratchit second demo");
-    /* raylib */ SetTargetFPS(75);
-    /* our */    init_imgui();
-
-    /* our */ JUI::Jui ui{};
-
-    // Main ImGui Loop
-    bool should_run{true};
-
-    while (should_run and ! /* raylib*/ WindowShouldClose()) {
-
-      /* raylib */ BeginDrawing();
-      /* rlImGui */ rlImGuiBegin();
-
-      /* raylib */ ClearBackground(JUI::to_ray_color(Jcolor::Crust));
-
-      ui.draw();
-
-      ImGui::Begin("Input Test");
-
-      const size_t INPUT_BUF_SIZE = 128;
-      static char input_buf[INPUT_BUF_SIZE] = "";
-
-      ImGui::SetKeyboardFocusHere(); // hard code focus to the following InputText
-      if (ImGui::InputText("(single q to exit)>", input_buf, sizeof(input_buf)))
-      {
-          // called when text changed
-      }
-
-      std::string message{};
-      for (size_t i=0;i<INPUT_BUF_SIZE;++i) {
-        if (input_buf[i] == 0) break;
-        message += std::format("<{:x}>",input_buf[i]);
-      }
-
-      ImGui::Text("Buffer byte values: %s", message.data());
-
-      if (strlen(input_buf) == 1 and input_buf[0] == 'q') {
-        should_run = false;
-      }
-
-      ImGui::End();
-
-      /* rlImGui */ rlImGuiEnd();
-      /* raylib */ EndDrawing();
-
-    } // while
-
-    /* rlImGui */ rlImGuiShutdown();
-    /* raylib */ CloseWindow();
-
-    return 0;
+    return 0; 
   }
 } // second
