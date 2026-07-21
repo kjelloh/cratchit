@@ -53,7 +53,7 @@ namespace second {
     // BEGIN Text input mechanism
     //--------------------------------------------------------------------------------------
     const size_t MAX_INPUT_CHARS = 9;
-    char name[MAX_INPUT_CHARS + 1] = "\0";      // NOTE: One extra space required for null terminator char '\0'
+    char name[MAX_INPUT_CHARS + 1] = "\0";
     int letterCount = 0;
 
     Rectangle textBox = { screenWidth/2.0f - 100, 180, 225, 50 };
@@ -86,7 +86,7 @@ namespace second {
             while (key > 0)
             {
                 // NOTE: Only allow keys in range [32..125]
-                if ((key >= 32) && (key <= 125) && (letterCount < MAX_INPUT_CHARS))
+                if (key >= ' ' and (letterCount < MAX_INPUT_CHARS))
                 {
                     name[letterCount] = (char)key;
                     name[letterCount+1] = '\0'; // Add null terminator at the end of the string
@@ -133,6 +133,13 @@ namespace second {
           DrawText(name, (int)textBox.x + 5, (int)textBox.y + 8, 40, MAROON);
 
           DrawText(TextFormat("INPUT CHARS: %i/%i", letterCount, MAX_INPUT_CHARS), 315, 250, 20, DARKGRAY);
+
+          std::string message{};
+          for (size_t ix=0;ix<MAX_INPUT_CHARS;++ix) {
+            if (name[ix]==0) break;
+            message += std::format("<{:x}>",name[ix]);
+          }
+          DrawText(message.data(),5,screenHeight-40,40,MAROON);
 
           if (mouseOnText) {
             if (letterCount < MAX_INPUT_CHARS) {
