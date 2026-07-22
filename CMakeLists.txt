@@ -38,6 +38,8 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/cratchit_raylib_main.cpp
+        src/second/playground_raylib_main.cpp
         src/second/utf8.cpp
         src/second/unicode.cpp
         src/second/custom_raylib_log_callback.cpp
