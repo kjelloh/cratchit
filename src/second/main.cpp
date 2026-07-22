@@ -37,6 +37,7 @@ namespace second {
     log_development_trace("Test with formatting int value {}",3);
     log_design_insufficiency("Test with formatting int value {}",4);
 
+    //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
 
@@ -48,10 +49,19 @@ namespace second {
 
     InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
 
+    //--------------------------------------------------------------------------------------
+    // BEGIN: Load and Pre-render bitmap fonts for supported unicode code points 
     // MUST be done a f t e r InitWindow.
     // Also see: https://github.com/raysan5/raylib/blob/master/examples/text/text_unicode_ranges.c
+    //--------------------------------------------------------------------------------------
 
+    // raylib utilises a vector of unicode code points to map to a rendered bitmap for that 'charachter'
+    // A unicde code point is in the range 0..17x0xFFFF (https://en.wikipedia.org/wiki/Code_point)
+    // raylib uses signed int for code point values
     std::vector<int> codepoints{};
+
+    // Make room for supported unicode code blocks
+    // See https://en.wikipedia.org/wiki/Unicode_block
 
     // ASCII 0x0020, 0x007E
     for (int cp = 0x0020; cp <= 0x007E; ++cp)
@@ -94,14 +104,19 @@ namespace second {
     } else {
         TraceLog(LOG_INFO, "Font loaded successfully");
         SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
-    }    
+    }
+    //--------------------------------------------------------------------------------------
+    // END: Load and Pre-render bitmap fonts for supported unicode code points 
+    //--------------------------------------------------------------------------------------
+
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
     // BEGIN Text input mechanism
     //--------------------------------------------------------------------------------------
     const size_t MAX_INPUT_CHARS = 9;
-    char name[MAX_INPUT_CHARS + 1] = "\0";
+    char char_buffer[MAX_INPUT_CHARS + 1] = "\0";
+    std::vector<int> code_point_buffer{};
     int letterCount = 0;
 
     Rectangle textBox = { screenWidth/2.0f - 100, 180, 225, 50 };
@@ -136,8 +151,10 @@ namespace second {
                 // NOTE: Only allow keys in range [32..125]
                 if (key >= ' ' and (letterCount < MAX_INPUT_CHARS))
                 {
-                    name[letterCount] = (char)key;
-                    name[letterCount+1] = '\0'; // Add null terminator at the end of the string
+                    char_buffer[letterCount] = (char)key;
+                    char_buffer[letterCount+1] = '\0'; // Add null terminator at the end of the string
+
+                    code_point_buffer.push_back(key);
                     letterCount++;
                 }
 
@@ -148,7 +165,8 @@ namespace second {
             {
                 letterCount--;
                 if (letterCount < 0) letterCount = 0;
-                name[letterCount] = '\0';
+                char_buffer[letterCount] = '\0';
+                code_point_buffer.pop_back();
             }
         }
         else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
@@ -172,20 +190,22 @@ namespace second {
           // BEGIN key input processing and rendering
           //----------------------------------------------------------------------------------
 
-          DrawText("PLACE MOUSE OVER INPUT BOX!", 240, 140, 20, GRAY);
+          const int FONT_HEIGHT = 32;
+
+          DrawText("PLACE MOUSE OVER INPUT BOX!", 240, 140, FONT_HEIGHT, GRAY);
 
           DrawRectangleRec(textBox, LIGHTGRAY);
           if (mouseOnText) DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, RED);
           else DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, DARKGRAY);
 
-          DrawText(name, (int)textBox.x + 5, (int)textBox.y + 8, 40, MAROON);
+          DrawText(char_buffer, (int)textBox.x + 5, (int)textBox.y + 8, FONT_HEIGHT, MAROON);
 
           DrawText(TextFormat("INPUT CHARS: %i/%i", letterCount, MAX_INPUT_CHARS), 315, 250, 20, DARKGRAY);
 
           if (mouseOnText) {
             if (letterCount < MAX_INPUT_CHARS) {
                 // Draw blinking underscore char
-                if (((framesCounter/20)%2) == 0) DrawText("_", (int)textBox.x + 8 + MeasureText(name, 40), (int)textBox.y + 12, 40, MAROON);
+                if (((framesCounter/20)%2) == 0) DrawText("_", (int)textBox.x + 8 + MeasureText(char_buffer, FONT_HEIGHT), (int)textBox.y + 12, FONT_HEIGHT, MAROON);
             }
             else DrawText("Press BACKSPACE to delete chars...", 230, 300, 20, GRAY);
           }
@@ -195,18 +215,94 @@ namespace second {
           DrawTextEx(
              font
             ,R"(Unicode test: Hallå Världen. €'"`)" // UTF-8 text
-            ,(Vector2){ 5, screenHeight-80 } // x/column , y/row
-            ,32         // font size (pixels)
+            ,(Vector2){ 
+               5
+              ,screenHeight-4*FONT_HEIGHT } // x/column , y/row
+            ,FONT_HEIGHT         // font size (pixels)
             ,5          // Spacing (pixels)
             ,DARKGRAY   // tint
           );
 
-          std::string message{};
-          for (size_t ix=0;ix<MAX_INPUT_CHARS;++ix) {
-            if (name[ix]==0) break;
-            message += std::format("<{:x}>",name[ix]);
+          //----------------------------------------------------------------------------------
+          // BEGIN Unicode and UTF8
+          //----------------------------------------------------------------------------------
+
+          // Unicode constants
+          // Leading (high) surrogates: 0xd800 - 0xdbff
+          // Trailing (low) surrogates: 0xdc00 - 0xdfff
+          const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
+          const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
+          const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
+          const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
+
+          // Maximum valid value for a Unicode code point
+          const char32_t CODE_POINT_MAX      = 0x0010ffff;
+
+          auto is_surrogate = [](char32_t cp) {
+                return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
+          };
+
+          constexpr const std::string REPLACEMENT_UTF8 = "\uFFFD";
+
+          auto is_valid_unicode = [&is_surrogate](uint32_t cp) -> bool {
+            return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
+          };
+
+          auto to_utf8 = [&is_valid_unicode,&REPLACEMENT_UTF8](uint32_t cp) -> std::vector<uint8_t> {
+            std::vector<uint8_t> result{};
+            // Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
+            if (!is_valid_unicode(cp)) {
+              for (auto const& utf8_byte : REPLACEMENT_UTF8) result.push_back(utf8_byte);
+            }
+            else if (cp < 0x80)                   // one octet
+                result.push_back(static_cast<uint8_t>(cp));
+            else if (cp < 0x800) {                // two octets
+                result.push_back(static_cast<uint8_t>((cp >> 6)            | 0xc0));
+                result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+            }
+            else if (cp < 0x10000) {              // three octets
+                result.push_back(static_cast<uint8_t>((cp >> 12)           | 0xe0));
+                result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
+                result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+            }
+            else {                                // four octets
+                result.push_back(static_cast<uint8_t>((cp >> 18)           | 0xf0));
+                result.push_back(static_cast<uint8_t>(((cp >> 12) & 0x3f)  | 0x80));
+                result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
+                result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+            }
+
+            return result;
+          };
+
+          //----------------------------------------------------------------------------------
+          // END Unicode and UTF8
+          //----------------------------------------------------------------------------------
+
+          // Render hex values of read unicode code point characters (development trace)
+          std::string utf8_hex_message{};
+          for (auto const& code_point : code_point_buffer) {
+            auto utf8_bytes = to_utf8(static_cast<uint32_t>(code_point));
+            for (auto const& utf8_byte : utf8_bytes) {
+              utf8_hex_message += std::format("<{:x}>",utf8_byte);
+            }
           }
-          DrawText(message.data(),5,screenHeight-40,40,MAROON);
+          DrawText(utf8_hex_message.data(),5,screenHeight-3*FONT_HEIGHT,FONT_HEIGHT,MAROON);
+
+          // Render hex values of read unicode code point characters (development trace)
+          std::string unicode_hex_message{};
+          for (auto const& code_point : code_point_buffer) {
+            unicode_hex_message += std::format("<{:x}>",static_cast<uint32_t>(code_point));
+          }
+          DrawText(unicode_hex_message.data(),5,screenHeight-2*FONT_HEIGHT,FONT_HEIGHT,MAROON);
+
+          // Render hex values of read char characters (development trace)
+          std::string ascii_hex_message{};
+          for (size_t ix=0;ix<MAX_INPUT_CHARS;++ix) {
+            if (char_buffer[ix]==0) break;
+            ascii_hex_message += std::format("<{:x}>",char_buffer[ix]);
+          }
+          DrawText(ascii_hex_message.data(),5,screenHeight-1*FONT_HEIGHT,FONT_HEIGHT,MAROON);
 
           //----------------------------------------------------------------------------------
           // END key input processing and rendering
