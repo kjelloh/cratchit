@@ -29,6 +29,63 @@ namespace second {
   }
 
   int main(int argc, char *argv[]) {
+
+    //----------------------------------------------------------------------------------
+    // BEGIN Unicode and UTF8
+    //----------------------------------------------------------------------------------
+
+    // Unicode constants
+    // Leading (high) surrogates: 0xd800 - 0xdbff
+    // Trailing (low) surrogates: 0xdc00 - 0xdfff
+    const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
+    const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
+    const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
+    const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
+
+    // Maximum valid value for a Unicode code point
+    const char32_t CODE_POINT_MAX      = 0x0010ffff;
+
+    auto is_surrogate = [](char32_t cp) {
+          return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
+    };
+
+    constexpr const std::string REPLACEMENT_UTF8 = "\uFFFD";
+
+    auto is_valid_unicode = [&is_surrogate](uint32_t cp) -> bool {
+      return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
+    };
+
+    auto to_utf8 = [&is_valid_unicode,&REPLACEMENT_UTF8](uint32_t cp) -> std::vector<uint8_t> {
+      std::vector<uint8_t> result{};
+      // Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
+      if (!is_valid_unicode(cp)) {
+        for (auto const& utf8_byte : REPLACEMENT_UTF8) result.push_back(utf8_byte);
+      }
+      else if (cp < 0x80)                   // one octet
+          result.push_back(static_cast<uint8_t>(cp));
+      else if (cp < 0x800) {                // two octets
+          result.push_back(static_cast<uint8_t>((cp >> 6)            | 0xc0));
+          result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+      }
+      else if (cp < 0x10000) {              // three octets
+          result.push_back(static_cast<uint8_t>((cp >> 12)           | 0xe0));
+          result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
+          result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+      }
+      else {                                // four octets
+          result.push_back(static_cast<uint8_t>((cp >> 18)           | 0xf0));
+          result.push_back(static_cast<uint8_t>(((cp >> 12) & 0x3f)  | 0x80));
+          result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
+          result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+      }
+
+      return result;
+    };
+
+    //----------------------------------------------------------------------------------
+    // END Unicode and UTF8
+    //----------------------------------------------------------------------------------
+
     log_business("second::cratchit START");
     log_development_trace("Hello from second::main");
     log_design_insufficiency("This is a test");
@@ -166,7 +223,7 @@ namespace second {
                 letterCount--;
                 if (letterCount < 0) letterCount = 0;
                 char_buffer[letterCount] = '\0';
-                code_point_buffer.pop_back();
+                if (code_point_buffer.size() > 0) code_point_buffer.pop_back();
             }
         }
         else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
@@ -198,7 +255,42 @@ namespace second {
           if (mouseOnText) DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, RED);
           else DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, DARKGRAY);
 
-          DrawText(char_buffer, (int)textBox.x + 5, (int)textBox.y + 8, FONT_HEIGHT, MAROON);
+          //----------------------------------------------------------------------------------
+          // BEGIN Unicode to UTF8 string
+          //----------------------------------------------------------------------------------
+
+          std::string utf8_string{};
+          for (auto const& code_point : code_point_buffer) {
+            auto utf8_bytes = to_utf8(static_cast<uint32_t>(code_point));
+            for (auto utf8_byte : utf8_bytes) utf8_string += static_cast<char>(utf8_byte);
+          }
+
+          //----------------------------------------------------------------------------------
+          // END Unicode to UTF8 string
+          //----------------------------------------------------------------------------------
+
+          if (false) {
+            DrawText(
+               utf8_string.c_str()
+              ,(int)textBox.x + 5
+              ,(int)textBox.y + 8
+              ,FONT_HEIGHT
+              ,MAROON);
+          }
+          else {
+            DrawTextEx(
+               font                   // font
+              ,utf8_string.c_str()    // UTF8 chars
+              ,(Vector2){ 
+                 textBox.x + 5   // x (col)
+                ,textBox.y + 8   // y (row)
+               }
+              ,FONT_HEIGHT            // font size (pixels)
+              ,0                      // Spacing (pixels)
+              ,DARKGRAY               // tint
+            );
+          }
+
 
           DrawText(TextFormat("INPUT CHARS: %i/%i", letterCount, MAX_INPUT_CHARS), 315, 250, 20, DARKGRAY);
 
@@ -223,68 +315,12 @@ namespace second {
             ,DARKGRAY   // tint
           );
 
-          //----------------------------------------------------------------------------------
-          // BEGIN Unicode and UTF8
-          //----------------------------------------------------------------------------------
-
-          // Unicode constants
-          // Leading (high) surrogates: 0xd800 - 0xdbff
-          // Trailing (low) surrogates: 0xdc00 - 0xdfff
-          const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
-          const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
-          const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
-          const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
-
-          // Maximum valid value for a Unicode code point
-          const char32_t CODE_POINT_MAX      = 0x0010ffff;
-
-          auto is_surrogate = [](char32_t cp) {
-                return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
-          };
-
-          constexpr const std::string REPLACEMENT_UTF8 = "\uFFFD";
-
-          auto is_valid_unicode = [&is_surrogate](uint32_t cp) -> bool {
-            return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
-          };
-
-          auto to_utf8 = [&is_valid_unicode,&REPLACEMENT_UTF8](uint32_t cp) -> std::vector<uint8_t> {
-            std::vector<uint8_t> result{};
-            // Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
-            if (!is_valid_unicode(cp)) {
-              for (auto const& utf8_byte : REPLACEMENT_UTF8) result.push_back(utf8_byte);
-            }
-            else if (cp < 0x80)                   // one octet
-                result.push_back(static_cast<uint8_t>(cp));
-            else if (cp < 0x800) {                // two octets
-                result.push_back(static_cast<uint8_t>((cp >> 6)            | 0xc0));
-                result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
-            }
-            else if (cp < 0x10000) {              // three octets
-                result.push_back(static_cast<uint8_t>((cp >> 12)           | 0xe0));
-                result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
-                result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
-            }
-            else {                                // four octets
-                result.push_back(static_cast<uint8_t>((cp >> 18)           | 0xf0));
-                result.push_back(static_cast<uint8_t>(((cp >> 12) & 0x3f)  | 0x80));
-                result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
-                result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
-            }
-
-            return result;
-          };
-
-          //----------------------------------------------------------------------------------
-          // END Unicode and UTF8
-          //----------------------------------------------------------------------------------
-
           // Render hex values of read unicode code point characters (development trace)
           std::string utf8_hex_message{};
           for (auto const& code_point : code_point_buffer) {
             auto utf8_bytes = to_utf8(static_cast<uint32_t>(code_point));
             for (auto const& utf8_byte : utf8_bytes) {
-              utf8_hex_message += std::format("<{:x}>",utf8_byte);
+              utf8_hex_message += std::format("<{:X}>",utf8_byte);
             }
           }
           DrawText(utf8_hex_message.data(),5,screenHeight-3*FONT_HEIGHT,FONT_HEIGHT,MAROON);
@@ -292,7 +328,7 @@ namespace second {
           // Render hex values of read unicode code point characters (development trace)
           std::string unicode_hex_message{};
           for (auto const& code_point : code_point_buffer) {
-            unicode_hex_message += std::format("<{:x}>",static_cast<uint32_t>(code_point));
+            unicode_hex_message += std::format("<{:X}>",static_cast<uint32_t>(code_point));
           }
           DrawText(unicode_hex_message.data(),5,screenHeight-2*FONT_HEIGHT,FONT_HEIGHT,MAROON);
 
@@ -300,7 +336,7 @@ namespace second {
           std::string ascii_hex_message{};
           for (size_t ix=0;ix<MAX_INPUT_CHARS;++ix) {
             if (char_buffer[ix]==0) break;
-            ascii_hex_message += std::format("<{:x}>",char_buffer[ix]);
+            ascii_hex_message += std::format("<{:X}>",char_buffer[ix]);
           }
           DrawText(ascii_hex_message.data(),5,screenHeight-1*FONT_HEIGHT,FONT_HEIGHT,MAROON);
 
