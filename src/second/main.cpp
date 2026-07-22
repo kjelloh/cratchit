@@ -7,6 +7,62 @@
 #include <iostream>
 #include <format>
 
+//----------------------------------------------------------------------------------
+// BEGIN Unicode and UTF8
+//----------------------------------------------------------------------------------
+
+// Unicode constants
+// Leading (high) surrogates: 0xd800 - 0xdbff
+// Trailing (low) surrogates: 0xdc00 - 0xdfff
+const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
+const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
+const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
+const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
+
+// Maximum valid value for a Unicode code point
+const char32_t CODE_POINT_MAX      = 0x0010ffff;
+
+auto is_surrogate = [](char32_t cp) {
+      return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
+};
+
+constexpr const std::string REPLACEMENT_UTF8 = "\uFFFD";
+
+bool is_valid_unicode(uint32_t cp) {
+  return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
+};
+
+std::vector<uint8_t> to_utf8(uint32_t cp) {
+  std::vector<uint8_t> result{};
+  // Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
+  if (!is_valid_unicode(cp)) {
+    for (auto const& utf8_byte : REPLACEMENT_UTF8) result.push_back(utf8_byte);
+  }
+  else if (cp < 0x80)                   // one octet
+      result.push_back(static_cast<uint8_t>(cp));
+  else if (cp < 0x800) {                // two octets
+      result.push_back(static_cast<uint8_t>((cp >> 6)            | 0xc0));
+      result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+  }
+  else if (cp < 0x10000) {              // three octets
+      result.push_back(static_cast<uint8_t>((cp >> 12)           | 0xe0));
+      result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
+      result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+  }
+  else {                                // four octets
+      result.push_back(static_cast<uint8_t>((cp >> 18)           | 0xf0));
+      result.push_back(static_cast<uint8_t>(((cp >> 12) & 0x3f)  | 0x80));
+      result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
+      result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
+  }
+
+  return result;
+};
+
+//----------------------------------------------------------------------------------
+// END Unicode and UTF8
+//----------------------------------------------------------------------------------
+
 namespace second {
 
   // Custom logging function
@@ -30,61 +86,6 @@ namespace second {
 
   int main(int argc, char *argv[]) {
 
-    //----------------------------------------------------------------------------------
-    // BEGIN Unicode and UTF8
-    //----------------------------------------------------------------------------------
-
-    // Unicode constants
-    // Leading (high) surrogates: 0xd800 - 0xdbff
-    // Trailing (low) surrogates: 0xdc00 - 0xdfff
-    const char32_t LEAD_SURROGATE_MIN  = 0x0000d800;
-    const char32_t LEAD_SURROGATE_MAX  = 0x0000dbff;
-    const char32_t TRAIL_SURROGATE_MIN = 0x0000dc00;
-    const char32_t TRAIL_SURROGATE_MAX = 0x0000dfff;
-
-    // Maximum valid value for a Unicode code point
-    const char32_t CODE_POINT_MAX      = 0x0010ffff;
-
-    auto is_surrogate = [](char32_t cp) {
-          return (cp >= LEAD_SURROGATE_MIN && cp <= TRAIL_SURROGATE_MAX);
-    };
-
-    constexpr const std::string REPLACEMENT_UTF8 = "\uFFFD";
-
-    auto is_valid_unicode = [&is_surrogate](uint32_t cp) -> bool {
-      return (cp <= CODE_POINT_MAX && !is_surrogate(cp));
-    };
-
-    auto to_utf8 = [&is_valid_unicode,&REPLACEMENT_UTF8](uint32_t cp) -> std::vector<uint8_t> {
-      std::vector<uint8_t> result{};
-      // Thanks to https://sourceforge.net/p/utfcpp/code/HEAD/tree/v3_0/src/utf8.h
-      if (!is_valid_unicode(cp)) {
-        for (auto const& utf8_byte : REPLACEMENT_UTF8) result.push_back(utf8_byte);
-      }
-      else if (cp < 0x80)                   // one octet
-          result.push_back(static_cast<uint8_t>(cp));
-      else if (cp < 0x800) {                // two octets
-          result.push_back(static_cast<uint8_t>((cp >> 6)            | 0xc0));
-          result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
-      }
-      else if (cp < 0x10000) {              // three octets
-          result.push_back(static_cast<uint8_t>((cp >> 12)           | 0xe0));
-          result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
-          result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
-      }
-      else {                                // four octets
-          result.push_back(static_cast<uint8_t>((cp >> 18)           | 0xf0));
-          result.push_back(static_cast<uint8_t>(((cp >> 12) & 0x3f)  | 0x80));
-          result.push_back(static_cast<uint8_t>(((cp >> 6) & 0x3f)   | 0x80));
-          result.push_back(static_cast<uint8_t>((cp & 0x3f)          | 0x80));
-      }
-
-      return result;
-    };
-
-    //----------------------------------------------------------------------------------
-    // END Unicode and UTF8
-    //----------------------------------------------------------------------------------
 
     log_business("second::cratchit START");
     log_development_trace("Hello from second::main");
