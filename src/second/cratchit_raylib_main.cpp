@@ -4,10 +4,12 @@
 #include "custom_raylib_log_callback.hpp"
 #include "utf8.hpp"
 
-int cratchit_raylib_main(int argc, char *argv[]) {
-  int posix_result{0};
+char const* const WATERMARK = "CRATCHIT";
 
+int cratchit_raylib_main(int argc, char *argv[]) {
   log_development_trace("Hello from cratchit_raylib_main");
+
+  int posix_result{0};
 
   //--------------------------------------------------------------------------------------
   // Initialization
@@ -16,10 +18,16 @@ int cratchit_raylib_main(int argc, char *argv[]) {
   // Set custom logger
   SetTraceLogCallback(custom_raylib_log_callback);
 
-  const int screenWidth = 800;
-  const int screenHeight = 450;
+  const int INITIAL_SCREEN_WIDTH = 800;
+  const int INITIAL_SCREEN_HEIGHT = 450;
 
-  InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE); // Make InitWindow create a resizeable window
+
+  InitWindow(
+     INITIAL_SCREEN_WIDTH
+    ,INITIAL_SCREEN_HEIGHT
+    ,"raylib [core] example - basic window"
+  );
 
   //--------------------------------------------------------------------------------------
   // BEGIN: Load and Pre-render bitmap fonts for supported unicode code points 
@@ -88,12 +96,6 @@ int cratchit_raylib_main(int argc, char *argv[]) {
   std::vector<int> code_point_buffer{};
 
   const int FONT_HEIGHT = 32;
-  Rectangle textBox = { 
-     5                      // Rectangle top-left corner position x (col)
-    ,screenHeight-50        // Rectangle top-left corner position y (row)
-    ,225                    // Rectangle width
-    ,50                     // Rectangle height
-  };
   bool mouseOnText = false;
 
   int framesCounter = 0;    
@@ -104,8 +106,15 @@ int cratchit_raylib_main(int argc, char *argv[]) {
   //--------------------------------------------------------------------------------------
   // Main render window loop
   //--------------------------------------------------------------------------------------
-  while (!WindowShouldClose())    // Detect window close button or ESC key
-  {
+  while (!WindowShouldClose()) {
+  
+        Rectangle textBox = { 
+         5                      // Rectangle top-left corner position x (col)
+        ,static_cast<float>(GetScreenHeight()-50)        // Rectangle top-left corner position y (row)
+        ,225                    // Rectangle width
+        ,50                     // Rectangle height
+      };
+
       //----------------------------------------------------------------------------------
       // BEGIN Update
       //----------------------------------------------------------------------------------
@@ -118,7 +127,6 @@ int cratchit_raylib_main(int argc, char *argv[]) {
       if (IsKeyPressed(KEY_BACKSPACE)) {
           if (code_point_buffer.size() > 0) code_point_buffer.pop_back();
       }
-
 
       if (mouseOnText) {
           // Set the window's cursor to the I-Beam
@@ -142,6 +150,18 @@ int cratchit_raylib_main(int argc, char *argv[]) {
         //----------------------------------------------------------------------------------
         // BEGIN key input processing and rendering
         //----------------------------------------------------------------------------------
+
+        DrawTextEx(
+          font                    // font
+          ,WATERMARK    // UTF8 chars
+          ,Vector2{ 
+             static_cast<float>(GetScreenWidth()/2 -100)     // x (col)
+            ,static_cast<float>(GetScreenHeight()/2 + FONT_HEIGHT/2)        // y (row)
+          }
+          ,FONT_HEIGHT            // font size (pixels)
+          ,0                      // Spacing (pixels)
+          ,LIGHTGRAY              // tint
+        );
 
         DrawRectangleRec(textBox, LIGHTGRAY);
         if (mouseOnText) DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, RED);
@@ -208,7 +228,7 @@ int cratchit_raylib_main(int argc, char *argv[]) {
           ,utf8_hex_message.c_str()             // UTF8 chars
           ,(Vector2){ 
              5                                  // x (col)
-            ,screenHeight-4*FONT_HEIGHT         // y (row)
+            ,static_cast<float>(GetScreenHeight()-4*FONT_HEIGHT)         // y (row)
           }
           ,FONT_HEIGHT            // font size (pixels)
           ,0                      // Spacing (pixels)
@@ -225,7 +245,7 @@ int cratchit_raylib_main(int argc, char *argv[]) {
           ,unicode_hex_message.c_str()             // UTF8 chars
           ,(Vector2){ 
              5                                  // x (col)
-            ,screenHeight-3*FONT_HEIGHT         // y (row)
+            ,static_cast<float>(GetScreenHeight()-3*FONT_HEIGHT)         // y (row)
           }
           ,FONT_HEIGHT            // font size (pixels)
           ,0                      // Spacing (pixels)
