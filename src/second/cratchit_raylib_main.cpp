@@ -86,12 +86,15 @@ int cratchit_raylib_main(int argc, char *argv[]) {
   //--------------------------------------------------------------------------------------
   // BEGIN Text input mechanism
   //--------------------------------------------------------------------------------------
-  const size_t MAX_INPUT_CHARS = 9;
-  char char_buffer[MAX_INPUT_CHARS + 1] = "\0";
   std::vector<int> code_point_buffer{};
-  int letterCount = 0;
 
-  Rectangle textBox = { screenWidth/2.0f - 100, 180, 225, 50 };
+  const int FONT_HEIGHT = 32;
+  Rectangle textBox = { 
+     5                      // Rectangle top-left corner position x (col)
+    ,screenHeight-50        // Rectangle top-left corner position y (row)
+    ,225                    // Rectangle width
+    ,50                     // Rectangle height
+  };
   bool mouseOnText = false;
 
   int framesCounter = 0;    
@@ -110,36 +113,17 @@ int cratchit_raylib_main(int argc, char *argv[]) {
       if (CheckCollisionPointRec(GetMousePosition(), textBox)) mouseOnText = true;
       else mouseOnText = false;
 
+      if (int key = GetCharPressed();key>0) {
+        if (key >= ' ') code_point_buffer.push_back(key);
+      }
+      if (IsKeyPressed(KEY_BACKSPACE)) {
+          if (code_point_buffer.size() > 0) code_point_buffer.pop_back();
+      }
+
+
       if (mouseOnText) {
           // Set the window's cursor to the I-Beam
           SetMouseCursor(MOUSE_CURSOR_IBEAM);
-
-          // Get char pressed (unicode character) on the queue
-          int key = GetCharPressed();
-
-          // Check if more characters have been pressed on the same frame
-          while (key > 0)
-          {
-              // NOTE: Only allow keys in range [32..125]
-              if (key >= ' ' and (letterCount < MAX_INPUT_CHARS))
-              {
-                  char_buffer[letterCount] = (char)key;
-                  char_buffer[letterCount+1] = '\0'; // Add null terminator at the end of the string
-
-                  code_point_buffer.push_back(key);
-                  letterCount++;
-              }
-
-              key = GetCharPressed();  // Check next character in the queue
-          }
-
-          if (IsKeyPressed(KEY_BACKSPACE))
-          {
-              letterCount--;
-              if (letterCount < 0) letterCount = 0;
-              char_buffer[letterCount] = '\0';
-              if (code_point_buffer.size() > 0) code_point_buffer.pop_back();
-          }
       }
       else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
@@ -156,15 +140,9 @@ int cratchit_raylib_main(int argc, char *argv[]) {
 
         ClearBackground(RAYWHITE);
 
-        DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
-
         //----------------------------------------------------------------------------------
         // BEGIN key input processing and rendering
         //----------------------------------------------------------------------------------
-
-        const int FONT_HEIGHT = 32;
-
-        DrawText("PLACE MOUSE OVER INPUT BOX!", 240, 140, FONT_HEIGHT, GRAY);
 
         DrawRectangleRec(textBox, LIGHTGRAY);
         if (mouseOnText) DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, RED);
@@ -184,51 +162,39 @@ int cratchit_raylib_main(int argc, char *argv[]) {
         // END Unicode to UTF8 string
         //----------------------------------------------------------------------------------
 
-        if (false) {
-          DrawText(
-            utf8_string.c_str()
-            ,(int)textBox.x + 5
-            ,(int)textBox.y + 8
-            ,FONT_HEIGHT
-            ,MAROON);
-        }
-        else {
-          DrawTextEx(
-            font                   // font
-            ,utf8_string.c_str()    // UTF8 chars
-            ,(Vector2){ 
-              textBox.x + 5   // x (col)
-              ,textBox.y + 8   // y (row)
-            }
-            ,FONT_HEIGHT            // font size (pixels)
-            ,0                      // Spacing (pixels)
-            ,DARKGRAY               // tint
-          );
-        }
-
-
-        DrawText(TextFormat("INPUT CHARS: %i/%i", letterCount, MAX_INPUT_CHARS), 315, 250, 20, DARKGRAY);
+        DrawTextEx(
+          font                    // font
+          ,utf8_string.c_str()    // UTF8 chars
+          ,(Vector2){ 
+            textBox.x + 5         // x (col)
+            ,textBox.y + 8        // y (row)
+          }
+          ,FONT_HEIGHT            // font size (pixels)
+          ,0                      // Spacing (pixels)
+          ,DARKGRAY               // tint
+        );
 
         if (mouseOnText) {
-          if (letterCount < MAX_INPUT_CHARS) {
-              // Draw blinking underscore char
-              if (((framesCounter/20)%2) == 0) DrawText("_", (int)textBox.x + 8 + MeasureText(char_buffer, FONT_HEIGHT), (int)textBox.y + 12, FONT_HEIGHT, MAROON);
+          if (((framesCounter/20)%2) == 0) {
+            auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
+               font
+              ,utf8_string.c_str()
+              ,FONT_HEIGHT
+              ,0
+            );
+            DrawTextEx(
+              font                    // font
+              ,"_"    // UTF8 chars
+              ,Vector2{ 
+                   textBox.x + 8 + text_size.x
+                ,textBox.y + 12
+              }
+              ,FONT_HEIGHT            // font size (pixels)
+              ,0                      // Spacing (pixels)
+              ,MAROON               // tint
+            );
           }
-          else DrawText("Press BACKSPACE to delete chars...", 230, 300, 20, GRAY);
         }
-
-        // Test Swedish UTF-8
-        // void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
-        DrawTextEx(
-          font
-          ,R"(Unicode test: Hallå Världen. €'"`)" // UTF-8 text
-          ,(Vector2){ 
-            5
-            ,screenHeight-4*FONT_HEIGHT } // x/column , y/row
-          ,FONT_HEIGHT         // font size (pixels)
-          ,5          // Spacing (pixels)
-          ,DARKGRAY   // tint
-        );
 
         // Render hex values of read unicode code point characters (development trace)
         std::string utf8_hex_message{};
@@ -238,22 +204,35 @@ int cratchit_raylib_main(int argc, char *argv[]) {
             utf8_hex_message += std::format("<{:X}>",utf8_byte);
           }
         }
-        DrawText(utf8_hex_message.data(),5,screenHeight-3*FONT_HEIGHT,FONT_HEIGHT,MAROON);
+        DrawTextEx(
+          font                                  // font
+          ,utf8_hex_message.c_str()             // UTF8 chars
+          ,(Vector2){ 
+             5                                  // x (col)
+            ,screenHeight-4*FONT_HEIGHT         // y (row)
+          }
+          ,FONT_HEIGHT            // font size (pixels)
+          ,0                      // Spacing (pixels)
+          ,MAROON               // tint
+        );
+
 
         // Render hex values of read unicode code point characters (development trace)
         std::string unicode_hex_message{};
         for (auto const& code_point : code_point_buffer) {
           unicode_hex_message += std::format("<{:X}>",static_cast<uint32_t>(code_point));
         }
-        DrawText(unicode_hex_message.data(),5,screenHeight-2*FONT_HEIGHT,FONT_HEIGHT,MAROON);
-
-        // Render hex values of read char characters (development trace)
-        std::string ascii_hex_message{};
-        for (size_t ix=0;ix<MAX_INPUT_CHARS;++ix) {
-          if (char_buffer[ix]==0) break;
-          ascii_hex_message += std::format("<{:X}>",char_buffer[ix]);
-        }
-        DrawText(ascii_hex_message.data(),5,screenHeight-1*FONT_HEIGHT,FONT_HEIGHT,MAROON);
+        DrawTextEx(
+          font                                  // font
+          ,unicode_hex_message.c_str()             // UTF8 chars
+          ,(Vector2){ 
+             5                                  // x (col)
+            ,screenHeight-3*FONT_HEIGHT         // y (row)
+          }
+          ,FONT_HEIGHT            // font size (pixels)
+          ,0                      // Spacing (pixels)
+          ,MAROON               // tint
+        );
 
         //----------------------------------------------------------------------------------
         // END key input processing and rendering
