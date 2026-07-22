@@ -81,7 +81,6 @@ int cratchit_raylib_main(int argc, char *argv[]) {
   // END: Load and Pre-render bitmap fonts for supported unicode code points 
   //--------------------------------------------------------------------------------------
 
-
   SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
   //--------------------------------------------------------------------------------------
   // BEGIN Text input mechanism
@@ -186,7 +185,7 @@ int cratchit_raylib_main(int argc, char *argv[]) {
               font                    // font
               ,"_"    // UTF8 chars
               ,Vector2{ 
-                   textBox.x + 8 + text_size.x
+                 textBox.x + 8 + text_size.x
                 ,textBox.y + 12
               }
               ,FONT_HEIGHT            // font size (pixels)
@@ -215,7 +214,6 @@ int cratchit_raylib_main(int argc, char *argv[]) {
           ,0                      // Spacing (pixels)
           ,MAROON               // tint
         );
-
 
         // Render hex values of read unicode code point characters (development trace)
         std::string unicode_hex_message{};
