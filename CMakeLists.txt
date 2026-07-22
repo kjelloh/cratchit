@@ -38,6 +38,7 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/custom_raylib_log_callback.cpp
         src/second/log.cpp
         src/second/main.cpp
 

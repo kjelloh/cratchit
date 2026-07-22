@@ -1,5 +1,6 @@
 #include "main.hpp"
 #include "log.hpp"
+#include "custom_raylib_log_callback.hpp"
 
 #include "raylib.h" // See https://www.raylib.com/cheatsheet/cheatsheet.html, https://github.com/raysan5/raylib
 
@@ -65,25 +66,6 @@ std::vector<uint8_t> to_utf8(uint32_t cp) {
 
 namespace second {
 
-  // Custom logging function
-  void CustomTraceLog(int msgType, const char *text, va_list args) {
-    switch (msgType) {
-      case LOG_INFO:
-        log_development_trace("[raylib INFO] : {}",text);
-        break;
-      case LOG_ERROR: 
-        log_development_trace("[raylib ERROR] : {}",text);
-        break;
-      case LOG_WARNING: 
-        log_development_trace("[raylib WARN] : {}",text);
-        break;
-      case LOG_DEBUG: 
-        log_development_trace("[raylib DEBUG] : {}",text);
-        break;
-      default: break;
-    }
-  }
-
   int main(int argc, char *argv[]) {
 
 
@@ -100,7 +82,7 @@ namespace second {
     //--------------------------------------------------------------------------------------
 
     // Set custom logger
-    SetTraceLogCallback(CustomTraceLog);
+    SetTraceLogCallback(custom_raylib_log_callback);
 
     const int screenWidth = 800;
     const int screenHeight = 450;
