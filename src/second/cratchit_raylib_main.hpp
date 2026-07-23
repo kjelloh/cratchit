@@ -1,3 +1,7 @@
 #pragma once
 
-int cratchit_raylib_main(int argc, char *argv[]);
+class CratchitRaylibApp {
+public:
+  int run(int argc, char *argv[]);
+private:
+}; // CratchitRaylibApp

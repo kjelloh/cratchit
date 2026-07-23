@@ -6,7 +6,7 @@
 
 char const* const WATERMARK = "CRATCHIT";
 
-int cratchit_raylib_main(int argc, char *argv[]) {
+int CratchitRaylibApp::run(int argc, char *argv[]) {
   log_development_trace("Hello from cratchit_raylib_main");
 
   int posix_result{0};

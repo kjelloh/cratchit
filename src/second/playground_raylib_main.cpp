@@ -9,7 +9,7 @@ char const* const WATERMARK = "RAYLIB PLAYGROUND";
 /**
   For investigation and experiments for how raylib works and may be used.
  */
-int playground_raylib_main(int argc, char *argv[]) {
+int PlaygroundRaylibApp::run(int argc, char *argv[]) {
   log_development_trace("Hello from playground_raylib_main");
 
   int posix_result{0};

@@ -1,3 +1,7 @@
 #pragma once
 
-int playground_raylib_main(int argc, char *argv[]);
+class PlaygroundRaylibApp {
+public:
+  int run(int argc, char *argv[]);
+private:
+}; // CratchitRaylibApp
