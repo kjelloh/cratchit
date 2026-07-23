@@ -7,6 +7,11 @@
 char const* const WATERMARK = "RAYLIB PLAYGROUND";
 char const* const WINDOW_CAPTION = "RAYLIB PLAYGROUND";
 
+#define WINDOW_BACGROUND_COLOR  CLITERAL(Color){ 0, 228, 48, 255 }      // Green
+#define PANE_COLOR  CLITERAL(Color){ 255, 109, 194, 255 }   // Pink
+#define ACTIVE_COLOR        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
+#define CHARACTER_COLOR      CLITERAL(Color){ 135, 60, 190, 255 }    // Violet
+
 /**
   For investigation and experiments for how raylib works and may be used.
  */
@@ -190,7 +195,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
       //----------------------------------------------------------------------------------
       BeginDrawing();
 
-        ClearBackground(RAYWHITE);
+        ClearBackground(WINDOW_BACGROUND_COLOR);
 
         //----------------------------------------------------------------------------------
         // BEGIN key input processing and rendering
@@ -200,9 +205,9 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
           auto pane = top_pane;
           auto mouse_is_on_pane = mouse_is_on_top_pane;
 
-          auto background_colour = PINK;
+          auto background_colour = PANE_COLOR;
           auto passive_colour = DARKGRAY;
-          auto active_colour = RED;
+          auto active_colour = ACTIVE_COLOR;
 
           DrawRectangleRec(pane, background_colour);
           if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
@@ -212,9 +217,9 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
           auto pane = middle_pane;
           auto mouse_is_on_pane = mouse_is_on_middle_pane;
 
-          auto background_colour = PINK;
+          auto background_colour = PANE_COLOR;
           auto passive_colour = DARKGRAY;
-          auto active_colour = RED;
+          auto active_colour = ACTIVE_COLOR;
 
           DrawRectangleRec(pane, background_colour);
           if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
@@ -223,9 +228,9 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
         {
           auto pane = bottom_pane;
           auto mouse_is_on_pane = mouse_is_on_bottom_pane;
-          auto background_colour = PINK;
+          auto background_colour = PANE_COLOR;
           auto passive_colour = DARKGRAY;
-          auto active_colour = RED;
+          auto active_colour = ACTIVE_COLOR;
 
           DrawRectangleRec(pane, background_colour);
           if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
@@ -253,7 +258,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
               }
               ,FONT_HEIGHT            // font size (pixels)
               ,0                      // Spacing (pixels)
-              ,DARKGRAY              // tint
+              ,CHARACTER_COLOR              // tint
             );
           }
 
@@ -283,7 +288,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
                   ,text_top_left
                   ,FONT_HEIGHT            // font size (pixels)
                   ,0                      // Spacing (pixels)
-                  ,MAROON               // tint
+                  ,CHARACTER_COLOR               // tint
                 );
               }
 
@@ -323,7 +328,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
                     ,text_top_left
                     ,FONT_HEIGHT            // font size (pixels)
                     ,0                      // Spacing (pixels)
-                    ,MAROON               // tint
+                    ,CHARACTER_COLOR               // tint
                   );
                 }
 
@@ -350,7 +355,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
             }
             ,FONT_HEIGHT            // font size (pixels)
             ,0                      // Spacing (pixels)
-            ,MAROON               // tint
+            ,CHARACTER_COLOR               // tint
           );
         }
 
@@ -374,7 +379,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
             }
             ,FONT_HEIGHT            // font size (pixels)
             ,0                      // Spacing (pixels)
-            ,MAROON               // tint
+            ,CHARACTER_COLOR               // tint
           );
         }
 
@@ -405,7 +410,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
             }
             ,FONT_HEIGHT            // font size (pixels)
             ,0                      // Spacing (pixels)
-            ,DARKGRAY               // tint
+            ,CHARACTER_COLOR               // tint
           );
           if (mouse_is_on_bottom_pane) {
             if (((framesCounter/20)%2) == 0) {
@@ -424,7 +429,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
                 }
                 ,FONT_HEIGHT            // font size (pixels)
                 ,0                      // Spacing (pixels)
-                ,MAROON               // tint
+                ,CHARACTER_COLOR               // tint
               );
             }
           }
