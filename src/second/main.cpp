@@ -17,8 +17,8 @@ namespace second {
     log_development_trace("Test with formatting int value {}",3);
     log_design_insufficiency("Test with formatting int value {}",4);
 
-    // Hard code selection of production or playground (experiment and investigate) main
-    if (true) {
+    // Hard code a selection of (switch between) production or playground (experiment and investigate) main
+    if (false) {
       posix_result = cratchit_raylib_main(argc,argv);
     }
     else {

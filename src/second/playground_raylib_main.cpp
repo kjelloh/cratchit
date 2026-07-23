@@ -69,9 +69,11 @@ int playground_raylib_main(int argc, char *argv[]) {
   // U+2190–U+21FF	Arrows	← ↑ → ↓
   // U+2200–U+22FF	Mathematical Operators	± ≤ ≥ ≠        
 
+  const int FONT_HEIGHT = 32;
+
   Font font = LoadFontEx(
       "resources/NotoSans-Regular.ttf"       // path to true type font file
-      ,32                                     // font size height
+      ,FONT_HEIGHT                                     // font size height
       ,codepoints.data()                      // array*
       ,static_cast<int>(codepoints.size())    // array element count
   );
@@ -98,7 +100,6 @@ int playground_raylib_main(int argc, char *argv[]) {
   //--------------------------------------------------------------------------------------
   std::vector<int> code_point_buffer{};
 
-  const int FONT_HEIGHT = 32;
   bool mouseOnText = false;
 
   int framesCounter = 0;    
@@ -110,18 +111,35 @@ int playground_raylib_main(int argc, char *argv[]) {
   // Main render window loop
   //--------------------------------------------------------------------------------------
   while (!WindowShouldClose()) {
+
+      const int padding{5};
+      auto current_screen_width = GetScreenWidth();
+      auto current_screen_height = GetScreenHeight();
+
+      auto pane_width = current_screen_width - 2*padding;
+      auto top_pane_row_count = 10;
+      auto top_pane_height = top_pane_row_count*FONT_HEIGHT + (top_pane_row_count+1)*padding;
+      auto bottom_pane_row_count = 3;
+      auto bottom_pane_height = bottom_pane_row_count*FONT_HEIGHT + (bottom_pane_row_count+1)*padding;
   
-        Rectangle textBox = { 
-         5                      // Rectangle top-left corner position x (col)
-        ,static_cast<float>(GetScreenHeight()-50)        // Rectangle top-left corner position y (row)
-        ,225                    // Rectangle width
-        ,50                     // Rectangle height
+      Rectangle top_pane = { 
+         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
+        ,static_cast<float>(padding)        // Rectangle top-left corner position y (row)
+        ,static_cast<float>(pane_width)                    // Rectangle width
+        ,static_cast<float>(top_pane_height)                     // Rectangle height
+      };
+
+      Rectangle bottom_pane = { 
+         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
+        ,static_cast<float>(current_screen_height - bottom_pane_height - 2*padding)        // Rectangle top-left corner position y (row)
+        ,static_cast<float>(pane_width)                    // Rectangle width
+        ,static_cast<float>(bottom_pane_height)                     // Rectangle height
       };
 
       //----------------------------------------------------------------------------------
       // BEGIN Update
       //----------------------------------------------------------------------------------
-      if (CheckCollisionPointRec(GetMousePosition(), textBox)) mouseOnText = true;
+      if (CheckCollisionPointRec(GetMousePosition(), bottom_pane)) mouseOnText = true;
       else mouseOnText = false;
 
       if (int key = GetCharPressed();key>0) {
@@ -154,106 +172,131 @@ int playground_raylib_main(int argc, char *argv[]) {
         // BEGIN key input processing and rendering
         //----------------------------------------------------------------------------------
 
-        DrawTextEx(
-          font                    // font
-          ,WATERMARK    // UTF8 chars
-          ,Vector2{ 
-             static_cast<float>(GetScreenWidth()/2 -100)     // x (col)
-            ,static_cast<float>(GetScreenHeight()/2 + FONT_HEIGHT/2)        // y (row)
-          }
-          ,FONT_HEIGHT            // font size (pixels)
-          ,0                      // Spacing (pixels)
-          ,LIGHTGRAY              // tint
-        );
+        DrawRectangleRec(top_pane, LIGHTGRAY);
+        DrawRectangleRec(bottom_pane, LIGHTGRAY);
 
-        DrawRectangleRec(textBox, LIGHTGRAY);
-        if (mouseOnText) DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, RED);
-        else DrawRectangleLines((int)textBox.x, (int)textBox.y, (int)textBox.width, (int)textBox.height, DARKGRAY);
+        if (mouseOnText) DrawRectangleLines((int)bottom_pane.x, (int)bottom_pane.y, (int)bottom_pane.width, (int)bottom_pane.height, RED);
+        else DrawRectangleLines((int)bottom_pane.x, (int)bottom_pane.y, (int)bottom_pane.width, (int)bottom_pane.height, DARKGRAY);
 
-        //----------------------------------------------------------------------------------
-        // BEGIN Unicode to UTF8 string
-        //----------------------------------------------------------------------------------
+        // Render WATERMARK
+        {
+          auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
+              font
+            ,WATERMARK
+            ,FONT_HEIGHT
+            ,0
+          );
 
-        std::string utf8_string{};
-        for (auto const& code_point : code_point_buffer) {
-          auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
-          for (auto utf8_byte : utf8_bytes) utf8_string += static_cast<char>(utf8_byte);
-        }
-
-        //----------------------------------------------------------------------------------
-        // END Unicode to UTF8 string
-        //----------------------------------------------------------------------------------
-
-        DrawTextEx(
-          font                    // font
-          ,utf8_string.c_str()    // UTF8 chars
-          ,(Vector2){ 
-            textBox.x + 5         // x (col)
-            ,textBox.y + 8        // y (row)
-          }
-          ,FONT_HEIGHT            // font size (pixels)
-          ,0                      // Spacing (pixels)
-          ,DARKGRAY               // tint
-        );
-
-        if (mouseOnText) {
-          if (((framesCounter/20)%2) == 0) {
-            auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
-               font
-              ,utf8_string.c_str()
-              ,FONT_HEIGHT
-              ,0
-            );
-            DrawTextEx(
-              font                    // font
-              ,"_"    // UTF8 chars
-              ,Vector2{ 
-                 textBox.x + 8 + text_size.x
-                ,textBox.y + 12
-              }
-              ,FONT_HEIGHT            // font size (pixels)
-              ,0                      // Spacing (pixels)
-              ,MAROON               // tint
-            );
-          }
+          DrawTextEx(
+            font                    // font
+            ,WATERMARK    // UTF8 chars
+            ,Vector2{ 
+               top_pane.x + (pane_width - text_size.x)/2     // x (col)
+              ,top_pane.y + (top_pane_height - text_size.y)/2        // y (row)
+            }
+            ,FONT_HEIGHT            // font size (pixels)
+            ,0                      // Spacing (pixels)
+            ,DARKGRAY              // tint
+          );
         }
 
         // Render hex values of read unicode code point characters (development trace)
-        std::string utf8_hex_message{};
-        for (auto const& code_point : code_point_buffer) {
-          auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
-          for (auto const& utf8_byte : utf8_bytes) {
-            utf8_hex_message += std::format("<{:X}>",utf8_byte);
+        {
+          auto row_ix = 0;
+
+          std::string unicode_hex_message{"UNICODE:"};
+          for (auto const& code_point : code_point_buffer) {
+            unicode_hex_message += std::format("<{:X}>",static_cast<uint32_t>(code_point));
           }
+          DrawTextEx(
+            font                                  // font
+            ,unicode_hex_message.c_str()             // UTF8 chars
+            ,(Vector2){ 
+               bottom_pane.x + padding         // x (col)
+              ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+            }
+            ,FONT_HEIGHT            // font size (pixels)
+            ,0                      // Spacing (pixels)
+            ,MAROON               // tint
+          );
         }
-        DrawTextEx(
-          font                                  // font
-          ,utf8_hex_message.c_str()             // UTF8 chars
-          ,(Vector2){ 
-             5                                  // x (col)
-            ,static_cast<float>(GetScreenHeight()-4*FONT_HEIGHT)         // y (row)
-          }
-          ,FONT_HEIGHT            // font size (pixels)
-          ,0                      // Spacing (pixels)
-          ,MAROON               // tint
-        );
 
         // Render hex values of read unicode code point characters (development trace)
-        std::string unicode_hex_message{};
-        for (auto const& code_point : code_point_buffer) {
-          unicode_hex_message += std::format("<{:X}>",static_cast<uint32_t>(code_point));
-        }
-        DrawTextEx(
-          font                                  // font
-          ,unicode_hex_message.c_str()             // UTF8 chars
-          ,(Vector2){ 
-             5                                  // x (col)
-            ,static_cast<float>(GetScreenHeight()-3*FONT_HEIGHT)         // y (row)
+        {
+          auto row_ix = 1;
+
+          std::string utf8_hex_message{"UTF8:"};
+          for (auto const& code_point : code_point_buffer) {
+            auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
+            for (auto const& utf8_byte : utf8_bytes) {
+              utf8_hex_message += std::format("<{:X}>",utf8_byte);
+            }
           }
-          ,FONT_HEIGHT            // font size (pixels)
-          ,0                      // Spacing (pixels)
-          ,MAROON               // tint
-        );
+          DrawTextEx(
+            font                                  // font
+            ,utf8_hex_message.c_str()             // UTF8 chars
+            ,(Vector2){ 
+               bottom_pane.x + padding         // x (col)
+              ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+            }
+            ,FONT_HEIGHT            // font size (pixels)
+            ,0                      // Spacing (pixels)
+            ,MAROON               // tint
+          );
+        }
+
+        // Render user input text
+        {
+          auto row_ix = 2;
+
+          //----------------------------------------------------------------------------------
+          // BEGIN Unicode to UTF8 string
+          //----------------------------------------------------------------------------------
+
+          std::string utf8_string{">"};
+          for (auto const& code_point : code_point_buffer) {
+            auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
+            for (auto utf8_byte : utf8_bytes) utf8_string += static_cast<char>(utf8_byte);
+          }
+
+          //----------------------------------------------------------------------------------
+          // END Unicode to UTF8 string
+          //----------------------------------------------------------------------------------
+
+
+          DrawTextEx(
+            font                    // font
+            ,utf8_string.c_str()    // UTF8 chars
+            ,(Vector2){ 
+              bottom_pane.x + padding         // x (col)
+              ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+            }
+            ,FONT_HEIGHT            // font size (pixels)
+            ,0                      // Spacing (pixels)
+            ,DARKGRAY               // tint
+          );
+          if (mouseOnText) {
+            if (((framesCounter/20)%2) == 0) {
+              auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
+                font
+                ,utf8_string.c_str()
+                ,FONT_HEIGHT
+                ,0
+              );
+              DrawTextEx(
+                font                    // font
+                ,"_"    // UTF8 chars
+                ,Vector2{ 
+                   bottom_pane.x + text_size.x + padding         // x (col)
+                  ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+                }
+                ,FONT_HEIGHT            // font size (pixels)
+                ,0                      // Spacing (pixels)
+                ,MAROON               // tint
+              );
+            }
+          }
+        }
 
         //----------------------------------------------------------------------------------
         // END key input processing and rendering
