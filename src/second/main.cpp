@@ -18,7 +18,7 @@ namespace second {
     log_design_insufficiency("Test with formatting int value {}",4);
 
     // Hard code a selection of (switch between) production or playground (experiment and investigate) main
-    if (false) {
+    if (true) {
       CratchitRaylibApp app{};
       posix_result = app.run(argc,argv);
     }

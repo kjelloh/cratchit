@@ -8,9 +8,10 @@ char const* const WATERMARK = "CRATCHIT";
 char const* const WINDOW_CAPTION = "CRATCHIT";
 
 #define WINDOW_BACGROUND_COLOR  CLITERAL(Color){ 255, 255, 255, 255 }   // White
-#define PANE_COLOR  CLITERAL(Color){ 200, 200, 200, 255 }   // Light Gray
-#define ACTIVE_COLOR        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
-#define CHARACTER_COLOR      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
+#define PANE_BACKGROUND_COLOR  CLITERAL(Color){ 200, 200, 200, 255 }   // Light Gray
+#define ACTIVE_PANE_FRAME_COLOR        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
+#define PASSIVE_PANE_FRAME_COLOR   CLITERAL(Color){ 80, 80, 80, 255 }      // Dark Gray
+#define TEXT_COLOR      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
 
 int CratchitRaylibApp::run(int argc, char *argv[]) {
   log_development_trace("Hello from cratchit_raylib_main");
@@ -24,8 +25,9 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
   // Set custom logger
   SetTraceLogCallback(custom_raylib_log_callback);
 
-  const int INITIAL_SCREEN_WIDTH = 800;
-  const int INITIAL_SCREEN_HEIGHT = 450;
+  const int INITIAL_SCREEN_WIDTH = 1080;
+  const int INITIAL_SCREEN_HEIGHT = 720;
+  const int FONT_HEIGHT = 32;
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE); // Make InitWindow create a resizeable window
 
@@ -71,8 +73,6 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
 
   // U+2190–U+21FF	Arrows	← ↑ → ↓
   // U+2200–U+22FF	Mathematical Operators	± ≤ ≥ ≠        
-
-  const int FONT_HEIGHT = 32;
 
   Font font = LoadFontEx(
       "resources/NotoSans-Regular.ttf"       // path to true type font file
@@ -129,19 +129,19 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
       auto middle_pane_row_count = 10;
       auto middle_pane_height = middle_pane_row_count*FONT_HEIGHT + (middle_pane_row_count+1)*padding;
 
-      auto top_pane_height = current_screen_height - bottom_pane_height - middle_pane_height;
+      auto top_pane_height = current_screen_height - bottom_pane_height - middle_pane_height - 4*padding;
       auto top_pane_row_count = top_pane_height / (padding + FONT_HEIGHT);
 
       Rectangle bottom_pane = { 
          static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
-        ,static_cast<float>(current_screen_height - bottom_pane_height - 2*padding)        // Rectangle top-left corner position y (row)
+        ,static_cast<float>(current_screen_height - bottom_pane_height - padding)        // Rectangle top-left corner position y (row)
         ,static_cast<float>(pane_width)                    // Rectangle width
         ,static_cast<float>(bottom_pane_height)                     // Rectangle height
       };
 
       Rectangle middle_pane = { 
          static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
-        ,static_cast<float>(bottom_pane.y - middle_pane_height)        // Rectangle top-left corner position y (row)
+        ,static_cast<float>(bottom_pane.y - middle_pane_height - padding)        // Rectangle top-left corner position y (row)
         ,static_cast<float>(pane_width)                    // Rectangle width
         ,static_cast<float>(middle_pane_height)                     // Rectangle height
       };
@@ -202,9 +202,9 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
           auto pane = top_pane;
           auto mouse_is_on_pane = mouse_is_on_top_pane;
 
-          auto background_colour = PANE_COLOR;
-          auto passive_colour = DARKGRAY;
-          auto active_colour = ACTIVE_COLOR;
+          auto background_colour = PANE_BACKGROUND_COLOR;
+          auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
+          auto active_colour = ACTIVE_PANE_FRAME_COLOR;
 
           DrawRectangleRec(pane, background_colour);
           if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
@@ -214,9 +214,9 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
           auto pane = middle_pane;
           auto mouse_is_on_pane = mouse_is_on_middle_pane;
 
-          auto background_colour = PANE_COLOR;
-          auto passive_colour = DARKGRAY;
-          auto active_colour = ACTIVE_COLOR;
+          auto background_colour = PANE_BACKGROUND_COLOR;
+          auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
+          auto active_colour = ACTIVE_PANE_FRAME_COLOR;
 
           DrawRectangleRec(pane, background_colour);
           if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
@@ -225,9 +225,9 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
         {
           auto pane = bottom_pane;
           auto mouse_is_on_pane = mouse_is_on_bottom_pane;
-          auto background_colour = PANE_COLOR;
-          auto passive_colour = DARKGRAY;
-          auto active_colour = ACTIVE_COLOR;
+          auto background_colour = PANE_BACKGROUND_COLOR;
+          auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
+          auto active_colour = ACTIVE_PANE_FRAME_COLOR;
 
           DrawRectangleRec(pane, background_colour);
           if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
@@ -255,7 +255,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
               }
               ,FONT_HEIGHT            // font size (pixels)
               ,0                      // Spacing (pixels)
-              ,CHARACTER_COLOR              // tint
+              ,TEXT_COLOR              // tint
             );
           }
 
@@ -285,7 +285,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
                   ,text_top_left
                   ,FONT_HEIGHT            // font size (pixels)
                   ,0                      // Spacing (pixels)
-                  ,CHARACTER_COLOR               // tint
+                  ,TEXT_COLOR               // tint
                 );
               }
 
@@ -325,7 +325,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
                     ,text_top_left
                     ,FONT_HEIGHT            // font size (pixels)
                     ,0                      // Spacing (pixels)
-                    ,CHARACTER_COLOR               // tint
+                    ,TEXT_COLOR               // tint
                   );
                 }
 
@@ -352,7 +352,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
             }
             ,FONT_HEIGHT            // font size (pixels)
             ,0                      // Spacing (pixels)
-            ,CHARACTER_COLOR               // tint
+            ,TEXT_COLOR               // tint
           );
         }
 
@@ -376,7 +376,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
             }
             ,FONT_HEIGHT            // font size (pixels)
             ,0                      // Spacing (pixels)
-            ,CHARACTER_COLOR               // tint
+            ,TEXT_COLOR               // tint
           );
         }
 
@@ -407,7 +407,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
             }
             ,FONT_HEIGHT            // font size (pixels)
             ,0                      // Spacing (pixels)
-            ,CHARACTER_COLOR               // tint
+            ,TEXT_COLOR               // tint
           );
           if (mouse_is_on_bottom_pane) {
             if (((framesCounter/20)%2) == 0) {
@@ -426,7 +426,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
                 }
                 ,FONT_HEIGHT            // font size (pixels)
                 ,0                      // Spacing (pixels)
-                ,CHARACTER_COLOR               // tint
+                ,TEXT_COLOR               // tint
               );
             }
           }
