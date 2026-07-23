@@ -97,7 +97,9 @@ int cratchit_raylib_main(int argc, char *argv[]) {
   //--------------------------------------------------------------------------------------
   std::vector<int> code_point_buffer{};
 
-  bool mouseOnText = false;
+  bool mouse_is_on_top_pane = false;
+  bool mouse_is_on_middle_pane = false;
+  bool mouse_is_on_bottom_pane = false;
 
   int framesCounter = 0;    
   //--------------------------------------------------------------------------------------
@@ -114,17 +116,15 @@ int cratchit_raylib_main(int argc, char *argv[]) {
       auto current_screen_height = GetScreenHeight();
 
       auto pane_width = current_screen_width - 2*padding;
-      auto top_pane_row_count = 10;
-      auto top_pane_height = top_pane_row_count*FONT_HEIGHT + (top_pane_row_count+1)*padding;
+
       auto bottom_pane_row_count = 3;
       auto bottom_pane_height = bottom_pane_row_count*FONT_HEIGHT + (bottom_pane_row_count+1)*padding;
-  
-      Rectangle top_pane = { 
-         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
-        ,static_cast<float>(padding)        // Rectangle top-left corner position y (row)
-        ,static_cast<float>(pane_width)                    // Rectangle width
-        ,static_cast<float>(top_pane_height)                     // Rectangle height
-      };
+
+      auto middle_pane_row_count = 10;
+      auto middle_pane_height = middle_pane_row_count*FONT_HEIGHT + (middle_pane_row_count+1)*padding;
+
+      auto top_pane_height = current_screen_height - bottom_pane_height - middle_pane_height;
+      auto top_pane_row_count = top_pane_height / (padding + FONT_HEIGHT);
 
       Rectangle bottom_pane = { 
          static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
@@ -133,26 +133,49 @@ int cratchit_raylib_main(int argc, char *argv[]) {
         ,static_cast<float>(bottom_pane_height)                     // Rectangle height
       };
 
+      Rectangle middle_pane = { 
+         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
+        ,static_cast<float>(bottom_pane.y - middle_pane_height)        // Rectangle top-left corner position y (row)
+        ,static_cast<float>(pane_width)                    // Rectangle width
+        ,static_cast<float>(middle_pane_height)                     // Rectangle height
+      };
+
+      Rectangle top_pane = { 
+         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
+        ,static_cast<float>(padding)        // Rectangle top-left corner position y (row)
+        ,static_cast<float>(pane_width)                    // Rectangle width
+        ,static_cast<float>(top_pane_height)                     // Rectangle height
+      };
+
       //----------------------------------------------------------------------------------
       // BEGIN Update
       //----------------------------------------------------------------------------------
-      if (CheckCollisionPointRec(GetMousePosition(), bottom_pane)) mouseOnText = true;
-      else mouseOnText = false;
 
-      if (int key = GetCharPressed();key>0) {
-        if (key >= ' ') code_point_buffer.push_back(key);
+      {
+        if (int key = GetCharPressed();key>0) {
+          if (key >= ' ') code_point_buffer.push_back(key);
+        }
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            if (code_point_buffer.size() > 0) code_point_buffer.pop_back();
+        }
+      
       }
-      if (IsKeyPressed(KEY_BACKSPACE)) {
-          if (code_point_buffer.size() > 0) code_point_buffer.pop_back();
-      }
+      if (CheckCollisionPointRec(GetMousePosition(), top_pane)) mouse_is_on_top_pane = true;
+      else mouse_is_on_top_pane = false;
 
-      if (mouseOnText) {
+      if (CheckCollisionPointRec(GetMousePosition(), middle_pane)) mouse_is_on_middle_pane = true;
+      else mouse_is_on_middle_pane = false;
+
+      if (CheckCollisionPointRec(GetMousePosition(), bottom_pane)) mouse_is_on_bottom_pane = true;
+      else mouse_is_on_bottom_pane = false;
+
+      if (mouse_is_on_bottom_pane) {
           // Set the window's cursor to the I-Beam
           SetMouseCursor(MOUSE_CURSOR_IBEAM);
       }
       else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
-      if (mouseOnText) framesCounter++;
+      if (mouse_is_on_bottom_pane) framesCounter++;
       else framesCounter = 0;
       //----------------------------------------------------------------------------------
       // END Update
@@ -169,32 +192,141 @@ int cratchit_raylib_main(int argc, char *argv[]) {
         // BEGIN key input processing and rendering
         //----------------------------------------------------------------------------------
 
-        DrawRectangleRec(top_pane, LIGHTGRAY);
-        DrawRectangleRec(bottom_pane, LIGHTGRAY);
-
-        if (mouseOnText) DrawRectangleLines((int)bottom_pane.x, (int)bottom_pane.y, (int)bottom_pane.width, (int)bottom_pane.height, RED);
-        else DrawRectangleLines((int)bottom_pane.x, (int)bottom_pane.y, (int)bottom_pane.width, (int)bottom_pane.height, DARKGRAY);
-
-        // Render WATERMARK
         {
-          auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
-              font
-            ,WATERMARK
-            ,FONT_HEIGHT
-            ,0
-          );
+          auto pane = top_pane;
+          auto mouse_is_on_pane = mouse_is_on_top_pane;
 
-          DrawTextEx(
-            font                    // font
-            ,WATERMARK    // UTF8 chars
-            ,Vector2{ 
-               top_pane.x + (pane_width - text_size.x)/2     // x (col)
-              ,top_pane.y + (top_pane_height - text_size.y)/2        // y (row)
-            }
-            ,FONT_HEIGHT            // font size (pixels)
-            ,0                      // Spacing (pixels)
-            ,DARKGRAY              // tint
-          );
+          auto background_colour = LIGHTGRAY;
+          auto passive_colour = DARKGRAY;
+          auto active_colour = RED;
+
+          DrawRectangleRec(pane, background_colour);
+          if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
+          else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
+        }
+        {
+          auto pane = middle_pane;
+          auto mouse_is_on_pane = mouse_is_on_middle_pane;
+
+          auto background_colour = LIGHTGRAY;
+          auto passive_colour = DARKGRAY;
+          auto active_colour = RED;
+
+          DrawRectangleRec(pane, background_colour);
+          if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
+          else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
+        }
+        {
+          auto pane = bottom_pane;
+          auto mouse_is_on_pane = mouse_is_on_bottom_pane;
+          auto background_colour = LIGHTGRAY;
+          auto passive_colour = DARKGRAY;
+          auto active_colour = RED;
+
+          DrawRectangleRec(pane, background_colour);
+          if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
+          else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
+        }
+
+
+        // Render top pane
+        {
+          // Render WATERMARK
+          {
+            auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
+                font
+              ,WATERMARK
+              ,FONT_HEIGHT
+              ,0
+            );
+
+            DrawTextEx(
+              font                    // font
+              ,WATERMARK    // UTF8 chars
+              ,Vector2{ 
+                top_pane.x + (pane_width - text_size.x)/2     // x (col)
+                ,top_pane.y + (top_pane_height - text_size.y)/2        // y (row)
+              }
+              ,FONT_HEIGHT            // font size (pixels)
+              ,0                      // Spacing (pixels)
+              ,DARKGRAY              // tint
+            );
+          }
+
+          // Test render row placeholders
+          for (int row_ix=0;row_ix<top_pane_row_count;++row_ix) {
+            // Render row
+            {
+              auto pane = top_pane;
+              auto text_top_left = Vector2{
+                  pane.x + padding         // x (col)
+                ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+              };
+
+              std::string utf8_text = std::format("top row:{}",row_ix);
+
+              auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
+                 font
+                ,utf8_text.c_str()
+                ,FONT_HEIGHT
+                ,0
+              );
+
+              if (text_top_left.y + text_size.y < top_pane.y + top_pane_height) {
+                DrawTextEx(
+                  font                                  // font
+                  ,utf8_text.c_str()             // UTF8 chars
+                  ,text_top_left
+                  ,FONT_HEIGHT            // font size (pixels)
+                  ,0                      // Spacing (pixels)
+                  ,MAROON               // tint
+                );
+              }
+
+            } // render row
+          } // for
+        } // pane
+
+        // render middle pane
+        {
+
+          // Test render row placeholders
+          {
+            auto pane = middle_pane;
+            auto row_count = middle_pane_row_count;
+
+            for (int row_ix=0;row_ix<row_count;++row_ix) {
+              // Render row
+              {
+                auto text_top_left = Vector2{
+                    pane.x + padding         // x (col)
+                  ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+                };
+
+                std::string utf8_text = std::format("middle row:{}",row_ix);
+
+                auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
+                  font
+                  ,utf8_text.c_str()
+                  ,FONT_HEIGHT
+                  ,0
+                );
+
+                if (text_top_left.y + text_size.y < pane.y + pane.height) {
+                  DrawTextEx(
+                    font                                  // font
+                    ,utf8_text.c_str()             // UTF8 chars
+                    ,text_top_left
+                    ,FONT_HEIGHT            // font size (pixels)
+                    ,0                      // Spacing (pixels)
+                    ,MAROON               // tint
+                  );
+                }
+
+              } // render row
+            } // for
+          }
+
         }
 
         // Render hex values of read unicode code point characters (development trace)
@@ -242,7 +374,7 @@ int cratchit_raylib_main(int argc, char *argv[]) {
           );
         }
 
-        // Render user input text
+        // Render user input text (unicode -> UTF8 -> raylib render)
         {
           auto row_ix = 2;
 
@@ -260,7 +392,6 @@ int cratchit_raylib_main(int argc, char *argv[]) {
           // END Unicode to UTF8 string
           //----------------------------------------------------------------------------------
 
-
           DrawTextEx(
             font                    // font
             ,utf8_string.c_str()    // UTF8 chars
@@ -272,7 +403,7 @@ int cratchit_raylib_main(int argc, char *argv[]) {
             ,0                      // Spacing (pixels)
             ,DARKGRAY               // tint
           );
-          if (mouseOnText) {
+          if (mouse_is_on_bottom_pane) {
             if (((framesCounter/20)%2) == 0) {
               auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
                 font
