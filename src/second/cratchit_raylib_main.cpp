@@ -5,6 +5,7 @@
 #include "utf8.hpp"
 
 char const* const WATERMARK = "CRATCHIT";
+char const* const WINDOW_CAPTION = "CRATCHIT";
 
 int CratchitRaylibApp::run(int argc, char *argv[]) {
   log_development_trace("Hello from cratchit_raylib_main");
@@ -26,7 +27,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
   InitWindow(
      INITIAL_SCREEN_WIDTH
     ,INITIAL_SCREEN_HEIGHT
-    ,"raylib [core] example - basic window"
+    ,WINDOW_CAPTION
   );
 
   //--------------------------------------------------------------------------------------
@@ -196,7 +197,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
           auto pane = top_pane;
           auto mouse_is_on_pane = mouse_is_on_top_pane;
 
-          auto background_colour = LIGHTGRAY;
+          auto background_colour = BEIGE;
           auto passive_colour = DARKGRAY;
           auto active_colour = RED;
 
@@ -208,7 +209,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
           auto pane = middle_pane;
           auto mouse_is_on_pane = mouse_is_on_middle_pane;
 
-          auto background_colour = LIGHTGRAY;
+          auto background_colour = BEIGE;
           auto passive_colour = DARKGRAY;
           auto active_colour = RED;
 
@@ -219,7 +220,7 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
         {
           auto pane = bottom_pane;
           auto mouse_is_on_pane = mouse_is_on_bottom_pane;
-          auto background_colour = LIGHTGRAY;
+          auto background_colour = BEIGE;
           auto passive_colour = DARKGRAY;
           auto active_colour = RED;
 

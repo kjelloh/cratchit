@@ -5,6 +5,7 @@
 #include "utf8.hpp"
 
 char const* const WATERMARK = "RAYLIB PLAYGROUND";
+char const* const WINDOW_CAPTION = "RAYLIB PLAYGROUND";
 
 /**
   For investigation and experiments for how raylib works and may be used.
@@ -29,7 +30,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
   InitWindow(
      INITIAL_SCREEN_WIDTH
     ,INITIAL_SCREEN_HEIGHT
-    ,"raylib [core] example - basic window"
+    ,WINDOW_CAPTION
   );
 
   //--------------------------------------------------------------------------------------
@@ -199,7 +200,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
           auto pane = top_pane;
           auto mouse_is_on_pane = mouse_is_on_top_pane;
 
-          auto background_colour = LIGHTGRAY;
+          auto background_colour = PINK;
           auto passive_colour = DARKGRAY;
           auto active_colour = RED;
 
@@ -211,7 +212,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
           auto pane = middle_pane;
           auto mouse_is_on_pane = mouse_is_on_middle_pane;
 
-          auto background_colour = LIGHTGRAY;
+          auto background_colour = PINK;
           auto passive_colour = DARKGRAY;
           auto active_colour = RED;
 
@@ -222,7 +223,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
         {
           auto pane = bottom_pane;
           auto mouse_is_on_pane = mouse_is_on_bottom_pane;
-          auto background_colour = LIGHTGRAY;
+          auto background_colour = PINK;
           auto passive_colour = DARKGRAY;
           auto active_colour = RED;
 
