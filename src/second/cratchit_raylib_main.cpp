@@ -7,6 +7,9 @@
 #include "init.hpp"
 #include "view.hpp"
 
+#include <ranges>
+#include "enumerate_view.hpp"
+
 char const* const WATERMARK = "CRATCHIT";
 char const* const WINDOW_CAPTION = "CRATCHIT";
 
@@ -165,7 +168,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
       }
 
       // Test render row placeholders
-      for (int row_ix=0;row_ix<top_pane_row_count;++row_ix) {
+      for (auto const& [row_ix,utf8_text] : until_std::views::enumerate(ux.top_pane_rows())) {
         // Render row
         {
           auto pane = top_pane;
@@ -173,8 +176,6 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
               pane.x + padding         // x (col)
             ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
           };
-
-          std::string utf8_text = std::format("top row:{}",row_ix);
 
           auto text_size =  MeasureTextEx( // Font this->m_current_font, const char *text, float fontSize, float spacing
               this->m_current_font
@@ -206,15 +207,13 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
         auto pane = middle_pane;
         auto row_count = middle_pane_row_count;
 
-        for (int row_ix=0;row_ix<row_count;++row_ix) {
+        for (auto const& [row_ix,utf8_text] : until_std::views::enumerate(ux.middle_pane_rows())) {
           // Render row
           {
             auto text_top_left = Vector2{
                 pane.x + padding         // x (col)
               ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
             };
-
-            std::string utf8_text = std::format("middle row:{}",row_ix);
 
             auto text_size =  MeasureTextEx( // Font this->m_current_font, const char *text, float fontSize, float spacing
               this->m_current_font
