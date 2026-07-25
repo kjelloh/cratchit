@@ -1,8 +1,11 @@
 #include "cratchit_raylib_main.hpp"
 #include "log.hpp"
-#include "raylib.h" // See https://www.raylib.com/cheatsheet/cheatsheet.html, https://github.com/raysan5/raylib
 #include "custom_raylib_log_callback.hpp"
 #include "utf8.hpp"
+
+// TEA
+#include "init.hpp"
+#include "view.hpp"
 
 char const* const WATERMARK = "CRATCHIT";
 char const* const WINDOW_CAPTION = "CRATCHIT";
@@ -12,6 +15,339 @@ char const* const WINDOW_CAPTION = "CRATCHIT";
 #define ACTIVE_PANE_FRAME_COLOR        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
 #define PASSIVE_PANE_FRAME_COLOR   CLITERAL(Color){ 80, 80, 80, 255 }      // Dark Gray
 #define TEXT_COLOR      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
+
+tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
+  const int padding{5};
+  auto current_screen_width = GetScreenWidth();
+  auto current_screen_height = GetScreenHeight();
+
+  auto pane_width = current_screen_width - 2*padding;
+
+  auto bottom_pane_row_count = 3;
+  auto bottom_pane_height = bottom_pane_row_count*FONT_HEIGHT + (bottom_pane_row_count+1)*padding;
+
+  auto middle_pane_row_count = 10;
+  auto middle_pane_height = middle_pane_row_count*FONT_HEIGHT + (middle_pane_row_count+1)*padding;
+
+  auto top_pane_height = current_screen_height - bottom_pane_height - middle_pane_height - 4*padding;
+  auto top_pane_row_count = top_pane_height / (padding + FONT_HEIGHT);
+
+  Rectangle bottom_pane = { 
+      static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
+    ,static_cast<float>(current_screen_height - bottom_pane_height - padding)        // Rectangle top-left corner position y (row)
+    ,static_cast<float>(pane_width)                    // Rectangle width
+    ,static_cast<float>(bottom_pane_height)                     // Rectangle height
+  };
+
+  Rectangle middle_pane = { 
+      static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
+    ,static_cast<float>(bottom_pane.y - middle_pane_height - padding)        // Rectangle top-left corner position y (row)
+    ,static_cast<float>(pane_width)                    // Rectangle width
+    ,static_cast<float>(middle_pane_height)                     // Rectangle height
+  };
+
+  Rectangle top_pane = { 
+      static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
+    ,static_cast<float>(padding)        // Rectangle top-left corner position y (row)
+    ,static_cast<float>(pane_width)                    // Rectangle width
+    ,static_cast<float>(top_pane_height)                     // Rectangle height
+  };
+
+  //----------------------------------------------------------------------------------
+  // BEGIN Update
+  //----------------------------------------------------------------------------------
+
+  {
+    if (int key = GetCharPressed();key>0) {
+      if (key >= ' ') this->m_code_point_buffer.push_back(key);
+    }
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+        if (this->m_code_point_buffer.size() > 0) this->m_code_point_buffer.pop_back();
+    }
+  
+  }
+
+  bool mouse_is_on_top_pane = false;
+  bool mouse_is_on_middle_pane = false;
+  bool mouse_is_on_bottom_pane = false;
+
+  if (CheckCollisionPointRec(GetMousePosition(), top_pane)) mouse_is_on_top_pane = true;
+  else mouse_is_on_top_pane = false;
+
+  if (CheckCollisionPointRec(GetMousePosition(), middle_pane)) mouse_is_on_middle_pane = true;
+  else mouse_is_on_middle_pane = false;
+
+  if (CheckCollisionPointRec(GetMousePosition(), bottom_pane)) mouse_is_on_bottom_pane = true;
+  else mouse_is_on_bottom_pane = false;
+
+  if (mouse_is_on_bottom_pane) {
+      // Set the window's cursor to the I-Beam
+      SetMouseCursor(MOUSE_CURSOR_IBEAM);
+  }
+  else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+
+  if (mouse_is_on_bottom_pane) this->m_frames_counter++;
+  else this->m_frames_counter = 0;
+  //----------------------------------------------------------------------------------
+  // END Update
+  //----------------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------------
+  // BEGIN Draw
+  //----------------------------------------------------------------------------------
+  BeginDrawing();
+
+    ClearBackground(WINDOW_BACGROUND_COLOR);
+
+    //----------------------------------------------------------------------------------
+    // BEGIN key input processing and rendering
+    //----------------------------------------------------------------------------------
+
+    {
+      auto pane = top_pane;
+      auto mouse_is_on_pane = mouse_is_on_top_pane;
+
+      auto background_colour = PANE_BACKGROUND_COLOR;
+      auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
+      auto active_colour = ACTIVE_PANE_FRAME_COLOR;
+
+      DrawRectangleRec(pane, background_colour);
+      if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
+      else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
+    }
+    {
+      auto pane = middle_pane;
+      auto mouse_is_on_pane = mouse_is_on_middle_pane;
+
+      auto background_colour = PANE_BACKGROUND_COLOR;
+      auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
+      auto active_colour = ACTIVE_PANE_FRAME_COLOR;
+
+      DrawRectangleRec(pane, background_colour);
+      if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
+      else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
+    }
+    {
+      auto pane = bottom_pane;
+      auto mouse_is_on_pane = mouse_is_on_bottom_pane;
+      auto background_colour = PANE_BACKGROUND_COLOR;
+      auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
+      auto active_colour = ACTIVE_PANE_FRAME_COLOR;
+
+      DrawRectangleRec(pane, background_colour);
+      if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
+      else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
+    }
+
+
+    // Render top pane
+    {
+      // Render WATERMARK
+      {
+        auto text_size =  MeasureTextEx( // Font this->m_current_font, const char *text, float fontSize, float spacing
+            this->m_current_font
+          ,WATERMARK
+          ,FONT_HEIGHT
+          ,0
+        );
+
+        DrawTextEx(
+          this->m_current_font                    // this->m_current_font
+          ,WATERMARK    // UTF8 chars
+          ,Vector2{ 
+            top_pane.x + (pane_width - text_size.x)/2     // x (col)
+            ,top_pane.y + (top_pane_height - text_size.y)/2        // y (row)
+          }
+          ,FONT_HEIGHT            // this->m_current_font size (pixels)
+          ,0                      // Spacing (pixels)
+          ,TEXT_COLOR              // tint
+        );
+      }
+
+      // Test render row placeholders
+      for (int row_ix=0;row_ix<top_pane_row_count;++row_ix) {
+        // Render row
+        {
+          auto pane = top_pane;
+          auto text_top_left = Vector2{
+              pane.x + padding         // x (col)
+            ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+          };
+
+          std::string utf8_text = std::format("top row:{}",row_ix);
+
+          auto text_size =  MeasureTextEx( // Font this->m_current_font, const char *text, float fontSize, float spacing
+              this->m_current_font
+            ,utf8_text.c_str()
+            ,FONT_HEIGHT
+            ,0
+          );
+
+          if (text_top_left.y + text_size.y < top_pane.y + top_pane_height) {
+            DrawTextEx(
+              this->m_current_font                                  // this->m_current_font
+              ,utf8_text.c_str()             // UTF8 chars
+              ,text_top_left
+              ,FONT_HEIGHT            // this->m_current_font size (pixels)
+              ,0                      // Spacing (pixels)
+              ,TEXT_COLOR               // tint
+            );
+          }
+
+        } // render row
+      } // for
+    } // pane
+
+    // render middle pane
+    {
+
+      // Test render row placeholders
+      {
+        auto pane = middle_pane;
+        auto row_count = middle_pane_row_count;
+
+        for (int row_ix=0;row_ix<row_count;++row_ix) {
+          // Render row
+          {
+            auto text_top_left = Vector2{
+                pane.x + padding         // x (col)
+              ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+            };
+
+            std::string utf8_text = std::format("middle row:{}",row_ix);
+
+            auto text_size =  MeasureTextEx( // Font this->m_current_font, const char *text, float fontSize, float spacing
+              this->m_current_font
+              ,utf8_text.c_str()
+              ,FONT_HEIGHT
+              ,0
+            );
+
+            if (text_top_left.y + text_size.y < pane.y + pane.height) {
+              DrawTextEx(
+                this->m_current_font                                  // this->m_current_font
+                ,utf8_text.c_str()             // UTF8 chars
+                ,text_top_left
+                ,FONT_HEIGHT            // this->m_current_font size (pixels)
+                ,0                      // Spacing (pixels)
+                ,TEXT_COLOR               // tint
+              );
+            }
+
+          } // render row
+        } // for
+      }
+
+    }
+
+    // Render hex values of read unicode code point characters (development trace)
+    {
+      auto row_ix = 0;
+
+      std::string unicode_hex_message{"UNICODE:"};
+      for (auto const& code_point : this->m_code_point_buffer) {
+        unicode_hex_message += std::format("<{:X}>",static_cast<uint32_t>(code_point));
+      }
+      DrawTextEx(
+        this->m_current_font                                  // this->m_current_font
+        ,unicode_hex_message.c_str()             // UTF8 chars
+        ,(Vector2){ 
+            bottom_pane.x + padding         // x (col)
+          ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+        }
+        ,FONT_HEIGHT            // this->m_current_font size (pixels)
+        ,0                      // Spacing (pixels)
+        ,TEXT_COLOR               // tint
+      );
+    }
+
+    // Render hex values of read unicode code point characters (development trace)
+    {
+      auto row_ix = 1;
+
+      std::string utf8_hex_message{"UTF8:"};
+      for (auto const& code_point : this->m_code_point_buffer) {
+        auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
+        for (auto const& utf8_byte : utf8_bytes) {
+          utf8_hex_message += std::format("<{:X}>",utf8_byte);
+        }
+      }
+      DrawTextEx(
+        this->m_current_font                                  // this->m_current_font
+        ,utf8_hex_message.c_str()             // UTF8 chars
+        ,(Vector2){ 
+            bottom_pane.x + padding         // x (col)
+          ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+        }
+        ,FONT_HEIGHT            // this->m_current_font size (pixels)
+        ,0                      // Spacing (pixels)
+        ,TEXT_COLOR               // tint
+      );
+    }
+
+    // Render user input text (unicode -> UTF8 -> raylib render)
+    {
+      auto row_ix = 2;
+
+      //----------------------------------------------------------------------------------
+      // BEGIN Unicode to UTF8 string
+      //----------------------------------------------------------------------------------
+
+      std::string utf8_string{">"};
+      for (auto const& code_point : this->m_code_point_buffer) {
+        auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
+        for (auto utf8_byte : utf8_bytes) utf8_string += static_cast<char>(utf8_byte);
+      }
+
+      //----------------------------------------------------------------------------------
+      // END Unicode to UTF8 string
+      //----------------------------------------------------------------------------------
+
+      DrawTextEx(
+        this->m_current_font                    // this->m_current_font
+        ,utf8_string.c_str()    // UTF8 chars
+        ,(Vector2){ 
+          bottom_pane.x + padding         // x (col)
+          ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+        }
+        ,FONT_HEIGHT            // this->m_current_font size (pixels)
+        ,0                      // Spacing (pixels)
+        ,TEXT_COLOR               // tint
+      );
+      if (mouse_is_on_bottom_pane) {
+        if (((this->m_frames_counter/20)%2) == 0) {
+          auto text_size =  MeasureTextEx( // Font this->m_current_font, const char *text, float fontSize, float spacing
+            this->m_current_font
+            ,utf8_string.c_str()
+            ,FONT_HEIGHT
+            ,0
+          );
+          DrawTextEx(
+            this->m_current_font                    // this->m_current_font
+            ,"_"    // UTF8 chars
+            ,Vector2{ 
+                bottom_pane.x + text_size.x + padding         // x (col)
+              ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
+            }
+            ,FONT_HEIGHT            // this->m_current_font size (pixels)
+            ,0                      // Spacing (pixels)
+            ,TEXT_COLOR               // tint
+          );
+        }
+      }
+    }
+
+    //----------------------------------------------------------------------------------
+    // END key input processing and rendering
+    //----------------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------------
+  // END Draw
+  //----------------------------------------------------------------------------------
+  EndDrawing();
+
+  return tea::Msg{};
+}
 
 int CratchitRaylibApp::run(int argc, char *argv[]) {
   log_development_trace("Hello from cratchit_raylib_main");
@@ -24,10 +360,6 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
 
   // Set custom logger
   SetTraceLogCallback(custom_raylib_log_callback);
-
-  const int INITIAL_SCREEN_WIDTH = 1080;
-  const int INITIAL_SCREEN_HEIGHT = 720;
-  const int FONT_HEIGHT = 32;
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE); // Make InitWindow create a resizeable window
 
@@ -74,24 +406,24 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
   // U+2190–U+21FF	Arrows	← ↑ → ↓
   // U+2200–U+22FF	Mathematical Operators	± ≤ ≥ ≠        
 
-  Font font = LoadFontEx(
-      "resources/NotoSans-Regular.ttf"       // path to true type font file
-      ,FONT_HEIGHT                                     // font size height
+  this->m_current_font = LoadFontEx(
+      "resources/NotoSans-Regular.ttf"       // path to true type this->m_current_font file
+      ,FONT_HEIGHT                                     // this->m_current_font size height
       ,codepoints.data()                      // array*
       ,static_cast<int>(codepoints.size())    // array element count
   );
   // NOTE: According to AI raylib renders bitmaps for fonts and then scales them when required for rendering in other sizes.
   //       Scaling down should look fine. So if we load to 32 pixel bitmaps we should get good output for sizes < 32?
 
-  if (font.texture.id == 0) {
-      TraceLog(LOG_ERROR, "Failed to load font");
+  if (this->m_current_font.texture.id == 0) {
+      TraceLog(LOG_ERROR, "Failed to load this->m_current_font");
       // Handle failure here
-      // NOTE: raylib logging sugests we may chose to carry on (deafult ASCII font still available?)
+      // NOTE: raylib logging sugests we may chose to carry on (deafult ASCII this->m_current_font still available?)
       TraceLog(LOG_ERROR, "Exits - Bye for now");
       exit(-1);
   } else {
       TraceLog(LOG_INFO, "Font loaded successfully");
-      SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+      SetTextureFilter(this->m_current_font.texture, TEXTURE_FILTER_BILINEAR);
   }
   //--------------------------------------------------------------------------------------
   // END: Load and Pre-render bitmap fonts for supported unicode code points 
@@ -101,345 +433,23 @@ int CratchitRaylibApp::run(int argc, char *argv[]) {
   //--------------------------------------------------------------------------------------
   // BEGIN Text input mechanism
   //--------------------------------------------------------------------------------------
-  std::vector<int> code_point_buffer{};
 
-  bool mouse_is_on_top_pane = false;
-  bool mouse_is_on_middle_pane = false;
-  bool mouse_is_on_bottom_pane = false;
-
-  int framesCounter = 0;    
   //--------------------------------------------------------------------------------------
   // END Text input mechanism
   //--------------------------------------------------------------------------------------
+
+  // #tea
+  auto [model,cmd] = tea::init();
 
   //--------------------------------------------------------------------------------------
   // Main render window loop
   //--------------------------------------------------------------------------------------
   while (!WindowShouldClose()) {
 
-      const int padding{5};
-      auto current_screen_width = GetScreenWidth();
-      auto current_screen_height = GetScreenHeight();
+      auto ux = tea::view(model);
 
-      auto pane_width = current_screen_width - 2*padding;
+      auto msg = this->render(ux);
 
-      auto bottom_pane_row_count = 3;
-      auto bottom_pane_height = bottom_pane_row_count*FONT_HEIGHT + (bottom_pane_row_count+1)*padding;
-
-      auto middle_pane_row_count = 10;
-      auto middle_pane_height = middle_pane_row_count*FONT_HEIGHT + (middle_pane_row_count+1)*padding;
-
-      auto top_pane_height = current_screen_height - bottom_pane_height - middle_pane_height - 4*padding;
-      auto top_pane_row_count = top_pane_height / (padding + FONT_HEIGHT);
-
-      Rectangle bottom_pane = { 
-         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
-        ,static_cast<float>(current_screen_height - bottom_pane_height - padding)        // Rectangle top-left corner position y (row)
-        ,static_cast<float>(pane_width)                    // Rectangle width
-        ,static_cast<float>(bottom_pane_height)                     // Rectangle height
-      };
-
-      Rectangle middle_pane = { 
-         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
-        ,static_cast<float>(bottom_pane.y - middle_pane_height - padding)        // Rectangle top-left corner position y (row)
-        ,static_cast<float>(pane_width)                    // Rectangle width
-        ,static_cast<float>(middle_pane_height)                     // Rectangle height
-      };
-
-      Rectangle top_pane = { 
-         static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
-        ,static_cast<float>(padding)        // Rectangle top-left corner position y (row)
-        ,static_cast<float>(pane_width)                    // Rectangle width
-        ,static_cast<float>(top_pane_height)                     // Rectangle height
-      };
-
-      //----------------------------------------------------------------------------------
-      // BEGIN Update
-      //----------------------------------------------------------------------------------
-
-      {
-        if (int key = GetCharPressed();key>0) {
-          if (key >= ' ') code_point_buffer.push_back(key);
-        }
-        if (IsKeyPressed(KEY_BACKSPACE)) {
-            if (code_point_buffer.size() > 0) code_point_buffer.pop_back();
-        }
-      
-      }
-      if (CheckCollisionPointRec(GetMousePosition(), top_pane)) mouse_is_on_top_pane = true;
-      else mouse_is_on_top_pane = false;
-
-      if (CheckCollisionPointRec(GetMousePosition(), middle_pane)) mouse_is_on_middle_pane = true;
-      else mouse_is_on_middle_pane = false;
-
-      if (CheckCollisionPointRec(GetMousePosition(), bottom_pane)) mouse_is_on_bottom_pane = true;
-      else mouse_is_on_bottom_pane = false;
-
-      if (mouse_is_on_bottom_pane) {
-          // Set the window's cursor to the I-Beam
-          SetMouseCursor(MOUSE_CURSOR_IBEAM);
-      }
-      else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
-
-      if (mouse_is_on_bottom_pane) framesCounter++;
-      else framesCounter = 0;
-      //----------------------------------------------------------------------------------
-      // END Update
-      //----------------------------------------------------------------------------------
-
-      //----------------------------------------------------------------------------------
-      // BEGIN Draw
-      //----------------------------------------------------------------------------------
-      BeginDrawing();
-
-        ClearBackground(WINDOW_BACGROUND_COLOR);
-
-        //----------------------------------------------------------------------------------
-        // BEGIN key input processing and rendering
-        //----------------------------------------------------------------------------------
-
-        {
-          auto pane = top_pane;
-          auto mouse_is_on_pane = mouse_is_on_top_pane;
-
-          auto background_colour = PANE_BACKGROUND_COLOR;
-          auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
-          auto active_colour = ACTIVE_PANE_FRAME_COLOR;
-
-          DrawRectangleRec(pane, background_colour);
-          if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
-          else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
-        }
-        {
-          auto pane = middle_pane;
-          auto mouse_is_on_pane = mouse_is_on_middle_pane;
-
-          auto background_colour = PANE_BACKGROUND_COLOR;
-          auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
-          auto active_colour = ACTIVE_PANE_FRAME_COLOR;
-
-          DrawRectangleRec(pane, background_colour);
-          if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
-          else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
-        }
-        {
-          auto pane = bottom_pane;
-          auto mouse_is_on_pane = mouse_is_on_bottom_pane;
-          auto background_colour = PANE_BACKGROUND_COLOR;
-          auto passive_colour = PASSIVE_PANE_FRAME_COLOR;
-          auto active_colour = ACTIVE_PANE_FRAME_COLOR;
-
-          DrawRectangleRec(pane, background_colour);
-          if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
-          else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
-        }
-
-
-        // Render top pane
-        {
-          // Render WATERMARK
-          {
-            auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
-                font
-              ,WATERMARK
-              ,FONT_HEIGHT
-              ,0
-            );
-
-            DrawTextEx(
-              font                    // font
-              ,WATERMARK    // UTF8 chars
-              ,Vector2{ 
-                top_pane.x + (pane_width - text_size.x)/2     // x (col)
-                ,top_pane.y + (top_pane_height - text_size.y)/2        // y (row)
-              }
-              ,FONT_HEIGHT            // font size (pixels)
-              ,0                      // Spacing (pixels)
-              ,TEXT_COLOR              // tint
-            );
-          }
-
-          // Test render row placeholders
-          for (int row_ix=0;row_ix<top_pane_row_count;++row_ix) {
-            // Render row
-            {
-              auto pane = top_pane;
-              auto text_top_left = Vector2{
-                  pane.x + padding         // x (col)
-                ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-              };
-
-              std::string utf8_text = std::format("top row:{}",row_ix);
-
-              auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
-                 font
-                ,utf8_text.c_str()
-                ,FONT_HEIGHT
-                ,0
-              );
-
-              if (text_top_left.y + text_size.y < top_pane.y + top_pane_height) {
-                DrawTextEx(
-                  font                                  // font
-                  ,utf8_text.c_str()             // UTF8 chars
-                  ,text_top_left
-                  ,FONT_HEIGHT            // font size (pixels)
-                  ,0                      // Spacing (pixels)
-                  ,TEXT_COLOR               // tint
-                );
-              }
-
-            } // render row
-          } // for
-        } // pane
-
-        // render middle pane
-        {
-
-          // Test render row placeholders
-          {
-            auto pane = middle_pane;
-            auto row_count = middle_pane_row_count;
-
-            for (int row_ix=0;row_ix<row_count;++row_ix) {
-              // Render row
-              {
-                auto text_top_left = Vector2{
-                    pane.x + padding         // x (col)
-                  ,pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-                };
-
-                std::string utf8_text = std::format("middle row:{}",row_ix);
-
-                auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
-                  font
-                  ,utf8_text.c_str()
-                  ,FONT_HEIGHT
-                  ,0
-                );
-
-                if (text_top_left.y + text_size.y < pane.y + pane.height) {
-                  DrawTextEx(
-                    font                                  // font
-                    ,utf8_text.c_str()             // UTF8 chars
-                    ,text_top_left
-                    ,FONT_HEIGHT            // font size (pixels)
-                    ,0                      // Spacing (pixels)
-                    ,TEXT_COLOR               // tint
-                  );
-                }
-
-              } // render row
-            } // for
-          }
-
-        }
-
-        // Render hex values of read unicode code point characters (development trace)
-        {
-          auto row_ix = 0;
-
-          std::string unicode_hex_message{"UNICODE:"};
-          for (auto const& code_point : code_point_buffer) {
-            unicode_hex_message += std::format("<{:X}>",static_cast<uint32_t>(code_point));
-          }
-          DrawTextEx(
-            font                                  // font
-            ,unicode_hex_message.c_str()             // UTF8 chars
-            ,(Vector2){ 
-               bottom_pane.x + padding         // x (col)
-              ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-            }
-            ,FONT_HEIGHT            // font size (pixels)
-            ,0                      // Spacing (pixels)
-            ,TEXT_COLOR               // tint
-          );
-        }
-
-        // Render hex values of read unicode code point characters (development trace)
-        {
-          auto row_ix = 1;
-
-          std::string utf8_hex_message{"UTF8:"};
-          for (auto const& code_point : code_point_buffer) {
-            auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
-            for (auto const& utf8_byte : utf8_bytes) {
-              utf8_hex_message += std::format("<{:X}>",utf8_byte);
-            }
-          }
-          DrawTextEx(
-            font                                  // font
-            ,utf8_hex_message.c_str()             // UTF8 chars
-            ,(Vector2){ 
-               bottom_pane.x + padding         // x (col)
-              ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-            }
-            ,FONT_HEIGHT            // font size (pixels)
-            ,0                      // Spacing (pixels)
-            ,TEXT_COLOR               // tint
-          );
-        }
-
-        // Render user input text (unicode -> UTF8 -> raylib render)
-        {
-          auto row_ix = 2;
-
-          //----------------------------------------------------------------------------------
-          // BEGIN Unicode to UTF8 string
-          //----------------------------------------------------------------------------------
-
-          std::string utf8_string{">"};
-          for (auto const& code_point : code_point_buffer) {
-            auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
-            for (auto utf8_byte : utf8_bytes) utf8_string += static_cast<char>(utf8_byte);
-          }
-
-          //----------------------------------------------------------------------------------
-          // END Unicode to UTF8 string
-          //----------------------------------------------------------------------------------
-
-          DrawTextEx(
-            font                    // font
-            ,utf8_string.c_str()    // UTF8 chars
-            ,(Vector2){ 
-              bottom_pane.x + padding         // x (col)
-              ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-            }
-            ,FONT_HEIGHT            // font size (pixels)
-            ,0                      // Spacing (pixels)
-            ,TEXT_COLOR               // tint
-          );
-          if (mouse_is_on_bottom_pane) {
-            if (((framesCounter/20)%2) == 0) {
-              auto text_size =  MeasureTextEx( // Font font, const char *text, float fontSize, float spacing
-                font
-                ,utf8_string.c_str()
-                ,FONT_HEIGHT
-                ,0
-              );
-              DrawTextEx(
-                font                    // font
-                ,"_"    // UTF8 chars
-                ,Vector2{ 
-                   bottom_pane.x + text_size.x + padding         // x (col)
-                  ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-                }
-                ,FONT_HEIGHT            // font size (pixels)
-                ,0                      // Spacing (pixels)
-                ,TEXT_COLOR               // tint
-              );
-            }
-          }
-        }
-
-        //----------------------------------------------------------------------------------
-        // END key input processing and rendering
-        //----------------------------------------------------------------------------------
-
-      //----------------------------------------------------------------------------------
-      // END Draw
-      //----------------------------------------------------------------------------------
-      EndDrawing();
   }
 
   // De-Initialization

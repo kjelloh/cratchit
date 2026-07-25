@@ -8,6 +8,40 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260725
+
+Introduced the Elm acrhitecture in namespace 'tea'.
+
+New units
+* src/second/Msg.cpp
+* src/second/Cmd.cpp
+* src/second/init.cpp
+* src/second/Model.cpp
+* src/second/view.cpp
+* src/second/update.cpp
+
+And refactored CratchitRaylibApp to call Elm architecture functionality.
+
+```cpp
+
+  // #tea
+  auto [model,cmd] = tea::init();
+
+  //--------------------------------------------------------------------------------------
+  // Main render window loop
+  //--------------------------------------------------------------------------------------
+  while (!WindowShouldClose()) {
+
+      auto ux = tea::view(model);
+
+      auto msg = this->render(ux);
+
+  }
+
+```
+
+For now no data is actually passed around, tea::init and tea::view does nothing and render is the current hard coded rendering of the test window.
+
 
 ## 20260721
 

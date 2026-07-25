@@ -1,7 +1,24 @@
 #pragma once
 
+#include "raylib.h" // See https://www.raylib.com/cheatsheet/cheatsheet.html, https://github.com/raysan5/raylib
+
+// #tea
+#include "Msg.hpp"
+#include "view.hpp"
+
+#include <vector>
+
 class CratchitRaylibApp {
 public:
   int run(int argc, char *argv[]);
 private:
+  const int INITIAL_SCREEN_WIDTH = 1080;
+  const int INITIAL_SCREEN_HEIGHT = 720;
+  const int FONT_HEIGHT = 32;
+
+  std::vector<int> m_code_point_buffer{};
+  int m_frames_counter = 0;
+  Font m_current_font{};
+
+  tea::Msg render(tea::Ux const& ux);
 }; // CratchitRaylibApp
