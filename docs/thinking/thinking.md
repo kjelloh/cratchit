@@ -78,6 +78,33 @@ It works fine but now we have **no backspace functionality**.
 
 But I check this in first as a racthet level to come back to should I get lost in coding.
 
+I have now thought aboutthis for a littyle while and think I have identified a 'crux' - functional keys have to universal representation I can use. That is, how to represent e.g., BackSpace is done differently on differnt platforms and by different frameworks.
+
+* USB seems to define a set of key representations that becomes kind-of universal for USB connected keyboards?
+* But it seems web frameworks uses a representation defined by (I suppose) javascript framework?
+
+I decided to model backspace as a separate message.
+
+* Manifest each functional key as its own message
+* Then the dispatch happens on message level which may (or may not) map good to the aplied action?
+* Then the model will be mutated with its own with_xxx() member factory call.
+
+```cpp
+
+  class Model { 
+
+    // mutating factories
+    Model with_pushed_unicode(char32_t cp) const;
+    Model with_popped_unicode() const;
+
+    // ...
+
+  }
+
+```
+
+My thinking is that this may serve me well if/when I dare to apply immutable types from C++ library 'immer' to implement the Model type?
+
 ## 20260721
 
 I now realise that the key-to-action UI I have designed for cratchit so far makes using ImGui impractical to use. It is at its core mouse-less! So all 2D surface accessible UI components are of no use to cratchit! It is totally operated by key-by-key input. Adn the user navigates forward or backwards from the current position on the 'map'.

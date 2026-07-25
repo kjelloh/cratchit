@@ -178,12 +178,14 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   //----------------------------------------------------------------------------------
 
   int cached_for_msg_key{0};
+  bool backspace_detected{false};
   {
     if (int key = GetCharPressed();key>0) {
       cached_for_msg_key = key;
       if (key >= ' ') this->m_code_point_buffer.push_back(key);
     }
     if (IsKeyPressed(KEY_BACKSPACE)) {
+        backspace_detected = true;
         if (this->m_code_point_buffer.size() > 0) this->m_code_point_buffer.pop_back();
     }
   
@@ -502,7 +504,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   //----------------------------------------------------------------------------------
   EndDrawing();
 
-  if (cached_for_msg_key > 0) return tea::Msg{tea::UnicodeMsg{cached_for_msg_key}};
-
+  if (cached_for_msg_key > 0) return tea::Msg{tea::UnicodeKeyMsg{cached_for_msg_key}};
+  if (backspace_detected) return tea::Msg{tea::BackspaceKeyMsg{}};
   return tea::Msg{};
 }

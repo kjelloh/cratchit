@@ -9,11 +9,14 @@ namespace tea {
   Model update(Model const& model,Msg const& msg) {
 
     return std::visit(overloaded{
-        [&model](NoMsg arg) {
+        [&model](NoMsg no_key_msg) {
           return model;
         }
-        ,[&model](UnicodeMsg msg) {
-          return model.with_pushed_unicode(msg.code_point);
+        ,[&model](UnicodeKeyMsg unicode_key_msg) {
+          return model.with_pushed_unicode(unicode_key_msg.code_point);
+        }
+        ,[&model](BackspaceKeyMsg const& backspace_msg) {
+          return model.with_popped_unicode();
         }
       }
       ,msg

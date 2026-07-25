@@ -7,15 +7,18 @@ namespace tea {
   struct NoMsg {
   }; // NoMsg
 
-  struct UnicodeMsg {
-    UnicodeMsg() = delete;
-    UnicodeMsg(int cp);
+  struct UnicodeKeyMsg {
+    UnicodeKeyMsg() = delete;
+    UnicodeKeyMsg(int cp);
     const char32_t code_point;
-  }; // UnicodeMsg
+  }; // UnicodeKeyMsg
+
+  struct BackspaceKeyMsg {};
 
   using Msg = std::variant<
      NoMsg
-    ,UnicodeMsg
+    ,UnicodeKeyMsg
+    ,BackspaceKeyMsg
   >;
 
 } // tea
