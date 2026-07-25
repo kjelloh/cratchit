@@ -42,6 +42,41 @@ And refactored CratchitRaylibApp to call Elm architecture functionality.
 
 For now no data is actually passed around, tea::init and tea::view does nothing and render is the current hard coded rendering of the test window.
 
+I carried on and implemented Model, update view and render for key input.
+
+```cpp
+  // #tea
+  auto [model,cmd] = tea::init();
+
+  //--------------------------------------------------------------------------------------
+  // Main render window loop
+  //--------------------------------------------------------------------------------------
+  while (!WindowShouldClose()) {
+
+      // #tea
+      auto ux = tea::view(model);
+
+      // #runtime
+      auto msg = this->render(ux);
+
+      // #tea
+      model = tea::update(model,msg);
+
+  }
+
+```
+
+* Made Model carry a code point buffer.
+* Introduced a message for latest read Unicode key and had render return it if available.
+* Made update dispatch on message and returned a new model with extended code point buffer on code point message
+* made render use the Ux bottom_row instead of hard coded internal key buffer and hex value outputs.
+
+It works fine but now we have **no backspace functionality**.
+
+* Backspace is not a unicode key but a 'function' key.
+* So we would need a new message to signal this to update.
+
+But I check this in first as a racthet level to come back to should I get lost in coding.
 
 ## 20260721
 
