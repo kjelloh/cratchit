@@ -128,7 +128,22 @@ So what does this mean for cracthit?
 
 The first alternative keeps the ux hard coded to the three panes with the inoput text field as the bottom pane bottom row one. The second one would mean I initiate something ImGui-like or Html-like that embeds 'things' that does smart stuff on the runtoime front-end side. Maybe soemthing I need going forward. But maybe this is not the time to start dows that path?
 
-Whatr about just brute force the cursor into the rendered text of the bottom row of the bottom pane?
+What about just brute force the cursor into the rendered text of the bottom row of the bottom pane?
+
+So I have now made view() handle cursor blinking
+
+* It counts frames and add-on or not a '_' as cursor to the output of current inout buffer.
+
+I also tried implementing the buffer as an immer::vector!
+
+* Exciting!
+* Works well in its simplicity so far.
+
+No, I gain nothing. But at least I have dipped my toe into immutable data structures for future sharing of unchanged data between mutated model and possibly also the Ux instances in the loop?
+
+* Also see [Persistence Squared: Persisting Persistent Data Structures - Juan Pedro Bolivar Puente - CppCon 2025](https://youtu.be/HmmRVdYMP-g)
+* It seems I use immer 0.8.1 as available from conan
+* Also see [Github immer](https://github.com/arximboldi/immer)
 
 ## 20260721
 
