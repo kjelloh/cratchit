@@ -105,6 +105,31 @@ I decided to model backspace as a separate message.
 
 My thinking is that this may serve me well if/when I dare to apply immutable types from C++ library 'immer' to implement the Model type?
 
+Now we have no blinking cursor anymore.
+
+* Before the raylib render loop kept track of a frame counter to render the cursor on and off.
+* Our view, render,update loop don't do this.
+* Also, if it should - who should keep track of cursor position and its on/off state?
+* And how should this information be passed in our ux instance?
+
+It seems in the world of html we can use an html input-element that models the knowledge of an editable text with a cursor.
+
+* We then make view generate an Elm html object with the inout element and current entered text
+* The view also configures the input element with the message to send when then inout text changes
+* Then we can make update dispatch the 'changed inout text' message and update the model.
+* This enable the view to provide the current entered text
+* But the cursor blinking is then rendered by the html front end as defined by the input element
+* No part of the apps model,view,update have to know anything about the cursor.
+
+So what does this mean for cracthit?
+
+1. Either I make the model and update implement a cursor on/off mechanism (state + frame count)?
+2. Or I implement something in Ux that can act as a 'input field'?
+
+The first alternative keeps the ux hard coded to the three panes with the inoput text field as the bottom pane bottom row one. The second one would mean I initiate something ImGui-like or Html-like that embeds 'things' that does smart stuff on the runtoime front-end side. Maybe soemthing I need going forward. But maybe this is not the time to start dows that path?
+
+Whatr about just brute force the cursor into the rendered text of the bottom row of the bottom pane?
+
 ## 20260721
 
 I now realise that the key-to-action UI I have designed for cratchit so far makes using ImGui impractical to use. It is at its core mouse-less! So all 2D surface accessible UI components are of no use to cratchit! It is totally operated by key-by-key input. Adn the user navigates forward or backwards from the current position on the 'map'.
