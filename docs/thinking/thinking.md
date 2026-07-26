@@ -8,6 +8,78 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260726
+
+It seems now it is time to implement the app 'states'.
+
+* How can I store the state inside the model?
+* Is a plain enum enough?
+* Do I need a state-stack?
+  * That is, do I need to keep track of parent state?
+* Would I be tempted to store the state in a variant of all possible states?
+* Can I store a state handler in the model?
+  * Then how can I make a state handler as a member of the model produce a new model with the new state?
+  * Does this not lead to some self-referencing-problem?
+  * Or can I make the state handler take the model as input?
+  * But then I need to take care not to mutate the state handler I am currently 'inside'?
+* Maybe I can make state-transitions into 'commands'?
+
+I have had these problems with 'state' vs 'model'. I mean, the model IS teh current state. So how does the user-input-state play with the runtime (app) global state represented by the model? Wgy is this even a problem in my thinking about this?
+
+Suppose I am in the state where the user is to select the project (organisation book keeping) to open.
+
+* We are in state 'select juridical person'
+* The user interface shall show available options in the middle pane (mirroring what is on disk)
+* The model needs to know the path on disk where the projects are stored
+  * Thus the model also stores the detected projects
+  * But these options are only relevant in this user input state?
+  * So it seems we should extend the model with this state-specific information
+  * And thus enable update to detect the state and render the options
+  * How can we enable update to perform this duspatch into the current state-spacific information?
+* It seems we should be tempted to call update on some current state instance stored in the model?
+  * Will this work?
+  * Then this state instance will receive the current model?
+  * Or maybe we should make the state instance be cerated with a const reference to the model it is a member of?
+  * Will this be a problem?
+  * Now the state instance as well as the model which it is a member of ar immutable!
+  * I suppose maybe the question is if a state instance may need to mutate itself into a new instance?
+  * Yes, that will happen for say a text inout state.
+  * The state should then mutate itself with entered characters by the user.
+  * So such a state instance must be able to return a model with a mutated copy of itself.
+  * Is this possible?
+
+There is also the problem of 'double dispatch'!
+
+* In update we need to dispatch on the received message as well as usre state.
+* And we currently dispatch on Msg as a variant.
+  * This means we are forced by the type system to write code for ALL messages
+* If we represent the User State (UxState) as a variant
+  * Then we need to dispatch on all state too.
+* It seems this is cumbersome?
+  * Maybe we can dispatch on ALL states first
+  * And then have each state register itself to listen only for a selected set of messages?
+  * And have the base message dispatcher just ignore messages no one is listening too?
+* So in a traditional GUI we usually asks all potential receivers of a message
+  * We keep asking until a receiver sais it acted on it.
+  * Would we be tempted to do the same for our Model and UxState?
+  * Imagine we implement a UxState 'stack' with current ux state on top?
+  * We can then imagine to ask each state on the stack (top to bottom) if it consumed the message
+  * In this way we can treat the state stack as a composite current state?
+  * We may then implement a 'bread crumb path' of the current state stack as 'location' for the user to see
+  * And we can enable all states on the current stack to be 'active' and extend bottom-up?
+
+I wonder if it is not the case that we want to avoid storing function pointers in the model?
+
+  * When creating a new state we must ensure function pointers remains valid!
+  * If we for soem reason store pointers between elements in the same model the pointer values may be invalidated?
+  * We want a self contained immutable model we can safely clone
+  * Also, we want immer data values to safelly be able to share unchanged data internally.
+  * But then we need to ensure all data in the model is independent on model instance!
+
+I can think about this forever. Lets try double dispatch on both state and message being variants?
+
+
+
 ## 20260725
 
 Introduced the Elm acrhitecture in namespace 'tea'.

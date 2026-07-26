@@ -38,6 +38,9 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/msg_to_string.cpp
+        src/second/State.cpp
+
         src/second/Msg.cpp
         src/second/Cmd.cpp
         src/second/init.cpp
