@@ -23,7 +23,7 @@ namespace tea {
     }
   } // detail
 
-  State double_dispatch(State& state, const tea::Msg& msg) {
+  State double_dispatch(State const& state, const tea::Msg& msg) {
     // 1. Dispatch to concrete State
     // 2. Dispatch to concrete Msg
     // = apply concrete msg to concrete state with fallback if state has no handler for msg
@@ -50,10 +50,9 @@ namespace tea {
 
   Model update(Model const& model,Msg const& msg) {
   
-    {
+    if (model.state_stack().size() > 0) {
       // Test double dispatch
-      State dummy_state = RootState{};
-      auto s = double_dispatch(dummy_state,msg);
+      auto s = double_dispatch(model.state_stack().back(),msg);
     }
 
     return std::visit(overloaded{
