@@ -919,7 +919,7 @@ namespace tests {
           auto last_date = original_tas.back().date(); // trust non-empty
           auto later_date = Date{std::chrono::sys_days{last_date} + std::chrono::days{1}};
           auto new_ta = create_tagged_amount(later_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
-          // auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
+          [[maybe_unused]] auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
 
           auto new_tas = fixture_dotas.ordered_tagged_amounts();
           auto length_diff = (new_tas.size() - original_tas.size());
@@ -957,7 +957,7 @@ namespace tests {
           auto first_date = original_tas.front().date(); // trust non-empty
           auto earlier_date = Date{std::chrono::sys_days{first_date} - std::chrono::days{1}};
           auto new_ta = create_tagged_amount(earlier_date,CentsAmount{7000},TaggedAmount::Tags{{"Account", "NORDEA"}, {"Text", "*NEW*"}});
-          // auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
+          [[maybe_unused]] auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
 
           auto new_tas = fixture_dotas.ordered_tagged_amounts();
           auto was_inserted_first = (new_tas.front() == new_ta);
