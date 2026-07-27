@@ -13,7 +13,7 @@ namespace tea {
         }
         ,model.state_stack().back()
       );
-      // return ux;
+      return ux;
     }
 
     static size_t m_frames_counter = 0;

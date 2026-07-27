@@ -14,7 +14,10 @@ class RootState {
 public:
   using This = RootState;
 
-  This operator()(tea::UnicodeKeyMsg const& unicode_msg) const;
+  // update
+  This update(tea::UnicodeKeyMsg const& unicode_msg) const;
+  This update(tea::BackspaceKeyMsg const& backspace_key_msg) const;
+
   tea::Ux view() const;
   using CodePointBuffer = immer::vector<char32_t>;
 

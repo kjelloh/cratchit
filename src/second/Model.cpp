@@ -1,4 +1,5 @@
 #include "Model.hpp"
+#include "log.hpp"
 
 namespace tea {
 
@@ -29,9 +30,10 @@ namespace tea {
   }
 
   Model Model::with_mutated_state(State const& state) const {
+    log_development_trace("Model::with_mutated_state");
     Model result(*this);
     result.m_state_stack = this->m_state_stack.set(
-       result.m_state_stack.size()-1
+       this->m_state_stack.size()-1
       ,state
     );
     return result;

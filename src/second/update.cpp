@@ -8,16 +8,15 @@ namespace tea {
   // Helpers to visit State with a Msg (Double dispatch)
   namespace detail {
     template<typename S, typename M>
-    concept Applicable = requires(S const& s, M const& m) {
-      // s provides call operator on m that returns a State ok
-      { s(m) } -> std::same_as<State>;
+    concept Updateable = requires(S s, M m) {
+      { s.update(m) } -> std::same_as<S>;
     };
 
     template<typename S, typename M>
-    State apply(S& s, M const& m) {
-        if constexpr (Applicable<S, M>) {
+    State update(S const& s, M const& m) {
+        if constexpr (Updateable<S, M>) {
           // Call State::operator(Msg)
-          return s(m);
+          return s.update((m));
         }
         else {
           return s;   // ignore unsupported messages
@@ -25,18 +24,18 @@ namespace tea {
     }
   } // detail
 
-  State double_dispatch(State const& state, const tea::Msg& msg) {
+  State double_dispatch_update(State const& state, const tea::Msg& msg) {
     // 1. Dispatch to concrete State
     // 2. Dispatch to concrete Msg
-    // = apply concrete msg to concrete state with fallback if state has no handler for msg
+    // = update concrete msg to concrete state with fallback if state has no handler for msg
     return std::visit(
       // state on captured msg
       [&msg](auto const& s) -> State {
         return std::visit(
           // captured message on captured state
           [&s](auto const& m) {
-            // apply state on msg
-            return detail::apply(s, m);
+            // update state on msg
+            return detail::update(s, m);
           }
           ,msg
         );        
@@ -60,8 +59,8 @@ namespace tea {
     }
   
     if (model.state_stack().size() > 0) {
-      auto next = model.with_mutated_state(double_dispatch(model.state_stack().back(),msg));
-      // return model.with_mutated_state(double_dispatch(model.state_stack().back(),msg));
+      // auto next = model.with_mutated_state(double_dispatch_update(model.state_stack().back(),msg));
+      return model.with_mutated_state(double_dispatch_update(model.state_stack().back(),msg));
     }
 
     return std::visit(overloaded{

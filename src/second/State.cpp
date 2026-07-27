@@ -4,8 +4,11 @@
 #include "utf8.hpp"
 
 RootState RootState::with_pushed_unicode(char32_t cp) const {
+  log_development_trace("RootState::with_pushed_unicode:{}",static_cast<uint32_t>(cp));
+
   RootState result{*this};
   result.m_code_point_buffer = this->m_code_point_buffer.push_back(cp);
+  log_development_trace("with_pushed_unicode m_code_point_buffer:{}",result.m_code_point_buffer.size());
   return result;
 }
 
@@ -17,12 +20,18 @@ RootState RootState::with_popped_unicode() const {
   return result;
 }
 
-RootState RootState::operator()(tea::UnicodeKeyMsg const& m) const {
-  log_development_trace("RootState on {}",msg_to_string(m));
-  return *this; // Nop
+RootState RootState::update(tea::UnicodeKeyMsg const& m) const {
+  log_development_trace("RootState::update(m:{})",msg_to_string(m));
+  return this->with_pushed_unicode(m.code_point);
+}
+
+RootState RootState::update(tea::BackspaceKeyMsg const& m) const {
+  log_development_trace("RootState::update(m:{})",msg_to_string(m));
+  return this->with_popped_unicode();
 }
 
 tea::Ux RootState::view() const {
+  log_development_trace("RootState::view() m_code_point_buffer:{}",m_code_point_buffer.size());
   static size_t m_frames_counter = 0;
 
   auto to_test_rows = [](size_t row_count) -> std::vector<std::string> {
@@ -87,7 +96,7 @@ tea::Ux RootState::view() const {
       }
     }
     return result;
-  };
+  }; // to_bottom_rows
 
   return tea::Ux{
       to_test_rows(TOP_PANE_ROW_COUNT)
