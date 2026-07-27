@@ -32,6 +32,22 @@ Not two TESTS FAIL!
 [  FAILED  ] DateOrderedTaggedAmountsContainerFixture.InsertFirstTest
 ```
  
+ I found why the test failed. I had fixed a 'unused variable' warning by simply comment out the line.
+
+ * But I forgot that the variable was an actual function call result!
+
+ ```cpp
+  // auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
+ ```
+
+ ```cpp
+  [[maybe_unused]] auto [value_id,is_new_value] = fixture_dotas.dotas_insert_auto_ordered_value(new_ta);
+ ```
+
+There was two osuch errors.
+
+FINGERS CROSSED I HAVE NOT MADE MORE SUCH ERRORS NOT COVERED BY TESTS?!!
+
 ## 20260726
 
 It seems now it is time to implement the app 'states'.
