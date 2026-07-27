@@ -15,7 +15,8 @@ namespace logger {
 // JournalEntryChangeResult
 
 JournalEntryChangeResult::JournalEntryChangeResult(BAS::MDJournalEntry const& mdje,Status status)
-  : m_md_entry{mdje},m_status{status} {}
+  :  m_status{status}
+    ,m_md_entry{mdje} {}
 
 JournalEntryChangeResult JournalEntryChangeResult::with_status(Status status) const {
   JournalEntryChangeResult result{*this};

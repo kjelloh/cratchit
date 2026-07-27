@@ -74,8 +74,8 @@ namespace text {
       bool result{false};
       auto s1_words = utf_ignore_to_upper(tokenize::splits(s1));
       auto s2_words = utf_ignore_to_upper(tokenize::splits(s2));
-      for (int i=0; (i < s1_words.size()) and !result;++i) {
-        for (int j=0; (j < s2_words.size()) and !result;++j) {
+      for (size_t i=0; (i < s1_words.size()) and !result;++i) {
+        for (size_t j=0; (j < s2_words.size()) and !result;++j) {
           result = (s1_words[i] == s2_words[j]);
         }
       }

@@ -20,7 +20,7 @@ char const* const WINDOW_CAPTION = "CRATCHIT";
 #define PASSIVE_PANE_FRAME_COLOR   CLITERAL(Color){ 80, 80, 80, 255 }      // Dark Gray
 #define TEXT_COLOR      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
 
-int CratchitRaylibApp::run(int argc, char *argv[]) {
+int CratchitRaylibApp::run(int, char**) {
   log_development_trace("Hello from cratchit_raylib_main");
 
   int posix_result{0};
@@ -150,7 +150,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   auto middle_pane_height = middle_pane_row_count*FONT_HEIGHT + (middle_pane_row_count+1)*padding;
 
   auto top_pane_height = current_screen_height - bottom_pane_height - middle_pane_height - 4*padding;
-  auto top_pane_row_count = top_pane_height / (padding + FONT_HEIGHT);
+  // auto top_pane_row_count = top_pane_height / (padding + FONT_HEIGHT);
 
   Rectangle bottom_pane = { 
       static_cast<float>(padding)                      // Rectangle top-left corner position x (col)
@@ -326,7 +326,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
       // Test render row placeholders
       {
         auto pane = middle_pane;
-        auto row_count = middle_pane_row_count;
+        // auto row_count = middle_pane_row_count;
 
         for (auto const& [row_ix,utf8_text] : until_std::views::enumerate(ux.middle_pane_rows())) {
           // Render row
@@ -364,7 +364,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
     if (true) {
 
       auto pane = bottom_pane;
-      auto row_count = bottom_pane_row_count;
+      // auto row_count = bottom_pane_row_count;
 
       for (auto const& [row_ix,utf8_text] : until_std::views::enumerate(ux.bottom_pane_rows())) {
         // Render row
@@ -407,7 +407,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
         DrawTextEx(
           this->m_current_font                                  // this->m_current_font
           ,unicode_hex_message.c_str()             // UTF8 chars
-          ,(Vector2){ 
+          ,Vector2{ 
               bottom_pane.x + padding         // x (col)
             ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
           }
@@ -431,7 +431,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
         DrawTextEx(
           this->m_current_font                                  // this->m_current_font
           ,utf8_hex_message.c_str()             // UTF8 chars
-          ,(Vector2){ 
+          ,Vector2{ 
               bottom_pane.x + padding         // x (col)
             ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
           }
@@ -462,7 +462,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
         DrawTextEx(
           this->m_current_font                    // this->m_current_font
           ,utf8_string.c_str()    // UTF8 chars
-          ,(Vector2){ 
+          ,Vector2{ 
             bottom_pane.x + padding         // x (col)
             ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
           }

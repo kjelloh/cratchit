@@ -16,7 +16,7 @@ char const* const WINDOW_CAPTION = "RAYLIB PLAYGROUND";
 /**
   For investigation and experiments for how raylib works and may be used.
  */
-int PlaygroundRaylibApp::run(int argc, char *argv[]) {
+int PlaygroundRaylibApp::run(int, char**) {
   log_development_trace("Hello from playground_raylib_main");
 
   int posix_result{0};
@@ -350,7 +350,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
           DrawTextEx(
             font                                  // font
             ,unicode_hex_message.c_str()             // UTF8 chars
-            ,(Vector2){ 
+            ,Vector2{ 
                bottom_pane.x + padding         // x (col)
               ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
             }
@@ -374,7 +374,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
           DrawTextEx(
             font                                  // font
             ,utf8_hex_message.c_str()             // UTF8 chars
-            ,(Vector2){ 
+            ,Vector2{ 
                bottom_pane.x + padding         // x (col)
               ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
             }
@@ -405,7 +405,7 @@ int PlaygroundRaylibApp::run(int argc, char *argv[]) {
           DrawTextEx(
             font                    // font
             ,utf8_string.c_str()    // UTF8 chars
-            ,(Vector2){ 
+            ,Vector2{ 
               bottom_pane.x + padding         // x (col)
               ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
             }

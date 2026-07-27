@@ -77,7 +77,7 @@ namespace sie {
       return utf8_in;
     }
 
-    std::istream& operator>>(std::istream& utf8_in,Scraps& p) {
+    std::istream& operator>>(std::istream& utf8_in,[[maybe_unused]] Scraps& p) {
       if (utf8_in.good()) {
         std::string scraps{};
         std::getline(utf8_in,scraps);
@@ -242,7 +242,7 @@ namespace sie {
 
     SIEParseResult parse_Tag(std::istream& utf8_in,std::string const& tag) {
       SIEParseResult result{};
-      Scraps scraps{};
+      [[maybe_unused]] Scraps scraps{};
       auto pos = utf8_in.tellg();
       if (utf8_in >> Tag{tag}) {
         result = AnonymousLine{}; // Success but not data

@@ -22,9 +22,18 @@ namespace tea {
     return m_code_point_buffer;
   }
 
-  Model Model::with_pushed_state(State const& state) {
+  Model Model::with_pushed_state(State const& state) const {
     Model result(*this);
     result.m_state_stack = this->m_state_stack.push_back(state);
+    return result;
+  }
+
+  Model Model::with_mutated_state(State const& state) const {
+    Model result(*this);
+    result.m_state_stack = this->m_state_stack.set(
+       result.m_state_stack.size()-1
+      ,state
+    );
     return result;
   }
 

@@ -23,3 +23,5 @@ namespace tea {
 
 } // tea
 
+bool is_no_msg(tea::Msg const& msg);
+

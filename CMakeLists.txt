@@ -38,6 +38,8 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/Ux.cpp
+
         src/second/msg_to_string.cpp
         src/second/State.cpp
 
@@ -140,6 +142,21 @@ add_executable(
         src/persistent/out/encoding_aware_write.cpp 
 
       )
+
+# configure warnings and warnings as errors
+if(MSVC)
+    target_compile_options(cratchit PRIVATE
+        /W4        # High warning level
+        /WX        # Treat warnings as errors
+    )
+else()
+    target_compile_options(cratchit PRIVATE
+        -Wall      # Common warnings
+        -Wextra    # Extra warnings
+        -Wpedantic # Strict standard conformance warnings
+        # -Werror    # Treat warnings as errors
+    )
+endif()      
 
 # Populate runtime with font resources (See relevant raylib calls where it is accessed)
 add_custom_command(TARGET cratchit POST_BUILD

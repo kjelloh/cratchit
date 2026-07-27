@@ -6,8 +6,8 @@
 namespace SKV {
   std::optional<OrgNo> to_org_no(std::string_view sv) {
     auto len = sv.size();
-    int digits_count{};
-    int hyphen_count{};
+    uint8_t digits_count{};
+    uint8_t hyphen_count{};
     for (size_t i=0;i<sv.size();++i) {
       auto ch = sv[i];
       if (std::isdigit(ch)) ++digits_count;

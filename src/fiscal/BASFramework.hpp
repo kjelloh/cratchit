@@ -303,7 +303,7 @@ inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostin
 inline bool are_same_and_less_than_100_cents_apart(BAS::anonymous::AccountPostings const& aps1, BAS::anonymous::AccountPostings const& aps2) {
 	bool result{true};
 	if (aps1.size() >= aps2.size()) {
-		for (int i=0;i<aps1.size() and result;++i) {
+		for (size_t i=0;i<aps1.size() and result;++i) {
 			if (i<aps2.size()) {
 				result = are_same_and_less_than_100_cents_apart(aps1[i],aps2[i]);
 			}

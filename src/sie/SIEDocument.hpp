@@ -53,6 +53,7 @@ public:
 
   SIEDocument(FiscalYear const& fiscal_year);
   SIEDocument() = delete;
+  SIEDocument(SIEDocument const&) = default;
   SIEDocument& operator=(SIEDocument const& other) = default;
 
   MaybeBASJournalRef at(BAS::Series series);

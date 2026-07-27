@@ -38,7 +38,7 @@ namespace {
       .and_then(text::encoding::monadic::to_platform_encoded_string_step);
   }
 
-  AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
+  [[maybe_unused]] AnnotatedMaybe<CSV::Table> path_to_table_shortcut(std::filesystem::path const& file_path) {
 
     return path_to_platform_encoded_string_shortcut(file_path)
       .and_then(CSV::parse::monadic::csv_text_to_table_step);
@@ -1386,7 +1386,7 @@ namespace tests::csv_import_pipeline {
       ASSERT_TRUE(result) << "Expected success even with low confidence";
 
       // Check if we got a message about defaulting to UTF-8
-      bool has_default_message = false;
+      [[maybe_unused]] bool has_default_message = false;
       for (const auto& msg : result.m_messages) {
         if (msg.find("default") != std::string::npos || msg.find("UTF-8") != std::string::npos) {
           has_default_message = true;

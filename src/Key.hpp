@@ -11,7 +11,7 @@ namespace Key {
     auto begin() const { return m_path.begin(); }
     auto end() const { return m_path.end(); }
     Path() = default;
-    Path(Path const& other) = default;
+    // Path(Path const& other) = default;
     Path(std::vector<std::string> const& v);
     Path(std::string const& s_path, char delim = '^');
     auto size() const { return m_path.size(); }

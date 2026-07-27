@@ -1,12 +1,28 @@
 #pragma once
 
 #include "Msg.hpp"
+#include "Ux.hpp"
+
+#include <immer/vector.hpp>
 #include <variant>
 
-struct RootState;
+class RootState;
 
 using State = std::variant<RootState>;
 
-struct RootState {
-  State operator()(tea::UnicodeKeyMsg const& unicode_msg) const;
+class RootState {
+public:
+  using This = RootState;
+
+  This operator()(tea::UnicodeKeyMsg const& unicode_msg) const;
+  tea::Ux view() const;
+  using CodePointBuffer = immer::vector<char32_t>;
+
+  // code point buffer handling
+  This with_pushed_unicode(char32_t cp) const;
+  This with_popped_unicode() const;
+
+  private:
+
+    CodePointBuffer m_code_point_buffer{};
 };

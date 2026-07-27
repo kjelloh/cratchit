@@ -2,6 +2,6 @@
 
 class PlaygroundRaylibApp {
 public:
-  int run(int argc, char *argv[]);
+  int run(int, char**);
 private:
 }; // CratchitRaylibApp

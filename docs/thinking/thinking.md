@@ -8,6 +8,15 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260727
+
+So I now have State and Msg as std::variants with a double dispatch based on 'template magic' and each state only implement the message handlers they require. Seems like a good design for now.
+
+So now it is time to implement view() to call the current state.
+
+* Make view() call state for how the view should look like.
+* Move the current keyboard input buffer to the root state.
+
 ## 20260726
 
 It seems now it is time to implement the app 'states'.
@@ -77,8 +86,6 @@ I wonder if it is not the case that we want to avoid storing function pointers i
   * But then we need to ensure all data in the model is independent on model instance!
 
 I can think about this forever. Lets try double dispatch on both state and message being variants?
-
-
 
 ## 20260725
 

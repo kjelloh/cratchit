@@ -10,7 +10,7 @@
 
 class CratchitRaylibApp {
 public:
-  int run(int argc, char *argv[]);
+  int run(int, char**);
 private:
   const int INITIAL_SCREEN_WIDTH = 1080;
   const int INITIAL_SCREEN_HEIGHT = 720;

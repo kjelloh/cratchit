@@ -1,7 +1,7 @@
 #include "custom_raylib_log_callback.hpp"
 #include "log.hpp"
 
-void custom_raylib_log_callback(int msgType, const char *text, va_list args) {
+void custom_raylib_log_callback(int msgType, const char *text, va_list /* args */) {
   switch (msgType) {
     case LOG_INFO:
       log_development_trace("[raylib INFO] : {}",text);

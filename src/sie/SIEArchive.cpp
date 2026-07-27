@@ -145,8 +145,8 @@ JournalEntryChangeResult SIEArchive::stage(BAS::MDJournalEntry const& mdje) {
 // private
 
 std::expected<ActualYearKey, std::string> SIEArchive::to_actual_year_key(
-    sie::RelativeYearKey relative_year_key
-  ,FiscalYear current_fiscal_year) {
+   sie::RelativeYearKey relative_year_key
+  ,[[maybe_unused]] FiscalYear current_fiscal_year) {
 
   // Old mechanism: use relative key as-is
   return relative_year_key;
