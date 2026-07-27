@@ -3,7 +3,7 @@
 namespace first {
   // ----------------------------------
   NCursesKeyMsg::NCursesKeyMsg(int unicode_int_code_point) 
-    : unicode_int_code_point{unicode_int_code_point}, MsgImpl{} {}
+    : MsgImpl{},unicode_int_code_point{unicode_int_code_point} {}
 
   // ----------------------------------
   PushStateMsg::PushStateMsg(State const& state)

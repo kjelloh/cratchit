@@ -53,6 +53,16 @@ namespace cas {
     ToCid m_to_cid{};
   public:
 
+    repository() = default; // demand as copy constructor removes implicit one
+    repository(const repository&) = default; // demand as operator= removes the implcit ones
+
+    repository& operator=(const repository &other) {
+      if (this != &other) {
+        m_map = other.m_map;
+      }
+      return *this;
+    }
+
     auto size() const {return m_map.size();}
 
     bool contains(Cid const& cid) const { return m_map.contains(cid); }
@@ -78,13 +88,6 @@ namespace cas {
 
     void clear() { return m_map.clear(); }
     
-    repository& operator=(const repository &other) {
-      if (this != &other) {
-        m_map = other.m_map;
-      }
-      return *this;
-    }
-
     std::pair<Cid,bool> try_cas_repository_put(Value const& value) const {
       auto cid = m_to_cid(value);
       auto is_new_value = m_map.contains(cid);

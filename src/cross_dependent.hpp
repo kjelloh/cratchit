@@ -44,7 +44,7 @@ namespace TEA {
 
 namespace first {
   // ----------------------------------
-  struct StateImpl; // Forward
+  class StateImpl; // Forward
 
   // ----------------------------------
   using State = std::shared_ptr<StateImpl>;

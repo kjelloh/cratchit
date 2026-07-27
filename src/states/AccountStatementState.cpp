@@ -64,13 +64,13 @@ namespace first {
   std::vector<std::string> to_elements(std::vector<std::string> headers,Entry const& entry) {
     std::vector<std::string> result(headers.size(),"??");
     std::map<std::string,std::function<std::string(Entry)>> projector = {
-       {"Type",[](Entry const& entry){return "Trans";}}
+       {"Type",[](Entry const&){return "Trans";}}
       ,{"Date",[](Entry const& entry){return to_string(entry.transaction_date);}}
       ,{"Description",[](Entry const& entry){return entry.transaction_caption;}}
       ,{"Amount",[](Entry const& entry){return to_string(entry.transaction_amount);}}
       ,{"Tags",[](Entry const& entry){return text::functional::out::to_string(entry.transaction_tags);}}
     };
-    for (int i=0;i<headers.size();++i) {  
+    for (size_t i=0;i<headers.size();++i) {  
       if (projector.contains(headers[i])) {
         result[i] = projector[headers[i]](entry);
       }
@@ -151,12 +151,12 @@ namespace first {
         auto elements = to_elements(headers,entry);
         
         // Truncate strings to fit column widths
-        for (int i=0;i<headers.size();++i) {
+        for (size_t i=0;i<headers.size();++i) {
           if (elements[i].length() > column_widths[i]) {
             elements[i] = elements[i].substr(0, column_widths[i] - 3) + "...";
           }
         }
-        for (int i=0;i<headers.size();++i) {
+        for (size_t i=0;i<headers.size();++i) {
           if (i > 0) row_line += " | ";
           row_line += std::format("{:<{}}",elements[i],column_widths[i]);
         }

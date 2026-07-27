@@ -60,7 +60,7 @@ float const VERSION = 0.5;
 #include <unicode/unistr.h>
 
 // Define a signal handler function that does nothing
-inline void handle_winch(int sig) {
+inline void handle_winch(int) {
     // Do nothing
 }
 
@@ -339,7 +339,7 @@ namespace BAS::K2::AR {
         virtual State run(State const& state) {
           State result{state};
           if (state.success) {
-            auto success = std::all_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
+            [[maybe_unused]] auto success = std::all_of(parsers.begin(),parsers.end(),[&result](Parser* parser){
               result = parser->run(result);
               return result.success;
             });
@@ -355,7 +355,7 @@ namespace BAS::K2::AR {
         virtual State run(State const& state) {
           State result{state};
           if (state.success) {
-            auto success = std::any_of(parsers.begin(),parsers.end(),[&state,&result](Parser* parser){
+            [[maybe_unused]] auto success = std::any_of(parsers.begin(),parsers.end(),[&state,&result](Parser* parser){
               result = parser->run(state); // try each parser on initial state
               return result.success;
             });
@@ -629,7 +629,7 @@ namespace BAS::K2::AR {
       auto eller = new detail::Word{"eller"};
       auto eller_range = new detail::And{spaces,eller,spaces,range};
       auto optional_eller_range = new detail::Or{end,eller_range};
-      auto range_and_optional_eller_range = new detail::And{range,optional_eller_range};
+      [[maybe_unused]] auto range_and_optional_eller_range = new detail::And{range,optional_eller_range};
       // state = range_and_optional_eller_range->run(state);
 
       // 15698735858152199622 "4900-4999 (förutom 4910-4931, 4960-4969 och 4980-4989)"
@@ -646,18 +646,18 @@ namespace BAS::K2::AR {
       auto och = new detail::Word{"och"};
       auto alpha = new detail::AnyAlpha{};
       auto alphanumericandspace = new detail::Or{alpha,digit,space};
-      auto alphanumericandspaces = new detail::Many{alphanumericandspace};
+      [[maybe_unused]] auto alphanumericandspaces = new detail::Many{alphanumericandspace};
       auto right_bracket = new detail::Char{')'};
       auto not_right_bracket = new detail::Not{right_bracket};
       auto space_and_not_right_bracket = new detail::Or{space,not_right_bracket};
-      auto many_space_and_not_right_bracket = new detail::Many{space_and_not_right_bracket};
+      [[maybe_unused]] auto many_space_and_not_right_bracket = new detail::Many{space_and_not_right_bracket};
       auto comma_och_or_space = new detail::Or{comma,och,space};
       auto exclude_list_separation = new detail::Many{comma_och_or_space};
       auto list_entry = new detail::And{exclude_list_separation,range};
       auto list = new detail::Many{list_entry};
       auto exclude_list = new detail::And{space,left_bracket,forutom,list,right_bracket};
       auto optional_eller_range_or_exclude_list = new detail::Or{eller_range,exclude_list,end};
-      auto range_and_optional_eller_range_or_exclude_list = new detail::And{range,optional_eller_range_or_exclude_list,end};
+      [[maybe_unused]] auto range_and_optional_eller_range_or_exclude_list = new detail::And{range,optional_eller_range_or_exclude_list,end};
       // state = range_and_optional_eller_range_or_exclude_list->run(state);
 
       // 5126772769069083656 "8070-8089, 8170-8189, 8270-8289 eller 8370-8389"
@@ -667,7 +667,7 @@ namespace BAS::K2::AR {
       auto include_list_entry = new detail::And{include_list_separation,range};
       auto include_list = new detail::Many{include_list_entry};
       auto optional_range_exclude_list_or_include_list = new detail::Or{exclude_list,end,include_list};
-      auto range_and_optional_range_exclude_list_or_include_list = new detail::And{range,optional_range_exclude_list_or_include_list,end};
+      [[maybe_unused]] auto range_and_optional_range_exclude_list_or_include_list = new detail::And{range,optional_range_exclude_list_or_include_list,end};
       // state = range_and_optional_range_exclude_list_or_include_list->run(state);
 
       // 6676188007026535397 "8100-8199 (förutom 8113, 8118, 8123, 8133 och 8170-8189)"
@@ -890,7 +890,7 @@ namespace BAS::K2::AR {
         bool result{false};
         std::cout << "\nGoesIntoThisEntry(" << std::quoted(this->m_bas_accounts_text) << ") on " << bas_account_no;
         if (m_parsed_ok) {
-          result = m_parsed_ok and std::any_of(m_bas_account_ranges.begin(),m_bas_account_ranges.end(),[bas_account_no,this](auto const& r) {
+          result = m_parsed_ok and std::any_of(m_bas_account_ranges.begin(),m_bas_account_ranges.end(),[bas_account_no](auto const& r) {
             auto result = (r.first<=bas_account_no) and (bas_account_no<=r.second); 
             if (true) {
               // Log
@@ -1041,7 +1041,7 @@ namespace BAS::K2::AR {
 		}
     if (true) {
 			for (auto const& entry : result) {
-        auto predicate = ar_online::to_predicate(entry.m_field_heading_text,entry.m_bas_accounts_text);
+        [[maybe_unused]] auto predicate = ar_online::to_predicate(entry.m_field_heading_text,entry.m_bas_accounts_text);
       }
     }
 		if (true) {
@@ -1067,9 +1067,9 @@ namespace BAS::K2::AR {
 	#if (__cpp_lib_ranges >= 201911L) // clang libstdc++ (experimental in clang15) does not support std::ranges::istream_view
 		// Check that we parsed all entries correct
 		std::istringstream words{bas_2024_mapping_to_k2_ar_text};
-		auto count = std::ranges::count_if(std::ranges::istream_view<std::string>(words), [](std::string const& word) {return word == "Konto";});
-		std::cout << "\nCount of 'Konto' in source text:" << count << " and parsed entry count is:" << result.size();
-		if (count == result.size()) std::cout << " ==> OK!";
+		auto diff = std::ranges::count_if(std::ranges::istream_view<std::string>(words), [](std::string const& word) {return word == "Konto";});
+		std::cout << "\nCount of 'Konto' in source text:" << diff << " and parsed entry count is:" << result.size();
+		if (static_cast<std::size_t>(diff) == result.size()) std::cout << " ==> OK!";
 		else std::cout << " ** ERROR (must be equal = all must be parsed) **";
 #else
 		// Warn that we have no code to check the input / parsed result correctness
@@ -1141,7 +1141,7 @@ namespace doc {
 		DefactoPtr pDefacto;
 		friend Component& operator<<(Component& c,ComponentPtr const& p);
 	};
-	inline Component& operator<<(Component& c,ComponentPtr const& p) {
+	inline Component& operator<<(Component& c,[[maybe_unused]] ComponentPtr const& p) {
 		return c;
 	}
 
@@ -1164,7 +1164,7 @@ namespace doc {
 		ComponentPtr root{separate_page()};
 	};
 
-	inline Document& operator<<(Document& doc,ComponentPtr const& p) {
+	inline Document& operator<<(Document& doc,[[maybe_unused]] ComponentPtr const& p) {
 		return doc;
 	}
 
@@ -1174,13 +1174,13 @@ namespace RTF {
 	// Rich Text Format namespace
 
 	struct MetaState {
-		void operator()(doc::meta::Orientation const& meta) {}
-		void operator()(doc::meta::Location const& meta) {}
-		void operator()(doc::meta::Colour const& meta) {}
-		void operator()(doc::meta::Font const& meta) {}
-		void operator()(doc::meta::Width const& meta) {}
-		void operator()(doc::meta::Height const& meta) {}
-		void operator()(doc::meta::Count const& meta) {}
+		void operator()(doc::meta::Orientation const&) {}
+		void operator()(doc::meta::Location const&) {}
+		void operator()(doc::meta::Colour const&) {}
+		void operator()(doc::meta::Font const&) {}
+		void operator()(doc::meta::Width const&) {}
+		void operator()(doc::meta::Height const&) {}
+		void operator()(doc::meta::Count const&) {}
 	};
 
 	struct OStream {
@@ -1193,7 +1193,7 @@ namespace RTF {
 
 	struct LeafOStreamer {
 		OStream& os;
-		void operator()(doc::leaf::PageBreak const& leaf) {
+		void operator()(doc::leaf::PageBreak const&) {
 			os.os << "\nTODO: PAGE BREAK";
 		}
 		void operator()(doc::leaf::Text const& leaf) {
@@ -1203,13 +1203,13 @@ namespace RTF {
 
 	struct CompositeOStreamer {
 		OStream& os;
-		void operator()(doc::composite::Vector const& v) {
+		void operator()(doc::composite::Vector const&) {
 			os.os << "\nTODO: CompositeOStreamer Vector";
 		}
-		void operator()(doc::composite::Grid const& g) {
+		void operator()(doc::composite::Grid const&) {
 			os.os << "\nTODO: CompositeOStreamer Grid";
 		}
-		void operator()(doc::composite::SeparatePage const& g) {
+		void operator()(doc::composite::SeparatePage const&) {
 			os.os << "\nTODO: CompositeOStreamer SeparatePage";
 		}
 	};
@@ -1239,7 +1239,7 @@ namespace RTF {
 		return os;
 	}
 
-	inline OStream& operator<<(OStream& os,doc::Document const& doc) {
+	inline OStream& operator<<(OStream& os,doc::Document const&) {
 		os.os << "\nTODO: stream doc::Document";
 		return os;
 	}
@@ -1251,13 +1251,13 @@ namespace HTML {
 	// Rich Text Format namespace
 
 	struct MetaState {
-		void operator()(doc::meta::Orientation const& meta) {}
-		void operator()(doc::meta::Location const& meta) {}
-		void operator()(doc::meta::Colour const& meta) {}
-		void operator()(doc::meta::Font const& meta) {}
-		void operator()(doc::meta::Width const& meta) {}
-		void operator()(doc::meta::Height const& meta) {}
-		void operator()(doc::meta::Count const& meta) {}
+		void operator()(doc::meta::Orientation const&) {}
+		void operator()(doc::meta::Location const&) {}
+		void operator()(doc::meta::Colour const&) {}
+		void operator()(doc::meta::Font const&) {}
+		void operator()(doc::meta::Width const&) {}
+		void operator()(doc::meta::Height const&) {}
+		void operator()(doc::meta::Count const&) {}
 	};
 
 	struct OStream {
@@ -1268,12 +1268,12 @@ namespace HTML {
 	OStream& operator<<(OStream& os,doc::ComponentPtr const& cp); // Forward / future h-file
 	OStream& operator<<(OStream& os,doc::Document const& doc); // Forward / future h-file
 
-	inline OStream& operator<<(OStream& os,doc::ComponentPtr const& cp) {
+	inline OStream& operator<<(OStream& os,doc::ComponentPtr const&) {
 		os.os << "\nTODO: stream doc::ComponentPtr";
 		return os;
 	}
 
-	inline OStream& operator<<(OStream& os,doc::Document const& doc) {
+	inline OStream& operator<<(OStream& os,doc::Document const&) {
 		os.os << "\nTODO: stream doc::Document";
 		return os;
 	}
@@ -1707,7 +1707,7 @@ namespace CSV {
 				// LOG
 				if (false) {
 // std::cout << "\ncsv count: " << tokens.size(); // Expected 10
-					for (int i=0;i<tokens.size();++i) {
+					for (size_t i=0;i<tokens.size();++i) {
 // std::cout << "\n\t" << i << " " << tokens[i];
 					}
 				}
@@ -1717,7 +1717,7 @@ namespace CSV {
 					std::optional<Amount> saldo{};
 					std::optional<Date> date{};
 					std::optional<std::string> valuta{};
-					for (int i=0;i<tokens.size();++i) {
+					for (size_t i=0;i<tokens.size();++i) {
 						auto const& token = tokens[i];
 						switch (i) {
 							case element::Bokforingsdag: {date = to_date(token);} break;
@@ -1840,11 +1840,11 @@ inline BAS::anonymous::OptionalAccountPosting net_account_transaction(BAS::anony
 
 inline BAS::anonymous::OptionalAccountPosting vat_account_transaction(BAS::anonymous::JournalEntry const& aje) {
 	BAS::anonymous::OptionalAccountPosting result{};
-	auto trans_amount = to_positive_gross_transaction_amount(aje);
+	// auto trans_amount = to_positive_gross_transaction_amount(aje);
 	auto iter = std::find_if(
      aje.account_postings.begin()
     ,aje.account_postings.end()
-    ,[&trans_amount](auto const& ap){
+    ,[](auto const& ap){
 		  return is_vat_account_at(ap);
 	});
 	if (iter != aje.account_postings.end()) result = *iter;
@@ -1904,15 +1904,15 @@ inline BAS::MDJournalEntry to_updated_amounts_md_entry(BAS::MDJournalEntry const
 		auto& vat_amount = result.defacto.account_postings[2].amount;
 		auto& round_amount = result.defacto.account_postings[3].amount;
 
-		auto abs_trans_amount = abs(trans_amount);
+		// auto abs_trans_amount = abs(trans_amount);
 		auto abs_ex_vat_amount = abs(ex_vat_amount);
 		auto abs_vat_amount = abs(vat_amount);
-		auto abs_round_amount = abs(round_amount);
+		// auto abs_round_amount = abs(round_amount);
 		auto abs_at_amount = abs(ap.amount);
 
-		auto trans_amount_sign = static_cast<int>(trans_amount / abs(trans_amount));
+		// auto trans_amount_sign = static_cast<int>(trans_amount / abs(trans_amount));
 		auto vat_sign = static_cast<int>(vat_amount/abs_vat_amount); // +-1
-		auto at_sign = static_cast<int>(ap.amount/abs_at_amount);
+		// auto at_sign = static_cast<int>(ap.amount/abs_at_amount);
 
 		auto vat_rate = static_cast<int>(round(abs_vat_amount*100/abs_ex_vat_amount));
 // std::cout << "\nabs_vat_amount:" << abs_vat_amount << " abs_ex_vat_amount:" << abs_ex_vat_amount << " vat_rate:" << vat_rate;
@@ -2572,7 +2572,7 @@ namespace SKV { // SKV
 
 		inline BlanketterOStream& operator<<(BlanketterOStream& os,FilesMapping const& fm) {
 
-			for (int i=0;i<fm.blanketter.size();++i) {
+			for (size_t i=0;i<fm.blanketter.size();++i) {
 				if (i>0) os.sru_os << "\n"; // NOTE: Empty lines not allowed (so no new-line for first entry)
 
 				// Posterna i ett blankettblock måste förekomma i följande ordning:
@@ -3433,7 +3433,7 @@ namespace SKV { // SKV
 				return {os.str()};
 			}
 
-			inline EUVATRegistrationID to_eu_vat_id(SKV::XML::VATReturns::BoxNo const& box_no,BAS::MDAccountPosting const& md_ap) {
+			inline EUVATRegistrationID to_eu_vat_id([[maybe_unused]] SKV::XML::VATReturns::BoxNo const& box_no,BAS::MDAccountPosting const& md_ap) {
 				std::ostringstream os{};
 				if (!md_ap.defacto.transtext) {
 						os << "* transtext " << std::quoted("") << " for " << md_ap << " does not define the EU VAT ID for this transaction *";
@@ -3686,9 +3686,9 @@ inline std::optional<SKV::XML::XMLMap> to_skv_xml_map(SKV::OrganisationMeta send
 		std::cout << "\nERROR: to_skv_xml_map failed, exception=" << e.what();
 	}
 	if (result) {
-		for (auto const& [tag,value] : *result) {
-			// std::cout << "\nto_skv_xml_map: " << tag << " = " << std::quoted(value);
-		}
+		// for (auto const& [tag,value] : *result) {
+		// 	std::cout << "\nto_skv_xml_map: " << tag << " = " << std::quoted(value);
+		// }
 	}
 	return result;
 }
@@ -3885,7 +3885,7 @@ public:
     std::optional<std::filesystem::path> getPreviousFile(const std::filesystem::path& filePath) const {
       std::optional<std::filesystem::path> result{};
       auto it = std::adjacent_find(files_.begin(), files_.end(),
-          [&](const auto& pair1, const auto& pair2) { return pair1.second == filePath; });
+          [&](const auto& pair1, const auto&) { return pair1.second == filePath; });
 
       if (it != files_.end()) {
           // If found, return the second file in the pair (which is the 'previous' file in the new-to-old ordered list)
@@ -4164,7 +4164,7 @@ public:
 		auto had_iter = this->heading_amount_date_entries.begin();
 		auto end = this->heading_amount_date_entries.end();
 		// std::cout << "\nto_had_iter had_index:" << had_index << " end-begin:" << std::distance(had_iter,end);
-		if (ix < std::distance(had_iter,end)) {
+		if (ix < static_cast<size_t>(std::distance(had_iter,end))) {
 			std::advance(had_iter,ix); // zero based index
 			result = had_iter;
 		}
@@ -4180,7 +4180,7 @@ public:
         std::cout << ",optional ok";
 				auto at_iter = (*had_iter)->optional.current_candidate->defacto.account_postings.begin();
 				auto end = (*had_iter)->optional.current_candidate->defacto.account_postings.end();
-				if (ix < std::distance(at_iter,end)) {
+				if (ix < static_cast<size_t>(std::distance(at_iter,end))) {
           std::cout << ",ix ok";
           std::advance(at_iter,ix);
           std::cout << " --> selected at:" << *at_iter;
@@ -4306,6 +4306,7 @@ struct CratchitFileSystemMeta {
   // ConfiguredSIEFilePaths m_configured_sie_file_paths{};
 };
 struct CratchitFileSystemDefactoIfc {
+  virtual ~CratchitFileSystemDefactoIfc() = default;
   virtual persistent::in::text::MaybeIStream to_maybe_istream(std::filesystem::path file_path) & {
     return persistent::in::text::to_maybe_istream(file_path);
   }

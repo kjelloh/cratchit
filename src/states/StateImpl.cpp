@@ -74,7 +74,7 @@ namespace first {
   }
 
   // ----------------------------------
-  StateUpdateResult StateImpl::update(Msg const& msg) const {
+  StateUpdateResult StateImpl::update(Msg const&) const {
     spdlog::info("StateImpl::update(msg) - Base implementation - didn't handle");
     return {std::nullopt, Cmd{}}; // Base: "didn't handle"
   }

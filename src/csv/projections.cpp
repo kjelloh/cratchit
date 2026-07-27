@@ -51,7 +51,7 @@ namespace CSV {
       ToHeadingProjection make_heading_projection(HeadingId const& csv_heading_id) {
         switch (csv_heading_id) {
           case HeadingId::Undefined: {
-            return [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
+            return [](CSV::FieldRow const&) -> CSV::OptionalTableHeading {
               return std::nullopt;
             };
           } break;
@@ -82,7 +82,7 @@ namespace CSV {
             };
           } break;
           case HeadingId::unknown: {
-            return [](CSV::FieldRow const& field_row) -> CSV::OptionalTableHeading {
+            return [](CSV::FieldRow const&) -> CSV::OptionalTableHeading {
               return std::nullopt;
             };
           } break;

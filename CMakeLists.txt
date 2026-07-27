@@ -154,7 +154,7 @@ else()
         -Wall      # Common warnings
         -Wextra    # Extra warnings
         -Wpedantic # Strict standard conformance warnings
-        # -Werror    # Treat warnings as errors
+        -Werror    # Treat warnings as errors
     )
 endif()      
 

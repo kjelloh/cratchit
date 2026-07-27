@@ -298,6 +298,12 @@ namespace BAS {
 	// 1) In macOS Numbers opening excel file downloaded from https://www.bas.se/kontoplaner/
 	// 2) Exported as csv-file
 	// See project resource ./resources/Kontoplan-2022.csv
+
+#if defined(__clang__) || defined(__GNUC__)
+	// Ignore this warning to enable warnings-as-errors mode (compiler will fail for to long strings anyhow)
+	#pragma GCC diagnostic ignored "-Woverlength-strings"
+#endif
+
 	char const* bas_2022_account_plan_csv{R"(;Kontoplan – BAS 2022;;;;;;;;
 ;;;;;;;;;
 ;;;;|;;= Ändring eller tillägg jämfört med föregående år. Mer information finns på BAS webbplats (bas.se).;;;

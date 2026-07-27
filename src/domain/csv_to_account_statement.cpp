@@ -101,7 +101,7 @@ namespace account {
         auto to_msg = [](AccountStatement const& result) -> std::string {
           return std::format(
             "{} : {} entries"
-            ,result.meta().m_maybe_account_irl_id.value_or(AccountID{"??,??"}).to_string()
+            ,result.meta().m_maybe_account_irl_id.value_or(AccountID{"??","??"}).to_string()
             ,result.entries().size()
             );
         };

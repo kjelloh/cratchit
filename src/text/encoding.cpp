@@ -122,7 +122,6 @@ namespace text {
       }
 
       ToUnicodeBuffer::OptionalUnicode ToUnicodeBuffer::push(uint8_t b) {
-        OptionalUnicode result{};
         // See https://en.wikipedia.org/wiki/UTF-8#Encoding
         // Code point <-> UTF-8 conversion
         // First code point	Last code point	Byte 1		Byte 2    Byte 3    Byte 4

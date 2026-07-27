@@ -196,7 +196,7 @@ namespace tokenize {
     }
 
     spdlog::info("splits({})", s);
-    for (int i = 0; i < spaced_tokens.size(); ++i) {
+    for (size_t i=0; i < spaced_tokens.size(); ++i) {
       spdlog::info("\t{} -> id:{}", spaced_tokens[i], static_cast<int>(ids[i]));
     }
 
@@ -204,9 +204,9 @@ namespace tokenize {
     case SplitOn::TextAmountAndDate: {
       std::vector<TokenID> expected_id{TokenID::Caption, TokenID::Amount,
                                        TokenID::Date};
-      int state{0};
+      size_t state{0};
       std::string s{};
-      for (int i = 0; i < ids.size();) {
+      for (size_t i=0; i < ids.size();) {
         if (ids[i] == expected_id[state]) {
           if (s.size() > 0)
             s += " ";

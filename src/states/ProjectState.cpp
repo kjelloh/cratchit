@@ -137,7 +137,7 @@ namespace first {
     return {std::nullopt, Cmd{}}; // Didn't handle - let base dispatch use fallback
   }
 
-  static std::string to_underscored_spaces(const std::string &name) {
+  [[maybe_unused]] static std::string to_underscored_spaces(const std::string &name) {
     std::string result;
     result.reserve(name.size());
     std::ranges::transform(name, std::back_inserter(result),

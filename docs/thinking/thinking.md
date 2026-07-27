@@ -17,6 +17,21 @@ So now it is time to implement view() to call the current state.
 * Make view() call state for how the view should look like.
 * Move the current keyboard input buffer to the root state.
 
+I made update and view call the state and made user input handling work in RootState ok. 
+
+Then I also turned on -WAll and -WError and cleaned out all warnings.
+
+Not two TESTS FAIL!
+
+```sh
+[----------] Global test environment tear-down
+[==========] 364 tests from 70 test suites ran. (502 ms total)
+[  PASSED  ] 362 tests.
+[  FAILED  ] 2 tests, listed below:
+[  FAILED  ] DateOrderedTaggedAmountsContainerFixture.InsertLastTest
+[  FAILED  ] DateOrderedTaggedAmountsContainerFixture.InsertFirstTest
+```
+ 
 ## 20260726
 
 It seems now it is time to implement the app 'states'.

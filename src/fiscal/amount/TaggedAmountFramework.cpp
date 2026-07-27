@@ -72,7 +72,7 @@ OptionalTaggedAmount to_tagged_amount(Environment::Value const& ev) {
 	OptionalTaggedAmount result{};
 	OptionalDate date{};
 	OptionalCentsAmount cents_amount{};
-	TaggedAmount::OptionalValueId value_id{};
+	// TaggedAmount::OptionalValueId value_id{};
 	TaggedAmount::Tags tags{};
 	for (auto const& entry : ev) {
 		if (entry.first == "yyyymmdd_date") date = to_date(entry.second);
@@ -146,7 +146,7 @@ namespace zeroth {
             ,maybe_next.value()
             ,to_string(this->at(maybe_next.value()).value_or(TaggedAmount{Date{},CentsAmount{}})));
 
-          auto begin = std::ranges::find(m_date_ordered_value_ids,maybe_next.value());
+          // auto begin = std::ranges::find(m_date_ordered_value_ids,maybe_next.value());
 
           using namespace cratchit::functional::ranges; // adjacent_iterator_pairs
           for (auto [it, next] : adjacent_iterator_pairs(m_date_ordered_value_ids)) {
@@ -672,7 +672,7 @@ namespace CSV {
           }
           // Tag with column names as defined by heading
           if (heading.size() > 0 and heading.size() == field_row.size()) {
-            for (int i=0;i<heading.size();++i) {
+            for (size_t i=0;i<heading.size();++i) {
               auto key = heading[i];
               auto value = field_row[i];
               if (ta.tags().contains(key) == false) {
@@ -721,7 +721,7 @@ namespace CSV {
 
             // Tag with column names as defined by heading
             if (heading.size() > 0 and heading.size() == field_row.size()) {
-              for (int i=0;i<heading.size();++i) {
+              for (size_t i=0;i<heading.size();++i) {
                 auto key = heading[i];
                 if (ta.tags().contains(key) == false) {
                   // Note: The SKV file may contain both CR (0x0D) and LF (0x0A) even when downloaded to macOS that expects only CR.
@@ -794,7 +794,7 @@ namespace CSV {
       ,CSV::TableHeading const& table_heading) {
       switch (csv_heading_id) {
         case deprecated::HeadingId::Undefined: {
-          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
+          return [table_heading](CSV::FieldRow const&) -> OptionalTaggedAmount {
             return std::nullopt;
           };
         } break;
@@ -809,7 +809,7 @@ namespace CSV {
           };
         } break;
         case deprecated::HeadingId::unknown: {
-          return [table_heading](CSV::FieldRow const& field_row) -> OptionalTaggedAmount {
+          return [table_heading](CSV::FieldRow const&) -> OptionalTaggedAmount {
             return std::nullopt;
           };
         } break;
@@ -872,7 +872,7 @@ DateOrderedTaggedAmountsContainer dotas_from_environment(const Environment &env)
       auto maybe_prev = maybe_s_prev.and_then([](std::string s_prev) {
         return to_maybe_value_id(s_prev);
       });
-      auto [value_id,was_inserted] = result.dotas_append_value(maybe_prev,ta,true);
+      [[maybe_unused]] auto [value_id,was_inserted] = result.dotas_append_value(maybe_prev,ta,true);
     }
     else {
       // 'older' insert based on ta date

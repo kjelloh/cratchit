@@ -90,7 +90,7 @@ namespace SKV {
         logger::cout_proxy << "\nto_sru_value_map";
 
 				std::map<SKV::SRU::AccountNo,BAS::OptionalAccountNos> sru_to_bas_accounts{};
-				for (int i=0;i<field_rows.size();++i) {
+				for (size_t i=0;i<field_rows.size();++i) {
 					auto const& field_row = field_rows[i];
           logger::cout_proxy << "\n\t" << static_cast<std::string>(field_row);
 					if (field_row.size() > 1) {
@@ -939,7 +939,7 @@ namespace SKV {
 					// NOTE: making changes in a later VAT returns form for changes in previous one should be a low-crime offence?
 
 					// Loop through quarter candidates
-					for (int i=0;i<3;++i) {
+					for (uint8_t i=0;i<3;++i) {
 						// Check three quartes back for missing VAT consilidation journal entry
 						if (quarter_has_VAT_consilidation_entry(sie_archive,current_quarter) == false) {
 							auto vat_returns_meta = to_vat_returns_meta(vat_returns_range);
@@ -1282,7 +1282,6 @@ Cmd Updater::operator()(Command const& command) {
   }
   else {
     // We have at least one token in user input
-    int signed_ix{};
     std::istringstream is{ast[0]};
     bool do_assign = (command.find('=') != std::string::npos);
     /* ======================================================
@@ -1570,7 +1569,7 @@ Cmd Updater::operator()(Command const& command) {
 
                 // List options for how the HAD may be registered into the books based on available candidates
                 unsigned ix = 0;
-                for (int i=0; i < model->template_candidates.size(); ++i) {
+                for (size_t i=0; i < model->template_candidates.size(); ++i) {
                   prompt << "\n    " << ix++ << " " << model->template_candidates[i];
                 }
                 model->prompt_state = PromptState::JEIndex;
@@ -1791,9 +1790,9 @@ Cmd Updater::operator()(Command const& command) {
                       }
                     });
 // std::cout << "\n[" << box_no << "]";
-                    for (auto const& mat : mats) {
+//                     for (auto const& mat : mats) {
 // std::cout << "\n\t" << mat;
-                    }
+//                     }
 // std::cout << "\n\t--------------------";
 // std::cout << "\n\tsum " << BAS::mats_sum(mats);
                   }
@@ -1866,7 +1865,7 @@ Cmd Updater::operator()(Command const& command) {
               auto tme_end = model->template_candidates.end();
               auto at_iter = model->ap_candidates.begin();
               auto at_end = model->ap_candidates.end();
-              if (ix < std::distance(tme_iter,tme_end)) {
+              if (ix < static_cast<size_t>(std::distance(tme_iter,tme_end))) {
                 std::advance(tme_iter,ix);
                 auto tme = *tme_iter;
                 auto vat_type = to_vat_type(tme);
@@ -2059,7 +2058,7 @@ Cmd Updater::operator()(Command const& command) {
                   } break;
                 }
               }
-              else if (auto at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < std::distance(at_iter,at_end)) {
+              else if (size_t at_ix = (ix - std::distance(tme_iter,tme_end));at_ix < static_cast<size_t>(std::distance(at_iter,at_end))) {
                 prompt << "\nTODO: Implement acting on selected gross account posting " << model->ap_candidates[at_ix];
               }
               else {
@@ -2739,7 +2738,7 @@ Cmd Updater::operator()(Command const& command) {
                   // LOG
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) prompt << "\n";
-                    for (int i=0;i<field_row.size();++i) {
+                    for (size_t i=0;i<field_row.size();++i) {
                       prompt << " [" << i << "]" << field_row[i];
                     }
                   }
@@ -2756,7 +2755,7 @@ Cmd Updater::operator()(Command const& command) {
                 if (auto field_rows = CSV::to_field_rows(utf8_ink1_in)) {
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) prompt << "\n";
-                    for (int i=0;i<field_row.size();++i) {
+                    for (size_t i=0;i<field_row.size();++i) {
                       prompt << " [" << i << "]" << field_row[i];
                     }
                   }
@@ -2938,7 +2937,7 @@ Cmd Updater::operator()(Command const& command) {
                   logger::cout_proxy << "\nParsing INK2R_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) logger::cout_proxy << "\n";
-                    for (int i=0;i<field_row.size();++i) {
+                    for (size_t i=0;i<field_row.size();++i) {
                       logger::cout_proxy << " [" << i << "]" << field_row[i];
                     }
                   }
@@ -3010,7 +3009,7 @@ Cmd Updater::operator()(Command const& command) {
                   logger::cout_proxy << "\nParsing INK2S_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) logger::cout_proxy << "\n";
-                    for (int i=0;i<field_row.size();++i) {
+                    for (size_t i=0;i<field_row.size();++i) {
                       logger::cout_proxy << " [" << i << "]" << field_row[i];
                     }
                   }
@@ -3079,7 +3078,7 @@ Cmd Updater::operator()(Command const& command) {
                   logger::cout_proxy << "\nParsing INK2_csv_to_sru_template";
                   for (auto const& field_row : *field_rows) {
                     if (field_row.size()>0) logger::cout_proxy << "\n";
-                    for (int i=0;i<field_row.size();++i) {
+                    for (size_t i=0;i<field_row.size();++i) {
                       logger::cout_proxy << " [" << i << "]" << field_row[i];
                     }
                   }
@@ -4092,7 +4091,7 @@ Cmd Updater::operator()(Command const& command) {
           if (auto field_rows = CSV::to_field_rows(utf8_in)) {
             for (auto const& field_row : *field_rows) {
               if (field_row.size()>0) prompt << "\n";
-              for (int i=0;i<field_row.size();++i) {
+              for (size_t i=0;i<field_row.size();++i) {
                 prompt << " [" << i << "]" << field_row[i];
               }
             }
@@ -4631,7 +4630,7 @@ The ITfied AB
                     model->template_candidates.clear();
                     std::copy(template_candidates.begin(),template_candidates.end(),std::back_inserter(model->template_candidates));
                     unsigned ix = 0;
-                    for (int i=0; i < model->template_candidates.size(); ++i) {
+                    for (size_t i=0; i < model->template_candidates.size(); ++i) {
                       prompt << "\n    " << ix++ << " " << model->template_candidates[i];
                     }
                   }
@@ -4666,7 +4665,7 @@ The ITfied AB
             return text::functional::strings_share_tokens(command,aje.caption);
           });
           int ix{0};
-          for (int i = 0; i < model->template_candidates.size(); ++i) {
+          for (size_t i = 0; i < model->template_candidates.size(); ++i) {
             prompt << "\n    " << ix++ << " " << model->template_candidates[i];
           }
           // Consider the user may have entered the name of a gross account to journal the transaction amount
@@ -4685,7 +4684,7 @@ The ITfied AB
               }
               return result;
           });
-          for (int i=0;i < model->ap_candidates.size();++i) {
+          for (size_t i=0;i < model->ap_candidates.size();++i) {
             prompt << "\n    " << ix++<< " " << model->ap_candidates[i];
           }
         }
@@ -4868,7 +4867,7 @@ The ITfied AB
   model->prompt = prompt.str();
   return {};
 }
-Cmd Updater::operator()(Quit const& quit) {
+Cmd Updater::operator()(Quit const&) {
   // std::cout << "\noperator(Quit)";
   std::ostringstream os{};
   os << "\nBye for now :)";
@@ -4876,12 +4875,12 @@ Cmd Updater::operator()(Quit const& quit) {
   model->quit = true;
   return {};
 }
-Cmd Updater::operator()(Nop const& nop) {
+Cmd Updater::operator()(Nop const&) {
   // std::cout << "\noperator(Nop)";
   return {};
 }
 
-std::pair<std::string,PromptState> Updater::transition_prompt_state(PromptState const& from_state,PromptState const& to_state) {
+std::pair<std::string,PromptState> Updater::transition_prompt_state([[maybe_unused]] PromptState const& from_state,PromptState const& to_state) {
   std::ostringstream prompt{};
   switch (to_state) {
     case PromptState::SKVTaxReturnEntryIndex: {
@@ -4940,10 +4939,10 @@ PromptState ConcreteModel::to_previous_state(PromptState const& current_state) {
 class Cratchit {
 public:
 	Cratchit(std::filesystem::path const& p)
-		: cratchit_environment_file_path{p}
-          ,m_persistent_environment_file{p,::environment_from_file,::environment_to_file} {}
+		:  m_persistent_environment_file{p,::environment_from_file,::environment_to_file}
+      ,cratchit_environment_file_path{p} {}
 
-        Model init(Command const& command) {
+        Model init([[maybe_unused]] Command const& command) {
           std::ostringstream prompt{};
           prompt << "\nInit from ";
           prompt << cratchit_environment_file_path;
@@ -5159,7 +5158,7 @@ SRUEnvironments srus_from_environment(Environment const& environment) {
   return result;
 } // srus_from_environment
 
-void synchronize_tagged_amounts_with_sie(DateOrderedTaggedAmountsContainer& all_dotas,SIEDocument const& sie_doc) {
+void synchronize_tagged_amounts_with_sie([[maybe_unused]] DateOrderedTaggedAmountsContainer& all_dotas,SIEDocument const& sie_doc) {
   // TODO: Base the implementation on DateOrderedTaggedAmountsContainer handling 'branching' on CAS based value-id ordering?
 
   logger::scope_logger scope_raii{logger::development_trace,"SYNHRONIZE TAGGED AMOUNTS WITH SIE"};
@@ -5339,7 +5338,9 @@ TaggedAmounts tas_sequence_from_consumed_account_statement_files(std::filesystem
   return result;
 } // tas_sequence_from_consumed_account_statement_files
 
-SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_environment_file_path,Environment const& environment) {
+SKV::SpecsDummy skv_specs_mapping_from_csv_files(
+   std::filesystem::path cratchit_environment_file_path
+  ,[[maybe_unused]] Environment const& environment) {
   // TODO 230420: Implement actual storage in model for these mappings (when usage is implemented)
   SKV::SpecsDummy result{};
   auto skv_specs_path = cratchit_environment_file_path.parent_path() /  "skv_specs";
@@ -5360,10 +5361,10 @@ SKV::SpecsDummy skv_specs_mapping_from_csv_files(std::filesystem::path cratchit_
             if (auto field_rows = CSV::to_field_rows(utf8_in,';')) {
               std::cout << "\n\tNo Operation implemented";
               // std::cout << "\n\t<Entries>";
-              for (int i=0;i<field_rows->size();++i) {
+              for (size_t i=0;i<field_rows->size();++i) {
                 auto field_row = field_rows->at(i);
                 // std::cout << "\n\t\t[" << i << "] : ";
-                for (int j=0;j<field_row.size();++j) {
+                for (size_t j=0;j<field_row.size();++j) {
                   // [14] :  [0]1.1 Årets gränsbelopp enligt förenklingsregeln [1]4511 [2]Numeriskt_B [3]N [4]+ [5]Regel_E
                   // index 1 = SRU Code
                   // Index 0 = Readable field name on actual human readable form
@@ -5468,7 +5469,7 @@ namespace zeroth {
 
     if (std::ranges::any_of(
       change_results
-      ,[&prompt](auto const& e){ return !static_cast<bool>(e); })) {
+      ,[](auto const& e){ return !static_cast<bool>(e); })) {
       // At least one element is “false”
       prompt << "\n\nSTAGE of cracthit entries FAILED when merging with posted (from external tool)";
       if (model->posted_sie_files.contains(year_id)) {
@@ -5665,7 +5666,7 @@ namespace zeroth {
     prompt << model->prompt;
 
     // TODO: 240216: Is skv_specs_mapping_from_csv_files still of interest to use for something?
-    auto dummy = skv_specs_mapping_from_csv_files(cratchit_environment_file_path,environment);
+    [[maybe_unused]] auto dummy = skv_specs_mapping_from_csv_files(cratchit_environment_file_path,environment);
 
 		model->prompt = prompt.str();
 		return model;

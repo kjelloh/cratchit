@@ -14,7 +14,7 @@ namespace first {
     EditedItem m_edited_item;
 
     DeleteItemState(Item item)
-      : m_edited_item{item, cargo::ItemMutation::UNCHANGED}, StateImpl() {
+      : StateImpl(),m_edited_item{item, cargo::ItemMutation::UNCHANGED} {
       // UX creation moved to create_ux()
       // ux().clear();
       // ux().push_back(std::format("Delete: {} ?", to_string(item)));

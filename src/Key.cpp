@@ -8,9 +8,8 @@
 namespace Key {
     Path::Path(std::vector<std::string> const& v) : m_path{v} {}
     Path::Path(std::string const& s_path, char delim)
-        : m_delim{delim},
-          m_path(tokenize::splits(s_path, delim,
-                                  tokenize::eAllowEmptyTokens::YES)) {
+      :  m_path(tokenize::splits(s_path, delim,tokenize::eAllowEmptyTokens::YES))
+        ,m_delim{delim} {
       if (m_path.size() == 1 and m_path[0].size() == 0) {
         // Quick Fix that tokenize::splits will return one element of zero length for an empty string :\
         // 240623 - I do not dare to fix 'splits' itself when I do not know the effect it may have on other code...

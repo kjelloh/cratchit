@@ -6,7 +6,7 @@
 namespace first {
 // ----------------------------------
   TaggedAmountState::TaggedAmountState(TaggedAmount tagged_amount) 
-    : m_edited_tagged_amount{tagged_amount, cargo::ItemMutation::UNCHANGED}, StateImpl() {
+    : StateImpl(),m_edited_tagged_amount{tagged_amount, cargo::ItemMutation::UNCHANGED} {
   }
 
   StateUpdateResult TaggedAmountState::update(Msg const& msg) const {

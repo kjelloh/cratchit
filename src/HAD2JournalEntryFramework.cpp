@@ -481,7 +481,7 @@ std::vector<BAS::MDTaggedPostingsJournalEntry> to_typed_sub_meta_entries(BAS::MD
 	return result;
 }
 
-BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const& sie_archive,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
+BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const&,BAS::anonymous::AccountPostingTagsPair const& ap_tags_pair) {
 	BAS::anonymous::AccountPostingsTags result{};
 	result.insert(ap_tags_pair); // For now, return ourself as the only alternative
 	return result;
@@ -491,7 +491,11 @@ BAS::anonymous::AccountPostingsTags to_alternative_posting_tags(SIEArchive const
 	return (BAS::kind::to_posting_kind_tags(lhs) == BAS::kind::to_posting_kind_tags(rhs));
 }
 
-BAS::MDTaggedPostingsJournalEntry to_swapped_ap_tags_pair_md_tpje(BAS::MDTaggedPostingsJournalEntry const& md_tpje,BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair,BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair) {
+BAS::MDTaggedPostingsJournalEntry to_swapped_ap_tags_pair_md_tpje(
+	 [[maybe_unused]] BAS::MDTaggedPostingsJournalEntry const& md_tpje
+	,[[maybe_unused]] BAS::anonymous::AccountPostingTagsPair const& target_ap_tags_pair
+	,[[maybe_unused]] BAS::anonymous::AccountPostingTagsPair const& new_ap_tags_pair) {
+
 	BAS::MDTaggedPostingsJournalEntry result{md_tpje};
 	// TODO: Implement actual swap of posting tags pairs
 	return result;

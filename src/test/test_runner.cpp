@@ -5,7 +5,7 @@
 #include <iostream>
 
 namespace tests {
-    bool run_all(int argc, char** argv, bool keep_test_files) {
+    bool run_all(int argc, char** argv, [[maybe_unused]] bool keep_test_files) {
         std::cout << "Running all tests..." << std::endl;
         
         ::testing::InitGoogleTest(&argc,argv);

@@ -5,8 +5,8 @@
 AccountStatement:: AccountStatement(
    AccountStatementEntries const& entries
   ,Meta meta)
-    :  m_entries{entries}
-      ,m_meta{meta} {}
+    :  m_meta{meta}
+      ,m_entries{entries} {}
 
 // Now In csv/projections unit
 // namespace CSV {

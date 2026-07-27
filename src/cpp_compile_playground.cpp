@@ -57,14 +57,14 @@ namespace first {
 
 namespace N1 {
   struct some_type {};
-  std::string to_string(some_type const& x) {
+  std::string to_string(some_type const&) {
     return "";
   }
 } // N1
 
 namespace N2 {
   struct some_type { int x;};
-  std::string to_string(some_type const& x) {
+  std::string to_string(some_type const&) {
     return "";
   }
 } // N2
@@ -75,12 +75,12 @@ void global_f() {
 }
 
 struct some_global_type{};
-std::string to_string(some_global_type const& x) {
+std::string to_string(some_global_type const&) {
   return "";
 }
 
 using some_n1_type_alias = N1::some_type;
-std::string to_string(some_n1_type_alias const& x) {
+std::string to_string(some_n1_type_alias const&) {
   return "";
 }
 
@@ -88,7 +88,7 @@ namespace N1 {
 
   struct some_new_type{};
 
-  std::string to_string(some_new_type const& x) {
+  std::string to_string(some_new_type const&) {
     return "";
   }
 

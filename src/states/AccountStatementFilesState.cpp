@@ -28,9 +28,8 @@ namespace first {
 
   AccountStatementFilesState::AccountStatementFilesState(PeriodPairedFilePaths period_paired_file_paths, Mod10View mod10_view)
     :  StateImpl{}
-      // ,m_file_paths{period_paired_file_paths.content()}
-      ,m_period_paired_file_paths{period_paired_file_paths}
-      ,m_mod10_view{mod10_view} {
+      ,m_mod10_view{mod10_view} 
+      ,m_period_paired_file_paths{period_paired_file_paths} {
     spdlog::info("AccountStatementFilesState - {} files: {}", m_period_paired_file_paths.content().size(), m_mod10_view.to_string());
   }
 

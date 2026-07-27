@@ -35,7 +35,7 @@ namespace text {
            ByteBuffer const& buffer
           ,int32_t confidence_threshold) {
 
-          UErrorCode status = U_ZERO_ERROR;
+          // UErrorCode status = U_ZERO_ERROR;
 
           auto data = reinterpret_cast<char const*>(buffer.data());
           auto length = buffer.size();
@@ -86,7 +86,7 @@ namespace text {
         std::optional<EncodingDetectionResult> to_content_encoding(
            char const* data
           ,size_t length
-          ,int32_t confidence_threshold) {
+          ,[[maybe_unused]] int32_t confidence_threshold) {
 
           UErrorCode status = U_ZERO_ERROR;
           

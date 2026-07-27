@@ -39,7 +39,7 @@ namespace first {
       // Only handle NCursesKeyMsg
       auto key_msg = std::dynamic_pointer_cast<NCursesKeyMsg>(msg);
       if (!key_msg) {
-        return {std::nullopt}; // Not our concern
+        return {std::nullopt,Cmd{}}; // Not our concern
       }
       
       auto unicode_int_code_point = key_msg->unicode_int_code_point;

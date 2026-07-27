@@ -61,7 +61,7 @@ namespace TEA {
     Runtime(init_fn init, view_fn view, update_fn update, std::unique_ptr<Head> head)
         : m_init(init), m_view(view), m_update(update), m_head(std::move(head)) {};
 
-    int run(int argc, char *argv[]) {
+    int run([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
       spdlog::info("Runtime::run - BEGIN");
 
       int ch = ' '; // Variable to store the user's input

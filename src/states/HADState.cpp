@@ -7,9 +7,10 @@
 
 namespace first {
 // ----------------------------------
-  HADState::HADState(HAD had) : m_edited_had{had, cargo::ItemMutation::UNCHANGED}, StateImpl() {
+  HADState::HADState(HAD had) 
+    :  StateImpl()
+      ,m_edited_had{had, cargo::ItemMutation::UNCHANGED} {
 
-    
   }
 
   StateUpdateResult HADState::update(Msg const& msg) const {

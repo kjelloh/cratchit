@@ -174,6 +174,9 @@ namespace tests::zeroth {
     };  
 
     struct TestCratchitFileSystemDefacto : public MDCratchitFileSystemIfc::defacto_value_type {
+
+      virtual ~TestCratchitFileSystemDefacto() = default;
+
       std::map<std::string,std::string> m_sie_content_map{};
 
       TestCratchitFileSystemDefacto(

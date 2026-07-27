@@ -29,8 +29,8 @@ namespace first {
   
   AccountStatementFileState::AccountStatementFileState(PeriodPairedFilePath period_paired_file_path)
     :  StateImpl{}
-      ,m_maybe_table_result{path_to_table_shortcut(period_paired_file_path.content())}
-      ,m_period_paired_file_path{period_paired_file_path} {}
+      ,m_period_paired_file_path{period_paired_file_path}
+      ,m_maybe_table_result{path_to_table_shortcut(period_paired_file_path.content())} {}
 
   std::string AccountStatementFileState::caption() const {
     if (not m_caption.has_value()) {
@@ -170,7 +170,7 @@ namespace first {
           if (true) {
             field = "";
             // Detect / filter control characters
-            for (int ix=0;ix<row[j].size();++ix) {
+            for (size_t ix=0;ix<row[j].size();++ix) {
               auto ch = row[j][ix];
               if (static_cast<unsigned char>(ch) < ' ') {
                 field += std::format("<{}>",static_cast<unsigned char>(ch));
