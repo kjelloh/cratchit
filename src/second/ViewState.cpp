@@ -3,35 +3,35 @@
 #include "msg_to_string.hpp"
 #include "utf8.hpp"
 
-RootState RootState::with_pushed_unicode(char32_t cp) const {
-  log_development_trace("RootState::with_pushed_unicode:{}",static_cast<uint32_t>(cp));
+RootView RootView::with_pushed_unicode(char32_t cp) const {
+  log_development_trace("RootView::with_pushed_unicode:{}",static_cast<uint32_t>(cp));
 
-  RootState result{*this};
+  RootView result{*this};
   result.m_code_point_buffer = this->m_code_point_buffer.push_back(cp);
   log_development_trace("with_pushed_unicode m_code_point_buffer:{}",result.m_code_point_buffer.size());
   return result;
 }
 
-RootState RootState::with_popped_unicode() const {
-  RootState result{*this};
+RootView RootView::with_popped_unicode() const {
+  RootView result{*this};
   if (this->m_code_point_buffer.size()>0) {
     result.m_code_point_buffer = this->m_code_point_buffer.take(m_code_point_buffer.size()-1);
   }
   return result;
 }
 
-RootState RootState::update(tea::UnicodeKeyMsg const& m) const {
-  log_development_trace("RootState::update(m:{})",msg_to_string(m));
+RootView RootView::update(tea::UnicodeKeyMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
   return this->with_pushed_unicode(m.code_point);
 }
 
-RootState RootState::update(tea::BackspaceKeyMsg const& m) const {
-  log_development_trace("RootState::update(m:{})",msg_to_string(m));
+RootView RootView::update(tea::BackspaceKeyMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
   return this->with_popped_unicode();
 }
 
-tea::Ux RootState::view() const {
-  log_development_trace("RootState::view() m_code_point_buffer:{}",m_code_point_buffer.size());
+tea::Ux RootView::view() const {
+  log_development_trace("RootView::view() m_code_point_buffer:{}",m_code_point_buffer.size());
   static size_t m_frames_counter = 0;
 
   auto to_test_rows = [](size_t row_count) -> std::vector<std::string> {

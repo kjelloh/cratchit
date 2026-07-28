@@ -67,7 +67,7 @@ And made update() use it.
 
 So far so good?
 
-I now renamed existing State to ViewState.
+I now renamed existing State to ViewState. And then RootState to RootView.
 
 ## 20260727
 

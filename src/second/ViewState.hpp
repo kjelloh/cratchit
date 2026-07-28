@@ -6,13 +6,13 @@
 #include <immer/vector.hpp>
 #include <variant>
 
-class RootState;
+class RootView;
 
-using ViewState = std::variant<RootState>;
+using ViewState = std::variant<RootView>;
 
-class RootState {
+class RootView {
 public:
-  using This = RootState;
+  using This = RootView;
 
   // update
   This update(tea::UnicodeKeyMsg const& unicode_msg) const;
