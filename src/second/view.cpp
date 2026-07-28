@@ -6,9 +6,14 @@ namespace tea {
 
   Ux view(Model const& model) {
 
+    if (model.app_state_stack().size() > 0) {
+      auto ux = model.app_state_stack().back().view();
+      return ux;
+    }
+
     if (model.state_stack().size() > 0) {
       auto ux = std::visit(
-        [](auto const& s){
+        [](auto const& s) -> Ux{
           return s.view();
         }
         ,model.state_stack().back()

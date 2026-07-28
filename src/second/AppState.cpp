@@ -49,3 +49,12 @@ Transition<AppState> AppState::update(tea::Msg const& msg) const {
   auto next_view = double_dispatch_update(m_view_state,msg);
   return Transition<AppState>(TransitionKind::Mutate,this->with_view_state(next_view));
 }
+
+tea::Ux AppState::view() const {
+  return std::visit(
+    [](auto const& s) -> tea::Ux {
+      return s.view();
+    }
+    ,m_view_state
+  );
+}

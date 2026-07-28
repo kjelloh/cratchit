@@ -5,6 +5,13 @@ namespace tea {
 
   // public
 
+  Model Model::with_view_state(ViewState const& view_state) const {
+    Model result(*this);
+    result.m_state_stack = StateStack{view_state};
+    result.m_app_state_stack = AppStateStack{AppState{}.with_view_state(view_state)};
+    return result;
+  } // with_view_state
+
   Model Model::with_pushed_state(ViewState const& state) const {
     Model result(*this);
     result.m_state_stack = this->m_state_stack.push_back(state);

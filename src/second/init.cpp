@@ -5,7 +5,7 @@ namespace tea {
 
   std::pair<Model,Cmd> init() {    
     return std::make_pair(
-       Model{}.with_pushed_state(RootView{})
+       Model{}.with_view_state(ViewState{RootView{}})
       ,Cmd{}
     );
   } // init
