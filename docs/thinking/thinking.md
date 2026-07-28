@@ -69,6 +69,17 @@ So far so good?
 
 I now renamed existing State to ViewState. And then RootState to RootView.
 
+It seems we can now move ViewState into AppState?
+
+I moved ViewState into AppState and introduced update() as hard-coded mutate (no transition yet).
+
+```cpp
+Transition<AppState> AppState::update(tea::Msg const& msg) const {
+  auto next_view = double_dispatch_update(m_view_state,msg);
+  return Transition<AppState>(TransitionKind::Mutate,this->with_view_state(next_view));
+}
+```
+
 ## 20260727
 
 So I now have State and Msg as std::variants with a double dispatch based on 'template magic' and each state only implement the message handlers they require. Seems like a good design for now.

@@ -53,21 +53,34 @@ namespace tea {
       );
     }
 
-    auto apply_transition = [](Model::AppStateStack const& app_state_stack, Transition<AppState> const& transition) -> Model::AppStateStack {
+    auto apply_transition = [](
+         Model::AppStateStack const& app_state_stack
+        ,Transition<AppState> const& transition) -> Model::AppStateStack {
       switch (transition.kind()) {
+        case TransitionKind::Mutate:
+          return app_state_stack.set(
+            app_state_stack.size()-1
+            ,transition.next_state()
+          );
         case TransitionKind::Ignore:
           return app_state_stack;
         default:
+          log_design_insufficiency(
+            "apply_transition: unhandled transition kind:{}"
+            ,static_cast<int>(transition.kind())
+          );
           return app_state_stack;
       }
     }; // apply_transition
 
+    // update AppStateStack (newer framework)
     if (model.app_state_stack().size() > 0) {
       auto transition = model.app_state_stack().back().update(msg);
       auto next_app_state_stack = apply_transition(model.app_state_stack(),transition);
       return model.with_mutated_stack(next_app_state_stack);  
     }
-  
+
+    // Update StateStack (previoeus framework)
     if (model.state_stack().size() > 0) {
       // auto next = model.with_mutated_state(double_dispatch_update(model.state_stack().back(),msg));
       return model.with_mutated_state(double_dispatch_update(model.state_stack().back(),msg));

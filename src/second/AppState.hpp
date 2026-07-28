@@ -1,5 +1,5 @@
 #pragma once
-#include "Msg.hpp"
+#include "ViewState.hpp"
 
 enum class TransitionKind {
    Undefined
@@ -19,6 +19,7 @@ public:
   , m_next_state(next_state) {}
 
   TransitionKind kind() const { return m_kind; }
+  S const& next_state() const { return m_next_state; }
 private:
   TransitionKind m_kind{TransitionKind::Undefined};
   S m_next_state{};
@@ -26,6 +27,8 @@ private:
 
 class AppState {
 public:
+  AppState with_view_state(ViewState view_state) const;
   Transition<AppState> update(tea::Msg const& msg) const;
 private:
+  ViewState m_view_state{};
 }; // AppState
