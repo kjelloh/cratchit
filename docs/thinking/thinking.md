@@ -8,6 +8,43 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260728
+
+I have now given some thought to what the stack-design means for the update-architecture
+
+* It seems to me we have a new type of mutation or set of possible mutations
+
+  * update: state -> signal -> transition
+  * transition : state_stack -> signal -> state_stack
+  * transition = push,mutate,ignore,accept,reject
+  * push = push a new state onto stack
+  * mutate = replace the top state with mutated state
+  * ignore = leave stack as-is
+  * accept = pop state and update new top state with mutated data
+  * reject = pop state and leave new to state data as-is
+
+So I come up with an architecture that may be something that I can make work?
+
+* We keep Model as the thing that holds the whole 'state'
+* We make Model aggregate a stack of AppState
+* We make AppState aggregate DataState and ViewState
+* The idea is that DataState is all non-view-related data cratchit holds
+* And ViewState is view specific data
+
+So the update() architecture now becomes either new-state or new-state-stack depending on actor.
+
+* Model::update: Model -> Msg -> Model
+  * calls top AppState::update: AppState -> Msg -> AppStateTransition
+    * calls ViewState::update: ViewState -> Msg -> ViewStateTransition
+    * calls ViewStateTransition::apply: ViewStateTransition -> AppStateTransition
+  * Then calls AppStateTransition::apply: AppStateStack -> AppStateStack
+
+I am still a bit unsure about if wrapping the transition into a type is a good idea or will even work. But I will find out when I try it out.
+
+The idea is at least to understand and accept that we have either a state-mutation or a state-stack-mutation. And that we can apply the same update pattern of thing->signal->new_thing (thing being state or state_stack)
+
+OK, lets try it out and see what we can learn. I decide to implement this as a parallell track to the existing code.
+
 ## 20260727
 
 So I now have State and Msg as std::variants with a double dispatch based on 'template magic' and each state only implement the message handlers they require. Seems like a good design for now.

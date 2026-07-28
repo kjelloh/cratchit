@@ -44,11 +44,6 @@ namespace tea {
     );
   }
 
-
-  // helper type for the visitor
-  template<class... Ts>
-  struct overloaded : Ts... { using Ts::operator()...; };
-
   Model update(Model const& model,Msg const& msg) {
 
     if (!is_no_msg(msg)) {
@@ -63,18 +58,7 @@ namespace tea {
       return model.with_mutated_state(double_dispatch_update(model.state_stack().back(),msg));
     }
 
-    return std::visit(overloaded{
-        [&model](NoMsg const&) {
-          return model;
-        }
-        ,[&model](UnicodeKeyMsg const& unicode_key_msg) {
-          return model.with_pushed_unicode(unicode_key_msg.code_point);
-        }
-        ,[&model](BackspaceKeyMsg const&) {
-          return model.with_popped_unicode();
-        }
-      }
-      ,msg
-    );
+    return model;
+
   } // update
 } // tea
