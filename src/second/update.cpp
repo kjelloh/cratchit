@@ -1,5 +1,5 @@
 #include "update.hpp"
-#include "State.hpp"
+#include "ViewState.hpp"
 #include "msg_to_string.hpp"
 #include "log.hpp"
 
@@ -13,7 +13,7 @@ namespace tea {
     };
 
     template<typename S, typename M>
-    State update(S const& s, M const& m) {
+    ViewState update(S const& s, M const& m) {
         if constexpr (Updateable<S, M>) {
           // Call State::operator(Msg)
           return s.update((m));
@@ -24,13 +24,13 @@ namespace tea {
     }
   } // detail
 
-  State double_dispatch_update(State const& state, const tea::Msg& msg) {
+  ViewState double_dispatch_update(ViewState const& state, const tea::Msg& msg) {
     // 1. Dispatch to concrete State
     // 2. Dispatch to concrete Msg
     // = update concrete msg to concrete state with fallback if state has no handler for msg
     return std::visit(
       // state on captured msg
-      [&msg](auto const& s) -> State {
+      [&msg](auto const& s) -> ViewState {
         return std::visit(
           // captured message on captured state
           [&s](auto const& m) {

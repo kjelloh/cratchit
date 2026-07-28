@@ -43,7 +43,7 @@ add_executable(
         src/second/Ux.cpp
 
         src/second/msg_to_string.cpp
-        src/second/State.cpp
+        src/second/ViewState.cpp
 
         src/second/Msg.cpp
         src/second/Cmd.cpp

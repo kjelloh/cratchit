@@ -8,7 +8,7 @@
 
 class RootState;
 
-using State = std::variant<RootState>;
+using ViewState = std::variant<RootState>;
 
 class RootState {
 public:

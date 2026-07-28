@@ -1,4 +1,4 @@
-#include "State.hpp"
+#include "ViewState.hpp"
 #include "log.hpp"
 #include "msg_to_string.hpp"
 #include "utf8.hpp"

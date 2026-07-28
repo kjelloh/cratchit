@@ -67,6 +67,8 @@ And made update() use it.
 
 So far so good?
 
+I now renamed existing State to ViewState.
+
 ## 20260727
 
 So I now have State and Msg as std::variants with a double dispatch based on 'template magic' and each state only implement the message handlers they require. Seems like a good design for now.
