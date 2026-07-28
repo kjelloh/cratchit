@@ -11,20 +11,10 @@ namespace tea {
       return ux;
     }
 
-    if (model.state_stack().size() > 0) {
-      auto ux = std::visit(
-        [](auto const& s) -> Ux{
-          return s.view();
-        }
-        ,model.state_stack().back()
-      );
-      return ux;
-    }
-
     return Ux{
-      {"??null state stack??"}
-      ,{"??null_state stack??"}
-      ,{"??null_state stack??"}
+      {"??app state stack??"}
+      ,{"??app state stack??"}
+      ,{"??app state stack??"}
     };
 
   } // view

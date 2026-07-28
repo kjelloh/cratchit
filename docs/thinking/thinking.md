@@ -80,6 +80,46 @@ Transition<AppState> AppState::update(tea::Msg const& msg) const {
 }
 ```
 
+I have now implemented update and view framework to use ViewState in current AppState ok. ANd I have cleaned out the previous ViewSTateStack from Model and adjusted update and view  accordingly.
+
+```cpp
+  std::pair<Model,Cmd> init() {    
+    return std::make_pair(
+       Model{}.with_view_state(ViewState{RootView{}})
+      ,Cmd{}
+    );
+  } // init
+
+  Model update(Model const& model,Msg const& msg) {
+
+    if (model.app_state_stack().size() > 0) {
+      auto transition = model.app_state_stack().back().update(msg);
+      auto next_app_state_stack = apply_transition(model.app_state_stack(),transition);
+      return model.with_mutated_stack(next_app_state_stack);  
+    }
+
+    return model; // fallback
+
+  } // update
+
+  Ux view(Model const& model) {
+
+    if (model.app_state_stack().size() > 0) {
+      auto ux = model.app_state_stack().back().view();
+      return ux;
+    }
+
+    return Ux{
+      {"??app state stack??"}
+      ,{"??app state stack??"}
+      ,{"??app state stack??"}
+    };
+
+  } // view
+
+```
+
+
 ## 20260727
 
 So I now have State and Msg as std::variants with a double dispatch based on 'template magic' and each state only implement the message handlers they require. Seems like a good design for now.

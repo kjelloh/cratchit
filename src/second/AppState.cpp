@@ -20,9 +20,9 @@ namespace detail {
 } // detail
 
 ViewState double_dispatch_update(ViewState const& state, const tea::Msg& msg) {
-  // 1. Dispatch to concrete State
+  // 1. Dispatch to concrete ViewState
   // 2. Dispatch to concrete Msg
-  // = update concrete msg to concrete state with fallback if state has no handler for msg
+  // = update concrete view state for concrete msg with fallback if state has no handler for msg
   return std::visit(
     // state on captured msg
     [&msg](auto const& s) -> ViewState {
