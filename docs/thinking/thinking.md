@@ -45,6 +45,28 @@ The idea is at least to understand and accept that we have either a state-mutati
 
 OK, lets try it out and see what we can learn. I decide to implement this as a parallell track to the existing code.
 
+So I started off with a new AppState and a Transition mechanism.
+
+```cpp
+class AppState {
+public:
+  Transition<AppState> update(tea::Msg const& msg) const;
+private:
+}; // AppState
+```
+
+And made update() use it.
+
+```cpp
+    if (model.app_state_stack().size() > 0) {
+      auto transition = model.app_state_stack().back().update(msg);
+      auto next_app_state_stack = apply_transition(model.app_state_stack(),transition);
+      return model.with_mutated_stack(next_app_state_stack);  
+    }
+```
+
+So far so good?
+
 ## 20260727
 
 So I now have State and Msg as std::variants with a double dispatch based on 'template magic' and each state only implement the message handlers they require. Seems like a good design for now.

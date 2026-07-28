@@ -25,6 +25,16 @@ namespace tea {
     return m_state_stack;
   }
 
+  Model::AppStateStack const& Model::app_state_stack() const {
+    return m_app_state_stack;
+  }
+
+  Model Model::with_mutated_stack(AppStateStack const& app_state_stack) const {
+    Model result(*this);
+    result.m_app_state_stack = app_state_stack;
+    return result;
+  }
+
   // private:
 
 } // tea

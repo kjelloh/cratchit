@@ -38,6 +38,8 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/AppState.cpp
+
         src/second/Ux.cpp
 
         src/second/msg_to_string.cpp

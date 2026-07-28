@@ -52,6 +52,21 @@ namespace tea {
         ,msg_to_string(msg)
       );
     }
+
+    auto apply_transition = [](Model::AppStateStack const& app_state_stack, Transition<AppState> const& transition) -> Model::AppStateStack {
+      switch (transition.kind()) {
+        case TransitionKind::Ignore:
+          return app_state_stack;
+        default:
+          return app_state_stack;
+      }
+    }; // apply_transition
+
+    if (model.app_state_stack().size() > 0) {
+      auto transition = model.app_state_stack().back().update(msg);
+      auto next_app_state_stack = apply_transition(model.app_state_stack(),transition);
+      return model.with_mutated_stack(next_app_state_stack);  
+    }
   
     if (model.state_stack().size() > 0) {
       // auto next = model.with_mutated_state(double_dispatch_update(model.state_stack().back(),msg));
