@@ -73,37 +73,11 @@ namespace tea {
       }
     }; // apply_view_state_transition
 
-    // [[maybe_unused]] auto apply_app_state_transition = [](
-    //      Model::AppStateStack const& app_state_stack
-    //     ,Transition<AppState> const& transition) -> Model::AppStateStack {
-    //   switch (transition.kind()) {
-    //     case TransitionKind::Mutate:
-    //       return app_state_stack.set(
-    //         app_state_stack.size()-1
-    //         ,transition.next_state()
-    //       );
-    //     case TransitionKind::Ignore:
-    //       return app_state_stack;
-    //     default:
-    //       log_design_insufficiency(
-    //         "apply_app_state_transition: unhandled transition kind:{}"
-    //         ,static_cast<int>(transition.kind())
-    //       );
-    //       return app_state_stack;
-    //   }
-    // }; // apply_app_state_transition
-
     if (model.view_state_stack().size() > 0) {
       auto view_state_transition = double_dispatch_update_to_transition(model.view_state_stack().back(),msg);
       auto next_view_state_stack = apply_view_state_transition(model.view_state_stack(),view_state_transition);
       return model.with_mutated_view_state_stack(next_view_state_stack);
     }
-
-    // if (model.app_state_stack().size() > 0) {
-    //   auto transition = model.app_state_stack().back().update(msg);
-    //   auto next_app_state_stack = apply_app_state_transition(model.app_state_stack(),transition);
-    //   return model.with_mutated_app_state_stack(next_app_state_stack);  
-    // }
 
     return model; // fallback
 
