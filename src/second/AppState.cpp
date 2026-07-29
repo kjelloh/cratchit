@@ -2,6 +2,7 @@
 
 // Helpers to visit State with a Msg (Double dispatch)
 namespace detail {
+
   template<typename S, typename M>
   concept Updateable = requires(S s, M m) {
     { s.update(m) } -> std::same_as<S>;

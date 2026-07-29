@@ -3,6 +3,38 @@
 #include "msg_to_string.hpp"
 #include "utf8.hpp"
 
+namespace detail {
+
+  template<typename S>
+  concept ProvidesDataStateUpdate = requires(S s) {
+    { s.data_state() } -> std::same_as<DataState const&>;
+  };
+
+  template<typename S>
+  DataState const& update(DataState const& data_state, S const& s) {
+    if constexpr (ProvidesDataStateUpdate<S>) {
+      return s.data_state();
+    }
+    else {
+      return data_state; // fallback
+    }
+  }
+
+} // detail
+
+DataState const& update(DataState const& data_state, ViewState const& view_state) {
+  return std::visit(
+    [&data_state](auto const& concrete_view) -> DataState const& {
+      return detail::update(data_state, concrete_view);
+    }
+    ,view_state
+  );
+}
+
+DataState const& RootView::update(DataState const&) const {
+  return m_data_state;
+}
+
 RootView RootView::with_pushed_unicode(char32_t cp) const {
   log_development_trace("RootView::with_pushed_unicode:{}",static_cast<uint32_t>(cp));
 
@@ -103,4 +135,14 @@ tea::Ux RootView::view() const {
     ,to_test_rows(MIDDLE_PANE_ROW_COUNT)
     ,to_bottom_rows(BOTTOM_PANE_ROW_COUNT)      
   };
+}
+
+// ProjectsView
+DataState const& ProjectsView::update(DataState const&) const {
+  return m_data_state;
+}
+ProjectsView ProjectsView::update(tea::UnicodeKeyMsg const& unicode_msg) const {
+  log_development_trace("ProjectsView::update(m:{})",msg_to_string(unicode_msg));
+  ProjectsView result{*this};
+  return result;
 }

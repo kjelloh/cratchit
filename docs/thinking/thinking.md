@@ -8,6 +8,85 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260729
+
+So I seem to have a state-stack-mutating as well as a state-mutating update mechanism in place.
+
+Time to add cratchit data mutation.
+
+* We want to Separarate cratchit data from view state data
+* We want cratchit data to be mutated on Msg
+* This seems to sugest that it must be mutated by the view state somehow.
+
+I made an attempt to to add a DataState to AppState to go alongside the ViewState variant memebr.
+
+* But then I failed to design a mechanism by which the ViewState can mutate it
+* I tried to pass the DataState to ViewState::update() and return the mutated one
+* But this got complicated fast
+  * I mean, I could pass it alright as an extra argument
+  * But returning it required the return type to be an aggregate type
+  * I tried std::tuple with ViewState and DataState paired up
+  * But then the double dispatch and update(concrete_state,concrete_msg) become a mess
+
+Then I realised that it would be better to have the ViewState store the DataState?
+
+* We can make each concrete view state that needs it construct from a provided DataState
+* Then we can ask the concrete view state for its DataState when we need it
+  * We need it when pushing into a new view state (if the new view state requires it)
+  * And we need it when acceting a view state back to its parent state (if the parent state requires it)
+  * And as it is stored as the variant ViewState we need a dispatching std::visit to query the concrete view state for it
+
+Let's try!
+
+Ok, I remembered incorrectly.
+
+* AppState::update() returns a Transition.
+* But no view, e.e.g, RootView, does yet!
+
+Anyhow, I added DataView type.
+
+* Each view can aggregate a DataView
+* It can also provide an update: DataView -> DataView
+  * I do not need to pass in a DataView
+  * But I thought that doing so mirrors the update: Thing -> Thing
+  * Also, it may enable future views to do something based on comparing provided DataView with internal view state?
+* I added a dispatcher to mutate a DataView throuch a view if the view provides an update(DataView)
+
+```cpp
+namespace detail {
+
+  template<typename S>
+  concept ProvidesDataStateUpdate = requires(S s) {
+    { s.data_state() } -> std::same_as<DataState const&>;
+  };
+
+  template<typename S>
+  DataState const& update(DataState const& data_state, S const& s) {
+    if constexpr (ProvidesDataStateUpdate<S>) {
+      return s.data_state();
+    }
+    else {
+      return data_state; // fallback
+    }
+  }
+
+} // detail
+
+DataState const& update(DataState const& data_state, ViewState const& view_state) {
+  return std::visit(
+    [&data_state](auto const& concrete_view) -> DataState const& {
+      return detail::update(data_state, concrete_view);
+    }
+    ,view_state
+  );
+}
+
+```
+
+But I now need to implement a way for a view to signal back how to mutate the state stack
+
+* The update should return a Transition to a ViewState as a push,mutate,ignore,accept,reject
+
 ## 20260728
 
 I have now given some thought to what the stack-design means for the update-architecture

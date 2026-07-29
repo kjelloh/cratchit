@@ -39,6 +39,7 @@ add_executable(
         cratchit
 
         src/second/AppState.cpp
+        src/second/DataState.cpp
 
         src/second/Ux.cpp
 
