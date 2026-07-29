@@ -38,6 +38,7 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/Transition.cpp
         src/second/AppState.cpp
         src/second/DataState.cpp
 

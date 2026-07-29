@@ -87,6 +87,42 @@ But I now need to implement a way for a view to signal back how to mutate the st
 
 * The update should return a Transition to a ViewState as a push,mutate,ignore,accept,reject
 
+I have now implemented view state update(Msg) that returns a Transaction between ViewState.
+
+* It uses with_xxx members that is closed on the concrete type to allow chaining
+
+```cpp
+  // with modifiers operates to and from concrete type (allows chaining with_().with()...)
+  RootView with_pushed_unicode(char32_t cp) const;
+  RootView with_popped_unicode() const;
+```
+
+* But updates to transition between views in ViewState variant
+
+```cpp
+  // update
+  Transition<ViewState> update(tea::UnicodeKeyMsg const& unicode_msg) const;
+  Transition<ViewState> update(tea::BackspaceKeyMsg const& backspace_key_msg) const;
+
+```
+
+* The actual mapping from ViewState to AppState transition becomes quite trivial.
+
+```cpp
+Transition<ViewState> RootView::update(tea::UnicodeKeyMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  return {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)};
+}
+
+Transition<ViewState> RootView::update(tea::BackspaceKeyMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  return {TransitionKind::Mutate, this->with_popped_unicode()};
+}
+
+```
+
+This works because ViewState variant value is assignable from concrete view (e.g., with_pushed_unicode(...))
+
 ## 20260728
 
 I have now given some thought to what the stack-design means for the update-architecture

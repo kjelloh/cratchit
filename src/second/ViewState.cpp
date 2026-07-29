@@ -52,14 +52,14 @@ RootView RootView::with_popped_unicode() const {
   return result;
 }
 
-RootView RootView::update(tea::UnicodeKeyMsg const& m) const {
+Transition<ViewState> RootView::update(tea::UnicodeKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
-  return this->with_pushed_unicode(m.code_point);
+  return {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)};
 }
 
-RootView RootView::update(tea::BackspaceKeyMsg const& m) const {
+Transition<ViewState> RootView::update(tea::BackspaceKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
-  return this->with_popped_unicode();
+  return {TransitionKind::Mutate, this->with_popped_unicode()};
 }
 
 tea::Ux RootView::view() const {
@@ -141,8 +141,18 @@ tea::Ux RootView::view() const {
 DataState const& ProjectsView::update(DataState const&) const {
   return m_data_state;
 }
-ProjectsView ProjectsView::update(tea::UnicodeKeyMsg const& unicode_msg) const {
+Transition<ViewState> ProjectsView::update(tea::UnicodeKeyMsg const& unicode_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(unicode_msg));
   ProjectsView result{*this};
-  return result;
+  return {TransitionKind::Mutate, result};
 }
+
+// view returns a user interface representation that the tea runtime can render
+tea::Ux ProjectsView::view() const {
+  return tea::Ux{
+      {"ProjectsView: top pane"}
+    ,{"ProjectsView: middle pane"}
+    ,{"ProjectsView: bottom pane"}      
+  };
+}
+
