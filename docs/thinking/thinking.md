@@ -123,6 +123,8 @@ Transition<ViewState> RootView::update(tea::BackspaceKeyMsg const& m) const {
 
 This works because ViewState variant value is assignable from concrete view (e.g., with_pushed_unicode(...))
 
+Ok, now I don't need the AppState anymore. The Model can simply have a stack of ViewState.
+
 ## 20260728
 
 I have now given some thought to what the stack-design means for the update-architecture
