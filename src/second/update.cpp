@@ -66,6 +66,15 @@ namespace tea {
           );
         case TransitionKind::Ignore:
           return view_state_stack;
+        case TransitionKind::Accept: {
+          auto accepted = view_state_stack.back();
+          auto mutated_stack = view_state_stack.take(view_state_stack.size()-1); // pop
+          mutated_stack = mutated_stack.set(
+            mutated_stack.size()-1
+            ,double_dispatch_accept(mutated_stack.back(),accepted)
+          );
+          return mutated_stack;
+        }
         default:
           log_design_insufficiency(
             "apply_view_state_transition: unhandled transition kind:{}"

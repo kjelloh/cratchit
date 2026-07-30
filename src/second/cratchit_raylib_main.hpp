@@ -7,6 +7,7 @@
 #include "view.hpp"
 
 #include <vector>
+#include <deque>
 
 class CratchitRaylibApp {
 public:
@@ -15,6 +16,8 @@ private:
   const int INITIAL_SCREEN_WIDTH = 1080;
   const int INITIAL_SCREEN_HEIGHT = 720;
   const int FONT_HEIGHT = 32;
+
+  std::deque<tea::Msg> m_msg_queue{};
 
   std::vector<int> m_code_point_buffer{};
   int m_frames_counter = 0;

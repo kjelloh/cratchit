@@ -48,6 +48,61 @@ Transition<ViewState> RootView::update(tea::UnicodeKeyMsg const& m) const {
 
 And it works!
 
+Now I can add 'accept' on the enter key.
+
+* I implemented a mesage queue in cratchit runtime app class.
+* I first went with a plain std::vector>
+
+```cpp
+  std::vector<tea::Msg> m_msg_queue{};
+````
+
+* And made it 'queue-like' with pop as erase of the first element
+
+```cpp
+    auto msg = this->m_msg_queue.front();
+    this->m_msg_queue.erase(this->m_msg_queue.begin());
+    // ...
+````
+
+* But this required Msg to be copy-assignable.
+  * The vector tries to shift all elements left for the erase().
+* I get compiler error
+
+```sh
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/__algorithm/move.h:42:17: error: object of type 'std::variant<tea::NoMsg, tea::UnicodeKeyMsg, tea::BackspaceKeyMsg, tea::EnterKeyMsg>' cannot be assigned because its copy assignment operator is implicitly deleted
+...
+```
+
+* It seems one of the variants are not copy-assignable.
+* It is the UnicodeKeyMsg
+
+  * It requires construct from code point
+  * And have a const cope_point member
+
+```cpp
+  struct UnicodeKeyMsg {
+    UnicodeKeyMsg() = delete;
+    UnicodeKeyMsg(int cp);
+    const char32_t code_point;
+  }; // UnicodeKeyMsg
+```
+  * This makes it immutable.
+
+All this is OK. I **want** messages to be immutable.
+
+So I changed into using std::deque.
+
+```cpp
+  if (this->m_msg_queue.size() > 0) {
+    auto msg = this->m_msg_queue.front();
+    this->m_msg_queue.pop_front();
+    return msg;
+  }
+```
+
+And now we don't have to shift any messages and thus no Msg mutation is required.
+
 ## 20260729
 
 So I seem to have a state-stack-mutating as well as a state-mutating update mechanism in place.

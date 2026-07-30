@@ -186,13 +186,19 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   {
     if (int key = GetCharPressed();key>0) {
       cached_for_msg_key = key;
-      if (key >= ' ') this->m_code_point_buffer.push_back(key);
+      if (key >= ' ') {
+        this->m_msg_queue.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
+        this->m_code_point_buffer.push_back(key);
+      }
     }
     if (IsKeyPressed(KEY_BACKSPACE)) {
+        this->m_msg_queue.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
         backspace_detected = true;
         if (this->m_code_point_buffer.size() > 0) this->m_code_point_buffer.pop_back();
     }
-  
+    if (IsKeyPressed(KEY_ENTER)) {
+        this->m_msg_queue.push_back(tea::Msg{tea::EnterKeyMsg{}});
+    }
   }
 
   bool mouse_is_on_top_pane = false;
@@ -509,6 +515,12 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   //----------------------------------------------------------------------------------
   } // anonymous drawing scope
   EndDrawing();
+
+  if (this->m_msg_queue.size() > 0) {
+    auto msg = this->m_msg_queue.front();
+    this->m_msg_queue.pop_front();
+    return msg;
+  }
 
   if (cached_for_msg_key > 0) return tea::Msg{tea::UnicodeKeyMsg{cached_for_msg_key}};
   if (backspace_detected) return tea::Msg{tea::BackspaceKeyMsg{}};

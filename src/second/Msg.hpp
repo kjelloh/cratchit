@@ -14,11 +14,13 @@ namespace tea {
   }; // UnicodeKeyMsg
 
   struct BackspaceKeyMsg {};
+  struct EnterKeyMsg {};
 
   using Msg = std::variant<
      NoMsg
     ,UnicodeKeyMsg
     ,BackspaceKeyMsg
+    ,EnterKeyMsg
   >;
 
 } // tea

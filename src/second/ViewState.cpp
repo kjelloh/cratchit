@@ -5,34 +5,61 @@
 
 namespace detail {
 
-  template<typename S>
-  concept ProvidesDataStateUpdate = requires(S s) {
-    { s.data_state() } -> std::same_as<DataState const&>;
+  template<typename ConcreteState>
+  concept ProvidesDataStateUpdate = requires(ConcreteState concrete_state) {
+    { concrete_state.update(std::declval<DataState const&>) } -> std::same_as<DataState>;
   };
 
-  template<typename S>
-  DataState const& update(DataState const& data_state, S const& s) {
-    if constexpr (ProvidesDataStateUpdate<S>) {
-      return s.data_state();
+  template<typename ConcreteState>
+  auto update(ConcreteState const& concrete_state,DataState const& data_state) {
+    if constexpr (ProvidesDataStateUpdate<ConcreteState>) {
+      return concrete_state.update(data_state);
     }
     else {
       return data_state; // fallback
     }
   }
 
+  template<typename ConcreteState>
+  concept ProvidesViewStateAccept = requires(ConcreteState concrete_state) {
+    { concrete_state.accept(std::declval<ViewState const&>())} -> std::same_as<ConcreteState>;
+  };
+
+  template<typename ConcreteState>
+  ViewState accept(ConcreteState const& concrete_target,ViewState const& source) {
+    if constexpr (ProvidesViewStateAccept<ConcreteState>) {
+      return concrete_target.accept(source);
+    }
+    return concrete_target; // Fallback
+  }
+
 } // detail
 
-DataState const& update(DataState const& data_state, ViewState const& view_state) {
+ViewState double_dispatch_accept(ViewState const& target, ViewState const& source) {
+  // 1. Dispatch to target accept
   return std::visit(
-    [&data_state](auto const& concrete_view) -> DataState const& {
-      return detail::update(data_state, concrete_view);
+    [&source](auto const& concrete_target){
+      return detail::accept(concrete_target,source);
     }
-    ,view_state
+    ,target
   );
+  return target;
+} // accept
+
+// DataState const& update(DataState const& data_state) const;
+DataState RootView::update(DataState const&) const {
+  return this->m_data_state;
 }
 
-DataState const& RootView::update(DataState const&) const {
-  return m_data_state;
+// RootView accept(ViewState const& source) const;
+RootView RootView::accept(ViewState const& source) const {
+  return std::visit(
+    [this](auto const& concrete_source){
+       return this->with_data_state(detail::update(concrete_source,this->m_data_state));
+    }
+    ,source
+  );
+  return *this;
 }
 
 RootView RootView::with_pushed_unicode(char32_t cp) const {
@@ -49,6 +76,12 @@ RootView RootView::with_popped_unicode() const {
   if (this->m_code_point_buffer.size()>0) {
     result.m_code_point_buffer = this->m_code_point_buffer.take(m_code_point_buffer.size()-1);
   }
+  return result;
+}
+
+RootView RootView::with_data_state(DataState data_state) const {
+  RootView result(*this);
+  result.m_data_state = data_state;
   return result;
 }
 
@@ -148,6 +181,11 @@ Transition<ViewState> ProjectsView::update(tea::UnicodeKeyMsg const& unicode_msg
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(unicode_msg));
   ProjectsView result{*this};
   return {TransitionKind::Mutate, result};
+}
+Transition<ViewState> ProjectsView::update(tea::EnterKeyMsg const& concrete_msg) const {
+  log_development_trace("ProjectsView::update(m:{})",msg_to_string(concrete_msg));
+  ProjectsView result{*this};
+  return {TransitionKind::Accept, result};
 }
 
 // view returns a user interface representation that the tea runtime can render
