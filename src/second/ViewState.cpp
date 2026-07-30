@@ -54,6 +54,9 @@ RootView RootView::with_popped_unicode() const {
 
 Transition<ViewState> RootView::update(tea::UnicodeKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  if (m.code_point == '0') {
+    return {TransitionKind::Push, ProjectsView{}};
+  }
   return {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)};
 }
 

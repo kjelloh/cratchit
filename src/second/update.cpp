@@ -57,6 +57,8 @@ namespace tea {
          Model::ViewStateStack const& view_state_stack
         ,Transition<ViewState> const& transition) -> Model::ViewStateStack {
       switch (transition.kind()) {
+        case TransitionKind::Push:
+          return view_state_stack.push_back(transition.next_state());
         case TransitionKind::Mutate:
           return view_state_stack.set(
             view_state_stack.size()-1

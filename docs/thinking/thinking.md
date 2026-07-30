@@ -8,6 +8,46 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260730
+
+It seems it is now time to see if my push,mutate,ignore,accept,reject mechanism on the view state stack works.
+
+* The 'only' thing I should need to do is to have RootState be able to provide an option for a state to push into.
+* Then enable Model::update to be able to detect the push and mutate the view stack.
+
+Let's try!
+
+Yep! Now we push into ProjectsView on key '0' in RootView ok.
+
+* I made view update trigger a push transition on '0'
+
+```cpp
+Transition<ViewState> RootView::update(tea::UnicodeKeyMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  if (m.code_point == '0') {
+    return {TransitionKind::Push, ProjectsView{}};
+  }
+  return {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)};
+}
+```
+
+* And implemented transition applicator to do the job
+
+```cpp
+    auto apply_view_state_transition = [](
+         Model::ViewStateStack const& view_state_stack
+        ,Transition<ViewState> const& transition) -> Model::ViewStateStack {
+      // ...
+      switch (transition.kind()) {
+        case TransitionKind::Push:
+          return view_state_stack.push_back(transition.next_state());
+          // ...
+      }
+    }; // apply_view_state_transition
+```
+
+And it works!
+
 ## 20260729
 
 So I seem to have a state-stack-mutating as well as a state-mutating update mechanism in place.

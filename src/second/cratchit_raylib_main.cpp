@@ -136,6 +136,10 @@ int CratchitRaylibApp::run(int, char**) {
   return posix_result;
 }
 
+// Brute force an 'crude' raylib render of provided ux
+// Todo: Consider if we can use The Clay UI Layout C Library (https://github.com/nicbarker/clay)?
+//       Although it may be overkill for this simple cratchit three pane layout
+//       But still... Clay looks nice.
 tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   const int padding{5};
   auto current_screen_width = GetScreenWidth();
@@ -220,6 +224,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   // BEGIN Draw
   //----------------------------------------------------------------------------------
   BeginDrawing();
+  {
 
     ClearBackground(WINDOW_BACGROUND_COLOR);
 
@@ -502,6 +507,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   //----------------------------------------------------------------------------------
   // END Draw
   //----------------------------------------------------------------------------------
+  } // anonymous drawing scope
   EndDrawing();
 
   if (cached_for_msg_key > 0) return tea::Msg{tea::UnicodeKeyMsg{cached_for_msg_key}};
