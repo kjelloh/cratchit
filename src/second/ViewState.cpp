@@ -187,6 +187,11 @@ Transition<ViewState> ProjectsView::update(tea::EnterKeyMsg const& concrete_msg)
   ProjectsView result{*this};
   return {TransitionKind::Accept, result};
 }
+Transition<ViewState> ProjectsView::update(tea::EscapeKeyMsg const& concrete_msg) const {
+  log_development_trace("ProjectsView::update(m:{})",msg_to_string(concrete_msg));
+  ProjectsView result{*this};
+  return {TransitionKind::Reject, result};
+}
 
 // view returns a user interface representation that the tea runtime can render
 tea::Ux ProjectsView::view() const {

@@ -115,6 +115,10 @@ int CratchitRaylibApp::run(int, char**) {
   //--------------------------------------------------------------------------------------
   // Main render window loop
   //--------------------------------------------------------------------------------------
+
+  // Disable the default "Escape closes the window" behavior
+  SetExitKey(KEY_NULL);
+
   while (!WindowShouldClose()) {
 
       // #tea
@@ -199,6 +203,11 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
     if (IsKeyPressed(KEY_ENTER)) {
         this->m_msg_queue.push_back(tea::Msg{tea::EnterKeyMsg{}});
     }
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        this->m_msg_queue.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+    }
+
   }
 
   bool mouse_is_on_top_pane = false;

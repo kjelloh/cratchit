@@ -26,7 +26,7 @@ public:
 
   // update returns transition between view states (for state stack mutation)
   Transition<ViewState> update(tea::UnicodeKeyMsg const& unicode_msg) const;
-  Transition<ViewState> update(tea::BackspaceKeyMsg const& backspace_key_msg) const;
+  Transition<ViewState> update(tea::BackspaceKeyMsg const&) const;
 
   using CodePointBuffer = immer::vector<char32_t>;
 
@@ -51,6 +51,7 @@ public:
 
   Transition<ViewState> update(tea::UnicodeKeyMsg const& unicode_msg) const;
   Transition<ViewState> update(tea::EnterKeyMsg const&) const;
+  Transition<ViewState> update(tea::EscapeKeyMsg const&) const;
 
   // view returns a user interface representation that the tea runtime can render
   tea::Ux view() const;
