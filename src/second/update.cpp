@@ -8,7 +8,10 @@ namespace detail {
 
   template<typename S, typename M>
   concept Updateable = requires(S s, M m) {
-    { s.update(m) } -> std::same_as<Transition<ViewState>>;
+    { s.update(m) } -> std::same_as<std::tuple<
+       Transition<ViewState>
+      ,tea::Cmd>
+    >;
   };
 
   template<typename S, typename M>
@@ -18,12 +21,15 @@ namespace detail {
         return s.update((m));
       }
       else {
-        return Transition<ViewState>{TransitionKind::Ignore, s};   // ignore unsupported messages
+        return std::make_tuple(
+          Transition<ViewState>{TransitionKind::Ignore, s}
+          ,tea::Cmd{}
+        );
       }
-  }
+  } // update
 } // detail
 
-auto double_dispatch_update_to_transition(ViewState const& state, const tea::Msg& msg) {
+auto double_dispatch_view_update(ViewState const& state, const tea::Msg& msg) {
   // 1. Dispatch to concrete ViewState
   // 2. Dispatch to concrete Msg
   return std::visit(
@@ -89,11 +95,11 @@ namespace tea {
     }; // apply_view_state_transition
 
     if (model.view_state_stack().size() > 0) {
-      auto view_state_transition = double_dispatch_update_to_transition(model.view_state_stack().back(),msg);
+      auto [view_state_transition,cmd] = double_dispatch_view_update(model.view_state_stack().back(),msg);
       auto next_view_state_stack = apply_view_state_transition(model.view_state_stack(),view_state_transition);
       return {
         model.with_mutated_view_state_stack(next_view_state_stack)
-        ,tea::Cmd{}
+        ,cmd
       };
     }
 

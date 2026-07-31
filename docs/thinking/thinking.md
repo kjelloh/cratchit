@@ -77,7 +77,104 @@ And made the runtime call to update use std::tie to assign the result.
 
 ```
 
-Seems good so far?
+Seems good so far? Next is to make view state update provide an additional Cmd.
+
+Currently the view state update returns a Transition that defines how the caller (base update()) should mitate the view state stack.
+
+```cpp
+class RootView {
+  // ...
+  Transition<ViewState> update(tea::UnicodeKeyMsg const& unicode_msg) const;
+```
+
+Question is:
+
+1. Should we return a Transition paired with a command?
+2. Or should the Transition provide an update() that returns the command?
+  * In effect delegate the update to the Transition?
+
+
+For a moment I looked at this and wondered if the idea of returning a Transition is the right thing to do?
+
+* Could not the view state take the model and return a new model?
+  * I still think NOT?
+  * It would mean the view state would gain access to its own value on the view stack in the model.
+  * Now would that not lead to the risk of confusing mutations?
+  * Say the view state popped itself from the top of the stack (like for accept or reject)?
+  * But then, maybe that is NOT a problem?
+  * The current model is immutable.
+  * So the mutation will happen on the new model the view state creates.
+  * And this will be ok?
+  * I suppose it can even dispatch any DataView mutation it has to the 'parent' view state on the stack?
+  * What seems to argue against this is that the 'transition' operation will be mirrored in all states?
+  * By returning the descritption of what transition to perform we can centralise this operation in base update?
+
+Tricky! Maybe I shall stay the course for now? But then we have to deal with this deviation from the Elm architecture update() that returns the final mutation instead of, in my case, returns a descritpion of what mutation to do to the view stack?
+
+* In that case I have a kind of 'divide and concour'?
+* We treat the view stack mutation separate from mutation of each view state (drilling down)
+* We already separated view related data from app related that is in DataState.
+* And each view can aggregate its own DataState and propagate it as needed and possible as part of the transition mechanism.
+
+I decide I will go with pairing the returned Transition with a Cmd.
+
+Apart from me missing to update the fallback in the update dispatcher (template magic) this refactoring was pretty straight forward (althoug a bit wordy).
+
+* Each view state now returns the Transition paired with a Cmd.
+
+```cpp
+class RootView {
+public:
+  // ...
+  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::UnicodeKeyMsg const& unicode_msg) const;
+  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::BackspaceKeyMsg const&) const;
+  // ...
+```
+
+The base update now mutates the stack as well as passing the cmd back from view state update.
+
+```cpp
+    if (model.view_state_stack().size() > 0) {
+      auto [view_state_transition,cmd] = double_dispatch_view_update(model.view_state_stack().back(),msg);
+      auto next_view_state_stack = apply_view_state_transition(model.view_state_stack(),view_state_transition);
+      return {
+        model.with_mutated_view_state_stack(next_view_state_stack)
+        ,cmd
+      };
+    }
+```
+
+I had to pay attention to the update dispatcher fall back.
+
+```cpp
+  template<typename S, typename M>
+  auto update(S const& s, M const& m) {
+      if constexpr (Updateable<S, M>) {
+        // Call State::operator(Msg)
+        return s.update((m));
+      }
+      else {
+        return std::make_tuple(
+          Transition<ViewState>{TransitionKind::Ignore, s}
+          ,tea::Cmd{}
+        );
+      }
+  } // update
+```
+
+And also adjust the Updateable concept to recognise the new expected return type.
+
+```cpp
+  template<typename S, typename M>
+  concept Updateable = requires(S s, M m) {
+    { s.update(m) } -> std::same_as<std::tuple<
+       Transition<ViewState>
+      ,tea::Cmd>
+    >;
+  };
+```
+
+Note to self: Due to the fallback in the template magic, any errors in the concept will go silently through the compiler!
 
 ## 20260730
 

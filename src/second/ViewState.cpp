@@ -85,17 +85,26 @@ RootView RootView::with_data_state(DataState data_state) const {
   return result;
 }
 
-Transition<ViewState> RootView::update(tea::UnicodeKeyMsg const& m) const {
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(tea::UnicodeKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   if (m.code_point == '0') {
-    return {TransitionKind::Push, ProjectsView{}};
+    return {
+      {TransitionKind::Push, ProjectsView{}}
+      ,tea::Cmd{}
+    };
   }
-  return {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)};
+  return {
+    {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)}
+    ,tea::Cmd{}
+  };
 }
 
-Transition<ViewState> RootView::update(tea::BackspaceKeyMsg const& m) const {
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(tea::BackspaceKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
-  return {TransitionKind::Mutate, this->with_popped_unicode()};
+  return {
+    {TransitionKind::Mutate, this->with_popped_unicode()}
+    ,tea::Cmd{}
+  };
 }
 
 tea::Ux RootView::view() const {
@@ -177,20 +186,29 @@ tea::Ux RootView::view() const {
 DataState const& ProjectsView::update(DataState const&) const {
   return m_data_state;
 }
-Transition<ViewState> ProjectsView::update(tea::UnicodeKeyMsg const& unicode_msg) const {
+std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(tea::UnicodeKeyMsg const& unicode_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(unicode_msg));
   ProjectsView result{*this};
-  return {TransitionKind::Mutate, result};
+  return {
+    {TransitionKind::Mutate, result}
+    ,tea::Cmd{}
+  };
 }
-Transition<ViewState> ProjectsView::update(tea::EnterKeyMsg const& concrete_msg) const {
+std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(tea::EnterKeyMsg const& concrete_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(concrete_msg));
   ProjectsView result{*this};
-  return {TransitionKind::Accept, result};
+  return {
+    {TransitionKind::Accept, result}
+    ,tea::Cmd{}
+  };
 }
-Transition<ViewState> ProjectsView::update(tea::EscapeKeyMsg const& concrete_msg) const {
+std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(tea::EscapeKeyMsg const& concrete_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(concrete_msg));
   ProjectsView result{*this};
-  return {TransitionKind::Reject, result};
+  return {
+    {TransitionKind::Reject, result}
+    ,tea::Cmd{}
+  };
 }
 
 // view returns a user interface representation that the tea runtime can render
