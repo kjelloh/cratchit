@@ -85,6 +85,12 @@ RootView RootView::with_data_state(DataState data_state) const {
   return result;
 }
 
+RootView RootView::with_cursor_visible(bool cursor_visible) const {
+  RootView result(*this);
+  result.m_cursor_visible = cursor_visible;
+  return result;
+}
+
 std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(tea::UnicodeKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   if (m.code_point == '0') {
@@ -107,9 +113,17 @@ std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(tea::BackspaceKeyMsg
   };
 }
 
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(tea::CursorBlinkMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  return {
+    {TransitionKind::Mutate, this->with_cursor_visible(!m_cursor_visible)}
+    ,tea::Cmd{}
+  };
+}
+
 tea::Ux RootView::view() const {
   log_development_trace("RootView::view() m_code_point_buffer:{}",m_code_point_buffer.size());
-  static size_t m_frames_counter = 0;
+  // static size_t m_frames_counter = 0;
 
   auto to_test_rows = [](size_t row_count) -> std::vector<std::string> {
     std::vector<std::string> result{};
@@ -157,14 +171,18 @@ tea::Ux RootView::view() const {
             for (auto utf8_byte : utf8_bytes) utf8_string += static_cast<char>(utf8_byte);
           }
 
-          // handle (hard code) 'cursor'
-          if (((m_frames_counter++/20)%2) == 0) {
-            // Assume 60 fps
-            // frame    m_frames_counter/20    %2    
-            // 0-19	    0	                      0	  visible
-            // 20-39	  1	                      1	  hidden
-            // 40-59	  2	                      0	  visible
-            // 60-79	  3	                      1	  hidden              
+          // // handle (hard code) 'cursor'
+          // if (((m_frames_counter++/20)%2) == 0) {
+          //   // Assume 60 fps
+          //   // frame    m_frames_counter/20    %2    
+          //   // 0-19	    0	                      0	  visible
+          //   // 20-39	  1	                      1	  hidden
+          //   // 40-59	  2	                      0	  visible
+          //   // 60-79	  3	                      1	  hidden              
+          //   utf8_string += '_';
+          // }
+
+          if (m_cursor_visible) {
             utf8_string += '_';
           }
 

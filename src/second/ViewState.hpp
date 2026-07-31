@@ -29,6 +29,7 @@ public:
   // update returns transition between view states (for state stack mutation)
   std::tuple<Transition<ViewState>,tea::Cmd> update(tea::UnicodeKeyMsg const& unicode_msg) const;
   std::tuple<Transition<ViewState>,tea::Cmd> update(tea::BackspaceKeyMsg const&) const;
+  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::CursorBlinkMsg const&) const;
 
   using CodePointBuffer = immer::vector<char32_t>;
 
@@ -36,6 +37,7 @@ public:
   RootView with_pushed_unicode(char32_t cp) const;
   RootView with_popped_unicode() const;
   RootView with_data_state(DataState data_state) const;
+  RootView with_cursor_visible(bool cursor_visible) const;
 
   // view returns a user interface representation that the tea runtime can render
   tea::Ux view() const;
@@ -43,6 +45,7 @@ public:
   private:
     DataState m_data_state{};
     CodePointBuffer m_code_point_buffer{};
+    bool m_cursor_visible{false};
 };
 
 class ProjectsView {

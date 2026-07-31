@@ -7,6 +7,7 @@
 #include "init.hpp"
 #include "view.hpp"
 #include "update.hpp"
+#include "subscriptions.hpp"
 
 #include <ranges>
 #include "enumerate_view.hpp"
@@ -119,13 +120,21 @@ int CratchitRaylibApp::run(int, char**) {
   // Disable the default "Escape closes the window" behavior
   SetExitKey(KEY_NULL);
 
+  PolledMetronome cursor_blink_metronome{};
+  cursor_blink_metronome.start(500);
+
   while (!WindowShouldClose()) {
 
       // #tea
       auto ux = tea::view(model);
 
+      auto poll_event = [&cursor_blink_metronome,&ux,this]() -> tea::Msg {
+        if (cursor_blink_metronome.expired()) return tea::CursorBlinkMsg{};
+        return this->render(ux); // polls keyboard as side-effect
+      };
+
       // #runtime
-      auto msg = this->render(ux);
+      auto msg = poll_event();
 
       // #tea
       std::tie(model,cmd) = tea::update(model,msg);

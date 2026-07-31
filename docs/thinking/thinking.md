@@ -176,6 +176,67 @@ And also adjust the Updateable concept to recognise the new expected return type
 
 Note to self: Due to the fallback in the template magic, any errors in the concept will go silently through the compiler!
 
+You know what? I think I will try to understand the 'subscription' mechanism now.
+
+* It seems to be based on a function that takes a model and returns a Sub type instance.
+* And it also seems that the Sub type instance is to generate a Msg when the event subscribed to occurs?
+
+What I fail to understand is how my app should know what events there is to subscribe to?
+
+* That is, How does it know what Sub types there are to chose from?
+* And how is the runtime supposed to 'activate' (setup or initiate) the event subscription?
+
+What does my AI friends know about this?
+
+Well, I seem to get more or less word sallad. I suppose there is some truth in there somewhere but I fail to grasp what that could be for now. But I can speculate.
+
+* Somehow my app and the runtime share a knowledge about what events are avaibale to subscribe to.
+* This shared knowledge also includes how to configure such subscriptions.
+* So both the runtime and the app knows how to configure a timer to fire at some interval.
+* Or both know how to open up to listen for incoming html requests.
+* The app somehow tells the runtime what message to generate as a response to the event occuring.
+
+I think I start by having my runtime know about a Timer.
+
+* I can hard code the runtime to initialise such a timer to generate some message to turn the cursor on or off.
+* Then later I can figure out a way for my app to activate this timer when appropriate?
+
+So I introduced some subscription 'stuff'
+
+* The subscriptions unit
+* The CursorBlinkMsg
+* The class PolledMetronome
+* A hard coded PolledMetronome cursor_blink_metronome in the run() message loop
+
+```cpp
+
+PolledMetronome cursor_blink_metronome{};
+  cursor_blink_metronome.start(500);
+
+  while (!WindowShouldClose()) {
+
+      // #tea
+      auto ux = tea::view(model);
+
+      auto poll_event = [&cursor_blink_metronome,&ux,this]() -> tea::Msg {
+        if (cursor_blink_metronome.expired()) return tea::CursorBlinkMsg{};
+        return this->render(ux); // polls keyboard as side-effect
+      };
+
+      // #runtime
+      auto msg = poll_event();
+
+      // #tea
+      std::tie(model,cmd) = tea::update(model,msg);
+
+  }
+```
+
+I made a poll_event function that either polled the metronoome or called current render that polls the keyboard.
+
+It seems we should later move the polling of the keyboard out of the render() function?
+
+
 ## 20260730
 
 It seems it is now time to see if my push,mutate,ignore,accept,reject mechanism on the view state stack works.

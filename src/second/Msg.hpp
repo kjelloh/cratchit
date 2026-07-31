@@ -16,7 +16,7 @@ namespace tea {
   struct BackspaceKeyMsg {};
   struct EnterKeyMsg {};
   struct EscapeKeyMsg {};
-
+  struct CursorBlinkMsg {};
 
   using Msg = std::variant<
      NoMsg
@@ -24,6 +24,7 @@ namespace tea {
     ,BackspaceKeyMsg
     ,EnterKeyMsg
     ,EscapeKeyMsg
+    ,CursorBlinkMsg
   >;
 
 } // tea
