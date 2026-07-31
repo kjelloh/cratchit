@@ -8,6 +8,77 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260731
+
+I think it is time to introduce 'command' handling.
+
+* The init() already returns an init model with a command Cmd.
+* But update() should do the same.
+* Then the runtime needs to execute the command and feed the resulting Msg back into the messaging pipe.
+
+We currently have this update().
+
+```cpp
+  Model update(Model const& model,Msg const& msg);
+```
+
+But we need this one.
+
+```cpp
+  std::tuple<Model,Cmd> update(Model const& model,Msg const& msg);
+```
+
+I suppose we can refactor our code bottom up until we have identified where the actual command generation should happen?
+
+I short-cutted Cmd for now in base update().
+
+```cpp
+    if (model.view_state_stack().size() > 0) {
+      auto view_state_transition = double_dispatch_update_to_transition(model.view_state_stack().back(),msg);
+      auto next_view_state_stack = apply_view_state_transition(model.view_state_stack(),view_state_transition);
+      return {
+        model.with_mutated_view_state_stack(next_view_state_stack)
+        ,tea::Cmd{}
+      };
+    }
+
+    return {
+        model
+        ,Cmd{}
+    }; // fallback
+
+```
+
+And made the runtime call to update use std::tie to assign the result.
+
+```cpp
+  // #tea
+  auto [model,cmd] = tea::init();
+
+  //--------------------------------------------------------------------------------------
+  // Main render window loop
+  //--------------------------------------------------------------------------------------
+
+  // Disable the default "Escape closes the window" behavior
+  SetExitKey(KEY_NULL);
+
+  while (!WindowShouldClose()) {
+
+      // #tea
+      auto ux = tea::view(model);
+
+      // #runtime
+      auto msg = this->render(ux);
+
+      // #tea
+      std::tie(model,cmd) = tea::update(model,msg);
+
+  }
+
+```
+
+Seems good so far?
+
 ## 20260730
 
 It seems it is now time to see if my push,mutate,ignore,accept,reject mechanism on the view state stack works.

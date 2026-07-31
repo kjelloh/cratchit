@@ -2,7 +2,9 @@
 
 #include "Model.hpp"
 #include "Msg.hpp"
+#include "Cmd.hpp"
+#include <tuple>
 
 namespace tea {
-  Model update(Model const& model,Msg const& msg);
+  std::tuple<Model,Cmd> update(Model const& model,Msg const& msg);
 } // tea

@@ -44,7 +44,7 @@ auto double_dispatch_update_to_transition(ViewState const& state, const tea::Msg
 
 namespace tea {
 
-  Model update(Model const& model,Msg const& msg) {
+  std::tuple<Model,Cmd> update(Model const& model,Msg const& msg) {
 
     if (!is_no_msg(msg)) {
       log_development_trace(
@@ -91,10 +91,16 @@ namespace tea {
     if (model.view_state_stack().size() > 0) {
       auto view_state_transition = double_dispatch_update_to_transition(model.view_state_stack().back(),msg);
       auto next_view_state_stack = apply_view_state_transition(model.view_state_stack(),view_state_transition);
-      return model.with_mutated_view_state_stack(next_view_state_stack);
+      return {
+        model.with_mutated_view_state_stack(next_view_state_stack)
+        ,tea::Cmd{}
+      };
     }
 
-    return model; // fallback
+    return {
+        model
+        ,Cmd{}
+    }; // fallback
 
   } // update
 } // tea

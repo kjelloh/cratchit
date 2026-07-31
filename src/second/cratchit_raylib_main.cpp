@@ -128,7 +128,7 @@ int CratchitRaylibApp::run(int, char**) {
       auto msg = this->render(ux);
 
       // #tea
-      model = tea::update(model,msg);
+      std::tie(model,cmd) = tea::update(model,msg);
 
   }
 
