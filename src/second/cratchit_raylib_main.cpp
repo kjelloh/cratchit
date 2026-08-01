@@ -119,14 +119,14 @@ int CratchitRaylibApp::run(int, char**) {
   while (!WindowShouldClose()) {
 
       // #runtime
-      auto to_frame_events_msgs = [&cursor_blink_metronome]() {
+      auto this_frame_events_msgs = [&cursor_blink_metronome]() {
 
         std::vector<tea::Msg> result{};
 
         // poll for cursor blink event
         if (cursor_blink_metronome.expired()) result.push_back(tea::CursorBlinkMsg{});
 
-        // Poll raylib state for keyboard events
+        // Poll raylib state for ALL keyboard events
         {
           while (int key = GetCharPressed()) {
             if (key >= ' ') {
@@ -150,12 +150,8 @@ int CratchitRaylibApp::run(int, char**) {
 
       };
 
-      auto frame_event_msgs = to_frame_events_msgs();      
-
-      for (auto const& msg : frame_event_msgs) {
-        // #app
-        std::tie(model,cmd) = tea::update(model,msg);
-      }
+      // update model for all events that have occured since last frame
+      for (auto const& msg : this_frame_events_msgs()) std::tie(model,cmd) = tea::update(model,msg);
 
       // #app
       auto ux = tea::view(model);
