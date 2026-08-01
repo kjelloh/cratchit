@@ -3,18 +3,15 @@
 
 #include <chrono>
 
-class PolledMetronome {
-public:
-  void start(size_t interval_in_ms);
-  void stop();
-  bool expired();
-private:
-  using Clock = std::chrono::steady_clock;
-  bool m_enabled{false};
-  std::chrono::milliseconds m_interval_in_ms{};
-  Clock::time_point m_next_click_time_point{};
-}; // PolledTimer
+// Concrete subscription descriptor for a Metronome event
+struct MetronomeSub {
+  const size_t interval_in_ms;
+  const tea::Msg on_event_msg{};
+}; // MetronomeSub
 
-using Sub = int; // placeholder type for now
+using SubDescriptor = std::variant<MetronomeSub>; // SubDescriptor
+
+// Elm type name Sub
+using Sub = std::vector<SubDescriptor>; // Sub lists requested subscriptions
 
 Sub subscriptions(tea::Model const& model);

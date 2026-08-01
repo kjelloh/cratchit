@@ -8,8 +8,8 @@
 #include "view.hpp"
 #include "update.hpp"
 #include "subscriptions.hpp"
+#include "SubHandler.hpp"
 
-#include <ranges>
 #include "enumerate_view.hpp"
 
 char const* const WATERMARK = "CRATCHIT";
@@ -101,13 +101,16 @@ int CratchitRaylibApp::run(int, char**) {
   // END: Load and Pre-render bitmap fonts for supported unicode code points 
   //--------------------------------------------------------------------------------------
 
-  SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-
   // Disable the default "Escape closes the window" behavior
   SetExitKey(KEY_NULL);
 
-  PolledMetronome cursor_blink_metronome{};
+  SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
+
+  // TODO: Move into SubHandler and subscriptions mechanism
+  detail::PolledMetronome cursor_blink_metronome{};
   cursor_blink_metronome.start(500);
+
+  SubHandler sub_handler{};
 
   //--------------------------------------------------------------------------------------
   // Main render window loop
@@ -119,13 +122,22 @@ int CratchitRaylibApp::run(int, char**) {
 
   while (!WindowShouldClose()) {
 
+      sub_handler.update(subscriptions(model));
+
       // #runtime
-      auto this_frame_events_msgs = [&cursor_blink_metronome]() {
+      // TODO: Replace cursor_blink_metronome with subscriptions mechanism
+
+      auto this_frame_events_msgs = [&sub_handler,&cursor_blink_metronome]() {
 
         std::vector<tea::Msg> result{};
 
         // poll for cursor blink event
+        // TODO: Move into sub_handler.poll()
         if (cursor_blink_metronome.expired()) result.push_back(tea::CursorBlinkMsg{});
+        
+        for (auto const& msg : sub_handler.poll()) {
+          result.push_back(msg);
+        }
 
         // Poll raylib state for ALL keyboard events
         {
