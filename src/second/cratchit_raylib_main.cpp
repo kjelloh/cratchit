@@ -102,20 +102,6 @@ int CratchitRaylibApp::run(int, char**) {
   //--------------------------------------------------------------------------------------
 
   SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-  //--------------------------------------------------------------------------------------
-  // BEGIN Text input mechanism
-  //--------------------------------------------------------------------------------------
-
-  //--------------------------------------------------------------------------------------
-  // END Text input mechanism
-  //--------------------------------------------------------------------------------------
-
-  // #tea
-  auto [model,cmd] = tea::init();
-
-  //--------------------------------------------------------------------------------------
-  // Main render window loop
-  //--------------------------------------------------------------------------------------
 
   // Disable the default "Escape closes the window" behavior
   SetExitKey(KEY_NULL);
@@ -125,13 +111,14 @@ int CratchitRaylibApp::run(int, char**) {
 
   std::deque<tea::Msg> event_msg_queue{};
 
+  //--------------------------------------------------------------------------------------
+  // Main render window loop
+  //--------------------------------------------------------------------------------------
+
+  // #app
+  auto [model,cmd] = tea::init();
+
   while (!WindowShouldClose()) {
-
-      // #app
-      auto ux = tea::view(model);
-
-      // #runtime
-      this->render(ux);
 
       // #runtime
       auto poll_event = [&cursor_blink_metronome,&event_msg_queue]() -> tea::Msg {
@@ -173,6 +160,12 @@ int CratchitRaylibApp::run(int, char**) {
 
       // #app
       std::tie(model,cmd) = tea::update(model,msg);
+
+      // #app
+      auto ux = tea::view(model);
+
+      // #runtime
+      this->render(ux);
 
   }
 
