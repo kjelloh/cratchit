@@ -121,41 +121,38 @@ int CratchitRaylibApp::run(int, char**) {
       // #runtime
       auto to_frame_events_msgs = [&cursor_blink_metronome]() {
 
-        std::deque<tea::Msg> frame_event_msgs{};
+        std::vector<tea::Msg> result{};
 
         // poll for cursor blink event
-        if (cursor_blink_metronome.expired()) frame_event_msgs.push_back(tea::CursorBlinkMsg{});
+        if (cursor_blink_metronome.expired()) result.push_back(tea::CursorBlinkMsg{});
 
         // Poll raylib state for keyboard events
         {
           while (int key = GetCharPressed()) {
             if (key >= ' ') {
-              frame_event_msgs.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
+              result.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
             }
           }
           if (IsKeyPressed(KEY_BACKSPACE)) {
-              frame_event_msgs.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
+              result.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
           }
           if (IsKeyPressed(KEY_ENTER)) {
-              frame_event_msgs.push_back(tea::Msg{tea::EnterKeyMsg{}});
+              result.push_back(tea::Msg{tea::EnterKeyMsg{}});
           }
 
           if (IsKeyPressed(KEY_ESCAPE)) {
-              frame_event_msgs.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+              result.push_back(tea::Msg{tea::EscapeKeyMsg{}});
           }
 
         } // Poll for keyboard events
 
-        return frame_event_msgs;
+        return result;
 
       };
 
       auto frame_event_msgs = to_frame_events_msgs();      
 
-      while (frame_event_msgs.size() > 0) {
-        auto msg = frame_event_msgs.front();
-        frame_event_msgs.pop_front();
-
+      for (auto const& msg : frame_event_msgs) {
         // #app
         std::tie(model,cmd) = tea::update(model,msg);
       }
