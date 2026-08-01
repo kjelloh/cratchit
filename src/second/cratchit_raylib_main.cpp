@@ -109,8 +109,6 @@ int CratchitRaylibApp::run(int, char**) {
   PolledMetronome cursor_blink_metronome{};
   cursor_blink_metronome.start(500);
 
-  std::deque<tea::Msg> captured_events{};
-
   //--------------------------------------------------------------------------------------
   // Main render window loop
   //--------------------------------------------------------------------------------------
@@ -121,38 +119,42 @@ int CratchitRaylibApp::run(int, char**) {
   while (!WindowShouldClose()) {
 
       // #runtime
-      auto capture_this_frame_events = [&cursor_blink_metronome,&captured_events]() -> void {
+      auto to_frame_events_msgs = [&cursor_blink_metronome]() {
+
+        std::deque<tea::Msg> frame_event_msgs{};
 
         // poll for cursor blink event
-        if (cursor_blink_metronome.expired()) captured_events.push_back(tea::CursorBlinkMsg{});
+        if (cursor_blink_metronome.expired()) frame_event_msgs.push_back(tea::CursorBlinkMsg{});
 
-        // Poll for keyboard events
+        // Poll raylib state for keyboard events
         {
-          if (int key = GetCharPressed();key>0) {
+          while (int key = GetCharPressed()) {
             if (key >= ' ') {
-              captured_events.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
+              frame_event_msgs.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
             }
           }
           if (IsKeyPressed(KEY_BACKSPACE)) {
-              captured_events.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
+              frame_event_msgs.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
           }
           if (IsKeyPressed(KEY_ENTER)) {
-              captured_events.push_back(tea::Msg{tea::EnterKeyMsg{}});
+              frame_event_msgs.push_back(tea::Msg{tea::EnterKeyMsg{}});
           }
 
           if (IsKeyPressed(KEY_ESCAPE)) {
-              captured_events.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+              frame_event_msgs.push_back(tea::Msg{tea::EscapeKeyMsg{}});
           }
 
         } // Poll for keyboard events
 
+        return frame_event_msgs;
+
       };
 
-      capture_this_frame_events();      
-      
-      while (captured_events.size() > 0) {
-        auto msg = captured_events.front();
-        captured_events.pop_front();
+      auto frame_event_msgs = to_frame_events_msgs();      
+
+      while (frame_event_msgs.size() > 0) {
+        auto msg = frame_event_msgs.front();
+        frame_event_msgs.pop_front();
 
         // #app
         std::tie(model,cmd) = tea::update(model,msg);
