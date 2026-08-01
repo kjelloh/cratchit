@@ -17,8 +17,9 @@ private:
   const int INITIAL_SCREEN_HEIGHT = 720;
   const int FONT_HEIGHT = 32;
 
-  int m_frames_counter = 0;
   Font m_current_font{};
 
+  size_t m_frames_counter{0};
   void render(tea::Ux const& ux);
+  
 }; // CratchitRaylibApp

@@ -177,10 +177,6 @@ int CratchitRaylibApp::run(int, char**) {
   return posix_result;
 } // run
 
-// Brute force an 'crude' raylib render of provided ux
-// Todo: Consider if we can use The Clay UI Layout C Library (https://github.com/nicbarker/clay)?
-//       Although it may be overkill for this simple cratchit three pane layout
-//       But still... Clay looks nice.
 void CratchitRaylibApp::render(tea::Ux const& ux) {
   const int padding{5};
   auto current_screen_width = GetScreenWidth();
@@ -241,8 +237,6 @@ void CratchitRaylibApp::render(tea::Ux const& ux) {
   }
   else SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
-  if (mouse_is_on_bottom_pane) this->m_frames_counter++;
-  else this->m_frames_counter = 0;
   //----------------------------------------------------------------------------------
   // END Update
   //----------------------------------------------------------------------------------
@@ -252,6 +246,8 @@ void CratchitRaylibApp::render(tea::Ux const& ux) {
   //----------------------------------------------------------------------------------
   BeginDrawing();
   {
+
+    this->m_frames_counter++;
 
     ClearBackground(WINDOW_BACGROUND_COLOR);
 
@@ -294,7 +290,6 @@ void CratchitRaylibApp::render(tea::Ux const& ux) {
       if (mouse_is_on_pane) DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, active_colour);
       else DrawRectangleLines((int)pane.x, (int)pane.y, (int)pane.width, (int)pane.height, passive_colour);
     }
-
 
     // Render top pane
     {

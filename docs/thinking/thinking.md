@@ -39,6 +39,17 @@ I am not sure exactly what I did wrong.
 * Still, If I poll both in poll_event and inside render whti should just result in doubling each event?
 * Maybe I did some other logical error?
 
+I now have polling and prcessing of events outside the render function.
+
+* But I want a better design to ensure I poll for events only once per raylib 'frame'.
+* It seems the calls to raylib event polling functions do NOT reset the event?
+* So I must NOT call say IsKeyPressed(KEY_BACKSPACE) several times for each 'frame'
+* I imagine raylib updates its internal state for each BeginDrawing,EndDrawing scope?
+
+So how can I express this in my code?
+
+* Maybe I can wrap this into an RIIA 'Frame' object?
+
 ## 20260731
 
 I think it is time to introduce 'command' handling.
