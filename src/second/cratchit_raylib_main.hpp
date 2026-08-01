@@ -22,5 +22,5 @@ private:
   int m_frames_counter = 0;
   Font m_current_font{};
 
-  tea::Msg render(tea::Ux const& ux);
+  void render(tea::Ux const& ux);
 }; // CratchitRaylibApp

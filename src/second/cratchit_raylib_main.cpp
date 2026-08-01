@@ -125,18 +125,31 @@ int CratchitRaylibApp::run(int, char**) {
 
   while (!WindowShouldClose()) {
 
-      // #tea
+      // #app
       auto ux = tea::view(model);
 
-      auto poll_event = [&cursor_blink_metronome,&ux,this]() -> tea::Msg {
-        if (cursor_blink_metronome.expired()) return tea::CursorBlinkMsg{};
-        return this->render(ux); // polls keyboard as side-effect
+      // #runtime
+      this->render(ux); // polls keyboard -> m_event_msg_queue
+
+
+      // #runtime
+      auto poll_event = [&cursor_blink_metronome,this]() -> tea::Msg {
+
+        if (cursor_blink_metronome.expired()) this->m_event_msg_queue.push_back(tea::CursorBlinkMsg{});
+
+        if (this->m_event_msg_queue.size() > 0) {
+          auto msg = this->m_event_msg_queue.front();
+          this->m_event_msg_queue.pop_front();
+          return msg;
+        }
+
+        return tea::TickMsg{};
       };
 
       // #runtime
       auto msg = poll_event();
 
-      // #tea
+      // #app
       std::tie(model,cmd) = tea::update(model,msg);
 
   }
@@ -147,13 +160,13 @@ int CratchitRaylibApp::run(int, char**) {
   //--------------------------------------------------------------------------------------
 
   return posix_result;
-}
+} // run
 
 // Brute force an 'crude' raylib render of provided ux
 // Todo: Consider if we can use The Clay UI Layout C Library (https://github.com/nicbarker/clay)?
 //       Although it may be overkill for this simple cratchit three pane layout
 //       But still... Clay looks nice.
-tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
+void CratchitRaylibApp::render(tea::Ux const& ux) {
   const int padding{5};
   auto current_screen_width = GetScreenWidth();
   auto current_screen_height = GetScreenHeight();
@@ -430,11 +443,4 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   } // anonymous drawing scope
   EndDrawing();
 
-  if (this->m_event_msg_queue.size() > 0) {
-    auto msg = this->m_event_msg_queue.front();
-    this->m_event_msg_queue.pop_front();
-    return msg;
-  }
-
-  return tea::Msg{};
 }
