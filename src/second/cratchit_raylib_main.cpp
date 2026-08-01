@@ -109,7 +109,7 @@ int CratchitRaylibApp::run(int, char**) {
   PolledMetronome cursor_blink_metronome{};
   cursor_blink_metronome.start(500);
 
-  std::deque<tea::Msg> event_msg_queue{};
+  std::deque<tea::Msg> captured_events{};
 
   //--------------------------------------------------------------------------------------
   // Main render window loop
@@ -121,45 +121,42 @@ int CratchitRaylibApp::run(int, char**) {
   while (!WindowShouldClose()) {
 
       // #runtime
-      auto poll_event = [&cursor_blink_metronome,&event_msg_queue]() -> tea::Msg {
+      auto capture_this_frame_events = [&cursor_blink_metronome,&captured_events]() -> void {
 
         // poll for cursor blink event
-        if (cursor_blink_metronome.expired()) event_msg_queue.push_back(tea::CursorBlinkMsg{});
+        if (cursor_blink_metronome.expired()) captured_events.push_back(tea::CursorBlinkMsg{});
 
         // Poll for keyboard events
         {
           if (int key = GetCharPressed();key>0) {
             if (key >= ' ') {
-              event_msg_queue.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
+              captured_events.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
             }
           }
           if (IsKeyPressed(KEY_BACKSPACE)) {
-              event_msg_queue.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
+              captured_events.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
           }
           if (IsKeyPressed(KEY_ENTER)) {
-              event_msg_queue.push_back(tea::Msg{tea::EnterKeyMsg{}});
+              captured_events.push_back(tea::Msg{tea::EnterKeyMsg{}});
           }
 
           if (IsKeyPressed(KEY_ESCAPE)) {
-              event_msg_queue.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+              captured_events.push_back(tea::Msg{tea::EscapeKeyMsg{}});
           }
 
         } // Poll for keyboard events
 
-        if (event_msg_queue.size() > 0) {
-          auto msg = event_msg_queue.front();
-          event_msg_queue.pop_front();
-          return msg;
-        }
-
-        return tea::TickMsg{};
       };
 
-      // #runtime
-      auto msg = poll_event();
+      capture_this_frame_events();      
+      
+      while (captured_events.size() > 0) {
+        auto msg = captured_events.front();
+        captured_events.pop_front();
 
-      // #app
-      std::tie(model,cmd) = tea::update(model,msg);
+        // #app
+        std::tie(model,cmd) = tea::update(model,msg);
+      }
 
       // #app
       auto ux = tea::view(model);
