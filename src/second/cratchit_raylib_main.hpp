@@ -17,9 +17,8 @@ private:
   const int INITIAL_SCREEN_HEIGHT = 720;
   const int FONT_HEIGHT = 32;
 
-  std::deque<tea::Msg> m_msg_queue{};
+  std::deque<tea::Msg> m_event_msg_queue{};
 
-  std::vector<int> m_code_point_buffer{};
   int m_frames_counter = 0;
   Font m_current_font{};
 

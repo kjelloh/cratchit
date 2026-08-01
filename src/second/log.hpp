@@ -2,6 +2,8 @@
 #include <string_view>
 #include <format>
 
+void log_flush();
+
 void log_business(std::string_view sv);
 void log_development_trace(std::string_view sv);
 void log_design_insufficiency(std::string_view sv);

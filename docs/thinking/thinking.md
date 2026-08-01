@@ -8,6 +8,37 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260801
+
+It seems it is now time to make the runtime poll for events in a consistent way.
+
+* The render() should niot generate any mesages.
+* We should make a poll_event function that handles all event handling.
+* So keyboard polling in render must move to tne poll_event function.
+
+I tried to call raylib for keyboard events in the poll_event function.
+
+* But this caused very strange behaviour!
+* Sometimes a backspace or enter would cause update to be called over and over?
+
+```sh
+2026-08-01 10:56:07.662: DEVELOPMENT_TRACE:'RootView::view() m_code_point_buffer:3' 
+2026-08-01 10:56:07.679: DEVELOPMENT_TRACE:'RootView::view() m_code_point_buffer:3' 
+2026-08-01 10:56:07.696: DEVELOPMENT_TRACE:'RootView::view() m_code_point_buffer:3' 
+2026-08-01 10:56:07.714: DEVELOPMENT_TRACE:'RootView::view() m_code_point_buffer:3' 
+2026-08-01 10:56:07.714: DEVELOPMENT_TRACE:'update for msg:No concrete_msg_to_string for msg type:'N3tea15BackspaceKeyMsgE' hash_code:13253691246745389160' 
+2026-08-01 10:56:07.714: DEVELOPMENT_TRACE:'RootView::update(m:No concrete_msg_to_string for msg type:'N3tea15BackspaceKeyMsgE' hash_code:13253691246745389160)' 
+2026-08-01 10:56:07.715: DEVELOPMENT_TRACE:'RootView::view() m_code_point_buffer:2' 2026-08-01 10:56:07.715: DEVELOPMENT_TRACE:'update for msg:No concrete_msg_to_string for msg type :'N3tea15BackspaceKeyMsgE' hash_code:13253691246745389160' 
+2026-08-01 10:56:07.715: DEVELOPMENT_TRACE:'RootView::update(m:No concrete_msg_to_string for msg type :'N3tea15BackspaceKeyMsgE' hash_code:13253691246745389160)'
+...
+```
+
+I am not sure exactly what I did wrong.
+
+* But my AI froends seems to sugest that raylib updates its internal state about keyboard events synced somehow with Begib/End drawing?
+* Still, If I poll both in poll_event and inside render whti should just result in doubling each event?
+* Maybe I did some other logical error?
+
 ## 20260731
 
 I think it is time to introduce 'command' handling.
@@ -236,6 +267,28 @@ I made a poll_event function that either polled the metronoome or called current
 
 It seems we should later move the polling of the keyboard out of the render() function?
 
+I am a bit worried that the design I have going may tirn out to requiore a lot of boilerplate? Like for the RootView to be able to blink the cursor on the CursorBlinkMsg I had to add both an internal bool state for the cursor visabiloty, an update for the message and a modifier to return a new state with mutatde cursor state.
+
+```cpp
+
+RootView RootView::with_cursor_visible(bool cursor_visible) const {
+  RootView result(*this);
+  result.m_cursor_visible = cursor_visible;
+  return result;
+}
+
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(tea::CursorBlinkMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  return {
+    {TransitionKind::Mutate, this->with_cursor_visible(!m_cursor_visible)}
+    ,tea::Cmd{}
+  };
+}
+
+
+```
+
+But on the other had - the code reads quite easilty? 
 
 ## 20260730
 

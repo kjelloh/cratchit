@@ -194,30 +194,25 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   // BEGIN Update
   //----------------------------------------------------------------------------------
 
-  int cached_for_msg_key{0};
-  bool backspace_detected{false};
+  // Poll for keyboard events
   {
     if (int key = GetCharPressed();key>0) {
-      cached_for_msg_key = key;
       if (key >= ' ') {
-        this->m_msg_queue.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
-        this->m_code_point_buffer.push_back(key);
+        this->m_event_msg_queue.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
       }
     }
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        this->m_msg_queue.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
-        backspace_detected = true;
-        if (this->m_code_point_buffer.size() > 0) this->m_code_point_buffer.pop_back();
+        this->m_event_msg_queue.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
     }
     if (IsKeyPressed(KEY_ENTER)) {
-        this->m_msg_queue.push_back(tea::Msg{tea::EnterKeyMsg{}});
+        this->m_event_msg_queue.push_back(tea::Msg{tea::EnterKeyMsg{}});
     }
 
     if (IsKeyPressed(KEY_ESCAPE)) {
-        this->m_msg_queue.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+        this->m_event_msg_queue.push_back(tea::Msg{tea::EscapeKeyMsg{}});
     }
 
-  }
+  } // Poll for keyboard events
 
   bool mouse_is_on_top_pane = false;
   bool mouse_is_on_middle_pane = false;
@@ -390,7 +385,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
     } // middle pane
 
     // Render bottom pane
-    if (true) {
+    {
 
       auto pane = bottom_pane;
       // auto row_count = bottom_pane_row_count;
@@ -423,106 +418,7 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
 
         } // render row
       } // for
-    }
-    else {
-      // Render hex values of read unicode code point characters (development trace)
-      {
-        auto row_ix = 0;
-
-        std::string unicode_hex_message{"UNICODE:"};
-        for (auto const& code_point : this->m_code_point_buffer) {
-          unicode_hex_message += std::format("<{:X}>",static_cast<uint32_t>(code_point));
-        }
-        DrawTextEx(
-          this->m_current_font                                  // this->m_current_font
-          ,unicode_hex_message.c_str()             // UTF8 chars
-          ,Vector2{ 
-              bottom_pane.x + padding         // x (col)
-            ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-          }
-          ,FONT_HEIGHT            // this->m_current_font size (pixels)
-          ,0                      // Spacing (pixels)
-          ,TEXT_COLOR               // tint
-        );
-      }
-
-      // Render hex values of read unicode code point characters (development trace)
-      {
-        auto row_ix = 1;
-
-        std::string utf8_hex_message{"UTF8:"};
-        for (auto const& code_point : this->m_code_point_buffer) {
-          auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
-          for (auto const& utf8_byte : utf8_bytes) {
-            utf8_hex_message += std::format("<{:X}>",utf8_byte);
-          }
-        }
-        DrawTextEx(
-          this->m_current_font                                  // this->m_current_font
-          ,utf8_hex_message.c_str()             // UTF8 chars
-          ,Vector2{ 
-              bottom_pane.x + padding         // x (col)
-            ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-          }
-          ,FONT_HEIGHT            // this->m_current_font size (pixels)
-          ,0                      // Spacing (pixels)
-          ,TEXT_COLOR               // tint
-        );
-      }
-
-      // Render user input text (unicode -> UTF8 -> raylib render)
-      {
-        auto row_ix = 2;
-
-        //----------------------------------------------------------------------------------
-        // BEGIN Unicode to UTF8 string
-        //----------------------------------------------------------------------------------
-
-        std::string utf8_string{">"};
-        for (auto const& code_point : this->m_code_point_buffer) {
-          auto utf8_bytes = unicode_to_utf8(static_cast<uint32_t>(code_point));
-          for (auto utf8_byte : utf8_bytes) utf8_string += static_cast<char>(utf8_byte);
-        }
-
-        //----------------------------------------------------------------------------------
-        // END Unicode to UTF8 string
-        //----------------------------------------------------------------------------------
-
-        DrawTextEx(
-          this->m_current_font                    // this->m_current_font
-          ,utf8_string.c_str()    // UTF8 chars
-          ,Vector2{ 
-            bottom_pane.x + padding         // x (col)
-            ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-          }
-          ,FONT_HEIGHT            // this->m_current_font size (pixels)
-          ,0                      // Spacing (pixels)
-          ,TEXT_COLOR               // tint
-        );
-        if (mouse_is_on_bottom_pane) {
-          if (((this->m_frames_counter/20)%2) == 0) {
-            auto text_size =  MeasureTextEx( // Font this->m_current_font, const char *text, float fontSize, float spacing
-              this->m_current_font
-              ,utf8_string.c_str()
-              ,FONT_HEIGHT
-              ,0
-            );
-            DrawTextEx(
-              this->m_current_font                    // this->m_current_font
-              ,"_"    // UTF8 chars
-              ,Vector2{ 
-                  bottom_pane.x + text_size.x + padding         // x (col)
-                ,bottom_pane.y + row_ix*(padding + FONT_HEIGHT)        // y (row)
-              }
-              ,FONT_HEIGHT            // this->m_current_font size (pixels)
-              ,0                      // Spacing (pixels)
-              ,TEXT_COLOR               // tint
-            );
-          }
-        }
-      }
-
-    }
+    } // bottom pane
 
     //----------------------------------------------------------------------------------
     // END key input processing and rendering
@@ -534,13 +430,11 @@ tea::Msg CratchitRaylibApp::render(tea::Ux const& ux) {
   } // anonymous drawing scope
   EndDrawing();
 
-  if (this->m_msg_queue.size() > 0) {
-    auto msg = this->m_msg_queue.front();
-    this->m_msg_queue.pop_front();
+  if (this->m_event_msg_queue.size() > 0) {
+    auto msg = this->m_event_msg_queue.front();
+    this->m_event_msg_queue.pop_front();
     return msg;
   }
 
-  if (cached_for_msg_key > 0) return tea::Msg{tea::UnicodeKeyMsg{cached_for_msg_key}};
-  if (backspace_detected) return tea::Msg{tea::BackspaceKeyMsg{}};
   return tea::Msg{};
 }

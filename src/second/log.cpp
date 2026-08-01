@@ -34,6 +34,18 @@ namespace detail {
   }
 } // detail
 
+void log_flush() {
+  if (log_file_ok()) {
+    log_file_instance().flush();
+  }
+  else {
+    throw std::runtime_error(std::format(
+    "FAILED to flush not-ok log file '{}'"
+    ,log_file_name));
+  }
+}
+
+
 void log_business(std::string_view sv) {
   detail::log_to_file(std::format("BUSINESS:'{}'",sv));
 }

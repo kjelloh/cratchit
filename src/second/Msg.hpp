@@ -4,8 +4,8 @@
 
 namespace tea {
 
-  struct NoMsg {
-  }; // NoMsg
+  struct NoMsg {};
+  struct TickMsg {};
 
   struct UnicodeKeyMsg {
     UnicodeKeyMsg() = delete;
@@ -20,6 +20,7 @@ namespace tea {
 
   using Msg = std::variant<
      NoMsg
+    ,TickMsg
     ,UnicodeKeyMsg
     ,BackspaceKeyMsg
     ,EnterKeyMsg
