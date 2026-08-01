@@ -123,23 +123,45 @@ int CratchitRaylibApp::run(int, char**) {
   PolledMetronome cursor_blink_metronome{};
   cursor_blink_metronome.start(500);
 
+  std::deque<tea::Msg> event_msg_queue{};
+
   while (!WindowShouldClose()) {
 
       // #app
       auto ux = tea::view(model);
 
       // #runtime
-      this->render(ux); // polls keyboard -> m_event_msg_queue
-
+      this->render(ux);
 
       // #runtime
-      auto poll_event = [&cursor_blink_metronome,this]() -> tea::Msg {
+      auto poll_event = [&cursor_blink_metronome,&event_msg_queue]() -> tea::Msg {
 
-        if (cursor_blink_metronome.expired()) this->m_event_msg_queue.push_back(tea::CursorBlinkMsg{});
+        // poll for cursor blink event
+        if (cursor_blink_metronome.expired()) event_msg_queue.push_back(tea::CursorBlinkMsg{});
 
-        if (this->m_event_msg_queue.size() > 0) {
-          auto msg = this->m_event_msg_queue.front();
-          this->m_event_msg_queue.pop_front();
+        // Poll for keyboard events
+        {
+          if (int key = GetCharPressed();key>0) {
+            if (key >= ' ') {
+              event_msg_queue.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
+            }
+          }
+          if (IsKeyPressed(KEY_BACKSPACE)) {
+              event_msg_queue.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
+          }
+          if (IsKeyPressed(KEY_ENTER)) {
+              event_msg_queue.push_back(tea::Msg{tea::EnterKeyMsg{}});
+          }
+
+          if (IsKeyPressed(KEY_ESCAPE)) {
+              event_msg_queue.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+          }
+
+        } // Poll for keyboard events
+
+        if (event_msg_queue.size() > 0) {
+          auto msg = event_msg_queue.front();
+          event_msg_queue.pop_front();
           return msg;
         }
 
@@ -206,26 +228,6 @@ void CratchitRaylibApp::render(tea::Ux const& ux) {
   //----------------------------------------------------------------------------------
   // BEGIN Update
   //----------------------------------------------------------------------------------
-
-  // Poll for keyboard events
-  {
-    if (int key = GetCharPressed();key>0) {
-      if (key >= ' ') {
-        this->m_event_msg_queue.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
-      }
-    }
-    if (IsKeyPressed(KEY_BACKSPACE)) {
-        this->m_event_msg_queue.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
-    }
-    if (IsKeyPressed(KEY_ENTER)) {
-        this->m_event_msg_queue.push_back(tea::Msg{tea::EnterKeyMsg{}});
-    }
-
-    if (IsKeyPressed(KEY_ESCAPE)) {
-        this->m_event_msg_queue.push_back(tea::Msg{tea::EscapeKeyMsg{}});
-    }
-
-  } // Poll for keyboard events
 
   bool mouse_is_on_top_pane = false;
   bool mouse_is_on_middle_pane = false;
