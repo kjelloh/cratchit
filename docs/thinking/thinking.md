@@ -50,6 +50,35 @@ So how can I express this in my code?
 
 * Maybe I can wrap this into an RIIA 'Frame' object?
 
+I went with a simpler approach by using naming and local value passing to reflect all-events-per-frame processing.
+
+I also realised something.
+
+* We started off by calling update and view for each frame.
+* This means in effect we require the cratchit to implement 'imidiate mode'.
+* That is, upadet and view is called for each frame.
+
+When I changed so that update was only called if any events occured I broke this design.
+
+* No big deal for now
+* But it can become a big deal in the future.
+
+If I only call update when there are actual events to process.
+
+* Then I should also avoid calling view if the model has not changed?
+* That is, if update is not called uppon to update each frame.
+* Then I should not call view to create an Ux for each frame?
+
+Or are those separate concepts?
+
+* No, I must decide if update will get a chance to do stuff for each frame or not.
+
+I decided to keep the for-each-frame update-view behaviour.
+
+* And thus I added the TickMsg back regardless of whether any events occurred or not.
+
+Thus update/view is always called each frame.
+
 ## 20260731
 
 I think it is time to introduce 'command' handling.

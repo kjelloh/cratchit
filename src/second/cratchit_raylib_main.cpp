@@ -115,6 +115,7 @@ int CratchitRaylibApp::run(int, char**) {
 
   // #app
   auto [model,cmd] = tea::init();
+  // TODO: Handle cmd
 
   while (!WindowShouldClose()) {
 
@@ -128,7 +129,7 @@ int CratchitRaylibApp::run(int, char**) {
 
         // Poll raylib state for ALL keyboard events
         {
-          while (int key = GetCharPressed()) {
+          if (int key = GetCharPressed();key>0) {
             if (key >= ' ') {
               result.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
             }
@@ -146,12 +147,27 @@ int CratchitRaylibApp::run(int, char**) {
 
         } // Poll for keyboard events
 
+        // Provide for imidiate mode update
+        // Note: We use raylib for imidiate mode rendering.
+        //       This does not mean the client app has to operate in imidiate mode.
+        //       But calling view for a new Ux only if the model changes 
+        //       requires that we (the runtime) implements this behaviour.
+        //       For now we do not. So to ensure we call update at least once for each call to view
+        //       this tick is crucial for now.
+        // Also: If we only produce a Tick when there are no other event messages.
+        //       Then we rob the cliient of the ability to trigger on Tick for these frames.
+        //       The safe bet for now is to always 'tick'.
+        result.push_back(tea::TickMsg{});
+
         return result;
 
       };
 
       // update model for all events that have occured since last frame
-      for (auto const& msg : this_frame_events_msgs()) std::tie(model,cmd) = tea::update(model,msg);
+      for (auto const& msg : this_frame_events_msgs()) {
+        std::tie(model,cmd) = tea::update(model,msg);
+        // TODO: Handle cmd (push to background thread execution -> Msg?)
+      }
 
       // #app
       auto ux = tea::view(model);
