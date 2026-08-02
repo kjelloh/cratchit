@@ -71,6 +71,9 @@ std::unique_ptr<SubscibeableIfc> to_emitter(TestEventDescriptor const& d) {
 
 std::vector<tea::Msg> SubHandler::poll() {
   std::vector<tea::Msg> result{};
+  for (auto const& [descriptor,emitter] : this->m_active_subscriptions) {
+    if (auto maybe_msg = emitter->poll()) result.push_back(*maybe_msg);
+  }
   return result;
 } // SubHandler::poll()
 
@@ -105,7 +108,7 @@ void SubHandler::update(Sub const& sub) {
     ,active.begin(),active.end()
     ,std::back_inserter(to_add)
   );
-  
+
   for (auto const& d : to_add) {
     std::visit(
       [this](auto const& concrete_descriptor){
