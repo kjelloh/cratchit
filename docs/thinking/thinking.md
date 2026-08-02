@@ -45,6 +45,38 @@ I then carried on to implement SubHandler update.
   * In this way I can manipulate the mapping descriptor -> emitter by just the owning pointer to emitter instance
   * In effect this is a 'type erasure' so that the manager can call eny emitter as-if only having the interface
 
+I implemented the SubHandler::update add-new-emitter using,
+
+* std::visit on the provided descriptor variant
+
+```cpp
+  for (auto const& d : to_add) {
+    std::visit(
+      [this](auto const& concrete_descriptor){
+        this->m_active_subscriptions[concrete_descriptor] = to_emitter(concrete_descriptor);
+        this->m_active_subscriptions[concrete_descriptor]->start();
+      }
+      ,d
+    );
+    // ...
+  }
+
+```
+
+* and an overloaded to_emitter function.
+
+```cpp
+std::unique_ptr<SubscibeableIfc> to_emitter(MetronomeEventDescriptor const& d) {
+  return std::make_unique<detail::MetronomeEventEmitter>(d);
+}
+
+std::unique_ptr<SubscibeableIfc> to_emitter(TestEventDescriptor const& d) {
+  return std::make_unique<detail::TestEventEmitter>(d);
+}
+
+```
+
+A little crude perhaps. But it seem to work.
 
 ## 20260801
 

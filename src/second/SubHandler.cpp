@@ -6,8 +6,9 @@
 
 namespace detail {
 
-  class TestEventEmitter {
+  class TestEventEmitter : public SubscibeableIfc {
   public:
+    TestEventEmitter(TestEventDescriptor const&) {}
     void start() {};
     void stop() {};
     std::optional<tea::Msg> poll() {
@@ -60,6 +61,14 @@ namespace detail {
 
 } // detail
 
+std::unique_ptr<SubscibeableIfc> to_emitter(MetronomeEventDescriptor const& d) {
+  return std::make_unique<detail::MetronomeEventEmitter>(d);
+}
+
+std::unique_ptr<SubscibeableIfc> to_emitter(TestEventDescriptor const& d) {
+  return std::make_unique<detail::TestEventEmitter>(d);
+}
+
 std::vector<tea::Msg> SubHandler::poll() {
   std::vector<tea::Msg> result{};
   return result;
@@ -96,10 +105,19 @@ void SubHandler::update(Sub const& sub) {
     ,active.begin(),active.end()
     ,std::back_inserter(to_add)
   );
+  
   for (auto const& d : to_add) {
-    log_design_insufficiency(
-       "SubHandler::update() for descriptor variant ix:{}"
+    std::visit(
+      [this](auto const& concrete_descriptor){
+        this->m_active_subscriptions[concrete_descriptor] = to_emitter(concrete_descriptor);
+        this->m_active_subscriptions[concrete_descriptor]->start();
+      }
+      ,d
+    );
+    log_development_trace(
+       "SubHandler::update() ok for descriptor variant ix:{}. now {} active"
       ,d.index()
+      ,this->m_active_subscriptions.size()
     );
   }
 
