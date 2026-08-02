@@ -1,5 +1,7 @@
 #pragma once
 
+#include "subscribeables.hpp"
+
 #include <variant>
 
 namespace tea {
@@ -17,6 +19,9 @@ namespace tea {
   struct EnterKeyMsg {};
   struct EscapeKeyMsg {};
   struct CursorBlinkMsg {};
+  struct TestEventMsg {
+    TestEventDescriptor::payload_type payload;
+  }; // TestEventMsg
 
   using Msg = std::variant<
      NoMsg
@@ -26,6 +31,7 @@ namespace tea {
     ,EnterKeyMsg
     ,EscapeKeyMsg
     ,CursorBlinkMsg
+    ,TestEventMsg
   >;
 
 } // tea

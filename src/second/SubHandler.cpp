@@ -1,16 +1,25 @@
 #include "SubHandler.hpp"
 
+#include <optional>
+
 
 namespace detail {
-  void PolledMetronome::start(size_t interval_in_ms) {
-    m_interval_in_ms = std::chrono::milliseconds(interval_in_ms);
+
+  MetronomeEventEmitter::MetronomeEventEmitter(MetronomeEventDescriptor const& descriptor) 
+    : m_descriptor{descriptor} {
+  }
+
+  void MetronomeEventEmitter::start() {
+    m_interval_in_ms = std::chrono::milliseconds(m_descriptor.interval_in_ms);
     m_next_click_time_point = Clock::now() + m_interval_in_ms;
     m_enabled = true;
-  }
-  void PolledMetronome::stop() {
+  } // MetronomeEventEmitter::start()
+
+  void MetronomeEventEmitter::stop() {
     m_enabled = false;
-  }
-  bool PolledMetronome::expired() {
+  } // MetronomeEventEmitter::stop()
+
+  bool MetronomeEventEmitter::expired() {
     if (!m_enabled) return false;
 
     auto now = Clock::now();
@@ -20,7 +29,15 @@ namespace detail {
       return true;
     }
     return false;
+  } // MetronomeEventEmitter::expired()
+
+  std::optional<tea::Msg> MetronomeEventEmitter::poll() {
+    if (expired()) {
+      return to_event_msg(m_descriptor, MetronomeEventDescriptor::payload_type{});
+    }
+    return std::nullopt;
   }
+
 } // detail
 
 std::vector<tea::Msg> SubHandler::poll() {
@@ -29,4 +46,8 @@ std::vector<tea::Msg> SubHandler::poll() {
 } // SubHandler::poll()
 
 void SubHandler::update(Sub const&) {
+  // What changed?
+  std::map<SubDescriptor,Subscibeable> already_active_subscriptions{};
+  std::map<SubDescriptor,Subscibeable> now_deactivated_subscriptions{};
+  std::map<SubDescriptor,Subscibeable> new_to_activate_subscriptions{};
 } // SubHandler::update()

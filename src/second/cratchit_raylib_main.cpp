@@ -107,8 +107,8 @@ int CratchitRaylibApp::run(int, char**) {
   SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
 
   // TODO: Move into SubHandler and subscriptions mechanism
-  detail::PolledMetronome cursor_blink_metronome{};
-  cursor_blink_metronome.start(500);
+  detail::MetronomeEventEmitter cursor_blink_metronome{MetronomeEventDescriptor{500}};
+  cursor_blink_metronome.start();
 
   SubHandler sub_handler{};
 

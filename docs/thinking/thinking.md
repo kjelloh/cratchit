@@ -8,6 +8,31 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260802
+
+I think I may have understood how the subscription mechanism can work. At the core we have a 'subscibebable'.
+
+* My app needs a way to tell the runtime to activate this subscibebale.
+* The runtime needs a way to implement the subscibebable.
+* And my app and the runtime need to agree on what message and what payload to exchange for the event happening.
+
+Now I imagione I can make this possible in C++.
+
+* We can have a subscibebable unit that defines how to describe an event and event message payload.
+* My app can provide the subscription unit with a function to construct the event message
+  * The to_event_msg function can be: event_descriptor -> event_payload -> Msg
+* We already have the unit for the 'subscription handler' (SubHandler) used by the runtime.
+  * The SubHandler ties an event 'descriptor' with its 'emitter' and the to_event_msg.
+
+In my head this seems to work. Lets try!
+
+It seems can can actually have each event descritpro in subscibebables define the evemt message payload type to enable the type system to query for it.
+
+* My app needs this payload type to define a message type it knows about and can process.
+* My app can now in subscriptions unit provide a to_event_msg: descriptor -> descriptor::payload_type -> Msg
+
+So this still seems feasable?
+
 ## 20260801
 
 It seems it is now time to make the runtime poll for events in a consistent way.

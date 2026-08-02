@@ -1,17 +1,11 @@
 #pragma once
 #include "Model.hpp"
+#include "subscribeables.hpp"
 
-#include <chrono>
+tea::Msg to_event_msg(MetronomeEventDescriptor const&, MetronomeEventDescriptor::payload_type const&);
+tea::Msg to_event_msg(TestEventDescriptor const&, TestEventDescriptor::payload_type const&);
 
-// Concrete subscription descriptor for a Metronome event
-struct MetronomeSub {
-  const size_t interval_in_ms;
-  const tea::Msg on_event_msg{};
-}; // MetronomeSub
+using SubDescriptor = std::variant<MetronomeEventDescriptor, TestEventDescriptor>; // SubDescriptor
 
-using SubDescriptor = std::variant<MetronomeSub>; // SubDescriptor
-
-// Elm type name Sub
 using Sub = std::vector<SubDescriptor>; // Sub lists requested subscriptions
-
 Sub subscriptions(tea::Model const& model);
