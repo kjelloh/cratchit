@@ -33,6 +33,19 @@ It seems can can actually have each event descritpro in subscibebables define th
 
 So this still seems feasable?
 
+And yes it was.
+
+I then carried on to implement SubHandler update.
+
+* I had to add default operator<=> to descriptors to implement SubHandler update
+  * It needs to be able to compare descriptors as 'key' values
+  * E.g., finding them in the std:::map
+  * compare provided sub and currently active
+* I made the SubHandler manage emitter instances through an an abstract base clasl interface (SubscibeableIfc)
+  * In this way I can manipulate the mapping descriptor -> emitter by just the owning pointer to emitter instance
+  * In effect this is a 'type erasure' so that the manager can call eny emitter as-if only having the interface
+
+
 ## 20260801
 
 It seems it is now time to make the runtime poll for events in a consistent way.

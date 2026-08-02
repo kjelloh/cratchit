@@ -2,6 +2,7 @@
 
 #include "subscriptions.hpp" // SubDescriptor,Sub,...
 #include <map>
+#include <memory> // std::unique_ptr
 
 namespace detail {
   // TODO: Move to cpp-file when fully moved to SubHandler and subscriptions mechanism
@@ -19,24 +20,15 @@ namespace detail {
     std::chrono::milliseconds m_interval_in_ms{};
     Clock::time_point m_next_click_time_point{};
   }; // PolledTimer
-
-  class TestEventEmitter {
-  public:
-    void start() {};
-    void stop() {};
-    std::optional<tea::Msg> poll() {
-      static size_t call_counter{0};
-      if (call_counter++ % 60 == 0) {
-        return to_event_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
-      }
-      return std::nullopt;
-    } // TestEventEmitter::poll()
-  private:
-  }; // TestEventEmitter
-
 } // detail
-
-using Subscibeable = std::variant<detail::MetronomeEventEmitter>; // Subscibeable
+// Use overload to dispatch to concrete emitter
+class SubscibeableIfc {
+public:
+  virtual ~SubscibeableIfc() = default;
+  virtual void start() = 0;
+  virtual void stop() = 0;
+  virtual std::optional<tea::Msg> poll() = 0;
+};
 
 class SubHandler {
   public:
@@ -44,5 +36,5 @@ class SubHandler {
     void update(Sub const& sub);
 
   private:
-    std::map<SubDescriptor,Subscibeable> m_active_subscriptions{};
+    std::map<SubDescriptor,std::unique_ptr<SubscibeableIfc>> m_active_subscriptions{};
   }; // SubHandler

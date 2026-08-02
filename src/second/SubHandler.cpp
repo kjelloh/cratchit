@@ -1,6 +1,26 @@
 #include "SubHandler.hpp"
+#include "log.hpp"
 
 #include <optional>
+#include <algorithm> // std::set_difference,
+
+namespace detail {
+
+  class TestEventEmitter {
+  public:
+    void start() {};
+    void stop() {};
+    std::optional<tea::Msg> poll() {
+      static size_t call_counter{0};
+      if (call_counter++ % 60 == 0) {
+        return to_event_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
+      }
+      return std::nullopt;
+    } // TestEventEmitter::poll()
+  private:
+  }; // TestEventEmitter
+
+} // detail
 
 
 namespace detail {
@@ -45,9 +65,42 @@ std::vector<tea::Msg> SubHandler::poll() {
   return result;
 } // SubHandler::poll()
 
-void SubHandler::update(Sub const&) {
-  // What changed?
-  std::map<SubDescriptor,Subscibeable> already_active_subscriptions{};
-  std::map<SubDescriptor,Subscibeable> now_deactivated_subscriptions{};
-  std::map<SubDescriptor,Subscibeable> new_to_activate_subscriptions{};
+void SubHandler::update(Sub const& sub) {
+  // sub contains the descriptors of the desired active subscibable events
+  Sub active = std::accumulate(m_active_subscriptions.begin(),m_active_subscriptions.end(),Sub{},[](
+     Sub acc
+    ,auto const& entry) {
+    acc.push_back(entry.first);
+    return acc;
+  });
+
+  // active - sub = in active but not in sub
+  std::vector<Sub::value_type> to_remove{};
+  std::set_difference(
+     active.begin(),active.end()
+    ,sub.begin(),sub.end()
+    ,std::back_inserter(to_remove)
+  );
+  for (auto const& d : to_remove) {
+    auto iter = m_active_subscriptions.find(d);
+    if (iter != m_active_subscriptions.end()) {
+      iter->second->stop();
+      m_active_subscriptions.erase(iter);
+    }
+  }
+
+  // sub - active = in sub but not in active
+  std::vector<Sub::value_type> to_add{};
+  std::set_difference(
+     sub.begin(),sub.end()
+    ,active.begin(),active.end()
+    ,std::back_inserter(to_add)
+  );
+  for (auto const& d : to_add) {
+    log_design_insufficiency(
+       "SubHandler::update() for descriptor variant ix:{}"
+      ,d.index()
+    );
+  }
+
 } // SubHandler::update()
