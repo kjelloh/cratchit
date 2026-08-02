@@ -106,10 +106,6 @@ int CratchitRaylibApp::run(int, char**) {
 
   SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
 
-  // TODO: Move into SubHandler and subscriptions mechanism
-  detail::MetronomeEventEmitter cursor_blink_metronome{MetronomeEventDescriptor{500}};
-  cursor_blink_metronome.start();
-
   SubHandler sub_handler{};
 
   //--------------------------------------------------------------------------------------
@@ -124,16 +120,9 @@ int CratchitRaylibApp::run(int, char**) {
 
       sub_handler.update(subscriptions(model));
 
-      // #runtime
-      // TODO: Replace cursor_blink_metronome with subscriptions mechanism
-
-      auto this_frame_events_msgs = [&sub_handler,&cursor_blink_metronome]() {
+      auto this_frame_events_msgs = [&sub_handler]() {
 
         std::vector<tea::Msg> result{};
-
-        // poll for cursor blink event
-        // TODO: Move into sub_handler.poll()
-        if (cursor_blink_metronome.expired()) result.push_back(tea::CursorBlinkMsg{});
         
         for (auto const& msg : sub_handler.poll()) {
           result.push_back(msg);
