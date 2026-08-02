@@ -76,13 +76,22 @@ std::unique_ptr<SubscibeableIfc> to_emitter(TestEventDescriptor const& d) {
 
 ```
 
-A little crude perhaps. But it seem to work.
+A litle crude perhaps. But it seem to work.
+
+And now when we have a somewhat working subscripton mechanism I actually removed the per-frame TickMsg in runtime.
+
+* My app can activate a Metronome -> TickMsg if it so requires in some view state
+
+Now, the runtime still calls view(model) for each frame.
+
+* So I suppose we can say that view() is used in imidiate-mode.
+* That is, the runtime does not treat the ux returned by view() as representing a retain-mode state.
 
 ## 20260801
 
 It seems it is now time to make the runtime poll for events in a consistent way.
 
-* The render() should niot generate any mesages.
+* The render() should not generate any mesages.
 * We should make a poll_event function that handles all event handling.
 * So keyboard polling in render must move to tne poll_event function.
 
