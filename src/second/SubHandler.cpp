@@ -6,11 +6,26 @@
 
 namespace detail {
 
+  // TODO: Move to cpp-file when fully moved to SubHandler and subscriptions mechanism
+  class MetronomeEventEmitter : public EmitterIfc {
+  public:
+    MetronomeEventEmitter(MetronomeEventDescriptor const& descriptor);
+    std::optional<tea::Msg> poll();
+  private:
+    const MetronomeEventDescriptor m_descriptor{};
+    using Clock = std::chrono::steady_clock;
+    std::chrono::milliseconds m_interval_in_ms{};
+    Clock::time_point m_next_click_time_point{};
+    bool expired();
+  }; // PolledTimer
+
+} // detail
+
+namespace detail {
+
   class TestEventEmitter : public EmitterIfc {
   public:
     TestEventEmitter(TestEventDescriptor const&) {}
-    void start() {};
-    void stop() {};
     std::optional<tea::Msg> poll() {
       static size_t call_counter{0};
       if (call_counter++ % 60 == 0) {
@@ -28,20 +43,11 @@ namespace detail {
 
   MetronomeEventEmitter::MetronomeEventEmitter(MetronomeEventDescriptor const& descriptor) 
     : m_descriptor{descriptor} {
-  }
-
-  void MetronomeEventEmitter::start() {
     m_interval_in_ms = std::chrono::milliseconds(m_descriptor.interval_in_ms);
     m_next_click_time_point = Clock::now() + m_interval_in_ms;
-    m_enabled = true;
-  } // MetronomeEventEmitter::start()
-
-  void MetronomeEventEmitter::stop() {
-    m_enabled = false;
-  } // MetronomeEventEmitter::stop()
+  }
 
   bool MetronomeEventEmitter::expired() {
-    if (!m_enabled) return false;
 
     auto now = Clock::now();
 
@@ -96,7 +102,6 @@ void SubHandler::update(Sub const& sub) {
   for (auto const& d : to_remove) {
     auto iter = m_active_subscriptions.find(d);
     if (iter != m_active_subscriptions.end()) {
-      iter->second->stop();
       m_active_subscriptions.erase(iter);
     }
   }
@@ -113,7 +118,6 @@ void SubHandler::update(Sub const& sub) {
     std::visit(
       [this](auto const& concrete_descriptor){
         this->m_active_subscriptions[concrete_descriptor] = to_emitter(concrete_descriptor);
-        this->m_active_subscriptions[concrete_descriptor]->start();
       }
       ,d
     );
