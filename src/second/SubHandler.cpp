@@ -6,7 +6,7 @@
 
 namespace detail {
 
-  class TestEventEmitter : public SubscibeableIfc {
+  class TestEventEmitter : public EmitterIfc {
   public:
     TestEventEmitter(TestEventDescriptor const&) {}
     void start() {};
@@ -61,11 +61,11 @@ namespace detail {
 
 } // detail
 
-std::unique_ptr<SubscibeableIfc> to_emitter(MetronomeEventDescriptor const& d) {
+std::unique_ptr<EmitterIfc> to_emitter(MetronomeEventDescriptor const& d) {
   return std::make_unique<detail::MetronomeEventEmitter>(d);
 }
 
-std::unique_ptr<SubscibeableIfc> to_emitter(TestEventDescriptor const& d) {
+std::unique_ptr<EmitterIfc> to_emitter(TestEventDescriptor const& d) {
   return std::make_unique<detail::TestEventEmitter>(d);
 }
 

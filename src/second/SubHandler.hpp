@@ -5,9 +5,9 @@
 #include <memory> // std::unique_ptr
 
 // Use overload to dispatch to concrete emitter
-class SubscibeableIfc {
+class EmitterIfc {
 public:
-  virtual ~SubscibeableIfc() = default;
+  virtual ~EmitterIfc() = default;
   virtual void start() = 0;
   virtual void stop() = 0;
   virtual std::optional<tea::Msg> poll() = 0;
@@ -16,7 +16,7 @@ public:
 namespace detail {
 
   // TODO: Move to cpp-file when fully moved to SubHandler and subscriptions mechanism
-  class MetronomeEventEmitter : public SubscibeableIfc {
+  class MetronomeEventEmitter : public EmitterIfc {
   public:
     MetronomeEventEmitter(MetronomeEventDescriptor const& descriptor);
     void start();
@@ -39,5 +39,5 @@ class SubHandler {
     void update(Sub const& sub);
 
   private:
-    std::map<SubDescriptor,std::unique_ptr<SubscibeableIfc>> m_active_subscriptions{};
+    std::map<SubDescriptor,std::unique_ptr<EmitterIfc>> m_active_subscriptions{};
   }; // SubHandler
