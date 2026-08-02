@@ -1,3 +1,9 @@
+/**
+ * This is the The Elm Architecture (TEA) user interface representation
+ * It is part of the TEA framework.
+ * The TEA runtime calls the client view: Model -> Ux
+ * And the TEA runtime render knows how to interpret it into actual window output
+ */
 #pragma once
 
 #include <vector>

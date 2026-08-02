@@ -1,3 +1,8 @@
+/**
+ * This is teh cratchit app 'front end' for The Elm Architecture (TEA) runtime 
+ * with a raylib rendering backend 
+ */
+
 #pragma once
 
 #include "raylib.h" // See https://www.raylib.com/cheatsheet/cheatsheet.html, https://github.com/raysan5/raylib

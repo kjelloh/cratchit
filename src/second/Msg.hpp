@@ -1,3 +1,9 @@
+/**
+ * This is The Elm Architecture (TEA) client provided Msg type
+ * The name Msg is used to honor Elm tutorial on the Elm architecture
+ * See https://guide.elm-lang.org/architecture/
+ */
+
 #pragma once
 
 #include "subscribeables.hpp"

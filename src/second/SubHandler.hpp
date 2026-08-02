@@ -1,3 +1,7 @@
+/**
+ * This is The Elm Architecture (TEA) runtime event subscription handler
+ * It knows how to ascociate event descriptors with event emitters
+ */
 #pragma once
 
 #include "subscriptions.hpp" // SubDescriptor,Sub,...
