@@ -8,6 +8,66 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260803
+
+I feel I would like to implement the subscription mechanism ```text descriptor -> emitter``` using a more direct type-to-type compile time dispatch.
+
+* Consider class template specialisation?
+* We can have a base case and then specialisations for supportred descriptors?
+
+```cpp
+template <typename D>
+class Emitter {};
+```
+
+* So the aim is to replace current add-new part of the SubHandler::update.
+
+```cpp
+  // ...
+  for (auto const& d : to_add) {
+    std::visit(
+      [this](auto const& concrete_descriptor){
+        this->m_active_subscriptions[concrete_descriptor] = to_emitter(concrete_descriptor);
+      }
+      ,d
+    );
+    log_development_trace(
+       "SubHandler::update() ok for descriptor variant ix:{}. now {} active"
+      ,d.index()
+      ,this->m_active_subscriptions.size()
+    );
+  }
+  // ...
+```
+
+  * Where the compile time dispatch on the descriptor type happens with the overloaded call to to_emitter.
+
+* We should be able to dispatch to concrete Emitter class and instantiate it in-place?
+
+```cpp
+  // ...
+  using D = /* the type of concrete_descriptor */
+  this->m_active_emitters[concrete_descriptor] = Emitter<D>{concrete_descriptor};
+  // ...
+```
+
+Let's try and gain some experieve shall we?
+
+Ok, I now realise one think I don't like with template specialisation vs abstract class overload.
+
+* With template specialisation I have to put everything exposed in the header file.
+* With abstract base class overload I can have actual overlaod isolated in cpp-file.
+
+So the middle ground here may be the PIMPL-idiom?
+
+NO. Thta did not work either.
+
+* The Emitter specialisation still needs to know what Emitter to actually implement.
+* And thus the concrete emitter class needs to be in the header file.
+* So compile time dispatch on descriptor type requires concrete emitter to be i the header!
+
+So I stick with abstract (interface returning) factory function to_emitter(descriptor) for now.
+
 ## 20260802
 
 I think I may have understood how the subscription mechanism can work. At the core we have a 'subscibebable'.
