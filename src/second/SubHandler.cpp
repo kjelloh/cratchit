@@ -23,18 +23,26 @@ namespace detail {
 
 namespace detail {
 
+  // #TEA::events: Concrete event emitter
   class TestEventEmitter : public EmitterIfc {
   public:
-    TestEventEmitter(TestEventDescriptor const&) {}
-    std::optional<tea::Msg> poll() {
-      static size_t call_counter{0};
-      if (call_counter++ % 60 == 0) {
-        return to_event_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
-      }
-      return std::nullopt;
-    } // TestEventEmitter::poll()
+    TestEventEmitter(TestEventDescriptor const&);
+    std::optional<tea::Msg> poll();
   private:
   }; // TestEventEmitter
+
+  // #TEA::events: Concrete event emitter construct from descriptor
+  TestEventEmitter::TestEventEmitter(TestEventDescriptor const&) {}
+
+  // #TEA::events: Poll concrete emitter
+  std::optional<tea::Msg> TestEventEmitter::poll() {
+    static size_t call_counter{0};
+    if (call_counter++ % 60 == 0) {
+      return to_event_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
+    }
+    return std::nullopt;
+  } // TestEventEmitter::poll()
+
 
 } // detail
 
@@ -71,10 +79,12 @@ std::unique_ptr<EmitterIfc> to_emitter(MetronomeEventDescriptor const& d) {
   return std::make_unique<detail::MetronomeEventEmitter>(d);
 }
 
+// #TEA::events: Free fatcory function for an emitter as required by descriptor type and value
 std::unique_ptr<EmitterIfc> to_emitter(TestEventDescriptor const& d) {
   return std::make_unique<detail::TestEventEmitter>(d);
 }
 
+// #TEA::events: Subscriptions handler poll of all active emitters
 std::vector<tea::Msg> SubHandler::poll() {
   std::vector<tea::Msg> result{};
   for (auto const& [descriptor,emitter] : this->m_active_subscriptions) {
@@ -83,6 +93,7 @@ std::vector<tea::Msg> SubHandler::poll() {
   return result;
 } // SubHandler::poll()
 
+// #TEA::events: Subscriptions handler update of event emitters required to be active
 void SubHandler::update(Sub const& sub) {
   // sub contains the descriptors of the desired active subscibable events
   Sub active = std::accumulate(m_active_subscriptions.begin(),m_active_subscriptions.end(),Sub{},[](
@@ -93,7 +104,7 @@ void SubHandler::update(Sub const& sub) {
   });
 
   // active - sub = in active but not in sub
-  std::vector<Sub::value_type> to_remove{};
+  Sub to_remove{};
   std::set_difference(
      active.begin(),active.end()
     ,sub.begin(),sub.end()
@@ -107,7 +118,7 @@ void SubHandler::update(Sub const& sub) {
   }
 
   // sub - active = in sub but not in active
-  std::vector<Sub::value_type> to_add{};
+  Sub to_add{};
   std::set_difference(
      sub.begin(),sub.end()
     ,active.begin(),active.end()

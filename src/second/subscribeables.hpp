@@ -19,11 +19,13 @@ struct MetronomeEventDescriptor {
   struct payload_type {};
 }; // MetronomeEventDescriptor
 
+// #TEA::events: Concrete test event descriptor
 struct TestEventDescriptor {
   auto operator<=>(TestEventDescriptor const&) const = default;
   struct payload_type {int value;};
 }; // TestEventDescriptor
 
+// #TEA::events: Possible event descriptor variants
 using Subscribeable = std::variant<
    MetronomeEventDescriptor
   ,TestEventDescriptor

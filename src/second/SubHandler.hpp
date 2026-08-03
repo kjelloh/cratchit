@@ -8,13 +8,14 @@
 #include <map>
 #include <memory> // std::unique_ptr
 
-// Use overload to dispatch to concrete emitter
+// #TEA::events: All event emitters interface
 class EmitterIfc {
 public:
   virtual ~EmitterIfc() = default;
   virtual std::optional<tea::Msg> poll() = 0;
 };
 
+// #TEA::events: The subscriptions (Sub) handler
 class SubHandler {
   public:
     std::vector<tea::Msg> poll();

@@ -25,6 +25,8 @@ namespace tea {
   struct EnterKeyMsg {};
   struct EscapeKeyMsg {};
   struct CursorBlinkMsg {};
+
+  // #TEA::events: Concrete event message
   struct TestEventMsg {
     TestEventDescriptor::payload_type payload;
   }; // TestEventMsg

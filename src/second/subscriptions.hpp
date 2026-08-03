@@ -14,10 +14,16 @@
  * Enables TEA runtime to 'know' how to return the message ascociated with ascociated event
  */
 tea::Msg to_event_msg(MetronomeEventDescriptor const&, MetronomeEventDescriptor::payload_type const&);
+
+// #TEA::events: Free factory function creates message as required by descriptor and message payload
 tea::Msg to_event_msg(TestEventDescriptor const&, TestEventDescriptor::payload_type const&);
 
+// #TEA::events: Event descriptor alias
 using SubDescriptor = Subscribeable;
 
-// Use the name Sub to honour the Elm tutorial on The Elm Architecture (TEA)
-using Sub = std::vector<SubDescriptor>; // Sub lists requested subscriptions
+// #TEA::events: List of descriptors of events to listen to
+using Sub = std::vector<SubDescriptor>;
+
+// #TEA::events: Client looks into model and returns list of descriptors of events to listen to
+// See code tagging with '#TEA::events' for relevant components
 Sub subscriptions(tea::Model const& model);

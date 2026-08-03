@@ -68,6 +68,130 @@ NO. Thta did not work either.
 
 So I stick with abstract (interface returning) factory function to_emitter(descriptor) for now.
 
+It seems the subscription mechanism I have implemented is in fact quite involved!
+
+```cpp
+
+// TEA runtime
+while (!WindowShouldClose()) {
+
+  // #TEA::events: Update active events as returned by call to client subscriptions: model -> Sub
+  sub_handler.update(subscriptions(model));
+
+  auto this_frame_events_msgs = [&sub_handler]() {
+    // ...        
+    // #TEA::events: Call subscriptions handler for fired events as messages
+    for (auto const& msg : sub_handler.poll()) {
+      result.push_back(msg);
+    }
+    // ...
+  } // this_frame_events_msgs
+
+  // process messages
+  
+} // while
+
+// #TEA::events: Client looks into model and returns list of descriptors of events to listen to
+Sub subscriptions(tea::Model const&) {
+  // ...
+  result.push_back(TestEventDescriptor{}); // POC of subscription to event with payload
+  // ...
+}
+
+// #TEA::events: List of descriptors of events to listen to
+using Sub = std::vector<SubDescriptor>;
+
+// #TEA::events: Event descriptor alias
+using SubDescriptor = Subscribeable;
+
+// #TEA::events: Possible event descriptor variants
+using Subscribeable = std::variant<
+  // ...
+  ,TestEventDescriptor
+  // ...
+>;
+
+// #TEA::events: Concrete test event descriptor
+struct TestEventDescriptor {
+  auto operator<=>(TestEventDescriptor const&) const = default;
+  struct payload_type {int value;};
+}; // TestEventDescriptor
+
+// #TEA::events: The subscriptions handler
+class SubHandler {
+public:
+  std::vector<tea::Msg> poll();
+  void update(Sub const& sub);
+
+private:
+  std::map<SubDescriptor,std::unique_ptr<EmitterIfc>> m_active_subscriptions{};
+}; // SubHandler
+
+// #TEA::events: All event emitters interface
+class EmitterIfc {
+public:
+  virtual ~EmitterIfc() = default;
+  virtual std::optional<tea::Msg> poll() = 0;
+};
+
+// #TEA::events: Subscriptions handler update of event emitters required to be active
+void SubHandler::update(Sub const& sub) {
+  // sub contains the descriptors of the desired active subscibable events
+  // Sub active = ...
+  // Sub to_remove = ...
+  // Sub to_add = ...
+
+  for (auto const& d : to_add) {
+    std::visit(
+      [this](auto const& concrete_descriptor){
+        this->m_active_subscriptions[concrete_descriptor] = to_emitter(concrete_descriptor);
+      }
+      ,d
+    );
+  }
+
+} // SubHandler::update()
+
+// #TEA::events: Free fatcory function for an emitter as required by descriptor type and value
+std::unique_ptr<EmitterIfc> to_emitter(TestEventDescriptor const& d) {
+  return std::make_unique<detail::TestEventEmitter>(d);
+}
+
+// #TEA::events: Concrete event emitter
+class TestEventEmitter : public EmitterIfc {...
+
+// #TEA::events: Concrete event emitter construct from descriptor
+TestEventEmitter::TestEventEmitter(TestEventDescriptor const&);
+
+// #TEA::events: Subscriptions handler poll of all active emitters
+std::vector<tea::Msg> SubHandler::poll() {
+  std::vector<tea::Msg> result{};
+  for (auto const& [descriptor,emitter] : this->m_active_subscriptions) {
+    if (auto maybe_msg = emitter->poll()) result.push_back(*maybe_msg);
+  }
+  return result;
+} // SubHandler::poll()
+
+// #TEA::events: Poll concrete emitter
+std::optional<tea::Msg> TestEventEmitter::poll() {
+  static size_t call_counter{0};
+  if (call_counter++ % 60 == 0) {
+    return to_event_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
+  }
+  return std::nullopt;
+} // TestEventEmitter::poll()
+
+// #TEA::events: Free factory function creates message as required by descriptor and message payload
+tea::Msg to_event_msg(TestEventDescriptor const&, TestEventDescriptor::payload_type const& payload) {
+  return tea::TestEventMsg(payload);
+}
+
+// #TEA::events: Concrete event message
+struct TestEventMsg {
+  TestEventDescriptor::payload_type payload;
+}; // TestEventMsg
+
+```
 ## 20260802
 
 I think I may have understood how the subscription mechanism can work. At the core we have a 'subscibebable'.

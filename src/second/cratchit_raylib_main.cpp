@@ -124,51 +124,53 @@ int CratchitRaylibApp::run(int, char**) {
 
   while (!WindowShouldClose()) {
 
-      sub_handler.update(subscriptions(model));
+    // #TEA::events: Update active events as returned by call to client subscriptions: model -> Sub
+    sub_handler.update(subscriptions(model));
 
-      auto this_frame_events_msgs = [&sub_handler]() {
+    auto this_frame_events_msgs = [&sub_handler]() {
 
-        std::vector<tea::Msg> result{};
-        
-        for (auto const& msg : sub_handler.poll()) {
-          result.push_back(msg);
-        }
-
-        // Poll raylib state for ALL keyboard events
-        {
-          if (int key = GetCharPressed();key>0) {
-            if (key >= ' ') {
-              result.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
-            }
-          }
-          if (IsKeyPressed(KEY_BACKSPACE)) {
-              result.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
-          }
-          if (IsKeyPressed(KEY_ENTER)) {
-              result.push_back(tea::Msg{tea::EnterKeyMsg{}});
-          }
-
-          if (IsKeyPressed(KEY_ESCAPE)) {
-              result.push_back(tea::Msg{tea::EscapeKeyMsg{}});
-          }
-
-        } // Poll for keyboard events
-
-        return result;
-
-      };
-
-      // update model for all events that have occured since last frame
-      for (auto const& msg : this_frame_events_msgs()) {
-        std::tie(model,cmd) = tea::update(model,msg);
-        // TODO: Handle cmd (push to background thread execution -> Msg?)
+      std::vector<tea::Msg> result{};
+      
+      // #TEA::events: Call subscriptions handler for fired events
+      for (auto const& msg : sub_handler.poll()) {
+        result.push_back(msg);
       }
 
-      // #app
-      auto ux = tea::view(model);
+      // Poll raylib state for ALL keyboard events
+      {
+        if (int key = GetCharPressed();key>0) {
+          if (key >= ' ') {
+            result.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
+          }
+        }
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            result.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
+        }
+        if (IsKeyPressed(KEY_ENTER)) {
+            result.push_back(tea::Msg{tea::EnterKeyMsg{}});
+        }
 
-      // #runtime
-      this->render(ux);
+        if (IsKeyPressed(KEY_ESCAPE)) {
+            result.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+        }
+
+      } // Poll for keyboard events
+
+      return result;
+
+    };
+
+    // update model for all events that have occured since last frame
+    for (auto const& msg : this_frame_events_msgs()) {
+      std::tie(model,cmd) = tea::update(model,msg);
+      // TODO: Handle cmd (push to background thread execution -> Msg?)
+    }
+
+    // #app
+    auto ux = tea::view(model);
+
+    // #runtime
+    this->render(ux);
 
   }
 
