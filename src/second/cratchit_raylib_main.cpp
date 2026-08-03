@@ -15,11 +15,17 @@
 char const* const WATERMARK = "CRATCHIT";
 char const* const WINDOW_CAPTION = "CRATCHIT";
 
-#define WINDOW_BACGROUND_COLOR  CLITERAL(Color){ 255, 255, 255, 255 }   // White
-#define PANE_BACKGROUND_COLOR  CLITERAL(Color){ 200, 200, 200, 255 }   // Light Gray
-#define ACTIVE_PANE_FRAME_COLOR        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
-#define PASSIVE_PANE_FRAME_COLOR   CLITERAL(Color){ 80, 80, 80, 255 }      // Dark Gray
-#define TEXT_COLOR      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
+#define ABC80_AMBER_BRIGHT CLITERAL(Color){255,190,70,255}
+#define ABC80_AMBER_NORMAL CLITERAL(Color){230,160,50,255}
+#define ABC80_AMBER_DIM    CLITERAL(Color){150,90,20,255}
+#define ABC80_AMBER_GLOW   CLITERAL(Color){255,180,60,70}
+#define ABC80_CRT_BG       CLITERAL(Color){18,10,0,255}
+
+#define WINDOW_BACGROUND_COLOR  ABC80_CRT_BG
+#define PANE_BACKGROUND_COLOR  ABC80_CRT_BG
+#define ACTIVE_PANE_FRAME_COLOR ABC80_AMBER_BRIGHT
+#define PASSIVE_PANE_FRAME_COLOR ABC80_AMBER_NORMAL
+#define TEXT_COLOR ABC80_AMBER_BRIGHT
 
 int CratchitRaylibApp::run(int, char**) {
   log_development_trace("Hello from cratchit_raylib_main");
