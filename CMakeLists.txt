@@ -38,8 +38,11 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/cmd_to_msg.cpp
+        src/second/CmdHandler.cpp
         src/second/executables.cpp
 
+        src/second/sub_to_msg.cpp
         src/second/subscribables.cpp
         src/second/SubHandler.cpp
         src/second/subscriptions.cpp

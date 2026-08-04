@@ -215,7 +215,7 @@
             ? Consider to filter import from skv-file (and csv-file) with account statements to a specified period?
               (This would make it easier to adapt to the web-interface of SKV that is cumbersome to make export for a period).
 
-            Observation: In state '-tas' (PromptState::TAIndex) current commands are
+            Observation: In state '-tas' (PromptState::TAIndex) current cmd_to_msg are
                           "-has_tag" to filter current selection on tagged amounts having specified tag.
 
             Test: To turn account statements into hads I could 

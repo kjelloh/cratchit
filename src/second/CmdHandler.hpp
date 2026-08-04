@@ -1,0 +1,15 @@
+#pragma once
+
+#include "Msg.hpp"
+#include <memory> // std::unique_ptr
+#include <vector>
+
+class CmdHandler {
+public:
+  CmdHandler();
+  std::vector<tea::Msg> poll();
+private:
+  // Hide implementation from client
+  class Impl;
+  std::unique_ptr<Impl> m_pimpl;
+}; // CmdHandler

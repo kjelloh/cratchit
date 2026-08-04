@@ -9,15 +9,6 @@
 #include "Model.hpp"
 #include "subscribables.hpp"
 
-/**
- * Overload on event descriptor to define event message to send on event
- * Enables TEA runtime to 'know' how to return the message ascociated with ascociated event
- */
-tea::Msg to_event_msg(MetronomeEventDescriptor const&, MetronomeEventDescriptor::payload_type const&);
-
-// #TEA::events: Free factory function creates message as required by descriptor and message payload
-tea::Msg to_event_msg(TestEventDescriptor const&, TestEventDescriptor::payload_type const&);
-
 // #TEA::events: Event descriptor alias
 using SubDescriptor = Subscribable;
 

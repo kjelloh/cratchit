@@ -1,4 +1,5 @@
 #include "SubHandler.hpp"
+#include "sub_to_msg.hpp"
 #include "log.hpp"
 
 #include <optional>
@@ -6,7 +7,6 @@
 
 namespace detail {
 
-  // TODO: Move to cpp-file when fully moved to SubHandler and subscriptions mechanism
   class MetronomeEventEmitter : public EmitterIfc {
   public:
     MetronomeEventEmitter(MetronomeEventDescriptor const& descriptor);
@@ -18,36 +18,6 @@ namespace detail {
     Clock::time_point m_next_click_time_point{};
     bool expired();
   }; // PolledTimer
-
-} // detail
-
-namespace detail {
-
-  // #TEA::events: Concrete event emitter
-  class TestEventEmitter : public EmitterIfc {
-  public:
-    TestEventEmitter(TestEventDescriptor const&);
-    std::optional<tea::Msg> poll();
-  private:
-  }; // TestEventEmitter
-
-  // #TEA::events: Concrete event emitter construct from descriptor
-  TestEventEmitter::TestEventEmitter(TestEventDescriptor const&) {}
-
-  // #TEA::events: Poll concrete emitter
-  std::optional<tea::Msg> TestEventEmitter::poll() {
-    static size_t call_counter{0};
-    if (call_counter++ % 60 == 0) {
-      return to_event_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
-    }
-    return std::nullopt;
-  } // TestEventEmitter::poll()
-
-
-} // detail
-
-
-namespace detail {
 
   MetronomeEventEmitter::MetronomeEventEmitter(MetronomeEventDescriptor const& descriptor) 
     : m_descriptor{descriptor} {
@@ -68,10 +38,30 @@ namespace detail {
 
   std::optional<tea::Msg> MetronomeEventEmitter::poll() {
     if (expired()) {
-      return to_event_msg(m_descriptor, MetronomeEventDescriptor::payload_type{});
+      return sub_to_msg(m_descriptor, MetronomeEventDescriptor::payload_type{});
     }
     return std::nullopt;
   }
+
+  // #TEA::events: Concrete event emitter
+  class TestEventEmitter : public EmitterIfc {
+  public:
+    TestEventEmitter(TestEventDescriptor const&);
+    std::optional<tea::Msg> poll();
+  private:
+  }; // TestEventEmitter
+
+  // #TEA::events: Concrete event emitter construct from descriptor
+  TestEventEmitter::TestEventEmitter(TestEventDescriptor const&) {}
+
+  // #TEA::events: Poll concrete emitter
+  std::optional<tea::Msg> TestEventEmitter::poll() {
+    static size_t call_counter{0};
+    if (call_counter++ % 60 == 0) {
+      return sub_to_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
+    }
+    return std::nullopt;
+  } // TestEventEmitter::poll()
 
 } // detail
 
