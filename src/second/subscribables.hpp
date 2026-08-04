@@ -26,7 +26,7 @@ struct TestEventDescriptor {
 }; // TestEventDescriptor
 
 // #TEA::events: Possible event descriptor variants
-using Subscribeable = std::variant<
+using Subscribable = std::variant<
    MetronomeEventDescriptor
   ,TestEventDescriptor
 >;

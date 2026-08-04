@@ -95,7 +95,7 @@ std::vector<tea::Msg> SubHandler::poll() {
 
 // #TEA::events: Subscriptions handler update of event emitters required to be active
 void SubHandler::update(Sub const& sub) {
-  // sub contains the descriptors of the desired active subscibable events
+  // sub contains the descriptors of the desired active subscribable events
   Sub active = std::accumulate(m_active_subscriptions.begin(),m_active_subscriptions.end(),Sub{},[](
      Sub acc
     ,auto const& entry) {

@@ -8,6 +8,29 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260804
+
+I think it is now time to actually implement 'commands' (Cmd).
+
+* In zeroth/first variant of cratchit the Cmd was 'simply' the type erased std::function.
+* This wa very flexible and I had to write very lilttle scaffolding to implement new commands.
+* An on-the-spot created lambda could be assigned to the Cmd and that was it.
+* And the runtime could just call the Cmd::operator() and get the Msg back as the result.
+
+But I think this had some serious downsides.
+
+* The relationsship between a specifici command and the resulting Msg was not expressed in compile time checked code.
+* And failure to capture data to have the appropriate life-time in the created lambda lead to hard-to-find runtime errors.
+
+I think this time I would like to expresswhat commands exists and what message they generate for the reesult.
+
+* When I think about it we could in fact be tempted to implement commands very much like events?
+* In this way we can imagine commands to execute asynchronously.
+* And the runtime polls them for an available result.
+* And just as event emitters, the comamnd executor 'knows' how to turn the command result into a message.
+
+Let's try?
+
 ## 20260803
 
 I feel I would like to implement the subscription mechanism ```text descriptor -> emitter``` using a more direct type-to-type compile time dispatch.
@@ -102,10 +125,10 @@ Sub subscriptions(tea::Model const&) {
 using Sub = std::vector<SubDescriptor>;
 
 // #TEA::events: Event descriptor alias
-using SubDescriptor = Subscribeable;
+using SubDescriptor = Subscribable;
 
 // #TEA::events: Possible event descriptor variants
-using Subscribeable = std::variant<
+using Subscribable = std::variant<
   // ...
   ,TestEventDescriptor
   // ...
@@ -136,7 +159,7 @@ public:
 
 // #TEA::events: Subscriptions handler update of event emitters required to be active
 void SubHandler::update(Sub const& sub) {
-  // sub contains the descriptors of the desired active subscibable events
+  // sub contains the descriptors of the desired active subscribable events
   // Sub active = ...
   // Sub to_remove = ...
   // Sub to_add = ...

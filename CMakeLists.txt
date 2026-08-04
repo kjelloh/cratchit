@@ -38,7 +38,9 @@ find_package(raylib)
 add_executable(
         cratchit
 
-        src/second/subscribeables.cpp
+        src/second/executables.cpp
+
+        src/second/subscribables.cpp
         src/second/SubHandler.cpp
         src/second/subscriptions.cpp
 

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "Model.hpp"
-#include "subscribeables.hpp"
+#include "subscribables.hpp"
 
 /**
  * Overload on event descriptor to define event message to send on event
@@ -19,7 +19,7 @@ tea::Msg to_event_msg(MetronomeEventDescriptor const&, MetronomeEventDescriptor:
 tea::Msg to_event_msg(TestEventDescriptor const&, TestEventDescriptor::payload_type const&);
 
 // #TEA::events: Event descriptor alias
-using SubDescriptor = Subscribeable;
+using SubDescriptor = Subscribable;
 
 // #TEA::events: List of descriptors of events to listen to
 using Sub = std::vector<SubDescriptor>;
