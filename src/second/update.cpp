@@ -10,7 +10,7 @@ namespace detail {
   concept Updateable = requires(S s, M m) {
     { s.update(m) } -> std::same_as<std::tuple<
        Transition<ViewState>
-      ,tea::Cmd>
+      ,Cmd>
     >;
   };
 
@@ -23,7 +23,7 @@ namespace detail {
       else {
         return std::make_tuple(
           Transition<ViewState>{TransitionKind::Ignore, s}
-          ,tea::Cmd{}
+          ,Cmd{}
         );
       }
   } // update

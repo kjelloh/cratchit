@@ -84,20 +84,20 @@ std::vector<tea::Msg> SubHandler::poll() {
 } // SubHandler::poll()
 
 // #TEA::events: Subscriptions handler update of event emitters required to be active
-void SubHandler::update(Sub const& sub) {
-  // sub contains the descriptors of the desired active subscribable events
-  Sub active = std::accumulate(m_active_subscriptions.begin(),m_active_subscriptions.end(),Sub{},[](
-     Sub acc
+void SubHandler::update(Subs const& subs) {
+  // subs contains the descriptors of the desired active subscribable events
+  Subs active = std::accumulate(m_active_subscriptions.begin(),m_active_subscriptions.end(),Subs{},[](
+     Subs acc
     ,auto const& entry) {
     acc.push_back(entry.first);
     return acc;
   });
 
-  // active - sub = in active but not in sub
-  Sub to_remove{};
+  // active - subs = in active but not in subs
+  Subs to_remove{};
   std::set_difference(
      active.begin(),active.end()
-    ,sub.begin(),sub.end()
+    ,subs.begin(),subs.end()
     ,std::back_inserter(to_remove)
   );
   for (auto const& d : to_remove) {
@@ -107,10 +107,10 @@ void SubHandler::update(Sub const& sub) {
     }
   }
 
-  // sub - active = in sub but not in active
-  Sub to_add{};
+  // subs - active = in subs but not in active
+  Subs to_add{};
   std::set_difference(
-     sub.begin(),sub.end()
+     subs.begin(),subs.end()
     ,active.begin(),active.end()
     ,std::back_inserter(to_add)
   );

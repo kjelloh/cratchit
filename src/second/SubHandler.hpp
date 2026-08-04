@@ -4,7 +4,7 @@
  */
 #pragma once
 
-#include "subscriptions.hpp" // SubDescriptor,Sub,...
+#include "subscriptions.hpp" // Sub,Subs,...
 #include <map>
 #include <memory> // std::unique_ptr
 
@@ -15,12 +15,12 @@ public:
   virtual std::optional<tea::Msg> poll() = 0;
 };
 
-// #TEA::events: The subscriptions (Sub) handler
+// #TEA::events: The subscriptions (Subs) handler
 class SubHandler {
   public:
     std::vector<tea::Msg> poll();
-    void update(Sub const& sub);
+    void update(Subs const& subs);
 
   private:
-    std::map<SubDescriptor,std::unique_ptr<EmitterIfc>> m_active_subscriptions{};
+    std::map<Sub,std::unique_ptr<EmitterIfc>> m_active_subscriptions{};
   }; // SubHandler

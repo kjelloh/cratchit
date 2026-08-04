@@ -27,9 +27,9 @@ public:
   RootView accept(ViewState const& source) const;
 
   // update returns transition between view states (for state stack mutation)
-  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::UnicodeKeyMsg const& unicode_msg) const;
-  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::BackspaceKeyMsg const&) const;
-  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::CursorBlinkMsg const&) const;
+  std::tuple<Transition<ViewState>,Cmd> update(tea::UnicodeKeyMsg const& unicode_msg) const;
+  std::tuple<Transition<ViewState>,Cmd> update(tea::BackspaceKeyMsg const&) const;
+  std::tuple<Transition<ViewState>,Cmd> update(tea::CursorBlinkMsg const&) const;
 
   using CodePointBuffer = immer::vector<char32_t>;
 
@@ -54,9 +54,9 @@ public:
   DataState const& update(DataState const& data_state) const;
 
 
-  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::UnicodeKeyMsg const& unicode_msg) const;
-  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::EnterKeyMsg const&) const;
-  std::tuple<Transition<ViewState>,tea::Cmd> update(tea::EscapeKeyMsg const&) const;
+  std::tuple<Transition<ViewState>,Cmd> update(tea::UnicodeKeyMsg const& unicode_msg) const;
+  std::tuple<Transition<ViewState>,Cmd> update(tea::EnterKeyMsg const&) const;
+  std::tuple<Transition<ViewState>,Cmd> update(tea::EscapeKeyMsg const&) const;
 
   // view returns a user interface representation that the tea runtime can render
   tea::Ux view() const;

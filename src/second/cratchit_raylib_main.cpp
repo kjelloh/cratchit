@@ -9,6 +9,7 @@
 #include "update.hpp"
 #include "subscriptions.hpp"
 #include "SubHandler.hpp"
+#include "CmdHandler.hpp"
 
 #include "enumerate_view.hpp"
 
@@ -113,6 +114,7 @@ int CratchitRaylibApp::run(int, char**) {
   SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
 
   SubHandler sub_handler{};
+  CmdHandler cmd_handler{};
 
   //--------------------------------------------------------------------------------------
   // Main render window loop
@@ -120,11 +122,11 @@ int CratchitRaylibApp::run(int, char**) {
 
   // #app
   auto [model,cmd] = tea::init();
-  // TODO: Handle cmd
-
+  cmd_handler.execute(cmd);
+  
   while (!WindowShouldClose()) {
 
-    // #TEA::events: Update active events as returned by call to client subscriptions: model -> Sub
+    // #TEA::events: Update active events as returned by call to client subscriptions: model -> Subs
     sub_handler.update(subscriptions(model));
 
     auto this_frame_events_msgs = [&sub_handler]() {

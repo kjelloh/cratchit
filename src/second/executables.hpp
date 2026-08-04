@@ -2,10 +2,10 @@
 
 #include <variant>
 
-class TestCommandDescriptor {
+class TestCmdDescriptor {
 public:
   // mak us work as 'key' (comparable)
-  auto operator<=>(TestCommandDescriptor const&) const = default;
+  auto operator<=>(TestCmdDescriptor const&) const = default;
   struct result_type  {
     int value;
   }; // result_type
@@ -13,5 +13,5 @@ private:
 };
 
 using Executable = std::variant<
-  TestCommandDescriptor
+  TestCmdDescriptor
 >;

@@ -6,6 +6,6 @@
 
 #pragma once
 
-namespace tea {
-  using Cmd = int;
-} // tea
+#include "executables.hpp"
+
+using Cmd = Executable;
