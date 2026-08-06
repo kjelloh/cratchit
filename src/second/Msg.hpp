@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include "subscribables.hpp"
+#include "subscribables.hpp" // for Sub -> Msg
+#include "executables.hpp" // For Cmd -> Msg
 
 #include <variant>
 
@@ -31,6 +32,10 @@ namespace tea {
     TestEventDescriptor::payload_type payload;
   }; // TestEventMsg
 
+  struct TestCmdResultMsg {
+    TestCmdDescriptor::result_type result;
+  }; // TestCmdResultMsg
+
   using Msg = std::variant<
      NoMsg
     ,TickMsg
@@ -40,6 +45,7 @@ namespace tea {
     ,EscapeKeyMsg
     ,CursorBlinkMsg
     ,TestEventMsg
+    ,TestCmdResultMsg
   >;
 
 } // tea

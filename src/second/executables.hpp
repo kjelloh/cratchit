@@ -4,8 +4,9 @@
 
 class TestCmdDescriptor {
 public:
-  // mak us work as 'key' (comparable)
+  // make us work as 'key' (comparable)
   auto operator<=>(TestCmdDescriptor const&) const = default;
+  size_t arg;
   struct result_type  {
     int value;
   }; // result_type

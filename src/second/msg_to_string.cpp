@@ -12,15 +12,15 @@ namespace detail {
 
   // Dispatch concrete_msg_to_string if it exists for the concrete msg type
   // ,otherwise return a fallback string with general type info
-  template<typename ConcreteMessage>
-  std::string concrete_msg_to_string_dispatch(ConcreteMessage const& concrete_msg) {
-    if constexpr (StringifiableMsg<ConcreteMessage>) {
+  template<typename ConcreteMsg>
+  std::string concrete_msg_to_string_dispatch(ConcreteMsg const& concrete_msg) {
+    if constexpr (StringifiableMsg<ConcreteMsg>) {
       return concrete_msg_to_string(concrete_msg);
     }
     else {
       const std::type_info& ti = typeid(concrete_msg);
       return std::format(
-         "No concrete_msg_to_string for msg type :'{}' hash_code:{}"
+         "'{}'::{}"
         ,ti.name()
         ,ti.hash_code()
       );

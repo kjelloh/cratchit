@@ -1,6 +1,7 @@
 #include "SubHandler.hpp"
 #include "sub_to_msg.hpp"
 #include "log.hpp"
+#include "sub_to_string.hpp"
 
 #include <optional>
 #include <algorithm> // std::set_difference,
@@ -115,16 +116,16 @@ void SubHandler::update(Subs const& subs) {
     ,std::back_inserter(to_add)
   );
 
-  for (auto const& d : to_add) {
+  for (auto const& sub : to_add) {
     std::visit(
       [this](auto const& concrete_descriptor){
         this->m_active_subscriptions[concrete_descriptor] = to_emitter(concrete_descriptor);
       }
-      ,d
+      ,sub
     );
     log_development_trace(
-       "SubHandler::update() ok for descriptor variant ix:{}. now {} active"
-      ,d.index()
+       "SubHandler::update(): activated - sub:{} : active:{}"
+      ,sub_to_string(sub)
       ,this->m_active_subscriptions.size()
     );
   }

@@ -22,6 +22,7 @@ struct MetronomeEventDescriptor {
 // #TEA::events: Concrete test event descriptor
 struct TestEventDescriptor {
   auto operator<=>(TestEventDescriptor const&) const = default;
+  const size_t arg;
   struct payload_type {int value;};
 }; // TestEventDescriptor
 

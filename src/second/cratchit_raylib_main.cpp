@@ -98,8 +98,9 @@ int CratchitRaylibApp::run(int, char**) {
       TraceLog(LOG_ERROR, "Failed to load this->m_current_font");
       // Handle failure here
       // NOTE: raylib logging sugests we may chose to carry on (deafult ASCII this->m_current_font still available?)
-      TraceLog(LOG_ERROR, "Exits - Bye for now");
-      exit(-1);
+      // TraceLog(LOG_ERROR, "Exits - Bye for now");
+      log_flush();
+      // exit(-1);
   } else {
       TraceLog(LOG_INFO, "Font loaded successfully");
       SetTextureFilter(this->m_current_font.texture, TEXTURE_FILTER_BILINEAR);
@@ -166,6 +167,18 @@ int CratchitRaylibApp::run(int, char**) {
     for (auto const& msg : this_frame_events_msgs()) {
       std::tie(model,cmd) = tea::update(model,msg);
       // TODO: Handle cmd (push to background thread execution -> Msg?)
+    }
+
+    auto this_frame_cmds_msgs = [&cmd_handler](){
+      std::vector<tea::Msg> result{};
+      for (auto const& msg : cmd_handler.poll()) {
+        result.push_back(msg);        
+      }
+      return result;
+    }; // this_frame_cmds_msgs
+
+    for (auto const& msg : this_frame_cmds_msgs()) {
+      std::tie(model,cmd) = tea::update(model,msg);
     }
 
     // #app

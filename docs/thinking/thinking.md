@@ -8,6 +8,44 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260806
+
+So I have now been thinking and working on the command mechanism and I think I have gained some insights.
+
+* A command produces an 'effect' represented by the final result.
+* I have made the command descriptor being able to define this result.
+* I have based the Cmd mechansom on the Sub mechanism.
+  * A Cmd is a descriptor for a 'command' just as a Sub is a decriptor for an Event
+  * Thus a command can be 'activated' just as an Event
+  * Adn while the command 'executes' it can emit intermediate (incremental) results (just as an event)
+  * But a command always have an effect to archieve and when it does it ends delivering the final result.
+  * Also, we should be able to stop a command whilke it is in progress (I think)?
+
+There is also the aspect of what to do if a command is asked to start while it is already in progress?
+
+* This happens if the same Cmd value is provided twice.
+* Because the CmdHandler maps a Cmd value into an Executor for that Cmd.
+
+```cpp
+  std::map<Cmd,CmdExecutor> m_running_commands{};
+```
+
+  * Where both Cmd and CmdExecutor are variants of possible concrete comamnds and executors
+
+Ok, there is a lot of boilerplate and support code to attend to. But I now have execution, poll and end-to-result_msg as TestCmdDescriptor, Executor for TestCmdDescriptor, TestCmdResultMsg. Along with more xxx_to_string to log Sub and Cmd processing. The initial logging seems sufficient to show initial command execution and Subs activation.
+
+```sh
+2026-08-06 14:28:41.641: DEVELOPMENT_TRACE:'CmdHandler::Impl::execute(cmd:TestCmdDescriptor:0)'
+2026-08-06 14:28:41.641: DEVELOPMENT_TRACE:'SubHandler::update(): activated - sub:'24MetronomeEventDescriptor'::17556662902693331764 : active:1'
+2026-08-06 14:28:41.641: DEVELOPMENT_TRACE:'SubHandler::update(): activated - sub:TestEventDescriptor:0 : active:2'
+2026-08-06 14:28:41.641: DEVELOPMENT_TRACE:'update for msg:'N3tea12TestEventMsgE'::12440367860374599149'
+2026-08-06 14:28:41.641: DEVELOPMENT_TRACE:'CmdHandler::Impl::poll: cmd:TestCmdDescriptor:0 -> (msg:'N3tea16TestCmdResultMsgE'::11577759915425595334,type:2)'
+2026-08-06 14:28:41.641: DEVELOPMENT_TRACE:'CmdHandler::Impl::poll: erased cmd:TestCmdDescriptor:0'
+2026-08-06 14:28:41.641: DEVELOPMENT_TRACE:'update for msg:'N3tea16TestCmdResultMsgE'::11577759915425595334'
+20
+...
+```
+
 ## 20260804
 
 I think it is now time to actually implement 'commands' (Cmd).
