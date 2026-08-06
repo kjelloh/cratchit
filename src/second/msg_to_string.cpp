@@ -43,3 +43,8 @@ std::string msg_to_string(tea::Msg const& msg) {
 std::string concrete_msg_to_string(tea::UnicodeKeyMsg const& m) {
   return std::format("{}:{:X}","UnicodeKeyMsg",static_cast<uint32_t>(m.code_point));
 }
+
+std::string concrete_msg_to_string(tea::TestCmdResultMsg const& m) {
+  return std::format("{}:{}","TestCmdResultMsg",static_cast<uint32_t>(m.payload.progress_ix));
+}
+

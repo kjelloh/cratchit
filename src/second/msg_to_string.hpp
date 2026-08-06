@@ -11,3 +11,4 @@ std::string msg_to_string(tea::Msg const& msg);
 // 1. variant msg -> concrete msg
 // 2. concrete_msg_to_string(concrete msg) or fallback to concrete msg type info string if no concrete_msg_to_string
 std::string concrete_msg_to_string(tea::UnicodeKeyMsg const& m);
+std::string concrete_msg_to_string(tea::TestCmdResultMsg const& m);

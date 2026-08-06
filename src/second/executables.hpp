@@ -7,8 +7,8 @@ public:
   // make us work as 'key' (comparable)
   auto operator<=>(TestCmdDescriptor const&) const = default;
   size_t arg;
-  struct result_type  {
-    int value;
+  struct payload_type  {
+    size_t progress_ix;
   }; // result_type
 private:
 };

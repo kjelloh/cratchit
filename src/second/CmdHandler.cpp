@@ -14,8 +14,9 @@ namespace detail {
 
   struct ConcretePollResult {
     enum class Type {
-      Unknown
-      ,InProgress
+       Unknown
+      ,Nop
+      ,ProgressReport
       ,Done
       ,Undefined
     }; // Type
@@ -34,14 +35,32 @@ namespace detail {
   public:
     Executor(TestCmdDescriptor const& descriptor)
       : m_descriptor{descriptor} {}
-    void start() {
+
+      void start() {
       ++m_activation_count;
       m_start_time = std::chrono::steady_clock::now();
     }
+
     ConcretePollResult poll() {
+      auto current_time = std::chrono::steady_clock::now();
+      auto elapsed_time = current_time - this->m_start_time;
+      if (elapsed_time >= this->m_duration_time) {
+        return {
+          cmd_to_msg(this->m_descriptor,TestCmdDescriptor::payload_type{})
+          ,ConcretePollResult::Type::Done
+        };
+      } // If done
+      auto next_progress_time = m_start_time + (m_current_progress_ix+1)*m_duration_time / m_progress_counts;
+      if (current_time >= next_progress_time) {
+        ++m_current_progress_ix;
+        return {
+          cmd_to_msg(this->m_descriptor,TestCmdDescriptor::payload_type{m_current_progress_ix})
+          ,ConcretePollResult::Type::ProgressReport
+        };
+      }
       return {
-         cmd_to_msg(this->m_descriptor,TestCmdDescriptor::result_type{})
-        ,ConcretePollResult::Type::Done
+        std::nullopt
+        ,ConcretePollResult::Type::Nop
       };
 
     } // poll
@@ -50,7 +69,9 @@ namespace detail {
     size_t m_activation_count{};
 
     std::chrono::steady_clock::time_point m_start_time{};
-    std::chrono::steady_clock::duration m_duration_time_ms{2000ms};    
+    std::chrono::steady_clock::duration m_duration_time{1000ms};
+    uint8_t m_progress_counts{7};
+    uint8_t m_current_progress_ix{};    
   }; // Executor<TestCmdDescriptor>
 
 

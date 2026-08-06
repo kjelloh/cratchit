@@ -33,7 +33,7 @@ namespace tea {
   }; // TestEventMsg
 
   struct TestCmdResultMsg {
-    TestCmdDescriptor::result_type result;
+    TestCmdDescriptor::payload_type payload;
   }; // TestCmdResultMsg
 
   using Msg = std::variant<

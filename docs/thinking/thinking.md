@@ -46,6 +46,20 @@ Ok, there is a lot of boilerplate and support code to attend to. But I now have 
 ...
 ```
 
+Now I have also made the executor for TestCmdDescriptor produce some 'progress report' messages until the final done message.
+
+* It is only a kind of POC so far.
+* I wonder if I should generalise the start, progress, done sequnce for polling cmd result?
+* But at least the components for this behaviour is there.
+
+A mechanism to cancel a command in progress is not yet there.
+
+* I wonder if I can live without it for now?
+* I imagine it will be a while (if ever) that I have commands that run for very long?
+* And when I have, I can still allow them to finish although the client has stopped waiting for them?
+
+I mean, as the mechanism works for now the commands can execute asynchronously (if I make them to). So maybe I can cross that bridge when I need to?
+
 ## 20260804
 
 I think it is now time to actually implement 'commands' (Cmd).
