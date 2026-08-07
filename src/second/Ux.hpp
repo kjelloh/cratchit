@@ -10,6 +10,7 @@
 #include <string>
 
 namespace tea {
+
   class Ux {
   public:
     Ux() = default;
@@ -24,5 +25,6 @@ namespace tea {
     std::vector<std::string> m_middle_pane_rows{};
     std::vector<std::string> m_bottom_pane_rows{};
   }; // Ux
+
 } // tea
 

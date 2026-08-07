@@ -9,7 +9,7 @@
 #include "Model.hpp"
 #include "Ux.hpp"
 
-namespace tea {
-  Ux view(Model const& model);
+namespace app {
+  tea::Ux view(Model const& model);
 } // tea
 

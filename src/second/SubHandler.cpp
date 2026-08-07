@@ -11,7 +11,7 @@ namespace detail {
   class MetronomeEventEmitter : public EmitterIfc {
   public:
     MetronomeEventEmitter(MetronomeEventDescriptor const& descriptor);
-    std::optional<tea::Msg> poll();
+    std::optional<app::Msg> poll();
   private:
     const MetronomeEventDescriptor m_descriptor{};
     using Clock = std::chrono::steady_clock;
@@ -37,7 +37,7 @@ namespace detail {
     return false;
   } // MetronomeEventEmitter::expired()
 
-  std::optional<tea::Msg> MetronomeEventEmitter::poll() {
+  std::optional<app::Msg> MetronomeEventEmitter::poll() {
     if (expired()) {
       return sub_to_msg(m_descriptor, MetronomeEventDescriptor::payload_type{});
     }
@@ -48,7 +48,7 @@ namespace detail {
   class TestEventEmitter : public EmitterIfc {
   public:
     TestEventEmitter(TestEventDescriptor const&);
-    std::optional<tea::Msg> poll();
+    std::optional<app::Msg> poll();
   private:
   }; // TestEventEmitter
 
@@ -56,7 +56,7 @@ namespace detail {
   TestEventEmitter::TestEventEmitter(TestEventDescriptor const&) {}
 
   // #TEA::events: Poll concrete emitter
-  std::optional<tea::Msg> TestEventEmitter::poll() {
+  std::optional<app::Msg> TestEventEmitter::poll() {
     static size_t call_counter{0};
     if (call_counter++ % 60 == 0) {
       return sub_to_msg(TestEventDescriptor{}, TestEventDescriptor::payload_type{42});
@@ -76,8 +76,8 @@ std::unique_ptr<EmitterIfc> to_emitter(TestEventDescriptor const& d) {
 }
 
 // #TEA::events: Subscriptions handler poll of all active emitters
-std::vector<tea::Msg> SubHandler::poll() {
-  std::vector<tea::Msg> result{};
+std::vector<app::Msg> SubHandler::poll() {
+  std::vector<app::Msg> result{};
   for (auto const& [descriptor,emitter] : this->m_active_subscriptions) {
     if (auto maybe_msg = emitter->poll()) result.push_back(*maybe_msg);
   }

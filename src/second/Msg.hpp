@@ -11,7 +11,7 @@
 
 #include <variant>
 
-namespace tea {
+namespace app {
 
   struct NoMsg {};
   struct TickMsg {};
@@ -48,7 +48,7 @@ namespace tea {
     ,TestCmdResultMsg
   >;
 
-} // tea
+} // app
 
-bool is_no_msg(tea::Msg const& msg);
+bool is_no_msg(app::Msg const& msg);
 

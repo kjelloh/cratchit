@@ -122,7 +122,7 @@ int CratchitRaylibApp::run(int, char**) {
   //--------------------------------------------------------------------------------------
 
   // #app
-  auto [model,cmd] = tea::init();
+  auto [model,cmd] = app::init();
   cmd_handler.execute(cmd);
   
   while (!WindowShouldClose()) {
@@ -132,7 +132,7 @@ int CratchitRaylibApp::run(int, char**) {
 
     auto this_frame_events_msgs = [&sub_handler]() {
 
-      std::vector<tea::Msg> result{};
+      std::vector<app::Msg> result{};
       
       // #TEA::events: Call subscriptions handler for fired events
       for (auto const& msg : sub_handler.poll()) {
@@ -143,18 +143,18 @@ int CratchitRaylibApp::run(int, char**) {
       {
         if (int key = GetCharPressed();key>0) {
           if (key >= ' ') {
-            result.push_back(tea::Msg{tea::UnicodeKeyMsg{key}});
+            result.push_back(app::Msg{app::UnicodeKeyMsg{key}});
           }
         }
         if (IsKeyPressed(KEY_BACKSPACE)) {
-            result.push_back(tea::Msg{tea::BackspaceKeyMsg{}});
+            result.push_back(app::Msg{app::BackspaceKeyMsg{}});
         }
         if (IsKeyPressed(KEY_ENTER)) {
-            result.push_back(tea::Msg{tea::EnterKeyMsg{}});
+            result.push_back(app::Msg{app::EnterKeyMsg{}});
         }
 
         if (IsKeyPressed(KEY_ESCAPE)) {
-            result.push_back(tea::Msg{tea::EscapeKeyMsg{}});
+            result.push_back(app::Msg{app::EscapeKeyMsg{}});
         }
 
       } // Poll for keyboard events
@@ -165,12 +165,12 @@ int CratchitRaylibApp::run(int, char**) {
 
     // update model for all events that have occured since last frame
     for (auto const& msg : this_frame_events_msgs()) {
-      std::tie(model,cmd) = tea::update(model,msg);
+      std::tie(model,cmd) = app::update(model,msg);
       // TODO: Handle cmd (push to background thread execution -> Msg?)
     }
 
     auto this_frame_cmds_msgs = [&cmd_handler](){
-      std::vector<tea::Msg> result{};
+      std::vector<app::Msg> result{};
       for (auto const& msg : cmd_handler.poll()) {
         result.push_back(msg);        
       }
@@ -178,11 +178,11 @@ int CratchitRaylibApp::run(int, char**) {
     }; // this_frame_cmds_msgs
 
     for (auto const& msg : this_frame_cmds_msgs()) {
-      std::tie(model,cmd) = tea::update(model,msg);
+      std::tie(model,cmd) = app::update(model,msg);
     }
 
     // #app
-    auto ux = tea::view(model);
+    auto ux = app::view(model);
 
     // #runtime
     this->render(ux);

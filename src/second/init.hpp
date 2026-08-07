@@ -10,7 +10,7 @@
 #include "Cmd.hpp"
 #include <utility> // std::pair
 
-namespace tea {
+namespace app {
   std::pair<Model,Cmd> init();
 } // tea
 

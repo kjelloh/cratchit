@@ -1,15 +1,15 @@
 #include "Msg.hpp"
 
-namespace tea {
+namespace app {
 
     UnicodeKeyMsg::UnicodeKeyMsg(int cp) : code_point{static_cast<char32_t>(cp)} {}
 
-} // tea
+} // app
 
-bool is_no_msg(tea::Msg const& msg) {
+bool is_no_msg(app::Msg const& msg) {
   return std::visit([](auto const& m) {
       using M = std::remove_cvref_t<decltype(m)>;
-      return std::is_same_v<M, tea::NoMsg>;
+      return std::is_same_v<M, app::NoMsg>;
   }
   ,msg);
 }

@@ -1,8 +1,8 @@
 #include "sub_to_msg.hpp"
 
-tea::Msg sub_to_msg(MetronomeEventDescriptor const&, MetronomeEventDescriptor::payload_type const&) {
-  return tea::CursorBlinkMsg{};
+app::Msg sub_to_msg(MetronomeEventDescriptor const&, MetronomeEventDescriptor::payload_type const&) {
+  return app::CursorBlinkMsg{};
 }
-tea::Msg sub_to_msg(TestEventDescriptor const&, TestEventDescriptor::payload_type const& payload) {
-  return tea::TestEventMsg(payload);
+app::Msg sub_to_msg(TestEventDescriptor const&, TestEventDescriptor::payload_type const& payload) {
+  return app::TestEventMsg(payload);
 }

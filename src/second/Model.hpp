@@ -10,7 +10,7 @@
 #include <immer/vector.hpp>
 #include <vector>
 
-namespace tea {
+namespace app {
 
   class Model {
   public:

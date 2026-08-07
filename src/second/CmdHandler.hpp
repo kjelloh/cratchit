@@ -10,7 +10,7 @@ public:
   CmdHandler();
   ~CmdHandler();
   void execute(Cmd const&);
-  std::vector<tea::Msg> poll();
+  std::vector<app::Msg> poll();
 private:
   // Hide implementation from client
   class Impl;

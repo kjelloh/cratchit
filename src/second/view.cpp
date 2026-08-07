@@ -2,9 +2,9 @@
 #include "utf8.hpp"
 #include <format>
 
-namespace tea {
+namespace app {
 
-  Ux view(Model const& model) {
+  tea::Ux view(Model const& model) {
 
     if (model.view_state_stack().size() > 0) {
       auto ux = std::visit(
@@ -21,7 +21,7 @@ namespace tea {
     //   return ux;
     // }
 
-    return Ux{
+    return tea::Ux{
       {"??app state stack??"}
       ,{"??app state stack??"}
       ,{"??app state stack??"}

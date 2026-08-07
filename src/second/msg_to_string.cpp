@@ -30,7 +30,7 @@ namespace detail {
 } // detail
 
 // Dispacth Msg (variant) to string
-std::string msg_to_string(tea::Msg const& msg) {
+std::string msg_to_string(app::Msg const& msg) {
   return std::visit(
     [](auto const& concrete_msg) -> std::string {
       return detail::concrete_msg_to_string_dispatch(concrete_msg);
@@ -40,11 +40,11 @@ std::string msg_to_string(tea::Msg const& msg) {
 }
 
 // Concrete (actual message) to string
-std::string concrete_msg_to_string(tea::UnicodeKeyMsg const& m) {
+std::string concrete_msg_to_string(app::UnicodeKeyMsg const& m) {
   return std::format("{}:{:X}","UnicodeKeyMsg",static_cast<uint32_t>(m.code_point));
 }
 
-std::string concrete_msg_to_string(tea::TestCmdResultMsg const& m) {
+std::string concrete_msg_to_string(app::TestCmdResultMsg const& m) {
   return std::format("{}:{}","TestCmdResultMsg",static_cast<uint32_t>(m.payload.progress_ix));
 }
 

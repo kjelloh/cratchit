@@ -1,6 +1,7 @@
 #include "Ux.hpp"
 
 namespace tea {
+
   Ux::Ux(std::vector<std::string> top_pane_rows
     ,std::vector<std::string> middle_pane_rows
     ,std::vector<std::string> bottom_pane_rows)

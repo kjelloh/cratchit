@@ -1,7 +1,7 @@
 #include "Model.hpp"
 #include "log.hpp"
 
-namespace tea {
+namespace app {
 
   // public
 

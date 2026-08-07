@@ -17,4 +17,4 @@ using Subs = std::vector<Sub>;
 
 // #TEA::events: Client looks into model and returns list of descriptors of events to listen to
 // See code tagging with '#TEA::events' for relevant components
-Subs subscriptions(tea::Model const& model);
+Subs subscriptions(app::Model const& model);

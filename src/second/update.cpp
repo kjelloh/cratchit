@@ -29,7 +29,7 @@ namespace detail {
   } // update
 } // detail
 
-auto double_dispatch_view_update(ViewState const& state, const tea::Msg& msg) {
+auto double_dispatch_view_update(ViewState const& state, const app::Msg& msg) {
   // 1. Dispatch to concrete ViewState
   // 2. Dispatch to concrete Msg
   return std::visit(
@@ -48,7 +48,7 @@ auto double_dispatch_view_update(ViewState const& state, const tea::Msg& msg) {
   );
 }
 
-namespace tea {
+namespace app {
 
   std::tuple<Model,Cmd> update(Model const& model,Msg const& msg) {
 

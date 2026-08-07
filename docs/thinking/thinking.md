@@ -18,6 +18,18 @@ Made the TestCmd execute with 'progress' and 'done' more clearly and deliberatly
 
 I marked some of the relevant code for TestCmd with '#TEA::Cmd' tag
 
+After this I did some naming to clarify what the app (cratchit) and the TEA runtime 'provides'
+
+* Use namespace 'app' for what cratchit ptovides to TEA
+* Use namespace 'tea' for what the TEA provides to cratchit (the app)
+
+I think it turned out a bit clearer in code who 'provides' what.
+
+* TEA provides Ux,Sub and Cmd
+* The app provides Msg,init,update,view,subscriptions
+
+Note that Sub and Cmd is not yet in a namespace.
+
 ## 20260806
 
 So I have now been thinking and working on the command mechanism and I think I have gained some insights.

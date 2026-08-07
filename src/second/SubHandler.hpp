@@ -12,13 +12,13 @@
 class EmitterIfc {
 public:
   virtual ~EmitterIfc() = default;
-  virtual std::optional<tea::Msg> poll() = 0;
+  virtual std::optional<app::Msg> poll() = 0;
 };
 
 // #TEA::events: The subscriptions (Subs) handler
 class SubHandler {
   public:
-    std::vector<tea::Msg> poll();
+    std::vector<app::Msg> poll();
     void update(Subs const& subs);
 
   private:

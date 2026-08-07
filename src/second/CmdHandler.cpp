@@ -19,7 +19,7 @@ namespace detail {
     ,Undefined
   }; // Type
 
-  using MaybeMsg = std::optional<tea::Msg>;
+  using MaybeMsg = std::optional<app::Msg>;
   
   template <typename ConcreteCmd>
   class Executor {
@@ -102,7 +102,7 @@ public:
   Impl();
 
   void execute(Cmd const&);  
-  std::vector<tea::Msg> poll();
+  std::vector<app::Msg> poll();
 private:
   std::map<Cmd,CmdExecutor> m_running_commands{};
 }; // CmdHandler::Impl
@@ -142,8 +142,8 @@ void CmdHandler::Impl::execute(Cmd const& cmd) {
   );
 } // CmdHandler::Impl::execute
 
-std::vector<tea::Msg> CmdHandler::Impl::poll() {
-  std::vector<tea::Msg> result{};
+std::vector<app::Msg> CmdHandler::Impl::poll() {
+  std::vector<app::Msg> result{};
 
   std::vector<decltype(m_running_commands)::iterator> to_erase{};
 
@@ -200,6 +200,6 @@ void CmdHandler::execute(Cmd const& cmd) {
   return this->m_pimpl->execute(cmd);
 }
 
-std::vector<tea::Msg> CmdHandler::poll() {
+std::vector<app::Msg> CmdHandler::poll() {
   return this->m_pimpl->poll();
 }

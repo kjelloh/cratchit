@@ -1,7 +1,7 @@
 #include "init.hpp"
 #include "ViewState.hpp"
 
-namespace tea {
+namespace app {
 
   std::pair<Model,Cmd> init() {    
     return std::make_pair(
