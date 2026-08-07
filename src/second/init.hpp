@@ -11,6 +11,6 @@
 #include <utility> // std::pair
 
 namespace app {
-  std::pair<Model,Cmd> init();
+  std::pair<Model,tea::Cmd> init();
 } // tea
 

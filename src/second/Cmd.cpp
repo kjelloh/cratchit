@@ -1,4 +1,3 @@
 #include "Cmd.hpp"
 
-namespace tea {
-} // tea
+namespace tea {} // tea

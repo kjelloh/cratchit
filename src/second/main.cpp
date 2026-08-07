@@ -23,7 +23,7 @@ namespace second {
 
       // Hard code a selection of (switch between) production or playground (experiment and investigate) main
       if (true) {
-        CratchitRaylibApp app{};
+        tea::CratchitRaylibApp app{};
         posix_result = app.run(argc,argv);
       }
       else {

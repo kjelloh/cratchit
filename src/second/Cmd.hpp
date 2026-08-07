@@ -8,4 +8,6 @@
 
 #include "executables.hpp"
 
-using Cmd = Executable;
+namespace tea {
+  using Cmd = Executable;
+} // tea

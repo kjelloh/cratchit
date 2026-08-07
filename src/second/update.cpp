@@ -10,7 +10,7 @@ namespace detail {
   concept Updateable = requires(S s, M m) {
     { s.update(m) } -> std::same_as<std::tuple<
        Transition<ViewState>
-      ,Cmd>
+      ,tea::Cmd>
     >;
   };
 
@@ -23,7 +23,7 @@ namespace detail {
       else {
         return std::make_tuple(
           Transition<ViewState>{TransitionKind::Ignore, s}
-          ,Cmd{}
+          ,tea::Cmd{}
         );
       }
   } // update
@@ -50,7 +50,7 @@ auto double_dispatch_view_update(ViewState const& state, const app::Msg& msg) {
 
 namespace app {
 
-  std::tuple<Model,Cmd> update(Model const& model,Msg const& msg) {
+  std::tuple<Model,tea::Cmd> update(Model const& model,Msg const& msg) {
 
     if (!is_no_msg(msg)) {
       log_development_trace(
@@ -105,7 +105,7 @@ namespace app {
 
     return {
         model
-        ,Cmd{}
+        ,tea::Cmd{}
     }; // fallback
 
   } // update

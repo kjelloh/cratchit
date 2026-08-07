@@ -6,4 +6,8 @@
 #include "executables.hpp"
 #include "Msg.hpp"
 
-app::Msg cmd_to_msg(TestCmdDescriptor const&,TestCmdDescriptor::payload_type const&);
+namespace app {
+
+  Msg cmd_to_msg(tea::TestCmdDescriptor const&,tea::TestCmdDescriptor::payload_type const&);
+
+} // tea

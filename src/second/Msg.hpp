@@ -33,7 +33,7 @@ namespace app {
   }; // TestEventMsg
 
   struct TestCmdResultMsg {
-    TestCmdDescriptor::payload_type payload;
+    tea::TestCmdDescriptor::payload_type payload;
   }; // TestCmdResultMsg
 
   using Msg = std::variant<

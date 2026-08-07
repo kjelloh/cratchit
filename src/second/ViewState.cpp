@@ -105,42 +105,42 @@ RootView RootView::with_option_entry(uint8_t ix,std::string option_text) const {
   return result;
 }
 
-std::tuple<Transition<ViewState>,Cmd> RootView::update(app::UnicodeKeyMsg const& m) const {
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::UnicodeKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   if (m.code_point == '0') {
     return {
       {TransitionKind::Push, ProjectsView{}}
-      ,Cmd{}
+      ,tea::Cmd{}
     };
   }
   return {
     {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)}
-    ,Cmd{}
+    ,tea::Cmd{}
   };
 }
 
-std::tuple<Transition<ViewState>,Cmd> RootView::update(app::BackspaceKeyMsg const& m) const {
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::BackspaceKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   return {
     {TransitionKind::Mutate, this->with_popped_unicode()}
-    ,Cmd{}
+    ,tea::Cmd{}
   };
 }
 
-std::tuple<Transition<ViewState>,Cmd> RootView::update(app::CursorBlinkMsg const& m) const {
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::CursorBlinkMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   return {
     {TransitionKind::Mutate, this->with_cursor_visible(!m_cursor_visible)}
-    ,Cmd{}
+    ,tea::Cmd{}
   };
 }
 
-std::tuple<Transition<ViewState>,Cmd> RootView::update(app::TestCmdResultMsg const& m) const {
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::TestCmdResultMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   std::string option_text{"TestCmdResultMsg"};
 
-  // #TEA::Cmd
-  if (m.payload.response_type == CmdResponseType::Done) {
+  // #TEA::tea::Cmd
+  if (m.payload.response_type == tea::CmdResponseType::Done) {
     option_text += " Done";
   }
   else {
@@ -149,7 +149,7 @@ std::tuple<Transition<ViewState>,Cmd> RootView::update(app::TestCmdResultMsg con
 
   return {
     {TransitionKind::Mutate, this->with_option_entry(9,option_text)}
-    ,Cmd{}
+    ,tea::Cmd{}
   };
 } // RootView::update
 
@@ -254,28 +254,28 @@ tea::Ux RootView::view() const {
 DataState const& ProjectsView::update(DataState const&) const {
   return m_data_state;
 }
-std::tuple<Transition<ViewState>,Cmd> ProjectsView::update(app::UnicodeKeyMsg const& unicode_msg) const {
+std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(app::UnicodeKeyMsg const& unicode_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(unicode_msg));
   ProjectsView result{*this};
   return {
     {TransitionKind::Mutate, result}
-    ,Cmd{}
+    ,tea::Cmd{}
   };
 }
-std::tuple<Transition<ViewState>,Cmd> ProjectsView::update(app::EnterKeyMsg const& concrete_msg) const {
+std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(app::EnterKeyMsg const& concrete_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(concrete_msg));
   ProjectsView result{*this};
   return {
     {TransitionKind::Accept, result}
-    ,Cmd{}
+    ,tea::Cmd{}
   };
 }
-std::tuple<Transition<ViewState>,Cmd> ProjectsView::update(app::EscapeKeyMsg const& concrete_msg) const {
+std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(app::EscapeKeyMsg const& concrete_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(concrete_msg));
   ProjectsView result{*this};
   return {
     {TransitionKind::Reject, result}
-    ,Cmd{}
+    ,tea::Cmd{}
   };
 }
 

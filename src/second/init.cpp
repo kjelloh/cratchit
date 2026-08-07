@@ -3,10 +3,10 @@
 
 namespace app {
 
-  std::pair<Model,Cmd> init() {    
+  std::pair<Model,tea::Cmd> init() {    
     return std::make_pair(
        Model{}.with_view_state(ViewState{RootView{}})
-      ,Cmd{}
+      ,tea::Cmd{}
     );
   } // init
 

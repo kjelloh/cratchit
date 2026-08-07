@@ -12,5 +12,5 @@
 #include <tuple>
 
 namespace app {
-  std::tuple<app::Model,Cmd> update(app::Model const& model,Msg const& msg);
+  std::tuple<app::Model,tea::Cmd> update(app::Model const& model,Msg const& msg);
 } // tea

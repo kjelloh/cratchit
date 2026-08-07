@@ -10,196 +10,200 @@
 
 using namespace std::chrono_literals; // ms,
 
-namespace detail {
+namespace tea {
 
-  enum class Status {
-     Unknown
-    ,InProgress
-    ,Done
-    ,Undefined
-  }; // Type
+  namespace detail {
 
-  using MaybeMsg = std::optional<app::Msg>;
-  
-  template <typename ConcreteCmd>
-  class Executor {
-  public:
-  private:
-  }; // Executor<>
+    enum class Status {
+      Unknown
+      ,InProgress
+      ,Done
+      ,Undefined
+    }; // Type
 
-  // #TEA::Cmd
-  template <>
-  class Executor<TestCmdDescriptor> {
-  public:
-    Executor(TestCmdDescriptor const& descriptor)
-      : m_descriptor{descriptor} {}
+    using MaybeMsg = std::optional<app::Msg>;
+    
+    template <typename ConcreteCmd>
+    class Executor {
+    public:
+    private:
+    }; // Executor<>
 
-      void start() {
-      ++m_activation_count;
-      m_start_time = std::chrono::steady_clock::now();
-    }
+    // #TEA::Cmd
+    template <>
+    class Executor<TestCmdDescriptor> {
+    public:
+      Executor(TestCmdDescriptor const& descriptor)
+        : m_descriptor{descriptor} {}
 
-    std::tuple<Status,MaybeMsg> poll() {
+        void start() {
+        ++m_activation_count;
+        m_start_time = std::chrono::steady_clock::now();
+      }
 
-      auto current_time = std::chrono::steady_clock::now();
+      std::tuple<Status,MaybeMsg> poll() {
 
-      auto elapsed_time = current_time - this->m_start_time;
-      if (elapsed_time >= this->m_duration_time) {
+        auto current_time = std::chrono::steady_clock::now();
 
-        // #TEA::Cmd - Done
-        return {
-             Status::Done
-            ,cmd_to_msg(
-               this->m_descriptor
+        auto elapsed_time = current_time - this->m_start_time;
+        if (elapsed_time >= this->m_duration_time) {
+
+          // #TEA::Cmd - Done
+          return {
+              Status::Done
+              ,app::cmd_to_msg(
+                this->m_descriptor
+                ,TestCmdDescriptor::payload_type{
+                  CmdResponseType::Done
+                  ,m_current_progress_ix
+                })};
+
+        } // If done
+
+        auto next_progress_time = m_start_time + (m_current_progress_ix+1)*m_duration_time / m_progress_counts;
+        if (current_time >= next_progress_time) {
+          ++m_current_progress_ix;
+
+          // #TEA::Cmd - Progress
+          return {
+            Status::InProgress
+            ,app::cmd_to_msg(
+              this->m_descriptor
               ,TestCmdDescriptor::payload_type{
-                 CmdResponseType::Done
+                CmdResponseType::ProgressReport
                 ,m_current_progress_ix
-              })};
+              }
+            )
+          };
+        } // If progress
 
-      } // If done
+        return {Status::InProgress,std::nullopt};
 
-      auto next_progress_time = m_start_time + (m_current_progress_ix+1)*m_duration_time / m_progress_counts;
-      if (current_time >= next_progress_time) {
-        ++m_current_progress_ix;
+      } // poll
+    private:
 
-        // #TEA::Cmd - Progress
-        return {
-           Status::InProgress
-          ,cmd_to_msg(
-             this->m_descriptor
-            ,TestCmdDescriptor::payload_type{
-               CmdResponseType::ProgressReport
-              ,m_current_progress_ix
-            }
-          )
-        };
-      } // If progress
+      // #TEA::Cmd - Executor stores descriptor (for cmd _to_msg)
+      TestCmdDescriptor const& m_descriptor;
+      size_t m_activation_count{};
 
-      return {Status::InProgress,std::nullopt};
+      std::chrono::steady_clock::time_point m_start_time{};
+      std::chrono::steady_clock::duration m_duration_time{3000ms};
+      uint8_t m_progress_counts{7};
+      uint8_t m_current_progress_ix{};    
+    }; // Executor<TestCmdDescriptor>
 
-    } // poll
+
+  } // detail
+
+  using CmdExecutor = std::variant<
+    detail::Executor<TestCmdDescriptor>
+  >;
+
+  class CmdHandler::Impl {
+  public:
+    Impl();
+
+    void execute(Cmd const&);  
+    std::vector<app::Msg> poll();
   private:
+    std::map<Cmd,CmdExecutor> m_running_commands{};
+  }; // CmdHandler::Impl
 
-    // #TEA::Cmd - Executor stores descriptor (for cmd _to_msg)
-    TestCmdDescriptor const& m_descriptor;
-    size_t m_activation_count{};
+  CmdHandler::Impl::Impl() {}
 
-    std::chrono::steady_clock::time_point m_start_time{};
-    std::chrono::steady_clock::duration m_duration_time{3000ms};
-    uint8_t m_progress_counts{7};
-    uint8_t m_current_progress_ix{};    
-  }; // Executor<TestCmdDescriptor>
+  void CmdHandler::Impl::execute(Cmd const& cmd) {
 
-
-} // detail
-
-using CmdExecutor = std::variant<
-  detail::Executor<TestCmdDescriptor>
->;
-
-class CmdHandler::Impl {
-public:
-  Impl();
-
-  void execute(Cmd const&);  
-  std::vector<app::Msg> poll();
-private:
-  std::map<Cmd,CmdExecutor> m_running_commands{};
-}; // CmdHandler::Impl
-
-CmdHandler::Impl::Impl() {}
-
-void CmdHandler::Impl::execute(Cmd const& cmd) {
-
-  log_development_trace(
-    "CmdHandler::Impl::execute(cmd:{})"
-    ,cmd_to_string(cmd)
-  );
-
-  // try_emplace = emplace if not exist, otherwise leave existing instance as-is
-  auto [iter,inserted] = this->m_running_commands.try_emplace(
-     cmd
-    ,std::visit(
-      [](auto const& concrete_cmd){
-        using ConcreteCmd = std::decay_t<decltype(concrete_cmd)>;
-        return detail::Executor<ConcreteCmd>(concrete_cmd);
-      }
-      ,cmd
-    )
-  );
-
-  // TODO: Consider to log the value of inserted to detect multiple request for the same command
-
-  // Dispatch to executor to start
-  // Note: It is possible for client to request the same cmd twice or more.
-  //       It is up to the executor to decide if and how to handle this.
-  //       It may produce an appropriate message on poll().
-  std::visit(
-    [](auto& concrete_executor){
-      return concrete_executor.start();
-    }
-    ,iter->second
-  );
-} // CmdHandler::Impl::execute
-
-std::vector<app::Msg> CmdHandler::Impl::poll() {
-  std::vector<app::Msg> result{};
-
-  std::vector<decltype(m_running_commands)::iterator> to_erase{};
-
-  for (
-       auto iter = this->m_running_commands.begin()
-      ;iter != this->m_running_commands.end()
-      ;++iter) {
-    auto& [cmd,executor] = *iter;
-    auto [status,maybe_msg] = std::visit(
-      [](auto& concrete_executor){
-        return concrete_executor.poll();
-      }
-      ,executor
+    log_development_trace(
+      "CmdHandler::Impl::execute(cmd:{})"
+      ,cmd_to_string(cmd)
     );
 
-    if (maybe_msg) {
+    // try_emplace = emplace if not exist, otherwise leave existing instance as-is
+    auto [iter,inserted] = this->m_running_commands.try_emplace(
+      cmd
+      ,std::visit(
+        [](auto const& concrete_cmd){
+          using ConcreteCmd = std::decay_t<decltype(concrete_cmd)>;
+          return detail::Executor<ConcreteCmd>(concrete_cmd);
+        }
+        ,cmd
+      )
+    );
 
-      log_development_trace(
-        "CmdHandler::Impl::poll: cmd:{} -> (status:{},msg:{})"
-        ,cmd_to_string(iter->first)
-        ,static_cast<size_t>(status)
-        ,msg_to_string(maybe_msg.value())
+    // TODO: Consider to log the value of inserted to detect multiple request for the same command
+
+    // Dispatch to executor to start
+    // Note: It is possible for client to request the same cmd twice or more.
+    //       It is up to the executor to decide if and how to handle this.
+    //       It may produce an appropriate message on poll().
+    std::visit(
+      [](auto& concrete_executor){
+        return concrete_executor.start();
+      }
+      ,iter->second
+    );
+  } // CmdHandler::Impl::execute
+
+  std::vector<app::Msg> CmdHandler::Impl::poll() {
+    std::vector<app::Msg> result{};
+
+    std::vector<decltype(m_running_commands)::iterator> to_erase{};
+
+    for (
+        auto iter = this->m_running_commands.begin()
+        ;iter != this->m_running_commands.end()
+        ;++iter) {
+      auto& [cmd,executor] = *iter;
+      auto [status,maybe_msg] = std::visit(
+        [](auto& concrete_executor){
+          return concrete_executor.poll();
+        }
+        ,executor
       );
 
-      result.push_back(maybe_msg.value());
+      if (maybe_msg) {
+
+        log_development_trace(
+          "CmdHandler::Impl::poll: cmd:{} -> (status:{},msg:{})"
+          ,cmd_to_string(iter->first)
+          ,static_cast<size_t>(status)
+          ,msg_to_string(maybe_msg.value())
+        );
+
+        result.push_back(maybe_msg.value());
+      }
+
+      if (status == detail::Status::Done) {
+        to_erase.push_back(iter);
+      }
+
+    } // for
+
+    for (auto iter : to_erase) {
+      log_development_trace(
+        "CmdHandler::Impl::poll: erased cmd:{}"
+        ,cmd_to_string(iter->first)
+      );
+      this->m_running_commands.erase(iter);
     }
 
-    if (status == detail::Status::Done) {
-      to_erase.push_back(iter);
-    }
+    return result;
+  } // CmdHandler::Impl::poll
 
-  } // for
+  // Note: Here CmdHandler::Impl is fully defined
+  //       We can define members that applies to Impl
 
-  for (auto iter : to_erase) {
-    log_development_trace(
-       "CmdHandler::Impl::poll: erased cmd:{}"
-      ,cmd_to_string(iter->first)
-    );
-    this->m_running_commands.erase(iter);
+  CmdHandler::CmdHandler() 
+    : m_pimpl{std::make_unique<Impl>()} {}
+
+  CmdHandler::~CmdHandler() = default;
+
+  void CmdHandler::execute(Cmd const& cmd) {
+    return this->m_pimpl->execute(cmd);
   }
 
-  return result;
-} // CmdHandler::Impl::poll
+  std::vector<app::Msg> CmdHandler::poll() {
+    return this->m_pimpl->poll();
+  }
 
-// Note: Here CmdHandler::Impl is fully defined
-//       We can define members that applies to Impl
-
-CmdHandler::CmdHandler() 
-  : m_pimpl{std::make_unique<Impl>()} {}
-
-CmdHandler::~CmdHandler() = default;
-
-void CmdHandler::execute(Cmd const& cmd) {
-  return this->m_pimpl->execute(cmd);
-}
-
-std::vector<app::Msg> CmdHandler::poll() {
-  return this->m_pimpl->poll();
-}
+} // tea
