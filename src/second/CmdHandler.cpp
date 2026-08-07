@@ -145,7 +145,7 @@ void CmdHandler::Impl::execute(Cmd const& cmd) {
 std::vector<tea::Msg> CmdHandler::Impl::poll() {
   std::vector<tea::Msg> result{};
 
-  std::vector<decltype(m_running_commands)::iterator> to_erase;
+  std::vector<decltype(m_running_commands)::iterator> to_erase{};
 
   for (
        auto iter = this->m_running_commands.begin()
@@ -158,6 +158,7 @@ std::vector<tea::Msg> CmdHandler::Impl::poll() {
       }
       ,executor
     );
+
     if (maybe_msg) {
 
       log_development_trace(
@@ -173,7 +174,9 @@ std::vector<tea::Msg> CmdHandler::Impl::poll() {
     if (status == detail::Status::Done) {
       to_erase.push_back(iter);
     }
+
   } // for
+
   for (auto iter : to_erase) {
     log_development_trace(
        "CmdHandler::Impl::poll: erased cmd:{}"
@@ -181,13 +184,16 @@ std::vector<tea::Msg> CmdHandler::Impl::poll() {
     );
     this->m_running_commands.erase(iter);
   }
+
   return result;
 } // CmdHandler::Impl::poll
+
+// Note: Here CmdHandler::Impl is fully defined
+//       We can define members that applies to Impl
 
 CmdHandler::CmdHandler() 
   : m_pimpl{std::make_unique<Impl>()} {}
 
-// Define destcrutor here after having fully defined CmdHandler::Impl
 CmdHandler::~CmdHandler() = default;
 
 void CmdHandler::execute(Cmd const& cmd) {
