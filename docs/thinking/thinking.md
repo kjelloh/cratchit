@@ -30,6 +30,13 @@ I think it turned out a bit clearer in code who 'provides' what.
 
 Note that Sub and Cmd is not yet in a namespace.
 
+ut now I have moved also Cmd and Sub related code to namespace 'tea' and 'app' as appropriate.
+
+It all turned out prityy neat I think.
+
+* The namespace 'app' now contains code that the app (cratchit) is responsible for
+* And the namespace 'tea' to identifies everything TEA runtime stuff
+
 ## 20260806
 
 So I have now been thinking and working on the command mechanism and I think I have gained some insights.

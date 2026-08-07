@@ -13,21 +13,25 @@
 #include <compare> // for operator<=>
 #include <variant>
 
-struct MetronomeEventDescriptor {
-  auto operator<=>(MetronomeEventDescriptor const&) const = default;
-  const size_t interval_in_ms;
-  struct payload_type {};
-}; // MetronomeEventDescriptor
+namespace tea {
 
-// #TEA::events: Concrete test event descriptor
-struct TestEventDescriptor {
-  auto operator<=>(TestEventDescriptor const&) const = default;
-  const size_t arg;
-  struct payload_type {int value;};
-}; // TestEventDescriptor
+  struct MetronomeEventDescriptor {
+    auto operator<=>(MetronomeEventDescriptor const&) const = default;
+    const size_t interval_in_ms;
+    struct payload_type {};
+  }; // MetronomeEventDescriptor
 
-// #TEA::events: Possible event descriptor variants
-using Subscribable = std::variant<
-   MetronomeEventDescriptor
-  ,TestEventDescriptor
->;
+  // #TEA::events: Concrete test event descriptor
+  struct TestEventDescriptor {
+    auto operator<=>(TestEventDescriptor const&) const = default;
+    const size_t arg;
+    struct payload_type {int value;};
+  }; // TestEventDescriptor
+
+  // #TEA::events: Possible event descriptor variants
+  using Subscribable = std::variant<
+    MetronomeEventDescriptor
+    ,TestEventDescriptor
+  >;
+
+} // tea

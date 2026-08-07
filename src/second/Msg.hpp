@@ -29,7 +29,7 @@ namespace app {
 
   // #TEA::events: Concrete event message
   struct TestEventMsg {
-    TestEventDescriptor::payload_type payload;
+    tea::TestEventDescriptor::payload_type payload;
   }; // TestEventMsg
 
   struct TestCmdResultMsg {

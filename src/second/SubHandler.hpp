@@ -4,23 +4,29 @@
  */
 #pragma once
 
-#include "subscriptions.hpp" // Sub,Subs,...
+#include "Sub.hpp" // Sub,Subs,...
+#include "Msg.hpp"
 #include <map>
 #include <memory> // std::unique_ptr
 
-// #TEA::events: All event emitters interface
-class EmitterIfc {
-public:
-  virtual ~EmitterIfc() = default;
-  virtual std::optional<app::Msg> poll() = 0;
-};
+namespace tea {
 
-// #TEA::events: The subscriptions (Subs) handler
-class SubHandler {
+  // #TEA::events: All event emitters interface
+  class EmitterIfc {
   public:
-    std::vector<app::Msg> poll();
-    void update(Subs const& subs);
+    virtual ~EmitterIfc() = default;
+    virtual std::optional<app::Msg> poll() = 0;
+  };
 
-  private:
-    std::map<Sub,std::unique_ptr<EmitterIfc>> m_active_subscriptions{};
-  }; // SubHandler
+  // #TEA::events: The subscriptions (Subs) handler
+  class SubHandler {
+    public:
+      std::vector<app::Msg> poll();
+      void update(Subs const& subs);
+
+    private:
+      std::map<Sub,std::unique_ptr<EmitterIfc>> m_active_subscriptions{};
+    }; // SubHandler
+
+} // tea
+

@@ -7,14 +7,13 @@
 #pragma once
 
 #include "Model.hpp"
-#include "subscribables.hpp"
+#include "Sub.hpp"
 
-// #TEA::events: Event descriptor alias
-using Sub = Subscribable;
+namespace app {
 
-// #TEA::events: List of descriptors of events to listen to
-using Subs = std::vector<Sub>;
+  // #TEA::events: Client looks into model and returns list of descriptors of events to listen to
+  // See code tagging with '#TEA::events' for relevant components
+  tea::Subs subscriptions(app::Model const& model);
 
-// #TEA::events: Client looks into model and returns list of descriptors of events to listen to
-// See code tagging with '#TEA::events' for relevant components
-Subs subscriptions(app::Model const& model);
+} // app
+

@@ -47,6 +47,7 @@ add_executable(
         src/second/sub_to_msg.cpp
         src/second/subscribables.cpp
         src/second/SubHandler.cpp
+        src/second/Sub.cpp
         src/second/subscriptions.cpp
 
         src/second/Transition.cpp
