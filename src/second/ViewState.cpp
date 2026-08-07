@@ -91,6 +91,20 @@ RootView RootView::with_cursor_visible(bool cursor_visible) const {
   return result;
 }
 
+RootView RootView::with_option_entry(uint8_t ix,std::string option_text) const {
+  RootView result(*this);
+  if (result.m_option_entries.contains(ix)) {
+    log_design_insufficiency(
+      "with_option_entry: ix:{} already exist with value:'{}'. Will overwrite with:'{}'"
+      ,ix
+      ,result.m_option_entries.at(ix)
+      ,option_text
+    );
+  }
+  result.m_option_entries[ix] = option_text;
+  return result;
+}
+
 std::tuple<Transition<ViewState>,Cmd> RootView::update(tea::UnicodeKeyMsg const& m) const {
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   if (m.code_point == '0') {
@@ -121,9 +135,45 @@ std::tuple<Transition<ViewState>,Cmd> RootView::update(tea::CursorBlinkMsg const
   };
 }
 
+std::tuple<Transition<ViewState>,Cmd> RootView::update(tea::TestCmdResultMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  std::string option_text{"TestCmdResultMsg"};
+
+  // #TEA::Cmd
+  if (m.payload.response_type == CmdResponseType::Done) {
+    option_text += " Done";
+  }
+  else {
+    option_text += " In Progress";
+  }
+
+  return {
+    {TransitionKind::Mutate, this->with_option_entry(9,option_text)}
+    ,Cmd{}
+  };
+} // RootView::update
+
 tea::Ux RootView::view() const {
   log_development_trace("RootView::view() m_code_point_buffer:{}",m_code_point_buffer.size());
   // static size_t m_frames_counter = 0;
+
+  auto to_options_rows = [this](size_t row_count) {
+    std::vector<std::string> result{};
+    for (size_t ix=0;ix<row_count;++ix) {
+      if (this->m_option_entries.contains(ix)) {
+        result.push_back(std::format(
+          "{}: {}"
+          ,ix
+          ,this->m_option_entries.at(ix)));
+      }
+      else {
+        result.push_back(std::format(
+          "{}:"
+          ,ix));
+      }
+    }
+    return result;
+  };
 
   auto to_test_rows = [](size_t row_count) -> std::vector<std::string> {
     std::vector<std::string> result{};
@@ -195,7 +245,7 @@ tea::Ux RootView::view() const {
 
   return tea::Ux{
       to_test_rows(TOP_PANE_ROW_COUNT)
-    ,to_test_rows(MIDDLE_PANE_ROW_COUNT)
+    ,to_options_rows(MIDDLE_PANE_ROW_COUNT)
     ,to_bottom_rows(BOTTOM_PANE_ROW_COUNT)      
   };
 }

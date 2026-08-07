@@ -12,24 +12,22 @@ using namespace std::chrono_literals; // ms,
 
 namespace detail {
 
-  struct ConcretePollResult {
-    enum class Type {
-       Unknown
-      ,Nop
-      ,ProgressReport
-      ,Done
-      ,Undefined
-    }; // Type
-    std::optional<tea::Msg> maybe_msg;
-    Type type;
-  }; // ConcretePollResult
+  enum class Status {
+     Unknown
+    ,InProgress
+    ,Done
+    ,Undefined
+  }; // Type
 
+  using MaybeMsg = std::optional<tea::Msg>;
+  
   template <typename ConcreteCmd>
   class Executor {
   public:
   private:
   }; // Executor<>
 
+  // #TEA::Cmd
   template <>
   class Executor<TestCmdDescriptor> {
   public:
@@ -41,35 +39,53 @@ namespace detail {
       m_start_time = std::chrono::steady_clock::now();
     }
 
-    ConcretePollResult poll() {
+    std::tuple<Status,MaybeMsg> poll() {
+
       auto current_time = std::chrono::steady_clock::now();
+
       auto elapsed_time = current_time - this->m_start_time;
       if (elapsed_time >= this->m_duration_time) {
+
+        // #TEA::Cmd - Done
         return {
-          cmd_to_msg(this->m_descriptor,TestCmdDescriptor::payload_type{})
-          ,ConcretePollResult::Type::Done
-        };
+             Status::Done
+            ,cmd_to_msg(
+               this->m_descriptor
+              ,TestCmdDescriptor::payload_type{
+                 CmdResponseType::Done
+                ,m_current_progress_ix
+              })};
+
       } // If done
+
       auto next_progress_time = m_start_time + (m_current_progress_ix+1)*m_duration_time / m_progress_counts;
       if (current_time >= next_progress_time) {
         ++m_current_progress_ix;
+
+        // #TEA::Cmd - Progress
         return {
-          cmd_to_msg(this->m_descriptor,TestCmdDescriptor::payload_type{m_current_progress_ix})
-          ,ConcretePollResult::Type::ProgressReport
+           Status::InProgress
+          ,cmd_to_msg(
+             this->m_descriptor
+            ,TestCmdDescriptor::payload_type{
+               CmdResponseType::ProgressReport
+              ,m_current_progress_ix
+            }
+          )
         };
-      }
-      return {
-        std::nullopt
-        ,ConcretePollResult::Type::Nop
-      };
+      } // If progress
+
+      return {Status::InProgress,std::nullopt};
 
     } // poll
   private:
+
+    // #TEA::Cmd - Executor stores descriptor (for cmd _to_msg)
     TestCmdDescriptor const& m_descriptor;
     size_t m_activation_count{};
 
     std::chrono::steady_clock::time_point m_start_time{};
-    std::chrono::steady_clock::duration m_duration_time{1000ms};
+    std::chrono::steady_clock::duration m_duration_time{3000ms};
     uint8_t m_progress_counts{7};
     uint8_t m_current_progress_ix{};    
   }; // Executor<TestCmdDescriptor>
@@ -94,10 +110,12 @@ private:
 CmdHandler::Impl::Impl() {}
 
 void CmdHandler::Impl::execute(Cmd const& cmd) {
+
   log_development_trace(
     "CmdHandler::Impl::execute(cmd:{})"
     ,cmd_to_string(cmd)
   );
+
   // try_emplace = emplace if not exist, otherwise leave existing instance as-is
   auto [iter,inserted] = this->m_running_commands.try_emplace(
      cmd
@@ -134,26 +152,25 @@ std::vector<tea::Msg> CmdHandler::Impl::poll() {
       ;iter != this->m_running_commands.end()
       ;++iter) {
     auto& [cmd,executor] = *iter;
-    auto poll_result = std::visit(
+    auto [status,maybe_msg] = std::visit(
       [](auto& concrete_executor){
         return concrete_executor.poll();
       }
       ,executor
     );
-    if (poll_result.maybe_msg) {
+    if (maybe_msg) {
 
       log_development_trace(
-        "CmdHandler::Impl::poll: cmd:{} -> (msg:{},type:{})"
+        "CmdHandler::Impl::poll: cmd:{} -> (status:{},msg:{})"
         ,cmd_to_string(iter->first)
-        ,msg_to_string(poll_result.maybe_msg.value())
-        ,static_cast<int>(poll_result.type)
+        ,static_cast<size_t>(status)
+        ,msg_to_string(maybe_msg.value())
       );
 
-      result.push_back(poll_result.maybe_msg.value());
+      result.push_back(maybe_msg.value());
     }
 
-
-    if (poll_result.type == detail::ConcretePollResult::Type::Done) {
+    if (status == detail::Status::Done) {
       to_erase.push_back(iter);
     }
   } // for

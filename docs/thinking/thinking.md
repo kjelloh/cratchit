@@ -8,6 +8,16 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260807
+
+Made the TestCmd execute with 'progress' and 'done' more clearly and deliberatly
+
+* The polling now cares about done or not to know if to remove the executor
+* The Message now carries a payload that communicates Doen or Progress.
+* The RootView now shows 'Progress' or 'Done' in the options pane
+
+I marked some of the relevant code for TestCmd with '#TEA::Cmd' tag
+
 ## 20260806
 
 So I have now been thinking and working on the command mechanism and I think I have gained some insights.
