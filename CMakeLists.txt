@@ -40,6 +40,7 @@ add_executable(
 
         src/second/double_dispatch_accept.cpp
 
+        src/second/ProjectsView.cpp
         src/second/RootView.cpp
         src/second/TestView.cpp
 
@@ -60,7 +61,6 @@ add_executable(
         src/second/Ux.cpp
 
         src/second/msg_to_string.cpp
-        src/second/ViewState.cpp
 
         src/second/Msg.cpp
         src/second/Cmd.cpp

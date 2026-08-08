@@ -1,8 +1,9 @@
-#include "ViewState.hpp"
+#include "ProjectsView.hpp"
+#include "ViewState.hpp" // Complete type
+
 #include "log.hpp"
 #include "msg_to_string.hpp"
 
-// ProjectsView
 DataState ProjectsView::update(DataState const&) const {
   return m_data_state;
 }
@@ -41,4 +42,3 @@ tea::Ux ProjectsView::view() const {
     ,{"ProjectsView: bottom pane"}      
   };
 }
-

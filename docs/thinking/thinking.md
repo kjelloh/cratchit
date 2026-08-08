@@ -263,7 +263,19 @@ This is NOT a template but a defintion.
   * But this seems overkill when it is ALWAYS applied to ViewState arguments?
 * I suppose I could provide a normal hpp/cpp-unit for it?
 
-So I now have three 
+So I now have three double_dispatch_accept (template machiner, header and cpp-file).
+
+For now I like the approach I have taken with new source file extensions.
+
+* zpp-file contains incomplete type(s)
+* tpp-file contains template machinery
+* hpp-file complete declarations
+* cpp-file defintions
+
+Finally I moved ProjectsState to its own unit.
+
+* Also removed now empty ViewState.cpp
+* The header is there to make ViewState complete
 
 ## 20260806
 

@@ -5,12 +5,12 @@
 
 #include <variant>
 
-// Incomplete conrtete views
+// #ViewState:0 Introduce ALL Incomplete concrete views
 class RootView; 
 class ProjectsView;
 class TestView;
 
-// Incomplete Variant of possible views
+// #ViewState:1 List all incomplete view variants 
 using ViewState = std::variant<
    RootView
   ,TestView
