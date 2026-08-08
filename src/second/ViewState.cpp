@@ -46,12 +46,10 @@ ViewState double_dispatch_accept(ViewState const& target, ViewState const& sourc
   return target;
 } // accept
 
-// DataState const& update(DataState const& data_state) const;
 DataState RootView::update(DataState const&) const {
   return this->m_data_state;
 }
 
-// RootView accept(ViewState const& source) const;
 RootView RootView::accept(ViewState const& source) const {
   return std::visit(
     [this](auto const& concrete_source){

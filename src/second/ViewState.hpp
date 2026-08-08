@@ -3,7 +3,7 @@
 #include "Msg.hpp"
 #include "Ux.hpp"
 #include "DataState.hpp"
-#include "Transition.hpp"
+#include "Transition.tpp"
 #include "Cmd.hpp"
 
 #include <immer/vector.hpp>
