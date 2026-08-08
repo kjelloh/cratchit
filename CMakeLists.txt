@@ -50,7 +50,6 @@ add_executable(
         src/second/Sub.cpp
         src/second/subscriptions.cpp
 
-        src/second/Transition.cpp
         src/second/DataState.cpp
 
         src/second/Ux.cpp

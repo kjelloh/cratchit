@@ -8,6 +8,75 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260808
+
+I started to implement a 'test view'.
+
+* I wanted it in its own unit
+* But I ran into the cross-dependancy ptoblem.
+* The ViewState type is a variant over concrete views.
+* But then each concrete view uses ViewState as input.
+
+For now I have solved it with forward declaration of concrete views.
+
+```cpp
+// Forwards for variant
+class RootView; 
+class ProjectsView;
+// Variant of possible views
+using ViewState = std::variant<RootView,ProjectsView>;
+// ...
+```
+
+This works because the declaration of std::variant does NOT require the listed concrete types to be defined.
+
+Then after this we can declare the concrete views to depend on the declared ViewState.
+
+```cpp
+class RootView {
+public:
+  DataState update(DataState const& data_state) const;
+  RootView accept(ViewState const& source) const;
+  // ...
+```
+
+This is also fine as long as we only declare dependancies (NOT define any dependancies).
+
+Now in the cpp-file we can define each concrete view.
+
+```cpp
+// RootView accept(ViewState const& source) const;
+RootView RootView::accept(ViewState const& source) const {
+  return std::visit(
+    [this](auto const& concrete_source){
+       return this->with_data_state(detail::update(concrete_source,this->m_data_state));
+    }
+    ,source
+  );
+  return *this;
+}
+```
+
+This now works fine as both ViewState and RootView is fulle declared.
+
+So it seems the trick is (if we cann concrete view types for A and the variant B).
+
+0. Forward declare all A types
+1. Declare B-depend-on-A:s
+2. Declare each A-depend-on-B
+3. Define all A
+4. Now B is fully defined
+
+Now before I figure out how to put 'A' types into cpp-units I think I shall take the time and turn some template machinery into dedicatadly named tpp-files?
+
+* In this way I can communicate in code what is template-machinery
+* And keep track of how they 'leak' into header cpp-files?
+* This is of conscern as template machinery NEEDS to be instantiated at location of use.
+  * A template instantiation always happens at the location in the code where it is 'declared'
+  * That is, the declared type is defined by the template instantiation
+
+* So I made Transition.hpp into Transition.tpp (and got rid of empty Transition.cpp)
+
 ## 20260807
 
 Made the TestCmd execute with 'progress' and 'done' more clearly and deliberatly
