@@ -1,5 +1,7 @@
 #include "update.hpp"
 #include "ViewState.hpp"
+#include "double_dispatch_accept.hpp"
+
 #include "msg_to_string.hpp"
 #include "log.hpp"
 

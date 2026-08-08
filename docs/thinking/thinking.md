@@ -243,6 +243,28 @@ It all turned out prityy neat I think.
 * The namespace 'app' now contains code that the app (cratchit) is responsible for
 * And the namespace 'tea' to identifies everything TEA runtime stuff
 
+I now started to make RootView its own unit.
+
+* I made RootView.hpp depend on incomplete ViewState.zpp
+* And then made RootView.cpp depend on complete ViewState.hpp
+
+But now I got into trouble with 'double dispatch accept' in tpp-file
+
+```cpp
+  ViewState double_dispatch_accept(ViewState const& target, ViewState const& source) {
+    // ...
+  };
+
+```
+
+This is NOT a template but a defintion.
+
+* I suppose either I make double_dispatch_accept a template function?
+  * But this seems overkill when it is ALWAYS applied to ViewState arguments?
+* I suppose I could provide a normal hpp/cpp-unit for it?
+
+So I now have three 
+
 ## 20260806
 
 So I have now been thinking and working on the command mechanism and I think I have gained some insights.
