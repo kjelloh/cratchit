@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ViewState.zpp" // incomplete types header
+#include "TestView.hpp" // view declaration
 #include "Msg.hpp"
 #include "Ux.hpp"
 #include "DataState.hpp"
@@ -10,12 +12,6 @@
 #include <variant>
 #include <tuple>
 #include <map>
-
-// Forwards for variant
-class RootView; 
-class ProjectsView;
-// Variant of possible views
-using ViewState = std::variant<RootView,ProjectsView>;
 
 ViewState double_dispatch_accept(ViewState const& target, ViewState const& source);
 
@@ -55,7 +51,7 @@ public:
 class ProjectsView {
 public:
   using This = ProjectsView;
-  DataState const& update(DataState const& data_state) const;
+  DataState update(DataState const& data_state) const;
 
 
   std::tuple<Transition<ViewState>,tea::Cmd> update(app::UnicodeKeyMsg const& unicode_msg) const;

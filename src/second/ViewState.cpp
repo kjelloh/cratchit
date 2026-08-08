@@ -69,6 +69,13 @@ std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::UnicodeKeyMsg c
       ,tea::Cmd{}
     };
   }
+  if (m.code_point == '1') {
+    return {
+      {TransitionKind::Push, TestView{}}
+      ,tea::Cmd{}
+    };
+  }
+
   return {
     {TransitionKind::Mutate, this->with_pushed_unicode(m.code_point)}
     ,tea::Cmd{}
@@ -207,9 +214,10 @@ tea::Ux RootView::view() const {
 }
 
 // ProjectsView
-DataState const& ProjectsView::update(DataState const&) const {
+DataState ProjectsView::update(DataState const&) const {
   return m_data_state;
 }
+
 std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(app::UnicodeKeyMsg const& unicode_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(unicode_msg));
   ProjectsView result{*this};
@@ -218,6 +226,7 @@ std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(app::UnicodeKeyM
     ,tea::Cmd{}
   };
 }
+
 std::tuple<Transition<ViewState>,tea::Cmd> ProjectsView::update(app::EnterKeyMsg const& concrete_msg) const {
   log_development_trace("ProjectsView::update(m:{})",msg_to_string(concrete_msg));
   ProjectsView result{*this};

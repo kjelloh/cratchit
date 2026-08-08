@@ -1,0 +1,18 @@
+/**
+ * Header for incomplete type(s) to break circular dependance
+ */
+#pragma once
+
+#include <variant>
+
+// Incomplete conrtete views
+class RootView; 
+class ProjectsView;
+class TestView;
+
+// Incomplete Variant of possible views
+using ViewState = std::variant<
+   RootView
+  ,TestView
+  ,ProjectsView
+>;

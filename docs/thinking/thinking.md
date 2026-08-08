@@ -77,6 +77,143 @@ Now before I figure out how to put 'A' types into cpp-units I think I shall take
 
 * So I made Transition.hpp into Transition.tpp (and got rid of empty Transition.cpp)
 
+I now stumble into another tricky thing.
+
+* The ViewState variant does kind-of need to 'boot strap' from anonymous (forward declared) types
+
+```cpp
+// Forwards for variant
+class RootView; 
+class ProjectsView;
+// Variant of possible views
+using ViewState = std::variant<RootView,ProjectsView>;
+
+ViewState double_dispatch_accept(ViewState const& target, ViewState const& source);
+
+```
+
+Maybe I should communicate this by putting them in a 'sepcial header' with extension zpp (zero header file)?
+
+* In 'ViewState.zpp' we have the ViewState boot-strapped from forward declared view type?
+* In 'RootState.hpp' we can include ViewState.zpp and declare RootState?
+* And then in 'RootState.cpp' we define RootState?
+
+Hm...Tricky.
+
+* We can define ANY concrete view unmtil ALL concrete views are declared!
+* How (who, what file) assembles ALL conrete view declarations?
+* AHA, I can also have 'ViewState.hpp' that includes ALL concrete-view-hpp-files?
+  * Then the ViewState.hpp uses its zpp-file to boot-strap types for the variant declaration?
+  * And each concrete-view-hpp-file inlcude the ViewState.zpp?
+
+I had to edit VSCode settings.json 'files.associations' to add '    "*.zpp" : "cpp"' for intellisense to treat it as c++ code.
+
+So I have now introduced TestView unit and ViewState.zpp
+
+* The ViewState.zpp declares the incomplete ViewState
+
+```cpp
+/**
+ * Header for incomplete type(s) to break circular dependance
+ */
+#pragma once
+
+#include <variant>
+
+// Incomplete conrtete views
+class RootView; 
+class ProjectsView;
+class TestView;
+
+// Incomplete Variant of possible views
+using ViewState = std::variant<
+   RootView
+  ,TestView
+  ,ProjectsView
+>;
+
+```
+
+* TestView.hpp then includes the incomplete ViewState so that it can declare itself
+
+```cpp
+#include "ViewState.zpp" // incomplete type (break circual dependance)
+#include "DataState.hpp"
+#include "Transition.tpp"
+#include "Cmd.hpp"
+#include "Msg.hpp"
+#include "Ux.hpp"
+
+// TestView declaration
+```
+
+* ViewState.hpp now is there to make the ViewState type complete
+
+```cpp
+#include "ViewState.zpp" // incomplete types header
+#include "TestView.hpp" // view declaration
+// include all conrete view declarations
+```
+
+* Then the cpp-file includes the completed ViewState type
+
+```cpp
+#include "TestView.hpp"
+#include "ViewState.hpp" // Complete type
+
+// TestView definition
+
+```
+
+* I suppose it becomes a bit confusing that TestView.cpp in fact only needs to incldue ViewState.hpp?
+
+  * I decide to include it anyhow (for c++ idiom consistency)
+
+I now also introdced option '1' RootView -> TestView
+
+* In init()
+
+```cpp
+  std::pair<Model,tea::Cmd> init() {
+
+    auto root_view = RootView{}
+      .with_option_entry(0,"Projetcs")
+      .with_option_entry(1,"Test View");
+
+      return std::make_pair(
+       Model{}.with_view_state(root_view)
+      ,tea::Cmd{}
+    );
+  } // init
+
+```
+
+* And in RootView
+
+```cpp
+std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::UnicodeKeyMsg const& m) const {
+  log_development_trace("RootView::update(m:{})",msg_to_string(m));
+  if (m.code_point == '0') {
+    return {
+      {TransitionKind::Push, ProjectsView{}}
+      ,tea::Cmd{}
+    };
+  }
+  if (m.code_point == '1') {
+    return {
+      {TransitionKind::Push, TestView{}}
+      ,tea::Cmd{}
+    };
+  }
+  // ...
+```
+
+Note: I have no mechanism to pair up available options with appropriate transitions.
+
+* So otpions listings is separate from option selection and action
+
+Good enough for now I think.
+
 ## 20260807
 
 Made the TestCmd execute with 'progress' and 'done' more clearly and deliberatly
