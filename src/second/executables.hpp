@@ -13,6 +13,12 @@ namespace tea {
     ,Undefined
   }; // Type
 
+  class NoCmd {
+  public:
+    // make us work as 'key' (comparable)
+    auto operator<=>(NoCmd const&) const = default;
+  }; // NoCmd
+
   class TestCmdDescriptor {
   public:
     // make us work as 'key' (comparable)
@@ -26,7 +32,8 @@ namespace tea {
   };
 
   using Executable = std::variant<
-    TestCmdDescriptor
+     NoCmd
+    ,TestCmdDescriptor
   >;
 
 } // tea

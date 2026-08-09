@@ -3,6 +3,7 @@
 #include "log.hpp"
 #include "cmd_to_string.hpp"
 #include "msg_to_string.hpp"
+#include "is_compile_time_mapable.tpp"
 
 #include <map>
 #include <optional>
@@ -26,6 +27,22 @@ namespace tea {
     template <typename ConcreteCmd>
     class Executor {
     public:
+      Executor(NoCmd const&) {}
+    private:
+    }; // Executor<>
+
+    template <>
+    class Executor<NoCmd> {
+    public:
+      Executor(NoCmd const&) {}
+      void start() {}
+      std::tuple<Status,MaybeMsg> poll() {
+          return {
+             Status::Done
+            ,std::nullopt
+          };
+      }
+
     private:
     }; // Executor<>
 
@@ -96,7 +113,8 @@ namespace tea {
   } // detail
 
   using CmdExecutor = std::variant<
-    detail::Executor<TestCmdDescriptor>
+     detail::Executor<NoCmd>
+    ,detail::Executor<TestCmdDescriptor>
   >;
 
   class CmdHandler::Impl {
@@ -118,13 +136,14 @@ namespace tea {
       ,cmd_to_string(cmd)
     );
 
-    // try_emplace = emplace if not exist, otherwise leave existing instance as-is
+    is_compile_time_mapable<Cmd>(); // Helper to trigger better compiler error on 'unsufficient' Cmd alternative for std::map
+    // Map Cmd -> Executor, by try_emplace = emplace if not exist, otherwise leave existing instance as-is
     auto [iter,inserted] = this->m_running_commands.try_emplace(
       cmd
       ,std::visit(
         [](auto const& concrete_cmd){
           using ConcreteCmd = std::decay_t<decltype(concrete_cmd)>;
-          return detail::Executor<ConcreteCmd>(concrete_cmd);
+          return CmdExecutor{detail::Executor<ConcreteCmd>(concrete_cmd)};
         }
         ,cmd
       )
