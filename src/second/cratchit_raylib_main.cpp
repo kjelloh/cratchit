@@ -168,7 +168,7 @@ namespace tea {
       // update model for all events that have occured since last frame
       for (auto const& msg : this_frame_events_msgs()) {
         std::tie(model,cmd) = app::update(model,msg);
-        // TODO: Handle cmd (push to background thread execution -> Msg?)
+        cmd_handler.execute(cmd);
       }
 
       auto this_frame_cmds_msgs = [&cmd_handler](){
@@ -181,6 +181,7 @@ namespace tea {
 
       for (auto const& msg : this_frame_cmds_msgs()) {
         std::tie(model,cmd) = app::update(model,msg);
+        cmd_handler.execute(cmd);
       }
 
       // #app

@@ -1,19 +1,40 @@
 #include "TestView.hpp"
 #include "ViewState.hpp" // Complete type
 #include "msg_to_string.hpp"
+#include "cmd_to_string.hpp"
 #include "log.hpp"
+
+TestView::TestView() {
+
+  m_option_entries[0] = std::format("Execute {}",cmd_to_string(tea::TestCmdDescriptor{}));
+  
+}
 
 DataState TestView::update(DataState const&) const {
   return this->m_data_state;
 }
 
 std::tuple<Transition<ViewState>,tea::Cmd> TestView::update(app::UnicodeKeyMsg const& unicode_msg) const {
+
   log_development_trace("TestView::update(m:{})",msg_to_string(unicode_msg));
+
   TestView result{*this};
+
+  switch (unicode_msg.code_point) {
+    case '0': 
+      log_development_trace("'0' -> TestCmdDescriptor");
+      return {
+        {TransitionKind::Ignore, result}
+        ,tea::TestCmdDescriptor{}
+      };
+  } // switch
+
+  // fallback
   return {
-    {TransitionKind::Mutate, result}
+    {TransitionKind::Ignore, result}
     ,tea::Cmd{}
   };
+
 }
 
 std::tuple<Transition<ViewState>,tea::Cmd> TestView::update(app::EnterKeyMsg const& concrete_msg) const {
@@ -35,18 +56,18 @@ std::tuple<Transition<ViewState>,tea::Cmd> TestView::update(app::EscapeKeyMsg co
 
 std::tuple<Transition<ViewState>,tea::Cmd> TestView::update(app::TestCmdResultMsg const& m) const {
   log_development_trace("TestView::update(m:{})",msg_to_string(m));
-  std::string option_text{"TestCmdResultMsg"};
+  std::string option_text = (m_option_entries.contains(0))?m_option_entries.at(0):"No option 0 text";
 
   // #TEA::tea::Cmd
   if (m.payload.response_type == tea::CmdResponseType::Done) {
     option_text += " Done";
   }
   else {
-    option_text += " In Progress";
+    option_text += ".";
   }
 
   return {
-    {TransitionKind::Mutate, this->with_option_entry(9,option_text)}
+    {TransitionKind::Mutate, this->with_option_entry(0,option_text)}
     ,tea::Cmd{}
   };
 } // TestView::update

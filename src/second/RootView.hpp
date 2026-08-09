@@ -14,6 +14,9 @@
 
 class RootView {
 public:
+
+  RootView();
+
   DataState update(DataState const& data_state) const;
   RootView accept(ViewState const& source) const;
 
@@ -21,8 +24,6 @@ public:
   std::tuple<Transition<ViewState>,tea::Cmd> update(app::UnicodeKeyMsg const& unicode_msg) const;
   std::tuple<Transition<ViewState>,tea::Cmd> update(app::BackspaceKeyMsg const&) const;
   std::tuple<Transition<ViewState>,tea::Cmd> update(app::CursorBlinkMsg const&) const;
-  // #TEA::tea::Cmd
-  std::tuple<Transition<ViewState>,tea::Cmd> update(app::TestCmdResultMsg const&) const;
 
   using CodePointBuffer = immer::vector<char32_t>;
 

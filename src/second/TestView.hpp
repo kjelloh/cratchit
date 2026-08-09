@@ -11,6 +11,9 @@
 
 class TestView {
 public:
+
+  TestView();
+
   DataState update(DataState const& data_state) const;
 
   std::tuple<Transition<ViewState>,tea::Cmd> update(app::UnicodeKeyMsg const& unicode_msg) const;

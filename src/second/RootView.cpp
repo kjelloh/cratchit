@@ -6,6 +6,11 @@
 #include "msg_to_string.hpp"
 #include "utf8.hpp"
 
+RootView::RootView() {
+  m_option_entries[0] = "Projects view";
+  m_option_entries[1] = "Test view";
+}
+
 DataState RootView::update(DataState const&) const {
   return this->m_data_state;
 }
@@ -100,27 +105,7 @@ std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::CursorBlinkMsg 
   };
 }
 
-std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::TestCmdResultMsg const& m) const {
-  log_development_trace("RootView::update(m:{})",msg_to_string(m));
-  std::string option_text{"TestCmdResultMsg"};
-
-  // #TEA::tea::Cmd
-  if (m.payload.response_type == tea::CmdResponseType::Done) {
-    option_text += " Done";
-  }
-  else {
-    option_text += " In Progress";
-  }
-
-  return {
-    {TransitionKind::Mutate, this->with_option_entry(9,option_text)}
-    ,tea::Cmd{}
-  };
-} // RootView::update
-
 tea::Ux RootView::view() const {
-  log_development_trace("RootView::view() m_code_point_buffer:{}",m_code_point_buffer.size());
-  // static size_t m_frames_counter = 0;
 
   auto to_options_rows = [this](size_t row_count) {
     std::vector<std::string> result{};

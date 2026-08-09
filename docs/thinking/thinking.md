@@ -166,6 +166,38 @@ After a final tweaking I managed to get the test to generate an even better erro
   ...
 ```
 
+Ok, so now we need to decide where to (who is to) trigger the test command?
+
+* On an option in TestView?
+* On entering TestView?
+* Simply hard coded into init()?
+
+I feel the best place is as an option in the TestView?
+
+So now I have a simple animation in TestView.
+
+* On option 0 it initiates the test command
+
+```cpp
+std::tuple<Transition<ViewState>,tea::Cmd> TestView::update(app::UnicodeKeyMsg const& unicode_msg) const {
+  log_development_trace("TestView::update(m:{})",msg_to_string(unicode_msg));
+  TestView result{*this};
+  switch (unicode_msg.code_point) {
+    case '0': 
+      log_development_trace("'0' -> TestCmdDescriptor");
+      return {
+        {TransitionKind::Mutate, result}
+        ,tea::TestCmdDescriptor{}
+      };
+  } // switch
+  return {
+    {TransitionKind::Ignore, result}
+    ,tea::Cmd{}
+  };
+}
+
+```
+
 ## 20260808
 
 I started to implement a 'test view'.
