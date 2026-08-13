@@ -17,6 +17,8 @@ public:
 
   RootView();
 
+  DataState const& data_state() const;
+
   DataState update(DataState const& data_state) const;
   RootView accept(ViewState const& source) const;
 

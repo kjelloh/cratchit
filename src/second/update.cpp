@@ -3,28 +3,40 @@
 #include "double_dispatch_accept.hpp"
 
 #include "msg_to_string.hpp"
+#include "view_to_string.hpp"
 #include "log.hpp"
 
 // Helpers to visit State with a Msg (Double dispatch)
 namespace detail {
 
-  template<typename S, typename M>
-  concept Updateable = requires(S s, M m) {
-    { s.update(m) } -> std::same_as<std::tuple<
+  template<typename ConcreteView, typename ConcreteMsg>
+  concept Updateable = requires(ConcreteView concrete_view, ConcreteMsg concrete_msg) {
+    { concrete_view.update(concrete_msg) } -> std::same_as<std::tuple<
        Transition<ViewState>
       ,tea::Cmd>
     >;
   };
 
-  template<typename S, typename M>
-  auto update(S const& s, M const& m) {
-      if constexpr (Updateable<S, M>) {
+  template<typename ConcreteView, typename ConcreteMsg>
+  auto update(ConcreteView const& concrete_view, ConcreteMsg const& concrete_msg) {
+      if constexpr (Updateable<ConcreteView, ConcreteMsg>) {
+        log_development_trace(
+           "update -> {}:update({})"
+          ,view_to_string(concrete_view)
+          ,msg_to_string(concrete_msg)
+        );
         // Call State::operator(Msg)
-        return s.update((m));
+        return concrete_view.update((concrete_msg));
       }
       else {
+        log_development_trace(
+           "update -> NO {}:update({}) = FALLBACK to ignore"
+          ,view_to_string(concrete_view)
+          ,msg_to_string(concrete_msg)
+        );
+
         return std::make_tuple(
-          Transition<ViewState>{TransitionKind::Ignore, s}
+          Transition<ViewState>{TransitionKind::Ignore, concrete_view}
           ,tea::Cmd{}
         );
       }
@@ -36,12 +48,12 @@ auto double_dispatch_view_update(ViewState const& state, const app::Msg& msg) {
   // 2. Dispatch to concrete Msg
   return std::visit(
     // state on captured msg
-    [&msg](auto const& s) {
+    [&msg](auto const& concrete_view) {
       return std::visit(
         // captured message on captured state
-        [&s](auto const& m) {
+        [&concrete_view](auto const& concrete_msg) {
           // update state on msg
-          return detail::update(s, m);
+          return detail::update(concrete_view, concrete_msg);
         }
         ,msg
       );        

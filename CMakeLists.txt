@@ -38,6 +38,12 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/view_to_string.cpp
+
+        src/second/RuntimeView.cpp
+        src/second/archive_codecs.cpp
+        src/second/Archive.cpp
+
         src/second/double_dispatch_accept.cpp
 
         src/second/ProjectsView.cpp

@@ -7,12 +7,14 @@
 
 // #ViewState:0 Introduce ALL Incomplete concrete views
 class RootView; 
-class ProjectsView;
 class TestView;
+class RuntimeView;
+class ProjectsView;
 
 // #ViewState:1 List all incomplete view variants 
 using ViewState = std::variant<
    RootView
   ,TestView
+  ,RuntimeView
   ,ProjectsView
 >;

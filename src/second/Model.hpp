@@ -17,9 +17,11 @@ namespace app {
 
     using ViewStateStack = immer::vector<ViewState>;
     ViewStateStack const& view_state_stack() const;
-    Model with_mutated_view_state_stack(ViewStateStack const& view_state_stack) const;
 
-    Model with_view_state(ViewState const& view_state) const;
+    Model with_mutated_view_state_stack(ViewStateStack const& view_state_stack) const;
+    Model with_pushed_view_state(ViewState const& view_state) const;
+
+    Model with_top_view_state(ViewState const& view_state) const;
 
   private:
     ViewStateStack m_view_state_stack{};

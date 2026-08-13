@@ -8,6 +8,460 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260813
+
+Ok, so lets talk about PossibleRuntime as I have it right now.
+
+```cpp
+class PossibleRuntime {
+public:
+  PossibleRuntime(std::filesystem::path const& root_path);
+  ~PossibleRuntime();
+
+  operator bool() const;
+
+  Archive archive() const;
+private:
+  class Impl;
+  std::shared_ptr<const Impl> m_pimpl;
+
+}; // PossibleRuntime
+```
+
+This feels wrong. It also lends itself badly to how I aggregate it in DataState.
+
+```cpp
+class DataState {
+public:
+
+  using PersistentMaybePossibleRuntime = std::optional<immer::box<PossibleRuntime>>;
+
+  PersistentMaybePossibleRuntime maybe_possible_runtime() const;
+
+  DataState with_possible_runtime(PossibleRuntime possible_runtime) const;
+
+private:
+  PersistentMaybePossibleRuntime m_maybe_possible_runtime{};
+}; // DataState
+```
+
+Note the PersistentMaybePossibleRuntime!
+
+* So being a member or 'persistent' DataState I wrapped it in an immer:box.
+* It may fail to represent a valid runtime archive so it is an std::optional
+* Then it is a 'possible runtime'
+  * I did this to represent it to be an RAII with a failed (broken) resource
+  * Like the fle does not exist or there is soemthig wrong wih the file format 
+
+But all these clash with eachother. It's like the 'all things maybe' problem.
+
+So it seems I have to grasp what problems I am trying to model for here?
+
+I presented this to chatGPT and it riffed back some valuable reasonings.
+
+* I need DataState to be able 'no runtime yet'.
+  * This is an optional Runtime.
+* I need to handle 'No runtime file exists'
+  * I think this should mean I create a default Runtime
+* So for a view that requires runtime to exist it will have a default one or one from persistent file
+* I then need to handle 'persistent runtime file is malformed'
+  * This is expected Rumtime or 'parse error'
+  * So from this operation I either get a Runtime from file...
+  * Or I create a deafult one.
+* I need to answer the question on what to do if the runtime file is malformed?
+  * Did I try to import it wih the wrong codec?
+  * Or did I read a file that was not inteded to be a persistent runtime file?
+  * Now if it is at the location '.../.cratchit/runtime.xxx'
+  * Then I should be safe to treat it as something that MUST be a well formed persistent runtime file?
+  * So what do I do then?
+  * I can report it as a 'design insufficiency' and mark the file as 'unfit as persistent runtime file'
+  * And somehow 'remember' (where) to use a persistent runtime file with another name for this runtime location?
+  * But I can also 'fix' the problem by overwriting the faulty file with a new correct but empty one?
+* It seems an unfit persistent runtime file may come from it being an 'older' version?
+  * In that case I need a migration mechanism from older formats to current one?
+  * And this is in fact a 'solved' problem in known applications out there?
+* AHA, we can treat 'unfit persistent runtime file' as a potential 'other known encoding'
+  * So we can apply a 'determine alternative encoding'
+  * For each that fits we can import it to an archive
+  * For each potential archive we can see how many is acceptible as a 'runtime archive'
+  * And then pick 'the best' one?
+  * Of, quite elaborate?!!
+
+Leaving the case 'faulty persistent runtime file' aside, I at least know have a bettwer understanding of the problem domian.
+
+1. A '.../.cratchit.runtime.xxx' may exist or not
+  * An optional file
+2.  An existing file may be imported to an archive or not.
+  * An expected archive or a failure reason
+3. An archive may be transformed it to a valid Runtime or not
+  * An expected runtime or a failure reason
+4. A valid runtime may be in DataState or not
+  * DataState aggregates an optional runtime
+
+It also seems the the operation file-to-acrhive is not dependant on if it is a persistent runtime file or not?
+
+* So we need the operation 'import archive'
+* Only then attempt 'archive to valid runtime'
+
+Can we sketch this out in some pseudo-code?
+
+```cpp
+auto possible_runtime = open_file(runtime_archive_path)
+  .and_then(import_archive)
+  .and_then(runtime_from_archive);
+
+if (possible_runtime) {
+  next_data_state = current_data_state.with_runtime(*possible_runtime);
+}
+else {
+  next_data_state = current_data_state.with_runtime(create_deafult_runtime());
+}
+```
+
+Yes, here I go again! Attemtping to create a monadic composition!
+
+I presented this to chatGPT to get it to riff back some information.
+
+* It proposed an 'import_runtime_archive(path)' function
+  * It either returns successfully imported archive or the deafult one
+  * This expresses the behavior 'exists or create default'
+* Then it proposed a 'magic marker' in the persistent file
+  * An existing marker means we KNOW if to treat it as valid or not
+  * The marker also tells us HOW to treat it.
+  * If improt still fails we can treat it as CORRUPTED.
+* I feel I wan't to use a hash-value as magic marker.
+  * I can then apply a hash-id-to-codec mapping
+  * And identify if a mapping exists or not
+  * And does the mapping exist the codec can expect to succeed.
+  * Other wise the file is CORRUPT
+
+Seems like we are getting somewhere?!
+
+So I made a lot of work that is not checked in. What can I keep and what needs to go for a re-take on the design?
+
+* PossibleRuntime must go
+  * I dont even think I need the pimpl NOR the RAII?
+
+I decided to commit to the introduced Acrhive and ArchiveCodec code.
+
+* The ArchiveCodec.tpp lends itself to Codec Descriptor variant mapping to actual Codec.
+
+```cpp
+template <typename ArchiveCodecDescriptor>
+class ArchiveCodec {
+public:
+private:
+}; // ArchiveCodec
+
+template <>
+class ArchiveCodec<NameValuePairCodecDescriptor> {
+public:
+  std::optional<Archive> import(std::istream& in) {
+    log_development_trace("ArchiveCodec<NameValuePairCodecDescriptor>::import()");
+    if (!in) {
+      log_development_trace("No in-stream");
+      return std::nullopt;
+    }
+    return std::nullopt;
+  }
+private:
+}; // ArchiveCodec
+
+template <typename T>
+auto create_archive_codec() {
+  return ArchiveCodec<T>{};
+} // create_archive_codec
+```
+
+  * I could for example dispatch a variant codec descriptor to ```create_archive_codec<ConcreteDescriptor>```
+  * And if conveniant implement template magic to dispatch a variant archive codec to the concrete one?
+
+* For now I have only one codec descriptor
+
+```cpp
+struct NameValuePairCodecDescriptor {}; // NameValuePairCodecDescriptor
+```
+
+
+## 20260812
+
+So where are we? It seems this introduction of persistent data for ctatchit comes with a lot of scaffolding?
+
+* I have decided to store persistent data in files in a folder named '.cratchit'.
+* I represent the content of such a file in an aobject of type Archive.
+* I have inroduced the concept of an ArchiveCodec that can import and export from such a file (as a stream)
+* And ArchiveCodec is parameterised on a descriptor type.
+
+And I have began 'navigating' these persistent files in init().
+
+```cpp
+  std::pair<Model,tea::Cmd> init() {
+    auto root_view = RootView{};
+    auto model = Model{}
+      .with_view_state(root_view)
+      .with_view_state(RuntimeView{PossibleRuntime(".")});
+
+    return std::make_pair(
+       model
+      ,tea::Cmd{}
+    );
+  } // init
+```
+
+Well, it is a start.
+
+* I don't thing I will need RootView in the future.
+* But I leave it in place for now so I can focus on the persistent stuff.
+
+I now wonder about some features about state transition and persistent data.
+
+* I made RuntimeView take a PossibleRuntime as constructor argument.
+* But I now wonder if this is the way to go?
+* I mean, the design actually calls for each view aggregating the currnet DataState?
+* So it should be 'better' to store something in the DataState that RuntimeView can use?
+
+So what goes into DataState and how can RuntimeView use it?
+
+* DataState can store a path to where the persistent runtime is supposed to be?
+* Or DataState can store a PossibleRuntime?
+
+It seems I should pass DataState on to pushed view and then let the view figure out how to view it and mutate it?
+
+I made an attempt to store PossibleRuntime in DataState. But how shall I 'travel' through persistent storage?
+
+AHA! I just erealised that importing persistent runtime into an archive is a command (side effect)!
+
+* So maybe RootView should send the command and push to RuntimeView on sucessful import?
+
+Gosh! This just keeps growing and growing!
+
+* Is there a way I can just test the import first?
+* Maybe I can just do the import in init() for now?
+* Then migrate to proper import-runtime-command later?
+
+## 20260811
+
+I have now slept on things and think I am ready to take some more steps into the persistent data aspect of cratchit?
+
+* ALL thing created by cratchit goes into subfolder '.cratchit'.
+* Cratchit can read and write  a 'config file' for persistent data retalted to different 'domians'.
+  * The 'runtime' domain persistent data goes into the path './.cratchit/runtime.xxx' (xxx some extension)
+  * The 'framework' domain persistent data goes into the path './.cratchit/framework.xxx' (xxx some extension)
+  * The 'workspace' domain persistent data goes into the path './.cratchit/workspace.xxx' (xxx some extension)
+  * The 'project' domain persistent data goes into the path './.cratchit/project.xxx' (xxx some extension)
+
+Now I have given the 'handling' of these domian persisten data some thinking. 
+
+* I am considering to make an RAII-object for each?
+* And I am thinking of making these RAII with a 'PossibleXxx' API
+
+  * The 'PossibleXxx' can be either the the persistent object.
+  * Or some error descriptor if the object could not be created
+
+The erason behind this is to be able to handle resource allocation failure in a somewhat clean way.
+
+* The design comes from the RAII API of std::ifstream
+
+  * The object can be in a 'failed to ascuire resource' state
+  * It can even be in a 'the resource has been broken'
+  * In fact, even the case that the 'stream has been consumed' is kind-of a 'failed' state?
+
+From this I actually conclude that any RAII object has this problem of 'owning a non existing or unusable respource'
+
+* So any RAII is in this way a 'possible resource'
+* The 'possible xxx' object handles this state behind-the-scenes
+  * The constructor initiates the state to indicate 'acquired' or 'not_acquired' plus 'accessible' or 'not_accessible' etc.
+  * The destrcutor uses the state to know if and how to 'clean up' the resource
+    * If it is acquired it is erased.
+    * If it is NOT acquired the destructor does nothing
+
+So I am cursious to try this out as a design pattern for RAII objects.
+
+* PossibleRuntime
+* PossibleFramework
+* PossibleWorkspace
+* PossibleProject
+
+I imagine I can be so bold to actually base all of these on a template?
+
+```cpp
+template <typename Resource>
+class Possible {}; // Possible
+```
+
+Lets try this approach shall we?!
+
+So initialy it seems to work out quite well.
+
+* I have the template Possible in Possible.tpp
+* I made PossibleRuntime a pimpl design to isolate the template machinery in the cpp-impl file.
+
+Now I need a design for the to-and-from persisten file mechanism.
+
+* I imagine all domains serilise to the same 'encoding' (whatever I choose)?
+* Then I can imagione something called 'Archive' to represent such a file in memory.
+  * I can then 'parse' from such a file to an Archive instance?
+  * And I can 'encode' an Archive to such a file?
+
+Now, what is still missing is the 'thing' that knows how to 'parse' and 'encode'
+
+* Maybe I should be tempted to 'encode' and 'decode' (charachter-set-style)?
+* I can then plug-in existing 'encodings' like XML, JSON, YAML etc?
+
+I now think I will use a class 'Archive' as the in-memory representation of persistent data.
+
+* Then PossibleRuntime can expose a value() as an Archive instans?
+* I can then use an ArchiveImporter and ArchiveExporter to deal with some file format?
+  * And a JSONArchiveImporter knows how to read a JSON file into a cratchit Archive?
+  * An XMLArchiveImporter knows how o read an XML file into a cragcit Archive?
+  * And when I have my own file format I can have an XXXArchiveImporter for this?
+
+AHA! Given my archive is a data structure I know I can access it with some form of 'path'!
+
+* So the interface between an 'archive writer' and an 'archive' can be a sequence of (path,value) pairs?
+* Then it is up to the write to 'know' how to store that value with preserved structure location?
+* And we can require the 'archive reader' to read a (path,value) pair and pass it to the archive object?
+
+The final touch now is to determine how I express in code a concrete archive exporter and importer?
+
+* One way could be to specialise a template class with a 'descriptor'?
+
+  * I then have a base case.
+
+```cpp
+template <typename ArchiveEncodingDescriptor>
+class ArchiveImporter {
+
+};
+```
+
+  * And a specialisation?
+
+```cpp
+template <>
+class ArchiveImporter<JSONArchiveDescriptor> {
+public:
+
+  std::optional<Archive> read() const;
+
+private:
+};
+
+```
+
+At this stage I am actually tempted to go with a 'transcoder'?
+
+* It seems I will always need to be able to do both 'import' and 'export'?
+* So it feels natural to have a 'ArchiveTranscoder' to know how to do both import and export?
+* Allthough 'transcoding' is in fact about mapping from one encoding to another?
+* So 'Transcoder' is a bad name?
+
+Ok, i will go with separate importer and exporter for now then?
+
+AHA! My AI frined reminded me about 'codecs'. So I can implement an 'ArchiveCodec'?
+
+I now ran into a interesting design consideration.
+
+* I made the Possibleruntime into a pimpl to hide the template mechanics in the cpp-file.
+* But I then made Possibleruntime a member of the new RuntimeView.
+* And all views are immutable but must be copyable (copy constructable)!
+
+The solution is quite simple. Make the pimpl share a const impl instance!
+
+* This is safe as the shared instance is immutable (const)
+* Also the std::shared_ptr itself holding the pimpl pointer can be copied although it is const itself!
+  * This works because the control block that std::shared_ptr administrates is in the pointed-tp data.
+* So I have my pimpl-based PossibleRuntime
+
+```cpp
+class PossibleRuntime {
+public:
+  PossibleRuntime(std::filesystem::path const& root_path);
+  ~PossibleRuntime();
+
+  operator bool() const;
+
+  Archive archive() const;
+private:
+  class Impl;
+  std::shared_ptr<const Impl> m_pimpl;
+
+}; // PossibleRuntime
+```
+* As a member in RuntimeView
+
+```cpp
+class RuntimeView {
+public:
+
+  RuntimeView(PossibleRuntime possible_runtime);
+  tea::Ux view() const;
+
+private:
+  PossibleRuntime m_possible_runtime;
+}; // RuntimeView
+```
+
+And this view is copy constructable.
+
+NO WAIT That is not sufficient. That is, the code does bot read 'view is immutable'?
+
+* The member m_possible_runtime is not const.
+* And if I make it a const member, then immeer compains that states does not support value semantics.
+
+```sh
+/Users/kjell-olovhogdahl/.conan2/p/immer0494ff0fce0c1/p/include/immer/detail/rbts/operations.hpp:505:34: error: object of type 'std::variant<RootView, TestView, RuntimeView, ProjectsView>' cannot be assigned because its copy assignment operator is implicitly deleted
+  505 |             node->leaf()[offset] =
+      |                                  ^
+
+...
+
+```
+
+* Which at least require the values under immer control to be assignable?
+
+Now my PossibleRuntime is safe to assign as the copu will just share the const impl instance.
+
+* But the code reads 'wrong'
+* It looks like the view would be able to mutate it.
+
+So I went with 'boxing' it as an immer 'thing'.
+
+```cpp
+class RuntimeView {
+public:
+
+  RuntimeView(PossibleRuntime possible_runtime);
+  tea::Ux view() const;
+
+private:
+  immer::box<PossibleRuntime> m_possible_runtime;
+}; // RuntimeView
+```
+
+* Now immer is able to 'copy' it under the promise to not mutate any shared values with the copied 'thing'
+* And I can apply the 'with_xxx' mutating API.
+
+```cpp
+RuntimeView RuntimeView::with_possible_runtime(PossibleRuntime possible_runtime) const {
+  RuntimeView result(*this);
+  result.m_possible_runtime = std::move(possible_runtime);
+  return result;
+}
+```
+
+I was now tempted to apply this design also to PossibleRuntime.
+
+* But PossibleRuntime is an RAII object!
+* It ensures there is only one resource (in this case an immutable resoiurce)
+* It makes no sense to provide a 'with_xxx' to this.
+  * This would mean I liked to mutate the resource under RAII control.
+
+Ok, sop we are getting somewhere!
+
+
+
+
 ## 20260809
 
 I think I will finalise the move of test stuff to the test state.
@@ -197,6 +651,67 @@ std::tuple<Transition<ViewState>,tea::Cmd> TestView::update(app::UnicodeKeyMsg c
 }
 
 ```
+
+I got a lot straightened out today. Now I even have time to think more about persistent data on file for cratchit.
+
+* I now think I will go with cracthit always using a hidden folder '.ccratchit'.
+* And I will define the domains framework,runtime,workspace and project
+* I imagine to go with a name-value-pair file with some syntax that defines a DAG instance?
+
+After chatting a while with chatGPT I got some inspiration and POC ideas.
+
+* We can imagine lhs are 'key paths'.
+* Where a 'key' is a selector.
+* The selector can be a aggregate named member or an index into a named member.
+* And rhs is the value as a string or a number.
+
+```text
+company.name = 'Acme'
+
+company.departments[0].name = 'Engineering'
+company.departments[0].employees[0].name = 'Alice'
+company.departments[0].employees[1].name = 'Bob'
+
+company.departments[1].name = 'Sales'
+
+company.ceo = &company.departments[0].employees[0]
+```
+
+  * 'company' is an aggregate with member 'name' that has the string value 'Acme'
+  * 'departments' is a listing with member [0] being an aggregate with the member 'name' and value 'Engineering'
+  * 'company' member 'ceo' is a *reference* to another valule at path 'company.departments[0].employees[0]'
+
+It seems that this apporach uses syntax for the lhs 'names' (paths) to implicitally infer the data structure and the value that goes nto it?
+
+* A '.' defines that the name before it is of type 'aggregate'
+* A '[<index>] defines that the name before it is of type 'sequence'
+* A '&' defines a reference
+
+WAIT! If I put the '&' at the lhs side it gets more coherent?
+
+```text
+company.name = 'Acme'
+
+company.departments[0].name = 'Engineering'
+company.departments[0].employees[0].name = 'Alice'
+company.departments[0].employees[1].name = 'Bob'
+
+company.departments[1].name = 'Sales'
+
+company.ceo& = company.departments[0].employees[0]
+```
+
+Now rhs are all 'literals' or 'paths'?
+
+* And we can allow single name 'paths'  as 'default_url& = home_url'
+
+I am not sure this is the way I whant to go? But I find it inspiring at this stage of thinking!
+
+* Also, when I'm at it - Maybe I should consider to imagine some application of the Tha four tier meta-stack-model?
+* But then, this is really a stretch from above that does not even have any type system at all?
+* I mean - what could I even use types, kinds, kind-constructors and generics for in my persistent storage?
+
+I think I will sleep on this and come back fresh tomorrow!
 
 ## 20260808
 

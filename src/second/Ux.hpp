@@ -17,9 +17,9 @@ namespace tea {
     Ux(std::vector<std::string> top_pane_rows
       ,std::vector<std::string> middle_pane_rows
       ,std::vector<std::string> bottom_pane_rows);
-    std::vector<std::string> top_pane_rows() const;
-    std::vector<std::string> middle_pane_rows() const;
-    std::vector<std::string> bottom_pane_rows() const;
+    std::vector<std::string> const& top_pane_rows() const;
+    std::vector<std::string> const&  middle_pane_rows() const;
+    std::vector<std::string> const&  bottom_pane_rows() const;
   private:
     std::vector<std::string> m_top_pane_rows{};
     std::vector<std::string> m_middle_pane_rows{};

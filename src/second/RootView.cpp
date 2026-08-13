@@ -1,4 +1,5 @@
 #include "RootView.hpp"
+#include "RuntimeView.hpp"
 #include "ViewState.hpp" // Complete type
 #include "double_dispatch_accept.tpp" // detail::update,
 
@@ -7,8 +8,13 @@
 #include "utf8.hpp"
 
 RootView::RootView() {
-  m_option_entries[0] = "Projects view";
-  m_option_entries[1] = "Test view";
+  m_option_entries[0] = "Runtime view";
+  m_option_entries[1] = "Projects view";
+  m_option_entries[2] = "Test view";
+}
+
+DataState const& RootView::data_state() const {
+  return m_data_state;
 }
 
 DataState RootView::update(DataState const&) const {
@@ -72,11 +78,17 @@ std::tuple<Transition<ViewState>,tea::Cmd> RootView::update(app::UnicodeKeyMsg c
   log_development_trace("RootView::update(m:{})",msg_to_string(m));
   if (m.code_point == '0') {
     return {
-      {TransitionKind::Push, ProjectsView{}}
+      {TransitionKind::Push, RuntimeView{}.with_data_state(m_data_state)}
       ,tea::Cmd{}
     };
   }
   if (m.code_point == '1') {
+    return {
+      {TransitionKind::Push, ProjectsView{}}
+      ,tea::Cmd{}
+    };
+  }
+  if (m.code_point == '2') {
     return {
       {TransitionKind::Push, TestView{}}
       ,tea::Cmd{}
@@ -193,9 +205,13 @@ tea::Ux RootView::view() const {
     return result;
   }; // to_bottom_rows
 
+  auto top_pane_rows = to_test_rows(TOP_PANE_ROW_COUNT);
+  auto middle_pane_rows = to_options_rows(MIDDLE_PANE_ROW_COUNT);
+  auto bottom_pane_rows = to_bottom_rows(BOTTOM_PANE_ROW_COUNT);
+
   return tea::Ux{
-      to_test_rows(TOP_PANE_ROW_COUNT)
-    ,to_options_rows(MIDDLE_PANE_ROW_COUNT)
-    ,to_bottom_rows(BOTTOM_PANE_ROW_COUNT)      
+     top_pane_rows
+    ,middle_pane_rows
+    ,bottom_pane_rows
   };
 }
