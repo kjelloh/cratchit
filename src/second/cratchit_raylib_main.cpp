@@ -190,7 +190,7 @@ namespace tea {
       // #runtime
       this->render(ux);
 
-    }
+    } // while window
 
     // De-Initialization
     //--------------------------------------------------------------------------------------

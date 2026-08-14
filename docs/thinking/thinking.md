@@ -8,6 +8,320 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260814
+
+So I went ahead and tried monadic operations each having their own error code domain.
+
+* open_file returns istream_ptr or OpenFileError
+
+```cpp
+struct OpenFileError{};
+using ExpectedOpenFile = std::expected<OwningIStreamPtr,OpenFileError>;
+ExpectedOpenFile open_file(std::filesystem::path);
+```
+
+* parse_archive returns an Archive or ParseArchiveError
+
+```cpp
+struct ParseArchiveError {};
+using ExpectedParsedArchive = std::expected<Archive,ParseArchiveError>;
+ExpectedParsedArchive parse_archive(OwningIStreamPtr);
+```
+
+* I can now write import_archive with if-else composition and error code transformations
+
+```cpp
+ExpectedImportedArchive import_archive(std::filesystem::path path) {
+  auto open_result = open_file(path);
+  if (open_result) {
+    auto parse_result = parse_archive(std::move(open_result.value()));
+
+    if (parse_result) {
+      return parse_result.value();
+    }
+    else {
+      return std::unexpected(to_import_archive_error(parse_result.error()));
+    }
+  }
+  else {
+    return std::unexpected(to_import_archive_error(open_result.error()));
+  }
+  return Archive{};
+}
+```
+
+  * Where I have simply overloaded to_import_archive_error for each error domain as needed.
+
+Question is, can I actually compose with the monadic interface of std::expected?
+
+* Each std::expected::and_then needs to return the SAME error type as the expected it is called on!
+* This poses a problem when each function applies its own domain error type.
+* The reason is that the and_then is to pass-on the error is one arises.
+  * That is, bypass next and_then (as no value was produced)
+  * But then the error code produced must be the same type as the current expected!
+
+So how can we transform the the error code from 'previous' domain to the 'current' domain?
+
+* For example, open_file produces OpenFileError
+* But parse_archive produced ParseArchiveError
+* So ```ExpectedOpenFile::and_then(f) = std::expected<OwningIStreamPtr,OpenFileError>::and_then(f)```
+* with ```f: ExpectedParsedArchive parse_archive(OwningIStreamPtr)```
+* returns ``` ExpectedParsedArchive = std::expected<Archive,ParseArchiveError>```
+* Meaning error ParseArchiveError is NOT the same as OpenFileError.
+
+While going back and forth with chatGPT it explained something to me in a valuable way.
+
+* The and_then API of std::expected applies and_then as (T,E) -> (U,E) 
+
+```sh
+expected<T, E>
+    .and_then(T -> expected<U, E>)
+```
+
+  * That is, the expected value type T is allowed to transform through domains U1,U2,...
+  * But the rror type E must be EXACTLY the same type E
+
+So for the and_then-chain to work the error type must be 'conformed' to one used by the whole composition (and_then-chain)
+
+* Found this artcivle informative [C++23 std::expected — Mastering Monadic Error Handling Pipelines](https://towardsdev.com/cpp23-std-expected-monadic-operation-2c62a2eedbaf)
+
+So what can we imagine to map each error domain to the 'import archive' error domain?
+
+* We need Ex -> E transformation for each error domain Ex.
+* And we want the code to read op.and_then(op2).and_then(op3).
+
+Maybe we can design a helper that 'lifts' an op_x to return expected(U,E) instead of expected (U,Ex)?
+
+So I tried a helper on the expected result.
+
+```cpp
+// Helper std::expected<T,E> -> std::expected<T,ImportArchiveError>
+template <typename T, typename E>
+auto with_import_archive_error(std::expected<T, E> result) -> std::expected<T, ImportArchiveError> {
+  if (result) {
+    return std::move(*result);
+  }
+
+  return std::unexpected(
+    to_import_archive_error(std::move(result.error()))
+  );
+}
+```
+
+And if we write import_archive using the helper.
+
+```cpp
+ExpectedImportedArchive import_archive(std::filesystem::path path) {
+
+  auto open_result = with_import_archive_error(open_file(path));
+
+  if (open_result) {
+    auto parse_result = with_import_archive_error(parse_archive(std::move(open_result.value())));
+
+    if (parse_result) {
+      return parse_result.value();
+    } // if value
+
+    return std::unexpected(parse_result.error());
+
+  } // if value
+
+  return std::unexpected(open_result.error());
+
+} // import_archive
+
+```
+
+So the next step is to aim for a way to 'lift' en existing fucntion to one we can compose with directly.
+
+I tried some simple lambdas firs to get a feel for what we need.
+
+```cpp
+auto import_archive_composable_open_file = [](std::filesystem::path path){
+  return with_import_archive_error(open_file(path));
+}; // import_archive_composable_open_file
+
+auto import_archive_composable_parse_archive = [](OwningIStreamPtr in_ptr) {
+  return with_import_archive_error(parse_archive(std::move(in_ptr)));
+}; // import_archive_composable_parse_archive
+
+```
+
+We can now use them to compose import_arhcive.
+
+```cpp
+ExpectedImportedArchive import_archive(std::filesystem::path path) {
+
+  auto open_result = import_archive_composable_open_file(path);
+
+  if (open_result) {
+    auto parse_result = import_archive_composable_parse_archive(std::move(open_result.value()));
+
+    if (parse_result) {
+      return parse_result.value();
+    } // if value
+
+    return std::unexpected(parse_result.error());
+
+  } // if value
+
+  return std::unexpected(open_result.error());
+
+} // import_archive
+
+```
+
+* All results are now std::expected of T vs ImportArchiveError.
+
+So we should be able to compose them wuth and_then?
+
+And YES, we can.
+
+```cpp
+ExpectedImportedArchive import_archive(std::filesystem::path path) {
+
+  auto import_result = import_archive_composable_open_file(path)
+    .and_then(import_archive_composable_parse_archive); 
+
+  return import_result;
+
+} // import_archive
+
+```
+
+The question is now if we can design a helper that lifts open_file or parse_archive to the helper lamdas we have?
+
+Prompting this to chatGPT gave me some valuable ways to formalise the problem.
+
+* We have operations ``` f : T -> expected<U, Ex> ````
+* And we want ``` lift(f) : T -> expected<U, ImportArchiveError> ```
+* We already have ```with_import_archive_error: expected<U,Ex> -> expected<U,ImportArchiveError> ```
+  * Which in turn is based on ``` to_import_archive_error: Ex -> ImportArchiveError ```
+
+I designed this lift() as as_import_archive_composable.
+
+```cpp
+template <typename F>
+auto as_import_archive_composable(F f) {
+    return [f = std::move(f)](auto&&... args) {
+        return with_import_archive_error(
+            std::invoke(f, std::forward<decltype(args)>(args)...)
+        );
+    };
+} // as_import_archive_composable
+```
+
+Then I could define each lambda as 'lifted' operations.
+
+```cpp
+auto import_archive_composable_open_file = as_import_archive_composable(open_file);
+auto import_archive_composable_parse_archive = as_import_archive_composable(parse_archive);
+```
+
+So this should mean that the final step is to compose with the lifted functions directly?
+
+And sure enough, we can!
+
+```cpp
+ExpectedImportedArchive import_archive(std::filesystem::path path) {
+
+  auto import_result = as_import_archive_composable(open_file)(path)
+    .and_then(as_import_archive_composable(parse_archive)); 
+
+  return import_result;
+
+} // import_archive
+```
+
+But now this does not read nice at all? How can we imagine to design this code to express what is actually going on?
+
+* It compose sub-steps of std::expected returning operations.
+* But each sub-step returns its own domain error type.
+* So we apply a machinery to map each such error type to the import_archive error type ImportArchiveError.
+
+It would be nice if the and_then chain still used the names 'open_file' and 'parse_archive'?
+
+* Can we somehow reduce tyhe noise of the lifter as_import_archive_composable?
+* OR maybe explitally define our open_file and parse_archive in namespace detail?
+
+Or what options can we imagine we have?
+
+Prompting this to chatGPT made it 'babble' all over the place. But it also provided some sparks of insight and options.
+
+* One approach would initiate a 'pipeline' so we could just compose with the existing open_file and parse_archive as-is.
+
+```cpp
+return import_pipeline(path)
+    .and_then(parse_archive)
+    .and_then(...)
+```
+
+But this is NOT what we want.
+
+* For one, we have decided to stick with composing wih ```std::expected<T,E> ````
+* And this 'import_pipeline' initiator is in fact a new type with its own and_then members.
+
+  * It's like ``` ImportPipeLine import_pipeline(std::filesystem::path); ````
+  * Then each composition is in fact ```template <typename F> ImportPipeLine::and_then(F) ```
+  * So OK, and_then now knows how to lift provided F to the import_pipeline error domain.
+  * But the end result is no longer an std::expected, it is an ImportPipeLine::and_then return type.
+
+Hm... on the other hand? We can make and_then and whatever compositional operations adhere to returning std::expected?
+
+* Is it worth it? 
+* Will we actually gain anything from this wrapper?
+
+The overhead is potentially quite large?
+
+* We risk having to implement teh monadic API of std::expected?
+* At least if we want the code to read as-if we are still composing an std::expected monadic pipeline?
+
+I tried explicit namespace prefixed functions.
+
+```cpp
+namespace this_error_domain {
+  auto open_file = detail::as_import_archive_composable(::open_file);
+  auto parse_archive = detail::as_import_archive_composable(::parse_archive);
+} // this_error_domain
+
+ExpectedImportedArchive import_archive(std::filesystem::path path) {
+
+  auto import_result = this_error_domain::open_file(path)
+    .and_then(this_error_domain::parse_archive); 
+
+  return import_result;
+
+} // import_archive
+
+```
+
+Kind-of read better. But then we could just rename the 'as_import_archive_composable' to keep the flexibility but with less noise?
+
+```cpp
+template <typename F>
+auto in_this_error_domain(F f) {
+    return [f = std::move(f)](auto&&... args) {
+        return detail::with_import_archive_error(
+            std::invoke(f, std::forward<decltype(args)>(args)...)
+        );
+    };
+} // in_this_error_domain
+
+
+ExpectedImportedArchive import_archive(std::filesystem::path path) {
+
+  auto import_result = 
+     in_this_error_domain(open_file)(path)
+    .and_then(in_this_error_domain(parse_archive)); 
+
+  return import_result;
+
+} // import_archive
+
+```
+
+I think this is the best I can do for now? It reads quite well, all things considered?
+
 ## 20260813
 
 Ok, so lets talk about PossibleRuntime as I have it right now.
@@ -182,6 +496,178 @@ auto create_archive_codec() {
 struct NameValuePairCodecDescriptor {}; // NameValuePairCodecDescriptor
 ```
 
+So let's flesh out the persistent runtime file import?
+
+* Again, lets perform all the steps in init() to see them in action?
+* We can imagine ending up with a Runtime in DataState?
+
+DARN! Where does the persistent runtime data go in my app state machine?
+
+* If I put it into DataState I need it to be optional (read or not read yet).
+* But my user state specific stuff is kind-of represented by the current view-stack?
+* So maybe the runtime is NOT part of the common DataState?
+
+If we define DataState to be 'the books' as mutated by the cratchit book keeping app.
+
+* Then the runtime-data IS to go into a relevant view state?
+* And the view state can be accepted or rejected by the user.
+* Thus a mutated runtime shall be written to persistent file only if the user accepts the runtime view state?
+
+Ok, so maybe this is a bit to obscure for the user to be bothered with?
+
+* The user expects to accept or reject stuff related to the books?
+* That is, the user can understand that accept or rejct of a view state is about the user actions?
+* But then we can make the RuntimeView always write any runtime changes to the persistent file?
+* Or even make cratchit always sync in-memory runtime with persistent file?
+  * This mirrors how an IDE editor or macOS apps tend to behave.
+  * Saving to file is NOT a user decision (it is the app promise to keep persisten data in sync with the app changes)?
+
+You know what? I now stumbled on another conceptual design question.
+
+* What in fatc IS the DataState?
+* I introduced it as some common data that changes for some other reason than the view
+* So for now the view aggregates the data it needs to provide a good view
+* And I persumed tne view was a view of the DataState?
+
+But what does this mean for the persistent runtime data?
+
+* This is data about the runtime environment as seen by the cratchit app
+  * So e.g., the path to the latest opened project can be stored in the runtime?
+* I also imagined I have persistent data also for a workspace and a book keeping 'project'.
+* But where in my Model vs DataState vs ViewStack should this data go in memory?
+
+Ok. But now I am going down the wrong rabbit hole! 
+
+Let focus on the persistent file import mechanism!
+
+* The persistent file may exist or it may not
+  * Error NoFile: If it does not exist we create a deafult runtime config.
+  * Is 'config' a good name?
+* The file may contain a 'magic value' or not
+  * Error NoMagicValue: Means this is NOT a persistent archive file
+* The magic value may map to a codec or not
+  * Error NoCodec: If it does not we have a design insufficiency?
+    * File at correct location, with correct name and with an identifiable magic value.
+    * Surely this is either a corrupt file or a design flaw of the code parsing it?
+* The codec import of the file to an archive may suceed or not
+  * Error ParseFailed:
+    * If not we have a file with a magic value mapped to a known codec that fails to parse the file
+    * This means we can treat the file as CORRUPT
+
+Again, should I be tempted to implement this with monadic composition?
+
+* Does std::expected support and_then?
+  * YES it does
+* Does ```-- C++ Compiler ID: AppleClang -- C++ Compiler Version: 16.0.0.16000026```support and_then?
+  : YES it does.
+
+I now dersigned some experimental code to try out a monadic and_then approach for persistent file import.
+
+```cpp
+#pragma once
+
+#include "Archive.hpp"
+
+#include <expected>
+#include <filesystem>
+#include <fstream>
+
+// Monadic Open file with File vs OpenFileError
+// struct File{};
+using File = std::ifstream;
+struct OpenFileError{};
+using ExpectedFile = std::expected<File,OpenFileError>;
+ExpectedFile open_file(std::filesystem::path) {
+  return File{};
+}
+
+// Monadic import archive with Archive vs ImportArchiveError
+struct ImportArchiveError {};
+using ExpectedArchive = std::expected<Archive,ImportArchiveError>;
+ExpectedArchive import_archive(std::filesystem::path path) {
+  return open_file(path)
+    .transform_error([](OpenFileError){
+      // If OpenFileError - tramsofmr it to ImportArchiveError
+      return ImportArchiveError{};
+    })
+    .and_then([](File){
+      // If success - use the file to import the archive
+      return ExpectedArchive{Archive{}};
+    });
+```
+
+The final realisation is that I CAN and_then compose with std::ifstream!!
+
+* So all my previous trouble with my own MaybeIStream was all in vain!
+* As long as the std::ifstream value is 'anonymous' (that is an 'rvalue') it works!
+* And why?
+  * Because behind the scenes the and_then mechanism 'calls' with std::move values!
+  * That is, and_then uses 'move from' to call the next function.
+  * So then although the accepting function (here the lambda) takes file by-value...
+  * As it is called with moved-from value the argument file is move-constructed!
+  * AND - std::ifstream is move-constructble!
+
+HUURAY! It all makes sense! And makes my options so much nicer.
+
+NO! I celebrated to early.
+
+* Yes, std::ifstream is move constructable and thus perfactlay valid to pass in and_then monadic composition.
+* But a general istream API like std::istream IS NOT!
+  * This makes sense as it is designed as an abstract interface.
+  * We can pass an std::istream& to a function that does not care about what concrete stream it consumes.
+  * And we can inherit from it to create our own concrete stream-like thing.
+  * But we can NOT copy-construct it into a new value.
+
+So we are back at the question if and how to make something move-constructable that 'has' some stream-like API?
+
+* Now as we in fact will design both the std::expected result value function.
+* As well as the concrete value accpeting function to use as next and_then,
+* We can 'hide' what we actually are passing?
+  * As long as the client code does not try to accept the result in a in-place lambda, we are fine?
+
+There just is soemthing about say passing a plain ```std::unique_ptr<std::istream>``` that does not feel right?
+
+* The recevining function needs to apply pointer semamntics to the received value.
+* But then, I suppose any value type the next fnction accepts needs to now the API of that type?
+
+You know what? F-it! Passing std::unique ptr is GOOD ENOUGH for now.
+
+It seems promising?
+
+```cpp
+ExpectedOwningIStreamPtr open_file(std::filesystem::path) {
+  return std::make_unique<std::ifstream>(std::ifstream{});
+}
+
+ExpectedArchive parse_archive(ExpectedOwningIStreamPtr) {
+  return Archive{};
+}
+
+// Monadic import archive with Archive vs ImportArchiveError
+ExpectedArchive import_archive(std::filesystem::path path) {
+  return open_file(path)
+    .transform_error([](OpenFileError){
+      // If OpenFileError - tramsofmr it to ImportArchiveError
+      return ImportArchiveError{};
+    })
+    .and_then(parse_archive);
+}
+
+```
+
+But there are some things to get right for this to work.
+
+* I tried overloading import_archive also for ExpectedOwningIStreamPtr.
+  * But then I could not do and_then(import_archive)
+  * The compiler seems unable to pick the overload for the known argument?
+  * I did not dig deeper into this for now
+  * But it has soemthjing to do with and_then taking the function to call as a template argument F.
+  * And I beleive to remember that you cant pass an overloaded function type to a template parameter?
+
+Anyhow, it is actually nicer to have different names.
+
+* import_archive is a good name for all steps involved.
+* While parse_archive is a good name for the actual parsing step
 
 ## 20260812
 

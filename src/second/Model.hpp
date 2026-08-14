@@ -26,4 +26,5 @@ namespace app {
   private:
     ViewStateStack m_view_state_stack{};
   }; // Model
-}
+
+} // app
