@@ -2,6 +2,7 @@
 #include "ViewState.hpp"
 #include "import_archive.hpp"
 #include "log.hpp"
+#include "expected_to_string.tpp"
 
 #include <expected>
 
@@ -15,15 +16,17 @@ namespace app {
     if (true) {
       // POC for persistent file import
 
-      auto import_result = import_archive(".");
+      auto import_result = import_archive("./cratchit/runtime.cfg");
       if (import_result) {
         log_development_trace(
-          "import_archive SUCCESS"
+           "import_archive SUCCESS: {}"
+          ,expected_to_string(import_result)
         );
       }
       else {
         log_development_trace(
-          "import_archive failed"
+          "import_archive failed: {}"
+          ,expected_to_string(import_result)
         );
       }
     } // if POC

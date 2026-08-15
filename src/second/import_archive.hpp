@@ -11,10 +11,13 @@
 enum class ImportArchiveError {
    Undefined
   ,NotYetImplemented
+  ,UnsupportedArchiveSource
   ,NoFile
-  ,UnknownFileError
-  ,UnknownParseError
+  ,UnsupportedOpenFileError
+  ,MalformedArchiveSource
+  ,ParseErrorUnsupported
   ,Unknown
 };
+std::string concrete_error_to_string(ImportArchiveError);
 using ExpectedImportedArchive = std::expected<Archive,ImportArchiveError>;
 ExpectedImportedArchive import_archive(std::filesystem::path);

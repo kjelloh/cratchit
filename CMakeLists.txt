@@ -38,6 +38,10 @@ find_package(raylib)
 add_executable(
         cratchit
 
+        src/second/Url.cpp
+        src/second/DesignInsufficiencyException.cpp
+        src/second/StreamSource.cpp
+
         src/second/parse_archive.cpp
         src/second/open_file.cpp
         src/second/import_archive.cpp

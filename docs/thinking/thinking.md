@@ -14,7 +14,134 @@ OK, so I have tyhe scaffolding.
 
 * Persistent file reading as monadic open_file, parse_arhive and composed import_archive.
 * The Archive class for in-memory representation.
-* The ArchiveCodec and compile-time dispatch to concrete  
+* The ArchiveCodec and compile-time dispatch to concrete Archive or error
+
+Ok, So I now have some bare bones archive codec.
+
+* I implemented open_file to return the strem if the file exists
+
+```cpp
+ExpectedOpenFile open_file(std::filesystem::path path) {
+  auto istream_ptr = make_owning_istream<std::ifstream>(path);
+  if (*istream_ptr) {
+    return istream_ptr;
+  }
+  return std::unexpected(OpenFileError::NoFile);
+}
+```
+
+* I made parse_archive apply a name-value-pair-codec
+
+```cpp
+ExpectedParsedArchive parse_archive(OwningIStreamPtr in_ptr) {
+  auto archive_codec = create_archive_codec<NameValuePairCodecDescriptor>();
+  auto parse_result = archive_codec.parse(*in_ptr);
+  if (true) {
+    log_development_trace(
+      "parse_archive -> {}"
+      ,expected_to_string(parse_result)
+    );
+  } // if log
+  return parse_result;
+} // parse_archive
+```
+
+* For a moment I thought the free parse_archive is not actually needed.
+  * I mean, all it does is create and use the codec
+  * But in the future I may decide to allow xml, json,yaml,... persistent file encodings?
+  * And then I can implement this dispatch logic in parse_archive.
+
+Note: This design means we have only the input stream to decide on what format to expect.
+
+* So we are unable to map e.g., a file name extension to an expected encoding.
+* I think I stick to this for now.
+* It feels kind of 'edgy' and 'clean' to be able to handle a socket stream in the future.
+
+On the other hand, maybe we can imagine to provide an Url with the in_ptr?
+
+* Then in the future we can map the url to heuristic about what format to epxect?
+* This would then work for both files and sockets?
+
+Ok, so I went ahead and made the API open_file to parse_archive pass a StreamSource as (Url,OwningIStreamPtr)
+
+```cpp
+using ExpectedOpenFile = std::expected<StreamSource,OpenFileError>;
+
+class StreamSource {
+public:
+  StreamSource() = delete;
+  StreamSource(StreamSource const&) = delete;
+  StreamSource(StreamSource&&) = default;
+  StreamSource(Url url,OwningIStreamPtr in_ptr);
+
+  OwningIStreamPtr::element_type& stream();
+  Url const& url() const;
+
+private:
+  Url m_url;
+  OwningIStreamPtr m_in_ptr;
+}; // StreamSource
+
+```
+
+* Now, in the future, parse_archive can utilise the url to asume format?
+
+So I have now coded all day and made a lot of progress.
+
+* The code now tries to import a persistent runtime archive.
+
+```cpp
+      auto import_result = import_archive("./cratchit/runtime.cfg");
+      if (import_result) {
+        log_development_trace(
+           "import_archive SUCCESS: {}"
+          ,expected_to_string(import_result)
+        );
+      }
+      else {
+        log_development_trace(
+          "import_archive failed: {}"
+          ,expected_to_string(import_result)
+        );
+      }
+```
+
+* With a somewhat nice logging
+
+```sh
+...
+2026-08-15 16:49:09.362: DEVELOPMENT_TRACE:'open_file(path:'runtime.cfg')'
+2026-08-15 16:49:09.362: DEVELOPMENT_TRACE:'import_archive failed: error=ImportArchiveError::NoFile'
+...
+```
+
+* I introduced more errors and got some nice mappings.
+
+```cpp
+  ImportArchiveError to_import_archive_error(OpenFileError error) {
+    switch (error) {
+      case OpenFileError::NoFile: return ImportArchiveError::NoFile;
+      default: ;
+    } // switch
+    return ImportArchiveError::FileErrorUnsupported;
+  }
+  ImportArchiveError to_import_archive_error(ParseArchiveError error) {
+    switch (error) {
+      case ParseArchiveError::Undefined: return ImportArchiveError::Undefined;
+      case ParseArchiveError::UnsupportedStreamSource: return ImportArchiveError::UnsupportedArchiveSource;
+      case ParseArchiveError::NoFile: return ImportArchiveError::NoFile;
+      case ParseArchiveError::NoMagicValue: return ImportArchiveError::MalformedArchiveSource;
+      case ParseArchiveError::Unknown: return ImportArchiveError::Unknown;
+      default: ;
+    } // switch
+    return ImportArchiveError::ParseErrorUnsupported;
+  }
+
+```
+
+I actually implemented several iteration of a Parser framework but took it all back.
+
+* I have gained understanding and knowledge but is not ready to seed any code for this yet. 
 
 ## 20260814
 

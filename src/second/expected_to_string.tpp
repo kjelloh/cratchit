@@ -52,13 +52,13 @@ template <typename T>
 std::string expected_to_string(T expected) {
   if (expected) {
     return std::format(
-       "expected: value={}"
+       "value={}"
       ,detail::concrete_expected_value_to_string_dispatch(expected.value())
     );
   }
   
   return std::format(
-       "expected: error={}"
+       "error={}"
       ,detail::concrete_error_to_string_dispatch(expected.error())
   );
 }
