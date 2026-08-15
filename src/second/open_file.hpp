@@ -8,6 +8,7 @@
 enum class OpenFileError{
    Undefined
   ,NotYetImplemented
+  ,NoFile
   ,Unknown
 };
 using ExpectedOpenFile = std::expected<OwningIStreamPtr,OpenFileError>;

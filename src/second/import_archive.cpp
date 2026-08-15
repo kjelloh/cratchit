@@ -1,11 +1,18 @@
 #include "import_archive.hpp"
 
 namespace detail {
-  ImportArchiveError to_import_archive_error(OpenFileError) {
-    return ImportArchiveError::NotYetImplemented;
+  ImportArchiveError to_import_archive_error(OpenFileError error) {
+    switch (error) {
+      case OpenFileError::NoFile: return ImportArchiveError::NoFile;
+      default: ;
+    } // switch
+    return ImportArchiveError::UnknownFileError;
   }
-  ImportArchiveError to_import_archive_error(ParseArchiveError) {
-    return ImportArchiveError::NotYetImplemented;
+  ImportArchiveError to_import_archive_error(ParseArchiveError error) {
+    switch (error) {
+      default: ;
+    } // switch
+    return ImportArchiveError::UnknownParseError;
   }
 
   // Helper std::expected<T,E> -> std::expected<T,ImportArchiveError>
@@ -30,7 +37,6 @@ auto in_this_error_domain(F f) {
         );
     };
 } // in_this_error_domain
-
 
 ExpectedImportedArchive import_archive(std::filesystem::path path) {
 

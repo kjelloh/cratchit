@@ -11,6 +11,9 @@
 enum class ImportArchiveError {
    Undefined
   ,NotYetImplemented
+  ,NoFile
+  ,UnknownFileError
+  ,UnknownParseError
   ,Unknown
 };
 using ExpectedImportedArchive = std::expected<Archive,ImportArchiveError>;

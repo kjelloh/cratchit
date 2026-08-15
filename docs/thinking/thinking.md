@@ -8,6 +8,14 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260815
+
+OK, so I have tyhe scaffolding.
+
+* Persistent file reading as monadic open_file, parse_arhive and composed import_archive.
+* The Archive class for in-memory representation.
+* The ArchiveCodec and compile-time dispatch to concrete  
+
 ## 20260814
 
 So I went ahead and tried monadic operations each having their own error code domain.
