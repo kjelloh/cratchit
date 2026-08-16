@@ -31,6 +31,7 @@ class cratchitRecipe(ConanFile):
         raise ConanInvalidConfiguration("cratchit requires C++23.")
 
     def requirements(self):
+        self.requires("cli11/2.6.2")
         self.requires("sol2/3.3.1")
         self.requires("ncurses/6.5")
         self.requires("pugixml/1.14")

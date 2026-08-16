@@ -26,14 +26,18 @@ else()
     message(STATUS "No compile error limit set (unlimited errors)")
 endif()
 
+# used by 'second'
+find_package(CLI11)
+find_package(immer REQUIRED)
+find_package(GTest REQUIRED)
+find_package(raylib)
+
+# additionally used by 'zeoth', 'first'
 find_package(sol2 REQUIRED)
 find_package(Curses REQUIRED)
 find_package(pugixml REQUIRED)
 find_package(icu REQUIRED)
-find_package(immer REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(GTest REQUIRED)
-find_package(raylib)
 
 add_executable(
         cratchit
@@ -227,3 +231,12 @@ message(STATUS "Compile options for target cratchit: ${cxx_flags}")
 get_target_property(cxx_features cratchit INTERFACE_COMPILE_FEATURES)
 message(STATUS "Compile features for target cratchit: ${cxx_features}")
 message(STATUS "CMake C++ Standard: ${CMAKE_CXX_STANDARD}")
+
+# also build the cratchit_test test binary for 'second
+# Note: I find cmake sematics opaque.
+#       It seems add_subdirectory is in fact more like 'include' or 'append'?
+#       And I would have found it morea readable if
+#       the command was append_cmake_text('src/second/tests/CMakeLists.txt').
+#       But hey, that's me...
+add_subdirectory(src/second/tests)
+

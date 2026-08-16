@@ -8,6 +8,305 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 
+## 20260816
+
+I think I got it now.
+
+* A parser takes an input text and produces a parsed value and the new input, or - a failure
+* Thing is it can also produce structure, like a pair or a list of values
+* This comes from being able to combine parsers.
+* Granted, an atomic parser may also be designed to return a value structure
+  * But at this stage I kind-of imagine built-in parser produces single atomic values.
+  * While it is parser combinators tha produces value structures?
+
+So right now I am aware of two things to attend to.
+
+1. Decide on types to represent Parsers, Input, Values and Failures.
+2. Make the Input consume text lazilly from our std::istream.
+
+I have also not fully settled on how to name the parts of the parsing framework?
+
+I have at least two inspirations to draw from.
+
+1. [Functional Parsing - Computerphile](https://youtu.be/dDtZLm7HIJs)
+2. [Petter Holmberg: Functional parsing in C++20](https://youtu.be/5iXKLwoqbyw)
+
+Come to think of it, I also have to attend to the input being encoded in some character set!
+
+* So I need a code-point-generating-buffer as I have designed before
+  * Like for the utf8 machinery that pumps single bytes into utf8-buffer and produces unicode copde points?
+* So I imagine I should make the parser Input apply an assumed character set  and generate unicode code points for consumption?
+
+I wonder, is this what I should attend to first?
+
+1. An Input that applies an assumed encoding and character set and produces a buffer of code points?
+2. A Parser that can consume code points from Input?
+
+But then I need parsers to be defined on Unicode text?
+
+* That may not be such a problem as the ASCII range is the bottom range of unicode?
+* But we also have the problem of C++ source code files themselves being encoded in some character set!
+
+  * So if the source code file is in UTF8, then all string literals are too.
+  * And if the source code file is in UTF16, well then we have all literals in UTF16.
+  * This is awkward...
+
+It seems we need a way to 'take control' over what the domain of character encoding our parsers operates on?
+
+* And the awkward interace is the 'C++ string literal' to parsers one?
+
+  * If we define a parser in C++ code as ``` auto parse_name = match("Håkan");   ```
+  * Then the string literal "Håkan" will be in the character encoding of the source file!
+
+Ok, so chatGPT seems to insinuate that the compiler applies some transcoding chain? That is, it 'knows' (or asumes) and encoding of the source code file, and then transcodes into an encoding internally to ensure some consistency? But I am not sure how this actually works or if I can trust chatPT to get this right? I mean, it depends on the understanding of the writers of the texty charGPT has trained on? And what the trained model ends up riffing my question into?
+
+At this stage I imagined it was time to implement testing.
+
+* Should I try to go for a separate cratchit_test build (as chatGPT sugests is the google test + cmake way)?
+* Or should I add tests the same way I did for 'zeroth' and 'first'?
+  * But then testing will engage ALL existing tests?
+  * But that could also be a good this?
+
+I have to remind myself how google test is currently integrated into cratchit?
+
+* It seems I have made it so in is top-main (cratchit actual entry point) that calls a test-run function?
+
+```cpp
+      else if (argc > 1 && std::string_view(argv[1]).starts_with("--gtest")) {
+          spdlog::info("Running Google Test...");
+          std::vector<char*> g_argv;
+          result = !tests::run_all(argc,argv);
+      }
+```
+
+* And that function calls google test API to set up and run the tests?
+
+```cpp
+namespace tests {
+    bool run_all(int argc, char** argv, [[maybe_unused]] bool keep_test_files) {
+        std::cout << "Running all tests..." << std::endl;
+        
+        ::testing::InitGoogleTest(&argc,argv);
+        
+        ::testing::AddGlobalTestEnvironment(fixtures::TestEnvironment::GetInstance());
+        
+        int result = RUN_ALL_TESTS();        
+        auto all_pass = (result == 0);
+        
+        std::cout << "All tests " << (all_pass ? "PASSED" : "FAILED") << std::endl;
+        return all_pass;
+    }
+}
+```
+
+I find the semantics of cmake hard to grasp!
+
+* And chatGPT seems to reflect that I am not alone.
+
+Here is what I think I understand now.
+
+* The google test recommendation is to build a separarte test-target
+  * And link with google-test-main to give it a main() entry point?
+* The define a secodn target in CMakeLists.txt
+  * So I have cmake build both cratchit and say test_cratchit executables?
+* It seems the canonical structure is to have a subfolder 'tests'.
+  * Here we have all cpp-files to build to tests?
+  * Here we also have a second CMakeLists.txt for the test target?
+* Then in top CMakeLists.txt we do ``` add_subdirectory(tests) ```
+  * This seems to imply that cmake will 'include' what is in 'tests/CMakeLists.txt' at that point as-if it was written in the current file as-is?
+* And now we can put everyting additional for the test_cratchit target?
+
+Whenb we do this we can the use the ctest command to engage with the cmake-generated test franework
+
+* So 'ctest --test-dir build' will 'know' to run test_cratchit?
+  * I wonder how cmake knows if to run Debug, Release or what have you?
+
+At this stage I at least feel ready to try and define an 'empty' test_cratchit to get a feel for what is going on?
+
+* I found a clear-to-understand youtube video [ntroduction to Google Test and CMake](https://youtu.be/Lp1ifh9TuFI)
+
+  * He states that we should build our test target as a static library.
+  * And then link with google main
+
+So lets try this.
+
+I started like this for tests/CMakeLists.txt
+
+```sh
+# This is the CMAKELists.txt for the test_cratchit binary.
+# The test_cratchit is a google test based executable based on goggle test main
+# and selected parts from cratchit/second to test
+
+# set a conveniant alias for our test binary target
+set(LIB_TO_TEST_NAME test_cratchit_lib)
+
+# I imagine this test binary is a separate cmake project?
+project(${LIB_TO_TEST_NAME} C CXX)
+
+```
+
+* I imagined 'project' was some grouping for cmake
+* But I can't have two 'project' in the same aggeragted CMakeLists.txt!
+  * It is more like 'this is the top-directory for this cmake 'project'
+
+So I have now managed to get my cratchit_test to build.
+
+* top CMakeLists.txt 'includes' tests/CmakeLists.txt
+
+```sh
+# also build the cratchit_test test binary for 'second
+# Note: I find cmake sematics opaque.
+#       It seems add_subdirectory is in fact more like 'include' or 'append'?
+#       And I would have found it morea readable if
+#       the command was append_cmake_text('src/second/tests/CMakeLists.txt').
+#       But hey, that's me...
+add_subdirectory(src/second/tests)
+
+```
+
+* And tests/CMakeLsists.txt builds a static library and the test executable
+
+  * The static library links code to test
+
+```sh
+# ...
+# conveniant listing or sources to compile and link to static lib of code to test
+set(SourcesToTest
+  ${CMAKE_SOURCE_DIR}/src/second/parse_archive.cpp
+)
+
+# Bundle parts we are to test into a static library
+add_library(${LIB_TO_TEST_NAME} STATIC
+  ${SourcesToTest}
+)
+# ...
+```
+
+  * And the test application builds test case code
+
+```sh
+# ...
+set(TestAppSources
+  # ${CMAKE_SOURCE_DIR}/src/second/tests/src/TemplateTests.cpp
+  src/TemplateTests.cpp
+)
+
+# define our app with test case source files
+add_executable(THIS_TEST_APP_NAME
+  ${TestAppSources}
+)
+# ...
+```
+
+* Now I can engage the tests with the 'ctest' command
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ctest --test-dir build
+Internal ctest changing into directory: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build
+Test project /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build
+No tests were found!!!
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+But hey, I have yet to write any actual tests!
+
+OK, it turns out I lack a bit more than that.
+
+* I wrote a simple text in TemplateTests.cpp
+
+```cpp
+#include "gtest/gtest.h"
+
+TEST(TemplateTests,ExampleTest1) {
+  EXPECT_TRUE(true);
+}
+```
+
+* But ctest still fails
+* So I added add_tests(...) to the tests CMAkeLists.txt
+* But that did not help!
+
+It turns out the location of the test configuration was way down in the build folder!
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % find build -name CTestTestfile.cmake 
+build/Debug/src/second/tests/CTestTestfile.cmake
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ctest --test-dir build/Debug/src/second/tests                    
+Internal ctest changing into directory: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/src/second/tests
+Test project /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/src/second/tests
+    Start 1: cratchit_test
+1/1 Test #1: cratchit_test ....................   Passed    0.56 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.56 sec
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+It turns out the built cratchit_test is also in ''.
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % ./build/Debug/src/second/tests/cratchit_test
+Running main() from /Users/kjell-olovhogdahl/.conan2/p/b/gtest778a6ea33a560/b/src/googletest/src/gtest_main.cc
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TemplateTests
+[ RUN      ] TemplateTests.ExampleTest1
+[       OK ] TemplateTests.ExampleTest1 (0 ms)
+[----------] 1 test from TemplateTests (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+Fair enough. But this means I get NO HELP from ctest to figure out the 'Debug', 'Release' etc, indirections for the build settings I applied?
+
+It seems no?
+
+Also, If I omit the add_tests(...) in the cmake text file, then ctest stops working!
+
+* The controlling cmake-file 'CTestTestfile.cmake' now seems to be empty?
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cat build/Debug/src/second/tests/CTestTestfile.cmake
+# CMake generated Testfile for 
+# Source directory: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/second/tests
+# Build directory: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/src/second/tests
+# 
+# This file includes the relevant testing commands required for 
+# testing this directory and lists subdirectories to be tested as well.
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+* But with add_test in the cmake text file I get:
+
+```sh
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % cat build/Debug/src/second/tests/CTestTestfile.cmake
+# CMake generated Testfile for 
+# Source directory: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/second/tests
+# Build directory: /Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/src/second/tests
+# 
+# This file includes the relevant testing commands required for 
+# testing this directory and lists subdirectories to be tested as well.
+add_test([=[cratchit_test]=] "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/build/Debug/src/second/tests/cratchit_test")
+set_tests_properties([=[cratchit_test]=] PROPERTIES  _BACKTRACE_TRIPLES "/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/second/tests/CMakeLists.txt;72;add_test;/Users/kjell-olovhogdahl/Documents/GitHub/cratchit/src/second/tests/CMakeLists.txt;0;")
+kjell-olovhogdahl@MacBook-Pro ~/Documents/GitHub/cratchit % 
+```
+
+Fair enough. We get some insight into the back office of ctest framework and scaffolding.
+
+* I added this comment to tests/CMakeLists.txt
+
+```text
+# Now we can do '>ctest --test-dir build/Debug/src/second/tests'
+# Note: The folder name 'build' is determined by the build-folder argument given to cmake to build.
+#       The folder name 'Debug' is determined by the build type applied by cmake built tool chain
+#       The path 'src/second/tests' is applied by cmake due to the relative location
+#       of this child CMakeLists.txt!
+```
+
 ## 20260815
 
 OK, so I have tyhe scaffolding.

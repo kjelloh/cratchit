@@ -33,9 +33,11 @@ namespace second {
 
     }
     catch (const std::exception& e) {
+      log_business("second::main: Exception:{}",e.what());
       std::cout << "\nsecond::main(): FAILED: Excpetion " << std::quoted(e.what());
     }
     catch (...) {
+      log_business("second::main: General Excpetion:...");
       std::cout << "\nsecond::main(): FAILED: General Excpetion";
     }
     log_flush();
