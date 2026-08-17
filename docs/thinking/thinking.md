@@ -7,6 +7,29 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
+* [chimes](../../chime/index.md)
+
+## 20260817
+
+The things to do has now grown to an overwhelming set of possible next steps.
+
+1. Design a charchter set transform framework (possibly as combinators)?
+2. Write test cases to determine how string literals in source code ends up being encoded in compiled code?
+3. Plant the 'seed' for parser combinators and apply to persistent runtime name-value pair encoded file.
+4. Do something about the now convoluted MESS of a build system for cratchit?
+  1. Back to basics as direct calls to compiler (remove cmake layer)?
+  2. Remove conan package manager and replace with some automated git-clone any dependancies?
+  3. Make a compiler-wrapper to control code-to-binary and also format compiler error outputs?
+
+That is the current 'event horison'!
+
+* For (1) I wrote [Consider a character set descriptor with multi-data-point to unicode transformer?](../../chime/10f4d3e0/chime.md)
+* For (2) I wrote [Consider to investigate C++ string literal encoding in source file vs in compiled binary?](../../chime/139dca2a/chime.md)
+* For 4 I wrote [Consider what to do something about the now convoluted MESS of a build system for cratchit?](../../chime/97c71c98/chime.md)
+* For 4.2 I wrote [Consider a git-only based C++ package manager to replace conan?](../../chime/4176cdd7/chime.md)
+* For 4.3 I wrote [Consider a simple C++ compiler wrapper: path -> compiler, that when called forwards args and formats ouput?](../../chime/27a1a6c4/chime.md)
+
+Ok, my 'chime' approach to document seeds to what-to-make-exist seems to work for me for now? Great!
 
 ## 20260816
 
@@ -306,6 +329,32 @@ Fair enough. We get some insight into the back office of ctest framework and sca
 #       The path 'src/second/tests' is applied by cmake due to the relative location
 #       of this child CMakeLists.txt!
 ```
+
+Finally I added a test.zsh script.
+
+* It mirrors run.zsh
+* But executes cratchit_test
+
+This is a convoluted MESS!!
+
+* We have conan that make it opaque how cmake is configured and applied
+* We have cmake that is opaque on how (and where) it creates a tool chain and produces a built output
+* We have cmake test scaffolding that is opaque about how thins in CMakeLists.txt reklates to what ctest i able o do.
+* We have my own scripts run.zsh and test.zsh that tries to be clever
+  * They read a local cmake_preset.txt to know what conan generated cmake preset to apply.
+  * It copies built executable to workspace and invokes it there.
+
+There is a LOT of stuff that can go WRONG here!!
+
+So am I now ready to implement some tests on source code character encoding vs actually compiled code string literal values?
+
+* Create source code files in different encodings
+  * UTF8
+  * CP437 for SIE-file encoding
+  * ISO_8859_1
+* Define som string literals in raw and denoted encodings in these source files
+* Make tests that logs the raw bytes of these string literals.
+  * Make tests pass for string literals that ends up wih the correct encoding?
 
 ## 20260815
 
