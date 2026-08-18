@@ -3,3 +3,4 @@
 [Consider a simple C++ compiler wrapper: path -> compiler, that when called forwards args and formats ouput?](27a1a6c4/chime.md)
 [Consider a git-only based C++ package manager to replace conan?](4176cdd7/chime.md)
 [Consider what to do something about the now convoluted MESS of a build system for cratchit?](97c71c98/chime.md)
+[Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?](a5865281/chime.md)

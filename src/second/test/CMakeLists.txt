@@ -50,14 +50,22 @@ set(THIS_TEST_APP_NAME cratchit_test)
 #       It seems ${CMAKE_SOURCE_DIR} is the location of the top CMakeLists.txt?
 #       I also asume it is set when 'project' is invoked?
 set(TestAppSources
-  # ${CMAKE_SOURCE_DIR}/src/second/tests/src/TemplateTests.cpp
-  src/TemplateTests.cpp
+  # ${CMAKE_SOURCE_DIR}/src/second/test/TemplateTests.cpp
+  parsing/Parser_tests.cpp
+  TemplateTests.cpp
 )
 
 # define our app with test case source files
 add_executable(${THIS_TEST_APP_NAME}
   ${TestAppSources}
 )
+
+# Make test code #include easy also to access cratchit code
+target_include_directories(${THIS_TEST_APP_NAME}
+    PUBLIC
+        ${CMAKE_SOURCE_DIR} # #include "src/second/..." into cratchit source will work fine
+)
+
 
 # Link our app with google test main entry point
 target_link_libraries(${THIS_TEST_APP_NAME} PRIVATE
@@ -69,14 +77,14 @@ target_link_libraries(${THIS_TEST_APP_NAME} PRIVATE
 # END: Actual test app based on google test
 #--------------------------------------------------
 
-# Ensure there is a 'build/Debug/src/second/tests/CTestTestfile.cmake' file with content
+# Ensure there is a 'build/Debug/src/second/test/CTestTestfile.cmake' file with content
 add_test(
   NAME ${THIS_TEST_APP_NAME}
   COMMAND ${THIS_TEST_APP_NAME}
 )
 
-# Now we can do '>ctest --test-dir build/Debug/src/second/tests'
+# Now we can do '>ctest --test-dir build/Debug/src/second/test'
 # Note: The folder name 'build' is determined by the argument given to cmake to build.
 #       The folder name 'Debug' is determined by the build type applied by cmake built tool chain
-#       The path 'src/second/tests' is applied by cmake due to the relative location
+#       The path 'src/second/test' is applied by cmake due to the relative location
 #       of this child CMakeLists.txt!

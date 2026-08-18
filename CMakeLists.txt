@@ -236,7 +236,7 @@ message(STATUS "CMake C++ Standard: ${CMAKE_CXX_STANDARD}")
 # Note: I find cmake sematics opaque.
 #       It seems add_subdirectory is in fact more like 'include' or 'append'?
 #       And I would have found it morea readable if
-#       the command was append_cmake_text('src/second/tests/CMakeLists.txt').
+#       the command was append_cmake_text('src/second/test/CMakeLists.txt').
 #       But hey, that's me...
-add_subdirectory(src/second/tests)
+add_subdirectory(src/second/test)
 

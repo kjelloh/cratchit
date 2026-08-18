@@ -60,7 +60,7 @@ fi
 
 # Copy the built binary to the workspace directory (mirror)
 echo "test.zsh: Copying the '$EXECUTABLE' binary to the workspace directory..."
-cp "build/$BUILD_TYPE/src/second/tests/$EXECUTABLE" "$WORKSPACE_DIR/"
+cp "build/$BUILD_TYPE/src/second/test/$EXECUTABLE" "$WORKSPACE_DIR/"
 # Copy the built resources subfolder to the workspace subfolder (mirror)
 echo "test.zsh: Copying resources..."
 mkdir -p "$WORKSPACE_DIR/resources"

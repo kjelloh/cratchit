@@ -9,9 +9,19 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [todos](../../todo/index.md)
 * [chimes](../../chime/index.md)
 
+## 20260818
+
+Today I want to continue with [Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?](../../chime/a5865281/chime.md)
+
+* Maybe I need to start with a proposal on how to parse my name-value text file for persistent runtime data?
+
+  * What 'grammar' do I need to parse it?
+  * I continue to thing in the chime.
+
+
 ## 20260817
 
-The things to do has now grown to an overwhelming set of possible next steps.
+The things to do has now grown to an somewhat overwhelming set of possible next steps?
 
 1. Design a charchter set transform framework (possibly as combinators)?
 2. Write test cases to determine how string literals in source code ends up being encoded in compiled code?
@@ -30,6 +40,11 @@ That is the current 'event horison'!
 * For 4.3 I wrote [Consider a simple C++ compiler wrapper: path -> compiler, that when called forwards args and formats ouput?](../../chime/27a1a6c4/chime.md)
 
 Ok, my 'chime' approach to document seeds to what-to-make-exist seems to work for me for now? Great!
+
+Maybe I should get some programming done also today?
+
+* For (3) I wrote [Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?](../../chime/a5865281/chime.md)
+
 
 ## 20260816
 
