@@ -282,6 +282,111 @@ So there are still many moving parts in this design?
 
 But I think this is a good-enough ratchet point for now!
 
+DARN! I keep going off the rails!
+
+I did not like that I could not use the type Parser for anything? 
+
+* I had made Parser an alias for an std::function: Input -> Result
+* Fair enough, but that ment I could not use the alias Parser to define new ones.
+  * I have to define them as concrete or lamda functions with the required signature.
+* So I thought, OK, maybe I make Parser into a class with a call-operator?
+  * But then it seems like a taughtology to have it aggregate an std::function?
+  * So I ended up with a pure abstract base class.
+
+```cpp
+  class Parser {
+  public:
+    virtual Result operator()(Input const& input) = 0;
+  private:
+  }; // Parser
+```
+  * But this is not passable by value!
+  * The type-erased parse() function does no longer compile.
+
+```cpp
+Result parse(Parser parser,Input input) {
+  return parser(input);
+} // parse
+```
+
+So while Parser as std::function seemed to work, an abstract base class Parser does NOT!
+
+* Now when I thibnk about it, why did this work with std::function?
+* Is std::function perhaps move-constructable?
+* Or had I not yet defined any parsers with local state?
+* Or maybe std::function with local state IS copyable (clone-able)?
+* But from a functional immutable aim this seems liek something we do NOT want?
+
+So what the heck? Why is this so hard?
+
+I have now consulted chatGPT and on my prompt it now actually got my inteded runtime parser combinator goal. So I picked out some cimbinators, implemented them and defined tests for them.
+
+* I actually now understands what they do and how combinators look for my choice of Parser.
+
+  * So we can write the combinator 'sequence'.
+
+```cpp
+  Parser sequence(Parser first, Parser second) {
+    return [first, second](Input input) -> Result {
+        auto r1 = first(input);
+
+        if (!r1) {
+            return std::unexpected(r1.error());
+        }
+
+        auto [value1, remaining] = r1.value();
+
+        auto r2 = second(remaining);
+
+        if (!r2) {
+            return std::unexpected(r2.error());
+        }
+
+        auto [value2, remaining2] = *r2;
+
+        // Until structured values, return the second one
+        return Success{
+            value2,
+            remaining2
+        };
+    }; // lambda
+  } // sequence
+
+```
+
+  * And the test case for first or second parser should succeed.
+
+```cpp
+TEST(ParserTest,parse_sequence) {
+
+  auto result = parse(
+      parsing::sequence(
+        parsing::literal("magic_value")
+        ,parsing::literal("=")
+      )
+      ,"magic_value=123");
+
+  ASSERT_TRUE(result.has_value());
+  auto const& [value,remaining] = result.value();
+  EXPECT_EQ(remaining.view().size(),3);
+
+}
+```
+
+Now 'sequence' reveals a flaw in my current design.
+
+* Parsers like 'sequence' should return a pair of parsed values.
+  * Each parser success to a parsed value.
+  * So when both pass we have two parsed values in-sequence
+  * We should create a pair, a tuple or a list of these values.
+  * This is a structured value!
+
+But I currently have a type erased Value (and std::variant)
+
+* And std::variant cant contain recrsive values of itself!
+
+Ok, Good! Now I understand this interface of the parser!
+
 ## 20260817
 
 So I am still intrigued to go for some parser combinator implementation for cratchit.

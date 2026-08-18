@@ -18,6 +18,43 @@ Today I want to continue with [Consider some bare-bone but expandable C++ parser
   * What 'grammar' do I need to parse it?
   * I continue to thing in the chime.
 
+Ok, so the more i use chatGPT, the more obvious it is that is just don't get intent or context!
+
+* It keeps proposing compile-time composable parsers!
+* Even though I clearly have a Parser type that is type erased!
+* I take this to mean that the web is full of the mopre complex (and cool?) template-magic parser combinators?
+
+Never the less. I keep asking in different ways until I get a nibble of valuable information and then I run with that.
+
+* It is still true that chatGPT is a good 'search tool'.
+* I interact with it as someone that 'riffs' on what you ask.
+* In some sense chatGPT takes the question and then 'wings it'.
+* ANd it is up to me to pick out the relevant information.
+* What LLMs seems to reveal is that there is quite a large gap between 'soemthing that works' and 'something aligned with some values'?
+  * In this case I 'value' runtime composable parsers.
+  * But chatGPT still provides the more 'cool' compile time solution!
+
+
+WARNING! I started to use CoPilot inside VSCode.
+
+* And it modified my code!!
+* What the F***K??!!
+
+Fortunately I figured out that the changes thjat showed up in git version control was not made by me!!
+
+I REALLY am starting to realise how I must go back to basic for almost everything reklated to my actual code writing and building to keep my sanity and not waste all this time on unexpected friction.
+
+* Remove AI agents that edits my code
+  * Instead use free AI agents and pick the valuable information and apply myself.
+* Remove conan package manager
+  * Instead implement some TRANSPARENT and DETERMINISTIC git-clone-based 'package-like' tool
+  * This tool shall ONLY aggergate exiosting tools!
+  * AND it shall log what it does in a celar and transparent way to the human user!
+* Wrap the C++ compiler to make it SANDBOXED and determinsitic with FORMATTED output
+  * Again, this wrapper shall ONLY aggreagte existing tools!
+  * AND it shall log what it does in a celar and transparent way to the human user!
+
+I think these three steps will freatly enhance my programming productivity and enjoyment?!
 
 ## 20260817
 
