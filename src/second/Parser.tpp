@@ -7,6 +7,7 @@
 #include <functional> // std::function,
 #include <variant>
 #include <string_view>
+#include <expected>
 
 // Archive values
 namespace archive {
@@ -41,13 +42,13 @@ namespace parsing {
   using Input = archive::Input;
 
   using Success = std::tuple<Value,Input>;
+  struct ParseError {}; // ParseError type place holder
 
-  using Result = std::vector<Success>;
+  using Result = std::expected<Success,ParseError>;
 
   using Parser = std::function<Result(Input)>;
 
   using Parser = std::function<parsing::Result(parsing::Input)>;
-  Result parse(Parser parser,parsing::Input input);
 
 } // parsing
 
@@ -55,7 +56,7 @@ namespace archive {
   // Archive parsing specifics goes here
 
   parsing::Result persistent_acrhive_entry(parsing::Input) {
-    return {};
+    return std::unexpected(parsing::ParseError{});
   }
 
 }; // archive
