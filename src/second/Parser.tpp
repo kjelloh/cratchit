@@ -46,10 +46,16 @@ namespace parsing {
   };
 
   template <typename LHS,typename RHS>
-  struct Pair {
+  struct Both {
     LHS lhs;
     RHS rhs;
-  }; // Pair
+  }; // Both
+
+  template <typename LHS,typename RHS>
+  struct Either {
+    std::optional<LHS> lhs;
+    std::optional<RHS> rhs;
+  }; // Either
 
   template <typename value_type>
   using Success = std::tuple<value_type,Input>;
@@ -102,8 +108,8 @@ namespace parsing {
   } // literal
 
   template <typename LHS,typename RHS>
-  Parser<Pair<LHS,RHS>> sequence(Parser<LHS> first, Parser<RHS> second) {
-    return [first, second](Input input) -> Result<Pair<LHS,RHS>> {
+  Parser<Both<LHS,RHS>> both(Parser<LHS> first, Parser<RHS> second) {
+    return [first, second](Input input) -> Result<Both<LHS,RHS>> {
         auto r1 = first(input);
 
         if (!r1) {
@@ -121,8 +127,8 @@ namespace parsing {
         auto [value2, remaining2] = *r2;
 
         // Until structured values, return the second one
-        return Success<Pair<LHS,RHS>>{
-            Pair{value1,value2}
+        return Success<Both<LHS,RHS>>{
+            Both{value1,value2}
             ,remaining2
         };
     }; // lambda
@@ -165,17 +171,32 @@ namespace parsing {
   //     }; // lambda
   // } // flat_map
 
-  // Parser choice(Parser first, Parser second) {
-  //   return [first, second](Input input) -> Result {
-  //     auto result = first(input);
+  template <typename LHS,typename RHS>
+  Parser<Either<LHS,RHS>> either(Parser<LHS> first, Parser<RHS> second) {
+    return [first, second](Input input) -> Result<Either<LHS,RHS>> {
+      auto r1 = first(input);
 
-  //     if (result) {
-  //       return result;
-  //     }
+      if (r1) {
+        auto const& [parsed_value,remaining] = r1.value();
+        return Success<Either<LHS,RHS>> {
+          Either<LHS,RHS>{parsed_value,std::nullopt}
+          ,remaining
+        };
+      }
 
-  //     return second(input);
-  //   }; // lambda
-  // } // choice
+      auto r2 = second(input);
+      if (r2) {
+        auto const& [parsed_value,remaining] = r2.value();
+        return Success<Either<LHS,RHS>> {
+           Either<LHS,RHS>{std::nullopt,parsed_value}
+          ,remaining
+        };
+      }
+
+      return std::unexpected(r2.error());
+
+    }; // lambda
+  } // either
 
 } // parsing
 

@@ -26,10 +26,10 @@ TEST(ParserTest,parse_literal) {
 
 }
  
-TEST(ParserTest,parse_sequence) {
+TEST(ParserTest,parse_both) {
 
   auto result = parse(
-      parsing::sequence(
+      parsing::both(
         parsing::literal("magic_value")
         ,parsing::literal("=")
       )
@@ -76,35 +76,39 @@ TEST(ParserTest,parse_sequence) {
 
 // }
 
-// TEST(ParserTest,parse_choice) {
+TEST(ParserTest,parse_either) {
 
-//   {
-//     auto result = parse(
-//         parsing::choice(
-//           parsing::literal("magic_value")
-//           ,parsing::literal("*should not match*")
-//         )
-//         ,"magic_value=123");
+  {
+    auto result = parse(
+        parsing::either(
+          parsing::literal("magic_value")
+          ,parsing::literal("*not in input*")
+        )
+        ,"magic_value=123");
 
-//     ASSERT_TRUE(result.has_value());
-//     auto const& [value,remaining] = result.value();
-//     EXPECT_EQ(remaining.view().size(),4);
-//   }
+    ASSERT_TRUE(result.has_value());
+    auto const& [value,remaining] = result.value();
+    EXPECT_EQ(remaining.view().size(),4);
+    EXPECT_TRUE(value.lhs.has_value());
+    EXPECT_FALSE(value.rhs.has_value());
+  }
 
-//   {
-//     auto result = parse(
-//         parsing::choice(
-//           parsing::literal("*should not match*")
-//           ,parsing::literal("magic_value")
-//         )
-//         ,"magic_value=123");
+  {
+    auto result = parse(
+        parsing::either(
+          parsing::literal("*not in input*")
+          ,parsing::literal("magic_value")
+        )
+        ,"magic_value=123");
 
-//     ASSERT_TRUE(result.has_value());
-//     auto const& [value,remaining] = result.value();
-//     EXPECT_EQ(remaining.view().size(),4);
-//   }
+    ASSERT_TRUE(result.has_value());
+    auto const& [value,remaining] = result.value();
+    EXPECT_EQ(remaining.view().size(),4);
+    EXPECT_FALSE(value.lhs.has_value());
+    EXPECT_TRUE(value.rhs.has_value());
+  }
 
-// }
+} // TEST
 
 // TEST(ParserTest,parse_name_pair) {
 

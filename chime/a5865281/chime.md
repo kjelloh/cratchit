@@ -233,6 +233,109 @@ Now I expanded the test to check the parsed values.
   };
   ```
 
+Now I went ahead and implemented 'choice'.
+
+* I ended up with the type Either.
+
+```cpp
+  template <typename LHS,typename RHS>
+  struct Either {
+    std::optional<LHS> lhs;
+    std::optional<RHS> rhs;
+  }; // Either
+```
+
+Now this was a conscious choice!
+
+* My first naive approach was to aggregate an std::variant.
+* But then I realised it was a bit awkward to handle the case when LHS and RHS was the SAME type!
+
+  * Now std::variant handles this just fine.
+  * But I in this case the type no longer told what parser that succeeded.
+
+* So I decided to make Either so that the client can tell which parser that succeeded.
+* The parser now became a bit elaborated but still readable.
+
+  * I renamed it to 'either' for consistency (and I like the name better)
+
+```cpp
+  template <typename LHS,typename RHS>
+  Parser<Either<LHS,RHS>> either(Parser<LHS> first, Parser<RHS> second) {
+    return [first, second](Input input) -> Result<Either<LHS,RHS>> {
+      auto r1 = first(input);
+
+      if (r1) {
+        auto const& [parsed_value,remaining] = r1.value();
+        return Success<Either<LHS,RHS>> {
+          Either<LHS,RHS>{parsed_value,std::nullopt}
+          ,remaining
+        };
+      }
+
+      auto r2 = second(input);
+      if (r2) {
+        auto const& [parsed_value,remaining] = r2.value();
+        return Success<Either<LHS,RHS>> {
+           Either<LHS,RHS>{std::nullopt,parsed_value}
+          ,remaining
+        };
+      }
+
+      return std::unexpected(r2.error());
+
+    }; // lambda
+  } // either
+```
+
+* I could now write the test case.
+
+```cpp
+TEST(ParserTest,parse_either) {
+
+  {
+    auto result = parse(
+        parsing::either(
+          parsing::literal("magic_value")
+          ,parsing::literal("*not in input*")
+        )
+        ,"magic_value=123");
+
+    ASSERT_TRUE(result.has_value());
+    auto const& [value,remaining] = result.value();
+    EXPECT_EQ(remaining.view().size(),4);
+    EXPECT_TRUE(value.lhs.has_value());
+    EXPECT_FALSE(value.rhs.has_value());
+  }
+
+  {
+    auto result = parse(
+        parsing::either(
+          parsing::literal("*not in input*")
+          ,parsing::literal("magic_value")
+        )
+        ,"magic_value=123");
+
+    ASSERT_TRUE(result.has_value());
+    auto const& [value,remaining] = result.value();
+    EXPECT_EQ(remaining.view().size(),4);
+    EXPECT_FALSE(value.lhs.has_value());
+    EXPECT_TRUE(value.rhs.has_value());
+  }
+
+} // TEST
+
+```
+
+There are some thinhs to maybe attend to now or in the future.
+
+* The parser 'either' returns the error of the second parser if both fails.
+  * I suppose a better error would be 'NeitherSucceded'?
+* Come to think about it, I have NO errors yet defined!
+* Also, the Either type has no built-in invariant upholder.
+  * It is possible to create an invalid Either(nullopt,nullopt)
+  * How can I protect Either from an invalid state?
+  * An invariant-upholding constructor would need to throw?
+  * Or what options do I have?
 
 ## 20260818
 
