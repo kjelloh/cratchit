@@ -28,18 +28,48 @@ TEST(ParserTest,parse_literal) {
  
 TEST(ParserTest,parse_both) {
 
-  auto result = parse(
-      parsing::both(
-        parsing::literal("magic_value")
-        ,parsing::literal("=")
-      )
-      ,"magic_value=123");
+  {
+    auto result = parse(
+        parsing::both(
+          parsing::literal("magic_value")
+          ,parsing::literal("=")
+        )
+        ,"magic_value=123");
 
-  ASSERT_TRUE(result.has_value());
-  auto const& [value,remaining] = result.value();
-  EXPECT_EQ(remaining.view().size(),3);
-  EXPECT_EQ(value.lhs,parsing::Text{"magic_value"});
-  EXPECT_EQ(value.rhs,parsing::Text{"="});
+    ASSERT_TRUE(result.has_value());
+    auto const& [value,remaining] = result.value();
+    EXPECT_EQ(remaining.view().size(),3);
+    EXPECT_EQ(value.lhs,parsing::Text{"magic_value"});
+    EXPECT_EQ(value.rhs,parsing::Text{"="});
+  }
+
+  {
+    // first fail
+    auto result = parse(
+        parsing::both(
+          parsing::literal("*not in input*")
+          ,parsing::literal("=")
+        )
+        ,"magic_value=123");
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().pos,0);
+  }
+
+  {
+    // second fail
+    auto result = parse(
+        parsing::both(
+          parsing::literal("magic_value")
+          ,parsing::literal("-")
+        )
+        ,"magic_value=123");
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().pos,11);
+  }
+
+
 }
 
 // TEST(ParserTest,parse_map) {
@@ -106,6 +136,33 @@ TEST(ParserTest,parse_either) {
     EXPECT_EQ(remaining.view().size(),4);
     EXPECT_FALSE(value.lhs.has_value());
     EXPECT_TRUE(value.rhs.has_value());
+  }
+
+  {
+    auto result = parse(
+        parsing::either(
+          parsing::literal("magic_value")
+          ,parsing::literal("magic_value")
+        )
+        ,"magic_value=123");
+
+    ASSERT_TRUE(result.has_value());
+    auto const& [value,remaining] = result.value();
+    EXPECT_EQ(remaining.view().size(),4);
+    EXPECT_TRUE(value.lhs.has_value());
+    EXPECT_FALSE(value.rhs.has_value());
+  }
+
+  {
+    auto result = parse(
+        parsing::either(
+          parsing::literal("*not in input*")
+          ,parsing::literal("*also not in input*")
+        )
+        ,"magic_value=123");
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().pos,0);
   }
 
 } // TEST

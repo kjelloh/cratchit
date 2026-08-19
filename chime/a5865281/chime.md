@@ -337,6 +337,31 @@ There are some thinhs to maybe attend to now or in the future.
   * An invariant-upholding constructor would need to throw?
   * Or what options do I have?
 
+So chatGPT responded to my reasing with some snippets of valuable considerations.
+
+* 'I would not worry too much about Either(nullopt, nullopt) yet'
+
+  * The reason is that it is the parser that is responsible for the invariant.
+  * So as long as 'either' is implemented correctly, the invariant holds.
+
+* The 'either(foo,bar)' parser semantically expects '"foo" or "bar"'
+
+  * So the error is effectively 'Expected "Foo" or "Bar"'
+  * This is a richer error that identifies the concrete parsers that failed in combination.
+
+* I may be tempted to implement a ParseError that allows two 'expectations' to be merged?
+
+  * I like that!
+  * Something like make_either_error(result1,result2).
+  * Then we can expand with make_bort_error(result1,result2).
+
+* It also sugested two additional test cases.
+
+  * Test neither match
+  * Test both match
+  * And decide on what error to expect
+
+
 ## 20260818
 
 I am a little baffled about how hard I have to get my head around parsers and parser combinators.

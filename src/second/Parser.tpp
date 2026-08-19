@@ -23,17 +23,27 @@ namespace parsing {
   class Input {
   public:
     using code_point_type = char;
-    Input(char const* sz) : m_in(sz) {}
+    Input(char const* sz) 
+      : m_in(sz)
+        ,m_absolute_pos{0} {}
+
+    Input(Input const& input) = default;
+    
     Input consumed(size_t consumed_count) const {
       auto result = *this;
       result.m_in = result.m_in.substr(consumed_count);
+      result.m_absolute_pos += consumed_count;
       return result;
     }
     std::string_view view() const {
       return m_in;
     }
+
+    size_t pos() const {return m_absolute_pos;}
+
   private:
     std::string_view m_in;
+    size_t m_absolute_pos;
   }; // test::Input
 
   struct NaturalNumber{
@@ -60,7 +70,10 @@ namespace parsing {
   template <typename value_type>
   using Success = std::tuple<value_type,Input>;
 
-  struct ParseError {}; // ParseError type place holder
+  struct ParseError {
+    ParseError(Input const& input) : pos{input.pos()} {}
+    size_t pos;
+  }; // ParseError type place holder
 
   template <typename value_type>
   using Result = std::expected<Success<value_type>,ParseError>;
@@ -97,7 +110,7 @@ namespace parsing {
       auto text = input.view();
 
       if (!text.starts_with(expected)) {
-        return std::unexpected(ParseError{});
+        return std::unexpected(ParseError{input});
       }
 
       return Success<Text>{
