@@ -214,6 +214,25 @@ Well, OK. I actual feel I don't have the energy or inclination to delve into thi
   When all template arguments have been specified, deduced or obtained from default template arguments, every use of a template parameter in the function parameter list is replaced with the corresponding template arguments.
   ```
 
+Now I expanded the test to check the parsed values.
+
+* But his does not compile!
+
+```cpp
+  EXPECT_EQ(value.lhs,parsing::Text{"magic_value"});
+```
+
+* It seems C++ does NOT generate deafult operator==?
+
+  * I seem to have option [Default comparisons (since C++20)](https://en.cppreference.com/cpp/language/default_comparisons)
+
+  ```cpp
+  struct Text{
+    bool operator==(Text const&) const = default;
+    std::string value;
+  };
+  ```
+
 
 ## 20260818
 

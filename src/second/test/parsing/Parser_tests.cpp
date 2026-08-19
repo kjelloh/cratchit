@@ -38,7 +38,8 @@ TEST(ParserTest,parse_sequence) {
   ASSERT_TRUE(result.has_value());
   auto const& [value,remaining] = result.value();
   EXPECT_EQ(remaining.view().size(),3);
-
+  EXPECT_EQ(value.lhs,parsing::Text{"magic_value"});
+  EXPECT_EQ(value.rhs,parsing::Text{"="});
 }
 
 // TEST(ParserTest,parse_map) {

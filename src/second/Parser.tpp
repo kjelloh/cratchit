@@ -39,7 +39,9 @@ namespace parsing {
   struct NaturalNumber{
     size_t value;
   };
+
   struct Text{
+    bool operator==(Text const&) const = default;
     std::string value;
   };
 
