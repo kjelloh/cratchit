@@ -43,6 +43,12 @@ namespace parsing {
     std::string value;
   };
 
+  template <typename LHS,typename RHS>
+  struct Pair {
+    LHS lhs;
+    RHS rhs;
+  }; // Pair
+
   template <typename value_type>
   using Success = std::tuple<value_type,Input>;
 
@@ -93,31 +99,32 @@ namespace parsing {
     };
   } // literal
 
-  // Parser sequence(Parser first, Parser second) {
-  //   return [first, second](Input input) -> Result {
-  //       auto r1 = first(input);
+  template <typename LHS,typename RHS>
+  Parser<Pair<LHS,RHS>> sequence(Parser<LHS> first, Parser<RHS> second) {
+    return [first, second](Input input) -> Result<Pair<LHS,RHS>> {
+        auto r1 = first(input);
 
-  //       if (!r1) {
-  //           return std::unexpected(r1.error());
-  //       }
+        if (!r1) {
+            return std::unexpected(r1.error());
+        }
 
-  //       auto [value1, remaining] = r1.value();
+        auto [value1, remaining] = r1.value();
 
-  //       auto r2 = second(remaining);
+        auto r2 = second(remaining);
 
-  //       if (!r2) {
-  //           return std::unexpected(r2.error());
-  //       }
+        if (!r2) {
+            return std::unexpected(r2.error());
+        }
 
-  //       auto [value2, remaining2] = *r2;
+        auto [value2, remaining2] = *r2;
 
-  //       // Until structured values, return the second one
-  //       return Success{
-  //           value2,
-  //           remaining2
-  //       };
-  //   }; // lambda
-  // } // sequence
+        // Until structured values, return the second one
+        return Success<Pair<LHS,RHS>>{
+            Pair{value1,value2}
+            ,remaining2
+        };
+    }; // lambda
+  } // sequence
 
   // template<class F>
   // Parser map(Parser parser, F transform) {

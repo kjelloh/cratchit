@@ -26,20 +26,20 @@ TEST(ParserTest,parse_literal) {
 
 }
  
-// TEST(ParserTest,parse_sequence) {
+TEST(ParserTest,parse_sequence) {
 
-//   auto result = parse(
-//       parsing::sequence(
-//         parsing::literal("magic_value")
-//         ,parsing::literal("=")
-//       )
-//       ,"magic_value=123");
+  auto result = parse(
+      parsing::sequence(
+        parsing::literal("magic_value")
+        ,parsing::literal("=")
+      )
+      ,"magic_value=123");
 
-//   ASSERT_TRUE(result.has_value());
-//   auto const& [value,remaining] = result.value();
-//   EXPECT_EQ(remaining.view().size(),3);
+  ASSERT_TRUE(result.has_value());
+  auto const& [value,remaining] = result.value();
+  EXPECT_EQ(remaining.view().size(),3);
 
-// }
+}
 
 // TEST(ParserTest,parse_map) {
 

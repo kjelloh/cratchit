@@ -86,6 +86,135 @@ When I present this reasoning to chatGPT I seem to be able to pick out some valu
 
   * So yes: the client doesn't need to know or spell out Text at all.
 
+Great! So what happens when we make the 'sequence' parser return some pair of the parse success?
+
+Well, it works almost as nicelly as for the literal parser.
+
+* I went with my own Pair just to see what a Pair type entails for my code.
+
+```cpp
+  template <typename LHS,typename RHS>
+  struct Pair {
+    LHS lhs;
+    RHS rhs;
+  }; // Pair
+```
+
+  * That is, NOT use std::pair that may potentially solve problems for me without me being aware of it?
+
+* The I made 'sequence' parse into such a Pair.
+
+  * This now becomes a little bit more involved as I need to parameterise also what goes into the Pair.
+
+  ```cpp
+    template <typename LHS,typename RHS>
+  Parser<Pair<LHS,RHS>> sequence(Parser<LHS> first, Parser<RHS> second) {
+    return [first, second](Input input) -> Result<Pair<LHS,RHS>> {
+        auto r1 = first(input);
+
+        if (!r1) {
+            return std::unexpected(r1.error());
+        }
+
+        auto [value1, remaining] = r1.value();
+
+        auto r2 = second(remaining);
+
+        if (!r2) {
+            return std::unexpected(r2.error());
+        }
+
+        auto [value2, remaining2] = *r2;
+
+        // Until structured values, return the second one
+        return Success<Pair<LHS,RHS>>{
+            Pair{value1,value2}
+            ,remaining2
+        };
+    }; // lambda
+  } // sequence
+
+  ```
+
+* But is is still true that the client code is totally unaffected!
+
+```cpp
+TEST(ParserTest,parse_sequence) {
+
+  auto result = parse(
+      parsing::sequence(
+        parsing::literal("magic_value")
+        ,parsing::literal("=")
+      )
+      ,"magic_value=123");
+
+  ASSERT_TRUE(result.has_value());
+  auto const& [value,remaining] = result.value();
+  EXPECT_EQ(remaining.view().size(),3);
+
+}
+```
+
+So it seems the C++ compiler is also capable of performing 'template argument deduction' also from provided Parser types to the types that goes into the Pair?!
+
+* At first I though the 'template argument deduction' would now involve two levels?
+
+  * That is from parser to value_type for each pasrer.
+  * And the to ``` Pair<lhs_type,rhs_type> ```
+
+* But looking more closelly it is THE SAME 'template argument deduction' taking place!
+
+  * From provided parsers to the arguments of the parser template itself
+
+  ```cpp
+    template <typename LHS,typename RHS>
+    Parser<Pair<LHS,RHS>> sequence(Parser<LHS> first, Parser<RHS> second) {
+      // ...
+    }
+  ```
+
+  * The ``` sequence(Parser<LHS>,...) ``` infers LHS type
+  * And ``` sequence(...,Parser<RHS>) ``` infers RHS type
+  * Then the compiler knows the resturn type ``` Parser<Pair<LHS,RHS>> ```
+  * As it was LHS and RHS that where the 'unknowns' it had to infer.
+
+WHen I presented my reasoning to chatGPT for commenting I picked some valuable information.
+
+* It is 'function template argument deduction' that does ``` sequence(Parser<LHS>,...) -> Parser<LHS> ```
+* It is then 'template argument deduction' that does ``` Parser<LHS> -> Parser<Text> ```
+
+  * That is, it is the client call to sequence that defines the concrete passed types.
+
+  ```cpp
+        parsing::sequence(
+        parsing::literal("magic_value") // Parser<Text>
+        ,parsing::literal("=")          // Parser<Text>
+      )
+  ```
+
+  * So 'function template argument deduction' binds LSH in ``` Parser<LHS> -> Parser<Text> ```
+
+Well, OK. I actual feel I don't have the energy or inclination to delve into this in detail right now. When I do I can read more in the C++ specifications?
+
+* [Template argument deduction](https://en.cppreference.com/cpp/language/template_argument_deduction)
+
+  * Which seems to be about inferring argument types from calling a template function?
+
+  ```text
+  When possible, the compiler will deduce the missing template arguments from the function arguments. This occurs when a function call is attempted...
+  ```
+
+  * I don't like the working there though?
+  * In code-termonology I would like it to read 'function call instantiation...' or something?
+  * That is 'is attempted...' is passive form (so 'who does what' exactly?)
+
+* [Template argument substitution](https://en.cppreference.com/cpp/language/function_template#Template_argument_substitution)
+
+  ```text
+  When all template arguments have been specified, deduced or obtained from default template arguments, every use of a template parameter in the function parameter list is replaced with the corresponding template arguments.
+  ```
+
+
 ## 20260818
 
 I am a little baffled about how hard I have to get my head around parsers and parser combinators.
