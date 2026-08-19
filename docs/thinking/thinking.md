@@ -9,6 +9,16 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [todos](../../todo/index.md)
 * [chimes](../../chime/index.md)
 
+## 20260819
+
+So I actually implemented parser combinators yesterday.
+
+* But they can't create structured values like pairs or lists.
+* And the current resturn of a variant of declared types up-front cant accomodate for that.
+
+So I continue in [Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?](../../chime/a5865281/chime.md) to exapnd the design so that each parser can return its own type, including structured types.
+
+
 ## 20260818
 
 Today I want to continue with [Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?](../../chime/a5865281/chime.md)

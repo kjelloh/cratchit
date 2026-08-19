@@ -1,5 +1,91 @@
 # Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?
 
+## 20260819
+
+So it is time to make the parsers be able to return structured types like pairs or lists or what have you?
+
+* Current design returning a variant of a selection of types up-front can do this.
+* That is, a member of the variant can not itself aggregate types of itself.
+* And we cant extend the list of mvariants with say std::pair, or std::vector as these must then contain some other type than 'Value' that we have designed to cover all value types we can parse.
+
+So what happens if each parser returns its own parsed type?
+
+* How can we still compose them?
+* I mean, the client that composes parsers must be able to hanlde different types returned by each parser it applies for parsing!
+
+Let's shrink down our parser count for now so we can explore what happens when each parser returns its own parsed type without getting compilation errors all over the place.
+
+Interesting! This was surprisingly straight forward and so far painless?
+
+* I started by making Success be parameterised on the parsed value type
+
+```cpp
+  template <typename value_type>
+  using Success = std::tuple<value_type,Input>;
+```
+* And the propagated this trhough all code that now needs to also be paramerised for an explicit value_type.
+
+```cpp
+
+template <typename value_type>
+using Result = std::expected<Success<value_type>,ParseError>;
+
+template <typename value_type>
+using Parser = std::function<parsing::Result<value_type>(parsing::Input)>;
+
+Parser<Text> literal(std::string_view expected) {
+  return [expected](Input input) -> Result<Text> {
+    auto text = input.view();
+
+    if (!text.starts_with(expected)) {
+      return std::unexpected(ParseError{});
+    }
+
+    return Success<Text>{
+      Text{std::string(expected)},
+      input.consumed(expected.size())
+    };
+  };
+} // literal
+
+template <typename value_type>
+Result<value_type> parse(Parser<value_type> parser,Input input) {
+  return parser(input);
+} // parse
+
+```
+
+* But this does not affect the client code AT ALL?!!
+
+```cpp
+TEST(ParserTest,parse_literal) {
+
+  auto result = parse(
+       parsing::literal("magic_value")
+      ,"magic_value=123");
+
+  ASSERT_TRUE(result.has_value());
+  auto const& [value,remaining] = result.value();
+  EXPECT_EQ(remaining.view().size(),4);
+
+}
+```
+
+It seems the compiler can inferr value_type from the passed ``` Parser<value_type> ``` to the parameterised parse() function?
+
+When I present this reasoning to chatGPT I seem to be able to pick out some valuable information.
+
+* Template argument deduction for parse() determines:
+
+  * ``` value_type = Text ```
+  * and the instantiated function is effectively:
+
+    ```cpp
+    Result<Text> parse(Parser<Text> parser, Input input);
+    ```
+
+  * So yes: the client doesn't need to know or spell out Text at all.
+
 ## 20260818
 
 I am a little baffled about how hard I have to get my head around parsers and parser combinators.
