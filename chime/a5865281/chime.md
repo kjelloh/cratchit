@@ -1,5 +1,112 @@
 # Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?
 
+## 20260820
+
+I decided to try and expand the error handling to give me some valuable information also for combined parsers.
+
+* I ended up with a ParseError that carries both a caption string and an absolute position.
+
+```cpp
+  struct ParseError {
+    std::string caption;
+    size_t pos;
+  }; // ParseError
+```
+
+* I made a parse_error_to_string to format an output ot the error.
+
+  ```cpp
+  std::string parse_error_to_string(ParseError const& error) {
+    return std::format(
+      "{} failed at:{}"
+      ,error.caption
+      ,error.pos
+    );
+  } // parse_error_to_string
+  ```
+
+* It turned out that making error factory functions was now the way to go.
+
+  * I first made one creating an error 'from scratch' (unity) 
+
+```cpp
+  ParseError make_error(std::string caption,Input const& input) {
+    return ParseError{
+       std::format(
+         "{}:at[{}:'{}...']"
+        ,caption
+        ,input.pos()
+        ,input.view().substr(0,4)
+       )
+      ,input.pos()
+    };
+  } // make_error
+```
+  * In this way I could 'bake in' intermediate position into the caption.
+  * In effect, then caption reflects the 'call stack' including input state.
+  * This creates error string like:
+
+  ```text  both:lhs.literal:'*not in input*':at[0:'magi...'] failed at:0 ```
+  ```text both:rhs.literal:'-':at[11:'=123...'] failed at:11 ```
+
+  * And could use it in 'literal' (raw) parser.
+
+  ```cpp
+    Parser<Text> literal(std::string_view expected) {
+    return [expected](Input input) -> Result<Text> {
+      auto text = input.view();
+
+      if (!text.starts_with(expected)) {
+        return std::unexpected(make_error(
+           std::format("literal:'{}'",expected)
+          ,input)
+        );
+      }
+
+      // ...
+  ```
+
+* Then for parser combinators the error handling is a bit more tricky?
+
+  * I ended up trying an make_aggregate_error just to get a feel for it.
+
+  ```cpp
+    ParseError make_composed_error(std::string caption,ParseError error) {
+    auto composed_caption = std::format(
+      "{}.{}"
+      ,caption
+      ,error.caption
+    );
+    return ParseError{
+       composed_caption
+      ,error.pos
+    };
+  } // make_composed_error
+
+  ```
+
+  * And for now this works quite well for 'both'.
+
+  ```cpp
+        // ...
+        if (!r1) {
+          return std::unexpected(
+            make_composed_error("both:lhs",r1.error())
+          );
+        }
+        // ...
+        if (!r2) {
+          return std::unexpected(
+            make_composed_error("both:rhs",r2.error())
+          );
+        }
+
+  ```
+
+So bottom line is that I could enhance error handling by baking the 'call stack' into a caption string.
+
+Good enough for now?
+
 ## 20260819
 
 So it is time to make the parsers be able to return structured types like pairs or lists or what have you?
@@ -359,7 +466,45 @@ So chatGPT responded to my reasing with some snippets of valuable considerations
 
   * Test neither match
   * Test both match
-  * And decide on what error to expect
+  * And decide on what error to expect.
+
+I have now made the ParseError carry and require the position where parsing failed.
+
+* I fixed a bug in Input so that it keeps track of the absolute position in the total input.
+* And made the literal() parser produce suchg a parse error
+
+```cpp
+  Parser<Text> literal(std::string_view expected) {
+    return [expected](Input input) -> Result<Text> {
+      auto text = input.view();
+
+      if (!text.starts_with(expected)) {
+        return std::unexpected(ParseError{input});
+      }
+
+      return Success<Text>{
+        Text{std::string(expected)},
+        input.consumed(expected.size())
+      };
+    };
+  } // literal
+```
+
+* Then I could enhance testing for correct position of failure
+
+```cpp
+    // second fail
+    auto result = parse(
+        parsing::both(
+          parsing::literal("magic_value")
+          ,parsing::literal("-")
+        )
+        ,"magic_value=123");
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().pos,11);
+  }
+```
 
 
 ## 20260818

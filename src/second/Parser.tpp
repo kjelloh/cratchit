@@ -71,9 +71,41 @@ namespace parsing {
   using Success = std::tuple<value_type,Input>;
 
   struct ParseError {
-    ParseError(Input const& input) : pos{input.pos()} {}
+    std::string caption;
     size_t pos;
-  }; // ParseError type place holder
+  }; // ParseError
+
+  ParseError make_error(std::string caption,Input const& input) {
+    return ParseError{
+       std::format(
+         "{}:at[{}:'{}...']"
+        ,caption
+        ,input.pos()
+        ,input.view().substr(0,4)
+       )
+      ,input.pos()
+    };
+  } // make_error
+
+  ParseError make_composed_error(std::string caption,ParseError error) {
+    auto composed_caption = std::format(
+      "{}.{}"
+      ,caption
+      ,error.caption
+    );
+    return ParseError{
+       composed_caption
+      ,error.pos
+    };
+  } // make_composed_error
+
+  std::string parse_error_to_string(ParseError const& error) {
+    return std::format(
+      "{} failed at:{}"
+      ,error.caption
+      ,error.pos
+    );
+  } // parse_error_to_string
 
   template <typename value_type>
   using Result = std::expected<Success<value_type>,ParseError>;
@@ -110,7 +142,10 @@ namespace parsing {
       auto text = input.view();
 
       if (!text.starts_with(expected)) {
-        return std::unexpected(ParseError{input});
+        return std::unexpected(make_error(
+           std::format("literal:'{}'",expected)
+          ,input)
+        );
       }
 
       return Success<Text>{
@@ -126,7 +161,9 @@ namespace parsing {
         auto r1 = first(input);
 
         if (!r1) {
-            return std::unexpected(r1.error());
+          return std::unexpected(
+            make_composed_error("both:lhs",r1.error())
+          );
         }
 
         auto [value1, remaining] = r1.value();
@@ -134,7 +171,9 @@ namespace parsing {
         auto r2 = second(remaining);
 
         if (!r2) {
-            return std::unexpected(r2.error());
+          return std::unexpected(
+            make_composed_error("both:rhs",r2.error())
+          );
         }
 
         auto [value2, remaining2] = *r2;
@@ -206,7 +245,9 @@ namespace parsing {
         };
       }
 
-      return std::unexpected(r2.error());
+      return std::unexpected(
+        make_composed_error("either:rhs",r2.error())
+      );
 
     }; // lambda
   } // either

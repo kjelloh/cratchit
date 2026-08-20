@@ -9,6 +9,10 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [todos](../../todo/index.md)
 * [chimes](../../chime/index.md)
 
+## 20260820
+
+
+
 ## 20260819
 
 So I actually implemented parser combinators yesterday.

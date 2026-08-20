@@ -16,13 +16,28 @@
 
 TEST(ParserTest,parse_literal) {
 
-  auto result = parse(
-       parsing::literal("magic_value")
-      ,"magic_value=123");
+  {
+    // success
+    auto result = parse(
+        parsing::literal("magic_value")
+        ,"magic_value=123");
 
-  ASSERT_TRUE(result.has_value());
-  auto const& [value,remaining] = result.value();
-  EXPECT_EQ(remaining.view().size(),4);
+    ASSERT_TRUE(result.has_value()) 
+      << "Expected success but got error:"
+      << parsing::parse_error_to_string(result.error());
+    auto const& [value,remaining] = result.value();
+    EXPECT_EQ(remaining.view().size(),4);
+  }
+
+  {
+    // expect fail
+    auto result = parse(
+        parsing::literal("*not in input*")
+        ,"magic_value=123");
+
+    ASSERT_FALSE(result.has_value());
+    std::cerr << "OK - parse error:" << parse_error_to_string(result.error()) << "\n";
+  }
 
 }
  
@@ -54,6 +69,8 @@ TEST(ParserTest,parse_both) {
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error().pos,0);
+    std::cerr << "OK - parse error:" << parse_error_to_string(result.error()) << "\n";
+
   }
 
   {
@@ -67,6 +84,7 @@ TEST(ParserTest,parse_both) {
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error().pos,11);
+    std::cerr << "OK - parse error:" << parse_error_to_string(result.error()) << "\n";
   }
 
 
@@ -154,6 +172,7 @@ TEST(ParserTest,parse_either) {
   }
 
   {
+    // expect fail
     auto result = parse(
         parsing::either(
           parsing::literal("*not in input*")
@@ -163,6 +182,8 @@ TEST(ParserTest,parse_either) {
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error().pos,0);
+    std::cerr << "OK - parse error:" << parse_error_to_string(result.error()) << "\n";
+
   }
 
 } // TEST
