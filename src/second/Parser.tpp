@@ -29,7 +29,7 @@ namespace parsing {
 
     Input(Input const& input) = default;
     
-    Input consumed(size_t consumed_count) const {
+    Input with_consumed(size_t consumed_count) const {
       auto result = *this;
       result.m_in = result.m_in.substr(consumed_count);
       result.m_absolute_pos += consumed_count;
@@ -49,6 +49,11 @@ namespace parsing {
   struct NaturalNumber{
     size_t value;
   };
+
+  // Models the samllest possible 'thing' from input
+  struct Item {
+    char value;
+  }; // Item
 
   struct Text{
     bool operator==(Text const&) const = default;
@@ -131,11 +136,29 @@ namespace parsing {
       
   //     return Success{
   //        NaturalNumber{ascii_digits_to_size_t(ascii_digits)}
-  //       ,input.consumed(ascii_digits.size())
+  //       ,input.with_consumed(ascii_digits.size())
   //     };
   //   }; // lambda
   // } // natural_number
 
+  Parser<Item> item() {
+    return [](Input input) -> Result<Item> {
+      if (input.view().size()==0) {
+        return std::unexpected(
+          make_error(
+             "item"
+            ,input
+          )
+        );
+      } // if
+
+      auto value = input.view().front();
+      return Success<Item> {
+         value
+        ,input.with_consumed(1)
+      };
+    }; // lambda
+  } // item
 
   Parser<Text> literal(std::string_view expected) {
     return [expected](Input input) -> Result<Text> {
@@ -150,9 +173,9 @@ namespace parsing {
 
       return Success<Text>{
         Text{std::string(expected)},
-        input.consumed(expected.size())
+        input.with_consumed(expected.size())
       };
-    };
+    }; // lambda
   } // literal
 
   template <typename LHS,typename RHS>
@@ -184,7 +207,7 @@ namespace parsing {
             ,remaining2
         };
     }; // lambda
-  } // sequence
+  } // both
 
   // template<class F>
   // Parser map(Parser parser, F transform) {

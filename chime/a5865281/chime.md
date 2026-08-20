@@ -107,6 +107,136 @@ So bottom line is that I could enhance error handling by baking the 'call stack'
 
 Good enough for now?
 
+So what do I need to parse the name-value entries of a persistent runtime archive?
+
+* I want to parse ``` magic_value=871277 ````
+* Or generally ``` <name>=<value> ```
+* And we already have some parsers.
+  * A basic parser framework
+
+  ```cpp
+  template <typename value_type>
+  using Success = std::tuple<value_type,Input>;
+
+  struct ParseError {
+    std::string caption;
+    size_t pos;
+  }; // ParseError
+
+  template <typename value_type>
+  using Result = std::expected<Success<value_type>,ParseError>;
+
+  template <typename value_type>
+  using Parser = std::function<parsing::Result<value_type>(parsing::Input)>;
+
+  Parser<Text> literal(std::string_view expected) {
+    return [expected](Input input) -> Result<Text> {
+      // ...
+    }; // lambda
+  }
+
+  template <typename LHS,typename RHS>
+  Parser<Both<LHS,RHS>> both(Parser<LHS> first, Parser<RHS> second) {
+    return [first, second](Input input) -> Result<Both<LHS,RHS>> {
+      // ...
+    }; // lambda
+  } // both
+
+    template <typename LHS,typename RHS>
+  Parser<Either<LHS,RHS>> either(Parser<LHS> first, Parser<RHS> second) {
+    return [first, second](Input input) -> Result<Either<LHS,RHS>> {
+      // ...
+    }; // lambda
+  } // either
+
+  ```
+
+* It seems I need to be sincere about my parser combinatory 'grammar'?
+* I like my start with atomic 'literal' and base combinations 'both' and 'either'.
+* So what is the next parsers to make parsing into lines and then split on '='?
+
+  * Do I need a 'line' parser?
+  * But then, how do I compose this 'value' with some 'split' parser?
+  * Is this even the correct grammar for the name-value lines in a persistent text file?
+
+I presented my reasong to chatGPT and got some valuable considerations back.
+
+* It sugested 'read line' and 'split' was NOT parser related.
+
+  * Parsers are used to parse grammars.
+  * And parse-a-line is something we build from combining primitive parsers
+  * The concept of a 'line' is NOT a built-in concept.
+  * Neither is 'split'.
+  * Again, as grammar we build a parser that parses the entry.
+  * In our case an entry is a thoing in the file format grammar
+  * ADN we parse it by combining primitive parsers. 
+
+* It explained 'many' vs 'some'.
+
+```text 
+many(p) = parse zero or more occurrences of p
+some(p) = parse one or more occurrences of p
+
+```
+
+  * I realisied I found that too vauge.
+  * I would use 'zero_or_more' and 'one_or_more' in my grammar?
+
+* It sugested to layer the parsers into 'domains'
+
+  * Layer 1 — primitive parsing (Things concerned with characters and input positions)
+
+    ```text
+    literal
+    character
+    satisfy
+    ```
+    * I have also identified this layer.
+    * It is parsers that consumes input directly.
+    * These parsers are members of 'anonymous' (no grammar) parsing 
+
+  * Layer 2 — combinator algebra (Things concerned with composing parsers)
+
+    ```text
+    both
+    either
+    map
+    many
+    optional
+    ```
+    * This is a valuable insight. These can combine any parser.
+    * These are also part of the 'non syntax' parsing 
+
+  * Layer 3 — grammar/domain parsers (Things that have meaning in your file format)
+
+    ```text
+    identifier
+    integer
+    newline
+    entry
+    archive
+    ```
+    * At first this seems to map nicelly to my 'archive' specific parsers.
+    * But I thoink this is in fact NOT correct.
+    * It belongs to parsing the file FORMAT.
+    * So for my own name-value pair format this defines parsers for this.
+    * BUT: Should I encode in XML then I would use an XML grammar.
+
+From this it seems to me we have in fact yet another 'domain'.
+
+* At first it seemed to me that the 'archive' domian was not for parsers?
+* It was about what values and structures an archive is 'made of'.
+* But then I realised this means there are ARCHIVE VALUES to encode in the persistent file
+
+  * And these values needs to be parsed with the knowledge how they are encoded?
+  * Or am I misstaken here?
+  * Maybe the de-serialisation of values can be done in 'normal' code?
+  * E.g., constructors that takes an std::string as input?
+  * Then it becopmes easy to store them in any peristent file format?
+  * They are always strings?
+
+I have to think more about this.
+
 ## 20260819
 
 So it is time to make the parsers be able to return structured types like pairs or lists or what have you?

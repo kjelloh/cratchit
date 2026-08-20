@@ -14,6 +14,31 @@
 
 // }
 
+TEST(ParserTest,parse_item) {
+  {
+    auto result = parse(
+      parsing::item()
+      ,"Hallå Världen"
+    );
+    ASSERT_TRUE(result.has_value())      
+      << "Expected success but got error:"
+      << parsing::parse_error_to_string(result.error());
+    auto [value,input] = result.value();
+    EXPECT_EQ(value.value,'H');
+  }
+
+  {
+    // fail
+    auto result = parse(
+      parsing::item()
+      ,""
+    );
+    ASSERT_FALSE(result.has_value());
+    std::cerr << "OK - parse error:" << parse_error_to_string(result.error()) << "\n";
+  }
+
+} // parse_item
+
 TEST(ParserTest,parse_literal) {
 
   {
