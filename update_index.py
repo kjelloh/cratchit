@@ -59,7 +59,7 @@ def main():
             heading = target_md.stem
 
         rel_path = f"{folder.name}/{namespace}.md"
-        links.append(f"[{heading}]({rel_path})")
+        links.append(f"* [{heading}]({rel_path})")
 
     # Write index.md
     index_file.write_text("\n".join(links) + "\n", encoding="utf-8")
