@@ -9,9 +9,73 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [todos](../../todo/index.md)
 * [chimes](../../chime/index.md)
 
-## 20260820
+## 20260913
+
+So time to pick up the balls and decide what is next?
+
+* I think I have decided to go with a '.cratchit' folder in the install folder
+* This '.cratchit' folder are to hold a config.ini
+  * Or rather, I seem to not be able tpo decide on a good name?
+
+What is the name of the config files in macOS and Linux?
+
+I asked claude - "I have a cross platform CLI application. I want to design a file where it can store persistent app-data, or what I would like to call 'runtime data'. I have a hard time to decide on what to name this file. My app is called 'cratchit' and I want the file for data to be in a hidden folder called '.cratchit'. I want to compare and be inspired by 'config' files or 'app data' files on macOS and Linux. What are these files named and what exptension do they have. Also, what format do they most commonly use?"
+
+And I got some bread crumbs back for inspiration.
+
+* Older/simpler convention — single dotfile or dotfolder. Plenty of CLI tools (especially cross-platform ones) skip XDG entirely and just use one folder, e.g. ~/.aws/, ~/.docker/, ~/.kube/, ~/.cargo/, ~/.npm/. Inside:
+* ~/.aws/config and ~/.aws/credentials — no extension, INI-style format
+* ~/.docker/config.json — JSON
+* ~/.cargo/config.toml — TOML
+* ~/.kube/config — no extension, YAML format
+* ~/.gitconfig — no extension, INI format
+* Notice: the file is often literally named config (no extension), and the actual format is inferred by the app, not the filename.
 
 
+## 20280905
+
+I become aware that cmake has a mechanism to install a built binary 'as defined by the platform'.
+
+* I was thinking about 'GNUInstallDirs'
+* BUT: It seems this is NOT the 'best' way to have cmake adapt installation to current platform.
+
+So the reason I looked into this is that I wondered if I could dig-out some information about where to have cratchit store 'runtime' data.
+
+* Does Windows still recommend (provide access to) 'the registry'?
+* On Linux, should I use the Linux way using the 'config' folder mechanism?
+* Om macOS, how does apps store their 'app data'?
+
+It seems on Linux there is something called 'the XDG specification' where XDG originally stands for X Desktop Group. It seems This 'specification' defines 'where' desktop apps should store 'data'?
+
+* [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir/latest/)
+
+* [Use the XDG Base Directory Specification!](https://xdgbasedirectoryspecification.com)
+
+```sh
+$ ls -FA1 ~
+.bashrc
+.cache/
+.config/
+.local/
+.profile
+Desktop/
+Documents/
+Downloads/
+Music/
+Pictures/
+```
+
+Well, no, this does not help me?
+
+* I want cratchit to store data related to the app.
+* I suppose in a user-agnostic way?
+* I have actually not thought about this enough?
+* But it seems to me that one app installation is mostly used by a single user?
+* And the 'XDG Base Directory Specification' recommends how the user directory should be organised?
+* This is NOT what the cratchit app should be conscerned with?
+* It is more a 'workspace' matter (if anything?)
+
+I have to think more about how my design runtime -> framework -> workspace -> project architecture fits cratchit and what it would entail?
 
 ## 20260819
 

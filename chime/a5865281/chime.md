@@ -1,5 +1,78 @@
 # Consider some bare-bone but expandable C++ parser combinator for name-value paired encoded text files?
 
+## 20260823
+
+I have now worked with parser combinators for a while and had time to reflect on different aspects.
+
+* It seems I either have input still unconsumed from a stream (e.g., file, socket) or in memory (e.g., std::string_view)?
+  * This is 'distributed in time' vs 'distributed in space'
+  * And inoput distributed in space provides random access to input.
+* It seems I can consume the input lazially or eagerly?
+  * A parser that consumes when applied is lazy.
+  * We can define the full parser without consuming anything.
+* It seems parsers are 'monadic' only if they all fail to the same error type?
+  * This seems to come from the definition of a 'Monad' a happy-path over any types with a single common fail-track
+  * That is, the monadic composition passes the value from one 'step' to the next through the happy-path.
+  * So the happy-path allows each step process a different value type (monadic value).
+  * But the fail-path needs to end processing to a single error value type! 
+
+Chatting with chatGPT here confuses me a little.
+
+* It does not like the notion that all monads have a 'fail-path'.
+* It is more that a Monad 'glues' existing functions on valye types A,B,C with some extra 'spice' operation?
+* So monads Maybe or Excpetion adds the 'spice' fail-path (stop the processing chain into nullopt or error)
+  * In this case there is a fail-path for when value processing fails to produce a next value.
+* But it mentioned the State monad
+  * I do not yet fully grasp the State monad 'spice' or 'glue'
+  * But it is related to say Logging where a Log-state can be passed and updated for each step.
+  * The original functions on the value types A,B,C still are who they are (no logging)
+  * But the Monadic lifted f': A -> M B calls f: A -> B and updates the Log as a 'spice' (glue operation)
+  * Something like that
+
+WHen I presented this reasoning to chatGPT I got some valuable information back.
+
+* Imagine the general monadic 'lift' f: A -> B  to f': A -> M B
+
+  * For Maybe this becomes: f': A -> Maybe B
+  * This makes sense!
+  * We still have the 'pure' function f: A -> B
+  * But we 'lift' it to a Maybe-wrapped value.
+  * This also explains the composition unwrap-call-wrap
+  * That is, to apply a next step f: B -> C when we now have Maybe B.
+  * The 'and_then' (>>=,...) unwraps B from Maybe B and calls next f': B -> Maybe C
+
+I could now extract the isoteric naming in Monad computer science and mathematical text.
+
+* The functions on the value type set A,B,C... f: A -> B are called 'pure'.
+* Lifting to the Monadic operations as f': A -> M B is called 'Kleisli-lifted function'
+  * E.g., f': A -> Maybe B (using f: A -> B)
+* Then it gets easy to get lost in the 'room of mirrors'?!
+  * Bind operates on a monadic value.
+  * bind: M A + (A -> M B) -> M B (A monadic value + a Kleisli-lifted function creates a Monadic value)
+    * E.g., Maybe A -> (A -> Maybe B) -> Maybe B
+  * Kleisli composition operates on two monadic functions.
+  * and_then: (A -> M B) -> (B -> M C)
+    * E.g., (A -> Maybe B) -> (B -> Maybe C)
+    * This is EXACTLY what the std::expected::and_then DOES!
+    * Each lambda in std::expected::and_then takes an A and shall return Maybe B!
+
+Still, it makes sense that composing parsers should all take place withing the same domain of parse errors.
+
+* The end result is sucess or an error about how the parsing whent wrong.
+* So it is natural to have all parsers report errors in the same error domain.
+* And an end result error is come aggregation of the errors of the parser(s) that failed.
+  * In fact, the aggregated error is a 'stack trace' ot the error?
+
+And the small parser combinator library I have so far har done some decicions.
+
+* The Input asumes input is distributed in space (std::string_view)
+* The input is consumed lazilly one-by-one
+  * But it only consumes until error (so kind-of lazy consumption based on success)
+  * And it consumes from 'distributed-in-space', i.e., std::string_view.
+* So far it returns the same ParseError
+  * But it can aggregate errors in the ParseError string
+  * So it acts like a 'call stack' in string-representation.
+
 ## 20260820
 
 I decided to try and expand the error handling to give me some valuable information also for combined parsers.
@@ -13,7 +86,7 @@ I decided to try and expand the error handling to give me some valuable informat
   }; // ParseError
 ```
 
-* I made a parse_error_to_string to format an output ot the error.
+* I made a parse_error_to_string to format an output to the error.
 
   ```cpp
   std::string parse_error_to_string(ParseError const& error) {
