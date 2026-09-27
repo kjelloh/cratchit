@@ -9,6 +9,10 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [todos](../../todo/index.md)
 * [chimes](../../chime/index.md)
 
+## 20260927
+
+CratchitRaylibApp::run now parses args a vector of strings.
+
 ## 20260913
 
 So time to pick up the balls and decide what is next?

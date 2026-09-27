@@ -30,8 +30,17 @@ char const* const WINDOW_CAPTION = "CRATCHIT";
 
 namespace tea {
 
-  int CratchitRaylibApp::run(int, char**) {
+  int CratchitRaylibApp::run(int argc, char** argv) {
+
+    std::vector<std::string> args{};
+    for (int i=0;i<argc;++i) {
+      args.push_back(argv[i]);
+    }
+
     log_development_trace("Hello from cratchit_raylib_main");
+    for (size_t i=0;i<args.size();++i) {
+      log_development_trace("\targ[{}]:'{}'",i,args[i]);
+    }
 
     int posix_result{0};
 

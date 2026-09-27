@@ -60,4 +60,5 @@
 #./run.zsh --gtest_filter=*
 #./run.zsh --test
 #./run.zsh --nop
-./test.zsh
+#./test.zsh
+./run.zsh --second
