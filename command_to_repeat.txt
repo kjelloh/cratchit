@@ -61,4 +61,4 @@
 #./run.zsh --test
 #./run.zsh --nop
 #./test.zsh
-./run.zsh --second
+./run.zsh --second --nop

@@ -12,6 +12,9 @@
 #include "CmdHandler.hpp"
 
 #include "enumerate_view.hpp"
+#include <filesystem>
+#include <algorithm> // std::ranges::any_of,...
+#include <print>
 
 char const* const WATERMARK = "CRATCHIT";
 char const* const WINDOW_CAPTION = "CRATCHIT";
@@ -32,17 +35,32 @@ namespace tea {
 
   int CratchitRaylibApp::run(int argc, char** argv) {
 
+    // C++ args
     std::vector<std::string> args{};
     for (int i=0;i<argc;++i) {
       args.push_back(argv[i]);
     }
 
+    // Log startup and args
     log_development_trace("Hello from cratchit_raylib_main");
     for (size_t i=0;i<args.size();++i) {
       log_development_trace("\targ[{}]:'{}'",i,args[i]);
     }
 
+    auto current_path = std::filesystem::current_path();
+    auto runtime_root_folder = current_path;
+    auto log_entry = std::format("runtime_root_folder:'{}'",runtime_root_folder.string());
+    log_development_trace(log_entry);
+    std::print("\n{}",log_entry);
+
     int posix_result{0};
+
+    if (std::ranges::any_of(args,[](auto const& arg){
+      return arg == "--nop";
+    })) {
+      std::print("\narg: --nop ==> BYE");
+      return posix_result;
+    }
 
     //--------------------------------------------------------------------------------------
     // Initialization
