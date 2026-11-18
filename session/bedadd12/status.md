@@ -34,6 +34,34 @@ Målet står i [session.md](session.md) och besluten i [beslut.md](beslut.md).
   * Manualens *Läsa en rapport* beskriver hela rapporter, med en hel balansrapport som exempel. Huvudboken nämner att `-` leder tillbaka till frågan om kontonummer.
   * Provat: `cratchit_tests` 814 tester går igenom, och i programmet visas verifikationslistan hel.
 
+* 2026-11-18: Huvudboken visar alla konton när man trycker Enter utan kontonummer.
+  * Kärnan: `general_ledger` i `core/books/report`. Den och `account_ledger` delar `entries_of` och `ledger_lines`.
+  * Gränssnittet: `LedgerState` är ett textfält (`is_text_field`), och Enter på en tom rad leder till rapporten `Alla konton`.
+  * Manualen: avsnittet heter nu *Huvudbok*.
+  * Två nya tester, `GeneralLedgerHasEveryAccountWithRowsOrAnOpeningBalance` och `HuvudbokWithoutAnAccountShowsAllAccounts`. `cratchit_tests` 816 tester går igenom.
+  * Provat i programmet: `4` och Enter visar alla fyra kontona, `-` går tillbaka till frågan, och `1930` och Enter visar ett konto.
+
+* 2026-11-18: Rapportens rubrik har organisationsnumret.
+  * `company_of` i `ui/reports_menu.cpp` läser `orgnr` ur `project.txt` och ger `Namn (orgnr)`, eller bara namnet när numret saknas.
+  * Testerna kontrollerar båda fallen. `cratchit_tests` 817 tester går igenom.
+  * Provat i programmet: resultatrapporten har `Test AB (556000-0001)` under rubriken.
+
+* 2026-11-18: `3 Utskrift` i en bokförd verifikation.
+  * Kärnan: `voucher_document` i `core/books/report`.
+  * Gränssnittet:
+    * `make_voucher_menu` tar `PrintVoucher print`, som `reverse`. Valet `3 Utskrift` finns bara när `print` är given och verifikationen inte är ett utkast; för ett utkast är `3` fortfarande *Använd mall*.
+    * `voucher_printout` i `ui/reports_menu` läser bokföringen och ger utskriften med `company_of` i rubriken.
+    * `ui/booked_menu.cpp` ger `print` när en verifikation öppnas. Utskriften visas med `make_report_view("Utskrift", …)`.
+  * Manualen: avsnittet *Utskrift av en verifikation* under *Öppna en verifikation*, och verifikationens hjälptext nämner `3`. Exemplet med D19 visar nu också `2 Ändringsverifikation` och `3 Utskrift`. *Läsa en rapport* säger att `-` går tillbaka dit man kom ifrån.
+  * Tester: `VoucherDocumentHasWhatTheLawAsksOfAVoucher`, `VoucherDocumentMarksStruckAndAddedRowsWithTheirOwnText` och `UtskriftOfABookedVoucherShowsItWhole`. Två tester i `test_ui.cpp` förväntar sig nu `3 Utskrift` bland valen. `cratchit_tests` 820 tester går igenom.
+  * Provat i programmet: *Årsflöde > Bokfört*, `A2` och `3` visar utskriften, med serien `A  Redovisning`.
+
+* 2026-11-18: En tom rad före och efter rapporter och utskrifter.
+  * `ReportState::view` i `ui/reports_menu.cpp` lägger till dem. Rapporternas egna rader i `core/books/report` är oförändrade.
+  * Testerna i `test_reports_menu.cpp` kontrollerar de tomma raderna. `cratchit_tests` 820 tester går igenom.
+  * Manualens två exempel och *Läsa en rapport* visar dem.
+  * Provat i programmet: utskriften av A2 har en tom rad under prompten och en före nästa prompt.
+
 ## Att känna till
 
 * Balansrapportens *Beräknat resultat* är negativt för en vinst, eftersom rapporten visar debet positivt. Resultatrapportens *Årets resultat* är positivt för samma vinst.
@@ -45,6 +73,5 @@ Målet står i [session.md](session.md) och besluten i [beslut.md](beslut.md).
 * Användaren provar rapporterna på en riktig bokföring.
 * Möjliga tillägg, inte beslutade:
   * en period inom året (till exempel ett kvartal eller en månad)
-  * organisationsnumret i rapportens rubrik
   * jämförelse med förra året
-  * export till fil
+  * export till fil, av rapporter och av en verifikations utskrift

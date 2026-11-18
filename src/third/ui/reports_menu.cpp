@@ -5,6 +5,7 @@
 #include "core/books/report.hpp"
 #include "core/date.hpp"
 #include "core/log.hpp"
+#include "core/path_value.hpp"
 #include "pyroceph/tui/error_state.hpp"
 #include "ui/help_topics.hpp"
 
@@ -26,6 +27,14 @@ using pyroceph::tui::OnKeyResult;
 using pyroceph::tui::OptionsList;
 using pyroceph::tui::State;
 using pyroceph::tui::View;
+
+// The company as a report's heading shows it: the project's name and, when
+// project.txt has it, the organisation number, e.g. "Test AB (556000-0001)"
+std::string company_of(Project const& project) {
+  auto const entries = read_path_values(project.file);
+  auto const orgnr = entries ? find_value(*entries, "orgnr").value_or("") : std::string();
+  return orgnr.empty() ? project.name : std::format("{} ({})", project.name, orgnr);
+}
 
 // The books and the index of the fiscal year in them, or why not
 struct YearInBooks {
@@ -49,7 +58,13 @@ class ReportState : public State {
 public:
   ReportState(std::string name, std::vector<std::string> lines) : name_(std::move(name)), lines_(std::move(lines)) {}
   std::string name() const override { return name_; }
-  View view() const override { return lines_; }
+  // An empty line before and after, for air on the screen (beslut 2026-11-18)
+  View view() const override {
+    View lines{""};
+    lines.insert(lines.end(), lines_.begin(), lines_.end());
+    lines.push_back("");
+    return lines;
+  }
   OptionsList options() const override { return {}; }
   OnKeyResult on_key(CodePoint) override { return nullptr; }
   std::string help_topic() const override { return std::string(help_topic::report); }
@@ -73,9 +88,9 @@ public:
     auto const year = read_year(project_, year_);
     if (!year) return pyroceph::tui::make_error_state(year.error());
     auto const& [in_books, index] = *year;
-    if (key == U'1') return make_report_view("Balansrapport", books::balance_report(in_books, index, project_.name));
-    if (key == U'2') return make_report_view("Resultatrapport", books::result_report(in_books, index, project_.name));
-    return make_report_view("Verifikationslista", books::voucher_list(in_books, index, project_.name));
+    if (key == U'1') return make_report_view("Balansrapport", books::balance_report(in_books, index, company_of(project_)));
+    if (key == U'2') return make_report_view("Resultatrapport", books::result_report(in_books, index, company_of(project_)));
+    return make_report_view("Verifikationslista", books::voucher_list(in_books, index, company_of(project_)));
   }
   std::string help_topic() const override { return std::string(help_topic::reports); }
 
@@ -88,22 +103,32 @@ class LedgerState : public State {
 public:
   LedgerState(Project project, FiscalYear year) : project_(std::move(project)), year_(std::move(year)) {}
   std::string name() const override { return "Huvudbok"; }
-  View view() const override { return {"Skriv kontots nummer och tryck Enter, till exempel 1930."}; }
+  View view() const override {
+    return {"Skriv kontots nummer och tryck Enter, till exempel 1930. Tryck bara Enter för alla konton."};
+  }
   OptionsList options() const override { return {}; }
   OnKeyResult on_key(CodePoint) override { return nullptr; }
+  // A text field, so that Enter on an empty input reaches on_input: all accounts
+  bool is_text_field() const override { return true; }
   InputResult on_input(std::u32string_view text) override {
     std::string typed;
     charset::utf8::Encoder encoder;
     for (auto const code_point : text) {
       for (auto const byte : encoder.push(code_point)) typed.push_back(static_cast<char>(byte));
     }
-    if (typed.empty() || !std::ranges::all_of(typed, [](char c) { return c >= '0' && c <= '9'; })) {
+    if (typed.empty()) {
+      auto const year = read_year(project_, year_);
+      if (!year) return std::unexpected(year.error());
+      auto const& [in_books, index] = *year;
+      return Accepted(make_report_view("Alla konton", books::general_ledger(in_books, index, company_of(project_))));
+    }
+    if (!std::ranges::all_of(typed, [](char c) { return c >= '0' && c <= '9'; })) {
       return std::unexpected(std::string("Skriv kontots nummer med bara siffror, till exempel 1930."));
     }
     auto const year = read_year(project_, year_);
     if (!year) return std::unexpected(year.error());
     auto const& [in_books, index] = *year;
-    auto ledger = books::account_ledger(in_books, index, project_.name, typed);
+    auto ledger = books::account_ledger(in_books, index, company_of(project_), typed);
     if (!ledger) {
       return std::unexpected(
           std::format("Konto {} finns inte i bokföringen och har inga rader i {}.", typed, label_of(year_)));
@@ -118,6 +143,13 @@ private:
 };
 
 } // namespace
+
+std::expected<std::vector<std::string>, std::string> voucher_printout(Project const& project, FiscalYear const& year,
+                                                                      books::Voucher const& voucher) {
+  auto const in_year = read_year(project, year);
+  if (!in_year) return std::unexpected(in_year.error());
+  return books::voucher_document(in_year->books, in_year->index, voucher, company_of(project));
+}
 
 std::unique_ptr<State> make_reports_menu(Project project, FiscalYear year) {
   return std::make_unique<ReportsState>(std::move(project), std::move(year));

@@ -172,3 +172,62 @@ TEST(Report, LedgerOfAnUnknownAccountIsNothing) {
   EXPECT_FALSE(cratchit::books::account_ledger(books, 0, "Test AB", "9999").has_value());
   EXPECT_TRUE(cratchit::books::account_ledger(books, 0, "Test AB", "2099").has_value()); // defined, no rows
 }
+
+TEST(Report, GeneralLedgerHasEveryAccountWithRowsOrAnOpeningBalance) {
+  EXPECT_EQ(text(cratchit::books::general_ledger(books_2025_2026(), 0, "Test AB")),
+            "Huvudbok 2025-01-01 – 2025-12-31\n"
+            "Test AB\n"
+            "\n"
+            "Konto 1930 Bank\n"
+            "Datum       Verifikation          Debet       Kredit          Saldo  Text\n"
+            "Ingående balans                                             1000.00\n"
+            "2025-02-01  A1                   500.00                     1500.00  Sale\n"
+            "2025-03-01  A2                                 10.00        1490.00  Bank cost\n"
+            "Utgående balans                                             1490.00\n"
+            "\n"
+            "Konto 2099 Result\n"
+            "Datum       Verifikation          Debet       Kredit          Saldo  Text\n"
+            "Ingående balans                                            -1000.00\n"
+            "Utgående balans                                            -1000.00\n"
+            "\n"
+            "Konto 3010 Sales\n"
+            "Datum       Verifikation          Debet       Kredit          Saldo  Text\n"
+            "Ingående balans                                                0.00\n"
+            "2025-02-01  A1                                500.00        -500.00  Sale\n"
+            "Utgående balans                                             -500.00\n"
+            "\n"
+            "Konto 6570 Bank costs\n"
+            "Datum       Verifikation          Debet       Kredit          Saldo  Text\n"
+            "Ingående balans                                                0.00\n"
+            "2025-03-01  A2                    10.00                       10.00  Bank cost\n"
+            "Utgående balans                                               10.00\n");
+}
+
+TEST(Report, VoucherDocumentHasWhatTheLawAsksOfAVoucher) {
+  auto const books = books_2025_2026();
+  EXPECT_EQ(text(cratchit::books::voucher_document(books, 0, books.years[0].vouchers[0], "Test AB (556000-0001)")),
+            "Verifikation A1\n"
+            "Test AB (556000-0001)\n"
+            "Räkenskapsår 2025-01-01 – 2025-12-31\n"
+            "\n"
+            "Serie:          A\n"
+            "Datum:          2025-02-01\n"
+            "Text:           Sale\n"
+            "Belopp:         500.00\n"
+            "Registrerad:    2025-02-05\n"
+            "\n"
+            "Konto          Debet       Kredit\n"
+            "1930          500.00               Bank\n"
+            "3010                       500.00  Sales\n"
+            "Summa         500.00       500.00\n");
+}
+
+TEST(Report, VoucherDocumentMarksStruckAndAddedRowsWithTheirOwnText) {
+  auto const books = books_2025_2026();
+  auto const document = text(cratchit::books::voucher_document(books, 1, books.years[1].vouchers[1], "Test AB"));
+  EXPECT_NE(document.find("6570            5.00               Bank costs  Wrong  (struken av Kim)\n"
+                          "1930            0.00               Bank  Added  (tillagd av Kim)\n"
+                          "Summa           0.00         0.00\n"),
+            std::string::npos)
+      << document;
+}

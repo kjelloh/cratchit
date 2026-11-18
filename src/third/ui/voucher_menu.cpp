@@ -7,6 +7,7 @@
 #include "pyroceph/tui/error_state.hpp"
 #include "ui/design_insufficiency.hpp"
 #include "ui/help_topics.hpp"
+#include "ui/reports_menu.hpp"
 #include "ui/year_view.hpp"
 
 #include <algorithm>
@@ -62,6 +63,7 @@ struct Shown {
   DraftRemoval removal = DraftRemoval::forget; // what 9 does (removal_of)
   DraftActions actions{};
   ReverseVoucher reverse{}; // a voucher: makes its ändringsverifikation as a draft
+  PrintVoucher print{};     // a voucher: its Utskrift
 
   std::string id() const { return draft ? draft_id : books::voucher_id(voucher.series, voucher.number); }
 
@@ -360,6 +362,7 @@ public:
     if (ready()) options.push_back({U'2', "Bokför"});
     if (shown_->draft && shown_->actions.use_template) options.push_back({U'3', "Använd mall"});
     if (!shown_->draft && shown_->reverse) options.push_back({U'2', "Ändringsverifikation"});
+    if (!shown_->draft && shown_->print) options.push_back({U'3', "Utskrift"});
     if (shown_->draft && shown_->removal == DraftRemoval::forget) options.push_back({U'9', "Glöm"});
     if (shown_->draft && shown_->removal == DraftRemoval::split) options.push_back({U'9', "Inte samma"});
     return options;
@@ -370,6 +373,11 @@ public:
     if (shown_->draft && key == U'1' && shown_->actions.edit_postings) return shown_->actions.edit_postings();
     if (key == U'2' && ready()) return shown_->actions.book(this);
     if (key == U'3' && shown_->draft && shown_->actions.use_template) return shown_->actions.use_template(this);
+    if (key == U'3' && !shown_->draft && shown_->print) {
+      auto lines = shown_->print();
+      if (!lines) return pyroceph::tui::make_error_state(std::format("cratchit kunde inte skriva ut verifikationen: {}", lines.error()));
+      return make_report_view("Utskrift", std::move(*lines));
+    }
     if (key == U'0') return std::make_unique<EventState>(shown_);
     if (key == U'1') return std::make_unique<PostingsState>(shown_);
     if (key != U'9' || !shown_->draft) return nullptr;
@@ -457,9 +465,11 @@ std::unique_ptr<State> make_forget_draft_state(std::string id, std::string summa
 }
 
 std::unique_ptr<State> make_voucher_menu(books::Voucher voucher, std::vector<books::Account> accounts,
-                                         std::string series_name, std::string last_in_series, ReverseVoucher reverse) {
+                                         std::string series_name, std::string last_in_series, ReverseVoucher reverse,
+                                         PrintVoucher print) {
   Shown shown{std::move(voucher), std::move(accounts), std::move(series_name), std::move(last_in_series)};
   shown.reverse = std::move(reverse);
+  shown.print = std::move(print);
   return std::make_unique<VoucherState>(std::make_shared<Shown const>(std::move(shown)));
 }
 

@@ -1,6 +1,7 @@
 // Rapporter in the fiscal year (ui/reports_menu): the menu, a report shown
 // whole, and Huvudbok's account number
 #include "core/sie_project.hpp"
+#include "ui/booked_menu.hpp"
 #include "ui/help_topics.hpp"
 #include "ui/reports_menu.hpp"
 
@@ -71,9 +72,11 @@ TEST_F(ReportsMenuTest, BalanceAndResultReportsShowTheBooksOfTheYear) {
   EXPECT_EQ(navigator.current().name(), "Balansrapport");
   EXPECT_EQ(navigator.current().help_topic(), cratchit::ui::help_topic::report);
   auto view = navigator.current().view();
-  ASSERT_GE(view.size(), 2u);
-  EXPECT_EQ(view[0], "Balansrapport 2025-01-01 – 2025-12-31");
-  EXPECT_EQ(view[1], "Test AB") << "the project's name";
+  ASSERT_GE(view.size(), 4u);
+  EXPECT_EQ(view.front(), "") << "air above";
+  EXPECT_EQ(view.back(), "") << "air below";
+  EXPECT_EQ(view[1], "Balansrapport 2025-01-01 – 2025-12-31");
+  EXPECT_EQ(view[2], "Test AB (556000-0001)") << "the project's name and organisation number";
   EXPECT_NE(std::ranges::find(view, "1930            1000.00         200.00        1200.00  Bank"), view.end());
   ASSERT_TRUE(navigator.back());
   ASSERT_TRUE(navigator.press(U'2'));
@@ -88,9 +91,9 @@ TEST_F(ReportsMenuTest, AReportIsShownWholeWithoutPaging) {
   ASSERT_TRUE(navigator.press(U'3'));
   EXPECT_EQ(navigator.current().name(), "Verifikationslista");
   auto const view = navigator.current().view();
-  ASSERT_EQ(view.size(), 184u);
-  EXPECT_EQ(view[0], "Verifikationslista 2025-01-01 – 2025-12-31");
-  EXPECT_EQ(view.back(), "  Summa         100.00       100.00");
+  ASSERT_EQ(view.size(), 186u); // an empty line, the 184 lines, an empty line
+  EXPECT_EQ(view[1], "Verifikationslista 2025-01-01 – 2025-12-31");
+  EXPECT_EQ(view[184], "  Summa         100.00       100.00");
   EXPECT_EQ(navigator.current().options(), (OptionsList{})) << "no paging keys";
 }
 
@@ -111,7 +114,54 @@ TEST_F(ReportsMenuTest, HuvudbokTakesAnAccountNumberAndRefusesOthers) {
   navigator.enter(std::move(accepted->next));
   EXPECT_EQ(navigator.current().name(), "Huvudbok 1930");
   auto const view = navigator.current().view();
-  ASSERT_GE(view.size(), 1u);
-  EXPECT_EQ(view[0], "Huvudbok konto 1930 Bank 2025-01-01 – 2025-12-31");
-  EXPECT_EQ(view.back(), "Utgående balans                                             1200.00");
+  ASSERT_GE(view.size(), 3u);
+  EXPECT_EQ(view[1], "Huvudbok konto 1930 Bank 2025-01-01 – 2025-12-31");
+  EXPECT_EQ(view[view.size() - 2], "Utgående balans                                             1200.00");
+}
+
+TEST_F(ReportsMenuTest, HuvudbokWithoutAnAccountShowsAllAccounts) {
+  Navigator navigator(cratchit::ui::make_reports_menu(project(2), {"2025-01-01", "2025-12-31"}));
+  ASSERT_TRUE(navigator.press(U'4'));
+  EXPECT_TRUE(navigator.current().is_text_field()) << "so that Enter on an empty input reaches it";
+  auto accepted = navigator.current().on_input(U"");
+  ASSERT_TRUE(accepted) << accepted.error();
+  ASSERT_TRUE(accepted->next);
+  navigator.enter(std::move(accepted->next));
+  EXPECT_EQ(navigator.current().name(), "Alla konton");
+  auto const view = navigator.current().view();
+  ASSERT_GE(view.size(), 2u);
+  EXPECT_EQ(view[1], "Huvudbok 2025-01-01 – 2025-12-31");
+  for (auto const* account : {"Konto 1930 Bank", "Konto 2099 Result", "Konto 3010 Sales"}) {
+    EXPECT_NE(std::ranges::find(view, account), view.end()) << account;
+  }
+}
+
+TEST_F(ReportsMenuTest, TheHeadingHasOnlyTheNameWhenTheProjectHasNoOrganisationNumber) {
+  auto without = project(1);
+  std::ofstream(without.file) << "uuid = " << without.uuid << "\nname = " << without.name << "\n";
+  Navigator navigator(cratchit::ui::make_reports_menu(without, {"2025-01-01", "2025-12-31"}));
+  ASSERT_TRUE(navigator.press(U'1'));
+  auto const view = navigator.current().view();
+  ASSERT_GE(view.size(), 3u);
+  EXPECT_EQ(view[2], "Test AB");
+}
+
+TEST_F(ReportsMenuTest, UtskriftOfABookedVoucherShowsItWhole) {
+  Navigator navigator(cratchit::ui::make_booked_menu(project(2), {"2025-01-01", "2025-12-31"}));
+  auto opened = navigator.current().on_input(U"A1");
+  ASSERT_TRUE(opened) << opened.error();
+  navigator.enter(std::move(opened->next));
+  EXPECT_EQ(navigator.current().name(), "A1");
+  ASSERT_TRUE(navigator.press(U'3'));
+  EXPECT_EQ(navigator.current().name(), "Utskrift");
+  EXPECT_EQ(navigator.current().options(), (OptionsList{}));
+  auto const view = navigator.current().view();
+  ASSERT_GE(view.size(), 4u);
+  EXPECT_EQ(view.front(), "");
+  EXPECT_EQ(view[1], "Verifikation A1");
+  EXPECT_EQ(view[2], "Test AB (556000-0001)");
+  EXPECT_EQ(view[view.size() - 2], "Summa         100.00       100.00");
+  EXPECT_EQ(view.back(), "");
+  ASSERT_TRUE(navigator.back());
+  EXPECT_EQ(navigator.current().name(), "A1");
 }

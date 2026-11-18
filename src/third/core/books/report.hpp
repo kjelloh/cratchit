@@ -35,10 +35,25 @@ std::vector<std::string> result_report(Books const& books, std::size_t year, std
 // marked (a struck row does not count in the sums).
 std::vector<std::string> voucher_list(Books const& books, std::size_t year, std::string_view company);
 
+// Utskrift of one voucher of the year: a whole document with what the
+// Bokföringslag asks of a voucher (5 kap. 7 §): the voucher's id, the company
+// with its organisation number (in company), the fiscal year, the series with
+// its name, the date, text and amount, when it was registered and by whom,
+// and its rows in Debet and Kredit columns (account name and the row's own
+// text and date when it has them; struck and added rows marked, a struck row
+// not counted) with their sums.
+std::vector<std::string> voucher_document(Books const& books, std::size_t year, Voucher const& voucher,
+                                          std::string_view company);
+
 // Huvudbok for one account: opening balance, every row on the account by date
 // in Debet and Kredit columns with the balance after it, closing balance.
 // Nothing for an account the books neither define nor use in the year.
 std::optional<std::vector<std::string>> account_ledger(Books const& books, std::size_t year, std::string_view company,
                                                        std::string_view account);
+
+// Huvudbok for every account with rows or an opening balance in the year, in
+// number order: for each its number and name, then its ledger as in
+// account_ledger (without the report's heading)
+std::vector<std::string> general_ledger(Books const& books, std::size_t year, std::string_view company);
 
 } // namespace cratchit::books

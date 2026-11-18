@@ -349,7 +349,7 @@ Utkast skapar du i [Utkast](#utkast) under Årsflöde, från ett kontoutdrag ell
 ### Rapporter
 
 <!-- hjälp: rapporter -->
-Räkenskapsårets rapporter, som de ser ut i bokföringen just nu. Tryck `1` för balansrapporten, `2` för resultatrapporten, `3` för verifikationslistan och `4` för huvudboken för ett konto. Tryck `-` för att gå tillbaka till räkenskapsåret.
+Räkenskapsårets rapporter, som de ser ut i bokföringen just nu. Tryck `1` för balansrapporten, `2` för resultatrapporten, `3` för verifikationslistan och `4` för huvudboken, för ett konto eller alla. Tryck `-` för att gå tillbaka till räkenskapsåret.
 <!-- /hjälp -->
 
 Tryck `3` i räkenskapsåret:
@@ -363,14 +363,14 @@ Rapporter för räkenskapsåret 2025/26.
 Cratchit > Samlingsmapp > The ITfied AB > 2025/26 > Rapporter> 
 ```
 
-cratchit läser bokföringen när du väljer en rapport, så rapporten visar det som är bokfört just då. Utkast kommer inte med.
+cratchit läser bokföringen när du väljer en rapport, så rapporten visar det som är bokfört just då. Utkast kommer inte med. Överst står rapportens namn och räkenskapsåret, och på raden under bokföringens namn med organisationsnumret, när bokföringen har ett.
 
 | Rapport | Visar |
 |---|---|
 | Balansrapport | Varje balanskonto med ingående balans (IB), årets förändring och utgående balans (UB), under *Tillgångar* (konton 1xxx) och *Eget kapital och skulder* (konton 2xxx) med summor. Sist *Beräknat resultat*, resultatkontonas summa, och *Summa*, som är noll när bokföringen går ihop. Beloppen är som de är bokförda: debet positivt och kredit negativt, så en vinst är negativ i *Beräknat resultat*. Under rapporten står var de ingående balanserna kommer ifrån. |
 | Resultatrapport | Varje resultatkonto med årets belopp, i grupper efter BAS-kontoklass med summor: *Rörelsens intäkter* (3), *Varor, material och vissa köpta tjänster* (4), *Övriga externa kostnader* (5–6), *Personal, avskrivningar m.m.* (7) och *Finansiella och andra intäkter och kostnader* (8). Sist *Årets resultat*. Här är intäkter positiva och kostnader negativa, så en vinst är positiv. |
 | Verifikationslista | Årets verifikationer i bokföringsordning med sina rader i kolumnerna Debet och Kredit, och summor. En rad som har strukits eller lagts till efter att verifikationen registrerades är märkt `(struken)` eller `(tillagd)`, med signaturen när det finns en. En struken rad räknas inte med i summan. |
-| Huvudbok | Ett kontos ingående balans, varje rad på kontot i datumordning med saldot efter raden, och utgående balans. |
+| Huvudbok | Ett kontos ingående balans, varje rad på kontot i datumordning med saldot efter raden, och utgående balans. Utan kontonummer visas alla konton som har rader eller ingående balans under året, i nummerordning. |
 
 Har årets resultat bokförts på kontona 8990–8999 i bokslutet, visar resultatrapporten de raderna efter *Årets resultat*, med det som är kvar när de räknas med. Det är noll när resultatet är bokfört. Balansrapporten har då inget beräknat resultat kvar.
 
@@ -379,14 +379,14 @@ Går de ingående balanserna inte ihop säger balansrapporten det. Oftast beror 
 #### Läsa en rapport
 
 <!-- hjälp: rapport -->
-Rapporten visas hel, alla rader på en gång. Är den längre än fönstret skrollar du i terminalen. Tryck `-` för att gå tillbaka till Rapporter.
+Rapporten visas hel, alla rader på en gång, med en tom rad före och efter. Är den längre än fönstret skrollar du i terminalen. Tryck `-` för att gå tillbaka dit du kom ifrån: Rapporter, Huvudbok eller, för en utskrift, verifikationen.
 <!-- /hjälp -->
 
 Ett exempel, från en liten testbokföring med en försäljning och en bankavgift:
 
 ```text
 Balansrapport 2025-01-01 – 2025-12-31
-Test AB
+Test AB (556000-0001)
 
 Konto                IB     Förändring             UB  Namn
 
@@ -404,16 +404,17 @@ Eget kapital och skulder
 Belopp: debet positivt, kredit negativt. Beräknat resultat är resultatkontonas summa (en vinst är negativ).
 Summa är noll när bokföringen går ihop.
 Ingående balanser är som källan angav dem (året före finns inte i bokföringen).
+
 Cratchit > Samlingsmapp > Test AB > 2025 > Rapporter > Balansrapport> 
 ```
 
-#### Huvudbok för ett konto
+#### Huvudbok
 
 <!-- hjälp: huvudbok -->
-Skriv kontots nummer, till exempel `1930`, och tryck Enter för att se kontots huvudbok för räkenskapsåret. Numret skrivs med bara siffror. Ett konto som inte finns i bokföringen och inte har några rader under året ger ett besked under prompten, och det du skrev står kvar. Tryck `-` för att gå tillbaka till Rapporter.
+Skriv kontots nummer, till exempel `1930`, och tryck Enter för att se kontots huvudbok för räkenskapsåret. Numret skrivs med bara siffror. Tryck bara Enter, utan nummer, för att se huvudboken för alla konton som har rader eller ingående balans under året. Ett konto som inte finns i bokföringen och inte har några rader under året ger ett besked under prompten, och det du skrev står kvar. Tryck `-` för att gå tillbaka till Rapporter.
 <!-- /hjälp -->
 
-Tryck `4` i Rapporter, skriv kontonumret och tryck Enter. Huvudboken visas hel, som de andra rapporterna, med prompten `Huvudbok 1930`. Tryck `-` för att komma tillbaka till frågan om kontonummer och se ett annat konto.
+Tryck `4` i Rapporter, skriv kontonumret och tryck Enter. Huvudboken visas hel, som de andra rapporterna, med prompten `Huvudbok 1930`. Tryck bara Enter i stället för att se alla konton, ett i taget i nummerordning, med prompten `Alla konton`. Tryck `-` för att komma tillbaka till frågan om kontonummer.
 
 ### Årsflöde
 
@@ -1117,7 +1118,7 @@ Cratchit > Samlingsmapp > The ITfied AB > 2025/26 > Årsflöde > Bokfört: D19
 * Finns verifikationen inte i räkenskapsåret, eller är id:t skrivet på annat sätt, säger cratchit det under prompten, och texten står kvar så att du kan rätta den.
 
 <!-- hjälp: verifikation -->
-Verifikationen i tre delar. Överst hur den är bokförd: serien med seriens namn, när den registrerades och signaturen när den finns. Sedan *Händelse*: datum, rubrik och belopp. Sist *Konteringar*: konto, kontots namn och belopp, och radens egen text och datum när den har dem. En struken rad är märkt `(struken)` och en tillagd rad `(tillagd)`. Tryck `0` för händelsen och `1` för konteringarna. Tryck `2` för att skapa en [ändringsverifikation](#ändringsverifikation) som vänder verifikationen. Verifikationen själv går inte att ändra. Tryck `-` för att gå tillbaka till Bokfört.
+Verifikationen i tre delar. Överst hur den är bokförd: serien med seriens namn, när den registrerades och signaturen när den finns. Sedan *Händelse*: datum, rubrik och belopp. Sist *Konteringar*: konto, kontots namn och belopp, och radens egen text och datum när den har dem. En struken rad är märkt `(struken)` och en tillagd rad `(tillagd)`. Tryck `0` för händelsen och `1` för konteringarna. Tryck `2` för att skapa en [ändringsverifikation](#ändringsverifikation) som vänder verifikationen, och `3` för en [utskrift](#utskrift-av-en-verifikation) av hela verifikationen. Verifikationen själv går inte att ändra. Tryck `-` för att gå tillbaka till Bokfört.
 <!-- /hjälp -->
 
 ```text
@@ -1134,7 +1135,34 @@ Konteringar:
   2641  Debiterad ingående moms        246.75
   0 Händelse
   1 Konteringar
+  2 Ändringsverifikation
+  3 Utskrift
 Cratchit > Samlingsmapp > The ITfied AB > 2025/26 > Årsflöde > Bokfört > D19> 
+```
+
+##### Utskrift av en verifikation
+
+Tryck `3` i en bokförd verifikation för att se hela verifikationen som en utskrift på skärmen, med det bokföringslagen kräver av en verifikation (5 kap. 7 §) samlat: verifikationens id, bokföringens namn och organisationsnummer, räkenskapsåret, serien, datum, text och belopp, när den registrerades och av vem, och raderna i kolumnerna Debet och Kredit med summor. En rad visar kontots namn, och radens egen text och datum när den har dem. En struken eller tillagd rad är märkt med signaturen, och en struken rad räknas inte med i summan. Utskriften visas hel, som rapporterna. Tryck `-` för att gå tillbaka till verifikationen.
+
+Ett exempel, från en liten testbokföring:
+
+```text
+Verifikation A1
+Test AB (556000-0001)
+Räkenskapsår 2025-01-01 – 2025-12-31
+
+Serie:          A
+Datum:          2025-02-01
+Text:           Sale
+Belopp:         500.00
+Registrerad:    2025-02-05
+
+Konto          Debet       Kredit
+1930          500.00               Bank
+3010                       500.00  Sales
+Summa         500.00       500.00
+
+Cratchit > … > Bokfört > A1 > Utskrift> 
 ```
 
 En verifikation har två delar (beslut 2026-11-16):

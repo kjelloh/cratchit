@@ -281,14 +281,46 @@ std::vector<std::string> voucher_list(Books const& books, std::size_t year_index
   return lines;
 }
 
-std::optional<std::vector<std::string>> account_ledger(Books const& books, std::size_t year_index,
-                                                       std::string_view company, std::string_view account) {
+std::vector<std::string> voucher_document(Books const& books, std::size_t year_index, Voucher const& voucher,
+                                          std::string_view company) {
   auto const& year = books.years[year_index];
-  struct Entry {
-    Date date;
-    Voucher const* voucher;
-    Posting const* posting;
+  auto const field = [](std::string_view label, std::string_view value) {
+    return std::format("{}{}", left(std::string(label) + ":", 16), value);
   };
+  std::vector<std::string> lines{std::format("Verifikation {}", voucher_id(voucher.series, voucher.number)),
+                                 std::string(company), std::format("Räkenskapsår {}", year_text(year)), ""};
+  auto const series_name = books.series_name(voucher.series);
+  lines.push_back(field("Serie", series_name.empty() ? voucher.series : std::format("{}  {}", voucher.series, series_name)));
+  lines.push_back(field("Datum", format_iso_date(voucher.event.date)));
+  lines.push_back(field("Text", voucher.event.heading));
+  lines.push_back(field("Belopp", format_amount(voucher.event.amount)));
+  if (voucher.registered) lines.push_back(field("Registrerad", format_iso_date(*voucher.registered)));
+  if (!voucher.signature.empty()) lines.push_back(field("Signatur", voucher.signature));
+  lines.push_back("");
+  lines.push_back(posting_row("Konto", {"Debet", "Kredit"}, ""));
+  for (auto const& posting : voucher.postings) {
+    auto text = account_name(books, posting.account);
+    if (!posting.text.empty()) text += text.empty() ? posting.text : "  " + posting.text;
+    if (posting.date && *posting.date != voucher.event.date) text += "  " + format_iso_date(*posting.date);
+    if (posting.kind != Posting::Kind::normal) {
+      text += posting.kind == Posting::Kind::added ? "  (tillagd" : "  (struken";
+      text += posting.signature.empty() ? ")" : std::format(" av {})", posting.signature);
+    }
+    lines.push_back(posting_row(posting.account, sides_of(posting.amount), text));
+  }
+  lines.push_back(posting_row("Summa", {format_amount(debit(voucher.postings)), format_amount(credit(voucher.postings))}, ""));
+  return lines;
+}
+
+namespace {
+
+// The rows on account in the year (not struck ones), by date, ties in book order
+struct Entry {
+  Date date;
+  Voucher const* voucher;
+  Posting const* posting;
+};
+std::vector<Entry> entries_of(FiscalYear const& year, std::string_view account) {
   std::vector<Entry> entries;
   for (auto const& voucher : year.vouchers) {
     for (auto const& posting : voucher.postings) {
@@ -297,23 +329,23 @@ std::optional<std::vector<std::string>> account_ledger(Books const& books, std::
       }
     }
   }
-  if (!books.account(account) && entries.empty()) return std::nullopt;
   std::ranges::stable_sort(entries, {}, &Entry::date);
+  return entries;
+}
 
-  auto const all = balances(books);
-  auto const number = std::string(account);
-  auto const name = account_name(books, account);
-  auto lines = heading(std::format("Huvudbok konto {}{}", number, name.empty() ? "" : " " + name), year, company);
+// One account's ledger without the report's heading: the columns, opening
+// balance, the entries with the balance after each, and closing balance
+std::vector<std::string> ledger_lines(Amount opening, std::vector<Entry> const& entries) {
   auto const row = [](std::string_view date, std::string_view voucher, std::string_view debit, std::string_view credit,
                       std::string_view balance, std::string_view text) {
     return with_rest(left(date, 12) + left(voucher, 14) + right(debit, 13) + right(credit, 13) + right(balance, 15), text);
   };
-  lines.push_back(row("Datum", "Verifikation", "Debet", "Kredit", "Saldo", "Text"));
-  Amount balance = value_or_zero(all[year_index].opening, number);
   // A balance line: the label over the date and voucher columns, the balance in its column
   auto const balance_line = [](std::string_view label, Amount amount) {
     return left(label, 26) + right("", 13) + right("", 13) + right(format_amount(amount), 15);
   };
+  std::vector<std::string> lines{row("Datum", "Verifikation", "Debet", "Kredit", "Saldo", "Text")};
+  Amount balance = opening;
   lines.push_back(balance_line("Ingående balans", balance));
   for (auto const& entry : entries) {
     balance += entry.posting->amount;
@@ -323,6 +355,46 @@ std::optional<std::vector<std::string>> account_ledger(Books const& books, std::
                         sides.debit, sides.credit, format_amount(balance), text));
   }
   lines.push_back(balance_line("Utgående balans", balance));
+  return lines;
+}
+
+std::string account_title(Books const& books, std::string const& number) {
+  auto const name = account_name(books, number);
+  return name.empty() ? std::format("Konto {}", number) : std::format("Konto {} {}", number, name);
+}
+
+} // namespace
+
+std::optional<std::vector<std::string>> account_ledger(Books const& books, std::size_t year_index,
+                                                       std::string_view company, std::string_view account) {
+  auto const& year = books.years[year_index];
+  auto const entries = entries_of(year, account);
+  if (!books.account(account) && entries.empty()) return std::nullopt;
+  auto const all = balances(books);
+  auto const number = std::string(account);
+  auto const name = account_name(books, account);
+  auto lines = heading(std::format("Huvudbok konto {}{}", number, name.empty() ? "" : " " + name), year, company);
+  auto const ledger = ledger_lines(value_or_zero(all[year_index].opening, number), entries);
+  lines.insert(lines.end(), ledger.begin(), ledger.end());
+  return lines;
+}
+
+std::vector<std::string> general_ledger(Books const& books, std::size_t year_index, std::string_view company) {
+  auto const& year = books.years[year_index];
+  auto const all = balances(books);
+  auto const& b = all[year_index];
+  auto lines = heading("Huvudbok", year, company);
+  std::size_t shown = 0;
+  for (auto const& account : accounts_in({&b.opening, &b.change})) {
+    auto const entries = entries_of(year, account);
+    auto const opening = value_or_zero(b.opening, account);
+    if (entries.empty() && opening == 0) continue;
+    if (shown++ > 0) lines.push_back("");
+    lines.push_back(account_title(books, account));
+    auto const ledger = ledger_lines(opening, entries);
+    lines.insert(lines.end(), ledger.begin(), ledger.end());
+  }
+  if (shown == 0) lines.push_back("Inga konton har rader eller ingående balans under året.");
   return lines;
 }
 

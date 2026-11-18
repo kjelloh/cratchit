@@ -1372,7 +1372,7 @@ TEST_F(RootMenuTest, BookedOpensAVoucherByItsIdAsOneWord) {
                   "  2440  Leverantörsskulder            -125.00", "  6210  Telekommunikation              100.00",
                   "  2641  Debiterad ingående moms         25.00"}));
   EXPECT_EQ(navigator.current().options(),
-            (OptionsList{{U'0', "Händelse"}, {U'1', "Konteringar"}, {U'2', "Ändringsverifikation"}}));
+            (OptionsList{{U'0', "Händelse"}, {U'1', "Konteringar"}, {U'2', "Ändringsverifikation"}, {U'3', "Utskrift"}}));
   // The last in D is D11, the highest number (not the last in the file, nor by text)
   ASSERT_TRUE(navigator.press(U'0'));
   ASSERT_TRUE(navigator.press(U'0'));
@@ -2315,7 +2315,7 @@ TEST_F(RootMenuTest, AnAndringsverifikationIsADraftThatReversesTheVoucher) {
   ASSERT_TRUE(accepted) << accepted.error();
   navigator.enter(std::move(accepted->next));
   EXPECT_EQ(navigator.current().options(),
-            (OptionsList{{U'0', "Händelse"}, {U'1', "Konteringar"}, {U'2', "Ändringsverifikation"}}));
+            (OptionsList{{U'0', "Händelse"}, {U'1', "Konteringar"}, {U'2', "Ändringsverifikation"}, {U'3', "Utskrift"}}));
   ASSERT_TRUE(navigator.press(U'2'));
   EXPECT_EQ(navigator.current().name(), "D19"); // stays, and tells what it made
   auto const view = navigator.current().view();
