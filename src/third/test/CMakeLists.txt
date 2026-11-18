@@ -32,6 +32,7 @@ add_executable(cratchit_tests
   test_books.cpp
   test_report.cpp
   test_reports_menu.cpp
+  test_save_document.cpp
   test_csv.cpp
   test_date.cpp
   test_import.cpp

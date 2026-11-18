@@ -130,7 +130,7 @@ public:
                       "Se till att datumet inte ligger i ett år eller en momsperiod som redan är rapporterad; då krävs "
                       "en ny rapport. Datumet ändrar du med 0 i utkastets vy innan du bokför."};
         };
-        auto print = [project = project_, year = year_, voucher = *found] { return voucher_printout(project, year, voucher); };
+        auto print = [project = project_, year = year_, voucher = *found] { return make_voucher_printout(project, year, voucher); };
         return Accepted(make_voucher_menu(*found, books->accounts, books->series_name(found->series),
                                           last_in_series(year->vouchers, found->series), std::move(reverse),
                                           std::move(print)));

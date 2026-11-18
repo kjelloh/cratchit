@@ -379,7 +379,7 @@ Går de ingående balanserna inte ihop säger balansrapporten det. Oftast beror 
 #### Läsa en rapport
 
 <!-- hjälp: rapport -->
-Rapporten visas hel, alla rader på en gång, med en tom rad före och efter. Är den längre än fönstret skrollar du i terminalen. Tryck `-` för att gå tillbaka dit du kom ifrån: Rapporter, Huvudbok eller, för en utskrift, verifikationen.
+Rapporten visas hel, alla rader på en gång, med en tom rad före och efter. Är den längre än fönstret skrollar du i terminalen. Tryck `0` för att spara den som en textfil i mappen Hämtade filer (Downloads), eller i bokföringens mapp om den mappen inte finns. Tryck `-` för att gå tillbaka dit du kom ifrån: Rapporter, Huvudbok eller, för en utskrift, verifikationen.
 <!-- /hjälp -->
 
 Ett exempel, från en liten testbokföring med en försäljning och en bankavgift:
@@ -405,8 +405,23 @@ Belopp: debet positivt, kredit negativt. Beräknat resultat är resultatkontonas
 Summa är noll när bokföringen går ihop.
 Ingående balanser är som källan angav dem (året före finns inte i bokföringen).
 
+  0 Spara som fil
 Cratchit > Samlingsmapp > Test AB > 2025 > Rapporter > Balansrapport> 
 ```
+
+##### Spara en rapport som fil
+
+Tryck `0 Spara som fil` i en rapport eller i en verifikations utskrift. cratchit sparar det som står på skärmen, utan de tomma raderna runt omkring, som en textfil (UTF-8) och skriver under rapporten var filen hamnade:
+
+```text
+cratchit sparade filen /Users/namn/Downloads/Test AB Balansrapport 2025.txt
+```
+
+* **Mappen** är plattformens mapp för hämtade filer: *Hämtade filer* (Downloads) i Windows och macOS, och på Linux mappen i `XDG_DOWNLOAD_DIR` när den är satt, annars `~/Downloads`. Finns den inte sparar cratchit i bokföringens mapp och säger det.
+* **Filnamnet** är bokföringens namn, rapporten och räkenskapsåret, till exempel `Test AB Resultatrapport 2025-26.txt`, `Test AB Huvudbok 1930 2025-26.txt`, `Test AB Huvudbok alla konton 2025-26.txt` eller `Test AB Verifikation A12 2025-26.txt`. Tecken som inte får finnas i ett filnamn, som `/` i räkenskapsåret, blir `-`.
+* **cratchit skriver aldrig över en fil.** Finns filen redan sparar cratchit en ny, `… (2).txt`, `… (3).txt` och så vidare.
+* Varje sparad fil står i loggen.
+* På macOS kan systemet fråga en gång om terminalen får använda mappen Hämtade filer.
 
 #### Huvudbok
 
@@ -1142,7 +1157,7 @@ Cratchit > Samlingsmapp > The ITfied AB > 2025/26 > Årsflöde > Bokfört > D19>
 
 ##### Utskrift av en verifikation
 
-Tryck `3` i en bokförd verifikation för att se hela verifikationen som en utskrift på skärmen, med det bokföringslagen kräver av en verifikation (5 kap. 7 §) samlat: verifikationens id, bokföringens namn och organisationsnummer, räkenskapsåret, serien, datum, text och belopp, när den registrerades och av vem, och raderna i kolumnerna Debet och Kredit med summor. En rad visar kontots namn, och radens egen text och datum när den har dem. En struken eller tillagd rad är märkt med signaturen, och en struken rad räknas inte med i summan. Utskriften visas hel, som rapporterna. Tryck `-` för att gå tillbaka till verifikationen.
+Tryck `3` i en bokförd verifikation för att se hela verifikationen som en utskrift på skärmen, med det bokföringslagen kräver av en verifikation (5 kap. 7 §) samlat: verifikationens id, bokföringens namn och organisationsnummer, räkenskapsåret, serien, datum, text och belopp, när den registrerades och av vem, och raderna i kolumnerna Debet och Kredit med summor. En rad visar kontots namn, och radens egen text och datum när den har dem. En struken eller tillagd rad är märkt med signaturen, och en struken rad räknas inte med i summan. Utskriften visas hel, som rapporterna, och kan [sparas som fil](#spara-en-rapport-som-fil) med `0`. Tryck `-` för att gå tillbaka till verifikationen.
 
 Ett exempel, från en liten testbokföring:
 
@@ -1162,6 +1177,7 @@ Konto          Debet       Kredit
 3010                       500.00  Sales
 Summa         500.00       500.00
 
+  0 Spara som fil
 Cratchit > … > Bokfört > A1 > Utskrift> 
 ```
 
@@ -1754,7 +1770,7 @@ Skriv organisationens namn och tryck Enter, till exempel The ITfied AB. Namnet �
 
 ## Dina filer
 
-cratchit verkar utan att märkas. cratchit flyttar, döper om, ändrar och tar aldrig bort dina filer. cratchit skriver i sina egna `.cratchit`-mappar, och skapar synliga filer och mappar bara när du ber om just det, till exempel en export till SIE. En ny bokföring från SIE får bara en `.cratchit`-mapp, i SIE-filens mapp eller i den mapp du startade i.
+cratchit verkar utan att märkas. cratchit flyttar, döper om, ändrar och tar aldrig bort dina filer. cratchit skriver i sina egna `.cratchit`-mappar, och skapar synliga filer och mappar bara när du ber om just det, till exempel en export till SIE eller en rapport som du sparar som fil. En ny bokföring från SIE får bara en `.cratchit`-mapp, i SIE-filens mapp eller i den mapp du startade i.
 
 När du skapar en bokföring från en SIE-fil, importerar en eller läser ett kontoutdrag, ligger filen kvar där den låg. cratchit för i stället en *förteckning* över de filer bokföringen har fått något från: vad filen hette, var den låg, när den lästes in och vad den gav. Förteckningen känner igen en fil på dess innehåll, så den vet vilken fil det var även om du senare flyttar filen eller byter namn på den.
 

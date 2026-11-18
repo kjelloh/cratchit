@@ -35,6 +35,12 @@ cmake --build build/Release
 
 NOTE: Also see init_tool_chain.zsh if applicable to your platform
 
+# Install
+
+```
+sudo cmake --install build/Debug
+```
+
 # Tree (bare git repository)
 
 ```

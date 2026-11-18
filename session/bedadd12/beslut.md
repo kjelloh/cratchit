@@ -22,5 +22,12 @@ Beslut som gäller i den här sessionen. Målet står i [session.md](session.md)
 * **Huvudboken frågar efter kontonumret** (bara siffror) och vägrar ett konto som varken finns i bokföringen eller har rader under året.
 * **Huvudboken utan kontonummer visar alla konton** som har rader eller ingående balans under året, i nummerordning, ett avsnitt per konto (användarens önskan). Frågan om kontonummer är därför ett textfält, så att Enter på en tom rad når den i stället för att visa valen igen.
 * **`3 Utskrift` i en bokförd verifikation** visar hela verifikationen som text på skärmen (användarens val: valet, att bara visa och inte spara, och bara bokförda verifikationer till att börja med). Den har det bokföringslagen kräver av en verifikation (5 kap. 7 §): id, företagets namn och organisationsnummer, räkenskapsåret, serien med namn, datum, text, belopp, registrerad och signatur, och raderna i kolumnerna Debet och Kredit med kontonamn, radens egen text och datum, märkning av strukna och tillagda rader, och summor. Den visas hel, som rapporterna.
+* **`0 Spara som fil` i alla rapporter och i verifikationens utskrift** (användarens val: alla, valet `0 Spara som fil`, och filnamnet som föreslaget).
+  * Filen sparas i plattformens mapp för hämtade filer (`downloads_folder()`: Windows `FOLDERID_Downloads`, Linux `XDG_DOWNLOAD_DIR` annars `~/Downloads`, macOS `~/Downloads`). Finns den inte sparas filen i bokföringens mapp, och cratchit säger det.
+  * Filnamnet är `<bokföring> <rapport> <år>.txt`, till exempel `Test AB Balansrapport 2025-26.txt` och `Test AB Verifikation A12 2025-26.txt`. Tecken som inte får finnas i filnamn blir `-`.
+  * En fil skrivs aldrig över: `… (2).txt`, `… (3).txt` och så vidare.
+  * Innehållet är det som står på skärmen, utan de tomma raderna runt omkring, i UTF-8 med `\n` efter varje rad.
+  * Användaren stannar i rapporten, och raden om var filen hamnade står under den. Varje sparad fil loggas.
+  * Det följer regeln att cratchit verkar utan att märkas: en synlig fil skapas bara när användaren ber om den.
 * **Rapporterna läser bokföringen när de väljs** och visar det som är bokfört just då. Utkast kommer inte med.
 * **Rapportens andra rad är bokföringens namn och organisationsnummer**, till exempel `Test AB (556000-0001)`, som i *Bekräfta* när en bokföring skapas från SIE (användarens önskan). Numret är `orgnr` i bokföringens `project.txt`. Saknas det står bara namnet.

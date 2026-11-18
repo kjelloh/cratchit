@@ -70,6 +70,12 @@ std::expected<Workspace, std::string> open_workspace(std::filesystem::path const
 // Error text when it cannot be found.
 std::expected<std::filesystem::path, std::string> documents_folder();
 
+// The user's downloads folder, as the platform names it: Windows
+// SHGetKnownFolderPath(FOLDERID_Downloads), Linux XDG_DOWNLOAD_DIR when set,
+// else <home>/Downloads, macOS <home>/Downloads. Error text when it cannot be
+// found. It may not exist (the caller checks).
+std::expected<std::filesystem::path, std::string> downloads_folder();
+
 // Where the workspace is by default: <documents folder>/cratchit
 std::expected<std::filesystem::path, std::string> default_workspace_folder();
 

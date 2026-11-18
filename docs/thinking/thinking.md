@@ -14,6 +14,10 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 
 I now initiated session/3bfe8481 to try and vibe code playground 
 
+I also had time to vibe code some reports and 'print' functionality 
+
+
+
 ## 20260927
 
 CratchitRaylibApp::run now parses args a vector of strings.

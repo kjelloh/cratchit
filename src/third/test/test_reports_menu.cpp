@@ -1,5 +1,6 @@
 // Rapporter in the fiscal year (ui/reports_menu): the menu, a report shown
 // whole, and Huvudbok's account number
+#include "core/save_document.hpp"
 #include "core/sie_project.hpp"
 #include "ui/booked_menu.hpp"
 #include "ui/help_topics.hpp"
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <sstream>
 #include <string>
 
 namespace fs = std::filesystem;
@@ -94,7 +96,7 @@ TEST_F(ReportsMenuTest, AReportIsShownWholeWithoutPaging) {
   ASSERT_EQ(view.size(), 186u); // an empty line, the 184 lines, an empty line
   EXPECT_EQ(view[1], "Verifikationslista 2025-01-01 – 2025-12-31");
   EXPECT_EQ(view[184], "  Summa         100.00       100.00");
-  EXPECT_EQ(navigator.current().options(), (OptionsList{})) << "no paging keys";
+  EXPECT_EQ(navigator.current().options(), (OptionsList{{U'0', "Spara som fil"}})) << "no paging keys";
 }
 
 TEST_F(ReportsMenuTest, HuvudbokTakesAnAccountNumberAndRefusesOthers) {
@@ -154,7 +156,7 @@ TEST_F(ReportsMenuTest, UtskriftOfABookedVoucherShowsItWhole) {
   EXPECT_EQ(navigator.current().name(), "A1");
   ASSERT_TRUE(navigator.press(U'3'));
   EXPECT_EQ(navigator.current().name(), "Utskrift");
-  EXPECT_EQ(navigator.current().options(), (OptionsList{}));
+  EXPECT_EQ(navigator.current().options(), (OptionsList{{U'0', "Spara som fil"}}));
   auto const view = navigator.current().view();
   ASSERT_GE(view.size(), 4u);
   EXPECT_EQ(view.front(), "");
@@ -164,4 +166,71 @@ TEST_F(ReportsMenuTest, UtskriftOfABookedVoucherShowsItWhole) {
   EXPECT_EQ(view.back(), "");
   ASSERT_TRUE(navigator.back());
   EXPECT_EQ(navigator.current().name(), "A1");
+}
+
+namespace {
+
+std::string content_of(fs::path const& file) {
+  std::ifstream in(file, std::ios::binary);
+  std::ostringstream text;
+  text << in.rdbuf();
+  return text.str();
+}
+
+} // namespace
+
+TEST_F(ReportsMenuTest, SparaSomFilSavesTheReportInDownloads) {
+  auto const downloads = documents / "Downloads";
+  fs::create_directories(downloads);
+  auto const find_downloads = [downloads]() -> std::expected<fs::path, std::string> { return downloads; };
+  Navigator navigator(cratchit::ui::make_reports_menu(project(2), {"2025-01-01", "2025-12-31"}, find_downloads));
+  ASSERT_TRUE(navigator.press(U'2'));
+  auto const report = navigator.current().view();
+  EXPECT_TRUE(navigator.current().on_key_in_place(U'0'));
+  auto const file = downloads / "Test AB Resultatrapport 2025.txt";
+  ASSERT_TRUE(fs::is_regular_file(file));
+  std::string expected;
+  for (std::size_t i = 1; i + 1 < report.size(); ++i) expected += report[i] + "\n"; // without the air around it
+  EXPECT_EQ(content_of(file), expected);
+  auto const view = navigator.current().view();
+  EXPECT_EQ(view.back(), "cratchit sparade filen " + cratchit::utf8_of(file));
+  EXPECT_EQ(navigator.current().name(), "Resultatrapport") << "the user stays";
+  // Saved again: a file of its own, the first one kept
+  EXPECT_TRUE(navigator.current().on_key_in_place(U'0'));
+  EXPECT_TRUE(fs::is_regular_file(downloads / "Test AB Resultatrapport 2025 (2).txt"));
+}
+
+TEST_F(ReportsMenuTest, WithoutDownloadsTheFileGoesToTheProjectFolder) {
+  auto const missing = documents / "Downloads";
+  auto const find_downloads = [missing]() -> std::expected<fs::path, std::string> { return missing; };
+  auto const the_project = project(2);
+  Navigator navigator(cratchit::ui::make_reports_menu(the_project, {"2025-01-01", "2025-12-31"}, find_downloads));
+  ASSERT_TRUE(navigator.press(U'4'));
+  auto ledger = navigator.current().on_input(U"");
+  ASSERT_TRUE(ledger) << ledger.error();
+  navigator.enter(std::move(ledger->next));
+  EXPECT_TRUE(navigator.current().on_key_in_place(U'0'));
+  auto const file = the_project.folder / "Test AB Huvudbok alla konton 2025.txt";
+  EXPECT_TRUE(fs::is_regular_file(file));
+  auto const view = navigator.current().view();
+  ASSERT_GE(view.size(), 2u);
+  EXPECT_EQ(view[view.size() - 2], "cratchit sparade filen " + cratchit::utf8_of(file));
+  EXPECT_EQ(view.back(), std::format("Mappen Hämtade filer ({}) finns inte, så filen sparades i bokföringens mapp.",
+                                     cratchit::utf8_of(missing)));
+}
+
+TEST_F(ReportsMenuTest, TheUtskriftOfAVoucherIsSavedByItsId) {
+  auto const downloads = documents / "Downloads";
+  fs::create_directories(downloads);
+  auto const the_project = project(2);
+  auto const year = cratchit::FiscalYear{"2025-01-01", "2025-12-31"};
+  auto const books = cratchit::books::read_books(the_project.folder);
+  ASSERT_TRUE(books) << books.error();
+  auto printout = cratchit::ui::make_voucher_printout(
+      the_project, year, books->years[0].vouchers[1],
+      [downloads]() -> std::expected<fs::path, std::string> { return downloads; });
+  ASSERT_TRUE(printout) << printout.error();
+  Navigator navigator(std::move(*printout));
+  EXPECT_TRUE(navigator.current().on_key_in_place(U'0'));
+  EXPECT_TRUE(fs::is_regular_file(downloads / "Test AB Verifikation A2 2025.txt"));
 }

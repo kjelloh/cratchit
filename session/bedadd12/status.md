@@ -62,6 +62,22 @@ Målet står i [session.md](session.md) och besluten i [beslut.md](beslut.md).
   * Manualens två exempel och *Läsa en rapport* visar dem.
   * Provat i programmet: utskriften av A2 har en tom rad under prompten och en före nästa prompt.
 
+* 2026-11-18: `0 Spara som fil` i rapporterna och utskriften.
+  * Kärnan:
+    * `downloads_folder()` i `core/dot_folder`, som `documents_folder()`.
+    * `core/save_document.{hpp,cpp}` har `file_name_of`, `save_document` (skriver aldrig över) och `utf8_of`.
+  * Gränssnittet:
+    * `make_report_view` tar `std::optional<SaveAs>`, med reservmappen, filens titel och `FindFolder downloads`. Testerna ger en egen mapp, så att de aldrig skriver i den riktiga Downloads.
+    * `make_reports_menu`, `make_ledger_menu` och `make_voucher_printout` tar `FindFolder`, med `downloads_folder` som standard.
+    * `PrintVoucher` ger nu ett state (`make_voucher_printout`) i stället för rader.
+  * Manualen: *Spara en rapport som fil*. *Läsa en rapport*, utskriftens avsnitt, exemplen och *Dina filer* nämner sparandet.
+  * Tester:
+    * `test/test_save_document.cpp` har 5 tester: filnamn, UTF-8, att en fil aldrig skrivs över, en mapp som saknas, och att `downloads_folder` ger en full sökväg.
+    * `test/test_reports_menu.cpp` har 3 nya tester: en rapport sparad i Downloads, och en gång till som `(2)`; huvudboken för alla konton sparad i bokföringens mapp när Downloads saknas; och utskriften sparad med sitt id.
+    * `cratchit_tests` 828 tester går igenom. Utan legacy går `ctest` igenom.
+  * Provat i programmet, med `HOME` i en tillfällig mapp: utan `Downloads` hamnade balansrapporten i bokföringens mapp, med förklaringen. Med `Downloads` hamnade utskriften av A2 där, med samma innehåll som på skärmen. Loggen har båda.
+  * Inte provat: Windows (`FOLDERID_Downloads`) och Linux. Det sker i GitHub Actions vid nästa push, men CI trycker aldrig `0`, så bara kompileringen och `DownloadsFolder.IsAFullPath` provas där.
+
 ## Att känna till
 
 * Balansrapportens *Beräknat resultat* är negativt för en vinst, eftersom rapporten visar debet positivt. Resultatrapportens *Årets resultat* är positivt för samma vinst.
@@ -74,4 +90,3 @@ Målet står i [session.md](session.md) och besluten i [beslut.md](beslut.md).
 * Möjliga tillägg, inte beslutade:
   * en period inom året (till exempel ett kvartal eller en månad)
   * jämförelse med förra året
-  * export till fil, av rapporter och av en verifikations utskrift

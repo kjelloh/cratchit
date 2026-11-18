@@ -37,10 +37,10 @@ inline constexpr std::size_t postings_page_rows = 10;
 // the user; that is shown below the voucher, and the user stays. An error text
 // is shown the same way. The option is there only when reverse is given.
 using ReverseVoucher = std::function<std::expected<pyroceph::tui::View, std::string>()>;
-// 3 Utskrift (beslut 2026-11-18) calls print, which gives the voucher as a
-// whole document (see books::voucher_document), shown whole (make_report_view);
-// an error text leads to Fel. The option is there only when print is given.
-using PrintVoucher = std::function<std::expected<std::vector<std::string>, std::string>()>;
+// 3 Utskrift (beslut 2026-11-18) calls print, which gives the state that shows
+// the voucher as a whole document (see make_voucher_printout); an error text
+// leads to Fel. The option is there only when print is given.
+using PrintVoucher = std::function<std::expected<std::unique_ptr<pyroceph::tui::State>, std::string>()>;
 std::unique_ptr<pyroceph::tui::State> make_voucher_menu(books::Voucher voucher, std::vector<books::Account> accounts,
                                                         std::string series_name, std::string last_in_series,
                                                         ReverseVoucher reverse = {}, PrintVoucher print = {});

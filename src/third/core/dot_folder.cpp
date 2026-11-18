@@ -235,6 +235,17 @@ std::expected<fs::path, std::string> documents_folder() {
   CoTaskMemFree(path);
   return result;
 }
+std::expected<fs::path, std::string> downloads_folder() {
+  PWSTR path = nullptr;
+  auto const hr = SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, &path);
+  if (FAILED(hr)) {
+    CoTaskMemFree(path);
+    return std::unexpected(std::string("Hittar inte mappen Hämtade filer (SHGetKnownFolderPath misslyckades)"));
+  }
+  fs::path result(path);
+  CoTaskMemFree(path);
+  return result;
+}
 #else
 std::expected<fs::path, std::string> documents_folder() {
 #if defined(__linux__)
@@ -245,6 +256,16 @@ std::expected<fs::path, std::string> documents_folder() {
   auto const home = user_home();
   if (!home) return std::unexpected(std::format("Hittar inte mappen Dokument: {}", home.error()));
   return *home / "Documents";
+}
+std::expected<fs::path, std::string> downloads_folder() {
+#if defined(__linux__)
+  if (auto const* xdg = std::getenv("XDG_DOWNLOAD_DIR"); xdg != nullptr && fs::path(xdg).is_absolute()) {
+    return fs::path(xdg);
+  }
+#endif
+  auto const home = user_home();
+  if (!home) return std::unexpected(std::format("Hittar inte mappen Hämtade filer: {}", home.error()));
+  return *home / "Downloads";
 }
 #endif
 

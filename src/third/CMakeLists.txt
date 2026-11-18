@@ -236,6 +236,7 @@ add_library(cratchit_core
   core/sie_import.cpp
   core/sie_project.cpp
   core/sha256.cpp
+  core/save_document.cpp
   core/sie_summary.cpp
   core/statement/statement.cpp
   core/statement_drafts.cpp

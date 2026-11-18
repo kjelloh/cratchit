@@ -7,7 +7,6 @@
 #include "pyroceph/tui/error_state.hpp"
 #include "ui/design_insufficiency.hpp"
 #include "ui/help_topics.hpp"
-#include "ui/reports_menu.hpp"
 #include "ui/year_view.hpp"
 
 #include <algorithm>
@@ -374,9 +373,9 @@ public:
     if (key == U'2' && ready()) return shown_->actions.book(this);
     if (key == U'3' && shown_->draft && shown_->actions.use_template) return shown_->actions.use_template(this);
     if (key == U'3' && !shown_->draft && shown_->print) {
-      auto lines = shown_->print();
-      if (!lines) return pyroceph::tui::make_error_state(std::format("cratchit kunde inte skriva ut verifikationen: {}", lines.error()));
-      return make_report_view("Utskrift", std::move(*lines));
+      auto printout = shown_->print();
+      if (!printout) return pyroceph::tui::make_error_state(std::format("cratchit kunde inte skriva ut verifikationen: {}", printout.error()));
+      return std::move(*printout);
     }
     if (key == U'0') return std::make_unique<EventState>(shown_);
     if (key == U'1') return std::make_unique<PostingsState>(shown_);
