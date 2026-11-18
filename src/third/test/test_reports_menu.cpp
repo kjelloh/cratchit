@@ -1,5 +1,5 @@
-// Rapporter in the fiscal year (ui/reports_menu): the menu, a report a page at
-// a time, and Huvudbok's account number
+// Rapporter in the fiscal year (ui/reports_menu): the menu, a report shown
+// whole, and Huvudbok's account number
 #include "core/sie_project.hpp"
 #include "ui/help_topics.hpp"
 #include "ui/reports_menu.hpp"
@@ -71,10 +71,9 @@ TEST_F(ReportsMenuTest, BalanceAndResultReportsShowTheBooksOfTheYear) {
   EXPECT_EQ(navigator.current().name(), "Balansrapport");
   EXPECT_EQ(navigator.current().help_topic(), cratchit::ui::help_topic::report);
   auto view = navigator.current().view();
-  ASSERT_GE(view.size(), 3u);
-  EXPECT_TRUE(view[0].starts_with("Balansrapport: rad 1–")) << view[0];
-  EXPECT_EQ(view[1], "Balansrapport 2025-01-01 – 2025-12-31");
-  EXPECT_EQ(view[2], "Test AB") << "the project's name";
+  ASSERT_GE(view.size(), 2u);
+  EXPECT_EQ(view[0], "Balansrapport 2025-01-01 – 2025-12-31");
+  EXPECT_EQ(view[1], "Test AB") << "the project's name";
   EXPECT_NE(std::ranges::find(view, "1930            1000.00         200.00        1200.00  Bank"), view.end());
   ASSERT_TRUE(navigator.back());
   ASSERT_TRUE(navigator.press(U'2'));
@@ -83,20 +82,16 @@ TEST_F(ReportsMenuTest, BalanceAndResultReportsShowTheBooksOfTheYear) {
   EXPECT_NE(std::ranges::find(view, "                 200.00  Årets resultat"), view.end());
 }
 
-TEST_F(ReportsMenuTest, AReportLongerThanAPageIsTurnedInPlace) {
-  // 30 vouchers of 6 lines each in the voucher list
+TEST_F(ReportsMenuTest, AReportIsShownWholeWithoutPaging) {
+  // 30 vouchers of 6 lines each in the voucher list: all 184 lines at once
   Navigator navigator(cratchit::ui::make_reports_menu(project(30), {"2025-01-01", "2025-12-31"}));
   ASSERT_TRUE(navigator.press(U'3'));
   EXPECT_EQ(navigator.current().name(), "Verifikationslista");
-  auto const first = navigator.current().view();
-  ASSERT_EQ(first.size(), 22u); // heading, 20 lines, "…"
-  EXPECT_EQ(first[0], "Verifikationslista: rad 1–20 av 184");
-  EXPECT_EQ(first[21], "  …");
-  EXPECT_FALSE(navigator.current().on_key_in_place(U'<')) << "nothing before the first page";
-  EXPECT_TRUE(navigator.current().on_key_in_place(U'>'));
-  EXPECT_EQ(navigator.current().view()[0], "Verifikationslista: rad 21–40 av 184");
-  EXPECT_TRUE(navigator.current().on_key_in_place(U'<'));
-  EXPECT_EQ(navigator.current().view()[0], "Verifikationslista: rad 1–20 av 184");
+  auto const view = navigator.current().view();
+  ASSERT_EQ(view.size(), 184u);
+  EXPECT_EQ(view[0], "Verifikationslista 2025-01-01 – 2025-12-31");
+  EXPECT_EQ(view.back(), "  Summa         100.00       100.00");
+  EXPECT_EQ(navigator.current().options(), (OptionsList{})) << "no paging keys";
 }
 
 TEST_F(ReportsMenuTest, HuvudbokTakesAnAccountNumberAndRefusesOthers) {
@@ -116,7 +111,7 @@ TEST_F(ReportsMenuTest, HuvudbokTakesAnAccountNumberAndRefusesOthers) {
   navigator.enter(std::move(accepted->next));
   EXPECT_EQ(navigator.current().name(), "Huvudbok 1930");
   auto const view = navigator.current().view();
-  ASSERT_GE(view.size(), 2u);
-  EXPECT_EQ(view[1], "Huvudbok konto 1930 Bank 2025-01-01 – 2025-12-31");
+  ASSERT_GE(view.size(), 1u);
+  EXPECT_EQ(view[0], "Huvudbok konto 1930 Bank 2025-01-01 – 2025-12-31");
   EXPECT_EQ(view.back(), "Utgående balans                                             1200.00");
 }

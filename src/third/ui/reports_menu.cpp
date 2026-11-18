@@ -6,7 +6,6 @@
 #include "core/date.hpp"
 #include "core/log.hpp"
 #include "pyroceph/tui/error_state.hpp"
-#include "pyroceph/tui/pager.hpp"
 #include "ui/help_topics.hpp"
 
 #include <algorithm>
@@ -28,9 +27,6 @@ using pyroceph::tui::OptionsList;
 using pyroceph::tui::State;
 using pyroceph::tui::View;
 
-constexpr CodePoint back_key = U'<';
-constexpr CodePoint forward_key = U'>';
-
 // The books and the index of the fiscal year in them, or why not
 struct YearInBooks {
   books::Books books;
@@ -51,28 +47,16 @@ std::expected<YearInBooks, std::string> read_year(Project const& project, Fiscal
 
 class ReportState : public State {
 public:
-  ReportState(std::string name, std::vector<std::string> lines) : name_(std::move(name)) { pager_.set(std::move(lines)); }
+  ReportState(std::string name, std::vector<std::string> lines) : name_(std::move(name)), lines_(std::move(lines)) {}
   std::string name() const override { return name_; }
-  View view() const override {
-    View lines{std::format("{}: rad {}–{} av {}", name_, pager_.first() + 1, pager_.first() + pager_.shown(),
-                           pager_.count())};
-    auto const page = pager_.view();
-    lines.insert(lines.end(), page.begin(), page.end());
-    return lines;
-  }
-  // Always both, so that turning past either end does nothing (and starts no input)
-  OptionsList options() const override { return {{back_key, "Föregående sida"}, {forward_key, "Nästa sida"}}; }
-  bool on_key_in_place(CodePoint key) override {
-    if (key == back_key) return pager_.back();
-    if (key == forward_key) return pager_.forward();
-    return false;
-  }
+  View view() const override { return lines_; }
+  OptionsList options() const override { return {}; }
   OnKeyResult on_key(CodePoint) override { return nullptr; }
   std::string help_topic() const override { return std::string(help_topic::report); }
 
 private:
   std::string name_;
-  pyroceph::tui::Pager pager_{report_page_rows};
+  View lines_;
 };
 
 class ReportsState : public State {

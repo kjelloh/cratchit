@@ -379,24 +379,31 @@ Går de ingående balanserna inte ihop säger balansrapporten det. Oftast beror 
 #### Läsa en rapport
 
 <!-- hjälp: rapport -->
-En rapport visas en sida i taget. Första raden säger vilka rader du ser, till exempel `rad 1–20 av 57`. `…` överst betyder att det finns rader före sidan, och `…` nederst att det finns fler efter. Tryck `>` för nästa sida och `<` för föregående. Vid första och sista sidan gör de ingenting. Tryck `-` för att gå tillbaka till Rapporter.
+Rapporten visas hel, alla rader på en gång. Är den längre än fönstret skrollar du i terminalen. Tryck `-` för att gå tillbaka till Rapporter.
 <!-- /hjälp -->
 
-Ett exempel, från en liten testbokföring (`…` står här för rader som inte visas i exemplet):
+Ett exempel, från en liten testbokföring med en försäljning och en bankavgift:
 
 ```text
-Balansrapport: rad 1–19 av 19
 Balansrapport 2025-01-01 – 2025-12-31
 Test AB
 
 Konto                IB     Förändring             UB  Namn
 
 Tillgångar
-1930            1000.00         200.00        1200.00  Bank
-                1000.00         200.00        1200.00  Summa tillgångar
-…
-  < Föregående sida
-  > Nästa sida
+1930            1000.00         490.00        1490.00  Bank
+                1000.00         490.00        1490.00  Summa tillgångar
+
+Eget kapital och skulder
+2099           -1000.00           0.00       -1000.00  Result
+               -1000.00           0.00       -1000.00  Summa eget kapital och skulder
+
+                   0.00        -490.00        -490.00  Beräknat resultat
+                   0.00           0.00           0.00  Summa
+
+Belopp: debet positivt, kredit negativt. Beräknat resultat är resultatkontonas summa (en vinst är negativ).
+Summa är noll när bokföringen går ihop.
+Ingående balanser är som källan angav dem (året före finns inte i bokföringen).
 Cratchit > Samlingsmapp > Test AB > 2025 > Rapporter > Balansrapport> 
 ```
 
@@ -406,7 +413,7 @@ Cratchit > Samlingsmapp > Test AB > 2025 > Rapporter > Balansrapport>
 Skriv kontots nummer, till exempel `1930`, och tryck Enter för att se kontots huvudbok för räkenskapsåret. Numret skrivs med bara siffror. Ett konto som inte finns i bokföringen och inte har några rader under året ger ett besked under prompten, och det du skrev står kvar. Tryck `-` för att gå tillbaka till Rapporter.
 <!-- /hjälp -->
 
-Tryck `4` i Rapporter, skriv kontonumret och tryck Enter. Huvudboken visas som de andra rapporterna, en sida i taget, med prompten `Huvudbok 1930`.
+Tryck `4` i Rapporter, skriv kontonumret och tryck Enter. Huvudboken visas hel, som de andra rapporterna, med prompten `Huvudbok 1930`. Tryck `-` för att komma tillbaka till frågan om kontonummer och se ett annat konto.
 
 ### Årsflöde
 

@@ -12,7 +12,7 @@ Målet står i [session.md](session.md) och besluten i [beslut.md](beslut.md).
     * Take 3:s `core/books/columns` togs inte in. Det lilla som behövdes ligger i `report.cpp`.
   * **Gränssnittet:** `src/third/ui/reports_menu.{hpp,cpp}` har tre states.
     * `make_reports_menu` är *Rapporter*.
-    * `make_report_view` visar en rapport sidvis med `pyroceph::tui::Pager`, som *Bokfört*.
+    * `make_report_view` visar en rapport hel, utan sidvisning och utan val.
     * `make_ledger_menu` frågar efter kontonumret till huvudboken.
 
     `ui/fiscal_year_menu.cpp` har fått valet `3 Rapporter`.
@@ -20,13 +20,19 @@ Målet står i [session.md](session.md) och besluten i [beslut.md](beslut.md).
   * **Användarmanualen** (`src/third/docs/anvandarmanual.md`) har avsnittet *Rapporter*, med *Läsa en rapport* och *Huvudbok för ett konto*, före *Årsflöde*. Räkenskapsårets avsnitt nämner `3 Rapporter`.
   * **Tester:**
     * `test/test_report.cpp` har 8 tester av rapporternas text: första året, ingående balanser som inte går ihop eller skiljer sig från källan, resultatet bokfört på 8999, struken och tillagd rad, och huvudbok med löpande saldo.
-    * `test/test_reports_menu.cpp` har 4 tester av menyerna: valen, rapporternas innehåll, sidvisning med `<` och `>`, och huvudbokens kontonummer.
+    * `test/test_reports_menu.cpp` har 4 tester av menyerna: valen, rapporternas innehåll, att en lång rapport (184 rader) visas hel utan val, och huvudbokens kontonummer.
     * I `test/test_ui.cpp` har räkenskapsårets val fått `3 Rapporter`.
   * **Provat på macOS:**
     * Med legacy (`build/Debug`): `cratchit_tests` 814 tester och `ctest` 1125 tester går igenom.
     * Utan legacy, som CI bygger: `ctest` 982 tester går igenom.
     * I det riktiga programmet, med `HOME` i en tillfällig mapp: en bokföring skapad med *Ny bokföring här > Från SIE* från en liten testfil. Sedan öppnades `2025 > 3 Rapporter` med tangenterna, och balansrapport, resultatrapport, verifikationslista och huvudbok för 1930 gav samma siffror som testerna.
   * **Inte provat:** rapporterna på en riktig bokföring med många konton och verifikationer. Inte heller provat på Windows och Linux; det sker i GitHub Actions vid nästa push.
+
+* 2026-11-18: Rapporterna visas hela, efter att användaren hade provat dem.
+  * Sidvisningen och `<`/`>` är borttagna ur `ReportState` i `ui/reports_menu.cpp`. Vyn är rapportens rader och inget annat, utan rubriken `rad 1–20 av 57`.
+  * Testet av sidvisning är ersatt av `AReportIsShownWholeWithoutPaging`.
+  * Manualens *Läsa en rapport* beskriver hela rapporter, med en hel balansrapport som exempel. Huvudboken nämner att `-` leder tillbaka till frågan om kontonummer.
+  * Provat: `cratchit_tests` 814 tester går igenom, och i programmet visas verifikationslistan hel.
 
 ## Att känna till
 

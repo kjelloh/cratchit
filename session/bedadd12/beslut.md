@@ -17,7 +17,7 @@ Beslut som gäller i den här sessionen. Målet står i [session.md](session.md)
 * **Kontona 8990–8999** (där bokslutet bokför årets resultat) räknas inte in i *Årets resultat*. De visas efter det, med det som är *Kvar efter resultatbokningen* (noll när resultatet är bokfört).
 * **Balansrapporten säger till när de ingående balanserna inte går ihop**, med summan och den vanligaste orsaken: förra årets resultat är inte bokfört på eget kapital än.
 * **Rapporterna nås med `3 Rapporter` i räkenskapsåret** (användarens val), inte i Årsflöde, eftersom rapporter tas fram när som helst och Årsflöde följer årets arbetsordning. Under det: `1 Balansrapport`, `2 Resultatrapport`, `3 Verifikationslista`, `4 Huvudbok`.
-* **En rapport visas en sida i taget**, 20 rader, med `<` och `>` som i *Bokfört*.
+* **En rapport visas hel**, alla rader på en gång, utan sidvisning och bläddring. Terminalen skrollar, så det finns gott om plats (användarens val efter att ha provat). Det ersätter det första beslutet om 20 rader i taget med `<` och `>`.
 * **Huvudboken frågar efter kontonumret** (bara siffror) och vägrar ett konto som varken finns i bokföringen eller har rader under året.
 * **Rapporterna läser bokföringen när de väljs** och visar det som är bokfört just då. Utkast kommer inte med.
 * **Rapportens andra rad är bokföringens namn** (`Project::name`). Organisationsnumret står inte med än.
