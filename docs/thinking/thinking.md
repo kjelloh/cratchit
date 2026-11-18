@@ -8,6 +8,11 @@ I find thinking out loud by writing to be a valuable tool to stay focused and ar
 * [notes](../../note/index.md)
 * [todos](../../todo/index.md)
 * [chimes](../../chime/index.md)
+* [sessions](../../session/index.md)
+
+## 20261118
+
+I now initiated session/3bfe8481 to try and vibe code playground 
 
 ## 20260927
 
