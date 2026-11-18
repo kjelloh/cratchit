@@ -34,3 +34,19 @@ Now, to have it live as part of our code base and tool chain there are some issu
   * Legacy cratchit runs locally suing custom run-script.
 
 But maybe Clade can help me merge these two code bases into this same code base and repo?
+
+Yes it could!
+
+* I now have plaiground cratchit as --third with code base in src/third
+* But BOY - Is this vibe coded code base HUGE!
+  * Is it worth it?
+  * Can I maintain it?
+  * Can I reuse it?
+
+There is something very strange with this book keeping app of mine?
+
+* It feels it should be SO SIMPLE to make a book keeping app?
+* But this is my fourth aim at it.
+* And it just gets more complicate for each try?
+
+WHAT IS GOING ON?
