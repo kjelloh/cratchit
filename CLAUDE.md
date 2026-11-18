@@ -11,6 +11,13 @@ The application is named after Bob Cratchit, the poor clerk of Scrooge in Charle
 - './cratchit --test'               Run all tests (google test)
 - './cratchit --test --gtest_xxx'   Run tests (passing args to google test)
 - './cratchit --gtest_xxx...'       Run google tests (passing provided arguments to google test)
+- './cratchit'                      Run variant third (src/third, the cross-platform cratchit), the default variant
+- './cratchit --sie-to-ar ...'      Any other arguments also go to variant third (e.g. '--sie-to-ar --help', '--walk-pdf', '--sie-to-ink2', '--sie-to-vat')
+- './cratchit --third ...'          Run variant third whatever follows (must be the first argument; removed before third gets the rest)
+- './cratchit --zeroth|--first|--second' Run a legacy variant (flag anywhere in the arguments)
+- 'ctest --preset conan-debug'      Run the tests of variant third (and second's cratchit_test)
+
+'--nop', '--test', '--version' and '--gtest_xxx' (as the first argument) and the variant flags '--zeroth', '--first', '--second' go to the legacy variants; everything else goes to variant third. The legacy variants zeroth, first and second are compiled in only on macOS (Conan option 'with_legacy', CMake option 'CRATCHIT_WITH_LEGACY'). Without them cratchit is variant third only. See src/third/README.md.
 
 ## Helper 'run' script
 

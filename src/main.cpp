@@ -125,15 +125,33 @@ static int legacy_main(int argc, char *argv[]) {
     return result;
 }
 
+// Whether the arguments are for the legacy variants: a variant flag anywhere
+// (--zeroth, --first, --second, as legacy_main reads them), or one of legacy's own
+// commands first (--nop, --test, --version, --gtest...)
+static bool is_for_legacy(int argc, char *argv[]) {
+    for (int i = 1; i < argc; ++i) {
+      std::string_view const argument(argv[i]);
+      if (argument == "--zeroth" || argument == "--first" || argument == "--second") {
+        return true;
+      }
+    }
+    if (argc > 1) {
+      std::string_view const first(argv[1]);
+      return first == "--nop" || first == "--test" || first == "--version" || first.starts_with("--gtest");
+    }
+    return false;
+}
+
 #endif // CRATCHIT_WITH_LEGACY
 
 int main(int argc, char *argv[]) {
-    // --third as the first argument runs variant third. Checked before anything
-    // else, so that third's commands (e.g. --sie-to-ar) print nothing but their own.
+    // Variant third is the default. Checked before anything else, so that third's
+    // commands (e.g. --sie-to-ar) print nothing but their own. --third as the first
+    // argument runs third too, whatever follows.
     bool const third_flag = argc > 1 && std::string_view(argv[1]) == "--third";
 
 #if CRATCHIT_WITH_LEGACY
-    if (!third_flag) {
+    if (!third_flag && is_for_legacy(argc, argv)) {
       return legacy_main(argc, argv);
     }
 #endif

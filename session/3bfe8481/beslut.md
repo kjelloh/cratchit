@@ -27,3 +27,11 @@ Decisions that apply in this session. The goal is in [session.md](session.md), a
   * Conan's option `with_legacy` decides what is built, and is passed to CMake's `CRATCHIT_WITH_LEGACY`. CMake's own default (`${APPLE}`) applies only without Conan.
   * Third no longer builds as a program of its own from `src/third/`. The top level is the one way to build, with or without legacy.
 * **`third` will be the default variant when the merge is done.** That means `cratchit` with no variant flag runs `third`, and legacy cratchit is reached with `--zeroth`, `--first` or `--second`.
+* **Which arguments go where (step D, option (a)).**
+  * These go to legacy:
+    * a variant flag `--zeroth`, `--first` or `--second` anywhere in the arguments, as legacy reads them
+    * one of legacy's own commands as the first argument: `--nop`, `--test`, `--version` or `--gtest_…`
+  * Everything else goes to third, including no arguments at all.
+  * `--third` as the first argument always goes to third, and is removed.
+  * This keeps `./run.zsh --nop` and `cratchit --test` working as before.
+  * Option (b), requiring a legacy variant flag for `--nop` and the other commands, was rejected.

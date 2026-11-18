@@ -22,7 +22,7 @@ Conan needs a profile once per machine: `conan profile detect`.
 
 From the repository's root folder (the program `cratchit` is built there, with variant third from this folder).
 
-cratchit's other variants, zeroth, first and second, build on macOS only and are compiled in by default on macOS (Conan option `with_legacy`, CMake option `CRATCHIT_WITH_LEGACY`). To build cratchit as variant third only on macOS too, add `-o "&:with_legacy=False"` to `conan install`. On Windows and Linux it is always variant third only. With the other variants compiled in, start variant third with `cratchit --third` (e.g. `cratchit --third --sie-to-ar …`); without them, `--third` may be left out.
+cratchit's other variants, zeroth, first and second, build on macOS only and are compiled in by default on macOS (Conan option `with_legacy`, CMake option `CRATCHIT_WITH_LEGACY`). To build cratchit as variant third only on macOS too, add `-o "&:with_legacy=False"` to `conan install`. On Windows and Linux it is always variant third only. Variant third is the default: `cratchit` and `cratchit --sie-to-ar …` run it. Only `--zeroth`, `--first`, `--second` (anywhere) and `--nop`, `--test`, `--version`, `--gtest_…` (first) go to the other variants. `cratchit --third …` runs variant third whatever follows.
 
 ```sh
 # 1. Fetch the dependencies for a Release build and generate the CMake setup.

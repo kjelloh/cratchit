@@ -64,6 +64,11 @@ echo "run.zsh: Copying resources..."
 mkdir -p "$WORKSPACE_DIR/resources"
 cp -R "build/$BUILD_TYPE/resources/" \
       "$WORKSPACE_DIR/resources/"
+# Copy the framework of variant third (.cratchit, next to the program) to the workspace (mirror)
+echo "run.zsh: Copying the framework of variant third (.cratchit)..."
+mkdir -p "$WORKSPACE_DIR/.cratchit"
+cp -R "build/$BUILD_TYPE/.cratchit/" \
+      "$WORKSPACE_DIR/.cratchit/"
 
 # Change to the workspace directory
 cd "$WORKSPACE_DIR"

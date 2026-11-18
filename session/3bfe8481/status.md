@@ -64,13 +64,41 @@ The goal is in [session.md](session.md), and the decisions are in [beslut.md](be
       * `--third` starts the UI, and `--third --sie-to-ar --help` works.
   * Not yet run on GitHub: that happens on the next push.
 
+* 2026-11-18: Step B's workflow is green on Ubuntu and Windows, as reported by the user. macOS was still running.
+* 2026-11-18: Step C, the checks and install, is done.
+  * **No names overlap between legacy and third.**
+    * The check used `nm -C --defined-only` on third's six libraries and on the 117 object files of the legacy `cratchit` target (the legacy build in `build/Debug`).
+    * 3,524 names are defined on both sides, all of them from the C++ standard library or the C library (`std::__1::…`, `isdigit` and `tolower`). That is expected, since both sides use the same headers.
+    * As a stronger check, every name in a project namespace (`cratchit`, `charset`, `unicode`, `walk_pdf`, `pyroceph`, `text`, `sie`, `csv`, `logger` and `third`) that appears anywhere in either side's symbols was listed: 1,066 from third and 247 from legacy. None appears on both sides.
+    * Rerun this check if either side adds names to `cratchit`, `charset` or `unicode`.
+  * **Install:** `cmake --install` installs `bin/cratchit` and third's `bin/.cratchit/`, as in step B. Legacy's `resources/` is **not** installed: `second` opens `resources/NotoSans-Regular.ttf` relative to the current folder, so an installed copy would only be found when started from inside `bin/`. Legacy is still run through `run.zsh`. Making `second` look next to the program (as third does) would be a change to legacy code, which is up to the user.
+  * `run.zsh` also copies `build/<type>/.cratchit/` to `workspace/.cratchit/`. Tried: `./run.zsh --third` starts the UI, and the log says `Framework 0.1.0 från …/workspace/.cratchit/framework.txt`.
+  * `CLAUDE.md` lists `--third` and `ctest`, and explains `with_legacy`/`CRATCHIT_WITH_LEGACY`.
+
+* 2026-11-18: Step D is done: `third` is the default variant (option (a) in `beslut.md`).
+  * In `src/main.cpp`, `is_for_legacy` decides. It is compiled only with `CRATCHIT_WITH_LEGACY`; without legacy, everything goes to third as before.
+  * Before step D, legacy without a variant flag or one of its commands only printed "Failed to know how to start cratchit variant…", so no working use was lost.
+  * `CLAUDE.md` and `src/third/README.md` describe the new routing.
+  * Tried on macOS with legacy, through `./run.zsh` and in `workspace/`:
+
+    | Command | Result |
+    |---|---|
+    | `./run.zsh --nop` | legacy: `Cratchit - Compiles and runs` |
+    | no arguments | third's UI |
+    | `--sie-to-ar --help` | third |
+    | `--third --nop` | third rejects `--nop` (exit code 2) |
+    | `--version` | legacy |
+    | `--test --gtest_filter=None` | legacy's gtest |
+    | `--bogus` | third rejects it (exit code 2) |
+
+    `--first`, `--zeroth` and `--second` weren't run, because they start interactive UIs. They reach legacy through the same flag test that `legacy_main` uses.
+  * The build without legacy was rebuilt: `--sie-to-vat --help` works, with and without `--third`.
+
 ## Next steps
 
-* **C. Check and install.**
-  * Check that no symbols overlap: build both, then compare the symbols they define with `nm`.
-  * Install with `cmake --install`, putting `cratchit`, `.cratchit/` (third's framework) and `resources/` (second's font) in place.
-  * `run.zsh` also copies `.cratchit/`. Until then, `./run.zsh --third` (in `workspace/`) runs third's commands, but its UI doesn't find its framework there.
-* **D. Make `third` the default.**
+* The merge is done (steps A–D). Open for later:
+  * Make `second` find its font next to the program, so legacy can be installed too. That means a change to legacy code.
+  * If third becomes "the one": retire the legacy variants and `run.zsh`, and decide what `--nop` and `--test` mean then.
 
 ## Good to know
 
