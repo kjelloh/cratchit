@@ -212,6 +212,7 @@ add_library(cratchit_core
   core/books/books.cpp
   core/books/export.cpp
   core/books/import.cpp
+  core/books/report.cpp
   core/csv.cpp
   core/date.cpp
   core/details_project.cpp
@@ -276,6 +277,7 @@ add_library(cratchit_ui
   ui/fiscal_year_menu.cpp
   ui/forget_project_menu.cpp
   ui/project_menu.cpp
+  ui/reports_menu.cpp
   ui/root_menu.cpp
   ui/sie_import_menu.cpp
   ui/sie_project_menu.cpp

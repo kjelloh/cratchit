@@ -30,6 +30,8 @@ add_executable(cratchit_tests
   ar/test_ar_trace.cpp
   test_amount.cpp
   test_books.cpp
+  test_report.cpp
+  test_reports_menu.cpp
   test_csv.cpp
   test_date.cpp
   test_import.cpp

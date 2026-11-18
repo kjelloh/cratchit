@@ -8,6 +8,7 @@
 #include "pyroceph/tui/error_state.hpp"
 #include "pyroceph/tui/path_completion.hpp"
 #include "ui/help_topics.hpp"
+#include "ui/reports_menu.hpp"
 #include "ui/sie_import_menu.hpp"
 #include "ui/year_flow_menu.hpp"
 #include "ui/year_view.hpp"
@@ -162,7 +163,7 @@ public:
     return lines;
   }
   OptionsList options() const override {
-    return {{U'0', "Årsflöde"}, {U'1', export_caption}, {U'2', "Importera från SIE"}};
+    return {{U'0', "Årsflöde"}, {U'1', export_caption}, {U'2', "Importera från SIE"}, {U'3', "Rapporter"}};
   }
   OnKeyResult on_key(CodePoint key) override {
     if (key == U'0') {
@@ -179,6 +180,10 @@ public:
         report_ = std::move(text);
         year_ = std::move(imported); // the file's dates, e.g. a first year of another length or a change of fiscal year
       });
+    }
+    if (key == U'3') {
+      report_.clear();
+      return make_reports_menu(project_, year_);
     }
     return nullptr;
   }

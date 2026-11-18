@@ -311,7 +311,7 @@ Ett år där inget är bokfört fungerar som de andra: du kan importera till det
 ### Räkenskapsår
 
 <!-- hjälp: rakenskapsar -->
-Du har öppnat ett räkenskapsår i bokföringen. Överst står vilken period det gäller och vad året innehåller. Under det visar cratchit årets verifikationer och utkast, de nyaste först. Listan är bara en vy, raderna är inga val. Tryck `0` för årets arbete i *Årsflöde*, `1` för att exportera året till en SIE-fil, eller `2` för att importera en SIE-fil för året. Tryck `-` för att gå tillbaka till bokföringen.
+Du har öppnat ett räkenskapsår i bokföringen. Överst står vilken period det gäller och vad året innehåller. Under det visar cratchit årets verifikationer och utkast, de nyaste först. Listan är bara en vy, raderna är inga val. Tryck `0` för årets arbete i *Årsflöde*, `1` för att exportera året till en SIE-fil, `2` för att importera en SIE-fil för året, eller `3` för årets *Rapporter*. Tryck `-` för att gå tillbaka till bokföringen.
 <!-- /hjälp -->
 
 Tryck räkenskapsårets siffra i bokföringen. Prompten får då årets namn:
@@ -328,6 +328,7 @@ Hela året: 116 verifikationer
   0 Årsflöde
   1 Exportera till SIE
   2 Importera från SIE
+  3 Rapporter
 Cratchit > Samlingsmapp > The ITfied AB > 2025/26> 
 ```
 
@@ -344,6 +345,68 @@ Listan visar de tio nyaste raderna. Finns det fler står det sist hur många äl
 | `klart` | Utkastet kan bokföras |
 
 Utkast skapar du i [Utkast](#utkast) under Årsflöde, från ett kontoutdrag eller genom att beskriva händelser.
+
+### Rapporter
+
+<!-- hjälp: rapporter -->
+Räkenskapsårets rapporter, som de ser ut i bokföringen just nu. Tryck `1` för balansrapporten, `2` för resultatrapporten, `3` för verifikationslistan och `4` för huvudboken för ett konto. Tryck `-` för att gå tillbaka till räkenskapsåret.
+<!-- /hjälp -->
+
+Tryck `3` i räkenskapsåret:
+
+```text
+Rapporter för räkenskapsåret 2025/26.
+  1 Balansrapport
+  2 Resultatrapport
+  3 Verifikationslista
+  4 Huvudbok
+Cratchit > Samlingsmapp > The ITfied AB > 2025/26 > Rapporter> 
+```
+
+cratchit läser bokföringen när du väljer en rapport, så rapporten visar det som är bokfört just då. Utkast kommer inte med.
+
+| Rapport | Visar |
+|---|---|
+| Balansrapport | Varje balanskonto med ingående balans (IB), årets förändring och utgående balans (UB), under *Tillgångar* (konton 1xxx) och *Eget kapital och skulder* (konton 2xxx) med summor. Sist *Beräknat resultat*, resultatkontonas summa, och *Summa*, som är noll när bokföringen går ihop. Beloppen är som de är bokförda: debet positivt och kredit negativt, så en vinst är negativ i *Beräknat resultat*. Under rapporten står var de ingående balanserna kommer ifrån. |
+| Resultatrapport | Varje resultatkonto med årets belopp, i grupper efter BAS-kontoklass med summor: *Rörelsens intäkter* (3), *Varor, material och vissa köpta tjänster* (4), *Övriga externa kostnader* (5–6), *Personal, avskrivningar m.m.* (7) och *Finansiella och andra intäkter och kostnader* (8). Sist *Årets resultat*. Här är intäkter positiva och kostnader negativa, så en vinst är positiv. |
+| Verifikationslista | Årets verifikationer i bokföringsordning med sina rader i kolumnerna Debet och Kredit, och summor. En rad som har strukits eller lagts till efter att verifikationen registrerades är märkt `(struken)` eller `(tillagd)`, med signaturen när det finns en. En struken rad räknas inte med i summan. |
+| Huvudbok | Ett kontos ingående balans, varje rad på kontot i datumordning med saldot efter raden, och utgående balans. |
+
+Har årets resultat bokförts på kontona 8990–8999 i bokslutet, visar resultatrapporten de raderna efter *Årets resultat*, med det som är kvar när de räknas med. Det är noll när resultatet är bokfört. Balansrapporten har då inget beräknat resultat kvar.
+
+Går de ingående balanserna inte ihop säger balansrapporten det. Oftast beror det på att förra årets resultat inte är bokfört på eget kapital än (se *Bokföringen löper vidare över åren* ovan). Är året fört vidare från förra året listar rapporten också de konton där källan, till exempel en SIE-fil, angav en annan ingående balans än den cratchit för vidare.
+
+#### Läsa en rapport
+
+<!-- hjälp: rapport -->
+En rapport visas en sida i taget. Första raden säger vilka rader du ser, till exempel `rad 1–20 av 57`. `…` överst betyder att det finns rader före sidan, och `…` nederst att det finns fler efter. Tryck `>` för nästa sida och `<` för föregående. Vid första och sista sidan gör de ingenting. Tryck `-` för att gå tillbaka till Rapporter.
+<!-- /hjälp -->
+
+Ett exempel, från en liten testbokföring (`…` står här för rader som inte visas i exemplet):
+
+```text
+Balansrapport: rad 1–19 av 19
+Balansrapport 2025-01-01 – 2025-12-31
+Test AB
+
+Konto                IB     Förändring             UB  Namn
+
+Tillgångar
+1930            1000.00         200.00        1200.00  Bank
+                1000.00         200.00        1200.00  Summa tillgångar
+…
+  < Föregående sida
+  > Nästa sida
+Cratchit > Samlingsmapp > Test AB > 2025 > Rapporter > Balansrapport> 
+```
+
+#### Huvudbok för ett konto
+
+<!-- hjälp: huvudbok -->
+Skriv kontots nummer, till exempel `1930`, och tryck Enter för att se kontots huvudbok för räkenskapsåret. Numret skrivs med bara siffror. Ett konto som inte finns i bokföringen och inte har några rader under året ger ett besked under prompten, och det du skrev står kvar. Tryck `-` för att gå tillbaka till Rapporter.
+<!-- /hjälp -->
+
+Tryck `4` i Rapporter, skriv kontonumret och tryck Enter. Huvudboken visas som de andra rapporterna, en sida i taget, med prompten `Huvudbok 1930`.
 
 ### Årsflöde
 

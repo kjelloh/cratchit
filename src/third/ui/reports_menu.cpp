@@ -1,0 +1,150 @@
+#include "ui/reports_menu.hpp"
+
+#include "charset/utf8.hpp"
+#include "core/books/books.hpp"
+#include "core/books/report.hpp"
+#include "core/date.hpp"
+#include "core/log.hpp"
+#include "pyroceph/tui/error_state.hpp"
+#include "pyroceph/tui/pager.hpp"
+#include "ui/help_topics.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <expected>
+#include <format>
+#include <string>
+#include <utility>
+
+namespace cratchit::ui {
+
+namespace {
+
+using pyroceph::tui::Accepted;
+using pyroceph::tui::CodePoint;
+using pyroceph::tui::InputResult;
+using pyroceph::tui::OnKeyResult;
+using pyroceph::tui::OptionsList;
+using pyroceph::tui::State;
+using pyroceph::tui::View;
+
+constexpr CodePoint back_key = U'<';
+constexpr CodePoint forward_key = U'>';
+
+// The books and the index of the fiscal year in them, or why not
+struct YearInBooks {
+  books::Books books;
+  std::size_t index = 0;
+};
+std::expected<YearInBooks, std::string> read_year(Project const& project, FiscalYear const& year) {
+  auto books = books::read_books(project.folder);
+  if (!books) {
+    LOG_BUSINESS("Kunde inte läsa bokföringen i {}: {}", project.folder.string(), books.error());
+    return std::unexpected(std::format("cratchit kunde inte läsa bokföringen: {}", books.error()));
+  }
+  auto const start = parse_iso_date(year.start);
+  auto const* found = start ? books->year_starting(*start) : nullptr;
+  if (found == nullptr) return std::unexpected(std::format("Räkenskapsåret {} finns inte i bokföringen.", label_of(year)));
+  auto const index = static_cast<std::size_t>(found - books->years.data());
+  return YearInBooks{std::move(*books), index};
+}
+
+class ReportState : public State {
+public:
+  ReportState(std::string name, std::vector<std::string> lines) : name_(std::move(name)) { pager_.set(std::move(lines)); }
+  std::string name() const override { return name_; }
+  View view() const override {
+    View lines{std::format("{}: rad {}–{} av {}", name_, pager_.first() + 1, pager_.first() + pager_.shown(),
+                           pager_.count())};
+    auto const page = pager_.view();
+    lines.insert(lines.end(), page.begin(), page.end());
+    return lines;
+  }
+  // Always both, so that turning past either end does nothing (and starts no input)
+  OptionsList options() const override { return {{back_key, "Föregående sida"}, {forward_key, "Nästa sida"}}; }
+  bool on_key_in_place(CodePoint key) override {
+    if (key == back_key) return pager_.back();
+    if (key == forward_key) return pager_.forward();
+    return false;
+  }
+  OnKeyResult on_key(CodePoint) override { return nullptr; }
+  std::string help_topic() const override { return std::string(help_topic::report); }
+
+private:
+  std::string name_;
+  pyroceph::tui::Pager pager_{report_page_rows};
+};
+
+class ReportsState : public State {
+public:
+  ReportsState(Project project, FiscalYear year) : project_(std::move(project)), year_(std::move(year)) {}
+  std::string name() const override { return "Rapporter"; }
+  View view() const override { return {std::format("Rapporter för räkenskapsåret {}.", label_of(year_))}; }
+  OptionsList options() const override {
+    return {{U'1', "Balansrapport"}, {U'2', "Resultatrapport"}, {U'3', "Verifikationslista"}, {U'4', "Huvudbok"}};
+  }
+  OnKeyResult on_key(CodePoint key) override {
+    if (key == U'4') return make_ledger_menu(project_, year_);
+    if (key != U'1' && key != U'2' && key != U'3') return nullptr;
+    auto const year = read_year(project_, year_);
+    if (!year) return pyroceph::tui::make_error_state(year.error());
+    auto const& [in_books, index] = *year;
+    if (key == U'1') return make_report_view("Balansrapport", books::balance_report(in_books, index, project_.name));
+    if (key == U'2') return make_report_view("Resultatrapport", books::result_report(in_books, index, project_.name));
+    return make_report_view("Verifikationslista", books::voucher_list(in_books, index, project_.name));
+  }
+  std::string help_topic() const override { return std::string(help_topic::reports); }
+
+private:
+  Project project_;
+  FiscalYear year_;
+};
+
+class LedgerState : public State {
+public:
+  LedgerState(Project project, FiscalYear year) : project_(std::move(project)), year_(std::move(year)) {}
+  std::string name() const override { return "Huvudbok"; }
+  View view() const override { return {"Skriv kontots nummer och tryck Enter, till exempel 1930."}; }
+  OptionsList options() const override { return {}; }
+  OnKeyResult on_key(CodePoint) override { return nullptr; }
+  InputResult on_input(std::u32string_view text) override {
+    std::string typed;
+    charset::utf8::Encoder encoder;
+    for (auto const code_point : text) {
+      for (auto const byte : encoder.push(code_point)) typed.push_back(static_cast<char>(byte));
+    }
+    if (typed.empty() || !std::ranges::all_of(typed, [](char c) { return c >= '0' && c <= '9'; })) {
+      return std::unexpected(std::string("Skriv kontots nummer med bara siffror, till exempel 1930."));
+    }
+    auto const year = read_year(project_, year_);
+    if (!year) return std::unexpected(year.error());
+    auto const& [in_books, index] = *year;
+    auto ledger = books::account_ledger(in_books, index, project_.name, typed);
+    if (!ledger) {
+      return std::unexpected(
+          std::format("Konto {} finns inte i bokföringen och har inga rader i {}.", typed, label_of(year_)));
+    }
+    return Accepted(make_report_view(std::format("Huvudbok {}", typed), std::move(*ledger)));
+  }
+  std::string help_topic() const override { return std::string(help_topic::ledger_account); }
+
+private:
+  Project project_;
+  FiscalYear year_;
+};
+
+} // namespace
+
+std::unique_ptr<State> make_reports_menu(Project project, FiscalYear year) {
+  return std::make_unique<ReportsState>(std::move(project), std::move(year));
+}
+
+std::unique_ptr<State> make_report_view(std::string name, std::vector<std::string> lines) {
+  return std::make_unique<ReportState>(std::move(name), std::move(lines));
+}
+
+std::unique_ptr<State> make_ledger_menu(Project project, FiscalYear year) {
+  return std::make_unique<LedgerState>(std::move(project), std::move(year));
+}
+
+} // namespace cratchit::ui

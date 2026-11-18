@@ -297,7 +297,8 @@ TEST_F(RootMenuTest, ProjectOffersItsFiscalYearsTheCurrentAsZero) {
   EXPECT_EQ(navigator.current().name(), "2024/25");
   EXPECT_EQ(navigator.current().view(), (View{"Räkenskapsår 2024-05-01 – 2025-04-30", "Hela året: inget bokfört"}));
   EXPECT_EQ(navigator.current().options(),
-            (OptionsList{{U'0', "Årsflöde"}, {U'1', "Exportera till SIE"}, {U'2', "Importera från SIE"}}));
+            (OptionsList{{U'0', "Årsflöde"}, {U'1', "Exportera till SIE"}, {U'2', "Importera från SIE"},
+                         {U'3', "Rapporter"}}));
   EXPECT_TRUE(navigator.back());
   EXPECT_EQ(navigator.current().name(), "The ITfied AB");
 }
