@@ -1,5 +1,16 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.25)
 project(cratchit CXX)
+
+# cratchit is one program with the variants zeroth, first, second and third.
+# zeroth, first and second (the legacy variants) build on macOS only; third
+# (src/third) builds on Windows, Linux and macOS. Without the legacy variants
+# cratchit is variant third only. conanfile.py sets this from its option with_legacy.
+option(CRATCHIT_WITH_LEGACY "Compile in the variants zeroth, first and second (macOS only)" ${APPLE})
+message(STATUS "CRATCHIT_WITH_LEGACY: ${CRATCHIT_WITH_LEGACY}")
+
+# BUILD_TESTING and ctest for the whole build (third's tests are in src/third/test)
+include(CTest)
+include(GNUInstallDirs)
 
 # Set the C++ standard version
 set(CMAKE_CXX_STANDARD 23)  # or 20, 23, etc.
@@ -25,6 +36,8 @@ if(MAX_COMPILE_ERRORS)
 else()
     message(STATUS "No compile error limit set (unlimited errors)")
 endif()
+
+if(CRATCHIT_WITH_LEGACY)
 
 # used by 'second'
 find_package(CLI11)
@@ -176,9 +189,17 @@ add_executable(
         src/text/to_inferred_encoding.cpp
         src/persistent/out/raw_text_write.cpp
         src/persistent/in/encoding_aware_read.cpp 
-        src/persistent/out/encoding_aware_write.cpp 
+        src/persistent/out/encoding_aware_write.cpp
 
       )
+
+else() # Without the legacy variants: main.cpp only, which runs third
+
+add_executable(cratchit src/main.cpp)
+
+endif()
+
+target_compile_definitions(cratchit PRIVATE CRATCHIT_WITH_LEGACY=$<BOOL:${CRATCHIT_WITH_LEGACY}>)
 
 # configure warnings and warnings as errors
 if(MSVC)
@@ -193,7 +214,20 @@ else()
         -Wpedantic # Strict standard conformance warnings
         -Werror    # Treat warnings as errors
     )
-endif()      
+endif()
+
+target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+# Variant third: its libraries and third::main (library third_main), and the
+# framework (.cratchit) copied next to cratchit and installed with it
+add_subdirectory(src/third)
+target_link_libraries(cratchit PRIVATE third_main)
+
+# Installs cratchit into <prefix>/bin (CMAKE_INSTALL_PREFIX: /usr/local, on Windows
+# C:/Program Files/cratchit). src/third installs the framework next to it, bin/.cratchit/.
+install(TARGETS cratchit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+if(CRATCHIT_WITH_LEGACY)
 
 # Populate runtime with font resources (See relevant raylib calls where it is accessed)
 add_custom_command(TARGET cratchit POST_BUILD
@@ -208,8 +242,6 @@ add_custom_command(TARGET cratchit POST_BUILD
 # target_compile_options(cratchit PRIVATE -fsanitize=address)
 # target_link_options(cratchit PRIVATE -fsanitize=address)
 
-target_include_directories(cratchit PRIVATE ${CMAKE_SOURCE_DIR}/src)
-
 target_link_libraries(cratchit PRIVATE sol2::sol2)
 target_link_libraries(cratchit PRIVATE Curses::Curses)
 target_link_libraries(cratchit PRIVATE pugixml::pugixml)
@@ -218,12 +250,6 @@ target_link_libraries(cratchit PRIVATE immer::immer)
 target_link_libraries(cratchit PRIVATE spdlog::spdlog)
 target_link_libraries(cratchit PRIVATE gtest::gtest)
 target_link_libraries(cratchit PRIVATE raylib)
-
-install(TARGETS cratchit DESTINATION "."
-        RUNTIME DESTINATION bin
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib
-        )
 
 # Try to log the actual compiler options
 get_target_property(cxx_flags cratchit COMPILE_OPTIONS)
@@ -239,4 +265,6 @@ message(STATUS "CMake C++ Standard: ${CMAKE_CXX_STANDARD}")
 #       the command was append_cmake_text('src/second/test/CMakeLists.txt').
 #       But hey, that's me...
 add_subdirectory(src/second/test)
+
+endif() # CRATCHIT_WITH_LEGACY
 

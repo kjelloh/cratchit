@@ -28,18 +28,48 @@ The goal is in [session.md](session.md), and the decisions are in [beslut.md](be
   * Not yet run on GitHub: that happens on the first push.
   * Legacy cratchit is untouched.
 
+* 2026-11-18: Step A's workflow ran green on GitHub on all three platforms, as reported by the user.
+* 2026-11-18: Step B, the wiring, is done. `cratchit` is one program with the variants zeroth, first, second and third.
+  * `src/third/main.cpp` has `third::main` (declared in `src/third/main.hpp`). It got a `return 0;`, which the global `main` it once was didn't need.
+  * `src/third/CMakeLists.txt` no longer makes a program:
+    * It makes the library `third_main` (`main.cpp` and the build stamp), which links third's libraries PRIVATE.
+    * It copies the framework next to `cratchit` and installs it.
+    * Its project is renamed `cratchit_third`, and `include(CTest)` moved to the top level.
+    * `src/third/conanfile.py` is removed. Third can no longer be built on its own from `src/third/`.
+  * The top-level `CMakeLists.txt`:
+    * It requires CMake 3.25.
+    * It has the option `CRATCHIT_WITH_LEGACY` (default `${APPLE}`). When it's on, everything legacy (the `find_package` calls, sources, links, the font copy and `src/second/test`) is built. When it's off, `cratchit` is `src/main.cpp` only.
+    * It always has `add_subdirectory(src/third)`, links `third_main`, and installs `cratchit` into `bin/` with GNUInstallDirs.
+  * `conanfile.py` has the option `with_legacy`: default `True`, but `False` on anything but macOS. It's passed to CMake as `CRATCHIT_WITH_LEGACY`. `zlib` and `gtest` are always required, and the legacy packages only with `with_legacy`.
+  * `src/main.cpp`:
+    * The legacy `main` is now `legacy_main`, compiled only with `CRATCHIT_WITH_LEGACY`.
+    * The new `main` checks the first argument for `--third` before anything else, and calls `third::main` with `--third` removed.
+    * Without legacy, `main` always runs third.
+    * With legacy and no `--third`, `main` runs `legacy_main`, as before (third is not the default yet, see step D).
+  * The workflow builds the top level with `-o "&:with_legacy=False"`. Its sparse checkout is `CMakeLists.txt`, `conanfile.py`, `src/main.cpp` and `src/third/`. It also runs `cratchit --third` and `cratchit --third --sie-to-ar --help`.
+  * `src/third/README.md` says to build from the root folder, and explains `with_legacy` and `--third`.
+  * Tried locally on macOS (Debug):
+    * **Without legacy** (a separate build folder, Conan with `with_legacy=False`): only `zlib` and `gtest` are pulled in.
+      * Build works.
+      * `ctest`: 970 tests pass.
+      * No arguments or `--third` start the UI.
+      * `--sie-to-ar` and `--sie-to-vat` work with and without `--third`.
+      * `--zeroth` is rejected by third (exit code 2).
+      * `cmake --install --prefix <temp>` installs `bin/cratchit` and `bin/.cratchit/`, and the installed program finds its framework.
+    * **With legacy** (the usual `build/Debug`, `conan install` as in `init_tool_chain.zsh`):
+      * Build works, with all four variants linked into one `cratchit`, without duplicate-symbol errors.
+      * `./run.zsh --nop` works.
+      * Legacy `--test`: 364 tests pass.
+      * `ctest`: 971 tests pass.
+      * `--third` starts the UI, and `--third --sie-to-ar --help` works.
+  * Not yet run on GitHub: that happens on the next push.
+
 ## Next steps
 
-* **B. Wire it in.**
-  * `main` becomes `third::main` (`src/third/main.hpp`).
-  * The top-level `CMakeLists.txt` gets `add_subdirectory(src/third)` and the option `CRATCHIT_WITH_LEGACY`.
-  * `conanfile.py` gets `zlib`, and the legacy packages become conditional on the option.
-  * `src/main.cpp` checks for `--third` first.
-  * The workflow builds the top level with the option off.
 * **C. Check and install.**
   * Check that no symbols overlap: build both, then compare the symbols they define with `nm`.
   * Install with `cmake --install`, putting `cratchit`, `.cratchit/` (third's framework) and `resources/` (second's font) in place.
-  * `run.zsh` also copies `.cratchit/`.
+  * `run.zsh` also copies `.cratchit/`. Until then, `./run.zsh --third` (in `workspace/`) runs third's commands, but its UI doesn't find its framework there.
 * **D. Make `third` the default.**
 
 ## Good to know

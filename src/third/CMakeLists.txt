@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(cratchit VERSION 0.1.0 LANGUAGES CXX)
+# cratchit's variant third, pulled in by the top-level CMakeLists.txt with
+# add_subdirectory. That file makes the program, cratchit, which links third_main
+# below. The settings here (C++23, warnings as errors) apply to third's targets only.
+project(cratchit_third VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -302,12 +305,16 @@ add_custom_target(cratchit_build_stamp
   COMMENT "Stamping the build time into cratchit"
 )
 
-add_executable(cratchit
+# third::main (main.hpp), which the program cratchit calls for variant third. A
+# library of its own that links third's libraries PRIVATE, so that their include
+# folders (e.g. walk_pdf/ with bare names like path.hpp) never reach the sources
+# of the other variants in cratchit.
+add_library(third_main STATIC
   main.cpp
   ${build_stamp_file}
 )
-add_dependencies(cratchit cratchit_build_stamp)
-target_link_libraries(cratchit PRIVATE cratchit_core cratchit_ui pyroceph walk_pdf cratchit_warnings)
+add_dependencies(third_main cratchit_build_stamp)
+target_link_libraries(third_main PRIVATE cratchit_core cratchit_ui pyroceph walk_pdf cratchit_warnings)
 
 # The framework comes with the program: a .cratchit folder next to it, which
 # cratchit only reads. resources/ holds its sources; framework.txt gets the
@@ -317,22 +324,21 @@ configure_file(resources/framework.txt.in ${framework_folder}/framework.txt @ONL
 # The user manual comes with the framework, so that ? can show its help paragraphs
 configure_file(docs/anvandarmanual.md ${framework_folder}/anvandarmanual.md COPYONLY)
 
-# Copies the framework next to the built program on every build, so that a
-# development build finds it just like an installed one
+# Copies the framework next to the built program (the target cratchit, made by the
+# top-level CMakeLists.txt) on every build, so that a development build finds it
+# just like an installed one
 add_custom_target(cratchit_framework ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory ${framework_folder} $<TARGET_FILE_DIR:cratchit>/.cratchit
   COMMENT "Copying the framework next to cratchit"
 )
 add_dependencies(cratchit_framework cratchit)
 
-# Installs the program and its framework into <prefix>/bin, by default for the whole
-# computer (CMAKE_INSTALL_PREFIX: /usr/local, on Windows C:/Program Files/cratchit):
-# bin/cratchit and bin/.cratchit/. The libraries are static and built into the program.
+# Installs the framework into <prefix>/bin, next to the program: bin/.cratchit/.
+# The top-level CMakeLists.txt installs the program itself, bin/cratchit.
 include(GNUInstallDirs)
-install(TARGETS cratchit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY ${framework_folder} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-include(CTest)
+# BUILD_TESTING comes from include(CTest) in the top-level CMakeLists.txt
 if(BUILD_TESTING)
   add_subdirectory(test)
 endif()

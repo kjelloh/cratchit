@@ -1,3 +1,5 @@
+#include "main.hpp"
+
 #include "core/ar/cli.hpp"
 #include "core/build_stamp.hpp"
 #include "core/ink2/cli.hpp"
@@ -35,6 +37,8 @@ charset::Encoding encoding_of(cratchit::Charset charset) {
 }
 
 } // namespace
+
+namespace third {
 
 int main(int argc, char* argv[]) {
   // With arguments cratchit runs a command and ends, without its user interface:
@@ -138,4 +142,7 @@ int main(int argc, char* argv[]) {
     if (keys.failure_count() > 0) LOG_DESIGN_INSUFFICIENCY("{} tangenter kunde inte avkodas", keys.failure_count());
   }
   LOG_BUSINESS("cratchit avslutades");
+  return 0; // implicit for the global main it once was, but not for third::main
 }
+
+} // namespace third

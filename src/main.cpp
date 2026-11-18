@@ -1,6 +1,14 @@
+#include "third/main.hpp" // third::main(...) = the cross-platform cratchit after second (src/third)
+#include <string_view>
+#include <vector>
+
+// CRATCHIT_WITH_LEGACY (CMake option, ON by default on macOS): compile in the
+// variants zeroth, first and second, which build on macOS only. Without them
+// cratchit is variant third only.
+#if CRATCHIT_WITH_LEGACY
+
 #include "cratchit.h" // first::main(...) = the cratchit variant after zeroth
 #include "test/test_runner.hpp"
-#include <vector>
 #include <string>
 #include <print>
 #include "logger/log.hpp"
@@ -8,7 +16,8 @@
 #include "zeroth/main.cpp" // zeroth::main(...) = the initial cratchit
 #include "second/main.hpp" // second::main(..) = the cratchit variant after first
 
-int main(int argc, char *argv[]) {
+// The variants zeroth, first and second (and --nop, --version, --test, --gtest...)
+static int legacy_main(int argc, char *argv[]) {
 
     // shoe horned in conan package manager test code (just to keep it for now)
     if (true) {
@@ -114,4 +123,27 @@ int main(int argc, char *argv[]) {
     }
 
     return result;
+}
+
+#endif // CRATCHIT_WITH_LEGACY
+
+int main(int argc, char *argv[]) {
+    // --third as the first argument runs variant third. Checked before anything
+    // else, so that third's commands (e.g. --sie-to-ar) print nothing but their own.
+    bool const third_flag = argc > 1 && std::string_view(argv[1]) == "--third";
+
+#if CRATCHIT_WITH_LEGACY
+    if (!third_flag) {
+      return legacy_main(argc, argv);
+    }
+#endif
+
+    // third gets the arguments as a program of its own: --third removed
+    std::vector<char*> third_argv(argv, argv + argc);
+    if (third_flag) {
+      third_argv.erase(third_argv.begin() + 1);
+    }
+    int const third_argc = static_cast<int>(third_argv.size());
+    third_argv.push_back(nullptr); // argv[argc] is a null pointer, as for main
+    return third::main(third_argc, third_argv.data());
 }

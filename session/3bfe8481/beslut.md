@@ -22,4 +22,8 @@ Decisions that apply in this session. The goal is in [session.md](session.md), a
   * When it's off, only `third` is compiled in, and the legacy Conan packages aren't required.
   * The GitHub workflow builds with it off, on Windows, Linux and macOS.
 * **`--third` is checked first in `main`.** This happens before legacy cratchit prints or logs anything, so playground cratchit's commands (`--walk-pdf`, `--sie-to-ar`, `--sie-to-ink2`, `--sie-to-vat`) still print nothing else.
+* **Details of the wiring (step B):**
+  * `--third` counts only as the first argument, and is removed before `third::main` gets the arguments. Legacy's own flags (`--zeroth`, …) are still read anywhere in the arguments, as before.
+  * Conan's option `with_legacy` decides what is built, and is passed to CMake's `CRATCHIT_WITH_LEGACY`. CMake's own default (`${APPLE}`) applies only without Conan.
+  * Third no longer builds as a program of its own from `src/third/`. The top level is the one way to build, with or without legacy.
 * **`third` will be the default variant when the merge is done.** That means `cratchit` with no variant flag runs `third`, and legacy cratchit is reached with `--zeroth`, `--first` or `--second`.

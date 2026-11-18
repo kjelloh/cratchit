@@ -4,6 +4,8 @@ An SIE based book keeping helper console in modern C++. SIE is a File Encoding f
 
 The name Cratchit is a reference to Bob Cratchit that is the poor clerk of Scrooge in Charles Dickens novel "A Christmas Carol".
 
+Vibe coded cratchit --third is coming [src/third/README.md](./src/third/README.md)
+
 * [docs/README](docs/README.md)
 * [LICENSE](LICENSE)
 
