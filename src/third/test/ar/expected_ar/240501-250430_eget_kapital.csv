@@ -1,0 +1,9 @@
+# Typed in from _Resources/_årsredovisningar/Årsredovisning 240501-250430.pdf, page 3, Förändringar i eget kapital.
+# Kronor; an empty cell is 0. Where the PDF differs, the amount is what cratchit_ar gives and Kommentar says why.
+# PDF row Utdelning is empty: the dividend booked by I2 was cancelled by I3, so cratchit_ar leaves the row out.
+Rad;Aktiekapital;Balanserat resultat;Årets resultat;Totalt;Kommentar
+Belopp vid årets ingång;100800;69653;-30547;139906;
+Erhållna aktieägartillskott;;100000;;100000;PDF: Aktieägartillskott (ovillk.) 100 000 i kolumnen Årets resultat, men 2093 är Balanserat resultat
+Balanseras i ny räkning;;-30547;30547;0;
+Årets resultat;;;-46702;-46702;
+Belopp vid årets utgång;100800;139106;-46702;193204;PDF: Balanserat resultat 39 106, men balansräkningen visar 139 106

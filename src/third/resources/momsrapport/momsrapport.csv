@@ -1,0 +1,144 @@
+Box;Section;Section;Description
+05;Momspliktig försäljning eller uttag;Momspliktig försäljning som inte ingår i ruta 06, 07 eller 08;"Momspliktig försäljning som inte ingår i ruta 06, 07 eller 08
+Här ska du redovisa:
+momspliktig försäljning av varor och tjänster i Sverige exklusive moms
+försäljning till utlandet, om du ska ta ut svensk moms
+försäljning till köpare i andra EU-länder som inte agerar i egenskap av beskattningsbara personer. Det kan till exempel vara privatpersoner. Företag som åberopar ett giltigt momsregistreringsnummer får anses agera i egenskap av beskattningsbara personer.
+Redovisa inte följande i det här fältet:
+försäljning när du har använt vinstmarginalbeskattning vid försäljning av varor eller resetjänster. Redovisa det i fält 07 (Beskattningsunderlag vid vinstmarginalbeskattning).
+hyresinkomster när du är frivilligt betalningsskyldig för uthyrning av en verksamhetslokal. Redovisa det i fält 08 (Hyresinkomster vid frivillig beskattning)."
+06;Momspliktig försäljning eller uttag;Momspliktiga uttag;"Momspliktiga uttag
+Här ska du redovisa momspliktiga uttag, till exempel privat användning av varor eller tjänster som har utförts utan ersättning. Fyll i värdet av uttaget exklusive moms av varor och tjänster som du ska uttagsbeskatta dig för.  Redovisa momspliktiga uttag av en vara eller en tjänst i följande situationer:
+Du har tagit ut en vara ur verksamheten för ditt eget eller personalens privata bruk utan ersättning.
+Du har gett bort en vara.
+Du har fört över en vara till en verksamhet som inte är momspliktig.
+Du har utfört eller låtit utföra en tjänst åt dig själv, din personal eller någon annan utan ersättning.
+Du har använt en vara som hör till verksamheten för privat bruk utan att betala ersättning.
+Du har låtit någon annan använda en vara som hör till verksamheten utan ersättning.
+För vissa tjänster inom fastighetsområdet gäller särskilda regler för uttagsbeskattning."
+07;Momspliktig försäljning eller uttag;Beskattningsunderlag vid vinstmarginalbeskattning;"Beskattningsunderlag vid vinstmarginalbeskattning
+Du kan behöva använda reglerna för vinstmarginalbeskattning på vissa varor och resetjänster. Det gäller begagnade varor, konstverk, samlarföremål och resetjänster som avser resor eller del av resor inom EU. För att vara en sådan resetjänst ska reseföretaget sälja resan i eget namn och i resan ska det ingå inköp från annat företag, till exempel transport och logi, som kommer resenären tillgodo under resan. Du ska fylla i beskattningsunderlaget för varorna och resetjänsterna. Beskattningsunderlaget är det värde som momsen ska beräknas på.  Beskattningsunderlag för begagnade varor, konstverk, samlarföremål och antikviteter Beskattningsunderlaget för den här typen av varor är vinstmarginalen minskad med momsen på vinstmarginalen. Vinstmarginalen är en varas försäljningspris minus dess inköpspris. Du ska bara redovisa moms när vinstmarginalen är positiv, det vill säga när försäljningspriset är högre än inköpspriset.  I vissa fall kan du tillämpa förenklad vinstmarginalbeskattning. Då är vinstmarginalen i stället periodens sammanlagda försäljningsinkomster för varor minus periodens sammanlagda inköpsutgifter för varor. Du ska bara redovisa moms när periodens vinstmarginal är positiv.  Beskattningsunderlag för resetjänster När du säljer en resetjänst med vinstmarginalbeskattning är beskattningsunderlaget reseföretagets vinstmarginal utan moms. Vinstmarginalen är resans pris inklusive moms minus kostnader inklusive moms för inköp av varor och tjänster från andra företag som kommer resenären tillgodo under resan. Vinstmarginalen kan även beräknas genom en schablon. Schablonen är 13 procent av försäljningspriset exklusive moms. Du måste använda samma beräkningsmetod för ett helt beskattningsår."
+08;Momspliktig försäljning eller uttag;Hyresinkomster vid frivillig beskattning;"Hyresinkomster vid frivillig beskattning
+Fyll i hyresinkomster exklusive moms för de lokaler där du är frivilligt betalningsskyldig för uthyrningen."
+10;Momspliktig försäljning eller uttag;Utgående moms 25%;"Utgående moms 25%
+Fyll i den utgående momsen på 25 procent på försäljningar och uttag som du har redovisat i fälten 05–08.  Det är 25 procent i moms på nästan alla varor och tjänster.  Redovisa summan av utgående moms på följande:
+försäljning av varor och tjänster som har levererats eller tillhandahållits inom Sverige, inklusive hyresinkomster vid frivillig beskattning och försäljning där momsen beräknas på vinstmarginalen (utom när vinstmarginalen avser varor som omfattas av 6 procent i moms, till exempel böcker)
+uttag av varor och tjänster som har levererats eller tillhandahållits inom Sverige
+förskott på en beställd vara eller tjänst som ska levereras eller tillhandahållas inom Sverige."
+11;Momspliktig försäljning eller uttag;Utgående moms 12%;"Utgående moms 12%
+Fyll i den utgående momsen på 12 procent på försäljningar och uttag som du har redovisat i fälten 05–08.  Det är 12 procent i moms på till exempel livsmedel, restaurangtjänster, konstverk, hotell och liknande uthyrning av rum."
+12;Momspliktig försäljning eller uttag;Utgående moms 6%;"Utgående moms 6%
+Fyll i den utgående momsen på 6 procent på försäljningar och uttag som du har redovisat i fälten 05–08.  Det är 6 procent i moms på till exempel böcker, tidningar, entréavgifter till vissa föreställningar, vissa idrottstjänster och persontransporter som sker inom Sverige."
+20;Momspliktiga inköp vid omvänd betalningsskyldighet;Inköp av varor från annat EU-land;"Inköp av varor från annat EU-land
+Fyll i det här fältet om du har köpt varor från ett annat EU-land som du själv ska redovisa den utgående momsen för.  Redovisa värdet av detta i följande situationer:
+Du har köpt varor från ett företag i ett annat EU-land och varorna transporteras från ett annat EU-land till Sverige.
+Du har gjort en överföring till Sverige från en egen verksamhet i ett annat EU-land som ska beskattas i Sverige.
+
+Detta kallas för unionsinterna förvärv.
+
+En beskattningsbar person som inte är etablerad inom landet ska redovisa värdet av överföringar till Sverige från verksamheter som företagen bedriver i ett annat EU-land även i de fall som överföringen inte ska beskattas i Sverige. Det gäller beskattningsbara personer som inte är etablerad inom landet och som är momsregistrerade i Sverige på grund av att de gör unionsinterna förvärv som är undantagna från skatteplikt.
+
+Du ska inte redovisa inköp som du har gjort för att direkt sälja varan vidare i det här fältet. Det gäller när du har köpt varan av en säljare i ett EU-land och sedan direkt levererat varan till en kund i ett annat EU-land. Redovisa detta i stället i fält 37 (Mellanmans inköp av varor vid trepartshandel)."
+21;Momspliktiga inköp vid omvänd betalningsskyldighet;Inköp av tjänster från annat EU-land enligt huvudregeln;"Inköp av tjänster från annat EU-land enligt huvudregeln
+Fyll i det här fältet om du har köpt tjänster från ett annat EU-land enligt huvudregeln som du ska redovisa den utgående momsen för.  Du ska inte redovisa något av följande i det här fältet:
+fastighetstjänster
+persontransporter
+tillträde till evenemang som är kulturella, konstnärliga, idrottsliga, vetenskapliga eller pedagogiska
+restaurangtjänster och cateringtjänster
+korttidsuthyrning av transportmedel.
+Inköp av vissa fastighetstjänster som är undantagna från huvudregeln redovisar du i stället i fält 24 (Övriga inköp av tjänster i Sverige som köparen är betalningsskyldig för)."
+22;Momspliktiga inköp vid omvänd betalningsskyldighet;Inköp av tjänster från land utanför EU;"Inköp av tjänster från land utanför EU
+Fyll i det här fältet om du har köpt tjänster från ett land utanför EU. Redovisa både inköp av tjänster enligt huvudregeln och andra inköp av tjänster där du som köpare ska betala momsen."
+23;Momspliktiga inköp vid omvänd betalningsskyldighet;Inköp av varor i Sverige som köparen är betalningsskyldig för;"Inköp av varor i Sverige som köparen är betalningsskyldig för
+Fyll i det här fältet om du har köpt varor i Sverige som du ska redovisa den utgående momsen för.  Exempel på situationer när du ska redovisa i det här fältet:
+Du har köpt varor från en beskattningsbar person som inte är etablerad i Sverige som har valt att inte vara betalningsskyldig för försäljning till momsregistrerade köpare i Sverige.
+Du har köpt guldmaterial eller halvfärdiga produkter med minst 325 tusendelars finhalt.
+Du har köpt investeringsguld av en säljare som är frivilligt betalningsskyldig för försäljningen.
+Du har köpt skrot och avfall som omfattas av omvänd betalningsskyldighet."
+24;Momspliktiga inköp vid omvänd betalningsskyldighet;Övriga inköp av tjänster i Sverige som köparen är betalningsskyldig för;"Övriga inköp av tjänster i Sverige som köparen är betalningsskyldig för
+Fyll i det här fältet om du har köpt tjänster i Sverige som du ska redovisa den utgående momsen för. Det gäller vissa andra tjänster än de som du ska redovisa i fält 21 eller 22.  Exempel på inköp av tjänster som du ska redovisa här:
+tjänster inom byggsektorn som du som köpare ska redovisa och betala moms för, så kallad omvänd betalningsskyldighet. Omvänd betalningsskyldighet inom byggsektorn gäller också om du som köpare säljer sådana tjänster vidare till någon som i sin tur säljer byggtjänster.
+tjänster med anknytning till fastigheter i Sverige och som utförs av en beskattningsbar person som inte är etablerad inom landet som frivilligt har valt att inte vara betalningsskyldig för försäljningen."
+30;Momspliktiga inköp vid omvänd betalningsskyldighet;Utgående moms 25%;"Utgående moms 25%
+Fyll i den utgående momsen på 25 procent på inköp som du har redovisat i fälten 20–24."
+31;Momspliktiga inköp vid omvänd betalningsskyldighet;Utgående moms 12%;"Utgående moms 12%
+Fyll i den utgående momsen på 12 procent på inköp som du har redovisat i fälten 20–24."
+32;Momspliktiga inköp vid omvänd betalningsskyldighet;Utgående moms 6%;"Utgående moms 6%
+Fyll i den utgående momsen på 6 procent på inköp som du har redovisat i fälten 20–24."
+50;Import;Beskattningsunderlag vid import;"Beskattningsunderlag vid import
+Fyll i värdet av varor som företaget har importerat till Sverige.  Det här ska ingå i beskattningsunderlaget:
+tullvärde
+tull och andra statliga skatter eller avgifter utom moms
+bikostnader som emballage, transport och försäkring."
+60;Import;Utgående moms 25%;"Utgående moms 25%
+Fyll i den utgående momsen på 25 procent på import som du har redovisat i fält 50 (Beskattningsunderlag vid import)."
+61;Import;Utgående moms 12%;"Utgående moms 12%
+Fyll i den utgående momsen på 12 procent på import som du har redovisat i fält 50 (Beskattningsunderlag vid import)."
+62;Import;Utgående moms 6%;"Utgående moms 6%
+Fyll i den utgående momsen på 6 procent på import som du har redovisat i fält 50 (Beskattningsunderlag vid import)."
+35;Försäljning m.m. som är undantagen från moms;Försäljning av varor till annat EU-land;"Försäljning av varor till annat EU-land
+Belopp som du redovisar i det här fältet ska du även redovisa i en periodisk sammanställning.  Fyll i följande:
+Du ska redovisa det fakturerade värdet av varor som du säljer utan moms till en kund i ett annat EU-land därför att kunden har åberopat ett giltigt momsregistreringsnummer i ett annat EU-land än Sverige. Förskott för en sådan varuleverans redovisar du först vid leveransen.
+Du ska redovisa anskaffningsvärdet för varor som har överförts från Sverige till en egen filial, eller till en egen verksamhet i ett annat EU-land om verksamheten är momsregistrerad där. Med överföring menas en gränsöverskridande varutransport inom EU utan att varan byter ägare.
+Det här ska du inte redovisa i det här fältet Du ska inte redovisa värdet av varuöverföringar till ett annat EU-land när varan anses vara levererad i det andra EU-landet. Detta gäller när en vara överförs i samband med monteringsleverans."
+36;Försäljning m.m. som är undantagen från moms;Försäljning av varor utanför EU;"Försäljning av varor utanför EU
+Här redovisar du värdet av en varuförsäljning utanför EU. I mervärdesskattelagen kallas sådan försäljning export.  Följande räknas som export:
+direkt utförsel till en plats utanför EU
+hämtköp som en beskattningsbar person från ett land utanför EU gör
+leverans av vissa obeskattade unionsvaror till exportbutik
+leverans till flygplan i utrikestrafik för bruk ombord
+försäljning ombord på fartyg och flygplan i utrikestrafik för konsumtion ombord
+försäljning av tillfälligt registrerade bilar och motorcyklar
+försäljning av bilar och motorcyklar som varaktigt förts utanför EU
+försäljning till personer bosatta utanför EU, så kallad taxfree.
+Redovisa också överföring av varor från Sverige till företagets filial i ett land utanför EU."
+37;Försäljning m.m. som är undantagen från moms;Mellanmans inköp av varor vid trepartshandel;"Mellanmans inköp av varor vid trepartshandel
+Fyll i det här fältet om du har köpt varor från en momsregistrerad säljare i ett annat EU-land än Sverige, för att direkt sälja varorna vidare till en momsregistrerad köpare i ett annat EU-land. Det kallas för att du är mellanman i en trepartshandel förutsatt att alla tre parter är momsregistrerade i respektive EU-land och varan transporteras mellan två EU-länder från den första till den sista parten i kedjan.  Du som mellanman betalar inte moms vid trepartshandel. Detta är ett undantag från de unionsinterna förvärv som du ska redovisa i fält 20."
+38;Försäljning m.m. som är undantagen från moms;Mellanmans försäljning av varor vid trepartshandel;"Mellanmans försäljning av varor vid trepartshandel
+Fyll i det här fältet om du har sålt varor, som du har köpt som mellanman i en trepartshandel enligt fält 37, till en momsregistrerad köpare i ett annat EU-land än Sverige.  Det belopp som du redovisar här ska du även redovisa som värde av trepartshandel i en periodisk sammanställning."
+39;Försäljning m.m. som är undantagen från moms;Försäljning av tjänster till beskattningsbar person i annat EU-land enligt huvudregeln;"Försäljning av tjänster till beskattningsbar person i annat EU-land enligt huvudregeln
+Fyll i det här fältet om du har sålt tjänster utan moms enligt huvudregeln till en beskattningsbar person i ett annat EU-land än Sverige.  Huvudregeln innebär att tjänsterna anses vara tillhandahållna i det andra EU-landet och att köparen är betalningsskyldig för inköpet.  Du ska även redovisa värdet av de tillhandahållna tjänsterna i en periodisk sammanställning, under förutsättning att köparen har ett momsregistreringsnummer och tjänsterna är skattepliktiga i det andra EU-landet. Annars ska du inte redovisa värdet i den periodiska sammanställningen. Det innebär att uppgifterna i den periodiska sammanställningen kan skilja sig från uppgifterna i momsdeklarationen.  Huvudregeln gäller alla momspliktiga tjänster, förutom följande:
+fastighetstjänster
+persontransporttjänster
+kulturella, pedagogiska, idrottsliga eller vetenskapliga evenemang
+restaurangtjänster och cateringtjänster
+korttidsuthyrning av transportmedel.
+Försäljning av tjänster som är undantagna från huvudregeln och som är tillhandahållna utanför Sverige redovisar du i stället i fält 40."
+40;Försäljning m.m. som är undantagen från moms;Övrig försäljning av tjänster som tillhandahållits utomlands;"Övrig försäljning av tjänster som tillhandahållits utomlands
+Här redovisar du övrig försäljning av tjänster utanför Sverige, som du inte ska redovisa i fält 39. Det gäller till exempel:
+tjänster som inte följer huvudregeln och som du säljer till ett företag i ett annat EU-land
+vissa tjänster som du säljer till privatpersoner i ett land utanför EU, till exempel konsulttjänster och annonstjänster
+tjänster som följer huvudregeln som du säljer till en företagare i ett land utanför EU
+resetjänster som avser resor utanför EU."
+41;Försäljning m.m. som är undantagen från moms;Försäljning när köparen är betalningsskyldig i Sverige;"Försäljning när köparen är betalningsskyldig i Sverige
+Fyll i det här fältet vid försäljning där köparen finns i Sverige och är betalningsskyldig för det företaget säljer, så kallad omvänd betalningsskyldighet. Exempel på sådan försäljning:
+Företaget har sålt tjänster inom byggsektorn där köparen ska redovisa och betala momsen.
+En beskattningsbar person som inte är etablerad inom landet har sålt varor och tjänster till momsregistrerade köpare i Sverige, under förutsättning att den beskattningsbara personen inte är etablerad inom landet och inte är frivilligt momsregistrerad här i Sverige för sådan försäljning.
+Företaget har sålt guldmaterial eller halvfärdiga produkter med minst 325 tusendelars finhalt.
+Företaget har sålt investeringsguld, och du som säljare är frivilligt betalningsskyldig. Trots att du som säljare är frivilligt betalningsskyldig ska köparen redovisa och betala momsen.
+Företaget har sålt skrot och avfall som omfattas av omvänd betalningsskyldighet."
+42;Försäljning m.m. som är undantagen från moms;Övrig försäljning m.m.;"Övrig försäljning m.m.
+Fyll i försäljning som är undantagen från moms och som du inte har redovisat i något annat fält. Fyll även i bidrag och andra ersättningar som hör till den ekonomiska verksamheten.  Du ska redovisa i det här fältet oavsett om du har avdragsrätt eller inte.  Exempel på sådant som ska redovisas här:
+momsfri uthyrning av fastighet
+anläggningstillgångar, till exempel bilar, när du inte har haft avdragsrätt vid köpet
+läkemedel på recept
+nya transportmedel som du har sålt till en köpare i ett annat EU-land som inte har åberopat ett giltigt momsregistreringsnummer
+flygbensin och flygfotogen
+skepp för yrkesmässig sjöfart och fiske
+vissa medlemsblad och tidskrifter
+investeringsguld när du inte är frivilligt betalningsskyldig för försäljningen
+försäkringsersättning
+vissa EU-bidrag
+näringsbidrag."
+48;Beräkning av moms;Ingående moms att dra av;"Ingående moms att dra av
+Fyll i all ingående moms som du har rätt att dra av, även den avdragsgilla delen av momsen som du har redovisat i något av fälten 30–32 och 60–62. Välj alternativet Ingående moms att dra av.
+I beloppet ingår:
+moms på varor och tjänster som du har köpt inom Sverige
+moms på varor som du har importerat
+moms på tjänster som du har köpt från länder utanför EU
+moms på varor och tjänster som du har köpt från andra EU-länder.
+Du får inte dra av moms från utlandet, med undantag för den danska momsen på broavgiften för Öresundsbron där det finns ett särskilt skatteavtal. Moms från annat land kan under vissa förutsättningar återbetalas av ett annat lands skattemyndighet. Då ska företaget skicka in en särskild ansökan om det. Du kan ha rätt att dra av momsen på inköp i Sverige även om du ska redovisa den utgående momsen i ett annat land."
+48;Beräkning av moms;Tidigare avdragen moms att betala tillbaka;Välj alternativet Tidigare avdragen moms att betala tillbaka endast om du har tidigare avdragen moms att betala tillbaka som uppgår till ett högre belopp än den ingående momsen som du har rätt att dra av. Det kan bli aktuellt till exempel när du har tagit emot kreditfakturor.
+49;Beräkning av moms;Moms att betala;"Moms att betala
+Ruta 49 summeras automatiskt utifrån rutorna 10 + 11 + 12 + 30 + 31 + 32 + 60 + 61 + 62 - 48."
+;;; 

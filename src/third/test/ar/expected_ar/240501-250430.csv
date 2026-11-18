@@ -1,0 +1,41 @@
+# Typed in from _Resources/_årsredovisningar/Årsredovisning 240501-250430.pdf, pages 4-6.
+# Kronor for year 0 (2024-05-01 - 2025-04-30) and year -1. Where the PDF is wrong
+# or maps differently, the amount is what cratchit_ar gives and Kommentar says why.
+ÅR;År 0;År -1;Kommentar
+Nettoomsättning;-4;1;
+Övriga rörelseintäkter;0;0;
+Summa rörelseintäkter, lagerförändringar m.m.;-4;1;
+Övriga externa kostnader;-28143;-13451;
+Av- och nedskrivningar av materiella och immateriella anläggningstillgångar;-20562;-20685;
+Summa rörelsekostnader;-48706;-34136;
+Rörelseresultat;-48710;-34135;
+Övriga ränteintäkter och liknande resultatposter;2010;3588;PDF år 0: 2 007, kvittat mot 8422 dröjsmålsränta 2,66
+Räntekostnader och liknande resultatposter;-3;0;PDF år 0: 0, se Övriga ränteintäkter
+Summa finansiella poster;2007;3588;
+Resultat efter finansiella poster;-46702;-30547;
+Resultat före skatt;-46702;-30547;
+Årets resultat;-46702;-30547;
+Inventarier, verktyg och installationer;65924;42734;
+Summa materiella anläggningstillgångar;65924;42734;
+Andra långfristiga fordringar;0;0;
+Summa anläggningstillgångar;65924;42734;
+Förskott till leverantörer;0;0;
+Kundfordringar;0;0;
+Övriga fordringar;2654;2046;
+Summa kortfristiga fordringar;2654;2046;
+Kassa och bank;124560;119254;PDF år 0: 124 896, med 1999 ("OBS" i kontoplanen) 336
+Redovisningsmedel;336;0;PDF år 0: tom, se Kassa och bank
+Summa kassa och bank;124896;119254;
+Summa omsättningstillgångar;127550;121300;
+Summa tillgångar;193474;164034;
+Aktiekapital;100800;100800;
+Summa bundet eget kapital;100800;100800;
+Balanserat resultat;139106;69653;
+Årets resultat;-46702;-30547;
+Summa fritt eget kapital;92404;39106;
+Summa eget kapital;193204;139906;
+Leverantörsskulder;0;-896;
+Skatteskulder;0;0;
+Övriga skulder;270;25024;
+Summa kortfristiga skulder;270;24128;
+Summa eget kapital och skulder;193474;164034;

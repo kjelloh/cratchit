@@ -23,6 +23,8 @@ CMakeCache.txt
 Makefile
 Makefile.in
 *.cmake
+# ...except cratchit third's own CMake scripts, which the build needs
+!src/third/cmake/*.cmake
 CTestTestfile.cmake
 build/
 

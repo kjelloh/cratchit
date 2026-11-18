@@ -1,0 +1,9 @@
+# Files cratchit builds into the program byte for byte must have the same bytes
+# on every platform. Git for Windows would otherwise turn LF into CRLF on
+# checkout (core.autocrlf), e.g. "# walk_pdf\r\n" for --walk-pdf --help.
+#
+# The manuals: LF everywhere (they are stored with LF).
+docs/*.md      text eol=lf
+# SKV's and BAS's tables: exactly as stored, no line ending conversion at all,
+# as some are stored with CRLF (as exported) and one has line breaks inside cells.
+resources/**   -text

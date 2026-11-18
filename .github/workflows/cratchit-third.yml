@@ -1,0 +1,114 @@
+name: cratchit third
+
+on:
+  push:
+    paths:
+      - "src/third/**"
+      - ".github/workflows/cratchit-third.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CONAN_VERSION: "2.34.0" # The Conan version on every platform, also part of the cache key
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false # Run every platform even when one fails
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            configure_preset: conan-debug
+            build_folder: build/Debug
+          - os: macos-latest
+            configure_preset: conan-debug
+            build_folder: build/Debug
+          - os: windows-latest
+            configure_preset: conan-default # Visual Studio is a multi-config generator
+            build_folder: build # one folder for all configurations, chosen with --config
+    defaults:
+      run:
+        shell: bash
+        working-directory: src/third
+    steps:
+      # This repo holds file names Windows does not allow (e.g. with '?' in issues/). Git on
+      # Windows refuses such names even when they are not checked out, so turn that
+      # check off here, and the checkout below takes only src/third/, so they are never written.
+      - name: Allow the repo's other file names in the Git index
+        if: runner.os == 'Windows'
+        working-directory: ${{ github.workspace }}
+        run: git config --system core.protectNTFS false
+
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: /src/third/ # Only cratchit third, on every platform
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # std::println needs GCC 14; the default GCC on Ubuntu 24.04 is older
+      - name: Use GCC 14
+        if: runner.os == 'Linux'
+        run: |
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+      - name: Install Conan
+        run: |
+          pip install conan==${{ env.CONAN_VERSION }}
+          conan profile detect --force
+
+      # Keeps Conan's packages (gtest built from source) between runs, so that they are
+      # not downloaded from github.com and built on every run. A new key when
+      # conanfile.py or the Conan version changes; the old cache is then the starting
+      # point and --build=missing builds only what is missing.
+      - name: Cache Conan packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ env.CONAN_VERSION }}-${{ hashFiles('src/third/conanfile.py') }}
+          restore-keys: |
+            conan-${{ runner.os }}-${{ runner.arch }}-${{ env.CONAN_VERSION }}-
+
+      - name: Install Conan packages
+        run: conan install . --build=missing -s build_type=Debug -s compiler.cppstd=23
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.configure_preset }}
+
+      - name: Build
+        run: cmake --build --preset conan-debug
+
+      - name: Test
+        run: ctest --preset conan-debug --output-on-failure
+
+      # Runs the real program on each platform, on the runner's throwaway home folder.
+      # The framework is next to the program; the runtime is created in the home folder.
+      - name: Run cratchit
+        run: |
+          test -f ./build/Debug/.cratchit/framework.txt
+          ./build/Debug/cratchit
+          ./build/Debug/cratchit
+          home="${USERPROFILE:-$HOME}"
+          test -f "$home/.cratchit/runtime.txt"
+          test ! -e "$home/.cratchit/framework.txt"
+          cat "$home/.cratchit/log.txt"
+
+      # Installs the program and its framework, then runs the installed program
+      # via PATH from another folder, so it must find its framework by itself
+      - name: Install and run installed cratchit
+        run: |
+          cmake --install ${{ matrix.build_folder }} --config Debug --prefix installed
+          test -f installed/bin/.cratchit/framework.txt
+          mkdir -p elsewhere
+          cd elsewhere
+          PATH="$PWD/../installed/bin:$PATH" cratchit
+          home="${USERPROFILE:-$HOME}"
+          grep "Framework .* från .*installed" "$home/.cratchit/log.txt"

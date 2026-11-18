@@ -1,0 +1,37 @@
+# Typed in from _Resources/_årsredovisningar/Årsredovisning 220501-230430.pdf, pages 4-6.
+# Kronor for year 0 (2022-05-01 - 2023-04-30) and year -1. Where the PDF is wrong
+# or maps differently, the amount is what cratchit_ar gives and Kommentar says why.
+ÅR;År 0;År -1;Kommentar
+Nettoomsättning;1527;335825;
+Övriga rörelseintäkter;67;0;
+Summa rörelseintäkter, lagerförändringar m.m.;1593;335825;
+Övriga externa kostnader;-15530;-22647;
+Av- och nedskrivningar av materiella och immateriella anläggningstillgångar;-70897;-28889;
+Summa rörelsekostnader;-86427;-51536;
+Rörelseresultat;-84834;284289;
+Övriga ränteintäkter och liknande resultatposter;641;0;
+Räntekostnader och liknande resultatposter;0;-124;
+Summa finansiella poster;641;-124;
+Resultat efter finansiella poster;-84193;284165;
+Resultat före skatt;-84193;284165;
+Årets resultat;-84193;284165;
+Inventarier, verktyg och installationer;52321;38836;
+Summa materiella anläggningstillgångar;52321;38836;
+Summa anläggningstillgångar;52321;38836;
+Övriga fordringar;1005;751;PDF år -1: 1 179, med 2650 (debet 428). BAS: bokslutet ska föra momsfordran till 1650
+Summa kortfristiga fordringar;1005;751;PDF år -1: 1 179, se Övriga fordringar
+Kassa och bank;253700;464664;
+Redovisningsmedel;157;161;PDF år 0: saknas (1999 har 156,75)
+Summa kassa och bank;253857;464825;PDF år 0: 253 700, utan Redovisningsmedel
+Summa omsättningstillgångar;254862;465577;PDF: 254 705 och 466 004, se ovan
+Summa tillgångar;307183;504413;PDF: 307 026 och 504 840, se ovan
+Aktiekapital;100800;100800;
+Summa bundet eget kapital;100800;100800;
+Balanserat resultat;278845;119680;
+Årets resultat;-84193;284165;
+Summa fritt eget kapital;194653;403845;
+Summa eget kapital;295453;504645;
+Leverantörsskulder;5460;195;
+Övriga skulder;6270;-428;PDF år -1: 0, se Övriga fordringar
+Summa kortfristiga skulder;11730;-233;PDF år -1: 195, se Övriga skulder
+Summa eget kapital och skulder;307183;504413;PDF: 283 723 (balanserar inte) och 504 840
