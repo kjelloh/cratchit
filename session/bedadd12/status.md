@@ -87,6 +87,14 @@ Målet står i [session.md](session.md) och besluten i [beslut.md](beslut.md).
 ## Nästa steg
 
 * Användaren provar rapporterna på en riktig bokföring.
+* Idé, diskuterad 2026-11-18 och inte påbörjad: ett register över inventarier i cratchit, i en ny session.
+  * Källan är användarens Numbers-dokument *Inventarier och Lager 260430 (The ITfied AB)*, exporterat som CSV i bokslutsmappen för 2026 (`avskrivningar/`).
+  * Metoden där: linjär avskrivning, ett helt år från och med räkenskapsåret då inventarien köptes. Årets avskrivning 2025/26 är 20 651,90 och det utgående värdet 35 472,03; de kan bli acceptanstest.
+  * Förslaget:
+    * ett register som CSV i `.cratchit`
+    * en engångsimport av kalkylarket
+    * en rapport *Inventarier*
+    * sedan ett utkast till avskrivningsverifikationen (7832 mot 1229), förslag på nya inventarier från årets rader, och Not 3
 * Möjliga tillägg, inte beslutade:
   * en period inom året (till exempel ett kvartal eller en månad)
   * jämförelse med förra året
